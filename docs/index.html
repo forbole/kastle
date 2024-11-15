@@ -1,0 +1,62 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Demo Page</title>
+  </head>
+
+  <body>
+    <h1>Demo page</h1>
+    <div>
+      <button id="connectButton">Connect</button>
+      <div>Connected: <span id="connected">false</span></div>
+    </div>
+    <div>
+      <button id="getAddressButton">Get Address</button>
+      <div>Address: <span id="address"></span></div>
+    </div>
+    <div>
+      <button id="signAndBroadcastTx">Sign and Broadcast Tx</button>
+      <div>Tx id: <span id="txId"></span></div>
+    </div>
+    <div>Error: <span id="error">None</span></div>
+  </body>
+  <script>
+    document
+      .getElementById("connectButton")
+      .addEventListener("click", async () => {
+        try {
+          const result = await kastle.connect("testnet-10");
+          document.getElementById("connected").innerText = result;
+          document.getElementById("error").innerText = "None";
+        } catch (error) {
+          document.getElementById("error").innerText = error.message;
+        }
+      });
+
+    document
+      .getElementById("getAddressButton")
+      .addEventListener("click", async () => {
+        try {
+          const address = await kastle.getAddress();
+          document.getElementById("address").innerText = address;
+          document.getElementById("error").innerText = "None";
+        } catch (error) {
+          document.getElementById("error").innerText = error.message;
+        }
+      });
+
+    document
+      .getElementById("signAndBroadcastTx")
+      .addEventListener("click", async () => {
+        try {
+          const address = document.getElementById("address").innerText;
+          const txId = await kastle.signAndBroadcastTx("testnet-10", [
+            { amount: "0.5", address },
+          ]);
+          document.getElementById("txId").innerText = txId;
+        } catch (error) {
+          document.getElementById("error").innerText = error.message;
+        }
+      });
+  </script>
+</html>

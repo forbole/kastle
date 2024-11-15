@@ -1,0 +1,9 @@
+.idea
+.output
+.wxt
+assets
+node_modules
+playwright-report
+test-results
+wasm
+CHANGELOG.md

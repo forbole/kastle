@@ -1,0 +1,143 @@
+import React from "react";
+import { useNavigate } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { twMerge } from "tailwind-merge";
+import Header from "@/components/GeneralHeader";
+import useKeyring from "@/hooks/useKeyring.ts";
+import useWalletManager from "@/hooks/useWalletManager.ts";
+import { v4 as uuid } from "uuid";
+
+interface PasswordFormData {
+  password: string;
+  confirmPassword: string;
+}
+
+export default function SetupPassword() {
+  const { keyringInitialize } = useKeyring();
+  const { createNewWallet } = useWalletManager();
+  const navigate = useNavigate();
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const {
+    register,
+    handleSubmit,
+    watch,
+    formState: { isValid, errors },
+  } = useForm<PasswordFormData>({
+    mode: "onChange",
+  });
+
+  const { password, confirmPassword } = watch();
+  const passwordMatch = password === confirmPassword;
+  const isDisabled = !password || !passwordMatch || !isValid;
+
+  const onSubmit = handleSubmit(async (data) => {
+    await keyringInitialize(data.password);
+    await createNewWallet(uuid());
+
+    navigate("/success");
+  });
+
+  return (
+    <div id="setup-password-screen" className="flex h-full w-full flex-col p-4">
+      <Header title="Create a password" />
+
+      <form
+        onSubmit={onSubmit}
+        className="flex w-full flex-1 flex-col justify-between pt-9"
+      >
+        <div className="space-y-4">
+          <div className="space-y-2 text-lg">
+            <label className="text-white">Enter new password</label>
+            <div className="relative">
+              <input
+                tabIndex={0}
+                id="hs-strong-password-input"
+                {...register("password", { maxLength: 64 })}
+                type={showPassword ? "text" : "password"}
+                className="w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-white placeholder-gray-400 focus:border-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                placeholder="New password"
+              />
+              <button
+                tabIndex={-1}
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-4 top-1/2 -translate-y-1/2"
+              >
+                <i
+                  className={twMerge(
+                    "hn text-xl text-neutral-400",
+                    showPassword ? "hn-eye-cross" : "hn-eye",
+                  )}
+                />
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-2 text-lg">
+            <label className="text-white">Re-enter new password</label>
+            <div className="relative">
+              <input
+                tabIndex={0}
+                {...register("confirmPassword", { maxLength: 64 })}
+                type={showConfirmPassword ? "text" : "password"}
+                className={twMerge(
+                  "w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-white placeholder-gray-400 focus:outline-none",
+                  passwordMatch
+                    ? "focus:border-gray-600 focus:ring-2 focus:ring-gray-500"
+                    : "border-red-700 focus:border-red-600 focus:ring-red-800",
+                )}
+                placeholder="Confirm password"
+              />
+              <button
+                tabIndex={-1}
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-4 top-1/2 -translate-y-1/2"
+              >
+                <i
+                  className={twMerge(
+                    "hn text-xl text-neutral-400",
+                    showConfirmPassword ? "hn-eye-cross" : "hn-eye",
+                  )}
+                />
+              </button>
+            </div>
+            <div className="flex min-h-5 flex-col gap-1 text-sm text-red-500">
+              <span>
+                {(errors.password || errors.confirmPassword) &&
+                  "Password too long"}
+              </span>
+              <span>{!passwordMatch && "Passwords do not match"}</span>
+            </div>
+          </div>
+
+          <div
+            data-hs-strong-password={JSON.stringify({
+              target: "#hs-strong-password-input",
+              stripClasses:
+                "hs-strong-password:bg-[#14B8A6] hs-strong-password-accepted:bg-teal-500 h-2 flex-auto rounded-full bg-gray-700 opacity-100 mx-1",
+              minLength: 8,
+            })}
+            id="hs-strong-password-input"
+            className="-mx-1 mt-2 flex"
+          />
+        </div>
+
+        <button
+          type="submit"
+          className={twMerge(
+            "w-full rounded-full py-4 text-base font-semibold",
+            isDisabled
+              ? "bg-gray-800 text-gray-600"
+              : "bg-icy-blue-400 text-white",
+          )}
+          disabled={isDisabled}
+        >
+          Next
+        </button>
+      </form>
+    </div>
+  );
+}
