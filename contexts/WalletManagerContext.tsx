@@ -625,10 +625,9 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
       );
     }
 
-    const addressesToWatch =
-      account.publicKeys.map((publicKey) =>
-        new PublicKey(publicKey).toAddress(networkId).toString(),
-      ) ?? [account.address];
+    const addressesToWatch = account.publicKeys.map((publicKey) =>
+      new PublicKey(publicKey).toAddress(networkId).toString(),
+    ) ?? [account.address];
 
     // skip if the addresses are the same
     if (addressesToWatch.join() === addresses.join()) {
