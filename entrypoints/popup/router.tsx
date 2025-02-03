@@ -43,6 +43,8 @@ import { WalletManagerProvider } from "@/contexts/WalletManagerContext.tsx";
 import RootLayout from "@/components/layouts/RootLayout.tsx";
 import WalletUnlock from "@/components/screens/WalletUnlock.tsx";
 import PreviewMode from "@/components/screens/PreviewMode.tsx";
+import DeployToken from "@/components/screens/DeployToken.tsx";
+import TokenOperation from "@/components/screens/TokenOperation.tsx";
 
 const loadKaspaWasm = async () => {
   await init(kaspaModule);
@@ -129,6 +131,7 @@ export const router = createHashRouter([
                 loader: keyringGuard,
                 children: [
                   { path: "send", element: <Send /> },
+                  { path: "token-operation", element: <TokenOperation /> },
                   { path: "receive", element: <Receive /> },
                   { path: "settings", element: <Settings /> },
                   {
@@ -228,6 +231,14 @@ export const router = createHashRouter([
               {
                 path: "connect-ledger",
                 element: <LedgerConnect />,
+              },
+              {
+                path: "deploy-token",
+                element: <DeployToken />,
+              },
+              {
+                path: "mint-token",
+                element: <DeployToken />,
               },
             ],
             loader: fullPageKeyringGuard,

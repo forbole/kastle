@@ -1,13 +1,13 @@
 import { createContext, ReactNode, useEffect, useState } from "react";
 import Promise from "lie";
 
+export const SETTINGS_KEY = "local:settings";
+
 export enum NetworkType {
   Mainnet = "mainnet",
   TestnetT10 = "testnet-10",
   TestnetT11 = "testnet-11",
 }
-
-export const SETTINGS_KEY = "local:settings";
 
 type SettingsContextType = {
   settings?: Settings;
@@ -20,6 +20,7 @@ type SettingsContextType = {
 export type Settings = {
   networkId: NetworkType;
   rpcUrls: { [networkId: string]: string | undefined };
+  kasplexApiUrls: { [networkId: string]: string | undefined };
   lockTimeout: number;
   walletConnections: WalletConnections | undefined; // WalletId -> Account Index -> NetworkId -> WalletConnection[]
   hideBalances: boolean;
@@ -50,6 +51,11 @@ const initialSettings = {
     [NetworkType.Mainnet]: "wss://ws.kaspa.forbole.com/borsh",
     [NetworkType.TestnetT10]: "wss://ws.tn10.kaspa.forbole.com/borsh",
     [NetworkType.TestnetT11]: "wss://ws.tn11.kaspa.forbole.com/borsh",
+  },
+  kasplexApiUrls: {
+    [NetworkType.Mainnet]: "https://api.kasplex.org/v1",
+    [NetworkType.TestnetT10]: "https://tn10api.kasplex.org/v1",
+    [NetworkType.TestnetT11]: "https://tn11api.kasplex.org/v1",
   },
   lockTimeout: 5, // Save 5 minutes as default value
   walletConnections: undefined,
