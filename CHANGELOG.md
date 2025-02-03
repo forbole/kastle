@@ -1,5 +1,22 @@
 # Changelog
 
+## 2.0.0 (2025-02-03)
+
+
+### Features
+
+* initial commit ([49d8887](https://github.com/forbole/kastle/commit/49d8887d497fb8c242f2d43749e6bbef00edfc11))
+
+
+### Bug Fixes
+
+* workflows branch ([#2](https://github.com/forbole/kastle/issues/2)) ([16674a4](https://github.com/forbole/kastle/commit/16674a4239f2c42b0fa67320d073e1a4f83eab3b))
+
+
+### Miscellaneous Chores
+
+* release 2.0.0 ([dac804b](https://github.com/forbole/kastle/commit/dac804be8ec5eca04392584d1bc8e8a88b5a0d4f))
+
 ## [1.3.5](https://github.com/forbole/kastle/compare/v1.3.4...v1.3.5) (2025-01-21)
 
 ### Bug Fixes
