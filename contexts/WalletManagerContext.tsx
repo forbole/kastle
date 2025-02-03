@@ -14,7 +14,7 @@ export type Account = {
   name: string;
   balance: string | undefined;
   address: string;
-  publicKeys: string[];
+  publicKeys?: string[];
 };
 
 export type WalletInfo = {
@@ -255,7 +255,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (account.publicKeys.length > 0) {
+    if (account.publicKeys?.length) {
       return;
     }
 
@@ -266,7 +266,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
 
     switch (wallet?.type) {
       case "mnemonic":
-        if (account.publicKeys.length === 0) {
+        if (!account.publicKeys) {
           const hotWallet = accountFactory.createFromMnemonic(
             walletSecret.value,
             account.index,
@@ -275,7 +275,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
         }
         break;
       case "privateKey":
-        if (account.publicKeys.length === 0) {
+        if (!account.publicKeys) {
           const hotWallet = accountFactory.createFromPrivateKey(
             walletSecret.value,
           );
@@ -583,6 +583,11 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
           // TODO: Remove this after the next release
           await generatePublicKeysForOldVersion(wallet, account.index);
 
+          // hotfix for missing public keys
+          if (!account.publicKeys) {
+            continue;
+          }
+
           account.address = new PublicKey(account.publicKeys[0])
             .toAddress(networkId)
             .toString();
@@ -619,15 +624,17 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
     }
 
     // hotfix for missing public keys
-    if (account.publicKeys.length === 0) {
+    if (!account.publicKeys) {
       toast.error(
         "Account public keys are missing. Please change network in settings to fix it.",
       );
     }
 
-    const addressesToWatch = account.publicKeys.map((publicKey) =>
-      new PublicKey(publicKey).toAddress(networkId).toString(),
-    ) ?? [account.address];
+    const addressesToWatch = !account.publicKeys
+      ? [account.address]
+      : account.publicKeys.map((publicKey) =>
+          new PublicKey(publicKey).toAddress(networkId).toString(),
+        );
 
     // skip if the addresses are the same
     if (addressesToWatch.join() === addresses.join()) {
