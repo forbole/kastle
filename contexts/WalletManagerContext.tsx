@@ -5,6 +5,7 @@ import { AccountFactory } from "@/lib/wallet/wallet-factory.ts";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful.ts";
 import useStorageState from "@/hooks/useStorageState.ts";
 import { PublicKey, sompiToKaspaString } from "@/wasm/core/kaspa";
+import toast from "@/components/Toast";
 
 export const WALLET_SETTINGS = "local:wallet-settings";
 
@@ -617,10 +618,16 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const addressesToWatch =
-      account.publicKeys.map((publicKey) =>
-        new PublicKey(publicKey).toAddress(networkId).toString(),
-      ) ?? [];
+    // hotfix for missing public keys
+    if (account.publicKeys.length === 0) {
+      toast.error(
+        "Account public keys are missing. Please change network in settings to fix it.",
+      );
+    }
+
+    const addressesToWatch = account.publicKeys.map((publicKey) =>
+      new PublicKey(publicKey).toAddress(networkId).toString(),
+    ) ?? [account.address];
 
     // skip if the addresses are the same
     if (addressesToWatch.join() === addresses.join()) {
