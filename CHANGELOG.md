@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.1](https://github.com/forbole/kastle/compare/v2.0.0...v2.0.1) (2025-02-03)
+
+
+### Bug Fixes
+
+* hotfix public keys handling in wallet manager ([#7](https://github.com/forbole/kastle/issues/7)) ([b387090](https://github.com/forbole/kastle/commit/b38709002ad953dc8f3c215bbbf05ed1f086969b))
+
 ## 2.0.0 (2025-02-03)
 
 
