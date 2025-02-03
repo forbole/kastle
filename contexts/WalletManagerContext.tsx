@@ -584,7 +584,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
           await generatePublicKeysForOldVersion(wallet, account.index);
 
           // hotfix for missing public keys
-          if (!account.publicKeys) {
+          if (!account.publicKeys?.length) {
             continue;
           }
 
@@ -624,13 +624,14 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
     }
 
     // hotfix for missing public keys
-    if (!account.publicKeys) {
+    const missingPublicKeys = !account.publicKeys?.length;
+    if (missingPublicKeys) {
       toast.error(
         "Account public keys are missing. Please change network in settings to fix it.",
       );
     }
 
-    const addressesToWatch = !account.publicKeys
+    const addressesToWatch = !account.publicKeys?.length
       ? [account.address]
       : account.publicKeys.map((publicKey) =>
           new PublicKey(publicKey).toAddress(networkId).toString(),

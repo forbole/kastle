@@ -25,9 +25,9 @@ export default function useTransactionEstimate({
       }
 
       const utxos = await getUtxos(
-        account.publicKeys.map((pk) =>
+        account.publicKeys?.map((pk) =>
           new PublicKey(pk).toAddress(networkId).toString(),
-        ),
+        ) ?? [account.address],
       );
 
       try {
