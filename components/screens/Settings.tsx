@@ -152,6 +152,13 @@ export default function Settings() {
             navigate("/connected-apps");
           }}
         />
+
+        {/* Preview mode */}
+        <SettingItem
+          title="Preview mode"
+          showChevron
+          onClick={() => navigate("/preview-mode")}
+        />
       </div>
       <div className="mt-auto flex flex-col items-center gap-6">
         <div className="flex gap-3">

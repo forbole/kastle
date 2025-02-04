@@ -42,6 +42,7 @@ import { SettingsProvider } from "@/contexts/SettingsContext.tsx";
 import { WalletManagerProvider } from "@/contexts/WalletManagerContext.tsx";
 import RootLayout from "@/components/layouts/RootLayout.tsx";
 import WalletUnlock from "@/components/screens/WalletUnlock.tsx";
+import PreviewMode from "@/components/screens/PreviewMode.tsx";
 
 const loadKaspaWasm = async () => {
   await init(kaspaModule);
@@ -133,6 +134,10 @@ export const router = createHashRouter([
                   {
                     path: "connected-apps",
                     element: <ConnectedApps />,
+                  },
+                  {
+                    path: "preview-mode",
+                    element: <PreviewMode />,
                   },
                   { path: "dashboard", element: <Dashboard /> },
                   { path: "connect", element: <ConnectConfirm /> },
