@@ -6,7 +6,7 @@ import {
   ConnectPayload,
   TransactionPayload,
 } from "@/api/message";
-import { PaymentOutput } from "@/lib/wallet/interface";
+import { PaymentOutput, TransactionOptions } from "@/lib/wallet/interface";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 
 export class KastleBrowserAPI {
@@ -36,9 +36,9 @@ export class KastleBrowserAPI {
     return await this.receiveMessage(requestId);
   }
 
-  async getAddress(): Promise<string> {
+  async getAccount(): Promise<{ address: string; publicKey: string }> {
     const requestId = uuid();
-    const request = new ApiRequest(Action.GET_ADDRESS, requestId);
+    const request = new ApiRequest(Action.GET_ACCOUNT, requestId);
     window.postMessage(request, "*");
 
     return await this.receiveMessage(requestId);
@@ -47,14 +47,13 @@ export class KastleBrowserAPI {
   async signAndBroadcastTx(
     networkId: "mainnet" | "testnet-10" | "testnet-11",
     outputs: PaymentOutput[],
-    payload?: Uint8Array,
-    priorityFee?: string,
+    options?: TransactionOptions,
   ): Promise<string> {
     const requestId = uuid();
     const request = new ApiRequest(
       Action.SIGN_AND_BROADCAST_TX,
       requestId,
-      new TransactionPayload(networkId, outputs, payload, priorityFee),
+      new TransactionPayload(networkId, outputs, options),
     );
     window.postMessage(request, "*");
 
