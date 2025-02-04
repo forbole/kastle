@@ -2,9 +2,9 @@ import { ApiResponse, TransactionPayload } from "@/api/message";
 import { ApiExtensionUtils } from "@/api/extension";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import { IWallet } from "@/lib/wallet/interface";
-import { kaspaToSompi } from "@/wasm/core/kaspa";
 import { useBoolean } from "usehooks-ts";
-import useWalletManager from "@/hooks/useWalletManager.ts";
+import useWalletManager from "@/hooks/useWalletManager";
+import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 
 type SignAndBroadcastProps = {
   wallet: IWallet;
@@ -20,31 +20,29 @@ export default function SignAndBroadcast({
   transaction,
 }: SignAndBroadcastProps) {
   const { value: isLoading, toggle: toggleLoading } = useBoolean(false);
+  const { rpcClient } = useRpcClientStateful();
   const { account } = useWalletManager();
+
   const transactionEstimate = useTransactionEstimate({
     account,
     outputs: transaction.outputs,
   });
 
-  const handleCancel = async () => {
-    await ApiExtensionUtils.sendMessage(
-      requestId,
-      new ApiResponse(requestId, null, "User cancelled"),
-    );
-    window.close();
-  };
-
   const handleConfirm = async () => {
+    if (!rpcClient || !wallet || !account) {
+      return;
+    }
+
     try {
       toggleLoading();
-      const response = await wallet.signAndBroadcastTx(
+      const txId = await wallet.signAndBroadcastTx(
         transaction.outputs,
-        kaspaToSompi(transaction.priorityFee ?? "0"),
-        transaction.payload,
+        transaction.options,
       );
+      toggleLoading();
       await ApiExtensionUtils.sendMessage(
         requestId,
-        new ApiResponse(requestId, response),
+        new ApiResponse(requestId, txId),
       );
     } catch (err) {
       await ApiExtensionUtils.sendMessage(
@@ -57,52 +55,101 @@ export default function SignAndBroadcast({
         ),
       );
     } finally {
-      toggleLoading();
       window.close();
     }
   };
 
+  const handleCancel = async () => {
+    await ApiExtensionUtils.sendMessage(
+      requestId,
+      new ApiResponse(requestId, null, "User cancelled"),
+    );
+    window.close();
+  };
+
   return (
-    <>
-      {isLoading && <div>Loading...</div>}
-      {!isLoading && (
-        <div className="p2 text-white">
-          <h1>SignAndBroadcastTxConfirm</h1>
-          {transaction.networkId !== networkId && (
-            <>
-              <span>
-                Network Id does not match, please switch network to{" "}
-                {transaction.networkId}
-              </span>
-              <button
-                className="rounded bg-red-500 px-4 py-2"
-                onClick={handleCancel}
-              >
-                Cancel
-              </button>
-            </>
-          )}
-          {transaction.networkId === networkId && (
-            <>
-              <span>{transaction.networkId}</span>
-              <div className="border">
-                Outputs:
-                <div>
-                  {transaction.outputs.map((output, index) => (
-                    <div key={index}>
-                      <div>Receiver: {output.address}</div>
-                      <div>Amount: {output.amount}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+    <div className="p2 text-white">
+      <h1>SignAndBroadcastTxConfirm</h1>
+      {transaction.networkId !== networkId && (
+        <>
+          <span>
+            Network Id does not match, please switch network to{" "}
+            {transaction.networkId}
+          </span>
+          <button
+            className="rounded bg-red-500 px-4 py-2"
+            onClick={handleCancel}
+          >
+            Cancel
+          </button>
+        </>
+      )}
+      {transaction.networkId === networkId && (
+        <>
+          <span>{transaction.networkId}</span>
+          {/* Entries */}
+          {transaction.options?.entries && (
+            <div className="border">
+              Inputs:
               <div>
-                Payload:{" "}
-                {transaction.payload
-                  ? Buffer.from(transaction.payload).toString("hex")
-                  : ""}
+                {transaction.options?.entries.map((input, index) => (
+                  <div key={index}>
+                    <div>Sender: {input.address}</div>
+                    <div>Amount: {input.amount}</div>
+                    <div>Script: {input.scriptPublicKey.script}</div>
+                  </div>
+                ))}
               </div>
-              <div>Fees: {transactionEstimate?.totalFees}</div>
+            </div>
+          )}
+
+          {/* Priority Entries */}
+          {transaction.options?.priorityEntries && (
+            <div className="border">
+              Priority Inputs:
+              <div>
+                {transaction.options?.priorityEntries.map((input, index) => (
+                  <div key={index}>
+                    <div>Sender: {input.address}</div>
+                    <div>Amount: {input.amount}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Outputs */}
+          <div className="border">
+            Outputs:
+            <div>
+              {transaction.outputs.map((output, index) => (
+                <div key={index}>
+                  <div>Receiver: {output.address}</div>
+                  <div>Amount: {output.amount}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Script */}
+          <div>
+            Script:
+            {transaction.options?.scriptHex
+              ? Buffer.from(transaction.options.scriptHex, "hex").toString()
+              : ""}
+          </div>
+
+          {/* Payload */}
+          <div>
+            Payload:
+            {transaction.options?.payload
+              ? Buffer.from(transaction.options.payload).toString("hex")
+              : ""}
+          </div>
+          <div>Fees: {transactionEstimate?.totalFees}</div>
+          {isLoading && <div>Loading...</div>}
+          {!isLoading && (
+            <>
               <button
                 className="rounded bg-red-500 px-4 py-2"
                 onClick={handleCancel}
@@ -117,8 +164,8 @@ export default function SignAndBroadcast({
               </button>
             </>
           )}
-        </div>
+        </>
       )}
-    </>
+    </div>
   );
 }
