@@ -42,6 +42,7 @@ import { SettingsProvider } from "@/contexts/SettingsContext.tsx";
 import { WalletManagerProvider } from "@/contexts/WalletManagerContext.tsx";
 import RootLayout from "@/components/layouts/RootLayout.tsx";
 import WalletUnlock from "@/components/screens/WalletUnlock.tsx";
+import KasAsset from "@/components/screens/KasAsset.tsx";
 
 const loadKaspaWasm = async () => {
   await init(kaspaModule);
@@ -156,6 +157,10 @@ export const router = createHashRouter([
                   {
                     path: "connect-ledger-extension",
                     element: <LedgerConnect />,
+                  },
+                  {
+                    path: "kas-asset",
+                    element: <KasAsset />,
                   },
                 ],
               },

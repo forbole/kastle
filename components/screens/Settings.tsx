@@ -11,16 +11,16 @@ import github from "@/assets/images/github.svg";
 
 import packageJson from "../../package.json";
 
-export const explorerTxLinks = {
-  [NetworkType.Mainnet]: "https://explorer.kaspa.org/txs/",
-  [NetworkType.TestnetT10]: "https://explorer-tn10.kaspa.org/txs/",
-  [NetworkType.TestnetT11]: "https://explorer-tn11.kaspa.org/txs/",
+export const explorerApiBaseUrl = {
+  [NetworkType.Mainnet]: "https://api.kaspa.org",
+  [NetworkType.TestnetT10]: "https://api-tn10.kaspa.org",
+  [NetworkType.TestnetT11]: "https://api-tn11.kaspa.org",
 };
 
-export const explorerAddressLinks = {
-  [NetworkType.Mainnet]: "https://explorer.kaspa.org/addresses/",
-  [NetworkType.TestnetT10]: "https://explorer-tn10.kaspa.org/addresses/",
-  [NetworkType.TestnetT11]: "https://explorer-tn11.kaspa.org/addresses/",
+export const explorerBaseUrl = {
+  [NetworkType.Mainnet]: "https://explorer.kaspa.org",
+  [NetworkType.TestnetT10]: "https://explorer-tn10.kaspa.org",
+  [NetworkType.TestnetT11]: "https://explorer-tn11.kaspa.org",
 };
 
 export default function Settings() {

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { SideMenu } from "@/components/side-menu/SideMenu.tsx";
-import { explorerAddressLinks } from "@/components/screens/Settings.tsx";
+import { explorerBaseUrl } from "@/components/screens/Settings.tsx";
 import kasIcon from "@/assets/images/kas-icon.svg";
 import { formatToken, formatTokenPrice, formatUSD } from "@/lib/utils.ts";
 import ClipboardCopy from "@/components/ClipboardCopy";
@@ -9,12 +9,13 @@ import { twMerge } from "tailwind-merge";
 import useBackupWarning from "@/hooks/useBackupWarning.ts";
 import useKeyring from "@/hooks/useKeyring.ts";
 import useWalletManager from "@/hooks/useWalletManager.ts";
+import { NetworkType } from "@/contexts/SettingsContext.tsx";
 
 export default function Dashboard() {
   const { keyringLock } = useKeyring();
   const navigate = useNavigate();
   const [settings, setSettings] = useSettings();
-  const kapsaPrice = useKaspaPrice();
+  const kaspaPrice = useKaspaPrice();
   const { showWarning } = useBackupWarning();
   const { account, wallet } = useWalletManager();
   const [dismissWarning, setDismissWarning] = useState(false);
@@ -30,12 +31,12 @@ export default function Dashboard() {
       hideBalances: !prevSettings.hideBalances,
     }));
 
-  const network = settings?.networkId ?? "mainnet";
-  const explorerAddressLink = explorerAddressLinks[network];
+  const network = settings?.networkId ?? NetworkType.Mainnet;
+  const explorerAddressLink = explorerBaseUrl[network];
   const isMainnet = network === "mainnet";
 
   const totalBalance = balance
-    ? formatUSD(parseFloat(balance) * kapsaPrice.kaspaPrice)
+    ? formatUSD(parseFloat(balance) * kaspaPrice.kaspaPrice)
     : undefined;
 
   const isAssetListLoading = balance === null;
@@ -171,7 +172,7 @@ export default function Dashboard() {
 
           <a
             className="flex cursor-pointer flex-col items-center gap-2"
-            href={`${explorerAddressLink}${address}`}
+            href={`${explorerAddressLink}/addresses/${address}`}
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -217,7 +218,10 @@ export default function Dashboard() {
               <div className="h-[44px] flex-grow self-center rounded-xl bg-daintree-700" />
             </div>
           ) : (
-            <div className="flex flex-col items-stretch gap-2">
+            <div
+              className="flex cursor-pointer flex-col items-stretch gap-2"
+              onClick={() => navigate("/kas-asset")}
+            >
               <div className="flex items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3">
                 <img alt="castle" className="h-[40px] w-[40px]" src={kasIcon} />
                 <div className="flex flex-grow flex-col gap-1">
@@ -230,12 +234,12 @@ export default function Dashboard() {
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-sm text-daintree-400">
-                    <span>{formatTokenPrice(kapsaPrice.kaspaPrice)}</span>
+                    <span>{formatTokenPrice(kaspaPrice.kaspaPrice)}</span>
                     <span>
                       ≈{" "}
                       {showBalance
                         ? formatUSD(
-                            parseFloat(balance ?? "0") * kapsaPrice.kaspaPrice,
+                            parseFloat(balance ?? "0") * kaspaPrice.kaspaPrice,
                           )
                         : "$*****"}{" "}
                       USD

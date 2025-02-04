@@ -1,9 +1,10 @@
-import { explorerTxLinks } from "@/components/screens/Settings.tsx";
+import { explorerBaseUrl } from "@/components/screens/Settings.tsx";
 import { useSettings } from "@/hooks/useSettings.ts";
 import { useNavigate } from "react-router-dom";
 import React from "react";
 import warningImage from "@/assets/images/warning.png";
 import Header from "@/components/GeneralHeader";
+import { NetworkType } from "@/contexts/SettingsContext.tsx"; // Types for props
 
 // Types for props
 interface FailProps {
@@ -14,8 +15,8 @@ export const FailStatus = ({ transactionIds }: FailProps) => {
   const navigate = useNavigate();
   const [settings] = useSettings();
 
-  const networkId = settings?.networkId ?? "mainnet";
-  const explorerTxLink = explorerTxLinks[networkId];
+  const networkId = settings?.networkId ?? NetworkType.Mainnet;
+  const explorerTxLink = explorerBaseUrl[networkId];
 
   const onClose = () => {
     navigate("/dashboard");
@@ -41,7 +42,7 @@ export const FailStatus = ({ transactionIds }: FailProps) => {
           {transactionIds?.map((txHash) => (
             <a
               key={txHash}
-              href={`${explorerTxLink}${txHash}`}
+              href={`${explorerTxLink}/txs/${txHash}`}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2"

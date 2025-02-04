@@ -1,9 +1,10 @@
-import { explorerTxLinks } from "@/components/screens/Settings.tsx";
+import { explorerBaseUrl } from "@/components/screens/Settings.tsx";
 import { useSettings } from "@/hooks/useSettings.ts";
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import successImage from "@/assets/images/success.png";
 import Header from "@/components/GeneralHeader";
+import { NetworkType } from "@/contexts/SettingsContext.tsx";
 
 interface SuccessProps {
   transactionIds?: string[] | undefined;
@@ -13,8 +14,8 @@ export const SuccessStatus = ({ transactionIds }: SuccessProps) => {
   const navigate = useNavigate();
   const [settings] = useSettings();
 
-  const networkId = settings?.networkId ?? "mainnet";
-  const explorerTxLink = explorerTxLinks[networkId];
+  const networkId = settings?.networkId ?? NetworkType.Mainnet;
+  const explorerTxLink = explorerBaseUrl[networkId];
 
   const onClose = () => {
     navigate("/dashboard");
@@ -37,7 +38,7 @@ export const SuccessStatus = ({ transactionIds }: SuccessProps) => {
           {transactionIds?.map((txHash) => (
             <a
               key={txHash}
-              href={`${explorerTxLink}${txHash}`}
+              href={`${explorerTxLink}/txs/${txHash}`}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2"
