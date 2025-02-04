@@ -49,7 +49,7 @@ export default function ManageAccounts({ listAccounts }: ManageAccountsProps) {
     Record<string, { publicKeys: string[]; active: boolean }>
   >((acc, account) => {
     acc[account.index] = {
-      publicKeys: account.publicKeys,
+      publicKeys: account.publicKeys ?? [],
       active: true,
     };
     return acc;
