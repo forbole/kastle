@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.3](https://github.com/forbole/kastle/compare/v2.0.2...v2.0.3) (2025-02-04)
+
+
+### Bug Fixes
+
+* handle missing public keys ([#16](https://github.com/forbole/kastle/issues/16)) ([0a9db87](https://github.com/forbole/kastle/commit/0a9db87e993d083cc6d21b7261300b552262ec80))
+
 ## [2.0.2](https://github.com/forbole/kastle/compare/v2.0.1...v2.0.2) (2025-02-04)
 
 
