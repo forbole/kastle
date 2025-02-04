@@ -1,4 +1,6 @@
-# Kastle
+# Kastle 🏰 
+
+![Kastle cover image](/cover-image.png)
 
 **Secure. Fast. Effortless.** Kastle is the **simplest** way to store, send, and manage your $KAS. Built for **speed** and **self-custody**, it’s the wallet that puts you in control—without the headaches.  
 
