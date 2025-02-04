@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.0.2](https://github.com/forbole/kastle/compare/v2.0.1...v2.0.2) (2025-02-04)
+
+
+### Bug Fixes
+
+* **api:** fix getCurrentAccount logic ([#9](https://github.com/forbole/kastle/issues/9)) ([55783b3](https://github.com/forbole/kastle/commit/55783b3161d4620fa766a253e44fcc07ad5701e2))
+* hotfix missing public keys handling ([#10](https://github.com/forbole/kastle/issues/10)) ([7f8a065](https://github.com/forbole/kastle/commit/7f8a0656a16d3cca05df673d830dd711be559608))
+
 ## [2.0.1](https://github.com/forbole/kastle/compare/v2.0.0...v2.0.1) (2025-02-03)
 
 
