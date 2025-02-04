@@ -5,7 +5,6 @@ import { AccountFactory } from "@/lib/wallet/wallet-factory.ts";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful.ts";
 import useStorageState from "@/hooks/useStorageState.ts";
 import { PublicKey, sompiToKaspaString } from "@/wasm/core/kaspa";
-import toast from "@/components/Toast";
 
 export const WALLET_SETTINGS = "local:wallet-settings";
 
@@ -567,36 +566,36 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
     await keyring.keyringReset();
   };
 
+  const refreshAccounts = async () => {
+    if (!networkId) {
+      throw new Error("RPC client and settings not loaded");
+    }
+
+    for (const wallet of walletSettings.wallets) {
+      for (const account of wallet.accounts) {
+        // TODO: Remove this after the next release
+        await generatePublicKeysForOldVersion(wallet, account.index);
+
+        // hotfix for missing public keys
+        if (!account.publicKeys?.length) {
+          continue;
+        }
+
+        account.address = new PublicKey(account.publicKeys[0])
+          .toAddress(networkId)
+          .toString();
+        account.balance = undefined;
+      }
+    }
+
+    await saveWalletSettings(walletSettings);
+  };
+
   // Refresh accounts after settings changed
   useEffect(() => {
     if (!rpcClient) {
       return;
     }
-
-    const refreshAccounts = async () => {
-      if (!networkId) {
-        throw new Error("RPC client and settings not loaded");
-      }
-
-      for (const wallet of walletSettings.wallets) {
-        for (const account of wallet.accounts) {
-          // TODO: Remove this after the next release
-          await generatePublicKeysForOldVersion(wallet, account.index);
-
-          // hotfix for missing public keys
-          if (!account.publicKeys?.length) {
-            continue;
-          }
-
-          account.address = new PublicKey(account.publicKeys[0])
-            .toAddress(networkId)
-            .toString();
-          account.balance = undefined;
-        }
-      }
-
-      await saveWalletSettings(walletSettings);
-    };
 
     refreshAccounts();
   }, [networkId]);
@@ -626,9 +625,8 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
     // hotfix for missing public keys
     const missingPublicKeys = !account.publicKeys?.length;
     if (missingPublicKeys) {
-      toast.error(
-        "Account public keys are missing. Please change network in settings to fix it.",
-      );
+      refreshAccounts();
+      return;
     }
 
     const addressesToWatch = !account.publicKeys?.length
