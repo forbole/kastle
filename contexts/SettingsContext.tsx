@@ -23,6 +23,7 @@ export type Settings = {
   lockTimeout: number;
   walletConnections: WalletConnections | undefined; // WalletId -> Account Index -> NetworkId -> WalletConnection[]
   hideBalances: boolean;
+  preview: boolean;
 };
 
 type WalletConnections = {
@@ -53,6 +54,7 @@ const initialSettings = {
   lockTimeout: 5, // Save 5 minutes as default value
   walletConnections: undefined,
   hideBalances: true,
+  preview: false,
 } satisfies Settings;
 
 export const SettingsContext = createContext<SettingsContextType>({
