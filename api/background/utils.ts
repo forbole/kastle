@@ -27,7 +27,12 @@ export class ApiUtils {
       (wallet) => wallet.id === walletSettings.selectedWalletId,
     );
     if (!selectedWallet) return null;
-    return selectedWallet.accounts[walletSettings.selectedAccountIndex];
+    const selectedAccount = selectedWallet.accounts.find((account) => {
+      return account.index === walletSettings.selectedAccountIndex;
+    });
+
+    if (!selectedAccount) return null;
+    return selectedAccount;
   }
 
   static async isInitialized(): Promise<boolean> {
