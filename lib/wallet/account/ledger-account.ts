@@ -1,4 +1,8 @@
-import { IWallet, PaymentOutput } from "@/lib/wallet/interface.ts";
+import {
+  IWallet,
+  PaymentOutput,
+  TransactionOptions,
+} from "@/lib/wallet/interface.ts";
 import {
   Address,
   Generator,
@@ -135,10 +139,9 @@ export class LedgerAccount implements IWallet {
 
   public async signAndBroadcastTx(
     outputs: PaymentOutput[],
-    priorityFee?: bigint,
-    payload?: Uint8Array,
+    options?: TransactionOptions,
   ): Promise<string> {
-    return "";
+    throw new Error("Method not implemented.");
   }
 
   private async getUtxos(): Promise<IUtxoEntry[]> {

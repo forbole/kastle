@@ -2,13 +2,21 @@ import {
   Address,
   Generator,
   kaspaToSompi,
+  PendingTransaction,
+  PrivateKey,
   PublicKey,
   RpcClient,
+  ScriptBuilder,
   UtxoEntryReference,
   XPrv,
 } from "@/wasm/core/kaspa";
 
-import { IWallet, PaymentOutput } from "@/lib/wallet/interface.ts";
+import {
+  IWallet,
+  PaymentOutput,
+  TransactionOptions,
+  toKaspaEntry,
+} from "@/lib/wallet/interface.ts";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 
 export class HotWalletAccount implements IWallet {
@@ -93,38 +101,64 @@ export class HotWalletAccount implements IWallet {
     return privateKey.toKeypair().toAddress(this.networkId).toString();
   }
 
+  // NOTE: This method does not support signing with multiple keys
   async signAndBroadcastTx(
     outputs: PaymentOutput[],
-    priorityFee?: bigint,
-    payload?: Uint8Array,
+    options?: TransactionOptions,
   ): Promise<string> {
-    const amountSum = outputs.reduce(
-      (acc, curr) => acc + (kaspaToSompi(curr.amount) ?? 0n),
-      0n,
-    );
-
-    const [entries, indexes] = await this.getUtxos(amountSum);
+    const { entries } = await this.rpcClient.getUtxosByAddresses([
+      this.getAddress(),
+    ]);
 
     const txGenerator = new Generator({
-      entries,
+      priorityEntries: options?.priorityEntries?.map((entry) => {
+        return toKaspaEntry(entry);
+      }),
+      entries:
+        options?.entries?.map((entry) => {
+          return toKaspaEntry(entry);
+        }) ?? entries,
       outputs: outputs.map((output) => {
         return {
           address: output.address,
           amount: kaspaToSompi(output.amount) ?? 0n,
         };
       }),
-      priorityFee: priorityFee ?? 0n,
+      priorityFee: options?.priorityFee
+        ? kaspaToSompi(options.priorityFee)
+        : 0n,
       changeAddress: this.getAddress(),
-      payload,
+      payload: options?.payload,
       networkId: this.networkId,
     });
 
-    const pending = await txGenerator.next();
+    const pending: PendingTransaction = await txGenerator.next();
     if (!pending) {
       throw new Error("No transaction to sign");
     }
 
-    await pending.sign(this.getPrivateKeys(indexes));
+    // Replace the input script with the provided script
+    if (options?.scriptHex) {
+      const replaceIndex = pending.transaction.inputs.findIndex(
+        (input) => input.signatureScript === "",
+      );
+      if (replaceIndex === -1) {
+        throw new Error("No input to replace");
+      }
+
+      const scriptBuilder = ScriptBuilder.fromScript(options.scriptHex);
+      const signature = await pending.createInputSignature(
+        replaceIndex,
+        new PrivateKey(this.getPrivateKey()),
+      );
+
+      pending.fillInput(
+        replaceIndex,
+        scriptBuilder.encodePayToScriptHashSignatureScript(signature),
+      );
+    }
+
+    await pending.sign([this.getPrivateKey()], false);
     return await pending.submit(this.rpcClient);
   }
 

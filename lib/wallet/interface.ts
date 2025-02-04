@@ -1,6 +1,41 @@
+import {
+  IUtxoEntry,
+  Address,
+  ITransactionOutpoint,
+  IScriptPublicKey,
+  kaspaToSompi,
+} from "@/wasm/core/kaspa";
+
 export type PaymentOutput = {
   address: string;
   amount: string; // KAS
+};
+
+export type Entry = {
+  amount: string; // KAS
+  address: string;
+  outpoint: ITransactionOutpoint;
+  blockDaaScore: string; // BigInt
+  scriptPublicKey: IScriptPublicKey;
+};
+
+export function toKaspaEntry(entry: Entry): IUtxoEntry {
+  return {
+    amount: kaspaToSompi(entry.amount) ?? 0n,
+    address: entry.address ? new Address(entry.address) : undefined,
+    outpoint: entry.outpoint,
+    blockDaaScore: BigInt(entry.blockDaaScore),
+    scriptPublicKey: entry.scriptPublicKey,
+    isCoinbase: false,
+  };
+}
+
+export type TransactionOptions = {
+  priorityEntries?: Entry[];
+  entries?: Entry[];
+  priorityFee?: string; // KAS
+  payload?: Uint8Array;
+  scriptHex?: string;
 };
 
 export type TransactionEstimate = {
@@ -27,7 +62,6 @@ export interface IWallet {
 
   signAndBroadcastTx(
     outputs: PaymentOutput[],
-    priorityFee?: bigint,
-    payload?: Uint8Array,
+    options?: TransactionOptions,
   ): Promise<string>;
 }

@@ -45,7 +45,7 @@ export default function useTransactionEstimate({
     }
 
     estimate();
-  }, [outputs]);
+  }, [outputs, account]);
 
   return transactionEstimate;
 }
