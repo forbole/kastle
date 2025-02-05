@@ -345,7 +345,7 @@ export default function DeployToken() {
                 {...register("decimalPlaces", {
                   onChange: (event) => {
                     event.target.value = event.target.value.replace(
-                      /[^0-9.]/g,
+                      /[^0-9]/g,
                       "",
                     );
                   },
