@@ -42,7 +42,7 @@ import { SettingsProvider } from "@/contexts/SettingsContext.tsx";
 import { WalletManagerProvider } from "@/contexts/WalletManagerContext.tsx";
 import RootLayout from "@/components/layouts/RootLayout.tsx";
 import WalletUnlock from "@/components/screens/WalletUnlock.tsx";
-import PreviewMode from "@/components/screens/PreviewMode.tsx";
+import DevMode from "@/components/screens/DevMode.tsx";
 import DeployToken from "@/components/screens/DeployToken.tsx";
 import TokenOperation from "@/components/screens/TokenOperation.tsx";
 
@@ -139,8 +139,8 @@ export const router = createHashRouter([
                     element: <ConnectedApps />,
                   },
                   {
-                    path: "preview-mode",
-                    element: <PreviewMode />,
+                    path: "dev-mode",
+                    element: <DevMode />,
                   },
                   { path: "dashboard", element: <Dashboard /> },
                   { path: "connect", element: <ConnectConfirm /> },

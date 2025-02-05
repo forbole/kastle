@@ -3,7 +3,7 @@ import Header from "@/components/GeneralHeader";
 import { useSettings } from "@/hooks/useSettings";
 import { useNavigate } from "react-router-dom";
 
-export default function PreviewMode() {
+export default function DevMode() {
   const navigate = useNavigate();
   const [settings, setSettings] = useSettings();
 
@@ -16,16 +16,15 @@ export default function PreviewMode() {
       >
         <div className="flex items-center justify-between">
           <span className="font-semibold text-daintree-200">
-            Preview mode will enable experimental features. Features that may
-            not be completed nor stable. Only activate if you know what you are
-            doing.
+            Dev mode will enable experimental features. Features that may not be
+            completed nor stable. Only activate if you know what you are doing.
           </span>
         </div>
       </div>
 
       <div className="flex cursor-pointer items-center justify-between rounded-xl border border-gray-700 bg-slate-800 p-5">
         <div className="flex items-center justify-start gap-4 text-base font-semibold">
-          <span className="font-semibold">Preview mode</span>
+          <span className="font-semibold">Dev mode</span>
         </div>
         <div className="flex items-center text-base">
           <input
