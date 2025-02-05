@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.1.0](https://github.com/forbole/kastle/compare/v2.0.3...v2.1.0) (2025-02-05)
+
+
+### Features
+
+* add preview mode setting ([#14](https://github.com/forbole/kastle/issues/14)) ([efec1de](https://github.com/forbole/kastle/commit/efec1def4bd156b62067e59e11da0ccba47917f0))
+* KRC20 deploy ([#1](https://github.com/forbole/kastle/issues/1)) ([b804490](https://github.com/forbole/kastle/commit/b8044905c5dcc2c9481811696d561b051f9f1bff))
+
+
+### Bug Fixes
+
+* fix empty lock timeout by migration ([#20](https://github.com/forbole/kastle/issues/20)) ([ec55a3c](https://github.com/forbole/kastle/commit/ec55a3c39c4e2ec56b570e8dacada57d5c6aa71e))
+
 ## [2.0.3](https://github.com/forbole/kastle/compare/v2.0.2...v2.0.3) (2025-02-04)
 
 
