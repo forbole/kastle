@@ -16,6 +16,10 @@ export const ConfirmTokenOperationStep = ({
   const navigate = useNavigate();
   const { watch } = useFormContext<TokenOperationFormData>();
   const opData = watch("opData");
+  const decimalCoefficient = Math.pow(
+    10,
+    opData.dec ? parseInt(opData.dec, 10) : 8,
+  );
   const kapsaPrice = useKaspaPrice();
 
   const onClose = () => {
@@ -43,19 +47,25 @@ export const ConfirmTokenOperationStep = ({
           <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
             <div className="flex w-full items-start justify-between">
               <span className="font-medium">Maximum Supply</span>
-              <span className="font-medium">{opData.max}</span>
+              <span className="font-medium">
+                {parseInt(opData.max, 10) / decimalCoefficient}
+              </span>
             </div>
           </li>
           <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
             <div className="flex w-full items-start justify-between">
               <span className="font-medium">Default Mint Amount</span>
-              <span className="font-medium">{opData.lim}</span>
+              <span className="font-medium">
+                {parseInt(opData.lim, 10) / decimalCoefficient}
+              </span>
             </div>
           </li>
           <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
             <div className="flex w-full items-start justify-between">
               <span className="font-medium">Preallocation</span>
-              <span className="font-medium">{opData.pre}</span>
+              <span className="font-medium">
+                {parseInt(opData.pre, 10) / decimalCoefficient}
+              </span>
             </div>
           </li>
           <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">

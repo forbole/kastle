@@ -47,12 +47,14 @@ export default function DeployToken() {
   const estimatedFees = 1000.0001;
 
   const onSubmit = handleSubmit(async (formValues) => {
+    const decimalCoefficient = Math.pow(10, formValues.decimalPlaces);
+
     const queryParams = new URLSearchParams({
       op: "deploy",
       ticker: formValues.ticker,
-      maxSupply: formValues.maxSupply.toString(),
-      mintAmount: formValues.mintAmount.toString(),
-      preAllocation: formValues.preAllocation.toString(),
+      maxSupply: (formValues.maxSupply * decimalCoefficient).toString(),
+      mintAmount: (formValues.mintAmount * decimalCoefficient).toString(),
+      preAllocation: (formValues.preAllocation * decimalCoefficient).toString(),
       decimalPlaces: formValues.decimalPlaces.toString(),
     });
 
