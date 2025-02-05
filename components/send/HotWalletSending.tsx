@@ -2,6 +2,9 @@ import { LoadingStatus } from "@/components/send/LoadingStatus";
 import { WalletSecret } from "@/types/WalletSecret";
 import { AccountFactory } from "@/lib/wallet/wallet-factory";
 import { kaspaToSompi } from "@/wasm/core/kaspa";
+import { useFormContext } from "react-hook-form";
+import { SendFormData } from "@/components/screens/Send.tsx";
+import { useEffect } from "react";
 
 type HotWalletSendingProps = {
   accountFactory: AccountFactory;
@@ -19,38 +22,49 @@ export default function HotWalletSending({
   onSuccess,
 }: HotWalletSendingProps) {
   const { walletSettings } = useWalletManager();
+  const calledOnce = useRef(false);
+  const form = useFormContext<SendFormData>();
+  const { amount, address } = form.watch();
 
-  const sendTransaction = async ({
-    amount,
-    receiverAddress,
-  }: {
-    amount: string;
-    receiverAddress: string;
-  }) => {
-    const accountIndex = walletSettings?.selectedAccountIndex;
-    if (accountIndex === null || accountIndex === undefined) {
-      throw new Error("No account selected");
+  const sendTransaction = async () => {
+    if (form.formState.isSubmitting || !amount || !address) {
+      return;
     }
 
-    const account =
-      secret.type === "mnemonic"
-        ? accountFactory.createFromMnemonic(secret.value, accountIndex)
-        : accountFactory.createFromPrivateKey(secret.value);
+    try {
+      const accountIndex = walletSettings?.selectedAccountIndex;
+      if (accountIndex === null || accountIndex === undefined) {
+        throw new Error("No account selected");
+      }
 
-    return {
-      txIds: await account.send(
-        kaspaToSompi(amount) ?? BigInt(0),
-        receiverAddress,
-      ),
-    };
+      const account =
+        secret.type === "mnemonic"
+          ? accountFactory.createFromMnemonic(secret.value, accountIndex)
+          : accountFactory.createFromPrivateKey(secret.value);
+
+      const transactionResponse = {
+        txIds: await account.send(kaspaToSompi(amount) ?? BigInt(0), address),
+      };
+
+      if (typeof transactionResponse === "string") {
+        onFail();
+        return;
+      }
+
+      setOutTxs(transactionResponse.txIds);
+
+      onSuccess();
+    } catch (e) {
+      console.error(e);
+      onFail();
+    }
   };
 
-  return (
-    <LoadingStatus
-      sendTransaction={sendTransaction}
-      setOutTxs={setOutTxs}
-      onFail={onFail}
-      onSuccess={onSuccess}
-    />
-  );
+  useEffect(() => {
+    if (calledOnce.current) return;
+    sendTransaction();
+    calledOnce.current = true;
+  }, []);
+
+  return <LoadingStatus />;
 }
