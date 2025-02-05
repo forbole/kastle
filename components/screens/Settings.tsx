@@ -155,9 +155,9 @@ export default function Settings() {
 
         {/* Preview mode */}
         <SettingItem
-          title="Preview mode"
+          title="Dev mode"
           showChevron
-          onClick={() => navigate("/preview-mode")}
+          onClick={() => navigate("/dev-mode")}
         />
       </div>
       <div className="mt-auto flex flex-col items-center gap-6">

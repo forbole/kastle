@@ -1,5 +1,5 @@
 import { connectHandler } from "@/api/background/handlers/connect";
-import { getAddressHandler } from "@/api/background/handlers/getAddress";
+import { getAccountHandler } from "@/api/background/handlers/getAccount";
 import { signAndBroadcastTxHandler } from "@/api/background/handlers/signAndBroadcastTx";
 import { Action, ApiRequest, ApiResponse } from "@/api/message";
 
@@ -44,7 +44,7 @@ export class BackgroundService {
   private getHandler(action: Action) {
     const handlers = {
       [Action.CONNECT]: connectHandler,
-      [Action.GET_ADDRESS]: getAddressHandler,
+      [Action.GET_ACCOUNT]: getAccountHandler,
       [Action.SIGN_AND_BROADCAST_TX]: signAndBroadcastTxHandler,
     };
 

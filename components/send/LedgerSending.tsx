@@ -3,6 +3,9 @@ import { WalletSecret } from "@/types/WalletSecret";
 import { AccountFactory } from "@/lib/wallet/wallet-factory";
 import { kaspaToSompi } from "@/wasm/core/kaspa";
 import useLedgerTransport from "@/hooks/useLedgerTransport";
+import { useFormContext } from "react-hook-form";
+import { SendFormData } from "@/components/screens/Send.tsx";
+import { useEffect } from "react";
 
 type LedgerSendingProps = {
   accountFactory: AccountFactory;
@@ -21,37 +24,55 @@ export default function LedgerSending({
 }: LedgerSendingProps) {
   const { transport, connect } = useLedgerTransport();
   const { walletSettings } = useWalletManager();
+  const calledOnce = useRef(false);
+  const form = useFormContext<SendFormData>();
+  const { amount, address } = form.watch();
 
-  const sendTransaction = async ({
-    amount,
-    receiverAddress,
-  }: {
-    amount: string;
-    receiverAddress: string;
-  }) => {
+  const sendTransaction = async () => {
     if (!transport) {
       throw new Error("Ledger transport not available");
     }
 
-    const accountIndex = walletSettings?.selectedAccountIndex;
-    if (accountIndex === null || accountIndex === undefined) {
-      throw new Error("No account selected");
+    if (form.formState.isSubmitting || !amount || !address) {
+      return;
     }
 
-    const account = accountFactory.createFromLedger(transport, accountIndex);
-    const publicKeys = await account.getPublicKeys();
+    try {
+      const accountIndex = walletSettings?.selectedAccountIndex;
+      if (accountIndex === null || accountIndex === undefined) {
+        throw new Error("No account selected");
+      }
 
-    if (secret.value !== publicKeys[0]) {
-      throw new Error("Invalid Ledger device");
+      const account = accountFactory.createFromLedger(transport, accountIndex);
+      const publicKeys = await account.getPublicKeys();
+
+      if (secret.value !== publicKeys[0]) {
+        throw new Error("Invalid Ledger device");
+      }
+
+      const transactionResponse = {
+        txIds: await account.send(kaspaToSompi(amount) ?? BigInt(0), address),
+      };
+
+      if (typeof transactionResponse === "string") {
+        onFail();
+        return;
+      }
+
+      setOutTxs(transactionResponse.txIds);
+
+      onSuccess();
+    } catch (e) {
+      console.error(e);
+      onFail();
     }
-
-    return {
-      txIds: await account.send(
-        kaspaToSompi(amount) ?? BigInt(0),
-        receiverAddress,
-      ),
-    };
   };
+
+  useEffect(() => {
+    if (calledOnce.current) return;
+    sendTransaction();
+    calledOnce.current = true;
+  }, []);
 
   return !transport ? (
     <>
@@ -59,11 +80,6 @@ export default function LedgerSending({
       <button onClick={connect}>Connect</button>
     </>
   ) : (
-    <LoadingStatus
-      sendTransaction={sendTransaction}
-      setOutTxs={setOutTxs}
-      onFail={onFail}
-      onSuccess={onSuccess}
-    />
+    <LoadingStatus />
   );
 }

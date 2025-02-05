@@ -2,23 +2,103 @@
 <html>
   <head>
     <title>Demo Page</title>
+    <script>
+      async function initWasm() {
+        const kaspa = await import("./kaspa.js");
+        await kaspa.default();
+        console.log("WASM module loaded successfully!");
+        window.kaspaWasm = kaspa;
+      }
+      initWasm();
+    </script>
   </head>
 
   <body>
     <h1>Demo page</h1>
+    <h3>Kastle Basic</h3>
     <div>
       <button id="connectButton">Connect</button>
       <div>Connected: <span id="connected">false</span></div>
     </div>
+
     <div>
-      <button id="getAddressButton">Get Address</button>
+      <button id="getAccountButton">Get Account</button>
       <div>Address: <span id="address"></span></div>
+      <div>Public Key: <span id="publicKey"></span></div>
     </div>
+
     <div>
       <button id="signAndBroadcastTx">Sign and Broadcast Tx</button>
       <div>Tx id: <span id="txId"></span></div>
     </div>
     <div>Error: <span id="error">None</span></div>
+
+    <hr />
+
+    <h3>KRC20</h3>
+    <div>
+      <h4>Get KRC20</h4>
+      <button id="getKRC20Tokens">Get KRC20 Tokens</button>
+      <ul id="krc20Tokens"></ul>
+      <div>Error: <span id="krc20TokensError">None</span></div>
+    </div>
+
+    <div>
+      <h4>Deploy KRC20</h4>
+      <div>
+        Tick:
+        <input type="text" id="deployTick" placeholder="TTTT" maxlength="6" />
+      </div>
+      <button id="krcDeployCommit">Deploy KRC Commit</button>
+      <button id="krcDeployReveal">Deploy KRC Reveal</button>
+      <div>P2SH address: <span id="P2SHDeployAddress"></span></div>
+      <div>Script: <span id="deployScript"></span></div>
+      <div>Commit Tx Id: <span id="deployCommitTxId"></span></div>
+      <div>Reveal Tx Id: <span id="deployRevealTxId"></span></div>
+      <div>Error: <span id="deployErrorKRC20">None</span></div>
+
+      <hr />
+
+      <h4>Mint KRC20</h4>
+      <div>
+        Tick:
+        <input type="text" id="mintTick" placeholder="TTTT" maxlength="6" />
+      </div>
+      <button id="krcMintCommit">Mint KRC Commit</button>
+      <button id="krcMintReveal">Mint KRC Reveal</button>
+      <div>P2SH address: <span id="P2SHMintAddress"></span></div>
+      <div>Script: <span id="mintScript"></span></div>
+      <div>Commit Tx Id: <span id="mintCommitTxId"></span></div>
+      <div>Reveal Tx Id: <span id="mintRevealTxId"></span></div>
+      <div>Error: <span id="mintErrorKRC20">None</span></div>
+
+      <hr />
+
+      <h4>Transfer KRC20</h4>
+      <div>
+        Tick:
+        <input type="text" id="transferTick" placeholder="TTTT" maxlength="6" />
+      </div>
+      <div>
+        To: <input type="text" id="transferTo" placeholder="kaspatest:" />
+      </div>
+      <div>
+        Amount:
+        <input
+          type="number"
+          id="transferAmount"
+          placeholder="1000"
+          value="1000"
+        />
+      </div>
+      <button id="krcTransferCommit">Transfer KRC Commit</button>
+      <button id="krcTransferReveal">Transfer KRC Reveal</button>
+      <div>P2SH address: <span id="P2SHTransferAddress"></span></div>
+      <div>Script: <span id="transferScript"></span></div>
+      <div>Commit Tx Id: <span id="trnasferCommitTxId"></span></div>
+      <div>Reveal Tx Id: <span id="transferRevealTxId"></span></div>
+      <div>Error: <span id="transferErrorKRC20">None</span></div>
+    </div>
   </body>
   <script>
     document
@@ -34,11 +114,12 @@
       });
 
     document
-      .getElementById("getAddressButton")
+      .getElementById("getAccountButton")
       .addEventListener("click", async () => {
         try {
-          const address = await kastle.getAddress();
-          document.getElementById("address").innerText = address;
+          const account = await kastle.getAccount();
+          document.getElementById("address").innerText = account.address;
+          document.getElementById("publicKey").innerText = account.publicKey;
           document.getElementById("error").innerText = "None";
         } catch (error) {
           document.getElementById("error").innerText = error.message;
@@ -50,12 +131,320 @@
       .addEventListener("click", async () => {
         try {
           const address = document.getElementById("address").innerText;
+          if (!address) {
+            throw new Error("Please get the account first");
+          }
+
           const txId = await kastle.signAndBroadcastTx("testnet-10", [
-            { amount: "0.5", address },
+            { amount: "1", address },
           ]);
           document.getElementById("txId").innerText = txId;
         } catch (error) {
           document.getElementById("error").innerText = error.message;
+        }
+      });
+
+    function createKRC20ScriptBuilder(data) {
+      const { Opcodes } = kaspaWasm;
+      const accountPublicKey = document.getElementById("publicKey").innerText;
+      if (!accountPublicKey) {
+        throw new Error("Please get the account first");
+      }
+
+      const publicKey = new kaspaWasm.PublicKey(accountPublicKey);
+
+      return new kaspaWasm.ScriptBuilder()
+        .addData(publicKey.toXOnlyPublicKey().toString())
+        .addOp(Opcodes.OpCheckSig)
+        .addOp(Opcodes.OpFalse)
+        .addOp(Opcodes.OpIf)
+        .addData(new TextEncoder().encode("kasplex")) // Instead of Buffer.from
+        .addI64(0n)
+        .addData(new TextEncoder().encode(JSON.stringify(data, null, 0)))
+        .addOp(Opcodes.OpEndIf);
+    }
+
+    document
+      .getElementById("krcDeployCommit")
+      .addEventListener("click", async () => {
+        try {
+          const tick = document.getElementById("deployTick").value;
+          const deployPayload = {
+            p: "krc-20",
+            op: "deploy",
+            tick,
+            max: "100000000",
+            lim: "1000",
+          };
+          const scriptBuilder = createKRC20ScriptBuilder(deployPayload);
+
+          const scriptPublicKey = scriptBuilder.createPayToScriptHashScript();
+          const P2SHAddress = kaspaWasm.addressFromScriptPublicKey(
+            scriptPublicKey,
+            "testnet-10",
+          );
+
+          const commitTxId = await kastle.signAndBroadcastTx("testnet-10", [
+            { amount: "0.3", address: P2SHAddress.toString() },
+          ]);
+          document.getElementById("P2SHDeployAddress").innerText =
+            P2SHAddress.toString();
+          document.getElementById("deployCommitTxId").innerText = commitTxId;
+          document.getElementById("deployScript").innerText =
+            scriptBuilder.toString();
+
+          document.getElementById("deployErrorKRC20").innerText = "";
+        } catch (error) {
+          document.getElementById("deployErrorKRC20").innerText = error.message;
+        }
+      });
+
+    document
+      .getElementById("krcDeployReveal")
+      .addEventListener("click", async () => {
+        try {
+          const P2SHAddress =
+            document.getElementById("P2SHDeployAddress").innerText;
+          const scriptBuilder = kaspaWasm.ScriptBuilder.fromScript(
+            document.getElementById("deployScript").innerText,
+          );
+
+          const rpc = new kaspaWasm.RpcClient({
+            resolver: new kaspaWasm.Resolver(),
+            networkId: "testnet-10",
+          });
+          await rpc.connect();
+          let P2SHEntries = [];
+          while (P2SHEntries.length === 0) {
+            const P2SHUTXOs = await rpc.getUtxosByAddresses([
+              P2SHAddress.toString(),
+            ]);
+            P2SHEntries = P2SHUTXOs.entries;
+
+            if (P2SHEntries.length === 0) {
+              await new Promise((resolve) => setTimeout(resolve, 1000));
+            }
+          }
+          await rpc.disconnect();
+
+          const P2SHEntry = P2SHEntries[0];
+          const entry = {
+            address: P2SHEntry.address.toString(),
+            amount: kaspaWasm.sompiToKaspaString(P2SHEntry.amount),
+            scriptPublicKey: JSON.parse(P2SHEntry.scriptPublicKey.toString()),
+            blockDaaScore: P2SHEntry.blockDaaScore.toString(),
+            outpoint: JSON.parse(P2SHEntry.outpoint.toString()),
+          };
+          const revealTxId = await kastle.signAndBroadcastTx("testnet-10", [], {
+            priorityEntries: [entry],
+            scriptHex: scriptBuilder.toString(),
+            priorityFee: "1000",
+          });
+          document.getElementById("deployRevealTxId").innerText = revealTxId;
+          document.getElementById("deployErrorKRC20").innerText = "";
+        } catch (error) {
+          document.getElementById("deployErrorKRC20").innerText = error.message;
+        }
+      });
+
+    document
+      .getElementById("krcMintCommit")
+      .addEventListener("click", async () => {
+        try {
+          const tick = document.getElementById("mintTick").value;
+          const mintPayload = {
+            p: "krc-20",
+            op: "mint",
+            tick,
+          };
+          const scriptBuilder = createKRC20ScriptBuilder(mintPayload);
+
+          const scriptPublicKey = scriptBuilder.createPayToScriptHashScript();
+          const P2SHAddress = kaspaWasm.addressFromScriptPublicKey(
+            scriptPublicKey,
+            "testnet-10",
+          );
+
+          const commitTxId = await kastle.signAndBroadcastTx("testnet-10", [
+            { amount: "0.3", address: P2SHAddress.toString() },
+          ]);
+          document.getElementById("P2SHMintAddress").innerText =
+            P2SHAddress.toString();
+          document.getElementById("mintCommitTxId").innerText = commitTxId;
+          document.getElementById("mintScript").innerText =
+            scriptBuilder.toString();
+
+          document.getElementById("mintErrorKRC20").innerText = "";
+        } catch (error) {
+          document.getElementById("mintErrorKRC20").innerText = error.message;
+        }
+      });
+
+    document
+      .getElementById("krcMintReveal")
+      .addEventListener("click", async () => {
+        try {
+          const P2SHAddress =
+            document.getElementById("P2SHMintAddress").innerText;
+          const scriptBuilder = kaspaWasm.ScriptBuilder.fromScript(
+            document.getElementById("mintScript").innerText,
+          );
+
+          const rpc = new kaspaWasm.RpcClient({
+            resolver: new kaspaWasm.Resolver(),
+            networkId: "testnet-10",
+          });
+          await rpc.connect();
+          let P2SHEntries = [];
+          while (P2SHEntries.length === 0) {
+            const P2SHUTXOs = await rpc.getUtxosByAddresses([
+              P2SHAddress.toString(),
+            ]);
+            P2SHEntries = P2SHUTXOs.entries;
+
+            if (P2SHEntries.length === 0) {
+              await new Promise((resolve) => setTimeout(resolve, 1000));
+            }
+          }
+          await rpc.disconnect();
+
+          const P2SHEntry = P2SHEntries[0];
+          const entry = {
+            address: P2SHEntry.address.toString(),
+            amount: kaspaWasm.sompiToKaspaString(P2SHEntry.amount),
+            scriptPublicKey: JSON.parse(P2SHEntry.scriptPublicKey.toString()),
+            blockDaaScore: P2SHEntry.blockDaaScore.toString(),
+            outpoint: JSON.parse(P2SHEntry.outpoint.toString()),
+          };
+          const revealTxId = await kastle.signAndBroadcastTx("testnet-10", [], {
+            priorityEntries: [entry],
+            scriptHex: scriptBuilder.toString(),
+            priorityFee: "1",
+          });
+          document.getElementById("mintRevealTxId").innerText = revealTxId;
+          document.getElementById("mintErrorKRC20").innerText = "";
+        } catch (error) {
+          document.getElementById("mintErrorKRC20").innerText = error.message;
+        }
+      });
+
+    document
+      .getElementById("krcTransferCommit")
+      .addEventListener("click", async () => {
+        try {
+          const tick = document.getElementById("transferTick").value;
+          const transferTo = document.getElementById("transferTo").value;
+          const transferPayload = {
+            p: "krc-20",
+            op: "transfer",
+            tick,
+            to: transferTo,
+            amt: document.getElementById("transferAmount").value,
+          };
+          const scriptBuilder = createKRC20ScriptBuilder(transferPayload);
+
+          const scriptPublicKey = scriptBuilder.createPayToScriptHashScript();
+          const P2SHAddress = kaspaWasm.addressFromScriptPublicKey(
+            scriptPublicKey,
+            "testnet-10",
+          );
+
+          const commitTxId = await kastle.signAndBroadcastTx("testnet-10", [
+            { amount: "0.3", address: P2SHAddress.toString() },
+          ]);
+          document.getElementById("P2SHTransferAddress").innerText =
+            P2SHAddress.toString();
+          document.getElementById("trnasferCommitTxId").innerText = commitTxId;
+          document.getElementById("transferScript").innerText =
+            scriptBuilder.toString();
+
+          document.getElementById("transferErrorKRC20").innerText = "";
+        } catch (error) {
+          document.getElementById("transferErrorKRC20").innerText =
+            error.message;
+        }
+      });
+
+    document
+      .getElementById("krcTransferReveal")
+      .addEventListener("click", async () => {
+        try {
+          const P2SHAddress = document.getElementById(
+            "P2SHTransferAddress",
+          ).innerText;
+          const scriptBuilder = kaspaWasm.ScriptBuilder.fromScript(
+            document.getElementById("transferScript").innerText,
+          );
+
+          const rpc = new kaspaWasm.RpcClient({
+            resolver: new kaspaWasm.Resolver(),
+            networkId: "testnet-10",
+          });
+          await rpc.connect();
+          let P2SHEntries = [];
+          while (P2SHEntries.length === 0) {
+            const P2SHUTXOs = await rpc.getUtxosByAddresses([
+              P2SHAddress.toString(),
+            ]);
+            P2SHEntries = P2SHUTXOs.entries;
+
+            if (P2SHEntries.length === 0) {
+              await new Promise((resolve) => setTimeout(resolve, 1000));
+            }
+          }
+          await rpc.disconnect();
+
+          const P2SHEntry = P2SHEntries[0];
+          const entry = {
+            address: P2SHEntry.address.toString(),
+            amount: kaspaWasm.sompiToKaspaString(P2SHEntry.amount),
+            scriptPublicKey: JSON.parse(P2SHEntry.scriptPublicKey.toString()),
+            blockDaaScore: P2SHEntry.blockDaaScore.toString(),
+            outpoint: JSON.parse(P2SHEntry.outpoint.toString()),
+          };
+          const revealTxId = await kastle.signAndBroadcastTx("testnet-10", [], {
+            priorityEntries: [entry],
+            scriptHex: scriptBuilder.toString(),
+            priorityFee: "0.02",
+          });
+          document.getElementById("transferRevealTxId").innerText = revealTxId;
+          document.getElementById("transferErrorKRC20").innerText = "";
+        } catch (error) {
+          document.getElementById("transferErrorKRC20").innerText =
+            error.message;
+        }
+      });
+
+    document
+      .getElementById("getKRC20Tokens")
+      .addEventListener("click", async () => {
+        try {
+          const address = document.getElementById("address").innerText;
+          if (!address) {
+            throw new Error("Please get the account first");
+          }
+
+          const resp = await fetch(
+            `https://tn10api.kasplex.org/v1/krc20/address/${address}/tokenlist`,
+          );
+          const data = await resp.json();
+
+          // show empty list if no tokens
+          if (data.result.length === 0) {
+            document.getElementById("krc20Tokens").innerHTML = "Empty";
+            document.getElementById("krc20TokensError").innerText = "None";
+            return;
+          }
+
+          const krc20Tokens = data.result.map((token) => {
+            return `<li>${token.tick} - ${token.balance}</li>`;
+          });
+
+          document.getElementById("krc20Tokens").innerHTML =
+            krc20Tokens.join("");
+          document.getElementById("krc20TokensError").innerText = "None";
+        } catch (error) {
+          document.getElementById("krc20TokensError").innerText = error.message;
         }
       });
   </script>

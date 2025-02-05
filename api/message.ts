@@ -1,10 +1,10 @@
 import { Buffer } from "buffer";
-import { PaymentOutput } from "@/lib/wallet/interface.ts";
+import { PaymentOutput, TransactionOptions } from "@/lib/wallet/interface.ts";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 
 export enum Action {
   CONNECT,
-  GET_ADDRESS,
+  GET_ACCOUNT,
   SIGN_AND_BROADCAST_TX,
 }
 
@@ -12,8 +12,7 @@ export class TransactionPayload {
   constructor(
     public readonly networkId: string,
     public readonly outputs: PaymentOutput[],
-    public readonly payload?: Uint8Array,
-    public readonly priorityFee?: string, // KAS
+    public readonly options?: TransactionOptions,
   ) {}
 
   static validate(data: unknown): data is TransactionPayload {

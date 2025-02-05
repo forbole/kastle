@@ -1,58 +1,7 @@
-import React, { useEffect } from "react";
-import { useFormContext } from "react-hook-form";
-import { SendFormData } from "@/components/screens/Send.tsx";
+import React from "react";
 import carriageImage from "@/assets/images/carriage.png";
 
-interface LoadingStatusProps {
-  sendTransaction: (data: {
-    amount: string;
-    receiverAddress: string;
-  }) => Promise<string | { txIds: string[] }>;
-  setOutTxs: (value: string[] | undefined) => void;
-  onFail: () => void;
-  onSuccess: () => void;
-}
-
-export const LoadingStatus = ({
-  sendTransaction,
-  setOutTxs,
-  onFail,
-  onSuccess,
-}: LoadingStatusProps) => {
-  const calledOnce = useRef(false);
-  const form = useFormContext<SendFormData>();
-
-  const handleSubmit = form.handleSubmit(async ({ address, amount }) => {
-    if (form.formState.isSubmitting || !amount || !address) {
-      return;
-    }
-
-    try {
-      const transactionResponse = await sendTransaction({
-        amount,
-        receiverAddress: address,
-      });
-
-      if (typeof transactionResponse === "string") {
-        onFail();
-        return;
-      }
-
-      setOutTxs(transactionResponse.txIds);
-
-      onSuccess();
-    } catch (e) {
-      console.error(e);
-      onFail();
-    }
-  });
-
-  useEffect(() => {
-    if (calledOnce.current) return;
-    handleSubmit();
-    calledOnce.current = true;
-  }, []);
-
+export const LoadingStatus = () => {
   return (
     <>
       <div className="flex items-center justify-center">

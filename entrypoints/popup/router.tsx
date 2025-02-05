@@ -9,8 +9,8 @@ import PopupLayout from "@/components/layouts/PopupLayout.tsx";
 import SetupPassword from "@/components/screens/SetupPassword.tsx";
 import Send from "@/components/screens/Send.tsx";
 import Welcome from "@/components/screens/Welcome.tsx";
-import ConnectConfirm from "@/components/screens/ConnectConfirm";
-import SignAndBroadcastTxConfirm from "@/components/screens/SignAndBroadcastTxConfirm";
+import ConnectConfirm from "@/components/screens/browser-api/ConnectConfirm";
+import SignAndBroadcastTxConfirm from "@/components/screens/browser-api/SignAndBroadcastTxConfirm";
 import Dashboard from "@/components/screens/Dashboard.tsx";
 import Settings from "@/components/screens/Settings.tsx";
 import Receive from "@/components/screens/Receive.tsx";
@@ -42,7 +42,9 @@ import { SettingsProvider } from "@/contexts/SettingsContext.tsx";
 import { WalletManagerProvider } from "@/contexts/WalletManagerContext.tsx";
 import RootLayout from "@/components/layouts/RootLayout.tsx";
 import WalletUnlock from "@/components/screens/WalletUnlock.tsx";
-import PreviewMode from "@/components/screens/PreviewMode.tsx";
+import DevMode from "@/components/screens/DevMode.tsx";
+import DeployToken from "@/components/screens/full-pages/DeployToken.tsx";
+import TokenOperation from "@/components/screens/TokenOperation.tsx";
 
 const loadKaspaWasm = async () => {
   await init(kaspaModule);
@@ -129,6 +131,7 @@ export const router = createHashRouter([
                 loader: keyringGuard,
                 children: [
                   { path: "send", element: <Send /> },
+                  { path: "token-operation", element: <TokenOperation /> },
                   { path: "receive", element: <Receive /> },
                   { path: "settings", element: <Settings /> },
                   {
@@ -136,8 +139,8 @@ export const router = createHashRouter([
                     element: <ConnectedApps />,
                   },
                   {
-                    path: "preview-mode",
-                    element: <PreviewMode />,
+                    path: "dev-mode",
+                    element: <DevMode />,
                   },
                   { path: "dashboard", element: <Dashboard /> },
                   { path: "connect", element: <ConnectConfirm /> },
@@ -228,6 +231,10 @@ export const router = createHashRouter([
               {
                 path: "connect-ledger",
                 element: <LedgerConnect />,
+              },
+              {
+                path: "deploy-token",
+                element: <DeployToken />,
               },
             ],
             loader: fullPageKeyringGuard,
