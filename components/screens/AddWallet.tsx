@@ -5,7 +5,6 @@ import { v4 as uuid } from "uuid";
 
 export default function AddWallet() {
   const { createNewWallet } = useWalletManager();
-  const [settings] = useSettings();
   const navigate = useNavigate();
 
   const onClose = () => navigate("/dashboard");
