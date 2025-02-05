@@ -5,6 +5,8 @@ import { twMerge } from "tailwind-merge";
 import { Tooltip } from "react-tooltip";
 import spinner from "@/assets/images/spinner.svg";
 import React from "react";
+import useWalletManager from "@/hooks/useWalletManager.ts";
+import { setPopupPath } from "@/lib/utils.ts";
 
 type DeployFormData = {
   ticker: string;
@@ -27,6 +29,8 @@ export default function DeployToken() {
     handleSubmit,
     register,
     watch,
+    setError,
+    clearErrors,
   } = useForm<DeployFormData>({
     mode: "all",
     defaultValues: {
@@ -38,6 +42,9 @@ export default function DeployToken() {
   });
   const maxSupply = watch("maxSupply");
   const formattedMaxSupply = Number.isNaN(maxSupply) ? 0 : maxSupply;
+  const { account } = useWalletManager();
+  const balance = account?.balance ? parseFloat(account.balance) : 0;
+  const estimatedFees = 1000.0001;
 
   const onSubmit = handleSubmit(async (formValues) => {
     const queryParams = new URLSearchParams({
@@ -49,9 +56,8 @@ export default function DeployToken() {
       decimalPlaces: formValues.decimalPlaces.toString(),
     });
 
-    browser.action.setPopup(
-      { popup: `popup.html#/token-operation?${queryParams.toString()}` },
-      () => browser.action.openPopup(),
+    setPopupPath(`/token-operation?${queryParams.toString()}`, () =>
+      browser.action.openPopup(),
     );
   });
 
@@ -65,6 +71,16 @@ export default function DeployToken() {
       ? "Oh, this ticker has already been used"
       : undefined;
   };
+
+  useEffect(() => {
+    if (balance < estimatedFees) {
+      setError("root", {
+        message: "Oh, you don't have enough funds to cover the estimated fees",
+      });
+    } else {
+      clearErrors("root");
+    }
+  }, [balance]);
 
   return (
     <div className="flex w-[41rem] flex-col items-stretch gap-4 rounded-3xl bg-icy-blue-950">
@@ -346,29 +362,38 @@ export default function DeployToken() {
           </div>
 
           {/* Fees indicator */}
-          <div className="flex items-center justify-between">
-            <span className="text-base">Fee</span>
-            <div className="flex items-center gap-2">
-              <i
-                className="hn hn-info-circle text-[24px]"
-                data-tooltip-id="info-tooltip"
-                data-tooltip-content="1000 KAS for Miner deployment fee and 0.0001 Kas for Transaction Fee ."
-              ></i>
-              <Tooltip
-                id="info-tooltip"
-                style={{
-                  backgroundColor: "#374151",
-                  fontSize: "12px",
-                  fontWeight: 600,
-                  padding: "2px 8px",
-                }}
-              />
-              <span className="text-base">Estimated Fee</span>
-              <span className="text-base font-semibold">1000.0001 KAS</span>
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <span className="text-base">Fee</span>
+              <div className="flex items-center gap-2">
+                <i
+                  className="hn hn-info-circle text-[24px]"
+                  data-tooltip-id="info-tooltip"
+                  data-tooltip-content="1000 KAS for Miner deployment fee and 0.0001 Kas for Transaction Fee ."
+                ></i>
+                <Tooltip
+                  id="info-tooltip"
+                  style={{
+                    backgroundColor: "#374151",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    padding: "2px 8px",
+                  }}
+                />
+                <span className="text-base">Estimated Fee</span>
+                <span className="text-base font-semibold">
+                  {estimatedFees} KAS
+                </span>
+              </div>
             </div>
+            {errors.root && (
+              <span className="self-center text-sm text-red-500">
+                {errors.root.message}
+              </span>
+            )}
           </div>
           <button
-            disabled={!isValid || isSubmitting}
+            disabled={!!errors.root || !isValid || isSubmitting}
             type="submit"
             className="mt-auto rounded-full bg-icy-blue-400 py-5 text-base font-semibold disabled:bg-daintree-800 disabled:text-[#4B5563]"
           >

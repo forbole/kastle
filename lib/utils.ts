@@ -45,3 +45,14 @@ export function walletAddressEllipsis(address: string) {
 
   return `${start}...${end}`;
 }
+
+export function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export function setPopupPath(path?: `/${string}`, cb: () => void = () => {}) {
+  browser.action.setPopup(
+    { popup: path ? `popup.html#${path}` : "popup.html" },
+    cb,
+  );
+}
