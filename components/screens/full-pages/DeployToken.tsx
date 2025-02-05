@@ -1,4 +1,4 @@
-import Header from "@/components/GeneralHeader";
+import Header from "@/components/GeneralHeader.tsx";
 import { useForm } from "react-hook-form";
 import { useKasplex } from "@/hooks/useKasplex.ts";
 import { twMerge } from "tailwind-merge";
