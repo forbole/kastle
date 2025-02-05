@@ -5,6 +5,7 @@ import useKaspaPrice from "@/hooks/useKaspaPrice.ts";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/GeneralHeader.tsx";
 import { TokenOperationFormData } from "@/components/screens/TokenOperation.tsx";
+import { Fee } from "@/lib/krc20.ts";
 
 export const ConfirmTokenOperationStep = ({
   onNext,
@@ -72,9 +73,9 @@ export const ConfirmTokenOperationStep = ({
             <div className="flex w-full items-start justify-between">
               <span className="font-medium">Fee</span>
               <div className="flex flex-col text-right">
-                <span className="font-medium">1000.0001 KAS</span>
+                <span className="font-medium">{Fee.Deploy} KAS</span>
                 <span className="text-xs text-daintree-400">
-                  {1000.0001 * kapsaPrice.kaspaPrice} USD
+                  {Fee.Deploy * kapsaPrice.kaspaPrice} USD
                 </span>
               </div>
             </div>

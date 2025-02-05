@@ -7,6 +7,7 @@ import spinner from "@/assets/images/spinner.svg";
 import React from "react";
 import useWalletManager from "@/hooks/useWalletManager.ts";
 import { setPopupPath } from "@/lib/utils.ts";
+import { Fee } from "@/lib/krc20.ts";
 
 type DeployFormData = {
   ticker: string;
@@ -44,7 +45,6 @@ export default function DeployToken() {
   const formattedMaxSupply = Number.isNaN(maxSupply) ? 0 : maxSupply;
   const { account } = useWalletManager();
   const balance = account?.balance ? parseFloat(account.balance) : 0;
-  const estimatedFees = 1000.0001;
 
   const onSubmit = handleSubmit(async (formValues) => {
     const decimalCoefficient = Math.pow(10, formValues.decimalPlaces);
@@ -75,7 +75,7 @@ export default function DeployToken() {
   };
 
   useEffect(() => {
-    if (balance < estimatedFees) {
+    if (balance < Fee.Deploy) {
       setError("root", {
         message: "Oh, you don't have enough funds to cover the estimated fees",
       });
@@ -384,7 +384,7 @@ export default function DeployToken() {
                 />
                 <span className="text-base">Estimated Fee</span>
                 <span className="text-base font-semibold">
-                  {estimatedFees} KAS
+                  {Fee.Deploy} KAS
                 </span>
               </div>
             </div>
