@@ -236,10 +236,6 @@ export const router = createHashRouter([
                 path: "deploy-token",
                 element: <DeployToken />,
               },
-              {
-                path: "mint-token",
-                element: <DeployToken />,
-              },
             ],
             loader: fullPageKeyringGuard,
           },
