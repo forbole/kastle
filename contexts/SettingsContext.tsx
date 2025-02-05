@@ -1,5 +1,4 @@
 import { createContext, ReactNode, useEffect, useState } from "react";
-import Promise from "lie";
 
 export const SETTINGS_KEY = "local:settings";
 
