@@ -1,7 +1,7 @@
 import {
   IWallet,
   PaymentOutput,
-  TransactionOptions,
+  TxSettingOptions,
 } from "@/lib/wallet/interface.ts";
 import {
   Address,
@@ -139,7 +139,7 @@ export class LedgerAccount implements IWallet {
 
   public async signAndBroadcastTx(
     outputs: PaymentOutput[],
-    options?: TransactionOptions,
+    options?: TxSettingOptions,
   ): Promise<string> {
     throw new Error("Method not implemented.");
   }

@@ -16,7 +16,7 @@ import {
 import {
   IWallet,
   PaymentOutput,
-  TransactionOptions,
+  TxSettingOptions,
   toKaspaEntry,
   ScriptOption,
   toSignType,
@@ -87,7 +87,7 @@ export class HotWalletPrivateKey implements IWallet {
 
   async signAndBroadcastTx(
     outputs: PaymentOutput[],
-    options?: TransactionOptions,
+    options?: TxSettingOptions,
   ): Promise<string> {
     const { entries } = await this.rpcClient.getUtxosByAddresses([
       this.getAddress(),

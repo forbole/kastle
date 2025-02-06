@@ -1,7 +1,7 @@
 import { Buffer } from "buffer";
 import {
   PaymentOutput,
-  TransactionOptions,
+  TxSettingOptions,
   ScriptOption,
 } from "@/lib/wallet/interface.ts";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
@@ -54,7 +54,7 @@ export class SignAndBroadcastTxPayload {
   constructor(
     public readonly networkId: string,
     public readonly outputs: PaymentOutput[],
-    public readonly options?: TransactionOptions,
+    public readonly options?: TxSettingOptions,
   ) {}
 
   static validate(data: unknown): data is SignAndBroadcastTxPayload {

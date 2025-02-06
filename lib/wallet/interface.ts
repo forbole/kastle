@@ -32,7 +32,7 @@ export function toKaspaEntry(entry: Entry): IUtxoEntry {
   };
 }
 
-export type TransactionOptions = {
+export type TxSettingOptions = {
   priorityEntries?: Entry[];
   entries?: Entry[];
   priorityFee?: string; // KAS
@@ -97,7 +97,7 @@ export interface IWallet {
 
   signAndBroadcastTx(
     outputs: PaymentOutput[],
-    options?: TransactionOptions,
+    options?: TxSettingOptions,
   ): Promise<string>;
 
   signTx(tx: Transaction, scripts?: ScriptOption[]): Promise<Transaction>;

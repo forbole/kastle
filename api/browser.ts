@@ -9,7 +9,7 @@ import {
 } from "@/api/message";
 import {
   PaymentOutput,
-  TransactionOptions,
+  TxSettingOptions,
   ScriptOption,
 } from "@/lib/wallet/interface";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
@@ -52,7 +52,7 @@ export class KastleBrowserAPI {
   async signAndBroadcastTx(
     networkId: "mainnet" | "testnet-10" | "testnet-11",
     outputs: PaymentOutput[],
-    options?: TransactionOptions,
+    options?: TxSettingOptions,
   ): Promise<string> {
     const requestId = uuid();
     const request = new ApiRequest(
