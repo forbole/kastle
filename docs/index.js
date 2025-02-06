@@ -380,17 +380,18 @@ document.getElementById("krcListCommit").addEventListener("click", async () => {
 });
 
 document.getElementById("krcListReveal").addEventListener("click", async () => {
+  const rpc = new kaspaWasm.RpcClient({
+    resolver: new kaspaWasm.Resolver(),
+    networkId: "testnet-10",
+  });
+  await rpc.connect();
+
   try {
     const P2SHAddress = document.getElementById("P2SHListAddress").innerText;
     const listScriptBuilder = kaspaWasm.ScriptBuilder.fromScript(
       document.getElementById("listScript").innerText,
     );
 
-    const rpc = new kaspaWasm.RpcClient({
-      resolver: new kaspaWasm.Resolver(),
-      networkId: "testnet-10",
-    });
-    await rpc.connect();
     let P2SHEntries = [];
     while (P2SHEntries.length === 0) {
       const P2SHUTXOs = await rpc.getUtxosByAddresses([P2SHAddress.toString()]);
@@ -400,7 +401,6 @@ document.getElementById("krcListReveal").addEventListener("click", async () => {
         await new Promise((resolve) => setTimeout(resolve, 1000));
       }
     }
-    await rpc.disconnect();
 
     const P2SHEntry = P2SHEntries[0];
     const entry = {
@@ -443,12 +443,62 @@ document.getElementById("krcListReveal").addEventListener("click", async () => {
         priorityFee: "1",
       },
     );
+
     document.getElementById("listRevealTxId").innerText = revealTxId;
     document.getElementById("listErrorKRC20").innerText = "";
   } catch (error) {
     document.getElementById("listErrorKRC20").innerText = error.message;
+  } finally {
+    rpc.disconnect();
   }
 });
+
+document
+  .getElementById("preparedSendTx")
+  .addEventListener("click", async () => {
+    const rpc = new kaspaWasm.RpcClient({
+      resolver: new kaspaWasm.Resolver(),
+      networkId: "testnet-10",
+    });
+    await rpc.connect();
+    try {
+      const sendP2SHAddress =
+        document.getElementById("sendP2SHAddress").innerText;
+      const sendScriptBuilder = kaspaWasm.ScriptBuilder.fromScript(
+        document.getElementById("sendScript").innerText,
+      );
+      const sellerAddress = document.getElementById("address").innerText;
+
+      let sendP2SHEntries = [];
+      while (sendP2SHEntries.length === 0) {
+        const sendP2SHUTXOs = await rpc.getUtxosByAddresses([
+          sendP2SHAddress.toString(),
+        ]);
+        sendP2SHEntries = sendP2SHUTXOs.entries;
+      }
+
+      const tx = new kaspaWasm.createTransaction(
+        [sendP2SHEntries[0]],
+        [{ address: sellerAddress, amount: kaspaWasm.kaspaToSompi("1") }],
+        0n,
+      );
+
+      const preparedTxJson = tx.serializeToSafeJSON();
+      const signedTx = await kastle.signTx("testnet-10", preparedTxJson, [
+        {
+          inputIndex: 0,
+          scriptHex: sendScriptBuilder.toString(),
+          signType: "SingleAnyOneCanPay",
+        },
+      ]);
+      document.getElementById("sendPreparedTx").innerText = signedTx;
+      document.getElementById("sendPreparedError").innerText = "None";
+    } catch (error) {
+      document.getElementById("sendPreparedError").innerText = error;
+    } finally {
+      rpc.disconnect();
+    }
+  });
 
 document
   .getElementById("krcCancelReveal")
@@ -493,7 +543,6 @@ document
             inputIndex: 0,
           },
         ],
-        priorityFee: "1",
       });
       document.getElementById("cancelTradeTxId").innerText = revealTxId;
       document.getElementById("cancelErrorKRC20").innerText = "";
@@ -501,3 +550,61 @@ document
       document.getElementById("cancelErrorKRC20").innerText = error.message;
     }
   });
+
+document.getElementById("krcBuyReveal").addEventListener("click", async () => {
+  const txJson = document.getElementById("sendPreparedTx").innerText;
+  const tx = kaspaWasm.Transaction.deserializeFromSafeJSON(txJson);
+
+  const address = document.getElementById("address").innerText;
+  const rpc = new kaspaWasm.RpcClient({
+    resolver: new kaspaWasm.Resolver(),
+    networkId: "testnet-10",
+  });
+  await rpc.connect();
+  try {
+    const amount = tx.outputs
+      .map((output) => output.value)
+      .reduce((a, b) => a + b, 0n);
+    const entries = [];
+    const utxos = await rpc.getUtxosByAddresses([address]);
+    let total = 0n;
+    const fee = kaspaWasm.kaspaToSompi("0.01");
+    while (total < amount + fee) {
+      const entry = utxos.entries.pop();
+      entries.push(entry);
+      total += entry.amount;
+    }
+
+    const newInputs = entries.map((entry) => {
+      return {
+        previousOutpoint: entry.outpoint,
+        sequence: 0n,
+        sigOpCount: 1,
+        utxo: entry,
+      };
+    });
+
+    tx.inputs = [...tx.inputs, ...newInputs];
+    const balanceOfInputs = tx.inputs
+      .map((input) => input.utxo.amount)
+      .reduce((a, b) => a + b, 0n);
+    const change = balanceOfInputs - amount - fee;
+    tx.outputs = [
+      ...tx.outputs,
+      { value: change, scriptPublicKey: kaspaWasm.payToAddressScript(address) },
+    ];
+
+    const signedTx = await kastle.signTx(
+      "testnet-10",
+      tx.serializeToSafeJSON(),
+    );
+    const txId = await rpc.submitTransaction(
+      kaspaWasm.Transaction.deserializeFromSafeJSON(signedTx),
+    );
+    document.getElementById("buyTradeTxId").innerText = txId;
+  } catch (error) {
+    document.getElementById("buyErrorKRC20").innerText = error.message;
+  } finally {
+    rpc.disconnect();
+  }
+});
