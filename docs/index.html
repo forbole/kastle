@@ -1,146 +1,150 @@
 <!doctype html>
 <html>
+  <head>
+    <title>Demo Page</title>
+    <script>
+      async function initWasm() {
+        const kaspa = await import("./kaspa.js");
+        await kaspa.default();
+        console.log("WASM module loaded successfully!");
+        window.kaspaWasm = kaspa;
+      }
+      initWasm();
+    </script>
+  </head>
 
-<head>
-  <title>Demo Page</title>
-  <script>
-    async function initWasm() {
-      const kaspa = await import("./kaspa.js");
-      await kaspa.default();
-      console.log("WASM module loaded successfully!");
-      window.kaspaWasm = kaspa;
-    }
-    initWasm();
-  </script>
-</head>
-
-<body>
-  <h1>Demo page</h1>
-  <h3>Kastle Basic</h3>
-  <div>
-    <button id="connectButton">Connect</button>
-    <div>Connected: <span id="connected">false</span></div>
-  </div>
-
-  <div>
-    <button id="getAccountButton">Get Account</button>
-    <div>Address: <span id="address"></span></div>
-    <div>Public Key: <span id="publicKey"></span></div>
-  </div>
-
-  <div>
-    <button id="signAndBroadcastTx">Sign and Broadcast Tx</button>
-    <div>Tx id: <span id="txId"></span></div>
-  </div>
-  <div>Error: <span id="error">None</span></div>
-
-  <hr />
-
-  <h3>KRC20</h3>
-  <div>
-    <h4>Get KRC20</h4>
-    <button id="getKRC20Tokens">Get KRC20 Tokens</button>
-    <ul id="krc20Tokens"></ul>
-    <div>Error: <span id="krc20TokensError">None</span></div>
-  </div>
-
-  <div>
-    <h4>Deploy KRC20</h4>
+  <body>
+    <h1>Demo page</h1>
+    <h3>Kastle Basic</h3>
     <div>
-      Tick:
-      <input type="text" id="deployTick" placeholder="TTTT" maxlength="6" />
+      <button id="connectButton">Connect</button>
+      <div>Connected: <span id="connected">false</span></div>
     </div>
-    <button id="krcDeployCommit">Deploy KRC Commit</button>
-    <button id="krcDeployReveal">Deploy KRC Reveal</button>
-    <div>P2SH address: <span id="P2SHDeployAddress"></span></div>
-    <div>Script: <span id="deployScript"></span></div>
-    <div>Commit Tx Id: <span id="deployCommitTxId"></span></div>
-    <div>Reveal Tx Id: <span id="deployRevealTxId"></span></div>
-    <div>Error: <span id="deployErrorKRC20">None</span></div>
+
+    <div>
+      <button id="getAccountButton">Get Account</button>
+      <div>Address: <span id="address"></span></div>
+      <div>Public Key: <span id="publicKey"></span></div>
+    </div>
+
+    <div>
+      <button id="signAndBroadcastTx">Sign and Broadcast Tx</button>
+      <div>Tx id: <span id="txId"></span></div>
+    </div>
+    <div>Error: <span id="error">None</span></div>
 
     <hr />
 
-    <h4>Mint KRC20</h4>
+    <h3>KRC20</h3>
     <div>
-      Tick:
-      <input type="text" id="mintTick" placeholder="TTTT" maxlength="6" />
+      <h4>Get KRC20</h4>
+      <button id="getKRC20Tokens">Get KRC20 Tokens</button>
+      <ul id="krc20Tokens"></ul>
+      <div>Error: <span id="krc20TokensError">None</span></div>
     </div>
-    <button id="krcMintCommit">Mint KRC Commit</button>
-    <button id="krcMintReveal">Mint KRC Reveal</button>
-    <div>P2SH address: <span id="P2SHMintAddress"></span></div>
-    <div>Script: <span id="mintScript"></span></div>
-    <div>Commit Tx Id: <span id="mintCommitTxId"></span></div>
-    <div>Reveal Tx Id: <span id="mintRevealTxId"></span></div>
-    <div>Error: <span id="mintErrorKRC20">None</span></div>
+
+    <div>
+      <h4>Deploy KRC20</h4>
+      <div>
+        Tick:
+        <input type="text" id="deployTick" placeholder="TTTT" maxlength="6" />
+      </div>
+      <button id="krcDeployCommit">Deploy KRC Commit</button>
+      <button id="krcDeployReveal">Deploy KRC Reveal</button>
+      <div>P2SH address: <span id="P2SHDeployAddress"></span></div>
+      <div>Script: <span id="deployScript"></span></div>
+      <div>Commit Tx Id: <span id="deployCommitTxId"></span></div>
+      <div>Reveal Tx Id: <span id="deployRevealTxId"></span></div>
+      <div>Error: <span id="deployErrorKRC20">None</span></div>
+
+      <hr />
+
+      <h4>Mint KRC20</h4>
+      <div>
+        Tick:
+        <input type="text" id="mintTick" placeholder="TTTT" maxlength="6" />
+      </div>
+      <button id="krcMintCommit">Mint KRC Commit</button>
+      <button id="krcMintReveal">Mint KRC Reveal</button>
+      <div>P2SH address: <span id="P2SHMintAddress"></span></div>
+      <div>Script: <span id="mintScript"></span></div>
+      <div>Commit Tx Id: <span id="mintCommitTxId"></span></div>
+      <div>Reveal Tx Id: <span id="mintRevealTxId"></span></div>
+      <div>Error: <span id="mintErrorKRC20">None</span></div>
+
+      <hr />
+
+      <h4>Transfer KRC20</h4>
+      <div>
+        Tick:
+        <input type="text" id="transferTick" placeholder="TTTT" maxlength="6" />
+      </div>
+      <div>
+        To: <input type="text" id="transferTo" placeholder="kaspatest:" />
+      </div>
+      <div>
+        Amount:
+        <input
+          type="number"
+          id="transferAmount"
+          placeholder="1000"
+          value="1000"
+        />
+      </div>
+      <button id="krcTransferCommit">Transfer KRC Commit</button>
+      <button id="krcTransferReveal">Transfer KRC Reveal</button>
+      <div>P2SH address: <span id="P2SHTransferAddress"></span></div>
+      <div>Script: <span id="transferScript"></span></div>
+      <div>Commit Tx Id: <span id="trnasferCommitTxId"></span></div>
+      <div>Reveal Tx Id: <span id="transferRevealTxId"></span></div>
+      <div>Error: <span id="transferErrorKRC20">None</span></div>
+    </div>
+    <hr />
+
+    <div>
+      <h3>KRC20 Trade</h3>
+      <div>
+        <h4>List KRC20</h4>
+        <input type="text" id="tradeListTick" placeholder="TTTT" />
+        <input type="number" id="tradeListAmount" placeholder="1000" />
+        <button id="krcListCommit">List KRC Commit</button>
+        <button id="krcListReveal">List KRC Reveal</button>
+        <div>List P2SH address: <span id="P2SHListAddress"></span></div>
+        <div>Script: <span id="listScript"></span></div>
+        <div>Commit Tx Id: <span id="listCommitTxId"></span></div>
+        <div>Reveal Tx Id: <span id="listRevealTxId"></span></div>
+        <div>Send P2SH address: <span id="sendP2SHAddress"></span></div>
+        <div>Send Script: <span id="sendScript"></span></div>
+        <div>Error: <span id="listErrorKRC20">None</span></div>
+      </div>
+
+      <hr />
+
+      <div>
+        <h3>Prepared Send Transaction</h3>
+        <button id="preparedSendTx">Prepare</button>
+        <div>Prepared Tx: <span id="sendPreparedTx"></span></div>
+        <div>Error: <span id="sendPreparedError">None</span></div>
+      </div>
+
+      <hr />
+
+      <div>
+        <h4>Cancel KRC20 Trade</h4>
+        <button id="krcCancelReveal">Cancel Trade</button>
+        <div>Cancel Trade Tx Id: <span id="cancelTradeTxId"></span></div>
+        <div>Error: <span id="cancelErrorKRC20">None</span></div>
+      </div>
+    </div>
 
     <hr />
 
-    <h4>Transfer KRC20</h4>
     <div>
-      Tick:
-      <input type="text" id="transferTick" placeholder="TTTT" maxlength="6" />
+      <h4>Buy KRC20 Trade</h4>
+      <button id="krcBuyReveal">Buy KRC Reveal</button>
+      <div>Buy Trade Tx Id: <span id="buyTradeTxId"></span></div>
+      <div>Error: <span id="buyErrorKRC20">None</span></div>
     </div>
-    <div>
-      To: <input type="text" id="transferTo" placeholder="kaspatest:" />
-    </div>
-    <div>
-      Amount:
-      <input type="number" id="transferAmount" placeholder="1000" value="1000" />
-    </div>
-    <button id="krcTransferCommit">Transfer KRC Commit</button>
-    <button id="krcTransferReveal">Transfer KRC Reveal</button>
-    <div>P2SH address: <span id="P2SHTransferAddress"></span></div>
-    <div>Script: <span id="transferScript"></span></div>
-    <div>Commit Tx Id: <span id="trnasferCommitTxId"></span></div>
-    <div>Reveal Tx Id: <span id="transferRevealTxId"></span></div>
-    <div>Error: <span id="transferErrorKRC20">None</span></div>
-  </div>
-  <hr />
-
-  <div>
-    <h3>KRC20 Trade</h3>
-    <div>
-      <h4>List KRC20</h4>
-      <input type="text" id="tradeListTick" placeholder="TTTT" />
-      <input type="number" id="tradeListAmount" placeholder="1000" />
-      <button id="krcListCommit">List KRC Commit</button>
-      <button id="krcListReveal">List KRC Reveal</button>
-      <div>List P2SH address: <span id="P2SHListAddress"></span></div>
-      <div>Script: <span id="listScript"></span></div>
-      <div>Commit Tx Id: <span id="listCommitTxId"></span></div>
-      <div>Reveal Tx Id: <span id="listRevealTxId"></span></div>
-      <div>Send P2SH address: <span id="sendP2SHAddress"></span></div>
-      <div>Send Script: <span id="sendScript"></span></div>
-      <div>Error: <span id="listErrorKRC20">None</span></div>
-    </div>
-
-    <hr />
-
-    <div>
-      <h3>Prepared Send Transaction</h3>
-      <button id="preparedSendTx">Prepare</button>
-      <div>Prepared Tx: <span id="sendPreparedTx"></span></div>
-      <div>Error: <span id="sendPreparedError">None</span></div>
-    </div>
-
-    <hr />
-
-    <div>
-      <h4>Cancel KRC20 Trade</h4>
-      <button id="krcCancelReveal">Cancel Trade</button>
-      <div>Cancel Trade Tx Id: <span id="cancelTradeTxId"></span></div>
-      <div>Error: <span id="cancelErrorKRC20">None</span></div>
-    </div>
-  </div>
-
-  <hr />
-
-  <div>
-    <h4>Buy KRC20 Trade</h4>
-    <button id="krcBuyReveal">Buy KRC Reveal</button>
-    <div>Buy Trade Tx Id: <span id="buyTradeTxId"></span></div>
-    <div>Error: <span id="buyErrorKRC20">None</span></div>
-</body>
-<script src="index.js"></script>
-
+  </body>
+  <script src="index.js"></script>
 </html>
