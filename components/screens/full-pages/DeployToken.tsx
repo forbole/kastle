@@ -64,10 +64,10 @@ export default function DeployToken() {
   });
 
   const validateTicker = async (ticker: string) => {
-    type TicketInfo = { result: Array<{ state: string }> };
+    type TickerInfo = { result: Array<{ state: string }> };
 
     const response = await fetch(`${kasplexUrl}/krc20/token/${ticker}`);
-    const tickerInfo = (await response.json()) as TicketInfo;
+    const tickerInfo = (await response.json()) as TickerInfo;
 
     return tickerInfo?.result?.[0]?.state !== "unused"
       ? "Oh, this ticker has already been used"
