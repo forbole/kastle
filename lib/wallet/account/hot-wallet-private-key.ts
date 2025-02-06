@@ -133,7 +133,7 @@ export class HotWalletPrivateKey implements IWallet {
       }
       return await signTransaction(tx, [this.getPrivateKey()], false);
     }
-    return await signTransaction(tx, [this.getPrivateKey()], false);
+    return await signTransaction(tx, [this.getPrivateKey()], true);
   }
 
   async signTxWithScripts(tx: Transaction, scripts: ScriptOption[]) {
