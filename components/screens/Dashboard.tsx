@@ -185,6 +185,20 @@ export default function Dashboard() {
                 </div>
                 <span className="text-daintree-400">Deploy</span>
               </div>
+              <div
+                className="flex cursor-pointer flex-col items-center gap-2"
+                onClick={() => {
+                  const url = new URL(browser.runtime.getURL("/popup.html"));
+                  url.hash = `/mint-token`;
+
+                  browser.tabs.create({ url: url.toString() });
+                }}
+              >
+                <div className="flex h-[46px] w-[46px] items-center justify-center rounded-full bg-white/10">
+                  <i className="hn hn-pencil text-[20px] text-white"></i>
+                </div>
+                <span className="text-daintree-400">Mint</span>
+              </div>
             </>
           ) : (
             <a

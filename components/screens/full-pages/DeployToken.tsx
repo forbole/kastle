@@ -18,7 +18,7 @@ type DeployFormData = {
 };
 
 export default function DeployToken() {
-  const { kasplexUrl } = useKasplex();
+  const { fetchTokenInfo } = useKasplex();
   const {
     formState: {
       errors,
@@ -64,10 +64,7 @@ export default function DeployToken() {
   });
 
   const validateTicker = async (ticker: string) => {
-    type TickerInfo = { result: Array<{ state: string }> };
-
-    const response = await fetch(`${kasplexUrl}/krc20/token/${ticker}`);
-    const tickerInfo = (await response.json()) as TickerInfo;
+    const tickerInfo = await fetchTokenInfo(ticker);
 
     return tickerInfo?.result?.[0]?.state !== "unused"
       ? "Oh, this ticker has already been used"
@@ -75,7 +72,7 @@ export default function DeployToken() {
   };
 
   useEffect(() => {
-    if (balance < Fee.Deploy) {
+    if (balance < Fee.Deploy + Fee.Base) {
       setError("root", {
         message: "Oh, you don't have enough funds to cover the estimated fees",
       });
@@ -384,7 +381,7 @@ export default function DeployToken() {
                 />
                 <span className="text-base">Estimated Fee</span>
                 <span className="text-base font-semibold">
-                  {Fee.Deploy} KAS
+                  {Fee.Deploy + Fee.Base} KAS
                 </span>
               </div>
             </div>
