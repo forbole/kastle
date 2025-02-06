@@ -1,16 +1,16 @@
 import castleImage from "@/assets/images/castle.png";
 import { NavLink } from "react-router-dom";
-import { usePostHog } from "posthog-js/react";
+import useAnalytics from "@/hooks/useAnalytics.ts";
 
 export default function Onboarding() {
   const calledOnce = useRef(false);
-  const postHog = usePostHog();
+  const { emitOnboardingComplete } = useAnalytics();
 
   useEffect(() => {
     if (calledOnce.current) return;
     calledOnce.current = true;
 
-    postHog.capture("onboarding");
+    emitOnboardingComplete();
   }, []);
 
   return (
