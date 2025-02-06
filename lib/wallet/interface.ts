@@ -4,6 +4,7 @@ import {
   ITransactionOutpoint,
   IScriptPublicKey,
   kaspaToSompi,
+  SighashType,
 } from "@/wasm/core/kaspa";
 
 export type PaymentOutput = {
@@ -35,8 +36,41 @@ export type TransactionOptions = {
   entries?: Entry[];
   priorityFee?: string; // KAS
   payload?: Uint8Array;
-  scriptHex?: string;
+  scripts?: ScriptOption[];
 };
+
+export type ScriptOption = {
+  inputIndex: number;
+  scriptHex: string;
+  signType?: SignType;
+};
+
+export type SignType =
+  | "All"
+  | "None"
+  | "Single"
+  | "AllAnyOneCanPay"
+  | "NoneAnyOneCanPay"
+  | "SingleAnyOneCanPay";
+
+export function toSignType(signType: SignType): SighashType {
+  switch (signType) {
+    case "All":
+      return SighashType.All;
+    case "None":
+      return SighashType.None;
+    case "Single":
+      return SighashType.Single;
+    case "AllAnyOneCanPay":
+      return SighashType.AllAnyOneCanPay;
+    case "NoneAnyOneCanPay":
+      return SighashType.NoneAnyOneCanPay;
+    case "SingleAnyOneCanPay":
+      return SighashType.SingleAnyOneCanPay;
+    default:
+      throw new Error(`Invalid sign type: ${signType}`);
+  }
+}
 
 export type TransactionEstimate = {
   totalFees: string; // KAS

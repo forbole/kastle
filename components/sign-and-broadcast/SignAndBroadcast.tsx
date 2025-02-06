@@ -131,12 +131,16 @@ export default function SignAndBroadcast({
             </div>
           </div>
 
-          {/* Script */}
+          {/* Scripts */}
           <div>
-            Script:
-            {transaction.options?.scriptHex
-              ? Buffer.from(transaction.options.scriptHex, "hex").toString()
-              : ""}
+            Scripts:
+            {transaction.options?.scripts?.map((script, index) => (
+              <div key={index} className="border">
+                <div>Input Index: {script.inputIndex}</div>
+                <div>Script: {script.scriptHex}</div>
+                <div>Sign Type: {script.signType}</div>
+              </div>
+            ))}
           </div>
 
           {/* Payload */}

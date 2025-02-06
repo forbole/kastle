@@ -14,8 +14,10 @@ import {
 import {
   IWallet,
   PaymentOutput,
+  ScriptOption,
   TransactionOptions,
   toKaspaEntry,
+  toSignType,
 } from "@/lib/wallet/interface.ts";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 
@@ -138,28 +140,51 @@ export class HotWalletAccount implements IWallet {
     }
 
     // Replace the input script with the provided script
-    if (options?.scriptHex) {
-      const replaceIndex = pending.transaction.inputs.findIndex(
-        (input) => input.signatureScript === "",
-      );
-      if (replaceIndex === -1) {
-        throw new Error("No input to replace");
+    if (options?.scripts) {
+      for (const script of options.scripts) {
+        await this.signTxInputWithScript(pending, script);
       }
-
-      const scriptBuilder = ScriptBuilder.fromScript(options.scriptHex);
-      const signature = await pending.createInputSignature(
-        replaceIndex,
-        new PrivateKey(this.getPrivateKey()),
-      );
-
-      pending.fillInput(
-        replaceIndex,
-        scriptBuilder.encodePayToScriptHashSignatureScript(signature),
-      );
+      await pending.sign([this.getPrivateKey()], false);
+    } else {
+      await pending.sign([this.getPrivateKey()]);
     }
 
-    await pending.sign([this.getPrivateKey()], false);
     return await pending.submit(this.rpcClient);
+  }
+
+  async signTxWithScripts(tx: PendingTransaction, scripts?: ScriptOption[]) {
+    if (scripts) {
+      for (const script of scripts) {
+        await this.signTxInputWithScript(tx, script);
+      }
+    }
+    return tx;
+  }
+
+  async signTxInputWithScript(tx: PendingTransaction, script: ScriptOption) {
+    // check if the input does exist
+    if (tx.transaction.inputs.length <= script.inputIndex) {
+      throw new Error("Input index out of range");
+    }
+
+    // check if the input is not already signed
+    if (tx.transaction.inputs[script.inputIndex].signatureScript !== "") {
+      throw new Error("Input already signed");
+    }
+
+    const signature = await tx.createInputSignature(
+      script.inputIndex,
+      new PrivateKey(this.getPrivateKey()),
+      toSignType(script.signType ?? "All"),
+    );
+
+    const scriptBuilder = ScriptBuilder.fromScript(script.scriptHex);
+    tx.fillInput(
+      script.inputIndex,
+      scriptBuilder.encodePayToScriptHashSignatureScript(signature),
+    );
+
+    return tx;
   }
 
   private getPrivateKeys(indexes: number[]) {
