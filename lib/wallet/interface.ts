@@ -5,6 +5,7 @@ import {
   IScriptPublicKey,
   kaspaToSompi,
   SighashType,
+  Transaction,
 } from "@/wasm/core/kaspa";
 
 export type PaymentOutput = {
@@ -98,4 +99,6 @@ export interface IWallet {
     outputs: PaymentOutput[],
     options?: TransactionOptions,
   ): Promise<string>;
+
+  signTx(tx: Transaction, scripts?: ScriptOption[]): Promise<Transaction>;
 }

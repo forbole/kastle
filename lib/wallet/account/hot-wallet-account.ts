@@ -9,6 +9,9 @@ import {
   ScriptBuilder,
   UtxoEntryReference,
   XPrv,
+  Transaction,
+  createInputSignature,
+  signTransaction,
 } from "@/wasm/core/kaspa";
 
 import {
@@ -85,7 +88,7 @@ export class HotWalletAccount implements IWallet {
     });
 
     const txIds = [];
-    let pending;
+    let pending: PendingTransaction;
     while ((pending = await txGenerator.next())) {
       await pending.sign(this.getPrivateKeys(indexes));
       const txid = await pending.submit(this.rpcClient);
@@ -139,51 +142,49 @@ export class HotWalletAccount implements IWallet {
       throw new Error("No transaction to sign");
     }
 
-    // Replace the input script with the provided script
-    if (options?.scripts) {
-      for (const script of options.scripts) {
-        await this.signTxInputWithScript(pending, script);
-      }
-      await pending.sign([this.getPrivateKey()], false);
-    } else {
-      await pending.sign([this.getPrivateKey()]);
-    }
-
-    return await pending.submit(this.rpcClient);
+    const signed = await this.signTx(pending.transaction, options?.scripts);
+    return (await this.rpcClient.submitTransaction({ transaction: signed }))
+      .transactionId;
   }
 
-  async signTxWithScripts(tx: PendingTransaction, scripts?: ScriptOption[]) {
+  // NOTE: This method does not support signing with multiple keys
+  async signTx(tx: Transaction, scripts?: ScriptOption[]) {
     if (scripts) {
       for (const script of scripts) {
         await this.signTxInputWithScript(tx, script);
       }
+      return await signTransaction(tx, [this.getPrivateKey()], false);
     }
-    return tx;
+    return await signTransaction(tx, [this.getPrivateKey()], false);
   }
 
-  async signTxInputWithScript(tx: PendingTransaction, script: ScriptOption) {
+  async signTxWithScripts(tx: Transaction, scripts: ScriptOption[]) {
+    for (const script of scripts) {
+      await this.signTxInputWithScript(tx, script);
+    }
+  }
+
+  async signTxInputWithScript(tx: Transaction, script: ScriptOption) {
     // check if the input does exist
-    if (tx.transaction.inputs.length <= script.inputIndex) {
+    if (tx.inputs.length <= script.inputIndex) {
       throw new Error("Input index out of range");
     }
 
     // check if the input is not already signed
-    if (tx.transaction.inputs[script.inputIndex].signatureScript !== "") {
+    if (tx.inputs[script.inputIndex].signatureScript !== "") {
       throw new Error("Input already signed");
     }
 
-    const signature = await tx.createInputSignature(
+    const signature = await createInputSignature(
+      tx,
       script.inputIndex,
       new PrivateKey(this.getPrivateKey()),
       toSignType(script.signType ?? "All"),
     );
 
     const scriptBuilder = ScriptBuilder.fromScript(script.scriptHex);
-    tx.fillInput(
-      script.inputIndex,
-      scriptBuilder.encodePayToScriptHashSignatureScript(signature),
-    );
-
+    tx.inputs[script.inputIndex].signatureScript =
+      scriptBuilder.encodePayToScriptHashSignatureScript(signature);
     return tx;
   }
 

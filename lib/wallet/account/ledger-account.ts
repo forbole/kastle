@@ -144,6 +144,10 @@ export class LedgerAccount implements IWallet {
     throw new Error("Method not implemented.");
   }
 
+  public async signTx(tx: Transaction): Promise<Transaction> {
+    throw new Error("Method not implemented.");
+  }
+
   private async getUtxos(): Promise<IUtxoEntry[]> {
     const address = await this.getAddress();
     return (
