@@ -1,6 +1,7 @@
 import { connectHandler } from "@/api/background/handlers/connect";
 import { getAccountHandler } from "@/api/background/handlers/getAccount";
 import { signAndBroadcastTxHandler } from "@/api/background/handlers/signAndBroadcastTx";
+import { signTxHandler } from "@/api/background/handlers/signTx";
 import { Action, ApiRequest, ApiResponse } from "@/api/message";
 
 export class BackgroundService {
@@ -46,6 +47,7 @@ export class BackgroundService {
       [Action.CONNECT]: connectHandler,
       [Action.GET_ACCOUNT]: getAccountHandler,
       [Action.SIGN_AND_BROADCAST_TX]: signAndBroadcastTxHandler,
+      [Action.SIGN_TX]: signTxHandler,
     };
 
     return handlers[action];

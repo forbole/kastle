@@ -1,32 +1,28 @@
-import { ApiResponse, TransactionPayload } from "@/api/message";
+import { ApiResponse, SignTxPayload } from "@/api/message";
 import { ApiExtensionUtils } from "@/api/extension";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import { IWallet } from "@/lib/wallet/interface";
 import { useBoolean } from "usehooks-ts";
 import useWalletManager from "@/hooks/useWalletManager";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
+import { Transaction } from "@/wasm/core/kaspa";
 
-type SignAndBroadcastProps = {
+type SignTxProps = {
   wallet: IWallet;
   networkId: NetworkType;
   requestId: string;
-  transaction: TransactionPayload;
+  payload: SignTxPayload;
 };
 
-export default function SignAndBroadcast({
+export default function SignTx({
   wallet,
   networkId,
   requestId,
-  transaction,
-}: SignAndBroadcastProps) {
+  payload,
+}: SignTxProps) {
   const { value: isLoading, toggle: toggleLoading } = useBoolean(false);
   const { rpcClient } = useRpcClientStateful();
   const { account } = useWalletManager();
-
-  const transactionEstimate = useTransactionEstimate({
-    account,
-    outputs: transaction.outputs,
-  });
 
   const handleConfirm = async () => {
     if (!rpcClient || !wallet || !account) {
@@ -35,14 +31,12 @@ export default function SignAndBroadcast({
 
     try {
       toggleLoading();
-      const txId = await wallet.signAndBroadcastTx(
-        transaction.outputs,
-        transaction.options,
-      );
+      const tx = Transaction.deserializeFromSafeJSON(payload.txJson);
+      const signed = await wallet.signTx(tx, payload.scripts);
       toggleLoading();
       await ApiExtensionUtils.sendMessage(
         requestId,
-        new ApiResponse(requestId, txId),
+        new ApiResponse(requestId, signed.serializeToSafeJSON()),
       );
     } catch (err) {
       await ApiExtensionUtils.sendMessage(
@@ -70,11 +64,11 @@ export default function SignAndBroadcast({
   return (
     <div className="p2 text-white">
       <h1>SignAndBroadcastTxConfirm</h1>
-      {transaction.networkId !== networkId && (
+      {payload.networkId !== networkId && (
         <>
           <span>
             Network Id does not match, please switch network to{" "}
-            {transaction.networkId}
+            {payload.networkId}
           </span>
           <button
             className="rounded bg-red-500 px-4 py-2"
@@ -84,57 +78,14 @@ export default function SignAndBroadcast({
           </button>
         </>
       )}
-      {transaction.networkId === networkId && (
+      {payload.networkId === networkId && (
         <>
-          <span>{transaction.networkId}</span>
-          {/* Entries */}
-          {transaction.options?.entries && (
-            <div className="border">
-              Inputs:
-              <div>
-                {transaction.options?.entries.map((input, index) => (
-                  <div key={index}>
-                    <div>Sender: {input.address}</div>
-                    <div>Amount: {input.amount}</div>
-                    <div>Script: {input.scriptPublicKey.script}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Priority Entries */}
-          {transaction.options?.priorityEntries && (
-            <div className="border">
-              Priority Inputs:
-              <div>
-                {transaction.options?.priorityEntries.map((input, index) => (
-                  <div key={index}>
-                    <div>Sender: {input.address}</div>
-                    <div>Amount: {input.amount}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Outputs */}
-          <div className="border">
-            Outputs:
-            <div>
-              {transaction.outputs.map((output, index) => (
-                <div key={index}>
-                  <div>Receiver: {output.address}</div>
-                  <div>Amount: {output.amount}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-
+          <span>{payload.networkId}</span>
+          <span>{payload.txJson}</span>
           {/* Scripts */}
           <div>
             Scripts:
-            {transaction.options?.scripts?.map((script, index) => (
+            {payload.scripts?.map((script, index) => (
               <div key={index} className="border">
                 <div>Input Index: {script.inputIndex}</div>
                 <div>Script: {script.scriptHex}</div>
@@ -142,15 +93,6 @@ export default function SignAndBroadcast({
               </div>
             ))}
           </div>
-
-          {/* Payload */}
-          <div>
-            Payload:
-            {transaction.options?.payload
-              ? Buffer.from(transaction.options.payload).toString("hex")
-              : ""}
-          </div>
-          <div>Fees: {transactionEstimate?.totalFees}</div>
           {isLoading && <div>Loading...</div>}
           {!isLoading && (
             <>
