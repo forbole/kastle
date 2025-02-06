@@ -1,7 +1,18 @@
 import castleImage from "@/assets/images/castle.png";
 import { NavLink } from "react-router-dom";
+import useAnalytics from "@/hooks/useAnalytics.ts";
 
 export default function Onboarding() {
+  const calledOnce = useRef(false);
+  const { emitOnboardingComplete } = useAnalytics();
+
+  useEffect(() => {
+    if (calledOnce.current) return;
+    calledOnce.current = true;
+
+    emitOnboardingComplete();
+  }, []);
+
   return (
     <div id="onboarding" className="flex h-full flex-col justify-between">
       <div className="flex flex-col items-center gap-10 pt-12">

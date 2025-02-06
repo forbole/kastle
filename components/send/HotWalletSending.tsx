@@ -1,10 +1,11 @@
 import { LoadingStatus } from "@/components/send/LoadingStatus";
 import { WalletSecret } from "@/types/WalletSecret";
 import { AccountFactory } from "@/lib/wallet/wallet-factory";
-import { kaspaToSompi } from "@/wasm/core/kaspa";
+import { kaspaToSompi, sompiToKaspaString } from "@/wasm/core/kaspa";
 import { useFormContext } from "react-hook-form";
 import { SendFormData } from "@/components/screens/Send.tsx";
 import { useEffect } from "react";
+import useAnalytics from "@/hooks/useAnalytics.ts";
 
 type HotWalletSendingProps = {
   accountFactory: AccountFactory;
@@ -21,6 +22,7 @@ export default function HotWalletSending({
   onFail,
   onSuccess,
 }: HotWalletSendingProps) {
+  const { emitFirstTransaction } = useAnalytics();
   const { walletSettings } = useWalletManager();
   const calledOnce = useRef(false);
   const form = useFormContext<SendFormData>();
@@ -52,6 +54,12 @@ export default function HotWalletSending({
       }
 
       setOutTxs(transactionResponse.txIds);
+      // Don't await, analytics should not crash the app
+      emitFirstTransaction({
+        amount: sompiToKaspaString(amount),
+        coin: "KAS",
+        direction: "send",
+      });
 
       onSuccess();
     } catch (e) {

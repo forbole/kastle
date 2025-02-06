@@ -10,6 +10,7 @@ import { v4 as uuid } from "uuid";
 interface PasswordFormData {
   password: string;
   confirmPassword: string;
+  agreedTnc: boolean;
 }
 
 export default function SetupPassword() {
@@ -123,6 +124,26 @@ export default function SetupPassword() {
             id="hs-strong-password-input"
             className="-mx-1 mt-2 flex"
           />
+        </div>
+
+        <div className="flex">
+          <input
+            {...register("agreedTnc", { required: true })}
+            type="checkbox"
+            className="mt-0.5 shrink-0 rounded border-neutral-700 bg-neutral-800 text-blue-600 checked:border-icy-blue-400 checked:bg-icy-blue-400 focus:ring-blue-500 focus:ring-offset-gray-800 disabled:pointer-events-none disabled:opacity-50"
+            id="agreed-reset"
+          />
+          <label htmlFor="agreed-reset" className="ms-3 text-sm">
+            I agree to the{" "}
+            <a
+              href="https://kastle.cc/term-and-conditions"
+              className="text-icy-blue-400 underline"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Term and Conditions
+            </a>
+          </label>
         </div>
 
         <button

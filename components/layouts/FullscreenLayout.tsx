@@ -7,6 +7,7 @@ import "preline/preline";
 import { useLocation } from "react-router";
 import { Toaster } from "react-hot-toast";
 import useResetPreline from "@/hooks/useResetPreline.ts";
+import { PostHogWrapperProvider } from "@/contexts/PostHogWrapperProvider.tsx";
 
 export default function FullscreenLayout() {
   const navigation = useNavigation();
@@ -14,9 +15,11 @@ export default function FullscreenLayout() {
   useResetPreline([location.pathname]);
 
   return (
-    <div className="flex h-screen justify-center overflow-y-scroll bg-[#1E293B] py-10 font-sans text-white">
-      <Toaster position="top-center" containerStyle={{ top: 35 }} />
-      {navigation.state === "loading" ? <Splash /> : <Outlet />}
-    </div>
+    <PostHogWrapperProvider>
+      <div className="flex h-screen justify-center overflow-y-scroll bg-[#1E293B] py-10 font-sans text-white">
+        <Toaster position="top-center" containerStyle={{ top: 35 }} />
+        {navigation.state === "loading" ? <Splash /> : <Outlet />}
+      </div>
+    </PostHogWrapperProvider>
   );
 }

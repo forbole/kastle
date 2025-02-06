@@ -3,10 +3,12 @@ import { useForm } from "react-hook-form";
 import { twMerge } from "tailwind-merge";
 import { useNavigate } from "react-router-dom";
 import { v4 as uuid } from "uuid";
+import useAnalytics from "@/hooks/useAnalytics.ts";
 
 type PrivateKeyFormValues = { privateKey: string };
 
 export default function ImportPrivateKey() {
+  const { emitPrivateKeyImported } = useAnalytics();
   const navigate = useNavigate();
   const { importPrivateKey } = useWalletManager();
   const {
@@ -32,6 +34,7 @@ export default function ImportPrivateKey() {
   const onSubmit = handleSubmit(async ({ privateKey }) => {
     await importPrivateKey(uuid(), privateKey);
 
+    emitPrivateKeyImported();
     navigate("/accounts-imported");
   });
 
