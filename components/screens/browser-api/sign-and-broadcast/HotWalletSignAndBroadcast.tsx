@@ -51,7 +51,7 @@ export default function HotWalletSignAndBroadcast({
           wallet={wallet}
           networkId={networkId}
           requestId={requestId}
-          transaction={transaction}
+          payload={transaction}
         />
       )}
     </>
