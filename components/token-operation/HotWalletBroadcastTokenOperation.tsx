@@ -103,7 +103,12 @@ export default function HotWalletBroadcastTokenOperation({
 
       const revealTxId = await account.signAndBroadcastTx([], {
         priorityEntries: [entry],
-        scriptHex: scriptBuilder.toString(),
+        scripts: [
+          {
+            inputIndex: 0,
+            scriptHex: scriptBuilder.toString(),
+          },
+        ],
         priorityFee: "1000",
       });
 

@@ -1,4 +1,4 @@
-import { ApiResponse, TransactionPayload } from "@/api/message";
+import { ApiResponse, SignAndBroadcastTxPayload } from "@/api/message";
 import { ApiExtensionUtils } from "@/api/extension";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import { IWallet } from "@/lib/wallet/interface";
@@ -10,14 +10,14 @@ type SignAndBroadcastProps = {
   wallet: IWallet;
   networkId: NetworkType;
   requestId: string;
-  transaction: TransactionPayload;
+  payload: SignAndBroadcastTxPayload;
 };
 
 export default function SignAndBroadcast({
   wallet,
   networkId,
   requestId,
-  transaction,
+  payload,
 }: SignAndBroadcastProps) {
   const { value: isLoading, toggle: toggleLoading } = useBoolean(false);
   const { rpcClient } = useRpcClientStateful();
@@ -25,7 +25,7 @@ export default function SignAndBroadcast({
 
   const transactionEstimate = useTransactionEstimate({
     account,
-    outputs: transaction.outputs,
+    outputs: payload.outputs,
   });
 
   const handleConfirm = async () => {
@@ -36,8 +36,8 @@ export default function SignAndBroadcast({
     try {
       toggleLoading();
       const txId = await wallet.signAndBroadcastTx(
-        transaction.outputs,
-        transaction.options,
+        payload.outputs,
+        payload.options,
       );
       toggleLoading();
       await ApiExtensionUtils.sendMessage(
@@ -70,11 +70,11 @@ export default function SignAndBroadcast({
   return (
     <div className="p2 text-white">
       <h1>SignAndBroadcastTxConfirm</h1>
-      {transaction.networkId !== networkId && (
+      {payload.networkId !== networkId && (
         <>
           <span>
             Network Id does not match, please switch network to{" "}
-            {transaction.networkId}
+            {payload.networkId}
           </span>
           <button
             className="rounded bg-red-500 px-4 py-2"
@@ -84,15 +84,15 @@ export default function SignAndBroadcast({
           </button>
         </>
       )}
-      {transaction.networkId === networkId && (
+      {payload.networkId === networkId && (
         <>
-          <span>{transaction.networkId}</span>
+          <span>{payload.networkId}</span>
           {/* Entries */}
-          {transaction.options?.entries && (
+          {payload.options?.entries && (
             <div className="border">
               Inputs:
               <div>
-                {transaction.options?.entries.map((input, index) => (
+                {payload.options?.entries.map((input, index) => (
                   <div key={index}>
                     <div>Sender: {input.address}</div>
                     <div>Amount: {input.amount}</div>
@@ -104,11 +104,11 @@ export default function SignAndBroadcast({
           )}
 
           {/* Priority Entries */}
-          {transaction.options?.priorityEntries && (
+          {payload.options?.priorityEntries && (
             <div className="border">
               Priority Inputs:
               <div>
-                {transaction.options?.priorityEntries.map((input, index) => (
+                {payload.options?.priorityEntries.map((input, index) => (
                   <div key={index}>
                     <div>Sender: {input.address}</div>
                     <div>Amount: {input.amount}</div>
@@ -122,7 +122,7 @@ export default function SignAndBroadcast({
           <div className="border">
             Outputs:
             <div>
-              {transaction.outputs.map((output, index) => (
+              {payload.outputs.map((output, index) => (
                 <div key={index}>
                   <div>Receiver: {output.address}</div>
                   <div>Amount: {output.amount}</div>
@@ -131,19 +131,23 @@ export default function SignAndBroadcast({
             </div>
           </div>
 
-          {/* Script */}
+          {/* Scripts */}
           <div>
-            Script:
-            {transaction.options?.scriptHex
-              ? Buffer.from(transaction.options.scriptHex, "hex").toString()
-              : ""}
+            Scripts:
+            {payload.options?.scripts?.map((script, index) => (
+              <div key={index} className="border">
+                <div>Input Index: {script.inputIndex}</div>
+                <div>Script: {script.scriptHex}</div>
+                <div>Sign Type: {script.signType}</div>
+              </div>
+            ))}
           </div>
 
           {/* Payload */}
           <div>
             Payload:
-            {transaction.options?.payload
-              ? Buffer.from(transaction.options.payload).toString("hex")
+            {payload.options?.payload
+              ? Buffer.from(payload.options.payload).toString("hex")
               : ""}
           </div>
           <div>Fees: {transactionEstimate?.totalFees}</div>

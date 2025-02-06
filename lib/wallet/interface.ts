@@ -4,6 +4,8 @@ import {
   ITransactionOutpoint,
   IScriptPublicKey,
   kaspaToSompi,
+  SighashType,
+  Transaction,
 } from "@/wasm/core/kaspa";
 
 export type PaymentOutput = {
@@ -30,13 +32,46 @@ export function toKaspaEntry(entry: Entry): IUtxoEntry {
   };
 }
 
-export type TransactionOptions = {
+export type TxSettingOptions = {
   priorityEntries?: Entry[];
   entries?: Entry[];
   priorityFee?: string; // KAS
   payload?: Uint8Array;
-  scriptHex?: string;
+  scripts?: ScriptOption[];
 };
+
+export type ScriptOption = {
+  inputIndex: number;
+  scriptHex: string;
+  signType?: SignType;
+};
+
+export type SignType =
+  | "All"
+  | "None"
+  | "Single"
+  | "AllAnyOneCanPay"
+  | "NoneAnyOneCanPay"
+  | "SingleAnyOneCanPay";
+
+export function toSignType(signType: SignType): SighashType {
+  switch (signType) {
+    case "All":
+      return SighashType.All;
+    case "None":
+      return SighashType.None;
+    case "Single":
+      return SighashType.Single;
+    case "AllAnyOneCanPay":
+      return SighashType.AllAnyOneCanPay;
+    case "NoneAnyOneCanPay":
+      return SighashType.NoneAnyOneCanPay;
+    case "SingleAnyOneCanPay":
+      return SighashType.SingleAnyOneCanPay;
+    default:
+      throw new Error(`Invalid sign type: ${signType}`);
+  }
+}
 
 export type TransactionEstimate = {
   totalFees: string; // KAS
@@ -62,6 +97,8 @@ export interface IWallet {
 
   signAndBroadcastTx(
     outputs: PaymentOutput[],
-    options?: TransactionOptions,
+    options?: TxSettingOptions,
   ): Promise<string>;
+
+  signTx(tx: Transaction, scripts?: ScriptOption[]): Promise<Transaction>;
 }
