@@ -1,7 +1,18 @@
 import castleImage from "@/assets/images/castle.png";
 import { NavLink } from "react-router-dom";
+import { usePostHog } from "posthog-js/react";
 
 export default function Onboarding() {
+  const calledOnce = useRef(false);
+  const postHog = usePostHog();
+
+  useEffect(() => {
+    if (calledOnce.current) return;
+    calledOnce.current = true;
+
+    postHog.capture("onboarding");
+  }, []);
+
   return (
     <div id="onboarding" className="flex h-full flex-col justify-between">
       <div className="flex flex-col items-center gap-10 pt-12">
