@@ -56,6 +56,17 @@ export default function TokenOperation() {
 
         form.setValue("opData", opData);
         break;
+      case "mint":
+        if (!ticker) {
+          throw new Error("missing mint parameters");
+        }
+
+        form.setValue("opData", {
+          p: "krc-20",
+          op: "mint",
+          tick: ticker,
+        });
+        break;
     }
   }, []);
 

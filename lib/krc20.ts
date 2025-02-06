@@ -1,7 +1,9 @@
 import { Opcodes, PublicKey, ScriptBuilder } from "@/wasm/core/kaspa";
 
 export enum Fee {
-  Deploy = 1000.001,
+  Deploy = 1000,
+  Mint = 1,
+  Base = 0.001,
 }
 
 export const createKRC20ScriptBuilder = (pubKey: string, data: any) => {
