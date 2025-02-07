@@ -170,7 +170,7 @@ export default function Dashboard() {
             <span className="text-daintree-400">Receive</span>
           </div>
 
-          {settings?.preview ? (
+          {settings?.preview && wallet?.type !== "ledger" ? (
             <>
               <div
                 className="flex cursor-pointer flex-col items-center gap-2"
@@ -280,9 +280,10 @@ export default function Dashboard() {
               </div>
 
               {/*KRC20 tokens*/}
-              {tokens.map((token) => (
-                <TokenListItem key={token.tick} token={token} />
-              ))}
+              {settings?.preview &&
+                tokens.map((token) => (
+                  <TokenListItem key={token.tick} token={token} />
+                ))}
             </div>
           )}
         </div>

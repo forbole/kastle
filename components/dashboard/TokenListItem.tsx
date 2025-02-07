@@ -2,10 +2,12 @@ import kasIcon from "@/assets/images/kas-icon.svg";
 import { formatToken, formatTokenPrice, formatUSD } from "@/lib/utils.ts";
 import React, { useEffect, useState } from "react";
 import { TokenMetadata, useKasFyi } from "@/hooks/useKasFyi.ts";
+import { useNavigate } from "react-router-dom";
 
 type TokenListItemProps = { token: TokenListItem };
 
 export default function TokenListItem({ token }: TokenListItemProps) {
+  const navigate = useNavigate();
   const [settings] = useSettings();
   const { fetchTokenMetadataByTicker } = useKasFyi();
   const [tokenMetadata, setTokenMetadata] = useState<TokenMetadata>();
@@ -39,7 +41,10 @@ export default function TokenListItem({ token }: TokenListItemProps) {
   }, [tokenMetadata?.iconUrl]);
 
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3">
+    <div
+      className="flex cursor-pointer items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3"
+      onClick={() => navigate(`/token-asset/${token.tick}`)}
+    >
       <img
         alt="castle"
         className="h-[40px] w-[40px] rounded-full"

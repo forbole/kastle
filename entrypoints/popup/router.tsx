@@ -46,6 +46,7 @@ import DevMode from "@/components/screens/DevMode.tsx";
 import DeployToken from "@/components/screens/full-pages/DeployToken.tsx";
 import TokenOperation from "@/components/screens/TokenOperation.tsx";
 import MintToken from "@/components/screens/full-pages/MintToken.tsx";
+import TokenAsset from "@/components/screens/TokenAsset.tsx";
 import SignTxConfirm from "@/components/screens/browser-api/SignTxConfirm";
 
 const loadKaspaWasm = async () => {
@@ -170,6 +171,10 @@ export const router = createHashRouter([
                   {
                     path: "connect-ledger-extension",
                     element: <LedgerConnect />,
+                  },
+                  {
+                    path: "token-asset/:ticker",
+                    element: <TokenAsset />,
                   },
                 ],
               },

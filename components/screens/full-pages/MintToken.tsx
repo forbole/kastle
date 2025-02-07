@@ -1,6 +1,6 @@
 import Header from "@/components/GeneralHeader.tsx";
 import { useForm } from "react-hook-form";
-import { TickerInfo, useKasplex } from "@/hooks/useKasplex.ts";
+import { TickerInfoResponse, useKasplex } from "@/hooks/useKasplex.ts";
 import { twMerge } from "tailwind-merge";
 import { Tooltip } from "react-tooltip";
 import spinner from "@/assets/images/spinner.svg";
@@ -34,7 +34,7 @@ export default function MintToken() {
   });
   const { account } = useWalletManager();
   const balance = account?.balance ? parseFloat(account.balance) : 0;
-  const [tickerInfo, setTickerInfo] = useState<TickerInfo>();
+  const [tickerInfo, setTickerInfo] = useState<TickerInfoResponse>();
   const [mintableAmount, setMintableAmount] = useState("-");
 
   const onSubmit = handleSubmit(async (formValues) => {
