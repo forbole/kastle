@@ -32,7 +32,7 @@ function useStorageState<T>(key: StorageItemKey, initialValue: T) {
     await storage.setItem(key, newValue);
   };
 
-  return [value, updateValue] as const;
+  return [value, updateValue, isLoading] as const;
 }
 
 export default useStorageState;

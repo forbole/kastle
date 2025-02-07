@@ -6,6 +6,7 @@ import useLedgerTransport from "@/hooks/useLedgerTransport";
 import { useFormContext } from "react-hook-form";
 import { SendFormData } from "@/components/screens/Send.tsx";
 import { useEffect } from "react";
+import useAnalytics from "@/hooks/useAnalytics.ts";
 
 type LedgerSendingProps = {
   accountFactory: AccountFactory;
@@ -22,6 +23,7 @@ export default function LedgerSending({
   onFail,
   onSuccess,
 }: LedgerSendingProps) {
+  const { emitFirstTransaction } = useAnalytics();
   const { transport, connect } = useLedgerTransport();
   const { walletSettings } = useWalletManager();
   const calledOnce = useRef(false);
@@ -60,6 +62,12 @@ export default function LedgerSending({
       }
 
       setOutTxs(transactionResponse.txIds);
+      // Don't await, analytics should not crash the app
+      emitFirstTransaction({
+        amount,
+        coin: "KAS",
+        direction: "send",
+      });
 
       onSuccess();
     } catch (e) {

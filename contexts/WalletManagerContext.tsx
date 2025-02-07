@@ -143,10 +143,8 @@ const getCurrentAccount = (walletSettings: WalletSettings) => {
 export function WalletManagerProvider({ children }: { children: ReactNode }) {
   const keyring = useKeyring();
   const { rpcClient, networkId } = useRpcClientStateful();
-  const [walletSettings, setWalletSettings] = useStorageState<WalletSettings>(
-    WALLET_SETTINGS,
-    defaultValue,
-  );
+  const [walletSettings, setWalletSettings, isWalletSettingsLoading] =
+    useStorageState<WalletSettings>(WALLET_SETTINGS, defaultValue);
   const [wallet, setWallet] = useState<WalletInfo>();
   const [account, setAccount] = useState<Account>();
   const [addresses, setAddresses] = useState<string[]>([]);
@@ -593,16 +591,16 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
 
   // Refresh accounts after settings changed
   useEffect(() => {
-    if (!rpcClient) {
+    if (!rpcClient || isWalletSettingsLoading) {
       return;
     }
 
     refreshAccounts();
-  }, [networkId]);
+  }, [networkId, isWalletSettingsLoading]);
 
   // Refresh wallet and account after settings changed
   useEffect(() => {
-    if (!networkId) {
+    if (!networkId || isWalletSettingsLoading) {
       return;
     }
 
@@ -615,7 +613,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
     if (currentAccount && currentAccount !== account) {
       setAccount(currentAccount);
     }
-  }, [walletSettings, networkId]);
+  }, [walletSettings, networkId, isWalletSettingsLoading]);
 
   useEffect(() => {
     if (!networkId || !account) {
@@ -644,7 +642,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
   }, [account, networkId]);
 
   useEffect(() => {
-    if (!rpcClient) {
+    if (!rpcClient || isWalletSettingsLoading) {
       return;
     }
 
@@ -668,7 +666,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
       rpcClient.unsubscribeUtxosChanged(addresses);
       rpcClient.removeEventListener("utxos-changed", fetchBalance);
     };
-  }, [addresses, rpcClient]);
+  }, [addresses, rpcClient, isWalletSettingsLoading]);
 
   return (
     <WalletManagerContext.Provider

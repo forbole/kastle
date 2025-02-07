@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { twMerge } from "tailwind-merge";
 import { v4 as uuid } from "uuid";
+import useAnalytics from "@/hooks/useAnalytics.ts";
 
 type PhraseLength = 12 | 24;
 
@@ -13,6 +14,7 @@ type SeedPhraseFormValues = {
 };
 
 export default function ImportRecoveryPhrase() {
+  const { emitWalletImported } = useAnalytics();
   const navigate = useNavigate();
   const { importWalletByMnemonic } = useWalletManager();
   const {
@@ -62,6 +64,7 @@ export default function ImportRecoveryPhrase() {
     const walletId = uuid();
     await importWalletByMnemonic(walletId, words.join(" "));
 
+    emitWalletImported();
     navigate(`/manage-accounts/recovery-phrase/${walletId}/import`);
   });
 
