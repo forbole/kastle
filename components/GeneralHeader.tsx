@@ -1,8 +1,10 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import { twMerge } from "tailwind-merge";
 
 type Props = {
   title: string;
+  subtitle?: string;
   showPrevious?: boolean;
   showClose?: boolean;
   onBack?: () => Promise<void> | void;
@@ -11,6 +13,7 @@ type Props = {
 
 export default function GeneralHeader({
   title,
+  subtitle,
   showPrevious = true,
   showClose = true,
   onBack,
@@ -19,7 +22,7 @@ export default function GeneralHeader({
   const navigate = useNavigate();
 
   return (
-    <div className="w-full pb-8">
+    <div className={twMerge("w-full", !subtitle ? "pb-8" : "pb-6")}>
       <div className="flex items-center justify-between">
         {showPrevious || onBack ? (
           <button
@@ -54,6 +57,9 @@ export default function GeneralHeader({
             </button>
           )}
         </div>
+      </div>
+      <div className="mx-auto w-[27.75rem] text-center text-xs text-gray-400">
+        {subtitle}
       </div>
     </div>
   );

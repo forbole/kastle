@@ -1,10 +1,12 @@
-import { AccountItem } from "@/components/account-management/AccountItem.tsx";
+import { AccountItem } from "@/components/screens/full-pages/account-management/AccountItem";
 import { FormProvider, useForm } from "react-hook-form";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import toast from "@/components/Toast";
 import { ErrorResponse } from "@/lib/service/handlers/error-response";
 import { useBoolean } from "usehooks-ts";
+import Header from "@/components/GeneralHeader";
+import AccountsTitle from "./AccountsTitle";
 
 export type AccountsFormValues = Record<
   string,
@@ -142,25 +144,18 @@ export default function ManageAccounts({ listAccounts }: ManageAccountsProps) {
     <FormProvider {...form}>
       <form
         onSubmit={onSubmit}
-        className="flex h-[90vh] w-[41rem] flex-col items-stretch gap-4 rounded-3xl bg-icy-blue-950 p-4"
+        className="flex h-[90vh] w-[41rem] flex-col items-stretch gap-4 rounded-3xl bg-icy-blue-950 p-8"
       >
         {/* Header */}
-        <div className="flex justify-between">
-          {/* Placeholder*/}
-          <div className="w-[40px]" />
-          <div className="flex w-64 flex-col items-center gap-2 text-center">
-            <span className="text-xl font-bold text-daintree-200">
-              {action === "manage" ? "Manage Accounts" : "Import Accounts"}
-            </span>
-          </div>
-
-          <button type="button" onClick={window.close}>
-            <i className="hn hn-times p-4 text-[20px] text-white/80"></i>
-          </button>
-        </div>
+        <Header
+          title={action === "manage" ? "Manage Accounts" : "Import Wallet"}
+          subtitle="This page shows accounts created from your recovery phrase. Each phrase can generate multiple accounts, and here you can view and manage them."
+          showPrevious={false}
+        />
 
         {/* List */}
         <div className="flex flex-grow flex-col gap-3 overflow-y-scroll">
+          <AccountsTitle />
           {accountList.map(({ publicKeys }, accountIndex) => (
             <AccountItem
               key={accountIndex}
@@ -170,7 +165,7 @@ export default function ManageAccounts({ listAccounts }: ManageAccountsProps) {
           ))}
           <button
             type="button"
-            className="inline-flex items-center justify-center gap-x-2 rounded-lg border border-transparent px-4 py-3 text-sm font-medium text-icy-blue-400 hover:bg-blue-100 hover:bg-daintree-700 hover:text-blue-400 focus:bg-blue-100 focus:bg-blue-800/30 focus:text-blue-400 disabled:pointer-events-none disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-x-2 rounded-lg border border-transparent px-4 py-3 text-sm font-medium text-icy-blue-400 hover:bg-daintree-700 hover:text-blue-400 focus:bg-blue-100 focus:bg-blue-800/30 focus:text-blue-400 disabled:pointer-events-none disabled:opacity-50"
             onClick={nextPage}
           >
             <i className="hn hn-angle-down text-[14px]" />

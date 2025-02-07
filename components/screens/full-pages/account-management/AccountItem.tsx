@@ -1,5 +1,5 @@
 import { useFormContext } from "react-hook-form";
-import { AccountsFormValues } from "@/components/account-management/ManageAccounts";
+import { AccountsFormValues } from "@/components/screens/full-pages/account-management/ManageAccounts";
 import React, { useState } from "react";
 import { formatToken, formatUSD } from "@/lib/utils.ts";
 import { PublicKey } from "@/wasm/core/kaspa";
