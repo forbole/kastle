@@ -1,0 +1,205 @@
+import React, { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
+import { TickerInfo, useKasplex } from "@/hooks/useKasplex.ts";
+import { TokenMetadata } from "@/hooks/useKasFyi.ts";
+import { formatUSD } from "@/lib/utils.ts";
+import kasIcon from "@/assets/images/kas-icon.svg";
+import { twMerge } from "tailwind-merge";
+import LabelLoading from "@/components/LabelLoading.tsx";
+
+export default function TokenInfo() {
+  const { ticker } = useParams();
+  const { fetchTokenInfo } = useKasplex();
+  const { fetchTokenMetadataByTicker } = useKasFyi();
+  const { addresses } = useWalletManager();
+  const [imageUrl, setImageUrl] = useState(kasIcon);
+  const [tokenInfo, setTokenInfo] = useState<TickerInfo>();
+  const [tokenMetadata, setTokenMetadata] = useState<TokenMetadata>();
+  const [isLoading, setIsLoading] = useState(true);
+
+  const firstAddress = addresses[0];
+  const decimal = tokenInfo ? parseInt(tokenInfo.dec, 10) : 8;
+  const max = tokenInfo ? parseInt(tokenInfo.max, 10) : 0;
+  const minted = tokenInfo ? parseInt(tokenInfo.minted, 10) : 0;
+  const decimalCoefficient = Math.pow(10, decimal);
+  const totalMinted = `${((minted / max) * 100).toFixed(0)}% (${(minted / decimalCoefficient).toLocaleString()}/${(max / decimalCoefficient).toLocaleString()})`;
+
+  const onImageError = () => {
+    setImageUrl(kasIcon);
+  };
+
+  useEffect(() => {
+    const fetchInfo = async () => {
+      if (!firstAddress || !ticker) {
+        return;
+      }
+      const [tokenInfoResponse, tickerInfoMetadataResponse] = await Promise.all(
+        [
+          await fetchTokenInfo(ticker),
+          await fetchTokenMetadataByTicker(ticker),
+        ],
+      );
+
+      setTokenInfo(tokenInfoResponse?.result?.[0]);
+      setTokenMetadata(tickerInfoMetadataResponse);
+      setIsLoading(false);
+    };
+
+    fetchInfo();
+  }, []);
+
+  useEffect(() => {
+    if (tokenMetadata?.iconUrl) {
+      setImageUrl(tokenMetadata.iconUrl);
+    }
+  }, [tokenMetadata?.iconUrl]);
+
+  return (
+    <div className="mb-4 mt-8 flex flex-col items-stretch gap-2">
+      {/* Header card */}
+      <div className="flex flex-col items-stretch gap-2">
+        <div className="flex items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3">
+          <img
+            alt="castle"
+            className="h-[40px] w-[40px]"
+            src={imageUrl}
+            onError={onImageError}
+          />
+          <div className="flex flex-grow flex-col gap-1">
+            <div className="flex items-center justify-between text-base text-white">
+              <span className="capitalize">{ticker}</span>
+            </div>
+            <div className="flex items-center justify-start text-sm text-daintree-400">
+              <span>
+                ≈ {formatUSD(tokenMetadata?.price?.priceInUsd ?? 0)} USD
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/*Details*/}
+      <ul className="mt-3 flex flex-col rounded-lg bg-daintree-800">
+        <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
+          <div className="flex w-full items-start justify-between">
+            <span className="font-medium">Max supply</span>
+            {isLoading ? (
+              <LabelLoading />
+            ) : (
+              <span className="font-medium">
+                {(max / decimalCoefficient).toLocaleString()}
+              </span>
+            )}
+          </div>
+        </li>
+        <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
+          <div className="flex w-full items-start justify-between">
+            <span className="font-medium">Total minted</span>
+            {isLoading ? (
+              <LabelLoading />
+            ) : (
+              <span
+                className={twMerge(
+                  "font-medium",
+                  minted >= max ? "text-[#EF4444]" : "text-[#14B8A6]",
+                )}
+              >
+                {totalMinted}
+              </span>
+            )}
+          </div>
+        </li>
+        <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
+          <div className="flex w-full items-start justify-between">
+            <span className="font-medium">Holder Count</span>
+            {isLoading ? (
+              <LabelLoading />
+            ) : (
+              <span className="font-medium">
+                {(tokenInfo?.holderTotal
+                  ? parseInt(tokenInfo.holderTotal, 10)
+                  : 0
+                ).toLocaleString()}
+              </span>
+            )}
+          </div>
+        </li>
+        <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
+          <div className="flex w-full items-start justify-between">
+            <span className="font-medium">Mint Count</span>
+            {isLoading ? (
+              <LabelLoading />
+            ) : (
+              <span className="font-medium">
+                {(tokenInfo?.mintTotal
+                  ? parseInt(tokenInfo.mintTotal, 10)
+                  : 0
+                ).toLocaleString()}
+              </span>
+            )}
+          </div>
+        </li>
+        <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
+          <div className="flex w-full items-start justify-between">
+            <span className="font-medium">Transfer Count</span>
+            {isLoading ? (
+              <LabelLoading />
+            ) : (
+              <span className="font-medium">
+                {(tokenInfo?.transferTotal
+                  ? parseInt(tokenInfo.transferTotal, 10)
+                  : 0
+                ).toLocaleString()}
+              </span>
+            )}
+          </div>
+        </li>
+        <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
+          <div className="flex w-full items-start justify-between">
+            <span className="font-medium">Preallocation Amount</span>
+            {isLoading ? (
+              <LabelLoading />
+            ) : (
+              <span className="font-medium">
+                {(tokenInfo?.pre
+                  ? parseInt(tokenInfo.pre, 10) / decimalCoefficient
+                  : 0
+                ).toLocaleString()}
+              </span>
+            )}
+          </div>
+        </li>
+        <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
+          <div className="flex w-full items-start justify-between">
+            <span className="font-medium">Default Mint Amount</span>
+            {isLoading ? (
+              <LabelLoading />
+            ) : (
+              <span className="font-medium">
+                {(tokenInfo?.lim
+                  ? parseInt(tokenInfo.lim, 10) / decimalCoefficient
+                  : 0
+                ).toLocaleString()}
+              </span>
+            )}
+          </div>
+        </li>
+        <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
+          <div className="flex w-full items-start justify-between">
+            <span className="font-medium">Decimal</span>
+            {isLoading ? (
+              <LabelLoading />
+            ) : (
+              <span className="font-medium">
+                {(tokenInfo?.dec
+                  ? parseInt(tokenInfo.dec, 10)
+                  : 0
+                ).toLocaleString()}
+              </span>
+            )}
+          </div>
+        </li>
+      </ul>
+    </div>
+  );
+}

@@ -5,7 +5,11 @@ export type TickerInfo = {
   lim: string;
   dec: string;
   max: string;
+  pre: string;
   minted: string;
+  holderTotal: string;
+  transferTotal: string;
+  mintTotal: string;
 };
 
 export type TickerInfoResponse = {

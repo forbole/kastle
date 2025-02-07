@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { twMerge } from "tailwind-merge";
 import React, { useState } from "react";
 import TokenHistory from "@/components/token-asset/TokenHistory.tsx";
+import TokenInfo from "@/components/token-asset/TokenInfo.tsx";
 
 export default function TokenAsset() {
   const navigate = useNavigate();
@@ -44,6 +45,7 @@ export default function TokenAsset() {
         </button>
       </nav>
       {activeTab === "history" && <TokenHistory />}
+      {activeTab === "info" && <TokenInfo />}
     </div>
   );
 }
