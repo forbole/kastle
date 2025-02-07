@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Op, TickerInfo } from "@/hooks/useKasplex.ts";
 import { TokenMetadata } from "@/hooks/useKasFyi.ts";
+import { twMerge } from "tailwind-merge";
 
 type TokenHistoryItemProps = { op: Op; tickerInfo?: TickerInfo | undefined };
 
@@ -61,7 +62,13 @@ export default function TokenHistoryItem({
         <div className="flex flex-grow flex-col gap-1">
           <div className="flex items-center justify-between text-base text-white">
             <span className="capitalize">{op.op}</span>
-            <span>{amount}</span>
+            <span
+              className={twMerge(
+                amount < 0 ? "text-[#EF4444]" : "text-[#14B8A6]",
+              )}
+            >
+              {amount}
+            </span>
           </div>
           <div className="flex items-center justify-end text-sm text-daintree-400">
             <span>

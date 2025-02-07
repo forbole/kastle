@@ -31,7 +31,7 @@ export default function TokenHistory() {
   }, []);
 
   return (
-    <div className="mb-4 mt-8 flex flex-col items-stretch gap-2">
+    <div className="mt-8 flex flex-col items-stretch gap-2">
       {opList.map((op, index) => (
         <TokenHistoryItem key={index} tickerInfo={tickerInfo} op={op} />
       ))}
