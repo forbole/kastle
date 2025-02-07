@@ -253,7 +253,12 @@ export default function Dashboard() {
           ) : (
             <div className="mb-4 flex flex-col items-stretch gap-2">
               {/*KAS*/}
-              <div className="flex items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3">
+              <a
+                className="flex cursor-pointer items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3 hover:border-white"
+                href={`${explorerAddressLink}${address}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 <img alt="castle" className="h-[40px] w-[40px]" src={kasIcon} />
                 <div className="flex flex-grow flex-col gap-1">
                   <div className="flex items-center justify-between text-base text-white">
@@ -277,7 +282,7 @@ export default function Dashboard() {
                     </span>
                   </div>
                 </div>
-              </div>
+              </a>
 
               {/*KRC20 tokens*/}
               {settings?.preview &&

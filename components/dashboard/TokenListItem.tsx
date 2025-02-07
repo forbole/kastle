@@ -42,7 +42,7 @@ export default function TokenListItem({ token }: TokenListItemProps) {
 
   return (
     <div
-      className="flex cursor-pointer items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3"
+      className="flex cursor-pointer items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3 hover:border-white"
       onClick={() => navigate(`/token-asset/${token.tick}`)}
     >
       <img
