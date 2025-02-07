@@ -97,6 +97,12 @@ document
 document
   .getElementById("krcDeployReveal")
   .addEventListener("click", async () => {
+    const rpc = new kaspaWasm.RpcClient({
+      url: "wss://ws.tn10.kaspa.forbole.com/borsh",
+      networkId: "testnet-10",
+    });
+    await rpc.connect();
+
     try {
       const P2SHAddress =
         document.getElementById("P2SHDeployAddress").innerText;
@@ -104,11 +110,6 @@ document
         document.getElementById("deployScript").innerText,
       );
 
-      const rpc = new kaspaWasm.RpcClient({
-        resolver: new kaspaWasm.Resolver(),
-        networkId: "testnet-10",
-      });
-      await rpc.connect();
       let P2SHEntries = [];
       while (P2SHEntries.length === 0) {
         const P2SHUTXOs = await rpc.getUtxosByAddresses([
@@ -120,7 +121,6 @@ document
           await new Promise((resolve) => setTimeout(resolve, 1000));
         }
       }
-      await rpc.disconnect();
 
       const P2SHEntry = P2SHEntries[0];
       const entry = {
@@ -144,6 +144,8 @@ document
       document.getElementById("deployErrorKRC20").innerText = "";
     } catch (error) {
       document.getElementById("deployErrorKRC20").innerText = error.message;
+    } finally {
+      rpc.disconnect();
     }
   });
 
@@ -178,17 +180,18 @@ document.getElementById("krcMintCommit").addEventListener("click", async () => {
 });
 
 document.getElementById("krcMintReveal").addEventListener("click", async () => {
+  const rpc = new kaspaWasm.RpcClient({
+    url: "wss://ws.tn10.kaspa.forbole.com/borsh",
+    networkId: "testnet-10",
+  });
+  await rpc.connect();
+
   try {
     const P2SHAddress = document.getElementById("P2SHMintAddress").innerText;
     const scriptBuilder = kaspaWasm.ScriptBuilder.fromScript(
       document.getElementById("mintScript").innerText,
     );
 
-    const rpc = new kaspaWasm.RpcClient({
-      resolver: new kaspaWasm.Resolver(),
-      networkId: "testnet-10",
-    });
-    await rpc.connect();
     let P2SHEntries = [];
     while (P2SHEntries.length === 0) {
       const P2SHUTXOs = await rpc.getUtxosByAddresses([P2SHAddress.toString()]);
@@ -198,7 +201,6 @@ document.getElementById("krcMintReveal").addEventListener("click", async () => {
         await new Promise((resolve) => setTimeout(resolve, 1000));
       }
     }
-    await rpc.disconnect();
 
     const P2SHEntry = P2SHEntries[0];
     const entry = {
@@ -222,6 +224,8 @@ document.getElementById("krcMintReveal").addEventListener("click", async () => {
     document.getElementById("mintErrorKRC20").innerText = "";
   } catch (error) {
     document.getElementById("mintErrorKRC20").innerText = error.message;
+  } finally {
+    rpc.disconnect();
   }
 });
 
@@ -264,6 +268,12 @@ document
 document
   .getElementById("krcTransferReveal")
   .addEventListener("click", async () => {
+    const rpc = new kaspaWasm.RpcClient({
+      url: "wss://ws.tn10.kaspa.forbole.com/borsh",
+      networkId: "testnet-10",
+    });
+    await rpc.connect();
+
     try {
       const P2SHAddress = document.getElementById(
         "P2SHTransferAddress",
@@ -272,11 +282,6 @@ document
         document.getElementById("transferScript").innerText,
       );
 
-      const rpc = new kaspaWasm.RpcClient({
-        resolver: new kaspaWasm.Resolver(),
-        networkId: "testnet-10",
-      });
-      await rpc.connect();
       let P2SHEntries = [];
       while (P2SHEntries.length === 0) {
         const P2SHUTXOs = await rpc.getUtxosByAddresses([
@@ -288,7 +293,6 @@ document
           await new Promise((resolve) => setTimeout(resolve, 1000));
         }
       }
-      await rpc.disconnect();
 
       const P2SHEntry = P2SHEntries[0];
       const entry = {
@@ -312,6 +316,8 @@ document
       document.getElementById("transferErrorKRC20").innerText = "";
     } catch (error) {
       document.getElementById("transferErrorKRC20").innerText = error.message;
+    } finally {
+      rpc.disconnect();
     }
   });
 
@@ -381,7 +387,7 @@ document.getElementById("krcListCommit").addEventListener("click", async () => {
 
 document.getElementById("krcListReveal").addEventListener("click", async () => {
   const rpc = new kaspaWasm.RpcClient({
-    resolver: new kaspaWasm.Resolver(),
+    url: "wss://ws.tn10.kaspa.forbole.com/borsh",
     networkId: "testnet-10",
   });
   await rpc.connect();
@@ -457,10 +463,11 @@ document
   .getElementById("preparedSendTx")
   .addEventListener("click", async () => {
     const rpc = new kaspaWasm.RpcClient({
-      resolver: new kaspaWasm.Resolver(),
+      url: "wss://ws.tn10.kaspa.forbole.com/borsh",
       networkId: "testnet-10",
     });
     await rpc.connect();
+
     try {
       const sendP2SHAddress =
         document.getElementById("sendP2SHAddress").innerText;
@@ -503,17 +510,18 @@ document
 document
   .getElementById("krcCancelReveal")
   .addEventListener("click", async () => {
+    const rpc = new kaspaWasm.RpcClient({
+      url: "wss://ws.tn10.kaspa.forbole.com/borsh",
+      networkId: "testnet-10",
+    });
+    await rpc.connect();
+
     try {
       const P2SHAddress = document.getElementById("sendP2SHAddress").innerText;
       const sendScriptBuilder = kaspaWasm.ScriptBuilder.fromScript(
         document.getElementById("sendScript").innerText,
       );
 
-      const rpc = new kaspaWasm.RpcClient({
-        resolver: new kaspaWasm.Resolver(),
-        networkId: "testnet-10",
-      });
-      await rpc.connect();
       let P2SHEntries = [];
       while (P2SHEntries.length === 0) {
         const P2SHUTXOs = await rpc.getUtxosByAddresses([
@@ -525,7 +533,6 @@ document
           await new Promise((resolve) => setTimeout(resolve, 1000));
         }
       }
-      await rpc.disconnect();
 
       const P2SHEntry = P2SHEntries[0];
       const entry = {
@@ -548,6 +555,8 @@ document
       document.getElementById("cancelErrorKRC20").innerText = "";
     } catch (error) {
       document.getElementById("cancelErrorKRC20").innerText = error.message;
+    } finally {
+      rpc.disconnect();
     }
   });
 
@@ -557,10 +566,11 @@ document.getElementById("krcBuyReveal").addEventListener("click", async () => {
 
   const address = document.getElementById("address").innerText;
   const rpc = new kaspaWasm.RpcClient({
-    resolver: new kaspaWasm.Resolver(),
+    url: "wss://ws.tn10.kaspa.forbole.com/borsh",
     networkId: "testnet-10",
   });
   await rpc.connect();
+
   try {
     const amount = tx.outputs
       .map((output) => output.value)
