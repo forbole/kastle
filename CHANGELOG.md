@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.0](https://github.com/forbole/kastle/compare/v2.1.0...v2.2.0) (2025-02-07)
+
+
+### Features
+
+* posthog integration ([#21](https://github.com/forbole/kastle/issues/21)) ([b030c5c](https://github.com/forbole/kastle/commit/b030c5cb36b2cd88729e1bfe976a61ef65c63158))
+
 ## [2.1.0](https://github.com/forbole/kastle/compare/v2.0.3...v2.1.0) (2025-02-05)
 
 
