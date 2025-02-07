@@ -14,18 +14,19 @@ export default function useAnalytics() {
       amount: string;
       coin: "KAS";
     }) => {
-      const { hasFirstTransaction } = await storage.getItem<Analytics>(
-        ANALYTICS_KEY,
-        {
-          fallback: {
-            hasFirstTransaction: false,
-          },
+      const analytics = await storage.getItem<Analytics>(ANALYTICS_KEY, {
+        fallback: {
+          hasFirstTransaction: false,
         },
-      );
+      });
 
-      if (hasFirstTransaction) {
+      if (analytics.hasFirstTransaction) {
         return;
       }
+      await storage.setItem(ANALYTICS_KEY, {
+        ...analytics,
+        hasFirstTransaction: true,
+      });
 
       return postHog.capture("first_transaction", properties);
     },
