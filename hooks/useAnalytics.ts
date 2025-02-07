@@ -4,8 +4,13 @@ const ANALYTICS_KEY = "local:analytics";
 
 type Analytics = { hasFirstTransaction: boolean };
 
+const defaultValues = {
+  hasFirstTransaction: false,
+};
+
 export default function useAnalytics() {
   const postHog = usePostHog();
+  const [cachedAnalytics, setCachedAnalytics] = useState<Analytics>();
 
   return {
     emitOnboardingComplete: () => postHog.capture("onboarding_complete"),
@@ -14,11 +19,13 @@ export default function useAnalytics() {
       amount: string;
       coin: "KAS";
     }) => {
-      const analytics = await storage.getItem<Analytics>(ANALYTICS_KEY, {
-        fallback: {
-          hasFirstTransaction: false,
-        },
-      });
+      const analytics = cachedAnalytics
+        ? cachedAnalytics
+        : await storage.getItem<Analytics>(ANALYTICS_KEY, {
+            fallback: defaultValues,
+          });
+
+      setCachedAnalytics(analytics);
 
       if (analytics.hasFirstTransaction) {
         return;
