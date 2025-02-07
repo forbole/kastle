@@ -642,15 +642,11 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
   }, [account, networkId]);
 
   useEffect(() => {
-    if (!rpcClient) {
+    if (!rpcClient || isWalletSettingsLoading) {
       return;
     }
 
     const fetchBalance = async () => {
-      if (isWalletSettingsLoading) {
-        return;
-      }
-
       const balance = (await getBalancesByAddresses(addresses)).toString();
       const currentAccount = getCurrentAccount(walletSettings);
 
