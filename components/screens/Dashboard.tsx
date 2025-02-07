@@ -10,6 +10,7 @@ import useBackupWarning from "@/hooks/useBackupWarning.ts";
 import useKeyring from "@/hooks/useKeyring.ts";
 import useWalletManager from "@/hooks/useWalletManager.ts";
 import TokenListItem from "@/components/dashboard/TokenListItem.tsx";
+import { NetworkType } from "@/contexts/SettingsContext.tsx";
 
 export default function Dashboard() {
   const { keyringLock } = useKeyring();
@@ -31,9 +32,9 @@ export default function Dashboard() {
       hideBalances: !prevSettings.hideBalances,
     }));
 
-  const network = settings?.networkId ?? "mainnet";
+  const network = settings?.networkId ?? NetworkType.Mainnet;
   const explorerAddressLink = explorerAddressLinks[network];
-  const isMainnet = network === "mainnet";
+  const isMainnet = network === NetworkType.Mainnet;
 
   const totalBalance = balance
     ? formatUSD(parseFloat(balance) * kapsaPrice.kaspaPrice)
