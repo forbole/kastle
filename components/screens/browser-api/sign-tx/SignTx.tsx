@@ -89,7 +89,7 @@ export default function SignTx({
               <div key={index} className="border">
                 <div>Input Index: {script.inputIndex}</div>
                 <div>Script: {script.scriptHex}</div>
-                <div>Sign Type: {script.signType}</div>
+                <div>Sign Type: {script.signType ?? "All"}</div>
               </div>
             ))}
           </div>
