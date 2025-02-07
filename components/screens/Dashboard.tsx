@@ -9,6 +9,7 @@ import { twMerge } from "tailwind-merge";
 import useBackupWarning from "@/hooks/useBackupWarning.ts";
 import useKeyring from "@/hooks/useKeyring.ts";
 import useWalletManager from "@/hooks/useWalletManager.ts";
+import TokenListItem from "@/components/dashboard/TokenListItem.tsx";
 
 export default function Dashboard() {
   const { keyringLock } = useKeyring();
@@ -16,7 +17,7 @@ export default function Dashboard() {
   const [settings, setSettings] = useSettings();
   const kapsaPrice = useKaspaPrice();
   const { showWarning } = useBackupWarning();
-  const { account, wallet } = useWalletManager();
+  const { account, wallet, tokens } = useWalletManager();
   const [dismissWarning, setDismissWarning] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -250,7 +251,8 @@ export default function Dashboard() {
               <div className="h-[44px] flex-grow self-center rounded-xl bg-daintree-700" />
             </div>
           ) : (
-            <div className="flex flex-col items-stretch gap-2">
+            <div className="mb-4 flex flex-col items-stretch gap-2">
+              {/*KAS*/}
               <div className="flex items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3">
                 <img alt="castle" className="h-[40px] w-[40px]" src={kasIcon} />
                 <div className="flex flex-grow flex-col gap-1">
@@ -276,6 +278,11 @@ export default function Dashboard() {
                   </div>
                 </div>
               </div>
+
+              {/*KRC20 tokens*/}
+              {tokens.map((token) => (
+                <TokenListItem key={token.tick} token={token} />
+              ))}
             </div>
           )}
         </div>

@@ -5,6 +5,7 @@ import { AccountFactory } from "@/lib/wallet/wallet-factory.ts";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful.ts";
 import useStorageState from "@/hooks/useStorageState.ts";
 import { PublicKey, sompiToKaspaString } from "@/wasm/core/kaspa";
+import { TokenListItem, useKasplex } from "@/hooks/useKasplex.ts";
 
 export const WALLET_SETTINGS = "local:wallet-settings";
 
@@ -38,6 +39,7 @@ type WalletManagerContextType = {
   wallet: WalletInfo | undefined;
   account: Account | undefined;
   addresses: string[];
+  tokens: TokenListItem[];
   createNewWallet(id: string, defaultAccountName?: string): Promise<void>;
   removeWallet: (walletId: string) => Promise<{ noWallet: boolean }>;
   addAccount: (walletId: string, select?: boolean | undefined) => Promise<void>;
@@ -103,6 +105,7 @@ export const WalletManagerContext = createContext<WalletManagerContextType>({
   wallet: undefined,
   account: undefined,
   addresses: [],
+  tokens: [],
   addAccount: defaultAsyncFunction,
   getPrivateKey: defaultAsyncFunction,
   importPrivateKey: defaultAsyncFunction,
@@ -143,11 +146,13 @@ const getCurrentAccount = (walletSettings: WalletSettings) => {
 export function WalletManagerProvider({ children }: { children: ReactNode }) {
   const keyring = useKeyring();
   const { rpcClient, networkId } = useRpcClientStateful();
+  const { fetchTokenListByAddress } = useKasplex();
   const [walletSettings, setWalletSettings, isWalletSettingsLoading] =
     useStorageState<WalletSettings>(WALLET_SETTINGS, defaultValue);
   const [wallet, setWallet] = useState<WalletInfo>();
   const [account, setAccount] = useState<Account>();
   const [addresses, setAddresses] = useState<string[]>([]);
+  const [tokens, setTokens] = useState<TokenListItem[]>([]);
 
   // TODO: Handle glitches that may occur when saving wallet settings
   // Prevent multiple save calls in the same time, wait for the previous one to finish
@@ -668,6 +673,23 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
     };
   }, [addresses, rpcClient, isWalletSettingsLoading]);
 
+  useEffect(() => {
+    const fetchTokenList = async () => {
+      const firstAddress = addresses[0];
+      if (!firstAddress) {
+        return;
+      }
+
+      const tokenListResponse = await fetchTokenListByAddress(firstAddress);
+      setTokens(tokenListResponse ? tokenListResponse.result : []);
+    };
+
+    const interval = setInterval(fetchTokenList, 10000);
+    fetchTokenList();
+
+    return () => clearInterval(interval);
+  }, [addresses]);
+
   return (
     <WalletManagerContext.Provider
       value={{
@@ -675,6 +697,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
         account,
         addresses,
         walletSettings: isWalletSettingsLoading ? undefined : walletSettings,
+        tokens,
         createNewWallet,
         removeWallet,
         addAccount,
