@@ -16,6 +16,7 @@ export function PostHogWrapperProvider({ children }: { children: ReactNode }) {
       debug: process.env.NODE_ENV === "development",
       capture_pageleave: false,
       capture_pageview: false,
+      autocapture: false,
     });
   }, []);
 
