@@ -674,7 +674,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
         wallet,
         account,
         addresses,
-        walletSettings,
+        walletSettings: isWalletSettingsLoading ? undefined : walletSettings,
         createNewWallet,
         removeWallet,
         addAccount,

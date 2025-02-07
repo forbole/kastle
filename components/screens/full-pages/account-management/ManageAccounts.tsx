@@ -135,6 +135,17 @@ export default function ManageAccounts({ listAccounts }: ManageAccountsProps) {
     }
   }, [listAccounts]);
 
+  useEffect(() => {
+    if (!walletSettings || !walletId) {
+      return;
+    }
+
+    const wallet = walletSettings?.wallets.find(({ id }) => id === walletId);
+    if (!wallet) {
+      window.close();
+    }
+  }, [walletSettings, walletId]);
+
   if (!walletId) {
     window.close();
     return null;
