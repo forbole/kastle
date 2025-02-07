@@ -550,6 +550,7 @@ document
             inputIndex: 0,
           },
         ],
+        priorityFee: "0.02",
       });
       document.getElementById("cancelTradeTxId").innerText = revealTxId;
       document.getElementById("cancelErrorKRC20").innerText = "";
@@ -608,10 +609,10 @@ document.getElementById("krcBuyReveal").addEventListener("click", async () => {
       "testnet-10",
       tx.serializeToSafeJSON(),
     );
-    const txId = await rpc.submitTransaction(
+    const { transactionId } = await rpc.submitTransaction(
       kaspaWasm.Transaction.deserializeFromSafeJSON(signedTx),
     );
-    document.getElementById("buyTradeTxId").innerText = txId;
+    document.getElementById("buyTradeTxId").innerText = transactionId;
   } catch (error) {
     document.getElementById("buyErrorKRC20").innerText = error.message;
   } finally {
