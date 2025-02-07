@@ -596,7 +596,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
     }
 
     refreshAccounts();
-  }, [networkId]);
+  }, [networkId, isWalletSettingsLoading]);
 
   // Refresh wallet and account after settings changed
   useEffect(() => {
@@ -613,7 +613,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
     if (currentAccount && currentAccount !== account) {
       setAccount(currentAccount);
     }
-  }, [walletSettings, networkId]);
+  }, [walletSettings, networkId, isWalletSettingsLoading]);
 
   useEffect(() => {
     if (!networkId || !account) {
@@ -670,7 +670,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
       rpcClient.unsubscribeUtxosChanged(addresses);
       rpcClient.removeEventListener("utxos-changed", fetchBalance);
     };
-  }, [addresses, rpcClient]);
+  }, [addresses, rpcClient, isWalletSettingsLoading]);
 
   return (
     <WalletManagerContext.Provider
