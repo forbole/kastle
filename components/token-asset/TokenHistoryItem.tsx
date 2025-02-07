@@ -50,7 +50,7 @@ export default function TokenHistoryItem({
   }, [tokenMetadata?.iconUrl]);
 
   return (
-    <div className="flex cursor-pointer flex-col items-stretch gap-2">
+    <div className="flex flex-col items-stretch gap-2">
       <div className="flex items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3">
         <img
           alt="castle"
