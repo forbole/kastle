@@ -70,9 +70,18 @@ export default function ManageAccounts({ listAccounts }: ManageAccountsProps) {
       // Fill the publicKeys to the accounts object, or the accounts would be missing the public keys
       const accounts = Object.entries(data).reduce((acc, [index, value]) => {
         if (value.active) {
+          const accountIndex = parseInt(index, 10);
+          const publicKeys =
+            accountList[accountIndex]?.publicKeys ||
+            selectedAccountIds?.[index]?.publicKeys;
+
+          if (!publicKeys) {
+            throw new Error("Public keys not found");
+          }
+
           acc[index] = {
             active: value.active,
-            publicKeys: accountList[parseInt(index)].publicKeys,
+            publicKeys,
           };
         }
         return acc;
