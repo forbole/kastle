@@ -254,11 +254,16 @@ export default function Dashboard() {
           ) : (
             <div className="mb-4 flex flex-col items-stretch gap-2">
               {/*KAS*/}
-              <a
-                className="flex cursor-pointer items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3 hover:border-white"
-                href={`${explorerAddressLink}${address}`}
-                target="_blank"
-                rel="noopener noreferrer"
+              <div
+                className={twMerge(
+                  "flex items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3",
+                  settings?.preview && "cursor-pointer hover:border-white",
+                )}
+                onClick={() => {
+                  if (settings?.preview) {
+                    navigate("/kas-asset");
+                  }
+                }}
               >
                 <img alt="castle" className="h-[40px] w-[40px]" src={kasIcon} />
                 <div className="flex flex-grow flex-col gap-1">
@@ -283,7 +288,7 @@ export default function Dashboard() {
                     </span>
                   </div>
                 </div>
-              </a>
+              </div>
 
               {/*KRC20 tokens*/}
               {settings?.preview &&
