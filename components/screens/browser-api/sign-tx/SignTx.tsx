@@ -1,6 +1,5 @@
 import { ApiResponse, SignTxPayload } from "@/api/message";
 import { ApiExtensionUtils } from "@/api/extension";
-import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import { IWallet } from "@/lib/wallet/interface";
 import { useBoolean } from "usehooks-ts";
 import useWalletManager from "@/hooks/useWalletManager";
