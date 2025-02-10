@@ -168,7 +168,7 @@ export class HotWalletAccount implements IWallet {
       throw new Error("Input already signed");
     }
 
-    const signature = await createInputSignature(
+    const signature = createInputSignature(
       tx,
       script.inputIndex,
       new PrivateKey(this.getPrivateKey()),
