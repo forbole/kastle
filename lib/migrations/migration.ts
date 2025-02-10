@@ -1,5 +1,6 @@
 import v1_4_0 from "@/lib/migrations/1.4.0";
 import v2_0_4 from "@/lib/migrations/2.0.4";
+import v2_3_0 from "@/lib/migrations/2.3.0";
 
 export class MigrationManager {
   private migrations: Record<string, () => Promise<void>>;
@@ -8,6 +9,7 @@ export class MigrationManager {
     this.migrations = {
       "1.4.0": v1_4_0,
       "2.0.4": v2_0_4,
+      "2.3.0": v2_3_0,
     };
   }
 

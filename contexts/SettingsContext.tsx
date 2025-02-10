@@ -47,7 +47,8 @@ type AccountConnection = {
 const initialSettings = {
   networkId: NetworkType.Mainnet,
   rpcUrls: {
-    [NetworkType.Mainnet]: "wss://ws.kaspa.forbole.com/borsh",
+    [NetworkType.Mainnet]:
+      "wss://ws-borsh-mainnet-kaspa-fullnode-direct.forbole.com/borsh",
     [NetworkType.TestnetT10]: "wss://ws.tn10.kaspa.forbole.com/borsh",
     [NetworkType.TestnetT11]: "wss://ws.tn11.kaspa.forbole.com/borsh",
   },
