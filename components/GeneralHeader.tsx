@@ -58,9 +58,11 @@ export default function GeneralHeader({
           )}
         </div>
       </div>
-      <div className="mx-auto w-[27.75rem] text-center text-xs text-gray-400">
-        {subtitle}
-      </div>
+      {subtitle && (
+        <div className="mx-auto w-[27.75rem] text-center text-xs text-gray-400">
+          {subtitle}
+        </div>
+      )}
     </div>
   );
 }
