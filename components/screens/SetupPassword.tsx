@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { twMerge } from "tailwind-merge";
@@ -19,6 +19,7 @@ export default function SetupPassword() {
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isMismatchShown, setIsMismatchShown] = useState(false);
 
   const {
     register,
@@ -39,6 +40,21 @@ export default function SetupPassword() {
 
     navigate("/success");
   });
+
+  useEffect(() => {
+    let timeout: NodeJS.Timeout | undefined;
+
+    const hasMismatch = !passwordMatch && !!confirmPassword;
+
+    if (!hasMismatch) {
+      setIsMismatchShown(hasMismatch);
+    } else {
+      timeout = setTimeout(() => {
+        setIsMismatchShown(hasMismatch);
+      }, 600);
+    }
+    return () => clearTimeout(timeout);
+  }, [password, confirmPassword, passwordMatch]);
 
   return (
     <div id="setup-password-screen" className="flex h-full w-full flex-col p-4">
@@ -85,9 +101,9 @@ export default function SetupPassword() {
                 type={showConfirmPassword ? "text" : "password"}
                 className={twMerge(
                   "w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-white placeholder-gray-400 focus:outline-none",
-                  passwordMatch
-                    ? "focus:border-gray-600 focus:ring-2 focus:ring-gray-500"
-                    : "border-red-700 focus:border-red-600 focus:ring-red-800",
+                  isMismatchShown
+                    ? "border-red-700 focus:border-red-600 focus:ring-red-800"
+                    : "focus:border-gray-600 focus:ring-2 focus:ring-gray-500",
                 )}
                 placeholder="Confirm password"
               />
@@ -110,7 +126,7 @@ export default function SetupPassword() {
                 {(errors.password || errors.confirmPassword) &&
                   "Password too long"}
               </span>
-              <span>{!passwordMatch && "Passwords do not match"}</span>
+              <span>{isMismatchShown && "Passwords do not match"}</span>
             </div>
           </div>
 
