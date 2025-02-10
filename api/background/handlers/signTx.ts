@@ -1,13 +1,9 @@
 import { Handler } from "@/api/background/utils";
-import {
-  ApiRequest,
-  ApiResponse,
-  SignAndBroadcastTxPayload,
-} from "@/api/message";
+import { ApiRequest, ApiResponse, SignTxPayload } from "@/api/message";
 import { ApiUtils } from "@/api/background/utils";
 
-/** signAndBroadcastTx handler to serve BrowserMessageType.SIGN_AND_BROADCAST_TX message */
-export const signAndBroadcastTxHandler: Handler = async (
+/** signTxHandler to serve BrowserMessageType.SIGN_TX message */
+export const signTxHandler: Handler = async (
   tabId: number,
   message: ApiRequest,
   sendResponse: any,
@@ -31,22 +27,19 @@ export const signAndBroadcastTxHandler: Handler = async (
     return;
   }
 
-  if (!SignAndBroadcastTxPayload.validate(message.payload)) {
+  if (!SignTxPayload.validate(message.payload)) {
     sendResponse(new ApiResponse(message.id, null, "Invalid transaction data"));
     return;
   }
 
-  // Reconstruct SignAndBroadcastTxPayload from serialized message data to restore methods
-  const payload = Object.assign(
-    new SignAndBroadcastTxPayload("", []),
-    message.payload,
-  );
+  // Reconstruct SignTxPayload from serialized message data to restore methods
+  const payload = Object.assign(new SignTxPayload("", ""), message.payload);
 
   browser.windows.create({
     tabId,
     type: "popup",
     url: browser.runtime.getURL(
-      `/popup.html?requestId=${encodeURIComponent(message.id)}&payload=${encodeURIComponent(payload.toBase64Url())}#/sign-and-broadcast-tx`,
+      `/popup.html?requestId=${encodeURIComponent(message.id)}&payload=${encodeURIComponent(payload.toBase64Url())}#/sign-tx`,
     ),
     width: 375,
     height: 600,

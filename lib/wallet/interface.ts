@@ -4,6 +4,8 @@ import {
   ITransactionOutpoint,
   IScriptPublicKey,
   kaspaToSompi,
+  SighashType,
+  Transaction,
 } from "@/wasm/core/kaspa";
 
 export type PaymentOutput = {
@@ -30,13 +32,34 @@ export function toKaspaEntry(entry: Entry): IUtxoEntry {
   };
 }
 
-export type TransactionOptions = {
+export type TxSettingOptions = {
   priorityEntries?: Entry[];
   entries?: Entry[];
   priorityFee?: string; // KAS
   payload?: Uint8Array;
-  scriptHex?: string;
+  scripts?: ScriptOption[];
 };
+
+export type ScriptOption = {
+  inputIndex: number;
+  scriptHex: string;
+  signType?: SignType;
+};
+
+const SIGN_TYPE = {
+  All: SighashType.All,
+  None: SighashType.None,
+  Single: SighashType.Single,
+  AllAnyOneCanPay: SighashType.AllAnyOneCanPay,
+  NoneAnyOneCanPay: SighashType.NoneAnyOneCanPay,
+  SingleAnyOneCanPay: SighashType.SingleAnyOneCanPay,
+} as const;
+
+export type SignType = keyof typeof SIGN_TYPE;
+
+export function toSignType(signType: SignType): SighashType {
+  return SIGN_TYPE[signType];
+}
 
 export type TransactionEstimate = {
   totalFees: string; // KAS
@@ -62,6 +85,8 @@ export interface IWallet {
 
   signAndBroadcastTx(
     outputs: PaymentOutput[],
-    options?: TransactionOptions,
+    options?: TxSettingOptions,
   ): Promise<string>;
+
+  signTx(tx: Transaction, scripts?: ScriptOption[]): Promise<Transaction>;
 }

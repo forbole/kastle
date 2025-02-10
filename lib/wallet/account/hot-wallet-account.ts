@@ -9,13 +9,18 @@ import {
   ScriptBuilder,
   UtxoEntryReference,
   XPrv,
+  Transaction,
+  createInputSignature,
+  signTransaction,
 } from "@/wasm/core/kaspa";
 
 import {
   IWallet,
   PaymentOutput,
-  TransactionOptions,
+  ScriptOption,
+  TxSettingOptions,
   toKaspaEntry,
+  toSignType,
 } from "@/lib/wallet/interface.ts";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 
@@ -83,7 +88,7 @@ export class HotWalletAccount implements IWallet {
     });
 
     const txIds = [];
-    let pending;
+    let pending: PendingTransaction;
     while ((pending = await txGenerator.next())) {
       await pending.sign(this.getPrivateKeys(indexes));
       const txid = await pending.submit(this.rpcClient);
@@ -104,7 +109,7 @@ export class HotWalletAccount implements IWallet {
   // NOTE: This method does not support signing with multiple keys
   async signAndBroadcastTx(
     outputs: PaymentOutput[],
-    options?: TransactionOptions,
+    options?: TxSettingOptions,
   ): Promise<string> {
     const { entries } = await this.rpcClient.getUtxosByAddresses([
       this.getAddress(),
@@ -137,29 +142,42 @@ export class HotWalletAccount implements IWallet {
       throw new Error("No transaction to sign");
     }
 
-    // Replace the input script with the provided script
-    if (options?.scriptHex) {
-      const replaceIndex = pending.transaction.inputs.findIndex(
-        (input) => input.signatureScript === "",
-      );
-      if (replaceIndex === -1) {
-        throw new Error("No input to replace");
-      }
+    const signed = await this.signTx(pending.transaction, options?.scripts);
+    return (await this.rpcClient.submitTransaction({ transaction: signed }))
+      .transactionId;
+  }
 
-      const scriptBuilder = ScriptBuilder.fromScript(options.scriptHex);
-      const signature = await pending.createInputSignature(
-        replaceIndex,
-        new PrivateKey(this.getPrivateKey()),
-      );
-
-      pending.fillInput(
-        replaceIndex,
-        scriptBuilder.encodePayToScriptHashSignatureScript(signature),
+  // NOTE: This method does not support signing with multiple keys
+  async signTx(tx: Transaction, scripts?: ScriptOption[]) {
+    if (scripts) {
+      await Promise.all(
+        scripts.map((script) => this.signTxInputWithScript(tx, script)),
       );
     }
+    return signTransaction(tx, [this.getPrivateKey()], false);
+  }
 
-    await pending.sign([this.getPrivateKey()], false);
-    return await pending.submit(this.rpcClient);
+  async signTxInputWithScript(tx: Transaction, script: ScriptOption) {
+    // check if the input does exist
+    if (tx.inputs.length <= script.inputIndex) {
+      throw new Error("Input index out of range");
+    }
+
+    // check if the input is not already signed
+    if (tx.inputs[script.inputIndex].signatureScript) {
+      throw new Error("Input already signed");
+    }
+
+    const signature = createInputSignature(
+      tx,
+      script.inputIndex,
+      new PrivateKey(this.getPrivateKey()),
+      toSignType(script.signType ?? "All"),
+    );
+
+    const scriptBuilder = ScriptBuilder.fromScript(script.scriptHex);
+    tx.inputs[script.inputIndex].signatureScript =
+      scriptBuilder.encodePayToScriptHashSignatureScript(signature);
   }
 
   private getPrivateKeys(indexes: number[]) {

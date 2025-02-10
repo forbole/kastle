@@ -4,9 +4,14 @@ import {
   ApiRequest,
   ApiResponse,
   ConnectPayload,
-  TransactionPayload,
+  SignAndBroadcastTxPayload,
+  SignTxPayload,
 } from "@/api/message";
-import { PaymentOutput, TransactionOptions } from "@/lib/wallet/interface";
+import {
+  PaymentOutput,
+  TxSettingOptions,
+  ScriptOption,
+} from "@/lib/wallet/interface";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 
 export class KastleBrowserAPI {
@@ -47,13 +52,29 @@ export class KastleBrowserAPI {
   async signAndBroadcastTx(
     networkId: "mainnet" | "testnet-10" | "testnet-11",
     outputs: PaymentOutput[],
-    options?: TransactionOptions,
+    options?: TxSettingOptions,
   ): Promise<string> {
     const requestId = uuid();
     const request = new ApiRequest(
       Action.SIGN_AND_BROADCAST_TX,
       requestId,
-      new TransactionPayload(networkId, outputs, options),
+      new SignAndBroadcastTxPayload(networkId, outputs, options),
+    );
+    window.postMessage(request, "*");
+
+    return await this.receiveMessage(requestId);
+  }
+
+  async signTx(
+    networkId: "mainnet" | "testnet-10" | "testnet-11",
+    txJson: string,
+    scripts?: ScriptOption[],
+  ): Promise<string> {
+    const requestId = uuid();
+    const request = new ApiRequest(
+      Action.SIGN_TX,
+      requestId,
+      new SignTxPayload(networkId, txJson, scripts),
     );
     window.postMessage(request, "*");
 
