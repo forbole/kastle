@@ -131,9 +131,8 @@ export class HotWalletPrivateKey implements IWallet {
       for (const script of scripts) {
         await this.signTxInputWithScript(tx, script);
       }
-      return await signTransaction(tx, [this.getPrivateKey()], false);
     }
-    return await signTransaction(tx, [this.getPrivateKey()], false);
+    return signTransaction(tx, [this.getPrivateKey()], false);
   }
 
   async signTxInputWithScript(tx: Transaction, script: ScriptOption) {
@@ -157,7 +156,6 @@ export class HotWalletPrivateKey implements IWallet {
     const scriptBuilder = ScriptBuilder.fromScript(script.scriptHex);
     tx.inputs[script.inputIndex].signatureScript =
       scriptBuilder.encodePayToScriptHashSignatureScript(signature);
-    return tx;
   }
 
   private async getUtxos(): Promise<UtxoEntryReference[]> {
