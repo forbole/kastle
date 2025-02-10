@@ -46,31 +46,19 @@ export type ScriptOption = {
   signType?: SignType;
 };
 
-export type SignType =
-  | "All"
-  | "None"
-  | "Single"
-  | "AllAnyOneCanPay"
-  | "NoneAnyOneCanPay"
-  | "SingleAnyOneCanPay";
+const SIGN_TYPE = {
+  All: SighashType.All,
+  None: SighashType.None,
+  Single: SighashType.Single,
+  AllAnyOneCanPay: SighashType.AllAnyOneCanPay,
+  NoneAnyOneCanPay: SighashType.NoneAnyOneCanPay,
+  SingleAnyOneCanPay: SighashType.SingleAnyOneCanPay,
+} as const;
+
+export type SignType = keyof typeof SIGN_TYPE;
 
 export function toSignType(signType: SignType): SighashType {
-  switch (signType) {
-    case "All":
-      return SighashType.All;
-    case "None":
-      return SighashType.None;
-    case "Single":
-      return SighashType.Single;
-    case "AllAnyOneCanPay":
-      return SighashType.AllAnyOneCanPay;
-    case "NoneAnyOneCanPay":
-      return SighashType.NoneAnyOneCanPay;
-    case "SingleAnyOneCanPay":
-      return SighashType.SingleAnyOneCanPay;
-    default:
-      throw new Error(`Invalid sign type: ${signType}`);
-  }
+  return SIGN_TYPE[signType];
 }
 
 export type TransactionEstimate = {
