@@ -158,12 +158,6 @@ export class HotWalletAccount implements IWallet {
     return await signTransaction(tx, [this.getPrivateKey()], false);
   }
 
-  async signTxWithScripts(tx: Transaction, scripts: ScriptOption[]) {
-    for (const script of scripts) {
-      await this.signTxInputWithScript(tx, script);
-    }
-  }
-
   async signTxInputWithScript(tx: Transaction, script: ScriptOption) {
     // check if the input does exist
     if (tx.inputs.length <= script.inputIndex) {
