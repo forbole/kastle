@@ -9,23 +9,17 @@ import { Transaction } from "@/wasm/core/kaspa";
 
 type SignTxProps = {
   wallet: IWallet;
-  networkId: NetworkType;
   requestId: string;
   payload: SignTxPayload;
 };
 
-export default function SignTx({
-  wallet,
-  networkId,
-  requestId,
-  payload,
-}: SignTxProps) {
+export default function SignTx({ wallet, requestId, payload }: SignTxProps) {
   const { value: isLoading, toggle: toggleLoading } = useBoolean(false);
-  const { rpcClient } = useRpcClientStateful();
+  const { rpcClient, networkId } = useRpcClientStateful();
   const { account } = useWalletManager();
 
   const handleConfirm = async () => {
-    if (!rpcClient || !wallet || !account) {
+    if (!rpcClient || !wallet || !account || !networkId) {
       return;
     }
 

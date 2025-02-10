@@ -49,7 +49,6 @@ export default function HotWalletSignTx({
       {!loading && (
         <SignTx
           wallet={wallet}
-          networkId={networkId}
           requestId={requestId}
           payload={payload}
         />
