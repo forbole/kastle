@@ -6,6 +6,7 @@ import { formatUSD } from "@/lib/utils.ts";
 import kasIcon from "@/assets/images/kas-icon.svg";
 import { twMerge } from "tailwind-merge";
 import LabelLoading from "@/components/LabelLoading.tsx";
+import { applyDecimal } from "@/lib/krc20.ts";
 
 export default function TokenInfo() {
   const { ticker } = useParams();
@@ -18,11 +19,10 @@ export default function TokenInfo() {
   const [isLoading, setIsLoading] = useState(true);
 
   const firstAddress = addresses[0];
-  const decimal = tokenInfo ? parseInt(tokenInfo.dec, 10) : 8;
+  const decimal = applyDecimal(tokenInfo?.dec);
   const max = tokenInfo ? parseInt(tokenInfo.max, 10) : 0;
   const minted = tokenInfo ? parseInt(tokenInfo.minted, 10) : 0;
-  const decimalCoefficient = Math.pow(10, decimal);
-  const totalMinted = `${((minted / max) * 100).toFixed(0)}% (${(minted / decimalCoefficient).toLocaleString()}/${(max / decimalCoefficient).toLocaleString()})`;
+  const totalMinted = `${((minted / max) * 100).toFixed(0)}% (${decimal(minted).toLocaleString()}/${decimal(max).toLocaleString()})`;
 
   const onImageError = () => {
     setImageUrl(kasIcon);
@@ -87,7 +87,7 @@ export default function TokenInfo() {
               <LabelLoading />
             ) : (
               <span className="font-medium">
-                {(max / decimalCoefficient).toLocaleString()}
+                {decimal(max).toLocaleString()}
               </span>
             )}
           </div>
@@ -162,7 +162,7 @@ export default function TokenInfo() {
             ) : (
               <span className="font-medium">
                 {(tokenInfo?.pre
-                  ? parseInt(tokenInfo.pre, 10) / decimalCoefficient
+                  ? decimal(parseInt(tokenInfo.pre, 10))
                   : 0
                 ).toLocaleString()}
               </span>
@@ -177,7 +177,7 @@ export default function TokenInfo() {
             ) : (
               <span className="font-medium">
                 {(tokenInfo?.lim
-                  ? parseInt(tokenInfo.lim, 10) / decimalCoefficient
+                  ? decimal(parseInt(tokenInfo.lim, 10))
                   : 0
                 ).toLocaleString()}
               </span>

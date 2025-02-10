@@ -5,6 +5,7 @@ import { useParams } from "react-router-dom";
 import { Op, TickerInfo } from "@/hooks/useKasplex.ts";
 import { TokenMetadata } from "@/hooks/useKasFyi.ts";
 import { twMerge } from "tailwind-merge";
+import { applyDecimal } from "@/lib/krc20.ts";
 
 type TokenHistoryItemProps = { op: Op; tickerInfo?: TickerInfo | undefined };
 
@@ -16,15 +17,15 @@ export default function TokenHistoryItem({
   const { fetchTokenMetadataByTicker } = useKasFyi();
   const [tokenMetadata, setTokenMetadata] = useState<TokenMetadata>();
   const [imageUrl, setImageUrl] = useState(kasIcon);
-  const decimalPlaces = tickerInfo?.dec ? parseInt(tickerInfo.dec, 10) : 8;
-  const decimalCoefficient = Math.pow(10, decimalPlaces);
+  const decimal = applyDecimal(tickerInfo?.dec);
+
   let amount = 0;
   switch (op.op) {
     case "deploy":
-      amount = (op.pre ? parseInt(op.pre, 10) : 0) / decimalCoefficient;
+      amount = decimal(op.pre ? parseInt(op.pre, 10) : 0);
       break;
     default:
-      amount = (op.amt ? parseInt(op.amt, 10) : 0) / decimalCoefficient;
+      amount = decimal(op.amt ? parseInt(op.amt, 10) : 0);
   }
 
   const onImageError = () => {

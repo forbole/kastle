@@ -7,7 +7,7 @@ import spinner from "@/assets/images/spinner.svg";
 import React, { useEffect, useState } from "react";
 import useWalletManager from "@/hooks/useWalletManager.ts";
 import { setPopupPath } from "@/lib/utils.ts";
-import { Fee } from "@/lib/krc20.ts";
+import { applyDecimal, Fee } from "@/lib/krc20.ts";
 
 type DeployFormData = {
   ticker: string;
@@ -72,17 +72,13 @@ export default function MintToken() {
       setMintableAmount("-");
       return;
     }
-    const decimal = parseInt(tickerDetails.dec, 10);
+    const decimal = applyDecimal(tickerDetails.dec);
     const max = parseInt(tickerDetails.max, 10);
     const minted = parseInt(tickerDetails.minted, 10);
-    const decimalCoefficient = Math.pow(10, decimal);
 
-    setValue(
-      "mintAmount",
-      parseInt(tickerDetails.lim, 10) / decimalCoefficient,
-    );
+    setValue("mintAmount", decimal(parseInt(tickerDetails.lim, 10)));
     setMintableAmount(
-      `${((minted / max) * 100).toFixed(0)}% (${(minted / decimalCoefficient).toLocaleString()}/${(max / decimalCoefficient).toLocaleString()})`,
+      `${((minted / max) * 100).toFixed(0)}% (${decimal(minted).toLocaleString()}/${decimal(max).toLocaleString()})`,
     );
   }, [tickerInfo]);
 

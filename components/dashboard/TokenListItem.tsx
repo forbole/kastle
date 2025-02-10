@@ -3,6 +3,7 @@ import { formatToken, formatTokenPrice, formatUSD } from "@/lib/utils.ts";
 import React, { useEffect, useState } from "react";
 import { TokenMetadata, useKasFyi } from "@/hooks/useKasFyi.ts";
 import { useNavigate } from "react-router-dom";
+import { applyDecimal } from "@/lib/krc20.ts";
 
 type TokenListItemProps = { token: TokenListItem };
 
@@ -15,10 +16,10 @@ export default function TokenListItem({ token }: TokenListItemProps) {
 
   const showBalance = !settings?.hideBalances;
 
-  const decimalPlaces = token.dec ? parseInt(token.dec, 10) : 8;
-  const decimalCoefficient = Math.pow(10, decimalPlaces);
-  const balanceNumber =
-    (token.balance ? parseInt(token.balance, 10) : 0) / decimalCoefficient;
+  const decimal = applyDecimal(token.dec);
+  const balanceNumber = decimal(
+    token.balance ? parseInt(token.balance, 10) : 0,
+  );
   const tokenPrice = tokenMetadata?.price?.priceInUsd ?? 0;
 
   const onImageError = () => {

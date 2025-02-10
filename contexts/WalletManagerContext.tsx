@@ -6,6 +6,7 @@ import useRpcClientStateful from "@/hooks/useRpcClientStateful.ts";
 import useStorageState from "@/hooks/useStorageState.ts";
 import { PublicKey, sompiToKaspaString } from "@/wasm/core/kaspa";
 import { TokenListItem, useKasplex } from "@/hooks/useKasplex.ts";
+import { applyDecimal } from "@/lib/krc20.ts";
 
 export const WALLET_SETTINGS = "local:wallet-settings";
 
@@ -683,14 +684,11 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
       const tokenListResponse = await fetchTokenListByAddress(firstAddress);
       const tokenListItems = tokenListResponse ? tokenListResponse.result : [];
       const sortedTokenListItems = tokenListItems.sort((a, b) => {
-        const aDecimalPlaces = a.dec ? parseInt(a.dec, 10) : 8;
-        const aDecimalCoefficient = Math.pow(10, aDecimalPlaces);
-        const bDecimalPlaces = b.dec ? parseInt(b.dec, 10) : 8;
-        const bDecimalCoefficient = Math.pow(10, bDecimalPlaces);
+        const aDecimal = applyDecimal(a.dec);
+        const bDecimal = applyDecimal(b.dec);
 
         return (
-          parseInt(b.balance, 10) / bDecimalCoefficient -
-          parseInt(a.balance, 10) / aDecimalCoefficient
+          bDecimal(parseInt(b.balance, 10)) - aDecimal(parseInt(a.balance, 10))
         );
       });
 

@@ -19,3 +19,9 @@ export const createKRC20ScriptBuilder = (pubKey: string, data: any) => {
     .addData(new TextEncoder().encode(JSON.stringify(data, null, 0)))
     .addOp(Opcodes.OpEndIf);
 };
+
+export const applyDecimal = (decimalPlaces: string = "8") => {
+  const decimalCoefficient = Math.pow(10, parseInt(decimalPlaces, 10));
+
+  return (amount: number) => amount / decimalCoefficient;
+};

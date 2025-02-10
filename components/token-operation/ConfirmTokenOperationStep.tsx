@@ -5,7 +5,7 @@ import useKaspaPrice from "@/hooks/useKaspaPrice.ts";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/GeneralHeader.tsx";
 import { TokenOperationFormData } from "@/components/screens/TokenOperation.tsx";
-import { Fee } from "@/lib/krc20.ts";
+import { applyDecimal, Fee } from "@/lib/krc20.ts";
 
 export const ConfirmTokenOperationStep = ({
   onNext,
@@ -19,10 +19,7 @@ export const ConfirmTokenOperationStep = ({
   const { watch } = useFormContext<TokenOperationFormData>();
   const [mintAmount, setMintAmount] = useState<string>();
   const opData = watch("opData");
-  const decimalCoefficient = Math.pow(
-    10,
-    opData.dec ? parseInt(opData.dec, 10) : 8,
-  );
+  const decimal = applyDecimal(opData.dec);
   const kapsaPrice = useKaspaPrice();
 
   const onClose = () => {
@@ -37,11 +34,7 @@ export const ConfirmTokenOperationStep = ({
           return;
         }
 
-        setMintAmount(
-          (
-            parseInt(tokenDetails.lim, 10) / decimalCoefficient
-          ).toLocaleString(),
-        );
+        setMintAmount(decimal(parseInt(tokenDetails.lim, 10)).toLocaleString());
       });
     }
   }, []);
@@ -70,7 +63,7 @@ export const ConfirmTokenOperationStep = ({
                 <div className="flex w-full items-start justify-between">
                   <span className="font-medium">Maximum Supply</span>
                   <span className="font-medium">
-                    {parseInt(opData.max, 10) / decimalCoefficient}
+                    {decimal(parseInt(opData.max, 10))}
                   </span>
                 </div>
               </li>
@@ -78,7 +71,7 @@ export const ConfirmTokenOperationStep = ({
                 <div className="flex w-full items-start justify-between">
                   <span className="font-medium">Default Mint Amount</span>
                   <span className="font-medium">
-                    {parseInt(opData.lim, 10) / decimalCoefficient}
+                    {decimal(parseInt(opData.lim, 10))}
                   </span>
                 </div>
               </li>
@@ -86,7 +79,7 @@ export const ConfirmTokenOperationStep = ({
                 <div className="flex w-full items-start justify-between">
                   <span className="font-medium">Preallocation</span>
                   <span className="font-medium">
-                    {parseInt(opData.pre, 10) / decimalCoefficient}
+                    {decimal(parseInt(opData.pre, 10))}
                   </span>
                 </div>
               </li>
