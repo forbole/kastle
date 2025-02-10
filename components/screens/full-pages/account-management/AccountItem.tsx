@@ -1,10 +1,11 @@
 import { useFormContext } from "react-hook-form";
-import { AccountsFormValues } from "@/components/account-management/ManageAccounts";
+import { AccountsFormValues } from "@/components/screens/full-pages/account-management/ManageAccounts";
 import React, { useState } from "react";
 import { formatToken, formatUSD } from "@/lib/utils.ts";
 import { PublicKey } from "@/wasm/core/kaspa";
 import useWalletManager from "@/hooks/useWalletManager.ts";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
+import { Tooltip } from "react-tooltip";
 
 type AccountItemProps = {
   accountIndex: number;
@@ -15,8 +16,9 @@ export function AccountItem({ accountIndex, publicKeys }: AccountItemProps) {
   const { getBalancesByAddresses } = useWalletManager();
   const [addresses, setAddresses] = useState<string[]>([]);
   const { rpcClient, networkId } = useRpcClientStateful();
+  const [showAddFeedback, setShowAddFeedback] = useState(false);
 
-  const { register } = useFormContext<AccountsFormValues>();
+  const { register, getValues } = useFormContext<AccountsFormValues>();
   const [accountBalance, setAccountBalance] = useState<number>();
   const kaspaPrice = useKaspaPrice();
 
@@ -72,12 +74,33 @@ export function AccountItem({ accountIndex, publicKeys }: AccountItemProps) {
           </div>
         </div>
       </div>
-      <div className="flex flex-none items-center justify-center p-3">
-        <div className="flex items-center">
+      <div className="flex items-center justify-center p-3">
+        <div className="items-center">
+          <Tooltip
+            id="addedFeedback"
+            style={{
+              backgroundColor: "#203c49",
+              fontSize: "12px",
+              fontWeight: 600,
+              padding: "8px",
+            }}
+            isOpen={showAddFeedback}
+          />
           <input
             {...register(`${accountIndex}.active`)}
+            onClick={() => {
+              if (getValues(`${accountIndex}.active`)) {
+                return;
+              }
+              if (!showAddFeedback) {
+                setShowAddFeedback(true);
+                setTimeout(() => setShowAddFeedback(false), 500);
+              }
+            }}
             type="checkbox"
             className="relative h-6 w-11 cursor-pointer rounded-full border-neutral-700 border-transparent bg-neutral-800 p-px text-transparent transition-colors duration-200 ease-in-out before:inline-block before:size-5 before:translate-x-0 before:transform before:rounded-full before:bg-neutral-400 before:shadow before:ring-0 before:transition before:duration-200 before:ease-in-out checked:border-icy-blue-400 checked:bg-icy-blue-400 checked:bg-none checked:text-icy-blue-400 checked:before:translate-x-full checked:before:bg-blue-200 focus:ring-blue-600 focus:ring-offset-gray-600 focus:checked:border-blue-600 disabled:pointer-events-none disabled:opacity-50"
+            data-tooltip-id="addedFeedback"
+            data-tooltip-content="Add to Kastle!"
           />
         </div>
       </div>

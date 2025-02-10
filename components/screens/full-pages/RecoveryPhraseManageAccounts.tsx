@@ -2,7 +2,7 @@ import React from "react";
 import { AccountFactory } from "@/lib/wallet/wallet-factory";
 import ManageAccounts, {
   ListAccountsRequest,
-} from "@/components/account-management/ManageAccounts";
+} from "@/components/screens/full-pages/account-management/ManageAccounts";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 
 export default function RecoveryPhraseManageAccounts() {
