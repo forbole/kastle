@@ -150,9 +150,9 @@ export class HotWalletAccount implements IWallet {
   // NOTE: This method does not support signing with multiple keys
   async signTx(tx: Transaction, scripts?: ScriptOption[]) {
     if (scripts) {
-      for (const script of scripts) {
-        await this.signTxInputWithScript(tx, script);
-      }
+      await Promise.all(
+        scripts.map((script) => this.signTxInputWithScript(tx, script)),
+      );
     }
     return signTransaction(tx, [this.getPrivateKey()], false);
   }
