@@ -10,8 +10,10 @@ import Header from "@/components/GeneralHeader.tsx";
 import useTransactionEstimate from "@/hooks/useTransactionEstimate";
 import useWalletManager from "@/hooks/useWalletManager.ts";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
+import { Address } from "@/wasm/core/kaspa";
+import { twMerge } from "tailwind-merge";
 
-export const AmountStep = ({
+export const DetailsStep = ({
   onNext,
   onBack,
 }: {
@@ -69,6 +71,17 @@ export const AmountStep = ({
     navigate("/dashboard");
   };
 
+  const addressValidator = async (value: string | undefined) => {
+    if (!value) return "Missing Kaspa address";
+
+    try {
+      return Address.validate(value) || "Invalid Kaspa address";
+    } catch (error) {
+      console.error(error);
+      return "Invalid Kaspa address";
+    }
+  };
+
   const selectMaxAmount = async () => {
     if (!account?.balance) {
       return;
@@ -105,6 +118,19 @@ export const AmountStep = ({
       <Header title="Send KAS" onClose={onClose} onBack={onBack} />
 
       <div className="flex h-full flex-col gap-4">
+        <label className="text-base font-medium">Send to ...</label>
+        <textarea
+          {...register("address", {
+            required: "Address is required",
+            validate: addressValidator,
+          })}
+          className="w-full resize-none rounded-lg border border-daintree-700 bg-daintree-800 px-4 py-3 text-sm shadow outline outline-0 focus:ring focus:ring-blue-500/25 disabled:pointer-events-none disabled:opacity-50"
+          placeholder="Enter wallet address"
+        />
+        {errors.address && (
+          <span className="text-sm text-red-500">{errors.address.message}</span>
+        )}
+
         {/* Amount panel */}
         <div className="relative flex flex-col gap-4 rounded-xl border border-daintree-700 bg-daintree-800 p-4">
           <div className="flex items-center gap-3 text-sm">
@@ -120,7 +146,14 @@ export const AmountStep = ({
 
           <div className="flex flex-col gap-4">
             <div className="flex rounded-lg bg-icy-blue-950 text-daintree-400 shadow-sm">
-              <span className="inline-flex min-w-fit items-center gap-2 rounded-s-md border border-e-0 border-daintree-700 px-4 text-sm">
+              <span
+                className={twMerge(
+                  "inline-flex min-w-fit items-center gap-2 rounded-s-md border border-e-0 border-daintree-700 px-4 text-sm",
+                  errors.amount
+                    ? "border-e-0 border-[#EF4444] ring-[#EF4444] focus:border-[#EF4444] focus:ring-[#EF4444]"
+                    : "border-daintree-700",
+                )}
+              >
                 <img alt="kas" className="h-[18px] w-[18px]" src={kasIcon} />
                 KAS
               </span>
@@ -137,12 +170,24 @@ export const AmountStep = ({
                   },
                 })}
                 type="text"
-                className="focus:borderblue-500/25 focus:ringblue-500/25 block w-full rounded-e-lg border-daintree-700 bg-icy-blue-950 px-4 py-3 pe-11 text-sm shadow-sm focus:z-10 disabled:pointer-events-none disabled:opacity-50 sm:p-5"
+                className={twMerge(
+                  "block w-full rounded-e-lg bg-icy-blue-950 px-4 py-3 pe-11 text-sm shadow-sm focus:z-10 disabled:pointer-events-none disabled:opacity-50 sm:p-5",
+                  errors.amount
+                    ? "border-[#EF4444] border-l-daintree-700 ring-0 ring-[#EF4444] focus:border-[#EF4444] focus:border-l-daintree-700 focus:ring-0 focus:ring-[#EF4444]"
+                    : "border-daintree-700",
+                )}
               />
             </div>
 
             <div className="flex rounded-lg bg-icy-blue-950 text-daintree-400 shadow-sm">
-              <span className="inline-flex min-w-fit items-center gap-2 rounded-s-md border border-e-0 border-daintree-700 px-4 text-sm">
+              <span
+                className={twMerge(
+                  "inline-flex min-w-fit items-center gap-2 rounded-s-md border border-e-0 border-daintree-700 px-4 text-sm",
+                  errors.amount
+                    ? "border-e-0 border-[#EF4444] ring-[#EF4444] focus:border-[#EF4444] focus:ring-[#EF4444]"
+                    : "border-daintree-700",
+                )}
+              >
                 <img alt="kas" className="h-[18px] w-[18px]" src={usdIcon} />
                 USD
               </span>
@@ -164,7 +209,12 @@ export const AmountStep = ({
                   },
                 })}
                 type="text"
-                className="focus:borderblue-500/25 focus:ringblue-500/25 block w-full rounded-e-lg border-daintree-700 bg-icy-blue-950 px-3 py-2 pe-11 text-sm shadow-sm focus:z-10 disabled:pointer-events-none disabled:opacity-50"
+                className={twMerge(
+                  "focus:borderblue-500/25 focus:ringblue-500/25 block w-full rounded-e-lg border-daintree-700 bg-icy-blue-950 px-3 py-2 pe-11 text-sm shadow-sm focus:z-10 disabled:pointer-events-none disabled:opacity-50",
+                  errors.amount
+                    ? "border-[#EF4444] border-l-daintree-700 ring-0 ring-[#EF4444] focus:border-[#EF4444] focus:border-l-daintree-700 focus:ring-0 focus:ring-[#EF4444]"
+                    : "border-daintree-700",
+                )}
               />
             </div>
           </div>

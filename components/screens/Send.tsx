@@ -1,21 +1,13 @@
 import { useNavigate } from "react-router-dom";
 import { FormProvider, useForm } from "react-hook-form";
-import { AddressStep } from "@/components/send/AddressStep.tsx";
-import { AmountStep } from "@/components/send/AmountStep.tsx";
+import { DetailsStep } from "@/components/send/DetailsStep.tsx";
 import { ConfirmStep } from "@/components/send/ConfirmStep.tsx";
 import { SuccessStatus } from "@/components/send/SuccessStatus.tsx";
 import { FailStatus } from "@/components/send/FailStatus.tsx";
 import Sending from "@/components/send/Sending.tsx";
 import React from "react";
 
-const steps = [
-  "address",
-  "amount",
-  "confirm",
-  "broadcast",
-  "success",
-  "fail",
-] as const;
+const steps = ["details", "confirm", "broadcast", "success", "fail"] as const;
 
 type Step = (typeof steps)[number];
 
@@ -27,7 +19,7 @@ export interface SendFormData {
 
 export default function Send() {
   const navigate = useNavigate();
-  const [step, setStep] = useState<Step>("address");
+  const [step, setStep] = useState<Step>("details");
   const form = useForm<SendFormData>({
     defaultValues: {
       address: undefined,
@@ -49,13 +41,10 @@ export default function Send() {
   };
 
   return (
-    <div className="flex h-full flex-col gap-6 p-4 text-white">
+    <div className="flex h-full flex-col p-4 text-white">
       <FormProvider {...form}>
-        {step === "address" && (
-          <AddressStep onNext={() => setStep("amount")} onBack={onBack} />
-        )}
-        {step === "amount" && (
-          <AmountStep onNext={() => setStep("confirm")} onBack={onBack} />
+        {step === "details" && (
+          <DetailsStep onNext={() => setStep("confirm")} onBack={onBack} />
         )}
         {step === "confirm" && (
           <ConfirmStep onNext={() => setStep("broadcast")} onBack={onBack} />
