@@ -4,8 +4,9 @@ import React, { useEffect, useState } from "react";
 import { useTokenMetadata } from "@/hooks/useTokenMetadata.ts";
 import { useNavigate } from "react-router-dom";
 import { applyDecimal } from "@/lib/krc20.ts";
+import { TokenListResponse } from "@/hooks/useTokenListByAddress.ts";
 
-type TokenListItemProps = { token: TokenListItem };
+type TokenListItemProps = { token: TokenListResponse["result"][number] };
 
 export default function TokenListItem({ token }: TokenListItemProps) {
   const navigate = useNavigate();

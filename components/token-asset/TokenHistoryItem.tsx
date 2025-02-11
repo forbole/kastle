@@ -5,6 +5,7 @@ import { useParams } from "react-router-dom";
 import { useTokenMetadata } from "@/hooks/useTokenMetadata.ts";
 import { twMerge } from "tailwind-merge";
 import { applyDecimal } from "@/lib/krc20.ts";
+import { Op } from "@/hooks/useOpListByAddressAndTicker.ts";
 
 type TokenHistoryItemProps = { op: Op; tickerInfo?: TickerInfo | undefined };
 

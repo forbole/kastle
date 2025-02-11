@@ -2,7 +2,7 @@ import useSWR from "swr";
 import { fetcher } from "@/lib/utils.ts";
 import { useSettings } from "@/hooks/useSettings.ts";
 
-type TokenListItem = {
+export type TokenListItem = {
   tick: string;
   balance: string;
   locked: string;
@@ -10,7 +10,7 @@ type TokenListItem = {
   opScoreMod: string;
 };
 
-type TokenListResponse = {
+export type TokenListResponse = {
   message: string;
   prev: string;
   next: string;

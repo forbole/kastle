@@ -1,6 +1,7 @@
 import { useSettings } from "@/hooks/useSettings.ts";
 import useSWR from "swr";
 import { fetcher } from "@/lib/utils.ts";
+import { TickerInfoResponse } from "@/hooks/useKasplex.ts";
 
 export function useTokenInfo(ticker?: string) {
   const [settings] = useSettings();

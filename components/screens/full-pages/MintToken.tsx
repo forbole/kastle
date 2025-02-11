@@ -7,6 +7,7 @@ import React, { useEffect, useState } from "react";
 import useWalletManager from "@/hooks/useWalletManager.ts";
 import { setPopupPath } from "@/lib/utils.ts";
 import { applyDecimal, Fee } from "@/lib/krc20.ts";
+import { TickerInfoResponse } from "@/hooks/useKasplex.ts";
 
 type DeployFormData = {
   ticker: string;
