@@ -1,0 +1,19 @@
+name: Release Notification
+
+on:
+  release:
+    types: [created]
+  workflow_dispatch: # This allows for manual triggering
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Run Slack notification action
+        uses: italia/slack-notify-release-action@v0.4.0
+        with:
+          slack_token: ${{ secrets.SLACK_BOT_TOKEN }}
+          channel_id: "C08285PCKAT"
+          project_name: "Kastle"
