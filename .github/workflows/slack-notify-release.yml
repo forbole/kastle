@@ -6,14 +6,11 @@ on:
   workflow_dispatch: # This allows for manual triggering
 
 jobs:
-  notify:
+  notify_slack:
     runs-on: ubuntu-latest
+    name: Notify Slack on Release
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      - name: Run Slack notification action
-        uses: italia/slack-notify-release-action@v0.4.0
+      - name: Notify Slack on Releases
+        uses: amendx/slackbot-release@1.0.0
         with:
-          slack_token: ${{ secrets.SLACK_BOT_TOKEN }}
-          channel_id: "C08285PCKAT"
-          project_name: "Kastle"
+          slack_webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
