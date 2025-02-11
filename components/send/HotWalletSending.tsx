@@ -6,6 +6,7 @@ import { useFormContext } from "react-hook-form";
 import { SendFormData } from "@/components/screens/Send.tsx";
 import { useEffect } from "react";
 import useAnalytics from "@/hooks/useAnalytics.ts";
+import { captureException } from "@sentry/react";
 
 type HotWalletSendingProps = {
   accountFactory: AccountFactory;
@@ -63,6 +64,7 @@ export default function HotWalletSending({
 
       onSuccess();
     } catch (e) {
+      captureException(e);
       console.error(e);
       onFail();
     }

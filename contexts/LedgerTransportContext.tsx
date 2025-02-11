@@ -1,6 +1,7 @@
-import { createContext, useState, useCallback, ReactNode } from "react";
+import { createContext, ReactNode, useCallback, useState } from "react";
 import Transport from "@ledgerhq/hw-transport";
 import TransportWebHid from "@ledgerhq/hw-transport-webhid";
+import { captureException } from "@sentry/react";
 
 interface LedgerTransportContextType {
   transport: Transport | null;
@@ -40,6 +41,7 @@ export function LedgerTransportProvider({ children }: { children: ReactNode }) {
 
       // detect app close
     } catch (error) {
+      captureException(error);
       console.error("Ledger connection error:", error);
       throw new Error("Failed to connect to Ledger device");
     } finally {
@@ -53,6 +55,7 @@ export function LedgerTransportProvider({ children }: { children: ReactNode }) {
         await transport.close();
         setTransport(null);
       } catch (error) {
+        captureException(error);
         console.error("Transport disconnection error:", error);
       }
     }

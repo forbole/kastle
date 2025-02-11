@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { twMerge } from "tailwind-merge";
 import { useCopyToClipboard } from "usehooks-ts";
 import { Tooltip } from "react-tooltip";
+import { captureException } from "@sentry/react";
 
 type ClipboardCopyProps = {
   textToCopy?: string;
@@ -24,6 +25,7 @@ export default function ClipboardCopy({
       setCopied(true);
       setTimeout(() => setCopied(false), 500);
     } catch (err) {
+      captureException(err);
       console.error("Failed to copy text:", err);
     }
   };

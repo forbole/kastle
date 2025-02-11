@@ -11,6 +11,7 @@ import { TokenOperationFormData } from "@/components/screens/TokenOperation.tsx"
 import { useEffect } from "react";
 import { sleep } from "@/lib/utils.ts";
 import { Amount, createKRC20ScriptBuilder, Fee } from "@/lib/krc20.ts";
+import { captureException } from "@sentry/react";
 
 type HotWalletSendingProps = {
   accountFactory: AccountFactory;
@@ -116,6 +117,7 @@ export default function HotWalletBroadcastTokenOperation({
       setOutTxs([commitTxId, revealTxId]);
       onSuccess();
     } catch (e) {
+      captureException(e);
       console.error(e);
       onFail();
     }
