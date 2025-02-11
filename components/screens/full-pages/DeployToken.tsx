@@ -83,7 +83,7 @@ export default function DeployToken() {
 
   return (
     <div className="flex w-[41rem] flex-col items-stretch gap-4 rounded-3xl bg-icy-blue-950">
-      <div className="flex h-full flex-col overflow-y-scroll px-10 pb-12 pt-4 text-white">
+      <div className="no-scrollbar flex h-full flex-col overflow-y-scroll px-10 pb-12 pt-4 text-white">
         <Header title="Deploy KRC20" />
         <form onSubmit={onSubmit} className="flex flex-grow flex-col gap-6">
           {/*Ticker input group*/}

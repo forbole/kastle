@@ -174,7 +174,7 @@ export default function ManageAccounts({ listAccounts }: ManageAccountsProps) {
         />
 
         {/* List */}
-        <div className="flex flex-grow flex-col gap-3 overflow-y-scroll">
+        <div className="no-scrollbar flex flex-grow flex-col gap-3 overflow-y-scroll">
           <AccountsTitle />
           {accountList.map(({ publicKeys }, accountIndex) => (
             <AccountItem
