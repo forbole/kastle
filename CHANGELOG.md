@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.3.0](https://github.com/forbole/kastle/compare/v2.2.0...v2.3.0) (2025-02-11)
+
+
+### Features
+
+* add `signTx` method for KRC20 swap ([#22](https://github.com/forbole/kastle/issues/22)) ([082cdd4](https://github.com/forbole/kastle/commit/082cdd47ea84b07099bd2b15ed4ddbab936f326c))
+* delay password validation ([#29](https://github.com/forbole/kastle/issues/29)) ([f1a6727](https://github.com/forbole/kastle/commit/f1a67276678d032167f3fbe8b9c0aba34b7031b1))
+* improve manage accounts page ([#24](https://github.com/forbole/kastle/issues/24)) ([4f3800e](https://github.com/forbole/kastle/commit/4f3800e99cd9cbbe9e433c9af892c2463f8f9655))
+
+
+### Bug Fixes
+
+* **account-management:** ensure public keys are retrieved correctly ([#26](https://github.com/forbole/kastle/issues/26)) ([2a00bc4](https://github.com/forbole/kastle/commit/2a00bc498058b31ec03b987d214d77b5c85a396a))
+
 ## [2.2.0](https://github.com/forbole/kastle/compare/v2.1.0...v2.2.0) (2025-02-07)
 
 
