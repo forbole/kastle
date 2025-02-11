@@ -1,6 +1,5 @@
 import Header from "@/components/GeneralHeader.tsx";
 import { useForm } from "react-hook-form";
-import { useKasplex } from "@/hooks/useKasplex.ts";
 import { twMerge } from "tailwind-merge";
 import { Tooltip } from "react-tooltip";
 import spinner from "@/assets/images/spinner.svg";
@@ -18,7 +17,7 @@ type DeployFormData = {
 };
 
 export default function DeployToken() {
-  const { kasplexUrl } = useKasplex();
+  const { fetchTokenInfo } = useKasplex();
   const {
     formState: {
       errors,
@@ -64,10 +63,7 @@ export default function DeployToken() {
   });
 
   const validateTicker = async (ticker: string) => {
-    type TicketInfo = { result: Array<{ state: string }> };
-
-    const response = await fetch(`${kasplexUrl}/krc20/token/${ticker}`);
-    const tickerInfo = (await response.json()) as TicketInfo;
+    const tickerInfo = await fetchTokenInfo(ticker);
 
     return tickerInfo?.result?.[0]?.state !== "unused"
       ? "Oh, this ticker has already been used"
@@ -75,7 +71,7 @@ export default function DeployToken() {
   };
 
   useEffect(() => {
-    if (balance < Fee.Deploy) {
+    if (balance < Fee.Deploy + Fee.Base) {
       setError("root", {
         message: "Oh, you don't have enough funds to cover the estimated fees",
       });
@@ -86,7 +82,7 @@ export default function DeployToken() {
 
   return (
     <div className="flex w-[41rem] flex-col items-stretch gap-4 rounded-3xl bg-icy-blue-950">
-      <div className="flex h-full flex-col overflow-y-scroll px-10 pb-12 pt-4 text-white">
+      <div className="no-scrollbar flex h-full flex-col overflow-y-scroll px-10 pb-12 pt-4 text-white">
         <Header title="Deploy KRC20" />
         <form onSubmit={onSubmit} className="flex flex-grow flex-col gap-6">
           {/*Ticker input group*/}
@@ -384,7 +380,7 @@ export default function DeployToken() {
                 />
                 <span className="text-base">Estimated Fee</span>
                 <span className="text-base font-semibold">
-                  {Fee.Deploy} KAS
+                  {Fee.Deploy + Fee.Base} KAS
                 </span>
               </div>
             </div>

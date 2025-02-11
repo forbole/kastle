@@ -1,5 +1,7 @@
 import { Method } from "@/lib/service/extension-service.ts";
 
+export const fetcher = (url: string) => fetch(url).then((r) => r.json());
+
 export const sendMessage = <T>(method: Method, data = {}): Promise<T> =>
   browser.runtime.sendMessage({ method, ...data });
 

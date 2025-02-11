@@ -16,7 +16,7 @@ export default function FullscreenLayout() {
 
   return (
     <PostHogWrapperProvider>
-      <div className="flex h-screen justify-center overflow-y-scroll bg-[#1E293B] py-10 font-sans text-white">
+      <div className="no-scrollbar flex h-screen justify-center overflow-y-scroll bg-[#1E293B] py-10 font-sans text-white">
         <Toaster position="top-center" containerStyle={{ top: 35 }} />
         {navigation.state === "loading" ? <Splash /> : <Outlet />}
       </div>

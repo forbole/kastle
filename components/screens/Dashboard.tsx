@@ -9,6 +9,10 @@ import { twMerge } from "tailwind-merge";
 import useBackupWarning from "@/hooks/useBackupWarning.ts";
 import useKeyring from "@/hooks/useKeyring.ts";
 import useWalletManager from "@/hooks/useWalletManager.ts";
+import TokenListItem from "@/components/dashboard/TokenListItem.tsx";
+import { NetworkType } from "@/contexts/SettingsContext.tsx";
+import { useTokenListByAddress } from "@/hooks/useTokenListByAddress.ts";
+import { applyDecimal } from "@/lib/krc20.ts";
 
 export default function Dashboard() {
   const { keyringLock } = useKeyring();
@@ -24,15 +28,29 @@ export default function Dashboard() {
   const balance = account?.balance;
   const showBalance = !settings?.hideBalances;
 
+  const { data: tokenListResponse } = useTokenListByAddress(
+    settings?.preview ? address : undefined,
+    5000,
+  );
+  const tokenListItems = tokenListResponse ? tokenListResponse.result : [];
+  const tokens = tokenListItems.sort((a, b) => {
+    const aDecimal = applyDecimal(a.dec);
+    const bDecimal = applyDecimal(b.dec);
+
+    return (
+      bDecimal(parseInt(b.balance, 10)) - aDecimal(parseInt(a.balance, 10))
+    );
+  });
+
   const toggleBalance = () =>
     setSettings((prevSettings) => ({
       ...prevSettings,
       hideBalances: !prevSettings.hideBalances,
     }));
 
-  const network = settings?.networkId ?? "mainnet";
+  const network = settings?.networkId ?? NetworkType.Mainnet;
   const explorerAddressLink = explorerAddressLinks[network];
-  const isMainnet = network === "mainnet";
+  const isMainnet = network === NetworkType.Mainnet;
 
   const totalBalance = balance
     ? formatUSD(parseFloat(balance) * kapsaPrice.kaspaPrice)
@@ -169,7 +187,7 @@ export default function Dashboard() {
             <span className="text-daintree-400">Receive</span>
           </div>
 
-          {settings?.preview ? (
+          {settings?.preview && wallet?.type !== "ledger" ? (
             <>
               <div
                 className="flex cursor-pointer flex-col items-center gap-2"
@@ -184,6 +202,20 @@ export default function Dashboard() {
                   <i className="hn hn-pencil text-[20px] text-white"></i>
                 </div>
                 <span className="text-daintree-400">Deploy</span>
+              </div>
+              <div
+                className="flex cursor-pointer flex-col items-center gap-2"
+                onClick={() => {
+                  const url = new URL(browser.runtime.getURL("/popup.html"));
+                  url.hash = `/mint-token`;
+
+                  browser.tabs.create({ url: url.toString() });
+                }}
+              >
+                <div className="flex h-[46px] w-[46px] items-center justify-center rounded-full bg-white/10">
+                  <i className="hn hn-pencil text-[20px] text-white"></i>
+                </div>
+                <span className="text-daintree-400">Mint</span>
               </div>
             </>
           ) : (
@@ -236,8 +268,19 @@ export default function Dashboard() {
               <div className="h-[44px] flex-grow self-center rounded-xl bg-daintree-700" />
             </div>
           ) : (
-            <div className="flex flex-col items-stretch gap-2">
-              <div className="flex items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3">
+            <div className="mb-4 flex flex-col items-stretch gap-2">
+              {/*KAS*/}
+              <div
+                className={twMerge(
+                  "flex items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3",
+                  settings?.preview && "cursor-pointer hover:border-white",
+                )}
+                onClick={() => {
+                  if (settings?.preview) {
+                    navigate("/kas-asset");
+                  }
+                }}
+              >
                 <img alt="castle" className="h-[40px] w-[40px]" src={kasIcon} />
                 <div className="flex flex-grow flex-col gap-1">
                   <div className="flex items-center justify-between text-base text-white">
@@ -262,6 +305,12 @@ export default function Dashboard() {
                   </div>
                 </div>
               </div>
+
+              {/*KRC20 tokens*/}
+              {settings?.preview &&
+                tokens.map((token) => (
+                  <TokenListItem key={token.tick} token={token} />
+                ))}
             </div>
           )}
         </div>
