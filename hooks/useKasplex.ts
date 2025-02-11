@@ -16,49 +16,6 @@ export type TickerInfoResponse = {
   result: TickerInfo[];
 };
 
-export type TokenListItem = {
-  tick: string;
-  balance: string;
-  locked: string;
-  dec: string;
-  opScoreMod: string;
-};
-
-export type TokenListResponse = {
-  message: string;
-  prev: string;
-  next: string;
-  result: TokenListItem[];
-};
-
-export interface Op {
-  p: string;
-  op: string;
-  tick: string;
-  amt: string;
-  pre: string;
-  from: string;
-  to?: string;
-  opScore: string;
-  hashRev: string;
-  feeRev: string;
-  txAccept: string;
-  opAccept: string;
-  opError: string;
-  checkpoint: string;
-  mtsAdd: string;
-  mtsMod: string;
-  price?: string;
-  utxo?: string;
-}
-
-export interface OpListResponse {
-  message: string;
-  prev: string;
-  next: string;
-  result: Op[];
-}
-
 export function useKasplex() {
   const [settings] = useSettings();
 
