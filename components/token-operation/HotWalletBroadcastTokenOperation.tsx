@@ -61,7 +61,6 @@ export default function HotWalletBroadcastTokenOperation({
         throw new Error("No available public keys");
       }
 
-      console.log(opData);
       const scriptBuilder = createKRC20ScriptBuilder(publicKey, opData);
       const scriptPublicKey = scriptBuilder.createPayToScriptHashScript();
       const P2SHAddress = addressFromScriptPublicKey(
