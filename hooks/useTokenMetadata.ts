@@ -1,3 +1,6 @@
+import useSWR from "swr";
+import { fetcher } from "@/lib/utils.ts";
+
 export interface TokenMetadata {
   ticker: string;
   maxSupply: number;
@@ -76,13 +79,11 @@ export interface Metadata {
   isKrc20Market?: boolean;
 }
 
-export function useKasFyi() {
+export function useTokenMetadata(ticker?: string) {
   const baseUrl = "https://api-v2-do.kas.fyi";
 
-  const fetchTokenMetadataByTicker = async (ticker: string) => {
-    const response = await fetch(`${baseUrl}/token/krc20/${ticker}/info`);
-    return (await response.json()) as TokenMetadata | undefined;
-  };
-
-  return { fetchTokenMetadataByTicker };
+  return useSWR<TokenMetadata, Error>(
+    ticker ? `${baseUrl}/token/krc20/${ticker}/info` : null,
+    fetcher,
+  );
 }

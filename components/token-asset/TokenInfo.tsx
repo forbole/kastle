@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { TickerInfo, useKasplex } from "@/hooks/useKasplex.ts";
-import { TokenMetadata } from "@/hooks/useKasFyi.ts";
+import { useTokenInfo } from "@/hooks/useTokenInfo.ts";
+import { useTokenMetadata } from "@/hooks/useTokenMetadata.ts";
 import { formatUSD } from "@/lib/utils.ts";
 import kasIcon from "@/assets/images/kas-icon.svg";
 import { twMerge } from "tailwind-merge";
@@ -10,15 +10,14 @@ import { applyDecimal } from "@/lib/krc20.ts";
 
 export default function TokenInfo() {
   const { ticker } = useParams();
-  const { fetchTokenInfo } = useKasplex();
-  const { fetchTokenMetadataByTicker } = useKasFyi();
-  const { addresses } = useWalletManager();
+  const { data: tokenInfoResponse, isLoading: isTokenInfoLoading } =
+    useTokenInfo(ticker);
+  const { data: tokenMetadata, isLoading: isMetadataLoading } =
+    useTokenMetadata(ticker);
   const [imageUrl, setImageUrl] = useState(kasIcon);
-  const [tokenInfo, setTokenInfo] = useState<TickerInfo>();
-  const [tokenMetadata, setTokenMetadata] = useState<TokenMetadata>();
-  const [isLoading, setIsLoading] = useState(true);
+  const isLoading = isTokenInfoLoading || isMetadataLoading;
+  const tokenInfo = tokenInfoResponse?.result?.[0];
 
-  const firstAddress = addresses[0];
   const decimal = applyDecimal(tokenInfo?.dec);
   const max = tokenInfo ? parseInt(tokenInfo.max, 10) : 0;
   const minted = tokenInfo ? parseInt(tokenInfo.minted, 10) : 0;
@@ -27,26 +26,6 @@ export default function TokenInfo() {
   const onImageError = () => {
     setImageUrl(kasIcon);
   };
-
-  useEffect(() => {
-    const fetchInfo = async () => {
-      if (!firstAddress || !ticker) {
-        return;
-      }
-      const [tokenInfoResponse, tickerInfoMetadataResponse] = await Promise.all(
-        [
-          await fetchTokenInfo(ticker),
-          await fetchTokenMetadataByTicker(ticker),
-        ],
-      );
-
-      setTokenInfo(tokenInfoResponse?.result?.[0]);
-      setTokenMetadata(tickerInfoMetadataResponse);
-      setIsLoading(false);
-    };
-
-    fetchInfo();
-  }, []);
 
   useEffect(() => {
     if (tokenMetadata?.iconUrl) {

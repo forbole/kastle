@@ -11,6 +11,8 @@ import useKeyring from "@/hooks/useKeyring.ts";
 import useWalletManager from "@/hooks/useWalletManager.ts";
 import TokenListItem from "@/components/dashboard/TokenListItem.tsx";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
+import { useTokenListByAddress } from "@/hooks/useTokenListByAddress.ts";
+import { applyDecimal } from "@/lib/krc20.ts";
 
 export default function Dashboard() {
   const { keyringLock } = useKeyring();
@@ -18,13 +20,27 @@ export default function Dashboard() {
   const [settings, setSettings] = useSettings();
   const kapsaPrice = useKaspaPrice();
   const { showWarning } = useBackupWarning();
-  const { account, wallet, tokens } = useWalletManager();
+  const { account, wallet } = useWalletManager();
   const [dismissWarning, setDismissWarning] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const address = account?.address;
   const balance = account?.balance;
   const showBalance = !settings?.hideBalances;
+
+  const { data: tokenListResponse } = useTokenListByAddress(
+    settings?.preview ? address : undefined,
+    5000,
+  );
+  const tokenListItems = tokenListResponse ? tokenListResponse.result : [];
+  const tokens = tokenListItems.sort((a, b) => {
+    const aDecimal = applyDecimal(a.dec);
+    const bDecimal = applyDecimal(b.dec);
+
+    return (
+      bDecimal(parseInt(b.balance, 10)) - aDecimal(parseInt(a.balance, 10))
+    );
+  });
 
   const toggleBalance = () =>
     setSettings((prevSettings) => ({

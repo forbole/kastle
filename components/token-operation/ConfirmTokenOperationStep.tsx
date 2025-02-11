@@ -1,11 +1,12 @@
 import { useFormContext } from "react-hook-form";
-import React, { useEffect, useState } from "react";
+import React from "react";
 import signImage from "@/assets/images/sign.png";
 import useKaspaPrice from "@/hooks/useKaspaPrice.ts";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/GeneralHeader.tsx";
 import { TokenOperationFormData } from "@/components/screens/TokenOperation.tsx";
 import { applyDecimal, Fee } from "@/lib/krc20.ts";
+import { useTokenInfo } from "@/hooks/useTokenInfo.ts";
 
 export const ConfirmTokenOperationStep = ({
   onNext,
@@ -15,29 +16,21 @@ export const ConfirmTokenOperationStep = ({
   onBack?: () => void;
 }) => {
   const navigate = useNavigate();
-  const { fetchTokenInfo } = useKasplex();
   const { watch } = useFormContext<TokenOperationFormData>();
-  const [mintAmount, setMintAmount] = useState<string>();
   const opData = watch("opData");
   const decimal = applyDecimal(opData.dec);
   const kapsaPrice = useKaspaPrice();
+  const { data: tokenInfoResponse } = useTokenInfo(
+    opData.op === "mint" ? opData.tick : undefined,
+  );
+  const limParam = tokenInfoResponse?.result?.[0]?.lim;
+  const mintAmount = limParam
+    ? decimal(parseInt(limParam, 10)).toLocaleString()
+    : undefined;
 
   const onClose = () => {
     navigate("/dashboard");
   };
-
-  useEffect(() => {
-    if (opData.op === "mint") {
-      fetchTokenInfo(opData.tick).then((tokenInfo) => {
-        const tokenDetails = tokenInfo?.result?.[0];
-        if (!tokenDetails) {
-          return;
-        }
-
-        setMintAmount(decimal(parseInt(tokenDetails.lim, 10)).toLocaleString());
-      });
-    }
-  }, []);
 
   return (
     <>

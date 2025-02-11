@@ -1,7 +1,7 @@
 import kasIcon from "@/assets/images/kas-icon.svg";
 import { formatToken, formatTokenPrice, formatUSD } from "@/lib/utils.ts";
 import React, { useEffect, useState } from "react";
-import { TokenMetadata, useKasFyi } from "@/hooks/useKasFyi.ts";
+import { useTokenMetadata } from "@/hooks/useTokenMetadata.ts";
 import { useNavigate } from "react-router-dom";
 import { applyDecimal } from "@/lib/krc20.ts";
 
@@ -10,8 +10,7 @@ type TokenListItemProps = { token: TokenListItem };
 export default function TokenListItem({ token }: TokenListItemProps) {
   const navigate = useNavigate();
   const [settings] = useSettings();
-  const { fetchTokenMetadataByTicker } = useKasFyi();
-  const [tokenMetadata, setTokenMetadata] = useState<TokenMetadata>();
+  const { data: tokenMetadata } = useTokenMetadata(token.tick);
   const [imageUrl, setImageUrl] = useState(kasIcon);
 
   const showBalance = !settings?.hideBalances;
@@ -25,15 +24,6 @@ export default function TokenListItem({ token }: TokenListItemProps) {
   const onImageError = () => {
     setImageUrl(kasIcon);
   };
-
-  useEffect(() => {
-    const fetchTokenMetadata = async () => {
-      const tokenMetadata = await fetchTokenMetadataByTicker(token.tick);
-      setTokenMetadata(tokenMetadata);
-    };
-
-    fetchTokenMetadata();
-  }, []);
 
   useEffect(() => {
     if (tokenMetadata?.iconUrl) {

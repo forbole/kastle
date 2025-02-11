@@ -2,8 +2,7 @@ import kasIcon from "@/assets/images/kas-icon.svg";
 import { formatUSD } from "@/lib/utils.ts";
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Op, TickerInfo } from "@/hooks/useKasplex.ts";
-import { TokenMetadata } from "@/hooks/useKasFyi.ts";
+import { useTokenMetadata } from "@/hooks/useTokenMetadata.ts";
 import { twMerge } from "tailwind-merge";
 import { applyDecimal } from "@/lib/krc20.ts";
 
@@ -14,8 +13,7 @@ export default function TokenHistoryItem({
   tickerInfo,
 }: TokenHistoryItemProps) {
   const { ticker } = useParams();
-  const { fetchTokenMetadataByTicker } = useKasFyi();
-  const [tokenMetadata, setTokenMetadata] = useState<TokenMetadata>();
+  const { data: tokenMetadata } = useTokenMetadata(ticker);
   const [imageUrl, setImageUrl] = useState(kasIcon);
   const decimal = applyDecimal(tickerInfo?.dec);
 
@@ -31,19 +29,6 @@ export default function TokenHistoryItem({
   const onImageError = () => {
     setImageUrl(kasIcon);
   };
-
-  useEffect(() => {
-    const fetchTokenMetadata = async () => {
-      if (!ticker) {
-        return;
-      }
-
-      const tokenMetadata = await fetchTokenMetadataByTicker(ticker);
-      setTokenMetadata(tokenMetadata);
-    };
-
-    fetchTokenMetadata();
-  }, []);
 
   useEffect(() => {
     if (tokenMetadata?.iconUrl) {

@@ -69,27 +69,5 @@ export function useKasplex() {
     return (await response.json()) as TickerInfoResponse | undefined;
   };
 
-  const fetchTokenListByAddress = async (address: string) => {
-    const response = await fetch(
-      `${kasplexUrl}/krc20/address/${address}/tokenlist`,
-    );
-    return (await response.json()) as TokenListResponse | undefined;
-  };
-
-  const fetchOpListByAddressAndTicker = async (
-    address: string,
-    ticker: string,
-  ) => {
-    const response = await fetch(
-      `${kasplexUrl}/krc20/oplist?address=${address}&tick=${ticker}`,
-    );
-    return (await response.json()) as OpListResponse | undefined;
-  };
-
-  return {
-    kasplexUrl,
-    fetchTokenInfo,
-    fetchTokenListByAddress,
-    fetchOpListByAddressAndTicker,
-  };
+  return { fetchTokenInfo };
 }

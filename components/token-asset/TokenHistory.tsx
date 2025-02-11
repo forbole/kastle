@@ -1,38 +1,22 @@
-import React, { useState } from "react";
+import React from "react";
 import { useParams } from "react-router-dom";
-import { Op, TickerInfo, useKasplex } from "@/hooks/useKasplex.ts";
+import { useTokenInfo } from "@/hooks/useTokenInfo.ts";
 import TokenHistoryItem from "@/components/token-asset/TokenHistoryItem.tsx";
+import { useOpListByAddressAndTicker } from "@/hooks/useOpListByAddressAndTicker.ts";
 
 export default function TokenHistory() {
   const { ticker } = useParams();
-  const { fetchTokenInfo, fetchOpListByAddressAndTicker } = useKasplex();
+  const { data: tokenInfoResponse } = useTokenInfo(ticker);
   const { addresses } = useWalletManager();
-  const [tickerInfo, setTickerInfo] = useState<TickerInfo>();
-  const [opList, setOpList] = useState<Op[]>([]);
-
   const firstAddress = addresses[0];
-
-  useEffect(() => {
-    const fetchOps = async () => {
-      if (!firstAddress || !ticker) {
-        return;
-      }
-      const [tickerInfoResponse, opListResponse] = await Promise.all([
-        await fetchTokenInfo(ticker),
-        await fetchOpListByAddressAndTicker(firstAddress, ticker),
-      ]);
-
-      setTickerInfo(tickerInfoResponse?.result?.[0]);
-      const unfilteredOps = opListResponse?.result ?? [];
-      setOpList(unfilteredOps);
-    };
-
-    fetchOps();
-  }, []);
+  const { data: opList } = useOpListByAddressAndTicker(
+    ticker && firstAddress ? { ticker, address: firstAddress } : undefined,
+  );
+  const tickerInfo = tokenInfoResponse?.result?.[0];
 
   return (
     <div className="mt-8 flex flex-col items-stretch gap-2">
-      {opList.map((op, index) => (
+      {opList?.result?.map((op, index) => (
         <TokenHistoryItem key={index} tickerInfo={tickerInfo} op={op} />
       ))}
     </div>
