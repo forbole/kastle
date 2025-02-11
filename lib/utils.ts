@@ -1,5 +1,7 @@
 import { Method } from "@/lib/service/extension-service.ts";
 
+export const isProduction = process.env.NODE_ENV === "production";
+
 export const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 export const sendMessage = <T>(method: Method, data = {}): Promise<T> =>

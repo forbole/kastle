@@ -29,6 +29,7 @@
     "@popperjs/core": "^2.11.8",
     "@preline/accordion": "^2.6.0",
     "@preline/dropdown": "^2.6.0",
+    "@sentry/react": "^9.0.0",
     "buffer": "^6.0.3",
     "canvas": "^2.11.2",
     "canvas-confetti": "^1.9.3",
