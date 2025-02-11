@@ -6,6 +6,10 @@ export enum Fee {
   Base = 0.001,
 }
 
+export enum Amount {
+  ScriptUtxoAmount = "0.3",
+}
+
 export const createKRC20ScriptBuilder = (pubKey: string, data: any) => {
   const publicKey = new PublicKey(pubKey);
 

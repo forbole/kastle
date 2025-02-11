@@ -10,7 +10,7 @@ import { useFormContext } from "react-hook-form";
 import { TokenOperationFormData } from "@/components/screens/TokenOperation.tsx";
 import { useEffect } from "react";
 import { sleep } from "@/lib/utils.ts";
-import { createKRC20ScriptBuilder, Fee } from "@/lib/krc20.ts";
+import { Amount, createKRC20ScriptBuilder, Fee } from "@/lib/krc20.ts";
 
 type HotWalletSendingProps = {
   accountFactory: AccountFactory;
@@ -73,7 +73,7 @@ export default function HotWalletBroadcastTokenOperation({
       }
 
       const commitTxId = await account.signAndBroadcastTx([
-        { amount: "0.3", address: P2SHAddress.toString() },
+        { amount: Amount.ScriptUtxoAmount, address: P2SHAddress.toString() },
       ]);
 
       let P2SHEntry: UtxoEntryReference | undefined;
