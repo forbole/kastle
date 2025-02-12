@@ -5,12 +5,12 @@ import { AccountFactory } from "@/lib/wallet/wallet-factory.ts";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful.ts";
 import useStorageState from "@/hooks/useStorageState.ts";
 import {
+  IUtxosChanged,
   PublicKey,
   sompiToKaspaString,
   UtxoEntryReference,
 } from "@/wasm/core/kaspa";
 import internalToast from "@/components/Toast.tsx";
-import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import { explorerTxLinks } from "@/components/screens/Settings.tsx";
 
 export const WALLET_SETTINGS = "local:wallet-settings";
@@ -148,7 +148,6 @@ const getCurrentAccount = (walletSettings: WalletSettings) => {
 };
 
 export function WalletManagerProvider({ children }: { children: ReactNode }) {
-  const [settings] = useSettings();
   const keyring = useKeyring();
   const { rpcClient, networkId } = useRpcClientStateful();
   const [walletSettings, setWalletSettings, isWalletSettingsLoading] =
@@ -572,7 +571,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
     await keyring.keyringReset();
   };
 
-  const refreshAccounts = useCallback(async () => {
+  const refreshAccounts = async () => {
     if (!networkId) {
       throw new Error("RPC client and settings not loaded");
     }
@@ -595,7 +594,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
     }
 
     await saveWalletSettings(walletSettings);
-  }, []);
+  };
 
   // Refresh accounts after settings changed
   useEffect(() => {
@@ -672,13 +671,12 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
       added: UtxoEntryReference[];
       removed: UtxoEntryReference[];
     }) {
-      if (event.added.length === 0) {
+      if (event.added.length === 0 || !networkId) {
         return;
       }
 
       const txId = event.added[0].outpoint.transactionId;
-      const network = settings?.networkId ?? NetworkType.Mainnet;
-      const explorerTxLink = explorerTxLinks[network];
+      const explorerTxLink = explorerTxLinks[networkId];
       const outgoingAmount = event.removed.reduce(
         (acc, curr) =>
           addresses.includes(curr.address?.toString() ?? "")
@@ -705,16 +703,18 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
       );
     }
 
-    rpcClient.addEventListener("utxos-changed", async (event) => {
+    const listenUtxosChanged = async (event: IUtxosChanged) => {
       await fetchBalance();
       checkIncomingUtxos(event.data);
-    });
+    };
+
+    rpcClient.addEventListener("utxos-changed", listenUtxosChanged);
 
     rpcClient.subscribeUtxosChanged(addresses);
     return () => {
       rpcClient.unsubscribeUtxosChanged(addresses);
 
-      rpcClient.removeEventListener("utxos-changed", fetchBalance);
+      rpcClient.removeEventListener("utxos-changed", listenUtxosChanged);
     };
   }, [addresses, rpcClient, isWalletSettingsLoading]);
 
