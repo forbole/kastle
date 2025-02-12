@@ -23,6 +23,7 @@ export function PostHogWrapperProvider({ children }: { children: ReactNode }) {
       capture_pageleave: false,
       capture_pageview: false,
       autocapture: false,
+      person_profiles: "always",
     });
   }, []);
 
