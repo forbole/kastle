@@ -4,7 +4,14 @@ import useKeyring from "@/hooks/useKeyring.ts";
 import { AccountFactory } from "@/lib/wallet/wallet-factory.ts";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful.ts";
 import useStorageState from "@/hooks/useStorageState.ts";
-import { PublicKey, sompiToKaspaString } from "@/wasm/core/kaspa";
+import {
+  PublicKey,
+  sompiToKaspaString,
+  UtxoEntryReference,
+} from "@/wasm/core/kaspa";
+import internalToast from "@/components/Toast.tsx";
+import { NetworkType } from "@/contexts/SettingsContext.tsx";
+import { explorerTxLinks } from "@/components/screens/Settings.tsx";
 
 export const WALLET_SETTINGS = "local:wallet-settings";
 
@@ -141,6 +148,7 @@ const getCurrentAccount = (walletSettings: WalletSettings) => {
 };
 
 export function WalletManagerProvider({ children }: { children: ReactNode }) {
+  const [settings] = useSettings();
   const keyring = useKeyring();
   const { rpcClient, networkId } = useRpcClientStateful();
   const [walletSettings, setWalletSettings, isWalletSettingsLoading] =
@@ -642,7 +650,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
   }, [account, networkId]);
 
   useEffect(() => {
-    if (!rpcClient || isWalletSettingsLoading) {
+    if (!rpcClient || isWalletSettingsLoading || addresses.length === 0) {
       return;
     }
 
@@ -660,10 +668,52 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
 
     fetchBalance();
 
-    rpcClient.addEventListener("utxos-changed", fetchBalance);
+    function checkIncomingUtxos(event: {
+      added: UtxoEntryReference[];
+      removed: UtxoEntryReference[];
+    }) {
+      if (event.added.length === 0) {
+        return;
+      }
+
+      const txId = event.added[0].outpoint.transactionId;
+      const network = settings?.networkId ?? NetworkType.Mainnet;
+      const explorerTxLink = explorerTxLinks[network];
+      const outgoingAmount = event.removed.reduce(
+        (acc, curr) =>
+          addresses.includes(curr.address?.toString() ?? "")
+            ? acc + curr.amount
+            : acc,
+        0n,
+      );
+      const incomingAmount = event.added.reduce(
+        (acc, curr) =>
+          addresses.includes(curr.address?.toString() ?? "")
+            ? acc + curr.amount
+            : acc,
+        0n,
+      );
+      const transferAmount = incomingAmount - outgoingAmount;
+      if (transferAmount <= 0) {
+        return;
+      }
+
+      internalToast.info(
+        `You’ve received ${sompiToKaspaString(transferAmount)} amount of KAS. Click to open on explorer`,
+        () => browser.tabs.create({ url: `${explorerTxLink}${txId}` }),
+        txId,
+      );
+    }
+
+    rpcClient.addEventListener("utxos-changed", async (event) => {
+      await fetchBalance();
+      checkIncomingUtxos(event.data);
+    });
+
     rpcClient.subscribeUtxosChanged(addresses);
     return () => {
       rpcClient.unsubscribeUtxosChanged(addresses);
+
       rpcClient.removeEventListener("utxos-changed", fetchBalance);
     };
   }, [addresses, rpcClient, isWalletSettingsLoading]);
