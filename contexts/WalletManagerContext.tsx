@@ -572,7 +572,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
     await keyring.keyringReset();
   };
 
-  const refreshAccounts = async () => {
+  const refreshAccounts = useCallback(async () => {
     if (!networkId) {
       throw new Error("RPC client and settings not loaded");
     }
@@ -595,7 +595,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
     }
 
     await saveWalletSettings(walletSettings);
-  };
+  }, []);
 
   // Refresh accounts after settings changed
   useEffect(() => {

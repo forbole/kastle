@@ -32,7 +32,9 @@ export default function Dashboard() {
     settings?.preview ? address : undefined,
     5000,
   );
-  const tokenListItems = tokenListResponse ? tokenListResponse.result : [];
+  const tokenListItems = tokenListResponse?.result
+    ? tokenListResponse.result
+    : [];
   const tokens = tokenListItems.sort((a, b) => {
     const aDecimal = applyDecimal(a.dec);
     const bDecimal = applyDecimal(b.dec);
