@@ -4,6 +4,7 @@ import toast from "@/components/Toast";
 import useLedgerTransport from "@/hooks/useLedgerTransport";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful.ts";
 import { v4 as uuid } from "uuid";
+import { captureException } from "@sentry/react";
 
 export default function ImportLedger() {
   const { transport } = useLedgerTransport();
@@ -34,6 +35,7 @@ export default function ImportLedger() {
       toast.error(
         "Failed to import account from Ledger device, please unlock and open Kaspa app and try again",
       );
+      captureException(error);
       console.error(error);
     }
   };

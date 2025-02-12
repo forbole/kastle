@@ -5,6 +5,7 @@ import { Account } from "@/contexts/WalletManagerContext.tsx";
 import useDeepCompareEffect from "use-deep-compare-effect";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import { TransactionEstimate } from "@/lib/wallet/interface.ts";
+import { captureException } from "@sentry/react";
 
 export default function useTransactionEstimate({
   account,
@@ -39,6 +40,7 @@ export default function useTransactionEstimate({
         setTransactionEstimate(estimate);
       } catch (e) {
         setTransactionEstimate(undefined);
+        captureException(e);
         console.error("Failed to estimate transaction fees", e);
         return;
       }

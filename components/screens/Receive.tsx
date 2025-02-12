@@ -7,6 +7,7 @@ import kasIcon from "@/assets/images/kas-icon.svg";
 import Header from "@/components/GeneralHeader";
 import { useNavigate } from "react-router-dom";
 import useWalletManager from "@/hooks/useWalletManager.ts";
+import { captureException } from "@sentry/react";
 
 const Receive = () => {
   const navigate = useNavigate();
@@ -44,6 +45,7 @@ const Receive = () => {
       );
       setQrCodeUrl(canvas.toDataURL("image/png"));
     } catch (err) {
+      captureException(err);
       console.error("Failed to generate QR code:", err);
     }
   }, [address]);

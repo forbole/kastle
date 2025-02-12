@@ -1,4 +1,5 @@
 import { createContext, ReactNode, useEffect, useState } from "react";
+import { captureException } from "@sentry/react";
 
 export const SETTINGS_KEY = "local:settings";
 
@@ -108,6 +109,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       await storage.setItem(SETTINGS_KEY, valueToStore);
       setLocalSettings(valueToStore);
     } catch (error) {
+      captureException(error);
       console.error(`Error writing settings:`, error);
       throw error;
     }

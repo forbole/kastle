@@ -7,6 +7,7 @@ import { useFormContext } from "react-hook-form";
 import { SendFormData } from "@/components/screens/Send.tsx";
 import { useEffect } from "react";
 import useAnalytics from "@/hooks/useAnalytics.ts";
+import { captureException } from "@sentry/react";
 
 type LedgerSendingProps = {
   accountFactory: AccountFactory;
@@ -71,6 +72,7 @@ export default function LedgerSending({
 
       onSuccess();
     } catch (e) {
+      captureException(e);
       console.error(e);
       onFail();
     }

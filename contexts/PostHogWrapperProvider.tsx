@@ -1,6 +1,7 @@
 import { createContext, ReactNode } from "react";
 import { PostHogProvider } from "posthog-js/react";
 import posthog from "posthog-js";
+import { isProduction } from "@/lib/utils.ts";
 
 export const PostHogWrapperContext = createContext(undefined);
 
@@ -8,8 +9,6 @@ export function PostHogWrapperProvider({ children }: { children: ReactNode }) {
   const calledOnce = useRef(false);
 
   useEffect(() => {
-    const isProduction = process.env.NODE_ENV === "production";
-
     if (!isProduction) {
       return;
     }

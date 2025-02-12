@@ -1,4 +1,5 @@
 import { createContext, ReactNode, useState } from "react";
+import { captureException } from "@sentry/react";
 
 const COINGECKO_API_URL =
   "https://api.coingecko.com/api/v3/simple/price?ids=kaspa&vs_currencies=usd";
@@ -60,6 +61,7 @@ export function KaspaPriceProvider({ children }: { children: ReactNode }) {
       });
       setKaspaPrice(price);
     } catch (err) {
+      captureException(err);
       console.error("Error fetching Kaspa price:", err);
     }
   };
