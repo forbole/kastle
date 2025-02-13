@@ -16,7 +16,6 @@ import { useBoolean } from "usehooks-ts";
 import TickerSelect from "@/components/send/TickerSelect.tsx";
 import { useTokenBalance } from "@/hooks/useTokenBalance.ts";
 import { applyDecimal, Fee } from "@/lib/krc20.ts";
-import { useTokenInfo } from "@/hooks/useTokenInfo.ts";
 
 export const DetailsStep = ({
   onNext,
@@ -45,10 +44,6 @@ export const DetailsStep = ({
   const { data: tokenMetadata } = useTokenMetadata(
     ticker === "kas" ? undefined : ticker,
   );
-  const { data: tokenInfoResponse } = useTokenInfo(
-    ticker === "kas" ? undefined : ticker,
-  );
-  const { toInteger } = applyDecimal(tokenInfoResponse?.result?.[0].dec);
   const [imageUrl, setImageUrl] = useState(kasIcon);
   const { kaspaPrice } = useKaspaPrice();
   const tokenPrice =
@@ -345,7 +340,7 @@ export const DetailsStep = ({
                     search: createSearchParams({
                       op: "transfer",
                       ticker,
-                      amount: toInteger(parseFloat(amount ?? "0")).toString(),
+                      amount: amount!,
                       to: address!,
                     }).toString(),
                   })
