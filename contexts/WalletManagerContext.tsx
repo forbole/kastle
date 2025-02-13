@@ -156,16 +156,6 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
   const [account, setAccount] = useState<Account>();
   const [addresses, setAddresses] = useState<string[]>([]);
 
-  // TODO: Handle glitches that may occur when saving wallet settings
-  // Prevent multiple save calls in the same time, wait for the previous one to finish
-  const saveQueueRef = useRef(Promise.resolve());
-  const saveWalletSettings = async (settings: WalletSettings) => {
-    saveQueueRef.current = saveQueueRef.current.then(async () => {
-      await setWalletSettings(settings);
-    });
-    return saveQueueRef.current;
-  };
-
   const createNewWallet = async (id: string, defaultAccountName?: string) => {
     const mnemonic = AccountFactory.generateMnemonic();
     await importWalletByMnemonic(id, mnemonic, defaultAccountName, false);
@@ -319,7 +309,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
       walletSettings.selectedAccountIndex = 0;
     }
 
-    await saveWalletSettings(walletSettings);
+    await setWalletSettings(walletSettings);
   };
 
   const removeWallet = async (walletId: string) => {
@@ -343,7 +333,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
         walletSettings.wallets[0]?.accounts[0]?.index;
     }
 
-    await saveWalletSettings(walletSettings);
+    await setWalletSettings(walletSettings);
 
     return { noWallet: noWallet };
   };
@@ -384,7 +374,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
       walletSettings.selectedAccountIndex = nextIndex;
     }
 
-    await saveWalletSettings(walletSettings);
+    await setWalletSettings(walletSettings);
   };
 
   const selectAccount = async (
@@ -397,7 +387,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
       walletSettings.selectedAccountIndex = accountIndex;
     }
 
-    await saveWalletSettings(walletSettings);
+    await setWalletSettings(walletSettings);
   };
 
   const updateSelectedAccounts = async ({
@@ -469,7 +459,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
     // Update accounts
     wallet.accounts = updatedAccounts;
 
-    await saveWalletSettings(walletSettings);
+    await setWalletSettings(walletSettings);
   };
 
   const renameAccount = async ({
@@ -491,7 +481,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
 
     account.name = name;
 
-    await saveWalletSettings(walletSettings);
+    await setWalletSettings(walletSettings);
     await selectAccount(walletId, accountIndex);
   };
 
@@ -551,7 +541,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
       backed: true,
     });
 
-    await saveWalletSettings(walletSettings);
+    await setWalletSettings(walletSettings);
   };
 
   const markWalletBacked = async (walletId: string) => {
@@ -563,11 +553,11 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
 
     wallet.backed = true;
 
-    await saveWalletSettings(walletSettings);
+    await setWalletSettings(walletSettings);
   };
 
   const resetWallet = async () => {
-    await saveWalletSettings(defaultValue);
+    await setWalletSettings(defaultValue);
     await keyring.keyringReset();
   };
 
@@ -593,7 +583,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    await saveWalletSettings(walletSettings);
+    await setWalletSettings(walletSettings);
   };
 
   // Refresh accounts after settings changed
@@ -662,7 +652,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
       }
       currentAccount.balance = balance;
 
-      await saveWalletSettings(walletSettings);
+      await setWalletSettings(walletSettings);
     };
 
     function checkIncomingUtxos(event: {
@@ -717,6 +707,8 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
       rpcClient.removeEventListener("utxos-changed", listenUtxosChanged);
     };
   }, [addresses, rpcClient, isWalletSettingsLoading]);
+
+  console.log("render");
 
   return (
     <WalletManagerContext.Provider
