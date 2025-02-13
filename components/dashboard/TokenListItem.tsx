@@ -16,8 +16,8 @@ export default function TokenListItem({ token }: TokenListItemProps) {
 
   const showBalance = !settings?.hideBalances;
 
-  const decimal = applyDecimal(token.dec);
-  const balanceNumber = decimal(
+  const { toFloat } = applyDecimal(token.dec);
+  const balanceNumber = toFloat(
     token.balance ? parseInt(token.balance, 10) : 0,
   );
   const tokenPrice = tokenMetadata?.price?.priceInUsd ?? 0;

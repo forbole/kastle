@@ -10,7 +10,12 @@ import { useFormContext } from "react-hook-form";
 import { TokenOperationFormData } from "@/components/screens/TokenOperation.tsx";
 import { useEffect } from "react";
 import { sleep } from "@/lib/utils.ts";
-import { Amount, createKRC20ScriptBuilder, Fee } from "@/lib/krc20.ts";
+import {
+  Amount,
+  createKRC20ScriptBuilder,
+  OP_FEES,
+  OpFeesKey,
+} from "@/lib/krc20.ts";
 import { captureException } from "@sentry/react";
 
 type HotWalletSendingProps = {
@@ -110,8 +115,7 @@ export default function HotWalletBroadcastTokenOperation({
             scriptHex: scriptBuilder.toString(),
           },
         ],
-        priorityFee:
-          opData.op === "deploy" ? Fee.Deploy.toString() : Fee.Mint.toString(),
+        priorityFee: OP_FEES[opData.op as OpFeesKey].toString(),
       });
 
       setOutTxs([commitTxId, revealTxId]);

@@ -2,7 +2,7 @@ import { useFormContext } from "react-hook-form";
 import { SendFormData } from "@/components/screens/Send.tsx";
 import React, { useEffect } from "react";
 import useKaspaPrice from "@/hooks/useKaspaPrice.ts";
-import { useNavigate } from "react-router-dom";
+import { createSearchParams, useNavigate } from "react-router-dom";
 import { formatToken } from "@/lib/utils.ts";
 import kasIcon from "@/assets/images/kas-icon.svg";
 import usdIcon from "@/assets/images/usd-icon.svg";
@@ -16,6 +16,7 @@ import { useBoolean } from "usehooks-ts";
 import TickerSelect from "@/components/send/TickerSelect.tsx";
 import { useTokenBalance } from "@/hooks/useTokenBalance.ts";
 import { applyDecimal, Fee } from "@/lib/krc20.ts";
+import { useTokenInfo } from "@/hooks/useTokenInfo.ts";
 
 export const DetailsStep = ({
   onNext,
@@ -41,7 +42,13 @@ export const DetailsStep = ({
     formState: { isValid, errors },
   } = useFormContext<SendFormData>();
   const { ticker, address, amount } = watch();
-  const { data: tokenMetadata } = useTokenMetadata(ticker);
+  const { data: tokenMetadata } = useTokenMetadata(
+    ticker === "kas" ? undefined : ticker,
+  );
+  const { data: tokenInfoResponse } = useTokenInfo(
+    ticker === "kas" ? undefined : ticker,
+  );
+  const { toInteger } = applyDecimal(tokenInfoResponse?.result?.[0].dec);
   const [imageUrl, setImageUrl] = useState(kasIcon);
   const { kaspaPrice } = useKaspaPrice();
   const tokenPrice =
@@ -56,8 +63,8 @@ export const DetailsStep = ({
   );
 
   const tokenBalance = tokenBalanceResponse?.result?.[0];
-  const decimal = applyDecimal(tokenBalance?.dec);
-  const tokenBalanceFloat = decimal(
+  const { toFloat } = applyDecimal(tokenBalance?.dec);
+  const tokenBalanceFloat = toFloat(
     tokenBalance?.balance ? parseInt(tokenBalance.balance, 10) : 0,
   );
   const kasBalance = account?.balance ? parseFloat(account.balance) : 0;
@@ -330,7 +337,19 @@ export const DetailsStep = ({
         <div className="mt-auto">
           <button
             disabled={!isValid || !!errors.amount}
-            onClick={onNext}
+            onClick={() =>
+              ticker === "kas"
+                ? onNext()
+                : navigate({
+                    pathname: "/token-operation",
+                    search: createSearchParams({
+                      op: "transfer",
+                      ticker,
+                      amount: toInteger(parseFloat(amount ?? "0")).toString(),
+                      to: address!,
+                    }).toString(),
+                  })
+            }
             className="mt-auto w-full rounded-full bg-icy-blue-400 py-4 text-lg font-medium text-white transition-colors hover:bg-icy-blue-600 disabled:bg-daintree-800 disabled:text-[#4B5563]"
           >
             Confirm

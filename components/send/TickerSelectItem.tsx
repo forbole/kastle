@@ -14,7 +14,7 @@ export default function TickerSelectItem({
 }: TickerSelectItemProps) {
   const { data: tokenMetadata } = useTokenMetadata(token.tick);
   const [imageUrl, setImageUrl] = useState(kasIcon);
-  const decimal = applyDecimal(token.dec);
+  const { toFloat } = applyDecimal(token.dec);
   const balance = parseInt(token.balance, 10);
 
   const onImageError = () => {
@@ -42,7 +42,7 @@ export default function TickerSelectItem({
         />
         <span>{token.tick}</span>
       </div>
-      <span>{decimal(balance).toLocaleString()}</span>
+      <span>{toFloat(balance).toLocaleString()}</span>
     </button>
   );
 }

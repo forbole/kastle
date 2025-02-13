@@ -16,15 +16,15 @@ export default function TokenHistoryItem({
   const { ticker } = useParams();
   const { data: tokenMetadata } = useTokenMetadata(ticker);
   const [imageUrl, setImageUrl] = useState(kasIcon);
-  const decimal = applyDecimal(tickerInfo?.dec);
+  const { toFloat } = applyDecimal(tickerInfo?.dec);
 
   let amount = 0;
   switch (op.op) {
     case "deploy":
-      amount = decimal(op.pre ? parseInt(op.pre, 10) : 0);
+      amount = toFloat(op.pre ? parseInt(op.pre, 10) : 0);
       break;
     default:
-      amount = decimal(op.amt ? parseInt(op.amt, 10) : 0);
+      amount = toFloat(op.amt ? parseInt(op.amt, 10) : 0);
   }
 
   const onImageError = () => {
