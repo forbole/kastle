@@ -30,6 +30,8 @@ export default function TokenOperation() {
   const mintAmount = searchParams.get("mintAmount");
   const preAllocation = searchParams.get("preAllocation");
   const decimalPlaces = searchParams.get("decimalPlaces");
+  const amount = searchParams.get("amount");
+  const to = searchParams.get("to");
 
   useEffect(() => {
     setPopupPath();
@@ -67,10 +69,27 @@ export default function TokenOperation() {
           tick: ticker,
         });
         break;
+      case "transfer":
+        if (!ticker || !amount || !to) {
+          throw new Error("missing transfer parameters");
+        }
+
+        form.setValue("opData", {
+          p: "krc-20",
+          op: "transfer",
+          tick: ticker,
+          amount,
+          to,
+        });
+        break;
     }
   }, []);
 
   const onBack = () => {
+    if (op === "transfer") {
+      navigate(-1);
+    }
+
     setStep((prevState) => {
       if (steps.indexOf(prevState) === 0) {
         navigate("/dashboard");

@@ -72,13 +72,13 @@ export default function MintToken() {
       setMintableAmount("-");
       return;
     }
-    const decimal = applyDecimal(tickerDetails.dec);
+    const { toFloat } = applyDecimal(tickerDetails.dec);
     const max = parseInt(tickerDetails.max, 10);
     const minted = parseInt(tickerDetails.minted, 10);
 
-    setValue("mintAmount", decimal(parseInt(tickerDetails.lim, 10)));
+    setValue("mintAmount", toFloat(parseInt(tickerDetails.lim, 10)));
     setMintableAmount(
-      `${((minted / max) * 100).toFixed(0)}% (${decimal(minted).toLocaleString()}/${decimal(max).toLocaleString()})`,
+      `${((minted / max) * 100).toFixed(0)}% (${toFloat(minted).toLocaleString()}/${toFloat(max).toLocaleString()})`,
     );
   }, [tickerInfo]);
 
