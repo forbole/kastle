@@ -5,6 +5,8 @@ import { applyDecimal } from "@/lib/krc20.ts";
 import TickerSelectItem from "@/components/send/TickerSelectItem.tsx";
 import kasIcon from "@/assets/images/kas-icon.svg";
 import { formatToken } from "@/lib/utils.ts";
+import { useFormContext } from "react-hook-form";
+import { SendFormData } from "@/components/screens/Send.tsx";
 
 type TickerSelectProps = { isShown: boolean; toggleShow: () => void };
 
@@ -12,6 +14,7 @@ export default function TickerSelect({
   isShown,
   toggleShow,
 }: TickerSelectProps) {
+  const { setValue } = useFormContext<SendFormData>();
   const { account } = useWalletManager();
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -40,6 +43,11 @@ export default function TickerSelect({
         bDecimal(parseInt(b.balance, 10)) - aDecimal(parseInt(a.balance, 10))
       );
     });
+
+  const selectTicker = (ticker: string) => {
+    setValue("ticker", ticker, { shouldValidate: true });
+    toggleShow();
+  };
 
   return (
     <>
@@ -77,6 +85,7 @@ export default function TickerSelect({
             <button
               type="button"
               className="flex items-center justify-between rounded-lg px-4 py-2 text-base font-medium text-daintree-200 hover:bg-daintree-700"
+              onClick={() => selectTicker("kas")}
             >
               <div className="flex items-center gap-2">
                 <img
@@ -91,7 +100,11 @@ export default function TickerSelect({
           )}
 
           {tokens.map((token) => (
-            <TickerSelectItem key={token.tick} token={token} />
+            <TickerSelectItem
+              key={token.tick}
+              token={token}
+              selectTicker={selectTicker}
+            />
           ))}
 
           {!isKasShown && tokens.length === 0 && (

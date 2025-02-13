@@ -1,6 +1,6 @@
 import { useFormContext } from "react-hook-form";
 import { SendFormData } from "@/components/screens/Send.tsx";
-import React from "react";
+import React, { useEffect } from "react";
 import useKaspaPrice from "@/hooks/useKaspaPrice.ts";
 import { useNavigate } from "react-router-dom";
 import { formatToken } from "@/lib/utils.ts";
@@ -14,6 +14,8 @@ import { Address } from "@/wasm/core/kaspa";
 import { twMerge } from "tailwind-merge";
 import { useBoolean } from "usehooks-ts";
 import TickerSelect from "@/components/send/TickerSelect.tsx";
+import { useTokenBalance } from "@/hooks/useTokenBalance.ts";
+import { applyDecimal, Fee } from "@/lib/krc20.ts";
 
 export const DetailsStep = ({
   onNext,
@@ -26,13 +28,11 @@ export const DetailsStep = ({
   const [settings] = useSettings();
   const { account, addresses } = useWalletManager();
   const { rpcClient, getMinimumFee } = useRpcClientStateful();
+
   const { value: isTickerSelectShow, toggle: toogleTickerSelect } =
     useBoolean(false);
   const [accountMinimumFees, setAccountMinimumFees] = useState<number>(0.0);
 
-  const currentBalance = account?.balance
-    ? formatToken(parseFloat(account.balance))
-    : "0";
   const {
     register,
     watch,
@@ -40,8 +40,28 @@ export const DetailsStep = ({
     trigger,
     formState: { isValid, errors },
   } = useFormContext<SendFormData>();
+  const { ticker, address, amount } = watch();
+  const { data: tokenMetadata } = useTokenMetadata(ticker);
+  const [imageUrl, setImageUrl] = useState(kasIcon);
   const { kaspaPrice } = useKaspaPrice();
-  const { address, amount } = watch();
+  const tokenPrice =
+    ticker === "kas" ? kaspaPrice : (tokenMetadata?.price?.priceInUsd ?? 0);
+  const { data: tokenBalanceResponse } = useTokenBalance(
+    account?.address && ticker !== "kas"
+      ? {
+          ticker,
+          address: account.address,
+        }
+      : undefined,
+  );
+
+  const tokenBalance = tokenBalanceResponse?.result?.[0];
+  const decimal = applyDecimal(tokenBalance?.dec);
+  const tokenBalanceFloat = decimal(
+    tokenBalance?.balance ? parseInt(tokenBalance.balance, 10) : 0,
+  );
+  const kasBalance = account?.balance ? parseFloat(account.balance) : 0;
+  const currentBalance = ticker === "kas" ? kasBalance : tokenBalanceFloat;
 
   const transactionEstimate = useTransactionEstimate({
     account,
@@ -52,10 +72,9 @@ export const DetailsStep = ({
   });
 
   const amountValidator = async (value: string | undefined) => {
-    const balanceNumber = parseFloat(account?.balance ?? "0");
     const amountNumber = parseFloat(value ?? "0");
 
-    if (amountNumber < 0 || amountNumber > balanceNumber) {
+    if (amountNumber < 0 || amountNumber > currentBalance) {
       return "Oh, you don’t have enough funds";
     }
 
@@ -65,8 +84,22 @@ export const DetailsStep = ({
       return "Oh, the minimum sending amount has to be greater than 0.2 KAS";
     }
 
-    if (amountNumber + accountMinimumFees > balanceNumber) {
+    if (amountNumber + accountMinimumFees > currentBalance) {
       return "Oh, you don't have enough funds to cover the estimated fees";
+    }
+
+    return true;
+  };
+
+  const tokenAmountValidator = async (value: string | undefined) => {
+    const amountNumber = parseFloat(value ?? "0");
+
+    if (amountNumber < 0 || amountNumber > currentBalance) {
+      return "Oh, you don’t have enough funds";
+    }
+
+    if (kasBalance < Fee.Base) {
+      return "Oh, you don't have enough KAS to cover the operation fees";
     }
 
     return true;
@@ -88,17 +121,32 @@ export const DetailsStep = ({
   };
 
   const selectMaxAmount = async () => {
-    if (!account?.balance) {
+    if (!currentBalance) {
       return;
     }
-    const balanceNumber = parseFloat(account?.balance ?? "0");
 
-    const maxAmount = balanceNumber - accountMinimumFees;
+    const maxAmount =
+      ticker === "kas" ? currentBalance - accountMinimumFees : currentBalance;
 
     setValue("amount", maxAmount > 0 ? maxAmount.toFixed(8) : "0", {
       shouldValidate: true,
     });
   };
+
+  const onImageError = () => {
+    setImageUrl(kasIcon);
+  };
+
+  useEffect(() => {
+    if (ticker === "kas") {
+      setImageUrl(kasIcon);
+      return;
+    }
+
+    if (tokenMetadata?.iconUrl) {
+      setImageUrl(tokenMetadata.iconUrl);
+    }
+  }, [tokenMetadata?.iconUrl]);
 
   // Fetch account minimum fees
   useEffect(() => {
@@ -111,12 +159,12 @@ export const DetailsStep = ({
   useEffect(() => {
     const amountNumber = parseFloat(amount ?? "0");
 
-    if (!Number.isNaN(amountNumber) && kaspaPrice !== 0) {
-      setValue("amountUSD", formatToken(amountNumber * kaspaPrice, 3));
+    if (!Number.isNaN(amountNumber)) {
+      setValue("amountUSD", formatToken(amountNumber * tokenPrice, 3));
     } else {
       setValue("amountUSD", undefined);
     }
-  }, [amount, kaspaPrice]);
+  }, [amount, tokenPrice]);
 
   return (
     <>
@@ -151,7 +199,9 @@ export const DetailsStep = ({
         <div className="bg-white/1 relative flex flex-col gap-4 rounded-xl border border-daintree-700 p-4">
           <div className="flex items-center gap-3 text-sm">
             <span className="font-semibold">Balance</span>
-            <span className="flex-grow">{currentBalance} KAS</span>
+            <span className="flex-grow">
+              {formatToken(currentBalance)} {ticker.toUpperCase()}
+            </span>
             <button
               className="inline-flex items-center gap-x-2 rounded border border-transparent bg-icy-blue-400 px-3 py-2 text-sm text-white disabled:pointer-events-none disabled:opacity-50"
               onClick={selectMaxAmount}
@@ -173,9 +223,14 @@ export const DetailsStep = ({
                       : "border-daintree-700",
                   )}
                 >
-                  <img alt="kas" className="h-[18px] w-[18px]" src={kasIcon} />
-                  KAS
-                  {/*  TODO double arrow icon*/}
+                  <img
+                    alt="kas"
+                    className="h-[18px] w-[18px]"
+                    src={imageUrl}
+                    onError={onImageError}
+                  />
+                  {ticker.toUpperCase()}
+                  <i className="hn hn-chevron-down h-[16px] w-[16px]"></i>
                 </button>
               ) : (
                 <span
@@ -193,7 +248,8 @@ export const DetailsStep = ({
               <input
                 {...register("amount", {
                   required: true,
-                  validate: amountValidator,
+                  validate:
+                    ticker === "kas" ? amountValidator : tokenAmountValidator,
                   onChange: (event) => {
                     const [int, dec] = event.target.value.split(".");
 
@@ -231,10 +287,10 @@ export const DetailsStep = ({
                       event.target.value ?? "0",
                     );
 
-                    if (!Number.isNaN(amountUsdNumber) && kaspaPrice !== 0) {
+                    if (!Number.isNaN(amountUsdNumber) && tokenPrice !== 0) {
                       setValue(
                         "amount",
-                        (amountUsdNumber / kaspaPrice).toFixed(8),
+                        (amountUsdNumber / tokenPrice).toFixed(8),
                       );
 
                       await trigger("amount");
@@ -263,7 +319,12 @@ export const DetailsStep = ({
         {/* Fee segment */}
         <div className="flex items-center justify-end gap-2 text-sm">
           <span>Fee</span>
-          <span>{transactionEstimate?.totalFees ?? "0"} KAS</span>
+          <span>
+            {ticker === "kas"
+              ? (transactionEstimate?.totalFees ?? "0")
+              : Fee.Base}{" "}
+            KAS
+          </span>
         </div>
 
         <div className="mt-auto">
