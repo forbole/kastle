@@ -695,7 +695,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
       }
 
       internalToast.info(
-        `You’ve received ${sompiToKaspaString(transferAmount)} amount of KAS. Click to open on explorer`,
+        `You’ve received ${sompiToKaspaString(transferAmount)} KAS. Click to open on explorer`,
         () => browser.tabs.create({ url: `${explorerTxLink}${txId}` }),
         txId,
       );
