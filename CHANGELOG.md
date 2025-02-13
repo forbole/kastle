@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.4.0](https://github.com/forbole/kastle/compare/v2.3.0...v2.4.0) (2025-02-13)
+
+
+### Features
+
+* notify upon incoming UTXOs ([#33](https://github.com/forbole/kastle/issues/33)) ([97e6344](https://github.com/forbole/kastle/commit/97e63448244439488c78ca9fd3598feed0bc7951))
+
+
+### Bug Fixes
+
+* group posthog events per person ([8765863](https://github.com/forbole/kastle/commit/87658638a00df43adf23ddca6c916f2d3ad68fda))
+* replace `posthog-js` with `posthog-js-lite` to pass review ([1cf1bcc](https://github.com/forbole/kastle/commit/1cf1bccac6bbf6a5dc369b163b8fd380ff9b3361))
+
 ## [2.3.0](https://github.com/forbole/kastle/compare/v2.2.0...v2.3.0) (2025-02-11)
 
 
