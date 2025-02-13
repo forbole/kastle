@@ -4,9 +4,9 @@ import { explorerAddressLinks } from "@/components/screens/Settings.tsx";
 
 export default function KasHistory() {
   const { addresses } = useWalletManager();
-  const [settings] = useSettings();
+  const { networkId } = useRpcClientStateful();
 
-  const network = settings?.networkId ?? NetworkType.Mainnet;
+  const network = networkId ?? NetworkType.Mainnet;
   const explorerAddressLink = explorerAddressLinks[network];
   const firstAddress = addresses[0];
 

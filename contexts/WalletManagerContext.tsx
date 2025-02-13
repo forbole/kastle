@@ -4,7 +4,14 @@ import useKeyring from "@/hooks/useKeyring.ts";
 import { AccountFactory } from "@/lib/wallet/wallet-factory.ts";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful.ts";
 import useStorageState from "@/hooks/useStorageState.ts";
-import { PublicKey, sompiToKaspaString } from "@/wasm/core/kaspa";
+import {
+  IUtxosChanged,
+  PublicKey,
+  sompiToKaspaString,
+  UtxoEntryReference,
+} from "@/wasm/core/kaspa";
+import internalToast from "@/components/Toast.tsx";
+import { explorerTxLinks } from "@/components/screens/Settings.tsx";
 
 export const WALLET_SETTINGS = "local:wallet-settings";
 
@@ -148,16 +155,6 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
   const [wallet, setWallet] = useState<WalletInfo>();
   const [account, setAccount] = useState<Account>();
   const [addresses, setAddresses] = useState<string[]>([]);
-
-  // TODO: Handle glitches that may occur when saving wallet settings
-  // Prevent multiple save calls in the same time, wait for the previous one to finish
-  const saveQueueRef = useRef(Promise.resolve());
-  const saveWalletSettings = async (settings: WalletSettings) => {
-    saveQueueRef.current = saveQueueRef.current.then(async () => {
-      await setWalletSettings(settings);
-    });
-    return saveQueueRef.current;
-  };
 
   const createNewWallet = async (id: string, defaultAccountName?: string) => {
     const mnemonic = AccountFactory.generateMnemonic();
@@ -312,7 +309,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
       walletSettings.selectedAccountIndex = 0;
     }
 
-    await saveWalletSettings(walletSettings);
+    await setWalletSettings(walletSettings);
   };
 
   const removeWallet = async (walletId: string) => {
@@ -336,7 +333,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
         walletSettings.wallets[0]?.accounts[0]?.index;
     }
 
-    await saveWalletSettings(walletSettings);
+    await setWalletSettings(walletSettings);
 
     return { noWallet: noWallet };
   };
@@ -377,7 +374,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
       walletSettings.selectedAccountIndex = nextIndex;
     }
 
-    await saveWalletSettings(walletSettings);
+    await setWalletSettings(walletSettings);
   };
 
   const selectAccount = async (
@@ -390,7 +387,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
       walletSettings.selectedAccountIndex = accountIndex;
     }
 
-    await saveWalletSettings(walletSettings);
+    await setWalletSettings(walletSettings);
   };
 
   const updateSelectedAccounts = async ({
@@ -462,7 +459,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
     // Update accounts
     wallet.accounts = updatedAccounts;
 
-    await saveWalletSettings(walletSettings);
+    await setWalletSettings(walletSettings);
   };
 
   const renameAccount = async ({
@@ -484,7 +481,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
 
     account.name = name;
 
-    await saveWalletSettings(walletSettings);
+    await setWalletSettings(walletSettings);
     await selectAccount(walletId, accountIndex);
   };
 
@@ -544,7 +541,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
       backed: true,
     });
 
-    await saveWalletSettings(walletSettings);
+    await setWalletSettings(walletSettings);
   };
 
   const markWalletBacked = async (walletId: string) => {
@@ -556,11 +553,11 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
 
     wallet.backed = true;
 
-    await saveWalletSettings(walletSettings);
+    await setWalletSettings(walletSettings);
   };
 
   const resetWallet = async () => {
-    await saveWalletSettings(defaultValue);
+    await setWalletSettings(defaultValue);
     await keyring.keyringReset();
   };
 
@@ -586,7 +583,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    await saveWalletSettings(walletSettings);
+    await setWalletSettings(walletSettings);
   };
 
   // Refresh accounts after settings changed
@@ -642,7 +639,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
   }, [account, networkId]);
 
   useEffect(() => {
-    if (!rpcClient || isWalletSettingsLoading) {
+    if (!rpcClient || isWalletSettingsLoading || addresses.length === 0) {
       return;
     }
 
@@ -655,18 +652,63 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
       }
       currentAccount.balance = balance;
 
-      await saveWalletSettings(walletSettings);
+      await setWalletSettings(walletSettings);
+    };
+
+    function checkIncomingUtxos(event: {
+      added: UtxoEntryReference[];
+      removed: UtxoEntryReference[];
+    }) {
+      if (event.added.length === 0 || !networkId) {
+        return;
+      }
+
+      const txId = event.added[0].outpoint.transactionId;
+      const explorerTxLink = explorerTxLinks[networkId];
+      const outgoingAmount = event.removed.reduce(
+        (acc, curr) =>
+          addresses.includes(curr.address?.toString() ?? "")
+            ? acc + curr.amount
+            : acc,
+        0n,
+      );
+      const incomingAmount = event.added.reduce(
+        (acc, curr) =>
+          addresses.includes(curr.address?.toString() ?? "")
+            ? acc + curr.amount
+            : acc,
+        0n,
+      );
+      const transferAmount = incomingAmount - outgoingAmount;
+      if (transferAmount <= 0) {
+        return;
+      }
+
+      internalToast.info(
+        `You’ve received ${sompiToKaspaString(transferAmount)} KAS. Click to open on explorer`,
+        () => browser.tabs.create({ url: `${explorerTxLink}${txId}` }),
+        txId,
+      );
+    }
+
+    const listenUtxosChanged = async (event: IUtxosChanged) => {
+      await fetchBalance();
+      checkIncomingUtxos(event.data);
     };
 
     fetchBalance();
 
-    rpcClient.addEventListener("utxos-changed", fetchBalance);
+    rpcClient.addEventListener("utxos-changed", listenUtxosChanged);
+
     rpcClient.subscribeUtxosChanged(addresses);
     return () => {
       rpcClient.unsubscribeUtxosChanged(addresses);
-      rpcClient.removeEventListener("utxos-changed", fetchBalance);
+
+      rpcClient.removeEventListener("utxos-changed", listenUtxosChanged);
     };
   }, [addresses, rpcClient, isWalletSettingsLoading]);
+
+  console.log("render");
 
   return (
     <WalletManagerContext.Provider
