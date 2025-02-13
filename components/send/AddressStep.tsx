@@ -24,6 +24,7 @@ export const AddressStep = ({
     try {
       return (await Address.validate(value)) || "Invalid Kaspa address";
     } catch (error) {
+      console.error(error);
       return "Invalid Kaspa address";
     }
   };

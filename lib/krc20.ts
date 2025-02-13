@@ -3,14 +3,13 @@ import { Opcodes, PublicKey, ScriptBuilder } from "@/wasm/core/kaspa";
 export enum Fee {
   Deploy = 1000,
   Mint = 1,
-  Transfer = 0.001,
   Base = 0.001,
 }
 
 export const OP_FEES = {
   deploy: Fee.Deploy,
   mint: Fee.Mint,
-  transfer: Fee.Transfer,
+  transfer: Fee.Base,
 };
 export type OpFeesKey = keyof typeof OP_FEES;
 
