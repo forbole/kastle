@@ -1,4 +1,4 @@
-import { usePostHog } from "posthog-js/react";
+import { PostHogWrapperContext } from "@/contexts/PostHogWrapperProvider.tsx";
 
 const ANALYTICS_KEY = "local:analytics";
 
@@ -9,11 +9,11 @@ const defaultValues = {
 };
 
 export default function useAnalytics() {
-  const postHog = usePostHog();
+  const { postHog } = useContext(PostHogWrapperContext);
   const [cachedAnalytics, setCachedAnalytics] = useState<Analytics>();
 
   return {
-    emitOnboardingComplete: () => postHog.capture("onboarding_complete"),
+    emitOnboardingComplete: () => postHog?.capture("onboarding_complete"),
     emitFirstTransaction: async (properties: {
       direction: "send" | "receive";
       amount: string;
@@ -35,9 +35,9 @@ export default function useAnalytics() {
         hasFirstTransaction: true,
       });
 
-      return postHog.capture("first_transaction", properties);
+      return postHog?.capture("first_transaction", properties);
     },
-    emitWalletImported: () => postHog.capture("wallet_imported"),
-    emitPrivateKeyImported: () => postHog.capture("key_imported"),
+    emitWalletImported: () => postHog?.capture("wallet_imported"),
+    emitPrivateKeyImported: () => postHog?.capture("key_imported"),
   };
 }

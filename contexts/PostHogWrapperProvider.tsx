@@ -1,12 +1,18 @@
-import { createContext, ReactNode } from "react";
-import { PostHogProvider } from "posthog-js/react";
-import posthog from "posthog-js";
+import { createContext, ReactNode, useState } from "react";
+import { PostHog } from "posthog-js-lite";
 import { isProduction } from "@/lib/utils.ts";
 
-export const PostHogWrapperContext = createContext(undefined);
+type PosthogContextType = {
+  postHog: PostHog | undefined;
+};
+
+export const PostHogWrapperContext = createContext<PosthogContextType>({
+  postHog: undefined,
+});
 
 export function PostHogWrapperProvider({ children }: { children: ReactNode }) {
   const calledOnce = useRef(false);
+  const [postHog, setPostHog] = useState<PostHog>();
 
   useEffect(() => {
     if (!isProduction) {
@@ -16,19 +22,20 @@ export function PostHogWrapperProvider({ children }: { children: ReactNode }) {
     if (calledOnce.current) return;
     calledOnce.current = true;
 
-    posthog.init("phc_cnYLzCi1iYgXbHycArgvgabG1VhNEOSjCZpFhJiirH1", {
-      api_host: "https://eu.i.posthog.com",
-      debug: !isProduction,
-      capture_pageleave: false,
-      capture_pageview: false,
-      autocapture: false,
-      person_profiles: "always",
-    });
+    const postHogInstance = new PostHog(
+      "phc_cnYLzCi1iYgXbHycArgvgabG1VhNEOSjCZpFhJiirH1",
+      {
+        host: "https://eu.i.posthog.com",
+        autocapture: false,
+      },
+    );
+
+    setPostHog(postHogInstance);
   }, []);
 
   return (
-    <PostHogWrapperContext.Provider value={undefined}>
-      <PostHogProvider client={posthog}>{children}</PostHogProvider>
+    <PostHogWrapperContext.Provider value={{ postHog: postHog }}>
+      {children}
     </PostHogWrapperContext.Provider>
   );
 }
