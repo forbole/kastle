@@ -19,6 +19,7 @@ export const ConfirmTokenOperationStep = ({
   const navigate = useNavigate();
   const { watch } = useFormContext<TokenOperationFormData>();
   const kaspaPrice = useKaspaPrice();
+
   const opData = watch("opData");
   const opFee = OP_FEES[opData.op as OpFeesKey];
   const { toFloat } = applyDecimal(opData.dec);
@@ -26,7 +27,7 @@ export const ConfirmTokenOperationStep = ({
     opData.op === "mint" ? opData.tick : undefined,
   );
   const { data: tokenInfoResponse } = useTokenInfo(
-    opData.op === "transfer" ? opData.tick : undefined,
+    opData.op !== "deploy" ? opData.tick : undefined,
   );
   const limParam = tokenInfoResponse?.result?.[0]?.lim;
   const mintAmount = limParam
