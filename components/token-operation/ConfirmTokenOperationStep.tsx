@@ -26,7 +26,7 @@ export const ConfirmTokenOperationStep = ({
     opData.op === "mint" ? opData.tick : undefined,
   );
   const { data: tokenInfoResponse } = useTokenInfo(
-    opData.op === "mint" ? opData.tick : undefined,
+    opData.op === "transfer" ? opData.tick : undefined,
   );
   const limParam = tokenInfoResponse?.result?.[0]?.lim;
   const mintAmount = limParam

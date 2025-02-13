@@ -6,6 +6,8 @@ import React from "react";
 import { ConfirmTokenOperationStep } from "@/components/token-operation/ConfirmTokenOperationStep.tsx";
 import BroadcastTokenOperationStep from "@/components/token-operation/BroadcastTokenOperationStep.tsx";
 import { setPopupPath } from "@/lib/utils.ts";
+import { useTokenInfo } from "@/hooks/useTokenInfo.ts";
+import { applyDecimal } from "@/lib/krc20.ts";
 
 const steps = ["confirm", "broadcast", "success", "fail"] as const;
 
@@ -32,6 +34,9 @@ export default function TokenOperation() {
   const decimalPlaces = searchParams.get("decimalPlaces");
   const amount = searchParams.get("amount");
   const to = searchParams.get("to");
+
+  const { data: tokenInfoResponse } = useTokenInfo(ticker ?? undefined);
+  const { toInteger } = applyDecimal(tokenInfoResponse?.result?.[0].dec);
 
   useEffect(() => {
     setPopupPath();
@@ -78,7 +83,7 @@ export default function TokenOperation() {
           p: "krc-20",
           op: "transfer",
           tick: ticker,
-          amount,
+          amount: toInteger(parseFloat(amount)).toString(),
           to,
         });
         break;
