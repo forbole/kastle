@@ -37,11 +37,11 @@ export default function Dashboard() {
     ? tokenListResponse.result
     : [];
   const tokens = tokenListItems.sort((a, b) => {
-    const aDecimal = applyDecimal(a.dec);
-    const bDecimal = applyDecimal(b.dec);
+    const { toFloat: aToFloat } = applyDecimal(a.dec);
+    const { toFloat: bToFloat } = applyDecimal(b.dec);
 
     return (
-      bDecimal(parseInt(b.balance, 10)) - aDecimal(parseInt(a.balance, 10))
+      bToFloat(parseInt(b.balance, 10)) - aToFloat(parseInt(a.balance, 10))
     );
   });
 

@@ -6,6 +6,8 @@ import React from "react";
 import { ConfirmTokenOperationStep } from "@/components/token-operation/ConfirmTokenOperationStep.tsx";
 import BroadcastTokenOperationStep from "@/components/token-operation/BroadcastTokenOperationStep.tsx";
 import { setPopupPath } from "@/lib/utils.ts";
+import { useTokenInfo } from "@/hooks/useTokenInfo.ts";
+import { applyDecimal } from "@/lib/krc20.ts";
 
 const steps = ["confirm", "broadcast", "success", "fail"] as const;
 
@@ -30,6 +32,12 @@ export default function TokenOperation() {
   const mintAmount = searchParams.get("mintAmount");
   const preAllocation = searchParams.get("preAllocation");
   const decimalPlaces = searchParams.get("decimalPlaces");
+  const amount = searchParams.get("amount");
+  const to = searchParams.get("to");
+
+  const { data: tokenInfoResponse, isLoading } = useTokenInfo(
+    ticker ?? undefined,
+  );
 
   useEffect(() => {
     setPopupPath();
@@ -67,10 +75,33 @@ export default function TokenOperation() {
           tick: ticker,
         });
         break;
+      case "transfer":
+        if (isLoading) {
+          return;
+        }
+
+        if (!ticker || !amount || !to) {
+          throw new Error("missing transfer parameters");
+        }
+
+        const { toInteger } = applyDecimal(tokenInfoResponse?.result?.[0].dec);
+
+        form.setValue("opData", {
+          p: "krc-20",
+          op: "transfer",
+          tick: ticker,
+          amt: toInteger(parseFloat(amount)).toString(),
+          to,
+        });
+        break;
     }
-  }, []);
+  }, [isLoading]);
 
   const onBack = () => {
+    if (op === "transfer") {
+      navigate(-1);
+    }
+
     setStep((prevState) => {
       if (steps.indexOf(prevState) === 0) {
         navigate("/dashboard");

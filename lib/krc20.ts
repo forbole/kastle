@@ -6,6 +6,13 @@ export enum Fee {
   Base = 0.001,
 }
 
+export const OP_FEES = {
+  deploy: Fee.Deploy,
+  mint: Fee.Mint,
+  transfer: Fee.Base,
+};
+export type OpFeesKey = keyof typeof OP_FEES;
+
 export enum Amount {
   ScriptUtxoAmount = "0.3",
 }
@@ -27,5 +34,8 @@ export const createKRC20ScriptBuilder = (pubKey: string, data: any) => {
 export const applyDecimal = (decimalPlaces: string = "8") => {
   const decimalCoefficient = Math.pow(10, parseInt(decimalPlaces, 10));
 
-  return (amount: number) => amount / decimalCoefficient;
+  return {
+    toFloat: (amount: number) => amount / decimalCoefficient,
+    toInteger: (amount: number) => amount * decimalCoefficient,
+  };
 };
