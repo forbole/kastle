@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import Header from "@/components/GeneralHeader.tsx";
 import useTransactionEstimate from "@/hooks/useTransactionEstimate";
 import useWalletManager from "@/hooks/useWalletManager.ts";
+import { Fee } from "@/lib/krc20.ts";
 
 export const ConfirmStep = ({
   onNext,
@@ -19,8 +20,14 @@ export const ConfirmStep = ({
 
   const { account } = useWalletManager();
   const { watch } = useFormContext<SendFormData>();
-  const { address, amount } = watch();
-  const kapsaPrice = useKaspaPrice();
+  const { ticker, address, amount } = watch();
+  const kaspaPrice = useKaspaPrice();
+  const { data: tokenMetadata } = useTokenMetadata(ticker);
+  const tokenPrice =
+    ticker === "kas"
+      ? kaspaPrice.kaspaPrice
+      : (tokenMetadata?.price?.priceInUsd ?? 0);
+
   const amountNumber = parseFloat(amount ?? "0");
 
   const transactionEstimate = useTransactionEstimate({
@@ -57,9 +64,11 @@ export const ConfirmStep = ({
             <div className="flex w-full items-start justify-between">
               <span className="font-medium">Sending amount</span>
               <div className="flex flex-col text-right">
-                <span className="font-medium">{amount} KAS</span>
+                <span className="font-medium">
+                  {amount} {ticker.toUpperCase()}
+                </span>
                 <span className="text-xs text-daintree-400">
-                  {amountNumber * kapsaPrice.kaspaPrice} USD
+                  {amountNumber * tokenPrice} USD
                 </span>
               </div>
             </div>
@@ -68,9 +77,14 @@ export const ConfirmStep = ({
             <div className="flex w-full items-start justify-between">
               <span className="font-medium">Fee</span>
               <div className="flex flex-col text-right">
-                <span className="font-medium">{transactionFee} KAS</span>
+                <span className="font-medium">
+                  {ticker === "kas" ? transactionFee : Fee.Base} KAS
+                </span>
                 <span className="text-xs text-daintree-400">
-                  {transactionFeeNumber * kapsaPrice.kaspaPrice} USD
+                  {ticker === "kas"
+                    ? transactionFeeNumber * tokenPrice
+                    : Fee.Base}{" "}
+                  USD
                 </span>
               </div>
             </div>
