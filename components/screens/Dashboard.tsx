@@ -17,6 +17,7 @@ import { applyDecimal } from "@/lib/krc20.ts";
 export default function Dashboard() {
   const { keyringLock } = useKeyring();
   const navigate = useNavigate();
+  const { networkId } = useRpcClientStateful();
   const [settings, setSettings] = useSettings();
   const kapsaPrice = useKaspaPrice();
   const { showWarning } = useBackupWarning();
@@ -50,7 +51,7 @@ export default function Dashboard() {
       hideBalances: !prevSettings.hideBalances,
     }));
 
-  const network = settings?.networkId ?? NetworkType.Mainnet;
+  const network = networkId ?? NetworkType.Mainnet;
   const explorerAddressLink = explorerAddressLinks[network];
   const isMainnet = network === NetworkType.Mainnet;
 
