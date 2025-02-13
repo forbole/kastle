@@ -35,8 +35,9 @@ export default function TokenOperation() {
   const amount = searchParams.get("amount");
   const to = searchParams.get("to");
 
-  const { data: tokenInfoResponse } = useTokenInfo(ticker ?? undefined);
-  const { toInteger } = applyDecimal(tokenInfoResponse?.result?.[0].dec);
+  const { data: tokenInfoResponse, isLoading } = useTokenInfo(
+    ticker ?? undefined,
+  );
 
   useEffect(() => {
     setPopupPath();
@@ -75,20 +76,26 @@ export default function TokenOperation() {
         });
         break;
       case "transfer":
+        if (isLoading) {
+          return;
+        }
+
         if (!ticker || !amount || !to) {
           throw new Error("missing transfer parameters");
         }
+
+        const { toInteger } = applyDecimal(tokenInfoResponse?.result?.[0].dec);
 
         form.setValue("opData", {
           p: "krc-20",
           op: "transfer",
           tick: ticker,
-          amount: toInteger(parseFloat(amount)).toString(),
+          amt: toInteger(parseFloat(amount)).toString(),
           to,
         });
         break;
     }
-  }, []);
+  }, [isLoading]);
 
   const onBack = () => {
     if (op === "transfer") {

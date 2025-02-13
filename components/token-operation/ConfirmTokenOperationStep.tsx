@@ -35,7 +35,7 @@ export const ConfirmTokenOperationStep = ({
   const { toFloat: toFloatForExisting } = applyDecimal(
     tokenInfoResponse?.result?.[0]?.dec,
   );
-  const amount = toFloatForExisting(parseInt(opData.amount, 10));
+  const amount = toFloatForExisting(parseInt(opData.amt, 10));
 
   const onClose = () => {
     navigate("/dashboard");
