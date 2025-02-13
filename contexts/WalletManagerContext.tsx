@@ -665,8 +665,6 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
       await saveWalletSettings(walletSettings);
     };
 
-    fetchBalance();
-
     function checkIncomingUtxos(event: {
       added: UtxoEntryReference[];
       removed: UtxoEntryReference[];
@@ -707,6 +705,8 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
       await fetchBalance();
       checkIncomingUtxos(event.data);
     };
+
+    fetchBalance();
 
     rpcClient.addEventListener("utxos-changed", listenUtxosChanged);
 
