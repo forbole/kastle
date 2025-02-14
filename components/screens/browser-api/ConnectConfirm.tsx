@@ -214,7 +214,7 @@ export default function ConnectConfirm() {
           Cancel
         </button>
         <button
-          className="flex-auto rounded-full bg-icy-blue-400 py-5 font-semibold hover:bg-[#125F78]"
+          className="flex-auto rounded-full bg-icy-blue-400 py-5 font-semibold hover:bg-icy-blue-600"
           onClick={handleConnectConfirm}
         >
           Connect

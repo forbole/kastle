@@ -393,7 +393,7 @@ export default function DeployToken() {
           <button
             disabled={!!errors.root || !isValid || isSubmitting}
             type="submit"
-            className="mt-auto rounded-full bg-icy-blue-400 py-5 text-base font-semibold hover:bg-[#125F78] disabled:bg-daintree-800 disabled:text-[#4B5563]"
+            className="mt-auto rounded-full bg-icy-blue-400 py-5 text-base font-semibold hover:bg-icy-blue-600 disabled:bg-daintree-800 disabled:text-[#4B5563]"
           >
             Deploy Token
           </button>

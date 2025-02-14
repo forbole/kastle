@@ -50,7 +50,7 @@ export const AddressStep = ({
         )}
         <button
           onClick={onNext}
-          className="mt-auto w-full rounded-full bg-icy-blue-400 py-4 text-lg font-medium text-white transition-colors hover:bg-[#125F78] disabled:bg-daintree-800 disabled:text-[#4B5563]"
+          className="mt-auto w-full rounded-full bg-icy-blue-400 py-4 text-lg font-medium text-white transition-colors hover:bg-icy-blue-600 disabled:bg-daintree-800 disabled:text-[#4B5563]"
           disabled={!isValid || !!errors.address}
         >
           Next

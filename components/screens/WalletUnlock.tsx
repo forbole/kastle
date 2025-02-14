@@ -94,7 +94,7 @@ export default function WalletUnlock() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="rounded-full bg-icy-blue-400 py-5 text-center text-base font-semibold hover:bg-[#125F78]"
+                className="rounded-full bg-icy-blue-400 py-5 text-center text-base font-semibold hover:bg-icy-blue-600"
               >
                 Unlock
               </button>

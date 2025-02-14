@@ -32,7 +32,7 @@ const internalToast = {
         message={msg}
         className={twMerge(
           "border-teal-900 bg-icy-blue-400 text-white",
-          !!onClick && "hover:bg-[#125F78]",
+          !!onClick && "hover:bg-icy-blue-600",
         )}
         onClick={onClick}
       />,
