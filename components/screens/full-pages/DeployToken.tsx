@@ -102,7 +102,7 @@ export default function DeployToken() {
                   padding: "2px 8px",
                 }}
               />
-              <label className="text-base text-[#E5E7EB]">Ticker</label>
+              <label className="text-base text-gray-200">Ticker</label>
             </div>
             <div className="relative flex flex-col gap-1">
               <input
@@ -170,7 +170,7 @@ export default function DeployToken() {
                   padding: "2px 8px",
                 }}
               />
-              <label className="text-base text-[#E5E7EB]">Maximum Supply</label>
+              <label className="text-base text-gray-200">Maximum Supply</label>
             </div>
             <div className="flex flex-col gap-1">
               <input
@@ -220,7 +220,7 @@ export default function DeployToken() {
                   padding: "2px 8px",
                 }}
               />
-              <label className="text-base text-[#E5E7EB]">
+              <label className="text-base text-gray-200">
                 Default Mint Amount{" "}
                 <span className="text-daintree-400">
                   (0 ~ {formattedMaxSupply})
@@ -275,7 +275,7 @@ export default function DeployToken() {
                   padding: "2px 8px",
                 }}
               />
-              <label className="text-base text-[#E5E7EB]">
+              <label className="text-base text-gray-200">
                 Preallocation{" "}
                 <span className="text-daintree-400">(Optional)</span>
               </label>
@@ -328,7 +328,7 @@ export default function DeployToken() {
                   padding: "2px 8px",
                 }}
               />
-              <label className="text-base text-[#E5E7EB]">
+              <label className="text-base text-gray-200">
                 Decimal <span className="text-daintree-400">(Optional)</span>
               </label>
             </div>

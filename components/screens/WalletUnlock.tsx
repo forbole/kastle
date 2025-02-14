@@ -56,7 +56,7 @@ export default function WalletUnlock() {
             <img alt="bank" className="h-[20px] w-[112px]" src={kastleBanner} />
           </div>
           <img alt="castle" className="h-[229px] w-[229px]" src={castleImage} />
-          <h3 className="text-center text-lg text-[#a8a09c]">Welcome back</h3>
+          <h3 className="text-center text-lg text-gray-200">Welcome back</h3>
         </div>
         {/** Form */}
         <div className="w-full">

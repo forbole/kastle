@@ -114,7 +114,7 @@ export default function MintToken() {
                   padding: "2px 8px",
                 }}
               />
-              <label className="text-base text-[#E5E7EB]">Ticker</label>
+              <label className="text-base text-gray-200">Ticker</label>
             </div>
             <div className="relative flex flex-col gap-1">
               <input
@@ -183,7 +183,7 @@ export default function MintToken() {
                     padding: "2px 8px",
                   }}
                 />
-                <label className="text-base text-[#E5E7EB]">Mint Amount</label>
+                <label className="text-base text-gray-200">Mint Amount</label>
               </div>
               <div className="flex items-center gap-2">
                 <i
@@ -200,7 +200,7 @@ export default function MintToken() {
                     padding: "2px 8px",
                   }}
                 />
-                <label className="text-base text-[#E5E7EB]">
+                <label className="text-base text-gray-200">
                   Mintable Amount {mintableAmount}
                 </label>
               </div>
