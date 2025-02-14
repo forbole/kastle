@@ -81,7 +81,7 @@ export default function ResetWallet() {
         <div className="mt-auto flex items-center gap-4">
           <button
             type="button"
-            className="inline-flex items-center gap-x-2 rounded-full border border-transparent p-5 text-sm font-medium text-neutral-400 hover:bg-zinc-700 focus:bg-neutral-800 focus:outline-none disabled:pointer-events-none disabled:opacity-50"
+            className="inline-flex items-center gap-x-2 rounded-full border border-transparent p-5 text-sm font-medium text-neutral-400 hover:bg-[#125F78] focus:bg-neutral-800 focus:outline-none disabled:pointer-events-none disabled:opacity-50"
             onClick={onClose}
           >
             Cancel

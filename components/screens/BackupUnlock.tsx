@@ -110,7 +110,7 @@ export default function BackupUnlock() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="rounded-full bg-icy-blue-400 py-5 text-center text-base font-semibold"
+                  className="rounded-full bg-icy-blue-400 py-5 text-center text-base font-semibold hover:bg-[#125F78]"
                 >
                   Unlock
                 </button>

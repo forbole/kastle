@@ -45,7 +45,7 @@ export const SideMenu = ({ isOpen, onClose }: SideMenuProps) => {
           <div className="flex items-stretch justify-between px-2">
             <span className="text-xl font-bold">Wallets</span>
             <button
-              className="h-[38px] w-[38px] rounded-full bg-icy-blue-400"
+              className="h-[38px] w-[38px] rounded-full bg-icy-blue-400 hover:bg-[#125F78]"
               onClick={() => {
                 navigate("/add-wallet");
               }}

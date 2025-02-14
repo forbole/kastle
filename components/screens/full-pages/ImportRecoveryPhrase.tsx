@@ -201,7 +201,7 @@ export default function ImportRecoveryPhrase() {
 
           <button
             type="submit"
-            className="mt-auto inline-flex items-center justify-center gap-x-2 rounded-full border border-transparent bg-icy-blue-400 py-5 text-base text-white disabled:bg-daintree-800 disabled:text-[#4B5563]"
+            className="mt-auto inline-flex items-center justify-center gap-x-2 rounded-full border border-transparent bg-icy-blue-400 py-5 text-base text-white hover:bg-[#125F78] disabled:bg-daintree-800 disabled:text-[#4B5563]"
             disabled={!isValid}
           >
             Import Wallet

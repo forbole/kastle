@@ -108,7 +108,7 @@ export default function ShowPrivateKey() {
         <button
           onClick={onClose}
           type="button"
-          className="mt-auto inline-flex items-center justify-center gap-x-2 rounded-full border border-transparent bg-icy-blue-400 px-4 py-3 text-base text-white hover:bg-zinc-700 disabled:bg-daintree-800 disabled:text-[#4B5563]"
+          className="mt-auto inline-flex items-center justify-center gap-x-2 rounded-full border border-transparent bg-icy-blue-400 px-4 py-3 text-base text-white hover:bg-[#125F78] disabled:bg-daintree-800 disabled:text-[#4B5563]"
         >
           Close
         </button>

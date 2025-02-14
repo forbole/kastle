@@ -51,7 +51,7 @@ export default function ImportLedger() {
     <div className="flex h-[35rem] w-[41rem] flex-col items-stretch gap-4 rounded-3xl bg-icy-blue-950 p-4 pb-6">
       <button
         onClick={importLedgerAccount}
-        className="flex items-center gap-2 rounded-full bg-icy-blue-400 p-5"
+        className="flex items-center gap-2 rounded-full bg-icy-blue-400 p-5 hover:bg-[#125F78]"
       >
         Import
       </button>
