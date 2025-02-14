@@ -93,7 +93,7 @@ export default function ImportPrivateKey() {
                   required: "Private key is required",
                 })}
                 className={twMerge(
-                  "peer block h-[120px] w-full resize-none rounded-lg border border-daintree-700 bg-daintree-800 p-3 text-sm text-daintree-400 focus:ring-0 disabled:pointer-events-none disabled:opacity-50",
+                  "peer block h-[120px] w-full resize-none rounded-lg border border-daintree-700 bg-daintree-800 p-3 text-sm text-daintree-400 placeholder-daintree-200 hover:placeholder-daintree-50 focus:ring-0 disabled:pointer-events-none disabled:opacity-50",
                   !isValid && isDirtyAlt && "ring ring-red-500/25",
                   isHidden && "blur",
                 )}

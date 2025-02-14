@@ -86,7 +86,7 @@ export default function ShowPrivateKey() {
               placeholder="Private key"
               value={privateKey}
               className={twMerge(
-                "peer block h-[120px] w-full resize-none rounded-lg border border-daintree-700 bg-daintree-800 p-3 text-base text-white focus:ring-0 disabled:pointer-events-none disabled:opacity-50",
+                "peer block h-[120px] w-full resize-none rounded-lg border border-daintree-700 bg-daintree-800 p-3 text-base text-white placeholder-daintree-200 hover:placeholder-daintree-50 focus:ring-0 disabled:pointer-events-none disabled:opacity-50",
                 isHidden && "blur",
               )}
             />

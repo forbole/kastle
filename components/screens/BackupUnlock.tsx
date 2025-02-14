@@ -89,7 +89,7 @@ export default function BackupUnlock() {
                     type={showPassword ? "text" : "password"}
                     placeholder="Enter your password"
                     className={twMerge(
-                      "w-full rounded-lg border-0 bg-daintree-800 px-4 py-3 ring-0 focus:ring-0",
+                      "w-full rounded-lg border-0 bg-daintree-800 px-4 py-3 placeholder-daintree-200 ring-0 hover:placeholder-daintree-50 focus:ring-0",
                       errors.password &&
                         "ring ring-red-500/25 focus:ring focus:ring-red-500/25",
                     )}

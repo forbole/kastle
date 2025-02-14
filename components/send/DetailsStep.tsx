@@ -125,7 +125,7 @@ export const DetailsStep = ({
             validate: addressValidator,
           })}
           className={twMerge(
-            "w-full resize-none rounded-lg border border-daintree-700 bg-daintree-800 px-4 py-3 ring-0 focus:border-daintree-700 focus:ring-0",
+            "w-full resize-none rounded-lg border border-daintree-700 bg-daintree-800 px-4 py-3 placeholder-daintree-200 ring-0 hover:placeholder-daintree-50 focus:border-daintree-700 focus:ring-0",
             errors.address &&
               "ring ring-red-500/25 focus:ring focus:ring-red-500/25",
           )}

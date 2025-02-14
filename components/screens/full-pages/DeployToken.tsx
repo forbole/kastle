@@ -280,7 +280,7 @@ export default function DeployToken() {
             <div className="flex flex-col gap-1">
               <input
                 className={twMerge(
-                  "w-full rounded-lg border-0 bg-daintree-800 px-4 py-3 ring-0 focus:ring-0",
+                  "w-full rounded-lg border-0 bg-daintree-800 px-4 py-3 placeholder-daintree-200 ring-0 hover:placeholder-daintree-50 focus:ring-0",
                   errors.preAllocation &&
                     "ring ring-red-500/25 focus:ring focus:ring-red-500/25",
                 )}
@@ -331,7 +331,7 @@ export default function DeployToken() {
             <div className="flex flex-col gap-1">
               <input
                 className={twMerge(
-                  "w-full rounded-lg border-0 bg-daintree-800 px-4 py-3 ring-0 focus:ring-0",
+                  "w-full rounded-lg border-0 bg-daintree-800 px-4 py-3 placeholder-daintree-200 ring-0 hover:placeholder-daintree-50 focus:ring-0",
                   errors.decimalPlaces &&
                     "ring ring-red-500/25 focus:ring focus:ring-red-500/25",
                 )}
