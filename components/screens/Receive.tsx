@@ -79,7 +79,7 @@ const Receive = () => {
         />
 
         {/* QR Code Card */}
-        <div className="flex flex-col items-center gap-6 rounded-2xl border border-gray-700 bg-slate-800 px-4 py-8">
+        <div className="flex flex-col items-center gap-6 rounded-2xl border border-daintree-700 bg-icy-blue-900 px-4 py-8">
           {/* QR Code */}
           <img
             src={qrCodeUrl}
@@ -93,7 +93,7 @@ const Receive = () => {
               Receiving KAS
             </h2>
 
-            <div className="w-full break-all rounded-lg border-gray-700 bg-icy-blue-950 p-3 text-start text-sm text-daintree-400">
+            <div className="w-full break-all rounded-lg border border-daintree-700 bg-icy-blue-950 p-3 text-start text-sm text-daintree-400">
               {address}
             </div>
           </div>
@@ -105,7 +105,7 @@ const Receive = () => {
         data-tooltip-id="copy"
         data-tooltip-content="Copied"
         onClick={handleCopy}
-        className="hn rounded-full bg-icy-blue-400 py-4 text-center text-lg font-semibold text-white"
+        className="rounded-full bg-icy-blue-400 py-4 text-center text-lg font-semibold text-white hover:bg-icy-blue-600"
       >
         <Tooltip
           data-tooltip-id="copy"

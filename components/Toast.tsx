@@ -30,7 +30,10 @@ const internalToast = {
       <ToastMessage
         status="info"
         message={msg}
-        className="border-teal-900 bg-icy-blue-400 text-white"
+        className={twMerge(
+          "border-teal-900 bg-icy-blue-400 text-white",
+          !!onClick && "hover:bg-icy-blue-600",
+        )}
         onClick={onClick}
       />,
       {

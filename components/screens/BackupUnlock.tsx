@@ -89,10 +89,9 @@ export default function BackupUnlock() {
                     type={showPassword ? "text" : "password"}
                     placeholder="Enter your password"
                     className={twMerge(
-                      "w-full rounded-lg border bg-slate-800 px-4 py-3 focus:outline-none",
-                      errors.password
-                        ? "border-red-500 focus:border-red-500 focus:ring-red-600"
-                        : "border-transparent focus:border-zinc-700 focus:ring-zinc-600",
+                      "w-full rounded-lg border-0 bg-daintree-800 px-4 py-3 placeholder-daintree-200 ring-0 hover:placeholder-daintree-50 focus:ring-0",
+                      errors.password &&
+                        "ring ring-red-500/25 focus:ring focus:ring-red-500/25",
                     )}
                   />
                   <button
@@ -111,7 +110,7 @@ export default function BackupUnlock() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="rounded-full bg-icy-blue-400 py-5 text-center text-base font-semibold"
+                  className="rounded-full bg-icy-blue-400 py-5 text-center text-base font-semibold hover:bg-icy-blue-600"
                 >
                   Unlock
                 </button>

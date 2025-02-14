@@ -86,7 +86,7 @@ export default function ShowPrivateKey() {
               placeholder="Private key"
               value={privateKey}
               className={twMerge(
-                "peer block h-[120px] w-full resize-none rounded-lg border border-daintree-700 bg-daintree-800 p-3 text-base text-white focus:ring-0 disabled:pointer-events-none disabled:opacity-50",
+                "peer block h-[120px] w-full resize-none rounded-lg border border-daintree-700 bg-daintree-800 p-3 text-base text-white placeholder-daintree-200 hover:placeholder-daintree-50 focus:ring-0 disabled:pointer-events-none disabled:opacity-50",
                 isHidden && "blur",
               )}
             />
@@ -108,7 +108,7 @@ export default function ShowPrivateKey() {
         <button
           onClick={onClose}
           type="button"
-          className="mt-auto inline-flex items-center justify-center gap-x-2 rounded-full border border-transparent bg-icy-blue-400 px-4 py-3 text-base text-white hover:bg-zinc-700 disabled:bg-daintree-800 disabled:text-[#4B5563]"
+          className="mt-auto inline-flex items-center justify-center gap-x-2 rounded-full border border-transparent bg-icy-blue-400 px-4 py-3 text-base text-white hover:bg-icy-blue-600 disabled:bg-daintree-800 disabled:text-[#4B5563]"
         >
           Close
         </button>

@@ -73,7 +73,7 @@ export default function SetupPassword() {
                 id="hs-strong-password-input"
                 {...register("password", { maxLength: 64 })}
                 type={showPassword ? "text" : "password"}
-                className="w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-white placeholder-gray-400 focus:border-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                className="w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-white placeholder-daintree-200 hover:placeholder-daintree-50 focus:border-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500"
                 placeholder="New password"
               />
               <button
@@ -100,7 +100,7 @@ export default function SetupPassword() {
                 {...register("confirmPassword", { maxLength: 64 })}
                 type={showConfirmPassword ? "text" : "password"}
                 className={twMerge(
-                  "w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-white placeholder-gray-400 focus:outline-none",
+                  "w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-white placeholder-daintree-200 hover:placeholder-daintree-50 focus:outline-none",
                   isMismatchShown
                     ? "border-red-700 focus:border-red-600 focus:ring-red-800"
                     : "focus:border-gray-600 focus:ring-2 focus:ring-gray-500",

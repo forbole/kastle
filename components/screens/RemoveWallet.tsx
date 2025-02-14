@@ -74,7 +74,7 @@ export default function RemoveWallet() {
             <input
               {...register("agreedRemove", { required: true })}
               type="checkbox"
-              className="mt-0.5 shrink-0 rounded border-neutral-700 bg-neutral-800 text-blue-600 checked:border-icy-blue-400 checked:bg-icy-blue-400 focus:ring-blue-500 focus:ring-offset-gray-800 disabled:pointer-events-none disabled:opacity-50"
+              className="mt-0.5 shrink-0 rounded border-neutral-700 bg-daintree-700 text-blue-600 checked:border-icy-blue-400 checked:bg-icy-blue-400 focus:ring-blue-500 focus:ring-offset-gray-800 disabled:pointer-events-none disabled:opacity-50"
               id="agreed-reset"
             />
             <label

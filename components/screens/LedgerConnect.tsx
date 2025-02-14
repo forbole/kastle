@@ -34,7 +34,7 @@ export default function LedgerConnect() {
 
       <button
         onClick={connectDevice}
-        className="flex items-center gap-2 rounded-full bg-icy-blue-400 p-5"
+        className="flex items-center gap-2 rounded-full bg-icy-blue-400 p-5 hover:bg-icy-blue-600"
       >
         Connect
       </button>

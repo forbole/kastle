@@ -80,7 +80,7 @@ export const ConfirmStep = ({
         <div className="mt-auto">
           <button
             onClick={onNext}
-            className="mt-auto flex w-full items-center justify-center gap-2 rounded-full bg-icy-blue-400 py-4 text-lg font-medium text-white transition-colors hover:bg-zinc-700 disabled:bg-daintree-800 disabled:text-[#4B5563]"
+            className="mt-auto flex w-full items-center justify-center gap-2 rounded-full bg-icy-blue-400 py-4 text-lg font-medium text-white transition-colors hover:bg-icy-blue-600 disabled:bg-daintree-800 disabled:text-[#4B5563]"
           >
             Confirm
           </button>

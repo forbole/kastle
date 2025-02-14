@@ -42,7 +42,7 @@ export const AddressStep = ({
             required: "Address is required",
             validate: addressValidator,
           })}
-          className="w-full resize-none rounded-lg border-0 bg-daintree-800 px-4 py-3 text-sm shadow outline outline-0 focus:ring focus:ring-blue-500/25 disabled:pointer-events-none disabled:opacity-50"
+          className="w-full resize-none rounded-lg border-0 bg-daintree-800 px-4 py-3 text-sm placeholder-daintree-200 shadow outline outline-0 hover:placeholder-daintree-50 focus:ring focus:ring-blue-500/25 disabled:pointer-events-none disabled:opacity-50"
           placeholder="Enter wallet address"
         />
         {errors.address && (
@@ -50,7 +50,7 @@ export const AddressStep = ({
         )}
         <button
           onClick={onNext}
-          className="mt-auto w-full rounded-full bg-icy-blue-400 py-4 text-lg font-medium text-white transition-colors hover:bg-zinc-700 disabled:bg-daintree-800 disabled:text-[#4B5563]"
+          className="mt-auto w-full rounded-full bg-icy-blue-400 py-4 text-lg font-medium text-white transition-colors hover:bg-icy-blue-600 disabled:bg-daintree-800 disabled:text-[#4B5563]"
           disabled={!isValid || !!errors.address}
         >
           Next
