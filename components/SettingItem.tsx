@@ -15,7 +15,7 @@ export const SettingItem = ({
 }: SettingItemProps) => (
   <button
     type="button"
-    className="flex w-full items-center justify-between rounded-xl border border-[#203C49] bg-[#1E343D] p-5 hover:border-white"
+    className="flex w-full items-center justify-between rounded-xl border border-daintree-700 bg-[#1E343D] p-5 hover:border-white"
     onClick={onClick}
   >
     <div className="flex items-center justify-start gap-4 text-base font-semibold">
