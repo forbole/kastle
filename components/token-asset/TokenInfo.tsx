@@ -18,10 +18,10 @@ export default function TokenInfo() {
   const isLoading = isTokenInfoLoading || isMetadataLoading;
   const tokenInfo = tokenInfoResponse?.result?.[0];
 
-  const decimal = applyDecimal(tokenInfo?.dec);
+  const { toFloat } = applyDecimal(tokenInfo?.dec);
   const max = tokenInfo ? parseInt(tokenInfo.max, 10) : 0;
   const minted = tokenInfo ? parseInt(tokenInfo.minted, 10) : 0;
-  const totalMinted = `${((minted / max) * 100).toFixed(0)}% (${decimal(minted).toLocaleString()}/${decimal(max).toLocaleString()})`;
+  const totalMinted = `${((minted / max) * 100).toFixed(0)}% (${toFloat(minted).toLocaleString()}/${toFloat(max).toLocaleString()})`;
 
   const onImageError = () => {
     setImageUrl(kasIcon);
@@ -66,7 +66,7 @@ export default function TokenInfo() {
               <LabelLoading />
             ) : (
               <span className="font-medium">
-                {decimal(max).toLocaleString()}
+                {toFloat(max).toLocaleString()}
               </span>
             )}
           </div>
@@ -141,7 +141,7 @@ export default function TokenInfo() {
             ) : (
               <span className="font-medium">
                 {(tokenInfo?.pre
-                  ? decimal(parseInt(tokenInfo.pre, 10))
+                  ? toFloat(parseInt(tokenInfo.pre, 10))
                   : 0
                 ).toLocaleString()}
               </span>
@@ -156,7 +156,7 @@ export default function TokenInfo() {
             ) : (
               <span className="font-medium">
                 {(tokenInfo?.lim
-                  ? decimal(parseInt(tokenInfo.lim, 10))
+                  ? toFloat(parseInt(tokenInfo.lim, 10))
                   : 0
                 ).toLocaleString()}
               </span>
