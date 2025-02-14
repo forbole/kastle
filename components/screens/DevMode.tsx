@@ -9,7 +9,7 @@ export default function DevMode() {
 
   return (
     <div className="flex h-full flex-col gap-4 p-6">
-      <Header title="Preview mode" onClose={() => navigate("/dashboard")} />
+      <Header title="Dev mode" onClose={() => navigate("/dashboard")} />
       <div
         className="flex flex-col gap-2 rounded-xl border border-[#7F1D1D] bg-[#381825] p-4 text-base"
         role="alert"

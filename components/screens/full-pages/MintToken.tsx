@@ -119,10 +119,9 @@ export default function MintToken() {
             <div className="relative flex flex-col gap-1">
               <input
                 className={twMerge(
-                  "w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-white placeholder-gray-400 focus:outline-none",
-                  errors.ticker
-                    ? "border-red-700 focus:border-red-600 focus:ring-red-800"
-                    : "focus:border-gray-600 focus:ring-2 focus:ring-gray-500",
+                  "w-full rounded-lg border-0 bg-daintree-800 px-4 py-3 ring-0 focus:ring-0",
+                  errors.ticker &&
+                    "ring ring-red-500/25 focus:ring focus:ring-red-500/25",
                 )}
                 {...register("ticker", {
                   onChange: (event) => {
@@ -208,10 +207,9 @@ export default function MintToken() {
             <div className="flex flex-col gap-1">
               <input
                 className={twMerge(
-                  "w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-white placeholder-gray-400 focus:outline-none",
-                  errors.mintAmount
-                    ? "border-red-700 focus:border-red-600 focus:ring-red-800"
-                    : "focus:border-gray-600 focus:ring-2 focus:ring-gray-500",
+                  "w-full rounded-lg border-0 bg-daintree-800 px-4 py-3 ring-0 focus:ring-0",
+                  errors.mintAmount &&
+                    "ring ring-red-500/25 focus:ring focus:ring-red-500/25",
                 )}
                 {...register("mintAmount", { disabled: true })}
               />
