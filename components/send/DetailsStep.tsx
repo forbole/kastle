@@ -2,7 +2,7 @@ import { useFormContext } from "react-hook-form";
 import { SendFormData } from "@/components/screens/Send.tsx";
 import React, { useEffect } from "react";
 import useKaspaPrice from "@/hooks/useKaspaPrice.ts";
-import { createSearchParams, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { formatToken } from "@/lib/utils.ts";
 import kasIcon from "@/assets/images/kas-icon.svg";
 import usdIcon from "@/assets/images/usd-icon.svg";
@@ -135,6 +135,23 @@ export const DetailsStep = ({
     });
   };
 
+  const navigateToNextStep = () =>
+    ticker === "kas"
+      ? onNext()
+      : navigate(
+          {
+            pathname: "/token-operation",
+          },
+          {
+            state: {
+              op: "transfer",
+              ticker,
+              amount: amount!,
+              to: address!,
+            },
+          },
+        );
+
   const onImageError = () => {
     setImageUrl(kasIcon);
   };
@@ -187,7 +204,7 @@ export const DetailsStep = ({
             validate: addressValidator,
           })}
           className={twMerge(
-            "w-full resize-none rounded-lg border border-daintree-700 bg-daintree-800 px-4 py-3 placeholder-daintree-200 ring-0 hover:placeholder-daintree-50 focus:border-daintree-700 focus:ring-0",
+            "no-scrollbar w-full resize-none rounded-lg border border-daintree-700 bg-daintree-800 px-4 py-3 placeholder-daintree-200 ring-0 hover:placeholder-daintree-50 focus:border-daintree-700 focus:ring-0",
             errors.address &&
               "ring ring-red-500/25 focus:ring focus:ring-red-500/25",
           )}
@@ -332,19 +349,7 @@ export const DetailsStep = ({
         <div className="mt-auto">
           <button
             disabled={!isValid || !!errors.amount}
-            onClick={() =>
-              ticker === "kas"
-                ? onNext()
-                : navigate({
-                    pathname: "/token-operation",
-                    search: createSearchParams({
-                      op: "transfer",
-                      ticker,
-                      amount: amount!,
-                      to: address!,
-                    }).toString(),
-                  })
-            }
+            onClick={navigateToNextStep}
             className="mt-auto w-full rounded-full bg-icy-blue-400 py-4 text-lg font-medium text-white transition-colors hover:bg-icy-blue-600 disabled:bg-daintree-800 disabled:text-[#4B5563]"
           >
             Confirm

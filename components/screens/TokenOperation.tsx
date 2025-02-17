@@ -8,6 +8,7 @@ import BroadcastTokenOperationStep from "@/components/token-operation/BroadcastT
 import { setPopupPath } from "@/lib/utils.ts";
 import { useTokenInfo } from "@/hooks/useTokenInfo.ts";
 import { applyDecimal } from "@/lib/krc20.ts";
+import { useLocation } from "react-router";
 
 const steps = ["confirm", "broadcast", "success", "fail"] as const;
 
@@ -19,6 +20,7 @@ export interface TokenOperationFormData {
 
 export default function TokenOperation() {
   const navigate = useNavigate();
+  const { state } = useLocation();
   const [searchParams] = useSearchParams();
   const [step, setStep] = useState<Step>("confirm");
   const form = useForm<TokenOperationFormData>({
@@ -26,14 +28,16 @@ export default function TokenOperation() {
   });
   const [outTxs, setOutTxs] = useState<string[]>();
 
-  const op = searchParams.get("op");
-  const ticker = searchParams.get("ticker");
-  const maxSupply = searchParams.get("maxSupply");
-  const mintAmount = searchParams.get("mintAmount");
-  const preAllocation = searchParams.get("preAllocation");
-  const decimalPlaces = searchParams.get("decimalPlaces");
-  const amount = searchParams.get("amount");
-  const to = searchParams.get("to");
+  const op = state?.op ?? searchParams.get("op");
+  const ticker = state?.ticker ?? searchParams.get("ticker");
+  const maxSupply = state?.maxSupply ?? searchParams.get("maxSupply");
+  const mintAmount = state?.mintAmount ?? searchParams.get("mintAmount");
+  const preAllocation =
+    state?.preAllocation ?? searchParams.get("preAllocation");
+  const decimalPlaces =
+    state?.decimalPlaces ?? searchParams.get("decimalPlaces");
+  const amount = state?.amount ?? searchParams.get("amount");
+  const to = state?.to ?? searchParams.get("to");
 
   const { data: tokenInfoResponse, isLoading } = useTokenInfo(
     ticker ?? undefined,
