@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { SideMenu } from "@/components/side-menu/SideMenu.tsx";
 import { explorerAddressLinks } from "@/components/screens/Settings.tsx";
 import kasIcon from "@/assets/images/kas-icon.svg";
+import gavelIcon from "@/assets/images/gavel.svg";
 import { formatToken, formatTokenPrice, formatUSD } from "@/lib/utils.ts";
 import ClipboardCopy from "@/components/ClipboardCopy";
 import { twMerge } from "tailwind-merge";
@@ -216,7 +217,11 @@ export default function Dashboard() {
                 }}
               >
                 <div className="flex h-[46px] w-[46px] items-center justify-center rounded-full bg-white/10">
-                  <i className="hn hn-pencil text-[20px] text-white"></i>
+                  <img
+                    alt="castle"
+                    className="h-[20px] w-[20px]"
+                    src={gavelIcon}
+                  />
                 </div>
                 <span className="text-daintree-400">Mint</span>
               </div>
