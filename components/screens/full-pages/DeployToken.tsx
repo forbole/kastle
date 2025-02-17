@@ -44,6 +44,7 @@ export default function DeployToken() {
   const formattedMaxSupply = Number.isNaN(maxSupply) ? 0 : maxSupply;
   const { account } = useWalletManager();
   const balance = account?.balance ? parseFloat(account.balance) : 0;
+  const maxSupplyLength = useRef(0);
 
   const onSubmit = handleSubmit(async (formValues) => {
     const decimalCoefficient = Math.pow(10, formValues.decimalPlaces);
@@ -68,6 +69,18 @@ export default function DeployToken() {
     return tickerInfo?.result?.[0]?.state !== "unused"
       ? "Oh, this ticker has already been used"
       : undefined;
+  };
+
+  const validateMaxSupply = async (supply: number) => {
+    if (supply < 0) {
+      return "Maximum supply must be greater than 0";
+    }
+
+    if (maxSupplyLength.current > 32) {
+      return "The number of digits in maximum supply should be less or equal to 32";
+    }
+
+    return undefined;
   };
 
   useEffect(() => {
@@ -180,6 +193,11 @@ export default function DeployToken() {
                 )}
                 {...register("maxSupply", {
                   onChange: (event) => {
+                    maxSupplyLength.current = event.target.value.replaceAll(
+                      ".",
+                      "",
+                    ).length;
+
                     event.target.value = event.target.value.replace(
                       /[^0-9.]/g,
                       "",
@@ -187,10 +205,7 @@ export default function DeployToken() {
                   },
                   valueAsNumber: true,
                   required: "Oh, maximum supply is required",
-                  min: {
-                    value: 1,
-                    message: "The amount should be above 0",
-                  },
+                  validate: validateMaxSupply,
                 })}
               />
               {errors.maxSupply && (
@@ -341,6 +356,14 @@ export default function DeployToken() {
                       /[^0-9]/g,
                       "",
                     );
+                  },
+                  min: {
+                    value: 0,
+                    message: "Decimal value should be a positive number",
+                  },
+                  max: {
+                    value: 32,
+                    message: "Decimal value should be less then 32",
                   },
                   valueAsNumber: true,
                 })}
