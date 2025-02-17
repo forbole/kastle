@@ -15,8 +15,11 @@ export default function TokenHistoryItem({
 }: TokenHistoryItemProps) {
   const { ticker } = useParams();
   const { data: tokenMetadata } = useTokenMetadata(ticker);
+  const { account } = useWalletManager();
   const [imageUrl, setImageUrl] = useState(kasIcon);
   const { toFloat } = applyDecimal(tickerInfo?.dec);
+
+  const firstAddress = account?.address;
 
   let amount = 0;
   switch (op.op) {
@@ -26,6 +29,13 @@ export default function TokenHistoryItem({
     default:
       amount = toFloat(op.amt ? parseInt(op.amt, 10) : 0);
   }
+
+  const operationName =
+    op.op === "transfer"
+      ? op.to === firstAddress
+        ? "receive"
+        : "send"
+      : op.op;
 
   const onImageError = () => {
     setImageUrl(kasIcon);
@@ -48,7 +58,7 @@ export default function TokenHistoryItem({
         />
         <div className="flex flex-grow flex-col gap-1">
           <div className="flex items-center justify-between text-base text-white">
-            <span className="capitalize">{op.op}</span>
+            <span className="capitalize">{operationName}</span>
             <span
               className={twMerge(
                 amount < 0 ? "text-[#EF4444]" : "text-[#14B8A6]",

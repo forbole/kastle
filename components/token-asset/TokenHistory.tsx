@@ -7,16 +7,18 @@ import { useOpListByAddressAndTicker } from "@/hooks/useOpListByAddressAndTicker
 export default function TokenHistory() {
   const { ticker } = useParams();
   const { data: tokenInfoResponse } = useTokenInfo(ticker);
-  const { addresses } = useWalletManager();
-  const firstAddress = addresses[0];
+  const { account } = useWalletManager();
+  const firstAddress = account?.address;
   const { data: opList } = useOpListByAddressAndTicker(
     ticker && firstAddress ? { ticker, address: firstAddress } : undefined,
   );
   const tickerInfo = tokenInfoResponse?.result?.[0];
+  const filteredOpList =
+    opList?.result?.filter((value) => value.opAccept === "1") ?? [];
 
   return (
     <div className="mt-8 flex flex-col items-stretch gap-2">
-      {opList?.result?.map((op, index) => (
+      {filteredOpList.map((op, index) => (
         <TokenHistoryItem key={index} tickerInfo={tickerInfo} op={op} />
       ))}
     </div>
