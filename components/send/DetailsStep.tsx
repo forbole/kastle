@@ -15,7 +15,7 @@ import { twMerge } from "tailwind-merge";
 import { useBoolean } from "usehooks-ts";
 import TickerSelect from "@/components/send/TickerSelect.tsx";
 import { useTokenBalance } from "@/hooks/useTokenBalance.ts";
-import { applyDecimal, Fee } from "@/lib/krc20.ts";
+import { applyDecimal, Fee, OP_FEES } from "@/lib/krc20.ts";
 
 export const DetailsStep = ({
   onNext,
@@ -324,7 +324,7 @@ export const DetailsStep = ({
           <span>
             {ticker === "kas"
               ? (transactionEstimate?.totalFees ?? "0")
-              : Fee.Base}{" "}
+              : OP_FEES["transfer"] + Fee.Base}{" "}
             KAS
           </span>
         </div>
