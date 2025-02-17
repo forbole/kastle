@@ -62,6 +62,11 @@ export const SuccessStatus = ({ transactionIds }: SuccessProps) => {
               <span className="text-sm font-semibold text-icy-blue-400">
                 View in explorer
               </span>
+              {(transactionIds?.length ?? 0) > 1 && (
+                <span className="flex size-4 items-center justify-center rounded-full bg-white/10 p-3 text-xs font-medium text-white">
+                  {transactionIds?.length}
+                </span>
+              )}
               <i className="hn hn-external-link text-icy-blue-400"></i>
             </button>
           )}
