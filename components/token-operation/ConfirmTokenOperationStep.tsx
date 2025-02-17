@@ -44,7 +44,12 @@ export const ConfirmTokenOperationStep = ({
 
   return (
     <>
-      <Header title="Confirm" onClose={onClose} onBack={onBack} />
+      <Header
+        title="Confirm"
+        onClose={onClose}
+        onBack={onBack}
+        showPrevious={!!onBack}
+      />
 
       <div className="flex h-full flex-col gap-4">
         <img

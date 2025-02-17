@@ -39,6 +39,8 @@ export default function TokenOperation() {
   const amount = state?.amount ?? searchParams.get("amount");
   const to = state?.to ?? searchParams.get("to");
 
+  const isFromFullscreen = !!searchParams.get("op");
+
   const { data: tokenInfoResponse, isLoading } = useTokenInfo(
     ticker ?? undefined,
   );
@@ -122,7 +124,7 @@ export default function TokenOperation() {
         {step === "confirm" && (
           <ConfirmTokenOperationStep
             onNext={() => setStep("broadcast")}
-            onBack={onBack}
+            onBack={!isFromFullscreen ? onBack : undefined}
           />
         )}
         {step === "broadcast" && (
