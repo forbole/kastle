@@ -12,13 +12,13 @@ import github from "@/assets/images/github.svg";
 import packageJson from "../../package.json";
 
 export const explorerTxLinks = {
-  [NetworkType.Mainnet]: "https://explorer.kaspa.org/txs/",
+  [NetworkType.Mainnet]: "https://kas.fyi/transaction/",
   [NetworkType.TestnetT10]: "https://explorer-tn10.kaspa.org/txs/",
   [NetworkType.TestnetT11]: "https://explorer-tn11.kaspa.org/txs/",
 };
 
 export const explorerAddressLinks = {
-  [NetworkType.Mainnet]: "https://explorer.kaspa.org/addresses/",
+  [NetworkType.Mainnet]: "https://kas.fyi/address/",
   [NetworkType.TestnetT10]: "https://explorer-tn10.kaspa.org/addresses/",
   [NetworkType.TestnetT11]: "https://explorer-tn11.kaspa.org/addresses/",
 };
