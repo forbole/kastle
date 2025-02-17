@@ -708,8 +708,6 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
     };
   }, [addresses, rpcClient, isWalletSettingsLoading]);
 
-  console.log("render");
-
   return (
     <WalletManagerContext.Provider
       value={{
