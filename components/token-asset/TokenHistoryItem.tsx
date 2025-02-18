@@ -27,20 +27,23 @@ export default function TokenHistoryItem({
   const explorerTxLink = explorerTxLinks[networkId ?? "mainnet"];
 
   let amount = 0;
-  switch (op.op) {
-    case "deploy":
-      amount = toFloat(op.pre ? parseInt(op.pre, 10) : 0);
-      break;
-    default:
-      amount = toFloat(op.amt ? parseInt(op.amt, 10) : 0);
-  }
-
   const operationName =
     op.op === "transfer"
       ? op.to === firstAddress
         ? "receive"
         : "send"
       : op.op;
+
+  switch (op.op) {
+    case "deploy":
+      amount = toFloat(op.pre ? parseInt(op.pre, 10) : 0);
+      break;
+    default:
+      amount = toFloat(op.amt ? parseInt(op.amt, 10) : 0);
+      if (operationName === "send") {
+        amount *= -1;
+      }
+  }
 
   const openTransaction = (transactionId: string) => {
     browser.tabs.create({
@@ -75,6 +78,7 @@ export default function TokenHistoryItem({
                 amount < 0 ? "text-[#EF4444]" : "text-[#14B8A6]",
               )}
             >
+              {amount >= 0 && "+"}
               {amount}
             </span>
           </div>
