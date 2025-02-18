@@ -124,7 +124,11 @@ export const DetailsStep = ({
             required: "Address is required",
             validate: addressValidator,
           })}
-          className="w-full resize-none rounded-lg border border-daintree-700 bg-daintree-800 px-4 py-3 text-sm shadow outline outline-0 focus:ring focus:ring-blue-500/25 disabled:pointer-events-none disabled:opacity-50"
+          className={twMerge(
+            "w-full resize-none rounded-lg border border-daintree-700 bg-daintree-800 px-4 py-3 placeholder-daintree-200 ring-0 hover:placeholder-daintree-50 focus:border-daintree-700 focus:ring-0",
+            errors.address &&
+              "ring ring-red-500/25 focus:ring focus:ring-red-500/25",
+          )}
           placeholder="Enter wallet address"
         />
         {errors.address && (
@@ -132,7 +136,7 @@ export const DetailsStep = ({
         )}
 
         {/* Amount panel */}
-        <div className="relative flex flex-col gap-4 rounded-xl border border-daintree-700 bg-daintree-800 p-4">
+        <div className="bg-white/1 relative flex flex-col gap-4 rounded-xl border border-daintree-700 p-4">
           <div className="flex items-center gap-3 text-sm">
             <span className="font-semibold">Balance</span>
             <span className="flex-grow">{currentBalance} KAS</span>
@@ -145,7 +149,7 @@ export const DetailsStep = ({
           </div>
 
           <div className="flex flex-col gap-4">
-            <div className="flex rounded-lg bg-icy-blue-950 text-daintree-400 shadow-sm">
+            <div className="flex rounded-lg bg-[#102831] text-daintree-400 shadow-sm">
               <span
                 className={twMerge(
                   "inline-flex min-w-fit items-center gap-2 rounded-s-md border border-e-0 border-daintree-700 px-4 text-sm",
@@ -171,7 +175,7 @@ export const DetailsStep = ({
                 })}
                 type="text"
                 className={twMerge(
-                  "block w-full rounded-e-lg bg-icy-blue-950 px-4 py-3 pe-11 text-sm shadow-sm focus:z-10 disabled:pointer-events-none disabled:opacity-50 sm:p-5",
+                  "block w-full rounded-e-lg bg-[#102831] px-4 py-3 pe-11 text-sm shadow-sm focus:z-10 disabled:pointer-events-none disabled:opacity-50 sm:p-5",
                   errors.amount
                     ? "border-[#EF4444] border-l-daintree-700 ring-0 ring-[#EF4444] focus:border-[#EF4444] focus:border-l-daintree-700 focus:ring-0 focus:ring-[#EF4444]"
                     : "border-daintree-700",
@@ -179,7 +183,7 @@ export const DetailsStep = ({
               />
             </div>
 
-            <div className="flex rounded-lg bg-icy-blue-950 text-daintree-400 shadow-sm">
+            <div className="flex rounded-lg bg-[#102831] text-daintree-400 shadow-sm">
               <span
                 className={twMerge(
                   "inline-flex min-w-fit items-center gap-2 rounded-s-md border border-e-0 border-daintree-700 px-4 text-sm",
@@ -210,7 +214,7 @@ export const DetailsStep = ({
                 })}
                 type="text"
                 className={twMerge(
-                  "focus:borderblue-500/25 focus:ringblue-500/25 block w-full rounded-e-lg border-daintree-700 bg-icy-blue-950 px-3 py-2 pe-11 text-sm shadow-sm focus:z-10 disabled:pointer-events-none disabled:opacity-50",
+                  "focus:borderblue-500/25 focus:ringblue-500/25 block w-full rounded-e-lg border-daintree-700 bg-[#102831] px-3 py-2 pe-11 text-sm shadow-sm focus:z-10 disabled:pointer-events-none disabled:opacity-50",
                   errors.amount
                     ? "border-[#EF4444] border-l-daintree-700 ring-0 ring-[#EF4444] focus:border-[#EF4444] focus:border-l-daintree-700 focus:ring-0 focus:ring-[#EF4444]"
                     : "border-daintree-700",
@@ -237,7 +241,7 @@ export const DetailsStep = ({
           <button
             disabled={!isValid || !!errors.amount}
             onClick={onNext}
-            className="mt-auto w-full rounded-full bg-icy-blue-400 py-4 text-lg font-medium text-white transition-colors hover:bg-zinc-700 disabled:bg-daintree-800 disabled:text-[#4B5563]"
+            className="mt-auto w-full rounded-full bg-icy-blue-400 py-4 text-lg font-medium text-white transition-colors hover:bg-icy-blue-600 disabled:bg-daintree-800 disabled:text-[#4B5563]"
           >
             Confirm
           </button>

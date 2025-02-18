@@ -27,7 +27,7 @@ export default function AccountsImported() {
             </div>
           </div>
           <button
-            className="rounded-full bg-icy-blue-400 py-5 text-base font-semibold"
+            className="rounded-full bg-icy-blue-400 py-5 text-base font-semibold hover:bg-icy-blue-600"
             onClick={onClick}
           >
             Back to extension

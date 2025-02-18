@@ -68,7 +68,7 @@ export default function RenameAccount() {
               type="text"
               id="account-name"
               maxLength={12}
-              className="block w-full rounded-lg border-neutral-700 bg-daintree-800 px-4 py-3 text-sm text-neutral-400 placeholder-neutral-500 focus:border-icy-blue-400 focus:ring-neutral-600 disabled:pointer-events-none disabled:opacity-50"
+              className="w-full rounded-lg border-0 bg-daintree-800 px-4 py-3 ring-0 focus:ring-0"
             />
           </div>
 

@@ -102,15 +102,14 @@ export default function DeployToken() {
                   padding: "2px 8px",
                 }}
               />
-              <label className="text-base text-[#E5E7EB]">Ticker</label>
+              <label className="text-base text-gray-200">Ticker</label>
             </div>
             <div className="relative flex flex-col gap-1">
               <input
                 className={twMerge(
-                  "w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-white placeholder-gray-400 focus:outline-none",
-                  errors.ticker
-                    ? "border-red-700 focus:border-red-600 focus:ring-red-800"
-                    : "focus:border-gray-600 focus:ring-2 focus:ring-gray-500",
+                  "w-full rounded-lg border-0 bg-daintree-800 px-4 py-3 ring-0 focus:ring-0",
+                  errors.ticker &&
+                    "ring ring-red-500/25 focus:ring focus:ring-red-500/25",
                 )}
                 {...register("ticker", {
                   onChange: (event) => {
@@ -170,15 +169,14 @@ export default function DeployToken() {
                   padding: "2px 8px",
                 }}
               />
-              <label className="text-base text-[#E5E7EB]">Maximum Supply</label>
+              <label className="text-base text-gray-200">Maximum Supply</label>
             </div>
             <div className="flex flex-col gap-1">
               <input
                 className={twMerge(
-                  "w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-white placeholder-gray-400 focus:outline-none",
-                  errors.maxSupply
-                    ? "border-red-700 focus:border-red-600 focus:ring-red-800"
-                    : "focus:border-gray-600 focus:ring-2 focus:ring-gray-500",
+                  "w-full rounded-lg border-0 bg-daintree-800 px-4 py-3 ring-0 focus:ring-0",
+                  errors.maxSupply &&
+                    "ring ring-red-500/25 focus:ring focus:ring-red-500/25",
                 )}
                 {...register("maxSupply", {
                   onChange: (event) => {
@@ -220,7 +218,7 @@ export default function DeployToken() {
                   padding: "2px 8px",
                 }}
               />
-              <label className="text-base text-[#E5E7EB]">
+              <label className="text-base text-gray-200">
                 Default Mint Amount{" "}
                 <span className="text-daintree-400">
                   (0 ~ {formattedMaxSupply})
@@ -230,10 +228,9 @@ export default function DeployToken() {
             <div className="flex flex-col gap-1">
               <input
                 className={twMerge(
-                  "w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-white placeholder-gray-400 focus:outline-none",
-                  errors.mintAmount
-                    ? "border-red-700 focus:border-red-600 focus:ring-red-800"
-                    : "focus:border-gray-600 focus:ring-2 focus:ring-gray-500",
+                  "w-full rounded-lg border-0 bg-daintree-800 px-4 py-3 ring-0 focus:ring-0",
+                  errors.mintAmount &&
+                    "ring ring-red-500/25 focus:ring focus:ring-red-500/25",
                 )}
                 {...register("mintAmount", {
                   onChange: (event) => {
@@ -275,7 +272,7 @@ export default function DeployToken() {
                   padding: "2px 8px",
                 }}
               />
-              <label className="text-base text-[#E5E7EB]">
+              <label className="text-base text-gray-200">
                 Preallocation{" "}
                 <span className="text-daintree-400">(Optional)</span>
               </label>
@@ -283,10 +280,9 @@ export default function DeployToken() {
             <div className="flex flex-col gap-1">
               <input
                 className={twMerge(
-                  "w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-white placeholder-gray-400 focus:outline-none",
-                  errors.preAllocation
-                    ? "border-red-700 focus:border-red-600 focus:ring-red-800"
-                    : "focus:border-gray-600 focus:ring-2 focus:ring-gray-500",
+                  "w-full rounded-lg border-0 bg-daintree-800 px-4 py-3 placeholder-daintree-200 ring-0 hover:placeholder-daintree-50 focus:ring-0",
+                  errors.preAllocation &&
+                    "ring ring-red-500/25 focus:ring focus:ring-red-500/25",
                 )}
                 {...register("preAllocation", {
                   onChange: (event) => {
@@ -328,17 +324,16 @@ export default function DeployToken() {
                   padding: "2px 8px",
                 }}
               />
-              <label className="text-base text-[#E5E7EB]">
+              <label className="text-base text-gray-200">
                 Decimal <span className="text-daintree-400">(Optional)</span>
               </label>
             </div>
             <div className="flex flex-col gap-1">
               <input
                 className={twMerge(
-                  "w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-white placeholder-gray-400 focus:outline-none",
-                  errors.decimalPlaces
-                    ? "border-red-700 focus:border-red-600 focus:ring-red-800"
-                    : "focus:border-gray-600 focus:ring-2 focus:ring-gray-500",
+                  "w-full rounded-lg border-0 bg-daintree-800 px-4 py-3 placeholder-daintree-200 ring-0 hover:placeholder-daintree-50 focus:ring-0",
+                  errors.decimalPlaces &&
+                    "ring ring-red-500/25 focus:ring focus:ring-red-500/25",
                 )}
                 {...register("decimalPlaces", {
                   onChange: (event) => {
@@ -393,7 +388,7 @@ export default function DeployToken() {
           <button
             disabled={!!errors.root || !isValid || isSubmitting}
             type="submit"
-            className="mt-auto rounded-full bg-icy-blue-400 py-5 text-base font-semibold disabled:bg-daintree-800 disabled:text-[#4B5563]"
+            className="mt-auto rounded-full bg-icy-blue-400 py-5 text-base font-semibold hover:bg-icy-blue-600 disabled:bg-daintree-800 disabled:text-[#4B5563]"
           >
             Deploy Token
           </button>

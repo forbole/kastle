@@ -153,7 +153,7 @@ export default function Settings() {
           }}
         />
 
-        {/* Preview mode */}
+        {/* Dev mode */}
         <SettingItem
           title="Dev mode"
           showChevron
