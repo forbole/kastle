@@ -6,6 +6,8 @@ import { PublicKey } from "@/wasm/core/kaspa";
 import useWalletManager from "@/hooks/useWalletManager.ts";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import { Tooltip } from "react-tooltip";
+import { walletAddressEllipsis } from "@/lib/utils.ts";
+import { useCopyToClipboard } from "usehooks-ts";
 
 type AccountItemProps = {
   accountIndex: number;
@@ -17,6 +19,9 @@ export function AccountItem({ accountIndex, publicKeys }: AccountItemProps) {
   const [addresses, setAddresses] = useState<string[]>([]);
   const { rpcClient, networkId } = useRpcClientStateful();
   const [showAddFeedback, setShowAddFeedback] = useState(false);
+  const [, copy] = useCopyToClipboard();
+  const [copied, setCopied] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
   const { register, getValues } = useFormContext<AccountsFormValues>();
   const [accountBalance, setAccountBalance] = useState<number>();
@@ -54,6 +59,17 @@ export function AccountItem({ accountIndex, publicKeys }: AccountItemProps) {
     refreshAccountBalance();
   }, [addresses, rpcClient]);
 
+  const shrinkAddress = address ? walletAddressEllipsis(address) : "";
+
+  const handleCopy = async () => {
+    if (!address) {
+      return;
+    }
+    await copy(address);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 500);
+  };
+
   return (
     <div className="flex rounded-xl border border-daintree-700 bg-white/5">
       <div className="flex flex-grow gap-2 border-e border-daintree-700 p-3">
@@ -61,7 +77,45 @@ export function AccountItem({ accountIndex, publicKeys }: AccountItemProps) {
           {accountIndex}
         </span>
         <div className="flex flex-grow items-center justify-between gap-10 text-base">
-          <span className="w-[310px] flex-grow break-all">{address}</span>
+          <Tooltip
+            id={`clipboard-${accountIndex}`}
+            style={{
+              backgroundColor: "#6b7280",
+              fontSize: "12px",
+              fontWeight: 600,
+              padding: "8px",
+              zIndex: 9999,
+            }}
+            isOpen={copied}
+          />
+          <Tooltip
+            id={`showWholeAddress-${accountIndex}`}
+            style={{
+              backgroundColor: "#6b7280",
+              fontSize: "12px",
+              fontWeight: 600,
+              padding: "8px",
+            }}
+            isOpen={isHovered && !copied}
+          />
+          <span
+            className="cursor-pointer break-all"
+            onClick={handleCopy}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+          >
+            <a
+              data-tooltip-id={`clipboard-${accountIndex}`}
+              data-tooltip-content="Copied"
+            >
+              <a
+                data-tooltip-id={`showWholeAddress-${accountIndex}`}
+                data-tooltip-content={address}
+              >
+                {shrinkAddress}
+              </a>
+            </a>
+          </span>
           <div>
             {accountBalance !== undefined ? (
               <div className="flex flex-grow flex-col items-end">
