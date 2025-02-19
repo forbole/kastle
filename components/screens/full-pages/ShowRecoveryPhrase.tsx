@@ -47,7 +47,7 @@ export default function ShowRecoveryPhrase() {
   }, [getMnemonic]);
 
   return (
-    <div className="flex h-[54rem] w-[41rem] flex-col items-stretch gap-4 rounded-3xl bg-icy-blue-950">
+    <div className="flex h-[54rem] w-[41rem] flex-col items-stretch gap-4 rounded-3xl bg-icy-blue-950 px-4">
       <div className="flex h-full flex-col justify-stretch gap-6 p-4 pb-6 text-white">
         <Header title="Backup Recovery phrase" showPrevious={false} />
 
@@ -57,7 +57,7 @@ export default function ShowRecoveryPhrase() {
               <div className="flex justify-between">
                 <button
                   type="button"
-                  className="disabled:opacity-50/30 inline-flex items-center gap-x-2 rounded-lg border border-transparent px-4 py-3 text-sm font-medium text-icy-blue-400 hover:bg-daintree-700 hover:text-blue-400 focus:bg-blue-100 focus:bg-blue-800/30 focus:text-blue-400 focus:outline-none disabled:pointer-events-none disabled:opacity-50"
+                  className="disabled:opacity-50/30 inline-flex items-center gap-x-2 rounded-lg border border-transparent py-3 text-sm font-medium text-icy-blue-400 hover:bg-daintree-700 hover:text-blue-400 focus:bg-blue-100 focus:bg-blue-800/30 focus:text-blue-400 focus:outline-none disabled:pointer-events-none disabled:opacity-50"
                   onClick={() => setIsHidden(true)}
                 >
                   <i className="hn hn-eye text-[14px]" />
@@ -95,11 +95,11 @@ export default function ShowRecoveryPhrase() {
                       value={recoveryPhrase?.[index]}
                       disabled
                       className={twMerge(
-                        "peer block w-full rounded-lg border border-daintree-700 bg-daintree-800 py-3 pe-0 text-base font-medium text-white focus:ring-0 disabled:pointer-events-none disabled:opacity-50",
-                        index >= 9 ? "ps-6" : "ps-5",
+                        "peer block w-full rounded-lg border border-daintree-700 bg-daintree-800 py-3 pe-0 text-base font-medium text-white focus:ring-0 disabled:pointer-events-none",
+                        index >= 9 ? "ps-8" : "ps-7",
                       )}
                     />
-                    <div className="pointer-events-none absolute inset-y-0 start-0 flex items-center ps-2 text-[#4B5563] peer-disabled:pointer-events-none peer-disabled:opacity-50">
+                    <div className="pointer-events-none absolute inset-y-0 start-0 flex items-center ps-2 text-base font-medium text-[#7B9AAA] peer-disabled:pointer-events-none">
                       {index + 1}
                     </div>
                   </div>
