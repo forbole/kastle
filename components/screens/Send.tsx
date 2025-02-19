@@ -12,6 +12,7 @@ const steps = ["details", "confirm", "broadcast", "success", "fail"] as const;
 type Step = (typeof steps)[number];
 
 export interface SendFormData {
+  ticker: string;
   address: string | undefined;
   amount: string | undefined;
   amountUSD: string | undefined;
@@ -22,6 +23,7 @@ export default function Send() {
   const [step, setStep] = useState<Step>("details");
   const form = useForm<SendFormData>({
     defaultValues: {
+      ticker: "kas",
       address: undefined,
       amount: "",
     },

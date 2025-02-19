@@ -25,7 +25,7 @@ export default function TokenAsset() {
             "inline-flex flex-grow items-center justify-center gap-x-2 rounded-lg px-4 py-3 text-center text-sm font-medium hover:text-neutral-400 focus:text-neutral-400 focus:outline-none disabled:pointer-events-none disabled:opacity-50",
             activeTab === "history"
               ? "bg-daintree-700 text-white"
-              : "bg-transparent text-neutral-500",
+              : "bg-transparent text-[##E5E7EB]",
           )}
           onClick={() => setActiveTab("history")}
         >

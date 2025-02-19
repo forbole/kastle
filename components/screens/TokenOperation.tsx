@@ -6,6 +6,9 @@ import React from "react";
 import { ConfirmTokenOperationStep } from "@/components/token-operation/ConfirmTokenOperationStep.tsx";
 import BroadcastTokenOperationStep from "@/components/token-operation/BroadcastTokenOperationStep.tsx";
 import { setPopupPath } from "@/lib/utils.ts";
+import { useTokenInfo } from "@/hooks/useTokenInfo.ts";
+import { applyDecimal } from "@/lib/krc20.ts";
+import { useLocation } from "react-router";
 
 const steps = ["confirm", "broadcast", "success", "fail"] as const;
 
@@ -17,6 +20,7 @@ export interface TokenOperationFormData {
 
 export default function TokenOperation() {
   const navigate = useNavigate();
+  const { state } = useLocation();
   const [searchParams] = useSearchParams();
   const [step, setStep] = useState<Step>("confirm");
   const form = useForm<TokenOperationFormData>({
@@ -24,12 +28,22 @@ export default function TokenOperation() {
   });
   const [outTxs, setOutTxs] = useState<string[]>();
 
-  const op = searchParams.get("op");
-  const ticker = searchParams.get("ticker");
-  const maxSupply = searchParams.get("maxSupply");
-  const mintAmount = searchParams.get("mintAmount");
-  const preAllocation = searchParams.get("preAllocation");
-  const decimalPlaces = searchParams.get("decimalPlaces");
+  const op = state?.op ?? searchParams.get("op");
+  const ticker = state?.ticker ?? searchParams.get("ticker");
+  const maxSupply = state?.maxSupply ?? searchParams.get("maxSupply");
+  const mintAmount = state?.mintAmount ?? searchParams.get("mintAmount");
+  const preAllocation =
+    state?.preAllocation ?? searchParams.get("preAllocation");
+  const decimalPlaces =
+    state?.decimalPlaces ?? searchParams.get("decimalPlaces");
+  const amount = state?.amount ?? searchParams.get("amount");
+  const to = state?.to ?? searchParams.get("to");
+
+  const isFromFullscreen = !!searchParams.get("op");
+
+  const { data: tokenInfoResponse, isLoading } = useTokenInfo(
+    ticker ?? undefined,
+  );
 
   useEffect(() => {
     setPopupPath();
@@ -67,10 +81,33 @@ export default function TokenOperation() {
           tick: ticker,
         });
         break;
+      case "transfer":
+        if (isLoading) {
+          return;
+        }
+
+        if (!ticker || !amount || !to) {
+          throw new Error("missing transfer parameters");
+        }
+
+        const { toInteger } = applyDecimal(tokenInfoResponse?.result?.[0].dec);
+
+        form.setValue("opData", {
+          p: "krc-20",
+          op: "transfer",
+          tick: ticker,
+          amt: toInteger(parseFloat(amount)).toString(),
+          to,
+        });
+        break;
     }
-  }, []);
+  }, [isLoading]);
 
   const onBack = () => {
+    if (op === "transfer") {
+      navigate(-1);
+    }
+
     setStep((prevState) => {
       if (steps.indexOf(prevState) === 0) {
         navigate("/dashboard");
@@ -87,7 +124,7 @@ export default function TokenOperation() {
         {step === "confirm" && (
           <ConfirmTokenOperationStep
             onNext={() => setStep("broadcast")}
-            onBack={onBack}
+            onBack={!isFromFullscreen ? onBack : undefined}
           />
         )}
         {step === "broadcast" && (

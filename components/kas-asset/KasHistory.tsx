@@ -1,32 +1,35 @@
 import React from "react";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import { explorerAddressLinks } from "@/components/screens/Settings.tsx";
+import kasIcon from "@/assets/images/kas-icon.svg";
 
 export default function KasHistory() {
-  const { addresses } = useWalletManager();
+  const { account } = useWalletManager();
   const { networkId } = useRpcClientStateful();
 
   const network = networkId ?? NetworkType.Mainnet;
   const explorerAddressLink = explorerAddressLinks[network];
-  const firstAddress = addresses[0];
+  const firstAddress = account?.address;
+
+  const openTransaction = () => {
+    browser.tabs.create({
+      url: `${explorerAddressLink}${firstAddress}`,
+    });
+  };
 
   return (
     <div className="mt-8 flex flex-col items-stretch gap-2">
-      <div className="flex flex-col items-stretch gap-2">
-        <div className="flex items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3">
-          <a
-            className="flex cursor-pointer items-center gap-2"
-            href={`${explorerAddressLink}${firstAddress}`}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <div className="flex h-[46px] w-[46px] items-center justify-center rounded-full bg-white/10">
-              <i className="hn hn-external-link text-[20px] text-white"></i>
-            </div>
-            <span className="text-lg text-white">Explorer</span>
-          </a>
-        </div>
-      </div>
+      <button
+        type="button"
+        className="flex cursor-pointer items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3 hover:border-white"
+        onClick={() => openTransaction()}
+      >
+        <img alt="castle" className="h-[40px] w-[40px]" src={kasIcon} />
+        <span className="text-base font-medium">
+          See activity history in explorer
+        </span>
+        <i className="hn hn-external-link text-[20px] text-daintree-400"></i>
+      </button>
     </div>
   );
 }

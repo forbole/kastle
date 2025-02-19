@@ -4,6 +4,9 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import successImage from "@/assets/images/success.png";
 import Header from "@/components/GeneralHeader";
+import { useFormContext } from "react-hook-form";
+import { TokenOperationFormData } from "@/components/screens/TokenOperation.tsx";
+import { SendFormData } from "@/components/screens/Send.tsx";
 
 interface SuccessProps {
   transactionIds?: string[] | undefined;
@@ -11,7 +14,9 @@ interface SuccessProps {
 
 export const SuccessStatus = ({ transactionIds }: SuccessProps) => {
   const navigate = useNavigate();
+  const { watch } = useFormContext<SendFormData | TokenOperationFormData>();
   const [settings] = useSettings();
+  const formFields = watch();
 
   const networkId = settings?.networkId ?? "mainnet";
   const explorerTxLink = explorerTxLinks[networkId];
@@ -20,9 +25,23 @@ export const SuccessStatus = ({ transactionIds }: SuccessProps) => {
     navigate("/dashboard");
   };
 
+  const ticker = "opData" in formFields ? formFields.opData.tick : "KAS";
+
+  const openTransactions = () => {
+    for (const transactionId of transactionIds ?? []) {
+      browser.tabs.create({
+        url: `${explorerTxLink}${transactionId}`,
+      });
+    }
+  };
+
   return (
     <div className="flex h-full flex-col">
-      <Header title="KAS Dispatched!" showPrevious={false} showClose={false} />
+      <Header
+        title={`${ticker} Dispatched!`}
+        showPrevious={false}
+        showClose={false}
+      />
       <div className="mt-20 flex flex-1 flex-col justify-between">
         <div className="flex flex-col items-center gap-4">
           <img src={successImage} alt="Success" className="mx-auto h-24 w-24" />
@@ -34,20 +53,23 @@ export const SuccessStatus = ({ transactionIds }: SuccessProps) => {
               {"Your KAS has been sent to the recipient's address"}
             </span>
           </div>
-          {transactionIds?.map((txHash) => (
-            <a
-              key={txHash}
-              href={`${explorerTxLink}${txHash}`}
-              target="_blank"
-              rel="noopener noreferrer"
+          {transactionIds?.length !== 0 && (
+            <button
+              type="button"
               className="flex items-center gap-2"
+              onClick={openTransactions}
             >
               <span className="text-sm font-semibold text-icy-blue-400">
                 View in explorer
               </span>
+              {(transactionIds?.length ?? 0) > 1 && (
+                <span className="flex size-4 items-center justify-center rounded-full bg-white/10 p-3 text-xs font-medium text-white">
+                  {transactionIds?.length}
+                </span>
+              )}
               <i className="hn hn-external-link text-icy-blue-400"></i>
-            </a>
-          ))}
+            </button>
+          )}
         </div>
 
         <button

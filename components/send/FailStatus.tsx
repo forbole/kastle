@@ -21,6 +21,14 @@ export const FailStatus = ({ transactionIds }: FailProps) => {
     navigate("/dashboard");
   };
 
+  const openTransactions = () => {
+    for (const transactionId of transactionIds ?? []) {
+      browser.tabs.create({
+        url: `${explorerTxLink}${transactionId}`,
+      });
+    }
+  };
+
   return (
     <div className="flex h-full flex-col">
       <Header title="Oops!" showPrevious={false} showClose={false} />
@@ -38,20 +46,23 @@ export const FailStatus = ({ transactionIds }: FailProps) => {
               {"Please check the recipient's address or try again later."}
             </span>
           </div>
-          {transactionIds?.map((txHash) => (
-            <a
-              key={txHash}
-              href={`${explorerTxLink}${txHash}`}
-              target="_blank"
-              rel="noopener noreferrer"
+          {transactionIds?.length !== 0 && (
+            <button
+              type="button"
+              onClick={openTransactions}
               className="flex items-center gap-2"
             >
               <span className="text-sm font-semibold text-icy-blue-400">
                 View in explorer
               </span>
+              {(transactionIds?.length ?? 0) > 1 && (
+                <span className="flex size-4 items-center justify-center rounded-full bg-white/10 p-3 text-xs font-medium text-white">
+                  {transactionIds?.length}
+                </span>
+              )}
               <i className="hn hn-external-link text-icy-blue-400"></i>
-            </a>
-          ))}
+            </button>
+          )}
         </div>
 
         <button

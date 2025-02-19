@@ -4,6 +4,7 @@ import { twMerge } from "tailwind-merge";
 import { useNavigate } from "react-router-dom";
 import { v4 as uuid } from "uuid";
 import useAnalytics from "@/hooks/useAnalytics.ts";
+import { PrivateKey } from "@/wasm/core/kaspa";
 
 type PrivateKeyFormValues = { privateKey: string };
 
@@ -14,10 +15,11 @@ export default function ImportPrivateKey() {
   const {
     handleSubmit,
     register,
-    formState: { isValid, dirtyFields },
+    formState: { isValid, errors },
     setValue,
-  } = useForm<PrivateKeyFormValues>();
-  const isDirtyAlt = !!Object.keys(dirtyFields).length;
+  } = useForm<PrivateKeyFormValues>({
+    mode: "all",
+  });
 
   const [isHidden, setIsHidden] = useState(true);
 
@@ -91,10 +93,21 @@ export default function ImportPrivateKey() {
                 placeholder="Private key"
                 {...register("privateKey", {
                   required: "Private key is required",
+                  validate: (privateKey) => {
+                    try {
+                      new PrivateKey(privateKey);
+                      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                    } catch (_) {
+                      return "Oh, the private key is invalid";
+                    }
+
+                    return undefined;
+                  },
                 })}
                 className={twMerge(
                   "peer block h-[120px] w-full resize-none rounded-lg border border-daintree-700 bg-daintree-800 p-3 text-sm text-daintree-400 placeholder-daintree-200 hover:placeholder-daintree-50 focus:ring-0 disabled:pointer-events-none disabled:opacity-50",
-                  !isValid && isDirtyAlt && "ring ring-red-500/25",
+                  errors.privateKey &&
+                    "border-0 ring ring-red-500/25 focus:border-0 focus:ring focus:ring-red-500/25",
                   isHidden && "blur",
                 )}
               />
@@ -113,9 +126,9 @@ export default function ImportPrivateKey() {
             )}
           </div>
 
-          {!isValid && isDirtyAlt && (
+          {errors.privateKey && (
             <span className="text-sm font-semibold text-red-500">
-              Oh, invalid
+              {errors.privateKey.message}
             </span>
           )}
 

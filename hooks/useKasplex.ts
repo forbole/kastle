@@ -10,6 +10,8 @@ export type TickerInfo = {
   holderTotal: string;
   transferTotal: string;
   mintTotal: string;
+  hashRev: string;
+  mtsAdd: string;
 };
 
 export type TickerInfoResponse = {

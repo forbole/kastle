@@ -34,29 +34,6 @@ export default function Onboarding() {
         >
           Start your Journey
         </NavLink>
-
-        <div className="px-2 text-xs text-[#a8a09c]">
-          By going on, you agree to our{" "}
-          <a
-            href="https://forbole.com/en/terms-and-conditions"
-            target="_blank"
-            className="text-icy-blue-400 underline"
-            rel="noreferrer"
-          >
-            Terms of Service
-          </a>{" "}
-          and{" "}
-          <a
-            href="https://forbole.com/en/privacy-policy"
-            target="_blank"
-            className="text-icy-blue-400 underline"
-            rel="noreferrer"
-          >
-            {" "}
-            Privacy Policy
-          </a>
-          .
-        </div>
       </div>
     </div>
   );

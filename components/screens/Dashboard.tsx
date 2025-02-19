@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { SideMenu } from "@/components/side-menu/SideMenu.tsx";
 import { explorerAddressLinks } from "@/components/screens/Settings.tsx";
 import kasIcon from "@/assets/images/kas-icon.svg";
+import gavelIcon from "@/assets/images/gavel.svg";
 import { formatToken, formatTokenPrice, formatUSD } from "@/lib/utils.ts";
 import ClipboardCopy from "@/components/ClipboardCopy";
 import { twMerge } from "tailwind-merge";
@@ -29,19 +30,16 @@ export default function Dashboard() {
   const balance = account?.balance;
   const showBalance = !settings?.hideBalances;
 
-  const { data: tokenListResponse } = useTokenListByAddress(
-    settings?.preview ? address : undefined,
-    5000,
-  );
+  const { data: tokenListResponse } = useTokenListByAddress(address, 5000);
   const tokenListItems = tokenListResponse?.result
     ? tokenListResponse.result
     : [];
   const tokens = tokenListItems.sort((a, b) => {
-    const aDecimal = applyDecimal(a.dec);
-    const bDecimal = applyDecimal(b.dec);
+    const { toFloat: aToFloat } = applyDecimal(a.dec);
+    const { toFloat: bToFloat } = applyDecimal(b.dec);
 
     return (
-      bDecimal(parseInt(b.balance, 10)) - aDecimal(parseInt(a.balance, 10))
+      bToFloat(parseInt(b.balance, 10)) - aToFloat(parseInt(a.balance, 10))
     );
   });
 
@@ -190,7 +188,7 @@ export default function Dashboard() {
             <span className="text-daintree-400">Receive</span>
           </div>
 
-          {settings?.preview && wallet?.type !== "ledger" ? (
+          {wallet?.type !== "ledger" ? (
             <>
               <div
                 className="flex cursor-pointer flex-col items-center gap-2"
@@ -216,7 +214,11 @@ export default function Dashboard() {
                 }}
               >
                 <div className="flex h-[46px] w-[46px] items-center justify-center rounded-full bg-white/10">
-                  <i className="hn hn-pencil text-[20px] text-white"></i>
+                  <img
+                    alt="castle"
+                    className="h-[20px] w-[20px]"
+                    src={gavelIcon}
+                  />
                 </div>
                 <span className="text-daintree-400">Mint</span>
               </div>
@@ -274,15 +276,8 @@ export default function Dashboard() {
             <div className="mb-4 flex flex-col items-stretch gap-2">
               {/*KAS*/}
               <div
-                className={twMerge(
-                  "flex items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3",
-                  settings?.preview && "cursor-pointer hover:border-white",
-                )}
-                onClick={() => {
-                  if (settings?.preview) {
-                    navigate("/kas-asset");
-                  }
-                }}
+                className="flex cursor-pointer items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3 hover:border-white"
+                onClick={() => navigate("/kas-asset")}
               >
                 <img alt="castle" className="h-[40px] w-[40px]" src={kasIcon} />
                 <div className="flex flex-grow flex-col gap-1">
@@ -310,10 +305,9 @@ export default function Dashboard() {
               </div>
 
               {/*KRC20 tokens*/}
-              {settings?.preview &&
-                tokens.map((token) => (
-                  <TokenListItem key={token.tick} token={token} />
-                ))}
+              {tokens.map((token) => (
+                <TokenListItem key={token.tick} token={token} />
+              ))}
             </div>
           )}
         </div>

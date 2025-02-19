@@ -158,7 +158,18 @@ export default function SetupPassword() {
               rel="noreferrer"
             >
               Term and Conditions
+            </a>{" "}
+            and{" "}
+            <a
+              href="https://forbole.com/en/privacy-policy"
+              target="_blank"
+              className="text-icy-blue-400 underline"
+              rel="noreferrer"
+            >
+              {" "}
+              Privacy Policy
             </a>
+            .
           </label>
         </div>
 
