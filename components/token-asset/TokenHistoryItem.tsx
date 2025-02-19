@@ -17,7 +17,7 @@ export default function TokenHistoryItem({
   useResetPreline();
   const { networkId } = useRpcClientStateful();
   const { ticker } = useParams();
-  const { data: tokenMetadata } = useTokenMetadata(ticker);
+  const { data: tokenMetadata, toPriceInUsd } = useTokenMetadata(ticker);
   const { account } = useWalletManager();
   const [imageUrl, setImageUrl] = useState(kasIcon);
   const { toFloat } = applyDecimal(tickerInfo?.dec);
@@ -117,10 +117,7 @@ export default function TokenHistoryItem({
                 </div>
               </div>
             </span>
-            <span>
-              ≈ {formatUSD(amount * (tokenMetadata?.price?.priceInUsd ?? 0))}{" "}
-              USD
-            </span>
+            <span>≈ {formatUSD(amount * toPriceInUsd())} USD</span>
           </div>
         </div>
       </div>

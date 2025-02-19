@@ -11,7 +11,7 @@ type TokenListItemProps = { token: TokenListResponse["result"][number] };
 export default function TokenListItem({ token }: TokenListItemProps) {
   const navigate = useNavigate();
   const [settings] = useSettings();
-  const { data: tokenMetadata } = useTokenMetadata(token.tick);
+  const { data: tokenMetadata, toPriceInUsd } = useTokenMetadata(token.tick);
   const [imageUrl, setImageUrl] = useState(kasIcon);
 
   const showBalance = !settings?.hideBalances;
@@ -20,7 +20,7 @@ export default function TokenListItem({ token }: TokenListItemProps) {
   const balanceNumber = toFloat(
     token.balance ? parseInt(token.balance, 10) : 0,
   );
-  const tokenPrice = tokenMetadata?.price?.priceInUsd ?? 0;
+  const tokenPrice = toPriceInUsd();
 
   const onImageError = () => {
     setImageUrl(kasIcon);
@@ -49,7 +49,7 @@ export default function TokenListItem({ token }: TokenListItemProps) {
           <span>{showBalance ? formatToken(balanceNumber) : "*****"}</span>
         </div>
         <div className="flex items-center justify-between text-sm text-daintree-400">
-          <span>{formatTokenPrice(0)}</span>
+          <span>{formatTokenPrice(tokenPrice)}</span>
           <span>
             ≈ {showBalance ? formatUSD(balanceNumber * tokenPrice) : "$*****"}{" "}
             USD

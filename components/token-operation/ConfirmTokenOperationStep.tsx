@@ -23,7 +23,7 @@ export const ConfirmTokenOperationStep = ({
   const opData = watch("opData");
   const opFee = OP_FEES[opData.op as OpFeesKey];
   const { toFloat } = applyDecimal(opData.dec);
-  const { data: tokenMetadata } = useTokenMetadata(
+  const { toPriceInUsd } = useTokenMetadata(
     opData.op === "mint" ? opData.tick : undefined,
   );
   const { data: tokenInfoResponse } = useTokenInfo(
@@ -118,10 +118,7 @@ export const ConfirmTokenOperationStep = ({
                 <div className="flex flex-col text-right">
                   <span className="font-medium">{amount}</span>
                   <span className="text-xs text-daintree-400">
-                    {formatUSD(
-                      amount * (tokenMetadata?.price?.priceInUsd ?? 0),
-                    )}{" "}
-                    USD
+                    {formatUSD(amount * toPriceInUsd())} USD
                   </span>
                 </div>
               </div>

@@ -40,13 +40,12 @@ export const DetailsStep = ({
     formState: { isValid, errors },
   } = useFormContext<SendFormData>();
   const { ticker, address, amount } = watch();
-  const { data: tokenMetadata } = useTokenMetadata(
+  const { data: tokenMetadata, toPriceInUsd } = useTokenMetadata(
     ticker === "kas" ? undefined : ticker,
   );
   const [imageUrl, setImageUrl] = useState(kasIcon);
   const { kaspaPrice } = useKaspaPrice();
-  const tokenPrice =
-    ticker === "kas" ? kaspaPrice : (tokenMetadata?.price?.priceInUsd ?? 0);
+  const tokenPrice = ticker === "kas" ? kaspaPrice : toPriceInUsd();
   const { data: tokenBalanceResponse } = useTokenBalance(
     account?.address && ticker !== "kas"
       ? {

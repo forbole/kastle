@@ -18,7 +18,7 @@ export interface TokenMetadata {
   mintTotal: number;
   deployerAddress: string;
   holders: Holder[];
-  price: Price;
+  price?: Price;
   priceHistory: any[];
   priceCandles: any[];
   tradeVolume: TradeVolume;
@@ -82,8 +82,33 @@ export interface Metadata {
 export function useTokenMetadata(ticker?: string) {
   const baseUrl = "https://api-v2-do.kas.fyi";
 
-  return useSWR<TokenMetadata, Error>(
+  const swrResponse = useSWR<TokenMetadata, Error>(
     ticker ? `${baseUrl}/token/krc20/${ticker}/info` : null,
     fetcher,
   );
+
+  const toPriceInUsd = () => {
+    const getMarketAverage = () => {
+      const marketDaum = swrResponse.data?.marketsData?.filter(
+        (m) => m.marketData.priceInUsd !== 0,
+      );
+      const numberOfListings = marketDaum?.length ?? 0;
+
+      if (numberOfListings === 0) {
+        return 0;
+      }
+
+      const marketsSum =
+        marketDaum?.reduce(
+          (acc, cur) => acc + (cur?.marketData?.priceInUsd ?? 0),
+          0,
+        ) ?? 0;
+
+      return marketsSum / numberOfListings;
+    };
+
+    return swrResponse.data?.price?.priceInUsd ?? getMarketAverage();
+  };
+
+  return { ...swrResponse, toPriceInUsd };
 }

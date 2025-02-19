@@ -12,8 +12,11 @@ export default function TokenInfo() {
   const { ticker } = useParams();
   const { data: tokenInfoResponse, isLoading: isTokenInfoLoading } =
     useTokenInfo(ticker);
-  const { data: tokenMetadata, isLoading: isMetadataLoading } =
-    useTokenMetadata(ticker);
+  const {
+    data: tokenMetadata,
+    isLoading: isMetadataLoading,
+    toPriceInUsd,
+  } = useTokenMetadata(ticker);
   const [imageUrl, setImageUrl] = useState(kasIcon);
   const isLoading = isTokenInfoLoading || isMetadataLoading;
   const tokenInfo = tokenInfoResponse?.result?.[0];
@@ -49,9 +52,7 @@ export default function TokenInfo() {
               <span className="capitalize">{ticker}</span>
             </div>
             <div className="flex items-center justify-start text-sm text-daintree-400">
-              <span>
-                ≈ {formatUSD(tokenMetadata?.price?.priceInUsd ?? 0)} USD
-              </span>
+              <span>≈ {formatUSD(toPriceInUsd())} USD</span>
             </div>
           </div>
         </div>
