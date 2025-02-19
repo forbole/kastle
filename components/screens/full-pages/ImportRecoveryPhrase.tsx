@@ -79,7 +79,7 @@ export default function ImportRecoveryPhrase() {
   };
 
   return (
-    <div className="flex h-[52rem] w-[41rem] flex-col items-stretch gap-4 rounded-3xl bg-icy-blue-950">
+    <div className="flex h-[56rem] w-[41rem] flex-col items-stretch gap-4 rounded-3xl bg-icy-blue-950 px-4">
       <div className="flex h-full flex-col justify-stretch gap-6 p-4 pb-6 text-white">
         <div className="flex justify-between">
           {/* Placeholder */}
@@ -167,12 +167,12 @@ export default function ImportRecoveryPhrase() {
                       )}
                       autoComplete="off"
                       className={twMerge(
-                        "peer block w-full rounded-lg border border-daintree-700 bg-daintree-800 py-3 pe-0 text-sm text-daintree-400 focus:ring-0 disabled:pointer-events-none disabled:opacity-50",
+                        "peer block w-full rounded-lg border border-daintree-700 bg-daintree-800 py-3 pe-0 text-base text-white focus:ring-0 disabled:pointer-events-none",
                         !isValid && isDirtyAlt && "ring ring-red-500/25",
-                        index >= 9 ? "ps-6" : "ps-5",
+                        index >= 9 ? "ps-8" : "ps-7",
                       )}
                     />
-                    <div className="pointer-events-none absolute inset-y-0 start-0 flex items-center ps-2 text-[#4B5563] peer-disabled:pointer-events-none peer-disabled:opacity-50">
+                    <div className="pointer-events-none absolute inset-y-0 start-0 flex items-center ps-2 text-base text-[#7B9AAA] peer-disabled:pointer-events-none">
                       {index + 1}
                     </div>
                   </div>
