@@ -161,7 +161,7 @@ export default function SetupPassword() {
             </a>{" "}
             and{" "}
             <a
-              href="https://forbole.com/en/privacy-policy"
+              href="https://kastle.cc/privacy-policy"
               target="_blank"
               className="text-icy-blue-400 underline"
               rel="noreferrer"
