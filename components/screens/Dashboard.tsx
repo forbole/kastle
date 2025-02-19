@@ -30,10 +30,7 @@ export default function Dashboard() {
   const balance = account?.balance;
   const showBalance = !settings?.hideBalances;
 
-  const { data: tokenListResponse } = useTokenListByAddress(
-    settings?.preview ? address : undefined,
-    5000,
-  );
+  const { data: tokenListResponse } = useTokenListByAddress(address, 5000);
   const tokenListItems = tokenListResponse?.result
     ? tokenListResponse.result
     : [];
@@ -191,7 +188,7 @@ export default function Dashboard() {
             <span className="text-daintree-400">Receive</span>
           </div>
 
-          {settings?.preview && wallet?.type !== "ledger" ? (
+          {wallet?.type !== "ledger" ? (
             <>
               <div
                 className="flex cursor-pointer flex-col items-center gap-2"
@@ -279,15 +276,8 @@ export default function Dashboard() {
             <div className="mb-4 flex flex-col items-stretch gap-2">
               {/*KAS*/}
               <div
-                className={twMerge(
-                  "flex items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3",
-                  settings?.preview && "cursor-pointer hover:border-white",
-                )}
-                onClick={() => {
-                  if (settings?.preview) {
-                    navigate("/kas-asset");
-                  }
-                }}
+                className="flex cursor-pointer items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3 hover:border-white"
+                onClick={() => navigate("/kas-asset")}
               >
                 <img alt="castle" className="h-[40px] w-[40px]" src={kasIcon} />
                 <div className="flex flex-grow flex-col gap-1">
@@ -315,10 +305,9 @@ export default function Dashboard() {
               </div>
 
               {/*KRC20 tokens*/}
-              {settings?.preview &&
-                tokens.map((token) => (
-                  <TokenListItem key={token.tick} token={token} />
-                ))}
+              {tokens.map((token) => (
+                <TokenListItem key={token.tick} token={token} />
+              ))}
             </div>
           )}
         </div>

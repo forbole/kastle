@@ -1,5 +1,5 @@
 import React from "react";
-import { formatUSD } from "@/lib/utils.ts";
+import { formatToken } from "@/lib/utils.ts";
 import kasIcon from "@/assets/images/kas-icon.svg";
 
 export default function KasInfo() {
@@ -16,7 +16,7 @@ export default function KasInfo() {
               <span className="capitalize">KAS</span>
             </div>
             <div className="flex items-center justify-start text-sm text-daintree-400">
-              <span>≈ {formatUSD(kaspaPrice ?? 0)} USD</span>
+              <span>≈ {formatToken(kaspaPrice ?? 0)} USD</span>
             </div>
           </div>
         </div>

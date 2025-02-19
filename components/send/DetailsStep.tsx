@@ -25,7 +25,6 @@ export const DetailsStep = ({
   onBack?: () => void;
 }) => {
   const navigate = useNavigate();
-  const [settings] = useSettings();
   const { account, addresses } = useWalletManager();
   const { rpcClient, getMinimumFee } = useRpcClientStateful();
 
@@ -189,12 +188,10 @@ export const DetailsStep = ({
     <>
       <Header title="Send KAS" onClose={onClose} onBack={onBack} />
 
-      {settings?.preview && (
-        <TickerSelect
-          isShown={isTickerSelectShow}
-          toggleShow={toogleTickerSelect}
-        />
-      )}
+      <TickerSelect
+        isShown={isTickerSelectShow}
+        toggleShow={toogleTickerSelect}
+      />
 
       <div className="flex h-full flex-col gap-4">
         <label className="text-base font-medium">Send to ...</label>
@@ -231,39 +228,25 @@ export const DetailsStep = ({
 
           <div className="flex flex-col gap-4">
             <div className="flex rounded-lg bg-[#102831] text-daintree-400 shadow-sm">
-              {settings?.preview ? (
-                <button
-                  type="button"
-                  onClick={toogleTickerSelect}
-                  className={twMerge(
-                    "inline-flex min-w-fit items-center gap-2 rounded-s-md border border-e-0 border-daintree-700 px-4 text-sm",
-                    errors.amount
-                      ? "border-e-0 border-[#EF4444] ring-[#EF4444] focus:border-[#EF4444] focus:ring-[#EF4444]"
-                      : "border-daintree-700",
-                  )}
-                >
-                  <img
-                    alt="kas"
-                    className="h-[18px] w-[18px]"
-                    src={imageUrl}
-                    onError={onImageError}
-                  />
-                  {ticker.toUpperCase()}
-                  <i className="hn hn-chevron-down h-[16px] w-[16px]"></i>
-                </button>
-              ) : (
-                <span
-                  className={twMerge(
-                    "inline-flex min-w-fit items-center gap-2 rounded-s-md border border-e-0 border-daintree-700 px-4 text-sm",
-                    errors.amount
-                      ? "border-e-0 border-[#EF4444] ring-[#EF4444] focus:border-[#EF4444] focus:ring-[#EF4444]"
-                      : "border-daintree-700",
-                  )}
-                >
-                  <img alt="kas" className="h-[18px] w-[18px]" src={kasIcon} />
-                  KAS
-                </span>
-              )}
+              <button
+                type="button"
+                onClick={toogleTickerSelect}
+                className={twMerge(
+                  "inline-flex min-w-fit items-center gap-2 rounded-s-md border border-e-0 border-daintree-700 px-4 text-sm",
+                  errors.amount
+                    ? "border-e-0 border-[#EF4444] ring-[#EF4444] focus:border-[#EF4444] focus:ring-[#EF4444]"
+                    : "border-daintree-700",
+                )}
+              >
+                <img
+                  alt="kas"
+                  className="h-[18px] w-[18px]"
+                  src={imageUrl}
+                  onError={onImageError}
+                />
+                {ticker.toUpperCase()}
+                <i className="hn hn-chevron-down h-[16px] w-[16px]"></i>
+              </button>
               <input
                 {...register("amount", {
                   required: true,
