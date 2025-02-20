@@ -92,12 +92,7 @@ export default function Settings() {
               {lockAfterOptions.map((option) => (
                 <div
                   key={option.value}
-                  className={twMerge(
-                    "flex w-full cursor-pointer items-center rounded-lg p-2 opacity-80",
-                    selectedLockAfter?.name === option.name
-                      ? "bg-icy-blue-400"
-                      : "",
-                  )}
+                  className="flex w-full cursor-pointer items-center rounded-lg p-2 opacity-80 hover:bg-daintree-700"
                   onClick={async () => {
                     await changeLockAfter(option.value);
                     setLockAfterDropdownOpen(false);
@@ -126,9 +121,8 @@ export default function Settings() {
                 <div
                   key={network.id}
                   className={twMerge(
-                    "flex w-full cursor-pointer items-center gap-1 rounded-lg p-2 opacity-80",
+                    "flex w-full cursor-pointer items-center gap-1 rounded-lg p-2 opacity-80 hover:bg-daintree-700",
                     network.color,
-                    selectedNetwork?.id === network.id ? "bg-icy-blue-400" : "",
                   )}
                   onClick={async () => {
                     await changeNetwork(network.id);
