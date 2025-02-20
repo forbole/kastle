@@ -22,6 +22,7 @@ import { captureException } from "@sentry/react";
 import { Entry, PaymentOutput } from "@/lib/wallet/interface.ts";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import { FORBOLE_PAYOUT_ADDRESS } from "@/lib/forbole.ts";
+import { MIN_KAS_AMOUNT } from "@/lib/kaspa.ts";
 
 type HotWalletSendingProps = {
   accountFactory: AccountFactory;
@@ -110,17 +111,26 @@ export default function HotWalletBroadcastTokenOperation({
         outpoint: JSON.parse(P2SHEntry.outpoint.toString()),
       } satisfies Entry;
 
-      const paymentOutputs: PaymentOutput[] =
-        networkId === NetworkType.Mainnet
-          ? [
-              {
-                address: FORBOLE_PAYOUT_ADDRESS,
-                amount: FORBOLE_FEES[opData.op as OpForboleFeesKey].toString(),
-              },
-            ]
-          : [];
+      const getForboleFees = (): PaymentOutput[] => {
+        if (networkId !== NetworkType.Mainnet) {
+          return [];
+        }
 
-      const revealTxId = await account.signAndBroadcastTx(paymentOutputs, {
+        const forbolefee = FORBOLE_FEES[opData.op as OpForboleFeesKey];
+
+        if (forbolefee < MIN_KAS_AMOUNT) {
+          return [];
+        }
+
+        return [
+          {
+            address: FORBOLE_PAYOUT_ADDRESS,
+            amount: forbolefee.toString(),
+          },
+        ];
+      };
+
+      const revealTxId = await account.signAndBroadcastTx(getForboleFees(), {
         priorityEntries: [entry],
         scripts: [
           {

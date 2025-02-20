@@ -16,6 +16,7 @@ import { useBoolean } from "usehooks-ts";
 import TickerSelect from "@/components/send/TickerSelect.tsx";
 import { useTokenBalance } from "@/hooks/useTokenBalance.ts";
 import { applyDecimal, Fee, OP_FEES } from "@/lib/krc20.ts";
+import { MIN_KAS_AMOUNT } from "@/lib/kaspa.ts";
 
 export const DetailsStep = ({
   onNext,
@@ -78,9 +79,7 @@ export const DetailsStep = ({
       return "Oh, you don’t have enough funds";
     }
 
-    // Sending amount must be greater than 0.2 KAS as KIP-0009 standard requires
-    // https://github.com/kaspanet/kips/blob/master/kip-0009.md
-    if (amountNumber < 0.2) {
+    if (amountNumber < MIN_KAS_AMOUNT) {
       return "Oh, the minimum sending amount has to be greater than 0.2 KAS";
     }
 
