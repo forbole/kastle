@@ -6,7 +6,7 @@ import spinner from "@/assets/images/spinner.svg";
 import React, { useEffect, useState } from "react";
 import useWalletManager from "@/hooks/useWalletManager.ts";
 import { setPopupPath } from "@/lib/utils.ts";
-import { applyDecimal, Fee } from "@/lib/krc20.ts";
+import { applyDecimal, computeOperationFees, Fee } from "@/lib/krc20.ts";
 import { TickerInfoResponse } from "@/hooks/useKasplex.ts";
 import { useTokenListByAddress } from "@/hooks/useTokenListByAddress.ts";
 import MintTokenItem from "@/components/mint-token/MintTokenItem.tsx";
@@ -28,6 +28,8 @@ export default function MintToken() {
   const [mintableAmount, setMintableAmount] = useState("-");
   const [showList, setShowList] = useState(false);
   const tickerInput = form.watch("ticker");
+  const { krc20Fee, kaspaFee, forboleFee, totalFees } =
+    computeOperationFees("mint");
 
   const tokenListItems = tokenListResponse?.result
     ? tokenListResponse.result
@@ -248,7 +250,11 @@ export default function MintToken() {
                   <i
                     className="hn hn-info-circle text-[24px]"
                     data-tooltip-id="info-tooltip"
-                    data-tooltip-content="1 KAS for Miner deployment fee and 0.0001 Kas for Transaction Fee ."
+                    data-tooltip-content={
+                      forboleFee > 0
+                        ? `${krc20Fee} KAS for KRC20 fees, ${kaspaFee} KAS for Kaspa network fees and ${forboleFee} KAS for Kastle fees.`
+                        : `${krc20Fee} KAS for KRC20 fees and ${kaspaFee} KAS for Kaspa network fees.`
+                    }
                   ></i>
                   <Tooltip
                     id="info-tooltip"
@@ -261,7 +267,7 @@ export default function MintToken() {
                   />
                   <span className="text-base">Estimated Fee</span>
                   <span className="text-base font-semibold">
-                    {Fee.Mint + Fee.Base} KAS
+                    {totalFees} KAS
                   </span>
                 </div>
               </div>

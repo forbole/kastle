@@ -15,7 +15,7 @@ import { twMerge } from "tailwind-merge";
 import { useBoolean } from "usehooks-ts";
 import TickerSelect from "@/components/send/TickerSelect.tsx";
 import { useTokenBalance } from "@/hooks/useTokenBalance.ts";
-import { applyDecimal, Fee, OP_FEES } from "@/lib/krc20.ts";
+import { applyDecimal, computeOperationFees, Fee } from "@/lib/krc20.ts";
 import { MIN_KAS_AMOUNT } from "@/lib/kaspa.ts";
 
 export const DetailsStep = ({
@@ -322,7 +322,7 @@ export const DetailsStep = ({
           <span>
             {ticker === "kas"
               ? (transactionEstimate?.totalFees ?? "0")
-              : OP_FEES["transfer"] + Fee.Base}{" "}
+              : computeOperationFees("transfer").totalFees}{" "}
             KAS
           </span>
         </div>

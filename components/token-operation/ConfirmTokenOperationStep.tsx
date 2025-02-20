@@ -4,10 +4,11 @@ import signImage from "@/assets/images/sign.png";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/GeneralHeader.tsx";
 import { TokenOperationFormData } from "@/components/screens/TokenOperation.tsx";
-import { applyDecimal, Fee, OP_FEES, OpFeesKey } from "@/lib/krc20.ts";
+import { applyDecimal, computeOperationFees, Operation } from "@/lib/krc20.ts";
 import { useTokenInfo } from "@/hooks/useTokenInfo.ts";
 import { formatUSD } from "@/lib/utils.ts";
 import useKaspaPrice from "@/hooks/useKaspaPrice.ts";
+import { Tooltip } from "react-tooltip";
 
 export const ConfirmTokenOperationStep = ({
   onNext,
@@ -21,7 +22,9 @@ export const ConfirmTokenOperationStep = ({
   const kaspaPrice = useKaspaPrice();
 
   const opData = watch("opData");
-  const opFee = OP_FEES[opData.op as OpFeesKey];
+  const { krc20Fee, kaspaFee, forboleFee, totalFees } = computeOperationFees(
+    opData.op as Operation,
+  );
   const { toFloat } = applyDecimal(opData.dec);
   const { toPriceInUsd } = useTokenMetadata(
     opData.op === "mint" ? opData.tick : undefined,
@@ -127,11 +130,31 @@ export const ConfirmTokenOperationStep = ({
 
           <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
             <div className="flex w-full items-start justify-between">
-              <span className="font-medium">Fee</span>
+              <div className="flex items-center gap-2">
+                <span className="font-medium">Fee</span>
+                <i
+                  className="hn hn-info-circle text-lg"
+                  data-tooltip-id="info-tooltip"
+                  data-tooltip-content={
+                    forboleFee > 0
+                      ? `${krc20Fee} KAS for KRC20 fees, ${kaspaFee} KAS for Kaspa network fees and ${forboleFee} KAS for Kastle fees.`
+                      : `${krc20Fee} KAS for KRC20 fees and ${kaspaFee} KAS for Kaspa network fees.`
+                  }
+                ></i>
+                <Tooltip
+                  id="info-tooltip"
+                  style={{
+                    backgroundColor: "#374151",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    padding: "2px 8px",
+                  }}
+                />
+              </div>
               <div className="flex flex-col text-right">
-                <span className="font-medium">{opFee + Fee.Base} KAS</span>
+                <span className="font-medium">{totalFees} KAS</span>
                 <span className="text-xs text-daintree-400">
-                  {formatUSD((opFee + Fee.Base) * kaspaPrice.kaspaPrice)} USD
+                  {formatUSD(totalFees * kaspaPrice.kaspaPrice)} USD
                 </span>
               </div>
             </div>

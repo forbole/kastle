@@ -12,11 +12,9 @@ import { useEffect } from "react";
 import { sleep } from "@/lib/utils.ts";
 import {
   Amount,
+  computeOperationFees,
   createKRC20ScriptBuilder,
-  FORBOLE_FEES,
-  OP_FEES,
-  OpFeesKey,
-  OpForboleFeesKey,
+  Operation,
 } from "@/lib/krc20.ts";
 import { captureException } from "@sentry/react";
 import { Entry, PaymentOutput } from "@/lib/wallet/interface.ts";
@@ -111,21 +109,23 @@ export default function HotWalletBroadcastTokenOperation({
         outpoint: JSON.parse(P2SHEntry.outpoint.toString()),
       } satisfies Entry;
 
+      const { krc20Fee, forboleFee } = computeOperationFees(
+        opData.op as Operation,
+      );
+
       const getForboleFees = (): PaymentOutput[] => {
         if (networkId !== NetworkType.Mainnet) {
           return [];
         }
 
-        const forbolefee = FORBOLE_FEES[opData.op as OpForboleFeesKey];
-
-        if (forbolefee < MIN_KAS_AMOUNT) {
+        if (forboleFee < MIN_KAS_AMOUNT) {
           return [];
         }
 
         return [
           {
             address: FORBOLE_PAYOUT_ADDRESS,
-            amount: forbolefee.toString(),
+            amount: forboleFee.toString(),
           },
         ];
       };
@@ -138,7 +138,7 @@ export default function HotWalletBroadcastTokenOperation({
             scriptHex: scriptBuilder.toString(),
           },
         ],
-        priorityFee: OP_FEES[opData.op as OpFeesKey].toString(),
+        priorityFee: krc20Fee.toString(),
       });
 
       setOutTxs([commitTxId, revealTxId]);

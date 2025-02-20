@@ -6,7 +6,7 @@ import spinner from "@/assets/images/spinner.svg";
 import React from "react";
 import useWalletManager from "@/hooks/useWalletManager.ts";
 import { setPopupPath } from "@/lib/utils.ts";
-import { Fee } from "@/lib/krc20.ts";
+import { computeOperationFees, Fee } from "@/lib/krc20.ts";
 
 type DeployFormData = {
   ticker: string;
@@ -45,6 +45,8 @@ export default function DeployToken() {
   const { account } = useWalletManager();
   const balance = account?.balance ? parseFloat(account.balance) : 0;
   const maxSupplyLength = useRef(0);
+  const { krc20Fee, kaspaFee, forboleFee, totalFees } =
+    computeOperationFees("deploy");
 
   const onSubmit = handleSubmit(async (formValues) => {
     const decimalCoefficient = Math.pow(10, formValues.decimalPlaces);
@@ -385,7 +387,11 @@ export default function DeployToken() {
                 <i
                   className="hn hn-info-circle text-[24px]"
                   data-tooltip-id="info-tooltip"
-                  data-tooltip-content="1000 KAS for Miner deployment fee and 0.0001 Kas for Transaction Fee ."
+                  data-tooltip-content={
+                    forboleFee > 0
+                      ? `${krc20Fee} KAS for KRC20 fees, ${kaspaFee} KAS for Kaspa network fees and ${forboleFee} KAS for Kastle fees.`
+                      : `${krc20Fee} KAS for KRC20 fees and ${kaspaFee} KAS for Kaspa network fees.`
+                  }
                 ></i>
                 <Tooltip
                   id="info-tooltip"
@@ -397,9 +403,7 @@ export default function DeployToken() {
                   }}
                 />
                 <span className="text-base">Estimated Fee</span>
-                <span className="text-base font-semibold">
-                  {Fee.Deploy + Fee.Base} KAS
-                </span>
+                <span className="text-base font-semibold">{totalFees} KAS</span>
               </div>
             </div>
             {errors.root && (

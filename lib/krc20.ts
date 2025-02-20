@@ -1,5 +1,7 @@
 import { Opcodes, PublicKey, ScriptBuilder } from "@/wasm/core/kaspa";
 
+export type Operation = "deploy" | "mint" | "transfer";
+
 export enum Fee {
   Deploy = 1000,
   Mint = 1,
@@ -12,20 +14,17 @@ export enum ForboleFee {
   None = 0,
 }
 
-export const OP_FEES = {
+export const OP_FEES: Record<Operation, Fee> = {
   deploy: Fee.Deploy,
   mint: Fee.Mint,
   transfer: Fee.Base,
 };
 
-export const FORBOLE_FEES = {
+export const FORBOLE_FEES: Record<Operation, ForboleFee> = {
   deploy: ForboleFee.Deploy,
   mint: ForboleFee.Mint,
   transfer: ForboleFee.None,
 };
-
-export type OpFeesKey = keyof typeof OP_FEES;
-export type OpForboleFeesKey = keyof typeof FORBOLE_FEES;
 
 export enum Amount {
   ScriptUtxoAmount = "0.3",
@@ -51,5 +50,18 @@ export const applyDecimal = (decimalPlaces: string = "8") => {
   return {
     toFloat: (amount: number) => amount / decimalCoefficient,
     toInteger: (amount: number) => amount * decimalCoefficient,
+  };
+};
+
+export const computeOperationFees = (op: Operation) => {
+  const krc20Fee = OP_FEES[op];
+  const kaspaFee = Fee.Base;
+  const forboleFee = FORBOLE_FEES[op];
+
+  return {
+    krc20Fee,
+    kaspaFee,
+    forboleFee,
+    totalFees: krc20Fee + kaspaFee + forboleFee,
   };
 };
