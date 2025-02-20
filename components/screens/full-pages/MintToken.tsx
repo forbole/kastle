@@ -103,7 +103,7 @@ export default function MintToken() {
   return (
     <div className="flex w-[41rem] flex-col items-stretch gap-4 rounded-3xl bg-icy-blue-950">
       <div className="no-scrollbar flex h-full flex-col overflow-y-scroll px-10 pb-12 pt-4 text-white">
-        <Header title="Deploy KRC20" />
+        <Header title="Mint KRC20" />
         <FormProvider {...form}>
           <form onSubmit={onSubmit} className="flex flex-grow flex-col gap-6">
             {/*Ticker input group*/}
@@ -248,7 +248,7 @@ export default function MintToken() {
                   <i
                     className="hn hn-info-circle text-[24px]"
                     data-tooltip-id="info-tooltip"
-                    data-tooltip-content="1000 KAS for Miner deployment fee and 0.0001 Kas for Transaction Fee ."
+                    data-tooltip-content="1 KAS for Miner deployment fee and 0.0001 Kas for Transaction Fee ."
                   ></i>
                   <Tooltip
                     id="info-tooltip"
