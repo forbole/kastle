@@ -159,7 +159,7 @@ export default function MintToken() {
                 <div
                   className={twMerge(
                     "no-scrollbar absolute top-16 z-50 max-h-[26rem] w-full flex-col gap-4 overflow-y-scroll rounded-2xl border border-daintree-700 bg-daintree-800 p-4",
-                    showList ? "flex" : "hidden",
+                    showList && tokens.length !== 0 ? "flex" : "hidden",
                   )}
                 >
                   {tokens.map((token) => (
