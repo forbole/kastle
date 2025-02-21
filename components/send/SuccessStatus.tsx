@@ -27,16 +27,20 @@ export const SuccessStatus = ({ transactionIds }: SuccessProps) => {
   const isKrc20Operation = "opData" in formFields;
   const ticker = isKrc20Operation ? formFields.opData.tick : "KAS";
   const op = isKrc20Operation ? formFields?.opData?.op : "";
-  const opFormatted = op === "deploy" ? "Deployed" : "Minted";
-  const title = !isKrc20Operation
-    ? `${ticker} ${opFormatted}`
-    : "KAS Dispatched!";
-  const krc20DescriptionFormatted =
-    op === "deploy"
-      ? "A new token has been forget"
-      : `${ticker} has been forged!`;
+  const opTitle: Record<string, string> = {
+    transfer: `${ticker} Dispatched`,
+    deploy: `${ticker} Deployed`,
+    mint: `${ticker} Minted`,
+  };
+  const opDescription: Record<string, string> = {
+    transfer: `Your ${ticker} has been sent to the recipient's address`,
+    deploy: "A new token has been forget",
+    mint: `${ticker} has been forged!`,
+  };
+
+  const title = isKrc20Operation ? opTitle[op] : "KAS Dispatched!";
   const description = isKrc20Operation
-    ? krc20DescriptionFormatted
+    ? opDescription[op]
     : "Your KAS has been sent to the recipient's address";
 
   const openTransactions = () => {
