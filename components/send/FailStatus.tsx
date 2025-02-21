@@ -1,9 +1,12 @@
 import { explorerTxLinks } from "@/components/screens/Settings.tsx";
-import { useSettings } from "@/hooks/useSettings.ts";
 import { useNavigate } from "react-router-dom";
 import React from "react";
 import warningImage from "@/assets/images/warning.png";
 import Header from "@/components/GeneralHeader";
+import { useFormContext } from "react-hook-form";
+import { SendFormData } from "@/components/screens/Send.tsx";
+import { TokenOperationFormData } from "@/components/screens/TokenOperation.tsx";
+import { NetworkType } from "@/contexts/SettingsContext.tsx";
 
 // Types for props
 interface FailProps {
@@ -12,14 +15,17 @@ interface FailProps {
 
 export const FailStatus = ({ transactionIds }: FailProps) => {
   const navigate = useNavigate();
-  const [settings] = useSettings();
+  const { watch } = useFormContext<SendFormData | TokenOperationFormData>();
+  const { networkId } = useRpcClientStateful();
+  const formFields = watch();
 
-  const networkId = settings?.networkId ?? "mainnet";
-  const explorerTxLink = explorerTxLinks[networkId];
+  const explorerTxLink = explorerTxLinks[networkId ?? NetworkType.Mainnet];
 
   const onClose = () => {
     navigate("/dashboard");
   };
+
+  const isKrc20Operation = "opData" in formFields;
 
   const openTransactions = () => {
     for (const transactionId of transactionIds ?? []) {
@@ -40,11 +46,21 @@ export const FailStatus = ({ transactionIds }: FailProps) => {
             <span className="text-xl font-semibold text-red-500">
               Sorry, Your Majesty.
             </span>
-            <span className="px-2 text-sm text-gray-500">
-              {"The carriage couldn't deliver your KAS this time."}
-              <br />
-              {"Please check the recipient's address or try again later."}
-            </span>
+            {isKrc20Operation ? (
+              <span className="px-2 text-sm text-gray-500">
+                {
+                  "It seems the alchemists have faltered in their craft, and your token could not be forged."
+                }
+                <br />
+                {"Please try again later."}
+              </span>
+            ) : (
+              <span className="px-2 text-sm text-gray-500">
+                {"The carriage couldn't deliver your KAS this time."}
+                <br />
+                {"Please check the recipient's address or try again later."}
+              </span>
+            )}
           </div>
           {transactionIds?.length !== 0 && (
             <button

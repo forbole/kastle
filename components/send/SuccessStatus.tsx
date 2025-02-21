@@ -1,5 +1,4 @@
 import { explorerTxLinks } from "@/components/screens/Settings.tsx";
-import { useSettings } from "@/hooks/useSettings.ts";
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import successImage from "@/assets/images/success.png";
@@ -7,6 +6,7 @@ import Header from "@/components/GeneralHeader";
 import { useFormContext } from "react-hook-form";
 import { TokenOperationFormData } from "@/components/screens/TokenOperation.tsx";
 import { SendFormData } from "@/components/screens/Send.tsx";
+import { NetworkType } from "@/contexts/SettingsContext.tsx";
 
 interface SuccessProps {
   transactionIds?: string[] | undefined;
@@ -15,17 +15,29 @@ interface SuccessProps {
 export const SuccessStatus = ({ transactionIds }: SuccessProps) => {
   const navigate = useNavigate();
   const { watch } = useFormContext<SendFormData | TokenOperationFormData>();
-  const [settings] = useSettings();
+  const { networkId } = useRpcClientStateful();
   const formFields = watch();
 
-  const networkId = settings?.networkId ?? "mainnet";
-  const explorerTxLink = explorerTxLinks[networkId];
+  const explorerTxLink = explorerTxLinks[networkId ?? NetworkType.Mainnet];
 
   const onClose = () => {
     navigate("/dashboard");
   };
 
-  const ticker = "opData" in formFields ? formFields.opData.tick : "KAS";
+  const isKrc20Operation = "opData" in formFields;
+  const ticker = isKrc20Operation ? formFields.opData.tick : "KAS";
+  const op = isKrc20Operation ? formFields?.opData?.op : "";
+  const opFormatted = op === "deploy" ? "Deployed" : "Minted";
+  const title = !isKrc20Operation
+    ? `${ticker} ${opFormatted}`
+    : "KAS Dispatched!";
+  const krc20DescriptionFormatted =
+    op === "deploy"
+      ? "A new token has been forget"
+      : `${ticker} has been forged!`;
+  const description = isKrc20Operation
+    ? krc20DescriptionFormatted
+    : "Your KAS has been sent to the recipient's address";
 
   const openTransactions = () => {
     for (const transactionId of transactionIds ?? []) {
@@ -37,11 +49,7 @@ export const SuccessStatus = ({ transactionIds }: SuccessProps) => {
 
   return (
     <div className="flex h-full flex-col">
-      <Header
-        title={`${ticker} Dispatched!`}
-        showPrevious={false}
-        showClose={false}
-      />
+      <Header title={title} showPrevious={false} showClose={false} />
       <div className="mt-20 flex flex-1 flex-col justify-between">
         <div className="flex flex-col items-center gap-4">
           <img src={successImage} alt="Success" className="mx-auto h-24 w-24" />
@@ -49,9 +57,7 @@ export const SuccessStatus = ({ transactionIds }: SuccessProps) => {
             <span className="text-xl font-semibold text-[#14B8A6]">
               Success
             </span>
-            <span className="px-10 text-sm text-gray-400">
-              {"Your KAS has been sent to the recipient's address"}
-            </span>
+            <span className="px-10 text-sm text-gray-400">{description}</span>
           </div>
           {transactionIds?.length !== 0 && (
             <button
