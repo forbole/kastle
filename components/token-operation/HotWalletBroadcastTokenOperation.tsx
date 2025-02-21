@@ -12,11 +12,15 @@ import { useEffect } from "react";
 import { sleep } from "@/lib/utils.ts";
 import {
   Amount,
+  computeOperationFees,
   createKRC20ScriptBuilder,
-  OP_FEES,
-  OpFeesKey,
+  Operation,
 } from "@/lib/krc20.ts";
 import { captureException } from "@sentry/react";
+import { Entry, PaymentOutput } from "@/lib/wallet/interface.ts";
+import { NetworkType } from "@/contexts/SettingsContext.tsx";
+import { FORBOLE_PAYOUT_ADDRESSES } from "@/lib/forbole.ts";
+import { MIN_KAS_AMOUNT } from "@/lib/kaspa.ts";
 
 type HotWalletSendingProps = {
   accountFactory: AccountFactory;
@@ -33,13 +37,11 @@ export default function HotWalletBroadcastTokenOperation({
   onFail,
   onSuccess,
 }: HotWalletSendingProps) {
-  const { rpcClient } = useRpcClientStateful();
+  const { rpcClient, networkId } = useRpcClientStateful();
   const { watch } = useFormContext<TokenOperationFormData>();
   const calledOnce = useRef(false);
   const opData = watch("opData");
   const { walletSettings } = useWalletManager();
-  const [settings] = useSettings();
-  const networkId = settings?.networkId;
 
   const broadcastOperation = async () => {
     try {
@@ -105,9 +107,26 @@ export default function HotWalletBroadcastTokenOperation({
         scriptPublicKey: JSON.parse(P2SHEntry.scriptPublicKey.toString()),
         blockDaaScore: P2SHEntry.blockDaaScore.toString(),
         outpoint: JSON.parse(P2SHEntry.outpoint.toString()),
+      } satisfies Entry;
+
+      const { krc20Fee, forboleFee } = computeOperationFees(
+        opData.op as Operation,
+      );
+
+      const getForboleFees = (): PaymentOutput[] => {
+        if (forboleFee < MIN_KAS_AMOUNT) {
+          return [];
+        }
+
+        return [
+          {
+            address: FORBOLE_PAYOUT_ADDRESSES[networkId ?? NetworkType.Mainnet],
+            amount: forboleFee.toString(),
+          },
+        ];
       };
 
-      const revealTxId = await account.signAndBroadcastTx([], {
+      const revealTxId = await account.signAndBroadcastTx(getForboleFees(), {
         priorityEntries: [entry],
         scripts: [
           {
@@ -115,7 +134,7 @@ export default function HotWalletBroadcastTokenOperation({
             scriptHex: scriptBuilder.toString(),
           },
         ],
-        priorityFee: OP_FEES[opData.op as OpFeesKey].toString(),
+        priorityFee: krc20Fee.toString(),
       });
 
       setOutTxs([commitTxId, revealTxId]);
