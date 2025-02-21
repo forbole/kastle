@@ -11,7 +11,7 @@ export default function TokenAsset() {
   const [activeTab, setActiveTab] = useState<"history" | "info">("history");
 
   return (
-    <div className="flex h-full flex-col px-4 py-6">
+    <div className="no-scrollbar flex h-full flex-col overflow-y-scroll px-4 py-6">
       <Header
         title={ticker ?? ""}
         onBack={() => navigate("/dashboard")}

@@ -37,7 +37,7 @@ export default function TokenInfo() {
   }, [tokenMetadata?.iconUrl]);
 
   return (
-    <div className="mb-4 mt-8 flex flex-col items-stretch gap-2">
+    <div className="mt-8 flex flex-col items-stretch gap-2">
       {/* Header card */}
       <div className="flex flex-col items-stretch gap-2">
         <div className="flex items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3">
