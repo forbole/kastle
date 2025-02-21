@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { twMerge } from "tailwind-merge";
 import { v4 as uuid } from "uuid";
 import useAnalytics from "@/hooks/useAnalytics.ts";
+import { Mnemonic } from "@/wasm/core/kaspa";
 
 type PhraseLength = 12 | 24;
 
@@ -20,13 +21,16 @@ export default function ImportRecoveryPhrase() {
   const {
     register,
     formState: { isValid, dirtyFields },
+    watch,
     setValue,
     handleSubmit,
   } = useForm<SeedPhraseFormValues>({
     mode: "all",
   });
   const isDirtyAlt = !!Object.keys(dirtyFields).length;
+  const inputWords = watch();
 
+  const [recoveryPhraseError, setRecoveryPhraseError] = useState<string>();
   const [phraseLength, setPhraseLength] = useState<PhraseLength>(12);
   const [isHidden, setIsHidden] = useState(true);
 
@@ -46,6 +50,15 @@ export default function ImportRecoveryPhrase() {
         shouldValidate: true,
       });
     });
+  };
+
+  const joinRecoveryPhrase = () => {
+    const words: string[] = [];
+    for (let index = 0; index < phraseLength; index++) {
+      words.push(inputWords[`word${index + 1}` as `word${WordNumber}`]);
+    }
+
+    return words.join(" ");
   };
 
   const readFromClipboard = async () => {
@@ -77,6 +90,17 @@ export default function ImportRecoveryPhrase() {
       setWords(str);
     }
   };
+
+  useEffect(() => {
+    try {
+      new Mnemonic(joinRecoveryPhrase());
+
+      setRecoveryPhraseError(undefined);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (_) {
+      setRecoveryPhraseError("Oh, the recovery phrase is invalid");
+    }
+  }, [inputWords]);
 
   return (
     <div className="flex h-[56rem] w-[41rem] flex-col items-stretch gap-4 rounded-3xl bg-icy-blue-950 px-4">
@@ -159,10 +183,6 @@ export default function ImportRecoveryPhrase() {
                           onChange: (event) =>
                             pasteAllInCell(event.target.value as string),
                           required: "Word is required",
-                          pattern: {
-                            value: /^[a-zA-Z]+$/,
-                            message: "Only letters allowed",
-                          },
                         },
                       )}
                       autoComplete="off"
@@ -193,16 +213,16 @@ export default function ImportRecoveryPhrase() {
             )}
           </div>
 
-          {!isValid && isDirtyAlt && (
+          {(!isValid || recoveryPhraseError) && isDirtyAlt && (
             <span className="text-sm font-semibold text-red-500">
-              Oh, invalid
+              {recoveryPhraseError ? recoveryPhraseError : "Oh, invalid"}
             </span>
           )}
 
           <button
             type="submit"
             className="mt-auto inline-flex items-center justify-center gap-x-2 rounded-full border border-transparent bg-icy-blue-400 py-5 text-base text-white hover:bg-icy-blue-600 disabled:bg-daintree-800 disabled:text-[#4B5563]"
-            disabled={!isValid}
+            disabled={!isValid || !!recoveryPhraseError}
           >
             Import Wallet
           </button>
