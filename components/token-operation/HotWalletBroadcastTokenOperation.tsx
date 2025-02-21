@@ -114,10 +114,6 @@ export default function HotWalletBroadcastTokenOperation({
       );
 
       const getForboleFees = (): PaymentOutput[] => {
-        if (networkId !== NetworkType.Mainnet) {
-          return [];
-        }
-
         if (forboleFee < MIN_KAS_AMOUNT) {
           return [];
         }
