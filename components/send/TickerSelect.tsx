@@ -73,7 +73,7 @@ export default function TickerSelect({
 
           <input
             type="text"
-            className="block w-full rounded-lg border-neutral-700 bg-[#051D26] py-3 pe-4 ps-10 text-sm text-neutral-400 placeholder-neutral-500 focus:border-blue-500 focus:ring-neutral-600 disabled:pointer-events-none disabled:opacity-50"
+            className="block w-full rounded-lg border-daintree-700 bg-[#051D26] py-3 pe-4 ps-10 text-sm text-white placeholder-daintree-400 focus:border-daintree-700 focus:ring-daintree-700 disabled:pointer-events-none disabled:opacity-50"
             placeholder="Search token"
             onChange={(e) => setSearchQuery(e.target.value)}
           />
