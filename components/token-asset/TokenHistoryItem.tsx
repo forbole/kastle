@@ -99,7 +99,7 @@ export default function TokenHistoryItem({
                       new Intl.DateTimeFormat("en-US", {
                         dateStyle: "medium",
                         timeStyle: "short",
-                      }).format(new Date(parseInt(tickerInfo.mtsAdd, 10)))}
+                      }).format(new Date(parseInt(op.mtsAdd, 10)))}
                   </span>
                   <div className="flex items-center gap-2">
                     <i className="hn hn-check-circle size-4 text-[#14B8A6]"></i>
@@ -107,7 +107,7 @@ export default function TokenHistoryItem({
                   </div>
                   <button
                     type="button"
-                    onClick={() => openTransaction(tickerInfo?.hashRev ?? "")}
+                    onClick={() => openTransaction(op?.hashRev ?? "")}
                     className="flex items-center gap-2"
                   >
                     <i className="hn hn-check-circle size-4 text-[#14B8A6]"></i>
