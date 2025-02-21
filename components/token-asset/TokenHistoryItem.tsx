@@ -82,40 +82,38 @@ export default function TokenHistoryItem({
               {amount}
             </span>
           </div>
-          <div className="flex items-center justify-between text-sm text-daintree-400">
+          <div className="hs-tooltip hs-tooltip-toggle flex items-center justify-between text-sm text-daintree-400 [--placement:bottom] [--trigger:hover]">
+            <div
+              className="hs-tooltip-content invisible absolute z-10 flex flex-col gap-1.5 rounded-lg bg-daintree-700 px-4 py-3 text-sm text-white opacity-0 shadow-md transition-opacity after:absolute after:-top-6 after:left-0 after:h-8 after:w-14 hs-tooltip-shown:visible hs-tooltip-shown:opacity-100"
+              role="tooltip"
+            >
+              <span>TX Hash</span>
+              <span className="text-xs font-semibold text-daintree-400">
+                {tickerInfo?.mtsAdd &&
+                  new Intl.DateTimeFormat("en-US", {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  }).format(new Date(parseInt(op.mtsAdd, 10)))}
+              </span>
+              <div className="flex items-center gap-2">
+                <i className="hn hn-check-circle size-4 text-[#14B8A6]"></i>
+                <span>Commited</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => openTransaction(op?.hashRev ?? "")}
+                className="flex items-center gap-2"
+              >
+                <i className="hn hn-check-circle size-4 text-[#14B8A6]"></i>
+                <span>Revealed</span>
+                <i className="hn hn-external-link text-daintree-400"></i>
+              </button>
+            </div>
             <span className="flex items-center gap-2">
               TX Hash
-              <div className="hs-tooltip inline-block [--placement:bottom] [--trigger:click]">
-                <span className="hs-tooltip-toggle flex size-4 cursor-pointer items-center justify-center rounded-full bg-white/10 p-3 text-xs font-medium text-white">
-                  2
-                </span>
-                <div
-                  className="hs-tooltip-content invisible absolute z-10 flex flex-col gap-1.5 rounded-lg bg-daintree-700 px-4 py-3 text-sm text-white opacity-0 shadow-md transition-opacity hs-tooltip-shown:visible hs-tooltip-shown:opacity-100"
-                  role="tooltip"
-                >
-                  <span>TX Hash</span>
-                  <span className="text-xs font-semibold text-daintree-400">
-                    {tickerInfo?.mtsAdd &&
-                      new Intl.DateTimeFormat("en-US", {
-                        dateStyle: "medium",
-                        timeStyle: "short",
-                      }).format(new Date(parseInt(op.mtsAdd, 10)))}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <i className="hn hn-check-circle size-4 text-[#14B8A6]"></i>
-                    <span>Commited</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => openTransaction(op?.hashRev ?? "")}
-                    className="flex items-center gap-2"
-                  >
-                    <i className="hn hn-check-circle size-4 text-[#14B8A6]"></i>
-                    <span>Revealed</span>
-                    <i className="hn hn-external-link text-daintree-400"></i>
-                  </button>
-                </div>
-              </div>
+              <span className="flex size-4 cursor-pointer items-center justify-center rounded-full bg-white/10 p-3 text-xs font-medium text-white">
+                2
+              </span>
             </span>
             <span>≈ {formatUSD(amount * toPriceInUsd())} USD</span>
           </div>
