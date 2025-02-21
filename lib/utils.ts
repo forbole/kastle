@@ -8,14 +8,12 @@ export const sendMessage = <T>(method: Method, data = {}): Promise<T> =>
   browser.runtime.sendMessage({ method, ...data });
 
 export function formatTokenPrice(number: number) {
-  const hasLongDecimals = number.toString().split(".")[1]?.length > 8;
-
   const formatter = new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
-    notation: hasLongDecimals ? "scientific" : "standard",
-    minimumFractionDigits: hasLongDecimals ? 2 : 0,
-    maximumFractionDigits: hasLongDecimals ? 2 : 8,
+    notation: "standard",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 8,
   });
 
   return formatter.format(number);
