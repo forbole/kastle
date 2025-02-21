@@ -216,7 +216,7 @@ export default function Dashboard() {
                 <div className="flex h-[46px] w-[46px] items-center justify-center rounded-full bg-white/10">
                   <img
                     alt="castle"
-                    className="h-[20px] w-[20px]"
+                    className="h-[24px] w-[24px]"
                     src={gavelIcon}
                   />
                 </div>
