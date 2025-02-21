@@ -19,7 +19,7 @@ import {
 import { captureException } from "@sentry/react";
 import { Entry, PaymentOutput } from "@/lib/wallet/interface.ts";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
-import { FORBOLE_PAYOUT_ADDRESS } from "@/lib/forbole.ts";
+import { FORBOLE_PAYOUT_ADDRESSES } from "@/lib/forbole.ts";
 import { MIN_KAS_AMOUNT } from "@/lib/kaspa.ts";
 
 type HotWalletSendingProps = {
@@ -124,7 +124,7 @@ export default function HotWalletBroadcastTokenOperation({
 
         return [
           {
-            address: FORBOLE_PAYOUT_ADDRESS,
+            address: FORBOLE_PAYOUT_ADDRESSES[networkId ?? NetworkType.Mainnet],
             amount: forboleFee.toString(),
           },
         ];

@@ -9,8 +9,8 @@ export enum Fee {
 }
 
 export enum ForboleFee {
-  Deploy = 2,
-  Mint = 1,
+  Deploy = 20,
+  Mint = 0.02,
   None = 0,
 }
 
