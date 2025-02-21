@@ -6,6 +6,7 @@ import { SuccessStatus } from "@/components/send/SuccessStatus.tsx";
 import { FailStatus } from "@/components/send/FailStatus.tsx";
 import Sending from "@/components/send/Sending.tsx";
 import React from "react";
+import { useLocation } from "react-router";
 
 const steps = ["details", "confirm", "broadcast", "success", "fail"] as const;
 
@@ -20,12 +21,13 @@ export interface SendFormData {
 
 export default function Send() {
   const navigate = useNavigate();
+  const { state } = useLocation();
   const [step, setStep] = useState<Step>("details");
   const form = useForm<SendFormData>({
     defaultValues: {
-      ticker: "kas",
-      address: undefined,
-      amount: "",
+      ticker: state?.ticket ?? "kas",
+      address: state?.to,
+      amount: state?.amount ?? "",
     },
     mode: "onChange",
   });

@@ -105,7 +105,7 @@ export default function TokenOperation() {
 
   const onBack = () => {
     if (op === "transfer") {
-      navigate(-1);
+      return navigate({ pathname: "/send" }, { state });
     }
 
     setStep((prevState) => {
