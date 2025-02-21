@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import castleImage from "@/assets/images/castle.png";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useBoolean } from "usehooks-ts";
-import kastleBanner from "@/assets/images/kastle-banner.png";
+import kastleBanner from "@/assets/images/kastle-banner.svg";
 import { twMerge } from "tailwind-merge";
 import useKeyring from "@/hooks/useKeyring.ts";
 
