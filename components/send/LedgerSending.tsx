@@ -31,7 +31,7 @@ export default function LedgerSending({
   const { walletSettings } = useWalletManager();
   const calledOnce = useRef(false);
   const form = useFormContext<SendFormData>();
-  const { amount, address } = form.watch();
+  const { amount, address, domain } = form.watch();
 
   const sendTransaction = async () => {
     if (!transport) {
@@ -75,6 +75,7 @@ export default function LedgerSending({
       await addRecentAddress({
         kaspaAddress: address,
         usedAt: new Date().getTime(),
+        domain,
       });
 
       onSuccess();

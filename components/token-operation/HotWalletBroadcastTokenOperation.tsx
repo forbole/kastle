@@ -43,6 +43,7 @@ export default function HotWalletBroadcastTokenOperation({
   const { watch } = useFormContext<TokenOperationFormData>();
   const calledOnce = useRef(false);
   const opData = watch("opData");
+  const domain = watch("domain");
   const { walletSettings } = useWalletManager();
 
   const broadcastOperation = async () => {
@@ -144,6 +145,7 @@ export default function HotWalletBroadcastTokenOperation({
         await addRecentAddress({
           kaspaAddress: tokenOperationRecipientAddress,
           usedAt: new Date().getTime(),
+          domain,
         });
       }
 

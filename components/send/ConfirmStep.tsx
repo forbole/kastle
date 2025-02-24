@@ -19,7 +19,7 @@ export const ConfirmStep = ({
 
   const { account } = useWalletManager();
   const { watch } = useFormContext<SendFormData>();
-  const { address, amount } = watch();
+  const { address, amount, domain } = watch();
   const kapsaPrice = useKaspaPrice();
   const amountNumber = parseFloat(amount ?? "0");
 
@@ -48,7 +48,10 @@ export const ConfirmStep = ({
 
         {/* Recipient */}
         <div className="flex flex-col gap-2 rounded-lg border border-daintree-700 bg-daintree-800 p-4">
-          <span className="text-base font-medium">Recipient</span>
+          <span className="text-base font-medium">
+            Recipient
+            {!!domain && ` - ${domain}`}
+          </span>
           <span className="break-all text-xs text-daintree-400">{address}</span>
         </div>
 

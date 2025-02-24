@@ -4,9 +4,10 @@ import Promise from "lie";
 
 const RECENT_ADDRESSES_KEY = "local:recent-addresses";
 
-type RecentAddress = {
+export type RecentAddress = {
   kaspaAddress: string;
   usedAt: number;
+  domain?: string;
 };
 
 const defaultValues: RecentAddressesContextType = {

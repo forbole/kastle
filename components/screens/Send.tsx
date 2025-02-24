@@ -14,9 +14,11 @@ type Step = (typeof steps)[number];
 
 export interface SendFormData {
   ticker: string;
+  userInput: string | undefined;
   address: string | undefined;
   amount: string | undefined;
   amountUSD: string | undefined;
+  domain: string | undefined;
 }
 
 export default function Send() {

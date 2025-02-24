@@ -29,7 +29,7 @@ export default function HotWalletSending({
   const { walletSettings } = useWalletManager();
   const calledOnce = useRef(false);
   const form = useFormContext<SendFormData>();
-  const { amount, address } = form.watch();
+  const { amount, address, domain } = form.watch();
 
   const sendTransaction = async () => {
     if (form.formState.isSubmitting || !amount || !address) {
@@ -59,6 +59,7 @@ export default function HotWalletSending({
       await addRecentAddress({
         usedAt: new Date().getTime(),
         kaspaAddress: address,
+        domain,
       });
 
       setOutTxs(transactionResponse.txIds);

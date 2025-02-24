@@ -16,6 +16,7 @@ type Step = (typeof steps)[number];
 
 export interface TokenOperationFormData {
   opData: Record<string, string>;
+  domain?: string;
 }
 
 export default function TokenOperation() {
@@ -24,7 +25,7 @@ export default function TokenOperation() {
   const [searchParams] = useSearchParams();
   const [step, setStep] = useState<Step>("confirm");
   const form = useForm<TokenOperationFormData>({
-    defaultValues: { opData: {} },
+    defaultValues: { opData: {}, domain: state?.domain },
   });
   const [outTxs, setOutTxs] = useState<string[]>();
 
