@@ -2,21 +2,36 @@ import { createContext, ReactNode, useCallback, useState } from "react";
 import Transport from "@ledgerhq/hw-transport";
 import TransportWebHid from "@ledgerhq/hw-transport-webhid";
 import { captureException } from "@sentry/react";
+import KaspaApp from "hw-app-kaspa";
 
 interface LedgerTransportContextType {
   transport: Transport | null;
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
   isConnecting: boolean;
+  isAppOpen: boolean;
 }
 
 export const LedgerTransportContext = createContext<
   LedgerTransportContextType | undefined
 >(undefined);
 
+async function checkKaspaAppOpen(transport: Transport) {
+  const kaspaApp = new KaspaApp(transport);
+  try {
+    await kaspaApp.getVersion();
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
 export function LedgerTransportProvider({ children }: { children: ReactNode }) {
   const [transport, setTransport] = useState<Transport | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [isAppOpen, setIsAppOpen] = useState(false);
+  const [isAppOpenCheckInterval, setIsAppOpenCheckInterval] =
+    useState<NodeJS.Timeout | null>(null);
 
   const connect = async () => {
     if (isConnecting || transport) return;
@@ -24,22 +39,31 @@ export function LedgerTransportProvider({ children }: { children: ReactNode }) {
 
     try {
       // Try to get existing connection
-      const existingTransport = await TransportWebHid.openConnected();
-      if (existingTransport) {
-        setTransport(existingTransport);
-        return;
+      let connectedTransport: Transport | null =
+        await TransportWebHid.openConnected();
+      if (!connectedTransport) {
+        connectedTransport = await TransportWebHid.create();
       }
 
-      // Create new connection if none exists
-      const newTransport = await TransportWebHid.create();
-      setTransport(newTransport);
+      // Check if Kaspa app is open
+      if (await checkKaspaAppOpen(connectedTransport)) {
+        setIsAppOpen(true);
+      }
 
-      newTransport.on("disconnect", () => {
+      // Check if Kaspa app is open every 5 seconds
+      const appOpenCheckInterval = setInterval(async () => {
+        const isOpen = await checkKaspaAppOpen(connectedTransport);
+        setIsAppOpen(isOpen);
+      }, 5_000);
+
+      setIsAppOpenCheckInterval(appOpenCheckInterval);
+      setTransport(connectedTransport);
+
+      connectedTransport.on("disconnect", () => {
+        clearInterval(appOpenCheckInterval);
+        setIsAppOpen(false);
         setTransport(null);
-        newTransport.close();
       });
-
-      // detect app close
     } catch (error) {
       captureException(error);
       console.error("Ledger connection error:", error);
@@ -52,14 +76,17 @@ export function LedgerTransportProvider({ children }: { children: ReactNode }) {
   const disconnect = useCallback(async () => {
     if (transport) {
       try {
-        await transport.close();
         setTransport(null);
       } catch (error) {
         captureException(error);
         console.error("Transport disconnection error:", error);
       }
     }
-  }, [transport]);
+
+    if (isAppOpenCheckInterval) {
+      clearInterval(isAppOpenCheckInterval);
+    }
+  }, [transport, isAppOpenCheckInterval]);
 
   return (
     <LedgerTransportContext.Provider
@@ -68,6 +95,7 @@ export function LedgerTransportProvider({ children }: { children: ReactNode }) {
         connect,
         disconnect,
         isConnecting,
+        isAppOpen,
       }}
     >
       {children}
