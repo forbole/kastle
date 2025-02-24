@@ -8,6 +8,7 @@ import { SendFormData } from "@/components/screens/Send.tsx";
 import { useEffect } from "react";
 import useAnalytics from "@/hooks/useAnalytics.ts";
 import { captureException } from "@sentry/react";
+import useRecentAddresses from "@/hooks/useRecentAddresses.ts";
 
 type LedgerSendingProps = {
   accountFactory: AccountFactory;
@@ -24,6 +25,7 @@ export default function LedgerSending({
   onFail,
   onSuccess,
 }: LedgerSendingProps) {
+  const { addRecentAddress } = useRecentAddresses();
   const { emitFirstTransaction } = useAnalytics();
   const { transport, connect } = useLedgerTransport();
   const { walletSettings } = useWalletManager();
@@ -68,6 +70,11 @@ export default function LedgerSending({
         amount,
         coin: "KAS",
         direction: "send",
+      });
+
+      await addRecentAddress({
+        kaspaAddress: address,
+        usedAt: new Date().getTime(),
       });
 
       onSuccess();

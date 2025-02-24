@@ -49,6 +49,7 @@ import MintToken from "@/components/screens/full-pages/MintToken.tsx";
 import TokenAsset from "@/components/screens/TokenAsset.tsx";
 import KasAsset from "@/components/screens/KasAsset.tsx";
 import SignTxConfirm from "@/components/screens/browser-api/SignTxConfirm";
+import { RecentAddressesProvider } from "@/contexts/RecentAddressesContext.tsx";
 
 const loadKaspaWasm = async () => {
   await init(kaspaModule);
@@ -98,13 +99,15 @@ export const router = createHashRouter([
         element: (
           <KaspaPriceProvider>
             <SettingsProvider>
-              <RpcClientProvider>
-                <LedgerTransportProvider>
-                  <WalletManagerProvider>
-                    <Outlet />
-                  </WalletManagerProvider>
-                </LedgerTransportProvider>
-              </RpcClientProvider>
+              <RecentAddressesProvider>
+                <RpcClientProvider>
+                  <LedgerTransportProvider>
+                    <WalletManagerProvider>
+                      <Outlet />
+                    </WalletManagerProvider>
+                  </LedgerTransportProvider>
+                </RpcClientProvider>
+              </RecentAddressesProvider>
             </SettingsProvider>
           </KaspaPriceProvider>
         ),

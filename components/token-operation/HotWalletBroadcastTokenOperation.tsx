@@ -21,6 +21,7 @@ import { Entry, PaymentOutput } from "@/lib/wallet/interface.ts";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import { FORBOLE_PAYOUT_ADDRESSES } from "@/lib/forbole.ts";
 import { MIN_KAS_AMOUNT } from "@/lib/kaspa.ts";
+import useRecentAddresses from "@/hooks/useRecentAddresses.ts";
 
 type HotWalletSendingProps = {
   accountFactory: AccountFactory;
@@ -37,6 +38,7 @@ export default function HotWalletBroadcastTokenOperation({
   onFail,
   onSuccess,
 }: HotWalletSendingProps) {
+  const { addRecentAddress } = useRecentAddresses();
   const { rpcClient, networkId } = useRpcClientStateful();
   const { watch } = useFormContext<TokenOperationFormData>();
   const calledOnce = useRef(false);
@@ -136,6 +138,14 @@ export default function HotWalletBroadcastTokenOperation({
         ],
         priorityFee: krc20Fee.toString(),
       });
+
+      const tokenOperationRecipientAddress = opData?.to;
+      if (tokenOperationRecipientAddress) {
+        await addRecentAddress({
+          kaspaAddress: tokenOperationRecipientAddress,
+          usedAt: new Date().getTime(),
+        });
+      }
 
       setOutTxs([commitTxId, revealTxId]);
       onSuccess();

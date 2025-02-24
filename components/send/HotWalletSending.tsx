@@ -7,6 +7,7 @@ import { SendFormData } from "@/components/screens/Send.tsx";
 import { useEffect } from "react";
 import useAnalytics from "@/hooks/useAnalytics.ts";
 import { captureException } from "@sentry/react";
+import useRecentAddresses from "@/hooks/useRecentAddresses.ts";
 
 type HotWalletSendingProps = {
   accountFactory: AccountFactory;
@@ -24,6 +25,7 @@ export default function HotWalletSending({
   onSuccess,
 }: HotWalletSendingProps) {
   const { emitFirstTransaction } = useAnalytics();
+  const { addRecentAddress } = useRecentAddresses();
   const { walletSettings } = useWalletManager();
   const calledOnce = useRef(false);
   const form = useFormContext<SendFormData>();
@@ -53,6 +55,11 @@ export default function HotWalletSending({
         onFail();
         return;
       }
+
+      await addRecentAddress({
+        usedAt: new Date().getTime(),
+        kaspaAddress: address,
+      });
 
       setOutTxs(transactionResponse.txIds);
       // Don't await, analytics should not crash the app
