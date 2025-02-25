@@ -10,6 +10,8 @@ export default function LedgerConnectFailed() {
     <div className="flex h-[39rem] w-[41rem] flex-col items-center gap-4 rounded-3xl bg-icy-blue-950 p-4 pb-6">
       <Header title="Connect Ledger" showClose={false} showPrevious={false} />
 
+      <div>Failed to connect to Ledger device</div>
+
       <button
         onClick={async() => {
           await disconnect();

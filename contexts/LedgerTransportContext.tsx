@@ -39,34 +39,34 @@ export function LedgerTransportProvider({ children }: { children: ReactNode }) {
 
     try {
       // Try to get existing connection
-      let connectedTransport: Transport | null =
+      let newTransport: Transport | null =
         await TransportWebHid.openConnected();
-      if (!connectedTransport) {
-        connectedTransport = await TransportWebHid.create();
+      if (!newTransport) {
+        newTransport = await TransportWebHid.create();
       }
 
       // Check if Kaspa app is open
-      if (await checkKaspaAppOpen(connectedTransport)) {
+      if (await checkKaspaAppOpen(newTransport)) {
         setIsAppOpen(true);
+      } else {
+        const checkInterval = setInterval(async () => {
+          if (await checkKaspaAppOpen(newTransport)) {
+            setIsAppOpen(true);
+            clearInterval(checkInterval);
+          }
+        }, 1000);
       }
 
-      // Check if Kaspa app is open every 5 seconds
-      const appOpenCheckInterval = setInterval(async () => {
-        const isOpen = await checkKaspaAppOpen(connectedTransport);
-        setIsAppOpen(isOpen);
-      }, 5_000);
+      setTransport(newTransport);
 
-      setIsAppOpenCheckInterval(appOpenCheckInterval);
-      setTransport(connectedTransport);
-
-      connectedTransport.on("disconnect", () => {
-        clearInterval(appOpenCheckInterval);
-        setIsAppOpen(false);
+      newTransport.on("disconnect", () => {
+        console.log("Ledger device disconnected");
+        newTransport?.close();
         setTransport(null);
+        setIsAppOpen(false);
       });
     } catch (error) {
       captureException(error);
-      console.error("Ledger connection error:", error);
       throw new Error("Failed to connect to Ledger device");
     } finally {
       setIsConnecting(false);

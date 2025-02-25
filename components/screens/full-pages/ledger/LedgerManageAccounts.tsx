@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef } from "react";
 import { AccountFactory } from "@/lib/wallet/wallet-factory";
 import ManageAccounts, {
   ListAccountsRequest,
@@ -12,7 +12,7 @@ export default function LedgerManageAccounts() {
   const { transport } = useLedgerTransport();
   const { rpcClient, networkId } = useRpcClientStateful();
   const { getWalletSecret } = useKeyring();
-  const calledOnce = React.useRef(false);
+  const calledOnce = useRef(false);
 
   const listAccounts =
     rpcClient && networkId
