@@ -45,7 +45,7 @@ export function RecentAddressesProvider({ children }: { children: ReactNode }) {
 
     uniqueRecentAddresses.sort((a, b) => b.usedAt - a.usedAt);
 
-    await setRecentAddresses(uniqueRecentAddresses);
+    await setRecentAddresses(uniqueRecentAddresses.slice(0, 6));
   };
 
   return (
