@@ -9,6 +9,7 @@ import { useEffect } from "react";
 import useAnalytics from "@/hooks/useAnalytics.ts";
 import { captureException } from "@sentry/react";
 import useRecentAddresses from "@/hooks/useRecentAddresses.ts";
+import { useNavigate } from "react-router-dom";
 
 type LedgerSendingProps = {
   accountFactory: AccountFactory;
@@ -25,9 +26,10 @@ export default function LedgerSending({
   onFail,
   onSuccess,
 }: LedgerSendingProps) {
+  const navigate = useNavigate();
   const { addRecentAddress } = useRecentAddresses();
   const { emitFirstTransaction } = useAnalytics();
-  const { transport, connect } = useLedgerTransport();
+  const { transport } = useLedgerTransport();
   const { walletSettings } = useWalletManager();
   const calledOnce = useRef(false);
   const form = useFormContext<SendFormData>();
@@ -87,17 +89,20 @@ export default function LedgerSending({
   };
 
   useEffect(() => {
+    if (!transport) {
+      const currentUrl = window.location.hash.replace("#", "");
+      const base64EncodedForm = btoa(JSON.stringify(form.getValues()));
+      const redirectUrl = encodeURIComponent(
+        `${currentUrl}?step=confirm&form=${base64EncodedForm}`,
+      );
+      navigate("/ledger-connect-for-sign?redirect=" + redirectUrl);
+      return;
+    }
+
     if (calledOnce.current) return;
     sendTransaction();
     calledOnce.current = true;
-  }, []);
+  }, [transport]);
 
-  return !transport ? (
-    <>
-      <div>Waiting for connecting</div>
-      <button onClick={connect}>Connect</button>
-    </>
-  ) : (
-    <LoadingStatus />
-  );
+  return <LoadingStatus />;
 }

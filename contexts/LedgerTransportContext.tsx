@@ -60,7 +60,6 @@ export function LedgerTransportProvider({ children }: { children: ReactNode }) {
       setTransport(newTransport);
 
       newTransport.on("disconnect", () => {
-        console.log("Ledger device disconnected");
         newTransport?.close();
         setTransport(null);
         setIsAppOpen(false);

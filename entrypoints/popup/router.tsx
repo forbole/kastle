@@ -51,6 +51,7 @@ import SignTxConfirm from "@/components/screens/browser-api/SignTxConfirm";
 import { RecentAddressesProvider } from "@/contexts/RecentAddressesContext.tsx";
 import ImportLedgerStart from "@/components/screens/full-pages/ledger/ImportLedgerStart";
 import LedgerConnectFailed from "@/components/screens/full-pages/ledger/LedgerConnectFailed";
+import LedgerConnectForSign from "@/components/send/LedgerConnectForSign";
 
 const loadKaspaWasm = async () => {
   await init(kaspaModule);
@@ -102,9 +103,9 @@ export const router = createHashRouter([
             <SettingsProvider>
               <RecentAddressesProvider>
                 <RpcClientProvider>
-                    <WalletManagerProvider>
-                      <Outlet />
-                    </WalletManagerProvider>
+                  <WalletManagerProvider>
+                    <Outlet />
+                  </WalletManagerProvider>
                 </RpcClientProvider>
               </RecentAddressesProvider>
             </SettingsProvider>
@@ -182,6 +183,10 @@ export const router = createHashRouter([
                   {
                     path: "kas-asset",
                     element: <KasAsset />,
+                  },
+                  {
+                    path: "ledger-connect-for-sign",
+                    element: <LedgerConnectForSign />,
                   },
                 ],
               },
