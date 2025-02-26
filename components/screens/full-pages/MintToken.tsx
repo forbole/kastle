@@ -5,21 +5,33 @@ import { Tooltip } from "react-tooltip";
 import spinner from "@/assets/images/spinner.svg";
 import React, { useEffect, useState } from "react";
 import useWalletManager from "@/hooks/useWalletManager.ts";
-import { setPopupPath } from "@/lib/utils.ts";
-import { applyDecimal, computeOperationFees, Fee } from "@/lib/krc20.ts";
+import { applyDecimal, computeOperationFees } from "@/lib/krc20.ts";
 import { TickerInfoResponse } from "@/hooks/useKasplex.ts";
 import { useTokenListByAddress } from "@/hooks/useTokenListByAddress.ts";
 import MintTokenItem from "@/components/mint-token/MintTokenItem.tsx";
+import { useNavigate } from "react-router-dom";
+import { useLocation } from "react-router";
 
 export type DeployFormData = {
   ticker: string;
-  mintAmount?: number;
+  mintTimes: number;
+  maxMintTimes: number;
+  mintAmount: number;
 };
 
 export default function MintToken() {
+  const MIN_MINT_TIMES = 10;
+  const navigate = useNavigate();
+  const { state } = useLocation();
   const { fetchTokenInfo } = useKasplex();
   const form = useForm<DeployFormData>({
     mode: "all",
+    defaultValues: {
+      mintTimes: MIN_MINT_TIMES,
+      maxMintTimes: 0,
+      mintAmount: 0,
+      ...state,
+    },
   });
   const { account } = useWalletManager();
   const { data: tokenListResponse } = useTokenListByAddress(account?.address);
@@ -27,9 +39,16 @@ export default function MintToken() {
   const [tickerInfo, setTickerInfo] = useState<TickerInfoResponse>();
   const [mintableAmount, setMintableAmount] = useState("-");
   const [showList, setShowList] = useState(false);
-  const tickerInput = form.watch("ticker");
-  const { krc20Fee, kaspaFee, forboleFee, totalFees } =
-    computeOperationFees("mint");
+  const {
+    ticker: tickerInput,
+    mintAmount,
+    mintTimes,
+    maxMintTimes,
+  } = form.watch();
+  const { krc20Fee, kaspaFee, forboleFee, totalFees } = computeOperationFees(
+    "mint",
+    mintTimes,
+  );
 
   const tokenListItems = tokenListResponse?.result
     ? tokenListResponse.result
@@ -47,14 +66,15 @@ export default function MintToken() {
       );
     });
 
-  const onSubmit = form.handleSubmit(async (formValues) => {
-    const queryParams = new URLSearchParams({
-      op: "mint",
-      ticker: formValues.ticker,
-    });
-
-    setPopupPath(`/token-operation?${queryParams.toString()}`, () =>
-      browser.action.openPopup(),
+  const onSubmit = form.handleSubmit(async ({ mintTimes, ticker }) => {
+    navigate(
+      { pathname: "/confirm-mint" },
+      {
+        state: {
+          ticker,
+          mintTimes,
+        },
+      },
     );
   });
 
@@ -85,22 +105,28 @@ export default function MintToken() {
     const { toFloat } = applyDecimal(tickerDetails.dec);
     const max = parseInt(tickerDetails.max, 10);
     const minted = parseInt(tickerDetails.minted, 10);
+    const mintable = max - minted;
+    const mintAmount = toFloat(parseInt(tickerDetails.lim, 10));
 
-    form.setValue("mintAmount", toFloat(parseInt(tickerDetails.lim, 10)));
+    form.setValue(
+      "maxMintTimes",
+      Math.ceil(mintAmount !== 0 ? mintable / mintAmount : 0),
+    );
+    form.setValue("mintAmount", mintAmount);
     setMintableAmount(
-      `${((minted / max) * 100).toFixed(0)}% (${toFloat(minted).toLocaleString()}/${toFloat(max).toLocaleString()})`,
+      `${((mintable / max) * 100).toFixed(0)}% (${toFloat(mintable).toLocaleString()}/${toFloat(max).toLocaleString()})`,
     );
   }, [tickerInfo]);
 
   useEffect(() => {
-    if (balance < Fee.Mint + Fee.Base) {
+    if (balance < totalFees) {
       form.setError("root", {
         message: "Oh, you don't have enough funds to cover the estimated fees",
       });
     } else {
       form.clearErrors("root");
     }
-  }, [balance]);
+  }, [balance, totalFees]);
 
   return (
     <div className="flex w-[41rem] flex-col items-stretch gap-4 rounded-3xl bg-icy-blue-950">
@@ -230,22 +256,77 @@ export default function MintToken() {
                   </label>
                 </div>
               </div>
-              <div className="flex flex-col gap-1">
+              <div className="bg-white/1 rounded-lg border border-daintree-700 px-8 py-4">
                 <input
-                  className={twMerge(
-                    "w-full rounded-lg border-0 bg-daintree-800 px-4 py-3 ring-0 focus:ring-0",
-                    form.formState.errors.mintAmount &&
-                      "ring ring-red-500/25 focus:ring focus:ring-red-500/25",
-                  )}
-                  {...form.register("mintAmount", { disabled: true })}
+                  type="range"
+                  {...form.register("mintTimes", {
+                    min: MIN_MINT_TIMES,
+                    max: maxMintTimes,
+                    disabled: maxMintTimes < MIN_MINT_TIMES,
+                  })}
+                  min={MIN_MINT_TIMES}
+                  max={maxMintTimes}
+                  step={MIN_MINT_TIMES}
+                  className="w-full cursor-pointer appearance-none bg-transparent focus:outline-none disabled:pointer-events-none disabled:opacity-50 [&::-moz-range-thumb]:h-2.5 [&::-moz-range-thumb]:w-2.5 [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-4 [&::-moz-range-thumb]:border-icy-blue-400 [&::-moz-range-thumb]:bg-icy-blue-400 [&::-moz-range-thumb]:transition-all [&::-moz-range-thumb]:duration-150 [&::-moz-range-thumb]:ease-in-out [&::-moz-range-track]:h-2 [&::-moz-range-track]:w-full [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-daintree-800 [&::-webkit-slider-runnable-track]:h-2 [&::-webkit-slider-runnable-track]:w-full [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-daintree-800 [&::-webkit-slider-thumb]:-mt-0.5 [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-daintree-800 [&::-webkit-slider-thumb]:shadow-[0_0_0_4px_#00B1D0] [&::-webkit-slider-thumb]:transition-all [&::-webkit-slider-thumb]:duration-150 [&::-webkit-slider-thumb]:ease-in-out"
                 />
+                <div className="-mt-1 flex items-center justify-between">
+                  <div className="flex flex-col items-center gap-2">
+                    <span className="ml-1 self-start text-daintree-600">|</span>
+                    <span>{mintAmount * MIN_MINT_TIMES}</span>
+                  </div>
+                  <div className="mr-1 flex flex-col items-center gap-2">
+                    <span className="self-end text-daintree-600">|</span>
+                    <span>{mintAmount * maxMintTimes}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Total Mint amount */}
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center gap-2">
+                <i
+                  className="hn hn-info-circle text-[24px]"
+                  data-tooltip-id="info-tooltip"
+                  data-tooltip-content="The total number of tokens you’re minting in this transaction."
+                ></i>
+                <Tooltip
+                  id="info-tooltip"
+                  style={{
+                    backgroundColor: "#374151",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    padding: "2px 8px",
+                  }}
+                />
+                <span className="text-base">Total Mint amount</span>
+                <span className="ml-auto text-base font-semibold">
+                  {`${(mintTimes * mintAmount).toLocaleString()} ${tickerInput}`}
+                </span>
               </div>
             </div>
 
             {/* Fees indicator */}
             <div className="flex flex-col gap-4">
               <div className="flex items-center justify-between">
-                <span className="text-base">Fee</span>
+                <div className="flex items-center gap-2">
+                  <i
+                    className="hn hn-info-circle text-[24px]"
+                    data-tooltip-id="info-tooltip"
+                    data-tooltip-content={`Fee Charged Every 10 transactions (${mintAmount} ${tickerInput}).`}
+                  ></i>
+                  <Tooltip
+                    id="info-tooltip"
+                    style={{
+                      backgroundColor: "#374151",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      padding: "2px 8px",
+                    }}
+                  />
+
+                  <span className="text-base">Fee</span>
+                </div>
                 <div className="flex items-center gap-2">
                   <i
                     className="hn hn-info-circle text-[24px]"

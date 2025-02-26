@@ -49,6 +49,10 @@ import MintToken from "@/components/screens/full-pages/MintToken.tsx";
 import TokenAsset from "@/components/screens/TokenAsset.tsx";
 import KasAsset from "@/components/screens/KasAsset.tsx";
 import SignTxConfirm from "@/components/screens/browser-api/SignTxConfirm";
+import ConfirmMint from "@/components/screens/full-pages/ConfirmMint.tsx";
+import MintingToken from "@/components/screens/full-pages/MintingToken.tsx";
+import { TokenOperationFailed } from "@/components/screens/full-pages/TokenOperationFailed.tsx";
+import { TokenOperationSuccess } from "@/components/screens/full-pages/TokenOperationSuccess.tsx";
 
 const loadKaspaWasm = async () => {
   await init(kaspaModule);
@@ -255,6 +259,22 @@ export const router = createHashRouter([
               {
                 path: "mint-token",
                 element: <MintToken />,
+              },
+              {
+                path: "confirm-mint",
+                element: <ConfirmMint />,
+              },
+              {
+                path: "minting-token",
+                element: <MintingToken />,
+              },
+              {
+                path: "token-operation-failed",
+                element: <TokenOperationFailed />,
+              },
+              {
+                path: "token-operation-success",
+                element: <TokenOperationSuccess />,
               },
             ],
             loader: fullPageKeyringGuard,

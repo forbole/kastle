@@ -53,10 +53,10 @@ export const applyDecimal = (decimalPlaces: string = "8") => {
   };
 };
 
-export const computeOperationFees = (op: Operation) => {
-  const krc20Fee = OP_FEES[op];
-  const kaspaFee = Fee.Base;
-  const forboleFee = FORBOLE_FEES[op];
+export const computeOperationFees = (op: Operation, times: number = 1) => {
+  const krc20Fee = OP_FEES[op] * times;
+  const kaspaFee = Fee.Base * times;
+  const forboleFee = FORBOLE_FEES[op] * times;
 
   return {
     krc20Fee,
