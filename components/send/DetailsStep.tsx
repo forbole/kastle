@@ -1,6 +1,6 @@
 import { useFormContext } from "react-hook-form";
 import { SendFormData } from "@/components/screens/Send.tsx";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import useKaspaPrice from "@/hooks/useKaspaPrice.ts";
 import { useNavigate } from "react-router-dom";
 import { formatToken } from "@/lib/utils.ts";
@@ -17,6 +17,8 @@ import TickerSelect from "@/components/send/TickerSelect.tsx";
 import { useTokenBalance } from "@/hooks/useTokenBalance.ts";
 import { applyDecimal, computeOperationFees, Fee } from "@/lib/krc20.ts";
 import { MIN_KAS_AMOUNT } from "@/lib/kaspa.ts";
+import RecentAddresses from "@/components/send/RecentAddresses.tsx";
+import spinner from "@/assets/images/spinner.svg";
 
 export const DetailsStep = ({
   onNext,
@@ -28,8 +30,14 @@ export const DetailsStep = ({
   const navigate = useNavigate();
   const { account, addresses } = useWalletManager();
   const { rpcClient, getMinimumFee } = useRpcClientStateful();
+  const { fetchDomainInfo } = useKns();
 
-  const { value: isTickerSelectShow, toggle: toogleTickerSelect } =
+  const {
+    value: isRecentAddressShown,
+    setFalse: hideRecentAddress,
+    setTrue: showRecentAddress,
+  } = useBoolean(false);
+  const { value: isTickerSelectShown, toggle: toggleTickerSelect } =
     useBoolean(false);
   const [accountMinimumFees, setAccountMinimumFees] = useState<number>(0.0);
 
@@ -37,10 +45,13 @@ export const DetailsStep = ({
     register,
     watch,
     setValue,
+    setError,
     trigger,
-    formState: { isValid, errors },
+    formState: { isValid, errors, validatingFields },
   } = useFormContext<SendFormData>();
-  const { ticker, address, amount } = watch();
+  const { ticker, userInput, address, amount, domain } = watch();
+  const { value: isAddressFieldFocused, setValue: setAddressFieldFocused } =
+    useBoolean(false);
   const { data: tokenMetadata, toPriceInUsd } = useTokenMetadata(
     ticker === "kas" ? undefined : ticker,
   );
@@ -109,13 +120,42 @@ export const DetailsStep = ({
   };
 
   const addressValidator = async (value: string | undefined) => {
-    if (!value) return "Missing Kaspa address";
+    const genericErrorMessage = "Invalid address or KNS domain";
+    if (!value) return genericErrorMessage;
+
+    const domainInfo = value.endsWith(".kas")
+      ? await fetchDomainInfo(value)
+      : undefined;
+    const resolvedAddress = domainInfo?.data?.owner;
+
+    const isValidKnsRecord = () => {
+      const outcome = !!resolvedAddress && Address.validate(resolvedAddress);
+
+      if (outcome) {
+        setValue("address", resolvedAddress);
+        setValue("domain", value);
+        setError("userInput", { message: undefined });
+      } else {
+        setValue("address", undefined);
+        setValue("domain", undefined);
+      }
+
+      return outcome;
+    };
+
+    const isValidKaspaAddress = () => {
+      const isValid = Address.validate(value);
+
+      setValue("address", isValid ? value : undefined);
+
+      return isValid;
+    };
 
     try {
-      return Address.validate(value) || "Invalid Kaspa address";
+      return isValidKnsRecord() || isValidKaspaAddress() || genericErrorMessage;
     } catch (error) {
       console.error(error);
-      return "Invalid Kaspa address";
+      return genericErrorMessage;
     }
   };
 
@@ -145,6 +185,7 @@ export const DetailsStep = ({
               ticker,
               amount: amount!,
               to: address!,
+              domain,
             },
           },
         );
@@ -182,32 +223,73 @@ export const DetailsStep = ({
     }
   }, [amount, tokenPrice]);
 
+  // Handle recent address list visibility
+  useEffect(() => {
+    if (userInput === "" && isAddressFieldFocused) {
+      showRecentAddress();
+    }
+  }, [userInput, isAddressFieldFocused]);
+
+  // Handle empty user input logic
+  useEffect(() => {
+    if (userInput === "") {
+      setValue("domain", undefined, { shouldValidate: true });
+      setValue("address", undefined, { shouldValidate: true });
+    }
+  }, [userInput]);
+
   return (
     <>
       <Header title="Send KAS" onClose={onClose} onBack={onBack} />
 
       <TickerSelect
-        isShown={isTickerSelectShow}
-        toggleShow={toogleTickerSelect}
+        isShown={isTickerSelectShown}
+        toggleShow={toggleTickerSelect}
       />
 
-      <div className="flex h-full flex-col gap-4">
+      <div className="relative flex h-full flex-col gap-4">
         <label className="text-base font-medium">Send to ...</label>
-        <textarea
-          {...register("address", {
-            required: "Address is required",
-            validate: addressValidator,
-          })}
-          className={twMerge(
-            "no-scrollbar w-full resize-none rounded-lg border border-daintree-700 bg-daintree-800 px-4 py-3 placeholder-daintree-200 ring-0 hover:placeholder-daintree-50 focus:border-daintree-700 focus:ring-0",
-            errors.address &&
-              "ring ring-red-500/25 focus:ring focus:ring-red-500/25",
+        {/* Address input group */}
+        <div>
+          <textarea
+            onFocus={() => setAddressFieldFocused(true)}
+            {...register("userInput", {
+              validate: addressValidator,
+              onBlur: () => setAddressFieldFocused(false),
+            })}
+            className={twMerge(
+              "no-scrollbar w-full resize-none rounded-lg border border-daintree-700 bg-daintree-800 px-4 py-3 pe-12 text-sm placeholder-daintree-200 ring-0 hover:placeholder-daintree-50 focus:border-daintree-700 focus:ring-0",
+              errors.userInput &&
+                "ring ring-red-500/25 focus:ring focus:ring-red-500/25",
+            )}
+            placeholder="Enter wallet address or KNS"
+          />
+
+          <div className="pointer-events-none absolute end-0 top-10 flex h-16 items-center pe-3">
+            {validatingFields.address && (
+              <img
+                alt="spinner"
+                className="size-5 animate-spin"
+                src={spinner}
+              />
+            )}
+          </div>
+          {domain && (
+            <span className="inline-block break-all text-sm text-daintree-400">
+              {address}
+            </span>
           )}
-          placeholder="Enter wallet address"
+          {errors.userInput && (
+            <span className="inline-block text-sm text-red-500">
+              {errors.userInput.message}
+            </span>
+          )}
+        </div>
+
+        <RecentAddresses
+          isShown={isRecentAddressShown}
+          hideAddressSelect={hideRecentAddress}
         />
-        {errors.address && (
-          <span className="text-sm text-red-500">{errors.address.message}</span>
-        )}
 
         {/* Amount panel */}
         <div className="bg-white/1 relative flex flex-col gap-4 rounded-xl border border-daintree-700 p-4">
@@ -228,7 +310,7 @@ export const DetailsStep = ({
             <div className="flex rounded-lg bg-[#102831] text-daintree-400 shadow-sm">
               <button
                 type="button"
-                onClick={toogleTickerSelect}
+                onClick={toggleTickerSelect}
                 className={twMerge(
                   "inline-flex min-w-fit items-center gap-2 rounded-s-md border border-e-0 border-daintree-700 px-4 text-sm",
                   errors.amount

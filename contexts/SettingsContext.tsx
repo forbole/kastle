@@ -21,6 +21,7 @@ export type Settings = {
   networkId: NetworkType;
   rpcUrls: { [networkId: string]: string | undefined };
   kasplexApiUrls: { [networkId: string]: string | undefined };
+  knsApiUrls: { [networkId: string]: string | undefined };
   lockTimeout: number;
   walletConnections: WalletConnections | undefined; // WalletId -> Account Index -> NetworkId -> WalletConnection[]
   hideBalances: boolean;
@@ -57,6 +58,11 @@ const initialSettings = {
     [NetworkType.Mainnet]: "https://api.kasplex.org/v1",
     [NetworkType.TestnetT10]: "https://tn10api.kasplex.org/v1",
     [NetworkType.TestnetT11]: "https://tn11api.kasplex.org/v1",
+  },
+  knsApiUrls: {
+    [NetworkType.Mainnet]: "https://api.knsdomains.org/mainnet",
+    [NetworkType.TestnetT10]: "https://api.knsdomains.org/tn10",
+    [NetworkType.TestnetT11]: "https://api.knsdomains.org/tn11",
   },
   lockTimeout: 5, // Save 5 minutes as default value
   walletConnections: undefined,
