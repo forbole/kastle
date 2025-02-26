@@ -52,6 +52,7 @@ import { RecentAddressesProvider } from "@/contexts/RecentAddressesContext.tsx";
 import ImportLedgerStart from "@/components/screens/full-pages/ledger/ImportLedgerStart";
 import LedgerConnectFailed from "@/components/screens/full-pages/ledger/LedgerConnectFailed";
 import LedgerConnectForSign from "@/components/send/LedgerConnectForSign";
+import LedgerConnectFroSignFailed from "@/components/send/LedgerConnectForSignFailed";
 
 const loadKaspaWasm = async () => {
   await init(kaspaModule);
@@ -187,6 +188,10 @@ export const router = createHashRouter([
                   {
                     path: "ledger-connect-for-sign",
                     element: <LedgerConnectForSign />,
+                  },
+                  {
+                    path: "ledger-connect-for-sign-failed",
+                    element: <LedgerConnectFroSignFailed />,
                   },
                 ],
               },

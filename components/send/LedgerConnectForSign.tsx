@@ -12,14 +12,14 @@ export default function LedgerConnectForSign() {
 
   const connectDevice = async () => {
     // Do nothing if the connection is in progress
-    if (isConnecting) {
+    if (isConnecting || !redirect) {
       return;
     }
 
     try {
       await connect();
     } catch (error) {
-      throw new Error("Failed to connect Ledger device");
+      navigate("/ledger-connect-for-sign-failed?redirect=" + encodeURIComponent(redirect));
     }
   };
 
