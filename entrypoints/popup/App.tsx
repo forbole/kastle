@@ -1,6 +1,11 @@
 import { RouterProvider } from "react-router-dom";
 import { router } from "@/entrypoints/popup/router.tsx";
+import { LedgerTransportProvider } from "@/contexts/LedgerTransportContext.tsx";
 
 export default function App() {
-  return <RouterProvider router={router} />;
+  return (
+    <LedgerTransportProvider>
+      <RouterProvider router={router} />
+    </LedgerTransportProvider>
+  );
 }

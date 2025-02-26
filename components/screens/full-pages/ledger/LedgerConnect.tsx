@@ -18,7 +18,7 @@ export default function LedgerConnect() {
     try {
       await connect();
     } catch (error) {
-      navigate("/ledger-connect-failed");
+      navigate("/ledger-connect-failed?redirect=" + redirect);
     }
   };
 
@@ -44,8 +44,12 @@ export default function LedgerConnect() {
 
       <div>Please connect your Ledger device and open Kaspa app</div>
 
-      { transport ? <div>Ledger connected</div> : <div>Ledger not connected</div>}
-      { isAppOpen ? <div>Kaspa app open</div> : <div>Kaspa app not open</div>}
+      {transport ? (
+        <div>Ledger connected</div>
+      ) : (
+        <div>Ledger not connected</div>
+      )}
+      {isAppOpen ? <div>Kaspa app open</div> : <div>Kaspa app not open</div>}
 
       <button
         onClick={connectDevice}

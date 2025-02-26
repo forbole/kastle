@@ -64,9 +64,9 @@ export default function ImportLedger() {
         <div className="text-center">
           <img src={successImage} alt="Success" className="mx-auto pb-4" />
           <h3 className="text-xl font-semibold text-teal-500">Success</h3>
-          <span className="text-sm text-[#7b9aaa]">
+          <p className="text-sm text-[#7b9aaa]">
             Ledger connected! Now, please import your accounts.
-          </span>
+          </p>
         </div>
       </div>
       <button
