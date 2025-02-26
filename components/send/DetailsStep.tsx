@@ -262,7 +262,7 @@ export const DetailsStep = ({
               errors.userInput &&
                 "ring ring-red-500/25 focus:ring focus:ring-red-500/25",
             )}
-            placeholder="Enter wallet address"
+            placeholder="Enter wallet address or KNS"
           />
 
           <div className="pointer-events-none absolute end-0 top-10 flex h-16 items-center pe-3">
