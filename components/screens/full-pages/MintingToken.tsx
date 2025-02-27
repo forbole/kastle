@@ -8,7 +8,6 @@ import {
   applyDecimal,
   computeOperationFees,
   createKRC20ScriptBuilder,
-  Operation,
 } from "@/lib/krc20.ts";
 import carriageImage from "@/assets/images/carriage.png";
 import {
@@ -38,7 +37,10 @@ export default function MintingToken() {
   const mintAmount = toFloat(parseInt(tokenInfo?.lim ?? "0", 10));
   const [timesMinted, setTimesMinted] = useState(0);
   const isCanceled = useRef(false);
-  const { totalFees } = computeOperationFees("mint", mintTimes);
+  const { totalFees, krc20Fee, forboleFee } = computeOperationFees(
+    "mint",
+    mintTimes,
+  );
   const { totalFees: paidFees } = computeOperationFees("mint", timesMinted);
 
   const { rpcClient, networkId = NetworkType.Mainnet } = useRpcClientStateful();
@@ -125,10 +127,6 @@ export default function MintingToken() {
         blockDaaScore: P2SHEntry.blockDaaScore.toString(),
         outpoint: JSON.parse(P2SHEntry.outpoint.toString()),
       } satisfies Entry;
-
-      const { krc20Fee, forboleFee } = computeOperationFees(
-        opData.op as Operation,
-      );
 
       const getForboleFees = (): PaymentOutput[] => {
         if (!includeForboleFees) {

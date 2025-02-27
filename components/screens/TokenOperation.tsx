@@ -28,6 +28,8 @@ export default function TokenOperation() {
   });
   const [outTxs, setOutTxs] = useState<string[]>();
 
+  // TODO remove deploy and mint
+
   const op = state?.op ?? searchParams.get("op");
   const ticker = state?.ticker ?? searchParams.get("ticker");
   const maxSupply = state?.maxSupply ?? searchParams.get("maxSupply");

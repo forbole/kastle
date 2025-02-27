@@ -53,6 +53,8 @@ import ConfirmMint from "@/components/screens/full-pages/ConfirmMint.tsx";
 import MintingToken from "@/components/screens/full-pages/MintingToken.tsx";
 import { TokenOperationFailed } from "@/components/screens/full-pages/TokenOperationFailed.tsx";
 import { TokenOperationSuccess } from "@/components/screens/full-pages/TokenOperationSuccess.tsx";
+import ConfirmDeploy from "@/components/screens/full-pages/ConfirmDeploy.tsx";
+import DeployingToken from "@/components/screens/full-pages/DeployingToken.tsx";
 
 const loadKaspaWasm = async () => {
   await init(kaspaModule);
@@ -255,6 +257,14 @@ export const router = createHashRouter([
               {
                 path: "deploy-token",
                 element: <DeployToken />,
+              },
+              {
+                path: "confirm-deploy",
+                element: <ConfirmDeploy />,
+              },
+              {
+                path: "deploying-token",
+                element: <DeployingToken />,
               },
               {
                 path: "mint-token",

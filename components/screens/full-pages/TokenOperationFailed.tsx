@@ -13,10 +13,15 @@ export const TokenOperationFailed = () => {
   console.log(error);
 
   const onClose = () => {
-    if (op === "mint") {
-      return navigate("/mint-token");
+    switch (op) {
+      case "mint":
+        return navigate("/mint-token");
+      case "deploy":
+        return navigate("/deploy-token");
+      default:
+        window.close();
+        break;
     }
-    window.close();
   };
 
   return (
