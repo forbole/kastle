@@ -21,24 +21,25 @@ export interface SendFormData {
   domain: string | undefined;
 }
 
+export interface State {
+  form?: SendFormData;
+  step?: Step;
+}
+
 export default function Send() {
   const navigate = useNavigate();
-  const { state } = useLocation();
-  const [step, setStep] = useState<Step>("details");
+  const { state } = useLocation() as { state?: State };
+  const [step, setStep] = useState<Step>(state?.step ?? "details");
+
   const form = useForm<SendFormData>({
     defaultValues: {
-      ticker: state?.ticket ?? "kas",
-      address: state?.to,
-      amount: state?.amount ?? "",
+      ticker: state?.form?.ticker ?? "kas",
+      address: state?.form?.address,
+      amount: state?.form?.amount ?? "",
     },
     mode: "onChange",
   });
   const [outTxs, setOutTxs] = useState<string[]>();
-
-  const [searchParams] = useSearchParams();
-  const base64EncodedForm = searchParams.get("form");
-  const stepFromUrl = searchParams.get("step") as Step;
-  
   const calledOnce = useRef(false);
 
   const onBack = () => {
@@ -51,18 +52,6 @@ export default function Send() {
       return steps[stepIdx - 1];
     });
   };
-
-  useEffect(() => {
-    if (base64EncodedForm && !calledOnce.current) {
-      const parsedForm: SendFormData = JSON.parse(atob(base64EncodedForm));
-      form.reset(parsedForm);
-      calledOnce.current = true;
-    }
-
-    if (stepFromUrl && steps.includes(stepFromUrl)) {
-      setStep(stepFromUrl);
-    }
-  }, [base64EncodedForm, stepFromUrl]);
 
   return (
     <div className="flex h-full flex-col p-4 text-white">

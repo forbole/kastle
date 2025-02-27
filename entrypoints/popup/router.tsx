@@ -51,8 +51,8 @@ import SignTxConfirm from "@/components/screens/browser-api/SignTxConfirm";
 import { RecentAddressesProvider } from "@/contexts/RecentAddressesContext.tsx";
 import ImportLedgerStart from "@/components/screens/full-pages/ledger/ImportLedgerStart";
 import LedgerConnectFailed from "@/components/screens/full-pages/ledger/LedgerConnectFailed";
-import LedgerConnectForSign from "@/components/send/LedgerConnectForSign";
-import LedgerConnectFroSignFailed from "@/components/send/LedgerConnectForSignFailed";
+import LedgerConnectForSign from "@/components/screens/ledger-connect/LedgerConnectForSign";
+import LedgerConnectFroSignFailed from "@/components/screens/ledger-connect/LedgerConnectForSignFailed";
 
 const loadKaspaWasm = async () => {
   await init(kaspaModule);

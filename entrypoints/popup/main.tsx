@@ -8,6 +8,6 @@ browser.runtime.connect({ name: "popup" });
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-      <App />
+    <App />
   </React.StrictMode>,
 );

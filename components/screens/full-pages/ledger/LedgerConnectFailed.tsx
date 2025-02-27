@@ -2,7 +2,6 @@ import Header from "@/components/GeneralHeader";
 import useLedgerTransport from "@/hooks/useLedgerTransport";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import ledgerConnectErrorImage from "@/assets/images/ledger-connect-error.png";
- 
 
 export default function LedgerConnectFailed() {
   const [searchParams] = useSearchParams();
@@ -10,8 +9,8 @@ export default function LedgerConnectFailed() {
   const navigate = useNavigate();
   const redirect = searchParams.get("redirect");
 
-  const retry = async() => {
-    if(!redirect) return;
+  const retry = async () => {
+    if (!redirect) return;
     await disconnect();
     navigate(redirect);
   };
@@ -22,9 +21,17 @@ export default function LedgerConnectFailed() {
         <Header title="Connect Ledger" showClose={false} showPrevious={false} />
 
         <div className="text-center">
-          <img className="mx-auto" src={ledgerConnectErrorImage} alt="Ledger connect error" />
-          <h3 className="text-xl font-semibold">Oops! Ledger connection lost</h3>
-          <span className="text-sm text-[#7b9aaa]">Please ensure your Ledger is connected and the Kaspa app is open.</span>
+          <img
+            className="mx-auto"
+            src={ledgerConnectErrorImage}
+            alt="Ledger connect error"
+          />
+          <h3 className="text-xl font-semibold">
+            Oops! Ledger connection lost
+          </h3>
+          <span className="text-sm text-[#7b9aaa]">
+            Please ensure your Ledger is connected and the Kaspa app is open.
+          </span>
         </div>
       </div>
 
