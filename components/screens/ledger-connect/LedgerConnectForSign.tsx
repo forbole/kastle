@@ -39,7 +39,6 @@ export default function LedgerConnectForSign() {
     try {
       await connect();
     } catch (error) {
-      console.log(error);
       setTimeout(
         () =>
           navigate({
