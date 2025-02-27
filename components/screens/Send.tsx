@@ -40,7 +40,6 @@ export default function Send() {
     mode: "onChange",
   });
   const [outTxs, setOutTxs] = useState<string[]>();
-  const calledOnce = useRef(false);
 
   const onBack = () => {
     setStep((prevState) => {
