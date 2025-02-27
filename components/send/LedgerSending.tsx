@@ -9,6 +9,8 @@ import { useEffect } from "react";
 import useAnalytics from "@/hooks/useAnalytics.ts";
 import { captureException } from "@sentry/react";
 import useRecentAddresses from "@/hooks/useRecentAddresses.ts";
+import { useNavigate } from "react-router-dom";
+import LedgerConfirm from "@/components/screens/ledger-connect/LedgerConfirm";
 
 type LedgerSendingProps = {
   accountFactory: AccountFactory;
@@ -25,13 +27,19 @@ export default function LedgerSending({
   onFail,
   onSuccess,
 }: LedgerSendingProps) {
+  const navigate = useNavigate();
   const { addRecentAddress } = useRecentAddresses();
   const { emitFirstTransaction } = useAnalytics();
-  const { transport, connect } = useLedgerTransport();
+  const { transport, isAppOpen } = useLedgerTransport();
   const { walletSettings } = useWalletManager();
   const calledOnce = useRef(false);
   const form = useFormContext<SendFormData>();
   const { amount, address, domain } = form.watch();
+  const [signing, setSigning] = useState(true);
+  const state = {
+    form: form.getValues(),
+    step: "confirm",
+  };
 
   const sendTransaction = async () => {
     if (!transport) {
@@ -59,6 +67,8 @@ export default function LedgerSending({
         txIds: await account.send(kaspaToSompi(amount) ?? BigInt(0), address),
       };
 
+      setSigning(false);
+
       if (typeof transactionResponse === "string") {
         onFail();
         return;
@@ -78,7 +88,9 @@ export default function LedgerSending({
         domain,
       });
 
-      onSuccess();
+      setTimeout(() => {
+        onSuccess();
+      }, 2000); // Delay to prevent the page from flickering
     } catch (e) {
       captureException(e);
       console.error(e);
@@ -87,16 +99,24 @@ export default function LedgerSending({
   };
 
   useEffect(() => {
+    if (!transport || !isAppOpen) {
+      navigate({
+        pathname: "/ledger-connect-for-sign",
+        search: `?redirect=/send&state=${encodeURIComponent(JSON.stringify(state))}`,
+      });
+      return;
+    }
+
     if (calledOnce.current) return;
     sendTransaction();
     calledOnce.current = true;
-  }, []);
+  }, [transport]);
 
-  return !transport ? (
-    <>
-      <div>Waiting for connecting</div>
-      <button onClick={connect}>Connect</button>
-    </>
+  return signing ? (
+    <LedgerConfirm
+      onBack={() => navigate("/send", { state })}
+      onClose={() => navigate("/dashboard")}
+    />
   ) : (
     <LoadingStatus />
   );

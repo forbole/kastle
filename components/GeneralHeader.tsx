@@ -41,22 +41,22 @@ export default function GeneralHeader({
           <div className="h-5 w-5"></div>
         )}
         <h1 className="text-xl font-bold text-white">{title}</h1>
-        <div>
-          {showClose && (
-            <button
-              className="rounded-lg p-3 text-white hover:bg-gray-800"
-              onClick={async () => {
-                if (onClose) {
-                  await onClose();
-                } else {
-                  window.close();
-                }
-              }}
-            >
-              <i className="hn hn-times flex items-center justify-center text-[1.25rem]" />
-            </button>
-          )}
-        </div>
+        {showClose ? (
+          <button
+            className="rounded-lg p-3 text-white hover:bg-gray-800"
+            onClick={async () => {
+              if (onClose) {
+                await onClose();
+              } else {
+                window.close();
+              }
+            }}
+          >
+            <i className="hn hn-times flex items-center justify-center text-[1.25rem]" />
+          </button>
+        ) : (
+          <div className="h-5 w-5"></div>
+        )}
       </div>
       {subtitle && (
         <div className="mx-auto w-[27.75rem] text-center text-xs text-gray-400">

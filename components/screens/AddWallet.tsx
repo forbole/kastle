@@ -2,10 +2,12 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import internalToast from "@/components/Toast.tsx";
 import { v4 as uuid } from "uuid";
+import { useSettings } from "@/hooks/useSettings";
 
 export default function AddWallet() {
   const { createNewWallet } = useWalletManager();
   const navigate = useNavigate();
+  const [settings] = useSettings();
 
   const onClose = () => navigate("/dashboard");
 
@@ -60,17 +62,17 @@ export default function AddWallet() {
         </button>
 
         {/* Ledger */}
-        {/* TODO: Enable it after the UI is ready
-        <button
-          className="flex w-full items-center justify-between rounded-xl border border-daintree-700 bg-[#1E343D] p-5 hover:border-white"
-          onClick={() => {
-            browser.tabs.create({ url: "/popup.html#/import-ledger" });
-          }}
-        >
-          <span className="text-base">Import with Ledger</span>
-          <i className="hn hn-arrow-right flex-none text-[14px]"></i>
-        </button>
-        */}
+        {settings?.preview && (
+          <button
+            className="flex w-full items-center justify-between rounded-xl border border-daintree-700 bg-[#1E343D] p-5 hover:border-white"
+            onClick={() => {
+              browser.tabs.create({ url: "/popup.html#/import-ledger-start" });
+            }}
+          >
+            <span className="text-base">Import with Ledger</span>
+            <i className="hn hn-arrow-right flex-none text-[14px]"></i>
+          </button>
+        )}
       </div>
     </div>
   );

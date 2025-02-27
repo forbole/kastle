@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef } from "react";
 import { AccountFactory } from "@/lib/wallet/wallet-factory";
 import ManageAccounts, {
   ListAccountsRequest,
@@ -12,6 +12,7 @@ export default function LedgerManageAccounts() {
   const { transport } = useLedgerTransport();
   const { rpcClient, networkId } = useRpcClientStateful();
   const { getWalletSecret } = useKeyring();
+  const calledOnce = useRef(false);
 
   const listAccounts =
     rpcClient && networkId
@@ -44,6 +45,7 @@ export default function LedgerManageAccounts() {
 
             return accounts;
           } catch (error) {
+            navigate("/ledger-connect-failed");
             throw new Error(
               "Failed to list accounts, please unlock and open Kaspa app and try again",
             );
@@ -52,7 +54,7 @@ export default function LedgerManageAccounts() {
       : undefined;
 
   useEffect(() => {
-    if (!transport) {
+    if (!transport && !calledOnce.current) {
       const currentUrl = window.location.hash.replace("#", "");
       navigate("/connect-ledger?redirect=" + currentUrl);
     }
