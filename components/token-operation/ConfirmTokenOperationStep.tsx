@@ -3,7 +3,7 @@ import React from "react";
 import signImage from "@/assets/images/sign.png";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/GeneralHeader.tsx";
-import { TokenOperationFormData } from "@/components/screens/TokenOperation.tsx";
+import { TokenOperationFormData } from "@/components/screens/TokenTransfer.tsx";
 import { applyDecimal, computeOperationFees, Operation } from "@/lib/krc20.ts";
 import { useTokenInfo } from "@/hooks/useTokenInfo.ts";
 import { formatUSD } from "@/lib/utils.ts";

@@ -7,7 +7,7 @@ import {
   UtxoEntryReference,
 } from "@/wasm/core/kaspa";
 import { useFormContext } from "react-hook-form";
-import { TokenOperationFormData } from "@/components/screens/TokenOperation.tsx";
+import { TokenOperationFormData } from "@/components/screens/TokenTransfer.tsx";
 import { useEffect } from "react";
 import { sleep } from "@/lib/utils.ts";
 import {
@@ -148,8 +148,9 @@ export default function HotWalletBroadcastTokenOperation({
 
   useEffect(() => {
     if (calledOnce.current) return;
-    broadcastOperation();
     calledOnce.current = true;
+
+    broadcastOperation();
   }, []);
 
   return <LoadingStatus />;

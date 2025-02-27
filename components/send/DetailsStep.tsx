@@ -137,11 +137,10 @@ export const DetailsStep = ({
       ? onNext()
       : navigate(
           {
-            pathname: "/token-operation",
+            pathname: "/token-transfer",
           },
           {
             state: {
-              op: "transfer",
               ticker,
               amount: amount!,
               to: address!,

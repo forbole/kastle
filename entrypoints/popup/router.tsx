@@ -44,7 +44,7 @@ import RootLayout from "@/components/layouts/RootLayout.tsx";
 import WalletUnlock from "@/components/screens/WalletUnlock.tsx";
 import DevMode from "@/components/screens/DevMode.tsx";
 import DeployToken from "@/components/screens/full-pages/DeployToken.tsx";
-import TokenOperation from "@/components/screens/TokenOperation.tsx";
+import TokenTransfer from "@/components/screens/TokenTransfer.tsx";
 import MintToken from "@/components/screens/full-pages/MintToken.tsx";
 import TokenAsset from "@/components/screens/TokenAsset.tsx";
 import KasAsset from "@/components/screens/KasAsset.tsx";
@@ -141,7 +141,7 @@ export const router = createHashRouter([
                 loader: keyringGuard,
                 children: [
                   { path: "send", element: <Send /> },
-                  { path: "token-operation", element: <TokenOperation /> },
+                  { path: "token-transfer", element: <TokenTransfer /> },
                   { path: "receive", element: <Receive /> },
                   { path: "settings", element: <Settings /> },
                   {

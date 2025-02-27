@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import successImage from "@/assets/images/success.png";
 import Header from "@/components/GeneralHeader";
 import { useFormContext } from "react-hook-form";
-import { TokenOperationFormData } from "@/components/screens/TokenOperation.tsx";
+import { TokenOperationFormData } from "@/components/screens/TokenTransfer.tsx";
 import { SendFormData } from "@/components/screens/Send.tsx";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 
