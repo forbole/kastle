@@ -5,12 +5,13 @@ import Header from "@/components/GeneralHeader";
 import { twMerge } from "tailwind-merge";
 import ledgerConnectingImage from "@/assets/images/ledger-connecting.png";
 
-export default function LedgerConnect() {
+export default function LedgerConnectForImport() {
   const { transport, connect, isAppOpen, isConnecting } = useLedgerTransport();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const redirect = searchParams.get("redirect");
-  const calledOnce = useRef(false);
+  const calledConnectOnce = useRef(false);
+  const callCheckNeedRetryOnce = useRef(false);
   const [showRetry, setShowRetry] = useState(false);
 
   const connectDevice = async () => {
@@ -21,7 +22,7 @@ export default function LedgerConnect() {
     try {
       await connect();
     } catch (error) {
-      navigate("/ledger-connect-failed?redirect=" + redirect);
+      navigate("/ledger-connect-for-import-failed?redirect=" + redirect);
     }
   };
 
@@ -34,21 +35,39 @@ export default function LedgerConnect() {
   };
 
   useEffect(() => {
+    if (!calledConnectOnce.current) {
+      calledConnectOnce.current = true;
+      return;
+    }
+
+    if (!transport) {
+      connectDevice();
+    }
+  }, [transport]);
+
+  useEffect(() => {
     if (!redirect) {
       return;
     }
 
     if (transport && isAppOpen) {
-      navigate(redirect);
+      setTimeout(() => {
+        navigate(redirect);
+      }, 1000); // Delay to prevent the page from flickering
       return;
     }
 
-    setShowRetry(true);
-
-    if (!calledOnce.current && !transport) {
-      connectDevice();
-      calledOnce.current = true;
+    if (!callCheckNeedRetryOnce.current) {
+      callCheckNeedRetryOnce.current = true;
+      return;
     }
+
+    const timeout = setTimeout(() => {
+      if (!transport || !isAppOpen) {
+        setShowRetry(true);
+      }
+    }, 500); // Wait for the first attempt to connect
+    return () => clearTimeout(timeout);
   }, [transport, isAppOpen]);
 
   return (

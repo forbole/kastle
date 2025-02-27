@@ -37,18 +37,18 @@ export default function ImportLedger() {
       captureException(error);
       console.error(error);
 
-      navigate("/ledger-connect-failed");
+      navigate("/ledger-connect-for-import-failed");
     }
   };
 
   useEffect(() => {
     const currentUrl = window.location.hash.replace("#", "");
     if (!transport && !isConnecting) {
-      navigate("/connect-ledger?redirect=" + currentUrl);
+      navigate("/ledger-connect-for-import?redirect=" + currentUrl);
     }
 
     if (!isAppOpen) {
-      navigate("/connect-ledger?redirect=" + currentUrl);
+      navigate("/ledger-connect-for-import?redirect=" + currentUrl);
     }
   }, [transport, isConnecting]);
 

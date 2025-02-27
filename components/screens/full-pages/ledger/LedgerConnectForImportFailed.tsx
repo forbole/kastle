@@ -3,7 +3,7 @@ import useLedgerTransport from "@/hooks/useLedgerTransport";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import ledgerConnectErrorImage from "@/assets/images/ledger-connect-error.png";
 
-export default function LedgerConnectFailed() {
+export default function LedgerConnectForImportFailed() {
   const [searchParams] = useSearchParams();
   const { disconnect } = useLedgerTransport();
   const navigate = useNavigate();

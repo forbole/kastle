@@ -11,7 +11,8 @@ export default function LedgerConnectForSign() {
   const navigate = useNavigate();
   const redirect = searchParams.get("redirect");
   const state = searchParams.get("state");
-  const calledOnce = useRef(false);
+  const calledConnectOnce = useRef(false);
+  const callCheckNeedRetryOnce = useRef(false);
   const [showRetry, setShowRetry] = useState(false);
 
   const redirectBack = useCallback(() => {
@@ -38,13 +39,14 @@ export default function LedgerConnectForSign() {
     try {
       await connect();
     } catch (error) {
+      console.log(error);
       setTimeout(
         () =>
           navigate({
             pathname: "/ledger-connect-for-sign-failed",
             search: `?redirect=${redirect}&state=${state}`,
           }),
-        2000, // Delay to prevent the page from flickering
+        1000, // Delay to prevent the page from flickering
       );
     }
   };
@@ -54,26 +56,39 @@ export default function LedgerConnectForSign() {
     connectDevice();
     setTimeout(() => {
       setShowRetry(true);
-    }, 2000); // Show retry button after 2 seconds
+    }, 1000); // Show retry button after 1 seconds
   };
+
+  useEffect(() => {
+    if (!calledConnectOnce.current) {
+      calledConnectOnce.current = true;
+      return;
+    }
+
+    if (!transport) {
+      connectDevice();
+    }
+  }, [transport, isAppOpen, isConnecting]);
 
   useEffect(() => {
     // Redirect to the page if the connection is successful
     if (transport && isAppOpen) {
-      setTimeout(
-        redirectBack,
-        1000, // Delay to prevent the page from flickering
-      );
+      setTimeout(redirectBack, 2000); // Delay to prevent the page from flickering
       return;
     }
 
-    setShowRetry(true);
-
-    if (!calledOnce.current && !transport) {
-      connectDevice();
-      calledOnce.current = true;
+    if (!callCheckNeedRetryOnce.current) {
+      callCheckNeedRetryOnce.current = true;
+      return;
     }
-  }, [transport, isAppOpen, isConnecting, redirectBack]);
+
+    const timeout = setTimeout(() => {
+      if (!transport || !isAppOpen) {
+        setShowRetry(true);
+      }
+    }, 1000); // Wait for the first attempt to connect
+    return () => clearTimeout(timeout);
+  }, [transport, isAppOpen, redirectBack]);
 
   return (
     <div className="flex h-full flex-col justify-between p-4">
