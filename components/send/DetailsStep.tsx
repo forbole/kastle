@@ -28,6 +28,7 @@ export const DetailsStep = ({
   onBack?: () => void;
 }) => {
   const navigate = useNavigate();
+  const [settings] = useSettings();
   const { account, addresses } = useWalletManager();
   const { rpcClient, getMinimumFee } = useRpcClientStateful();
   const { fetchDomainInfo } = useKns();
@@ -310,7 +311,7 @@ export const DetailsStep = ({
             <div className="flex rounded-lg bg-[#102831] text-daintree-400 shadow-sm">
               <button
                 type="button"
-                onClick={toggleTickerSelect}
+                onClick={() => settings?.preview && toggleTickerSelect}
                 className={twMerge(
                   "inline-flex min-w-fit items-center gap-2 rounded-s-md border border-e-0 border-daintree-700 px-4 text-sm",
                   errors.amount
@@ -325,7 +326,9 @@ export const DetailsStep = ({
                   onError={onImageError}
                 />
                 {ticker.toUpperCase()}
-                <i className="hn hn-chevron-down h-[16px] w-[16px]"></i>
+                {settings?.preview && (
+                  <i className="hn hn-chevron-down h-[16px] w-[16px]"></i>
+                )}
               </button>
               <input
                 {...register("amount", {
