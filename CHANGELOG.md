@@ -1,5 +1,29 @@
 # Changelog
 
+## [2.5.0](https://github.com/forbole/kastle/compare/v2.4.0...v2.5.0) (2025-02-28)
+
+
+### Features
+
+* hide KRC20 operation ([a1e1870](https://github.com/forbole/kastle/commit/a1e1870d69f41b190825951778c8a46036db7a9e))
+* kns-lookup-and-recent-recipient ([#40](https://github.com/forbole/kastle/issues/40)) ([a248af4](https://github.com/forbole/kastle/commit/a248af4207cac35b7c65d6e6b9bc6bab2654d355))
+* krc20-transfer ([#34](https://github.com/forbole/kastle/issues/34)) ([480610a](https://github.com/forbole/kastle/commit/480610af39a210271d51dd49105c61a168027b1a))
+* **krc20:** krc-20-forbole-fee ([#39](https://github.com/forbole/kastle/issues/39)) ([f69433e](https://github.com/forbole/kastle/commit/f69433ebb1084d3bc30e1650b6bcc7f2de2056a2))
+* **style:** improve styles in recovery phrase components ([#36](https://github.com/forbole/kastle/issues/36)) ([28623c9](https://github.com/forbole/kastle/commit/28623c9ffddf7142a952b9f96b5400e8b773228c))
+* **style:** shrink address in manage accounts page ([#38](https://github.com/forbole/kastle/issues/38)) ([2990a87](https://github.com/forbole/kastle/commit/2990a872acb8208e0e7768487868f6d6efd9fa6a))
+
+
+### Bug Fixes
+
+* error upon invalid seed phrase ([a2026c1](https://github.com/forbole/kastle/commit/a2026c1555d16ef1aab3c74b6211188ba9b759ed))
+* fix back for token operation ([b0d5c9d](https://github.com/forbole/kastle/commit/b0d5c9d18955387bef762a1c4c9c098f2522ca47))
+* history item data ([1253181](https://github.com/forbole/kastle/commit/12531814613d191822ac82c94a299ceac844bd22))
+* KRC20 market average pricing ([f0fe47d](https://github.com/forbole/kastle/commit/f0fe47d4f959ea155ac2b0a656f1ec6674471d2d))
+* privacy policy link ([bdaff7a](https://github.com/forbole/kastle/commit/bdaff7a6f9fa930828b444afbe21d20516bfa5c3))
+* temporary updating fees ([d81b07c](https://github.com/forbole/kastle/commit/d81b07c87c69c0a93a27747fc3e0a2ddb832d0fb))
+* token price formatting ([4b4dc8b](https://github.com/forbole/kastle/commit/4b4dc8be38de601c793966439a12225af206b78e))
+* typos ([259c437](https://github.com/forbole/kastle/commit/259c4372b5d970743932893221bdc0b319d94fe2))
+
 ## [2.4.0](https://github.com/forbole/kastle/compare/v2.3.0...v2.4.0) (2025-02-13)
 
 
