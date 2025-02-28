@@ -3,25 +3,14 @@ import React, { useEffect, useState } from "react";
 import { useTokenInfo } from "@/hooks/useTokenInfo.ts";
 import { useLocation } from "react-router";
 import Header from "@/components/GeneralHeader.tsx";
-import {
-  Amount,
-  applyDecimal,
-  computeOperationFees,
-  createKRC20ScriptBuilder,
-} from "@/lib/krc20.ts";
+import { applyDecimal, computeOperationFees, ForboleFee } from "@/lib/krc20.ts";
 import carriageImage from "@/assets/images/carriage.png";
-import {
-  addressFromScriptPublicKey,
-  sompiToKaspaString,
-  UtxoEntryReference,
-} from "@/wasm/core/kaspa";
-import { sleep } from "@/lib/utils.ts";
-import { Entry, PaymentOutput } from "@/lib/wallet/interface.ts";
-import { FORBOLE_PAYOUT_ADDRESSES } from "@/lib/forbole.ts";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import { WalletSecret } from "@/types/WalletSecret.ts";
 import { AccountFactory } from "@/lib/wallet/wallet-factory.ts";
 import { Tooltip } from "react-tooltip";
+import { FORBOLE_PAYOUT_ADDRESSES } from "@/lib/forbole.ts";
+import { kaspaToSompi } from "@/wasm/core/kaspa";
 
 export default function MintingToken() {
   const MIN_MINT_TIMES = 10;
@@ -37,10 +26,7 @@ export default function MintingToken() {
   const mintAmount = toFloat(parseInt(tokenInfo?.lim ?? "0", 10));
   const [timesMinted, setTimesMinted] = useState(0);
   const isCanceled = useRef(false);
-  const { totalFees, krc20Fee, forboleFee } = computeOperationFees(
-    "mint",
-    mintTimes,
-  );
+  const { totalFees, forboleFee } = computeOperationFees("mint", mintTimes);
   const { totalFees: paidFees } = computeOperationFees("mint", timesMinted);
 
   const { rpcClient, networkId = NetworkType.Mainnet } = useRpcClientStateful();
@@ -81,102 +67,35 @@ export default function MintingToken() {
             )
           : accountFactory.createFromPrivateKey(secret.value);
 
-      const publicKey = (await account.getPublicKeys())[0];
-
-      if (!publicKey) {
-        throw new Error("No available public keys");
-      }
-
-      const opData = { p: "krc-20", op: "mint", tick: ticker };
-      const scriptBuilder = createKRC20ScriptBuilder(publicKey, opData);
-      const scriptPublicKey = scriptBuilder.createPayToScriptHashScript();
-      const P2SHAddress = addressFromScriptPublicKey(
-        scriptPublicKey,
-        networkId,
+      await account.mint(
+        { tick: ticker },
+        includeForboleFees
+          ? [
+              {
+                address:
+                  FORBOLE_PAYOUT_ADDRESSES[networkId ?? NetworkType.Mainnet],
+                amount: kaspaToSompi(ForboleFee.Mint.toString())!,
+              },
+            ]
+          : undefined,
       );
-
-      if (!P2SHAddress) {
-        throw new Error("Invalid P2SH address");
-      }
-
-      await account.signAndBroadcastTx([
-        { amount: Amount.ScriptUtxoAmount, address: P2SHAddress.toString() },
-      ]);
-
-      let P2SHEntry: UtxoEntryReference | undefined;
-      while (!P2SHEntry) {
-        const P2SHUTXOs = await rpcClient.getUtxosByAddresses([
-          P2SHAddress.toString(),
-        ]);
-
-        if (P2SHUTXOs.entries.length === 0) {
-          await sleep(1000);
-        } else {
-          P2SHEntry = P2SHUTXOs.entries[0];
-        }
-      }
-
-      if (!P2SHEntry.address) {
-        throw new Error("Invalid P2SH entry");
-      }
-
-      const entry = {
-        address: P2SHEntry.address.toString(),
-        amount: sompiToKaspaString(P2SHEntry.amount),
-        scriptPublicKey: JSON.parse(P2SHEntry.scriptPublicKey.toString()),
-        blockDaaScore: P2SHEntry.blockDaaScore.toString(),
-        outpoint: JSON.parse(P2SHEntry.outpoint.toString()),
-      } satisfies Entry;
-
-      const getForboleFees = (): PaymentOutput[] => {
-        if (!includeForboleFees) {
-          return [];
-        }
-
-        return [
-          {
-            address: FORBOLE_PAYOUT_ADDRESSES[networkId ?? NetworkType.Mainnet],
-            amount: forboleFee.toString(),
-          },
-        ];
-      };
-
-      await account.signAndBroadcastTx(getForboleFees(), {
-        priorityEntries: [entry],
-        scripts: [
-          {
-            inputIndex: 0,
-            scriptHex: scriptBuilder.toString(),
-          },
-        ],
-        priorityFee: krc20Fee.toString(),
-      });
     };
 
     const processMinting = async () => {
       let timesMintedLocal = 0;
-      while (!isCanceled.current && timesMintedLocal < mintTimes) {
-        try {
+
+      try {
+        while (!isCanceled.current && timesMintedLocal < mintTimes) {
           await broadcastOperation(timesMintedLocal % MIN_MINT_TIMES === 0);
           await updateTokenInfo();
           setTimesMinted((prev) => prev + 1);
           timesMintedLocal++;
-        } catch (error) {
-          if (
-            error instanceof Error &&
-            error.message.includes("already spent by transaction") &&
-            error.message.includes("in the mempool")
-          ) {
-            // Waiting for previous mint operation to be cleared from the mempool
-            await sleep(500);
-          } else {
-            isCanceled.current = true;
-            return navigate(
-              { pathname: "/token-operation-failed" },
-              { state: { error, op: "mint" } },
-            );
-          }
         }
+      } catch (error) {
+        return navigate(
+          { pathname: "/token-operation-failed" },
+          { state: { error, op: "mint" } },
+        );
       }
 
       return navigate("/token-operation-success", {

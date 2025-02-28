@@ -1,40 +1,229 @@
 import {
   Address,
+  addressFromScriptPublicKey,
+  createInputSignature,
+  createTransactions,
   Generator,
+  IGeneratorSettingsObject,
+  IPaymentOutput,
   kaspaToSompi,
   Keypair,
+  Opcodes,
+  PendingTransaction,
   PrivateKey,
   RpcClient,
-  UtxoEntryReference,
-  PendingTransaction,
   ScriptBuilder,
-  Transaction,
-  createInputSignature,
   signTransaction,
+  Transaction,
+  UtxoEntryReference,
 } from "@/wasm/core/kaspa";
 
 import {
   IWallet,
   PaymentOutput,
-  TxSettingOptions,
-  toKaspaEntry,
   ScriptOption,
+  toKaspaEntry,
   toSignType,
+  TxSettingOptions,
 } from "@/lib/wallet/interface.ts";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
+import { Amount, Fee } from "@/lib/krc20.ts";
 
 export class HotWalletPrivateKey implements IWallet {
   keypair: Keypair;
 
   constructor(
-    privateKey: PrivateKey,
+    private privateKey: PrivateKey,
     private readonly rpcClient: RpcClient,
     private readonly networkId: NetworkType,
   ) {
     this.keypair = privateKey.toKeypair();
   }
 
-  getPrivateKey() {
+  async performCommitReveal(
+    payload: any,
+    revealPriorityFee: IGeneratorSettingsObject["priorityFee"],
+    extraOutputs: IPaymentOutput[] = [],
+  ) {
+    const privateKey = this.privateKey;
+    const publicKey = privateKey.toPublicKey();
+    const address = publicKey.toAddress(this.networkId);
+
+    let eventReceived = false;
+    let addedEventTxId: any;
+    let submittedTxId: any;
+
+    const handleUtxosChanged = async (event: any) => {
+      const removedEntry = event.data.removed.find(
+        (entry: any) => entry.address.payload === address.payload,
+      );
+      const addedEntry = event.data.added.find(
+        (entry: any) => entry.address.payload === address.payload,
+      );
+
+      if (removedEntry) {
+        addedEventTxId = addedEntry.outpoint.transactionId;
+        if (addedEventTxId == submittedTxId) {
+          eventReceived = true;
+        }
+      }
+    };
+
+    await this.rpcClient.subscribeUtxosChanged([address.toString()]);
+    this.rpcClient.addEventListener("utxos-changed", handleUtxosChanged);
+
+    const script = new ScriptBuilder()
+      .addData(publicKey.toXOnlyPublicKey().toString())
+      .addOp(Opcodes.OpCheckSig)
+      .addOp(Opcodes.OpFalse)
+      .addOp(Opcodes.OpIf)
+      .addData(Buffer.from("kasplex"))
+      .addI64(0n)
+      .addData(Buffer.from(JSON.stringify(payload, null, 0)))
+      .addOp(Opcodes.OpEndIf);
+
+    const P2SHAddress = addressFromScriptPublicKey(
+      script.createPayToScriptHashScript(),
+      this.networkId,
+    );
+
+    if (!P2SHAddress) {
+      throw new Error("Invalid P2SH address");
+    }
+
+    const { entries } = await this.rpcClient.getUtxosByAddresses({
+      addresses: [address.toString()],
+    });
+    const { transactions } = await createTransactions({
+      priorityEntries: [],
+      entries,
+      outputs: [
+        {
+          address: P2SHAddress.toString(),
+          amount: kaspaToSompi(Amount.ScriptUtxoAmount)!,
+        },
+      ],
+      priorityFee: kaspaToSompi(Amount.ScriptUtxoAmount),
+      changeAddress: address.toString(),
+      networkId: this.networkId,
+    });
+
+    for (const transaction of transactions) {
+      console.log(`Commit TX ID: ${transaction.id}`);
+      transaction.sign([privateKey]);
+      const hash = await transaction.submit(this.rpcClient);
+      submittedTxId = hash;
+    }
+
+    // Wait for the maturity event
+    const commitTimeout = setTimeout(() => {
+      if (!eventReceived) {
+        throw new Error("Commit transaction did not mature within 2 minutes");
+      }
+    }, 120000);
+
+    while (!eventReceived) {
+      await new Promise((resolve) => setTimeout(resolve, 500)); // wait and check every 500ms
+    }
+
+    clearTimeout(commitTimeout);
+
+    // Continue with reveal transaction after maturity event
+    eventReceived = false;
+    const { entries: newEntries } = await this.rpcClient.getUtxosByAddresses({
+      addresses: [address.toString()],
+    });
+
+    const revealUTXOs = await this.rpcClient.getUtxosByAddresses({
+      addresses: [P2SHAddress.toString()],
+    });
+
+    const { transactions: revealTransactions } = await createTransactions({
+      priorityEntries: [revealUTXOs.entries[0]],
+      entries: newEntries,
+      outputs: extraOutputs,
+      changeAddress: address.toString(),
+      priorityFee: revealPriorityFee,
+      networkId: this.networkId,
+    });
+    let revealHash: any;
+
+    for (const transaction of revealTransactions) {
+      console.log(`Reveal TX ID: ${transaction.id}`);
+      transaction.sign([privateKey], false);
+      const ourOutput = transaction.transaction.inputs.findIndex(
+        (input) => input.signatureScript === "",
+      );
+
+      if (ourOutput !== -1) {
+        const signature = transaction.createInputSignature(
+          ourOutput,
+          privateKey,
+        );
+        transaction.fillInput(
+          ourOutput,
+          script.encodePayToScriptHashSignatureScript(signature),
+        );
+      }
+      revealHash = await transaction.submit(this.rpcClient);
+      submittedTxId = revealHash;
+    }
+
+    const revealTimeout = setTimeout(() => {
+      if (!eventReceived) {
+        throw new Error("Reveal transaction did not mature within 2 minutes");
+      }
+    }, 120000);
+
+    while (!eventReceived) {
+      await new Promise((resolve) => setTimeout(resolve, 500)); // wait and check every 500ms
+    }
+
+    this.rpcClient.removeEventListener("utxos-changed", handleUtxosChanged);
+    clearTimeout(revealTimeout);
+    eventReceived = false;
+  }
+
+  async deploy(
+    payload: {
+      tick: string;
+      max: string;
+      lim: string;
+      dec: string;
+      pre: string;
+    },
+    extraOutputs: IPaymentOutput[] = [],
+  ): Promise<void> {
+    await this.performCommitReveal(
+      { p: "krc-20", op: "deploy", ...payload },
+      kaspaToSompi(Fee.Deploy.toString())!,
+      extraOutputs,
+    );
+  }
+
+  async mint(
+    payload: { tick: string },
+    extraOutputs: IPaymentOutput[] = [],
+  ): Promise<void> {
+    await this.performCommitReveal(
+      { p: "krc-20", op: "mint", ...payload },
+      kaspaToSompi(Fee.Mint.toString())!,
+      extraOutputs,
+    );
+  }
+
+  async transfer(payload: {
+    tick: string;
+    amt: string;
+    to: string;
+  }): Promise<void> {
+    await this.performCommitReveal(
+      { p: "krc-20", op: "transfer", ...payload },
+      kaspaToSompi(Fee.Base.toString())!,
+    );
+  }
+
+  getPrivateKeyString() {
     return this.keypair.privateKey;
   }
 
@@ -132,7 +321,7 @@ export class HotWalletPrivateKey implements IWallet {
         scripts.map((script) => this.signTxInputWithScript(tx, script)),
       );
     }
-    return signTransaction(tx, [this.getPrivateKey()], false);
+    return signTransaction(tx, [this.getPrivateKeyString()], false);
   }
 
   async signTxInputWithScript(tx: Transaction, script: ScriptOption) {
@@ -149,7 +338,7 @@ export class HotWalletPrivateKey implements IWallet {
     const signature = createInputSignature(
       tx,
       script.inputIndex,
-      new PrivateKey(this.getPrivateKey()),
+      new PrivateKey(this.getPrivateKeyString()),
       toSignType(script.signType ?? "All"),
     );
 

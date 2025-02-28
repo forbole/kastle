@@ -80,6 +80,18 @@ export const SuccessStatus = ({ transactionIds }: SuccessProps) => {
               <i className="hn hn-external-link text-icy-blue-400"></i>
             </button>
           )}
+          {isKrc20Operation && (
+            <button
+              type="button"
+              className="flex items-center gap-2"
+              onClick={() => navigate(`/token-asset/${ticker}`)}
+            >
+              <span className="text-sm font-semibold text-icy-blue-400">
+                View transaction history
+              </span>
+              <i className="hn hn-angle-right text-icy-blue-400"></i>
+            </button>
+          )}
         </div>
 
         <button

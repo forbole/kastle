@@ -15,7 +15,7 @@ const steps = ["confirm", "broadcast", "success", "fail"] as const;
 type Step = (typeof steps)[number];
 
 export interface TokenOperationFormData {
-  opData: Record<string, string>;
+  opData: { op: string; tick: string; amt: string; to: string };
 }
 
 export default function TokenTransfer() {
@@ -50,7 +50,6 @@ export default function TokenTransfer() {
     const { toInteger } = applyDecimal(tokenInfoResponse?.result?.[0].dec);
 
     form.setValue("opData", {
-      p: "krc-20",
       op: "transfer",
       tick: ticker,
       amt: toInteger(parseFloat(amount)).toString(),

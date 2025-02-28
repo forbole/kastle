@@ -1,8 +1,9 @@
 import {
-  IUtxoEntry,
   Address,
-  ITransactionOutpoint,
+  IPaymentOutput,
   IScriptPublicKey,
+  ITransactionOutpoint,
+  IUtxoEntry,
   kaspaToSompi,
   SighashType,
   Transaction,
@@ -75,7 +76,7 @@ export interface IWallet {
     priorityFee?: bigint,
   ): Promise<string[]>;
 
-  getPrivateKey(): string;
+  getPrivateKeyString(): string;
 
   getPublicKeys(): string[] | Promise<string[]>;
 
@@ -89,4 +90,22 @@ export interface IWallet {
   ): Promise<string>;
 
   signTx(tx: Transaction, scripts?: ScriptOption[]): Promise<Transaction>;
+
+  deploy(
+    payload: {
+      tick: string;
+      max: string;
+      lim: string;
+      dec: string;
+      pre: string;
+    },
+    extraOutputs: IPaymentOutput[] | undefined,
+  ): Promise<void>;
+
+  mint(
+    payload: { tick: string },
+    extraOutputs: IPaymentOutput[] | undefined,
+  ): Promise<void>;
+
+  transfer(payload: { tick: string; amt: string; to: string }): Promise<void>;
 }

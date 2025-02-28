@@ -2,20 +2,9 @@ import { useNavigate } from "react-router-dom";
 import React, { useEffect, useState } from "react";
 import { useLocation } from "react-router";
 import Header from "@/components/GeneralHeader.tsx";
-import {
-  Amount,
-  computeOperationFees,
-  createKRC20ScriptBuilder,
-  Operation,
-} from "@/lib/krc20.ts";
+import { ForboleFee } from "@/lib/krc20.ts";
 import carriageImage from "@/assets/images/carriage.png";
-import {
-  addressFromScriptPublicKey,
-  sompiToKaspaString,
-  UtxoEntryReference,
-} from "@/wasm/core/kaspa";
-import { sleep } from "@/lib/utils.ts";
-import { Entry } from "@/lib/wallet/interface.ts";
+import { kaspaToSompi } from "@/wasm/core/kaspa";
 import { FORBOLE_PAYOUT_ADDRESSES } from "@/lib/forbole.ts";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import { WalletSecret } from "@/types/WalletSecret.ts";
@@ -68,90 +57,21 @@ export default function DeployingToken() {
             )
           : accountFactory.createFromPrivateKey(secret.value);
 
-      const publicKey = (await account.getPublicKeys())[0];
-
-      if (!publicKey) {
-        throw new Error("No available public keys");
-      }
-
-      const opData: Record<string, string> = {
-        p: "krc-20",
-        op: "deploy",
-        tick: ticker,
-        max: maxSupply.toString(),
-        lim: mintAmount.toString(),
-      };
-      if (decimalPlaces) {
-        opData.dec = decimalPlaces.toString();
-      }
-      if (preAllocation) {
-        opData.pre = preAllocation.toString();
-      }
-
-      const scriptBuilder = createKRC20ScriptBuilder(publicKey, opData);
-      const scriptPublicKey = scriptBuilder.createPayToScriptHashScript();
-      const P2SHAddress = addressFromScriptPublicKey(
-        scriptPublicKey,
-        networkId,
-      );
-
-      if (!P2SHAddress) {
-        throw new Error("Invalid P2SH address");
-      }
-
-      const commit = await account.signAndBroadcastTx([
-        { amount: Amount.ScriptUtxoAmount, address: P2SHAddress.toString() },
-      ]);
-
-      console.log(commit);
-      let P2SHEntry: UtxoEntryReference | undefined;
-      while (!P2SHEntry) {
-        const P2SHUTXOs = await rpcClient.getUtxosByAddresses([
-          P2SHAddress.toString(),
-        ]);
-
-        if (P2SHUTXOs.entries.length === 0) {
-          await sleep(1000);
-        } else {
-          P2SHEntry = P2SHUTXOs.entries[0];
-        }
-      }
-
-      if (!P2SHEntry.address) {
-        throw new Error("Invalid P2SH entry");
-      }
-
-      const entry = {
-        address: P2SHEntry.address.toString(),
-        amount: sompiToKaspaString(P2SHEntry.amount),
-        scriptPublicKey: JSON.parse(P2SHEntry.scriptPublicKey.toString()),
-        blockDaaScore: P2SHEntry.blockDaaScore.toString(),
-        outpoint: JSON.parse(P2SHEntry.outpoint.toString()),
-      } satisfies Entry;
-
-      const { krc20Fee, forboleFee } = computeOperationFees(
-        opData.op as Operation,
-      );
-
-      const reveal = await account.signAndBroadcastTx(
+      await account.deploy(
+        {
+          tick: ticker,
+          max: maxSupply.toString(),
+          lim: mintAmount.toString(),
+          pre: preAllocation ? preAllocation.toString() : "0",
+          dec: decimalPlaces ? decimalPlaces.toString() : "8",
+        },
         [
           {
             address: FORBOLE_PAYOUT_ADDRESSES[networkId ?? NetworkType.Mainnet],
-            amount: forboleFee.toString(),
+            amount: kaspaToSompi(ForboleFee.Deploy.toString())!,
           },
         ],
-        {
-          priorityEntries: [entry],
-          scripts: [
-            {
-              inputIndex: 0,
-              scriptHex: scriptBuilder.toString(),
-            },
-          ],
-          priorityFee: krc20Fee.toString(),
-        },
       );
-      console.log(reveal);
     };
 
     if (calledOnce.current) return;

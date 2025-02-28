@@ -6,6 +6,7 @@ import {
 import {
   Address,
   Generator,
+  IPaymentOutput,
   IUtxoEntry,
   PendingTransaction,
   PublicKey,
@@ -35,6 +36,34 @@ export class LedgerAccount implements IWallet {
   ) {
     this.app = new KaspaApp(transport);
     this.path = `m/44'/111111'/${accountIndex}'/0/0`;
+  }
+
+  async deploy(
+    payload: {
+      tick: string;
+      max: string;
+      lim: string;
+      dec: string;
+      pre: string;
+    },
+    extraOutputs: IPaymentOutput[] = [],
+  ): Promise<void> {
+    throw new Error("Method not implemented.");
+  }
+
+  async mint(
+    payload: { tick: string },
+    extraOutputs: IPaymentOutput[] = [],
+  ): Promise<void> {
+    throw new Error("Method not implemented.");
+  }
+
+  async transfer(payload: {
+    tick: string;
+    amt: string;
+    to: string;
+  }): Promise<void> {
+    throw new Error("Method not implemented.");
   }
 
   public async send(
@@ -109,7 +138,7 @@ export class LedgerAccount implements IWallet {
     return txIds;
   }
 
-  public getPrivateKey(): string {
+  public getPrivateKeyString(): string {
     throw new Error("Ledger wallet does not support getPrivateKey");
   }
 

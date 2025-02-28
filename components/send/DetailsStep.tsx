@@ -142,8 +142,8 @@ export const DetailsStep = ({
           {
             state: {
               ticker,
-              amount: amount!,
-              to: address!,
+              amount,
+              to: address,
             },
           },
         );
