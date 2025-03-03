@@ -10,9 +10,7 @@ import { useTokenInfo } from "@/hooks/useTokenInfo.ts";
 import { applyDecimal } from "@/lib/krc20.ts";
 import { useLocation } from "react-router";
 
-const steps = ["confirm", "broadcast", "success", "fail"] as const;
-
-type Step = (typeof steps)[number];
+type Step = "confirm" | "broadcast" | "success" | "fail";
 
 export interface TokenOperationFormData {
   opData: { op: string; tick: string; amt: string; to: string };

@@ -1,12 +1,10 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
 import successImage from "@/assets/images/success.png";
 import Header from "@/components/GeneralHeader";
 import { useLocation } from "react-router";
 import { setPopupPath } from "@/lib/utils.ts";
 
 export const TokenOperationSuccess = () => {
-  const navigate = useNavigate();
   const {
     state: { ticker, op },
   } = useLocation();
@@ -24,10 +22,6 @@ export const TokenOperationSuccess = () => {
   };
   const title = opTitle[op];
   const description = opDescription[op];
-
-  const onClose = () => {
-    window.close();
-  };
 
   return (
     <div className="flex w-[41rem] flex-col items-stretch gap-4 rounded-3xl bg-icy-blue-950">

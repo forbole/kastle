@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { SideMenu } from "@/components/side-menu/SideMenu.tsx";
-import { explorerAddressLinks } from "@/components/screens/Settings.tsx";
 import kasIcon from "@/assets/images/kas-icon.svg";
 import gavelIcon from "@/assets/images/gavel.svg";
 import { formatToken, formatTokenPrice, formatUSD } from "@/lib/utils.ts";
@@ -50,7 +49,6 @@ export default function Dashboard() {
     }));
 
   const network = networkId ?? NetworkType.Mainnet;
-  const explorerAddressLink = explorerAddressLinks[network];
   const isMainnet = network === NetworkType.Mainnet;
 
   const totalBalance = balance
