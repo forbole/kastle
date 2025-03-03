@@ -30,8 +30,6 @@ export function LedgerTransportProvider({ children }: { children: ReactNode }) {
   const [transport, setTransport] = useState<Transport | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isAppOpen, setIsAppOpen] = useState(false);
-  const [isAppOpenCheckInterval, setIsAppOpenCheckInterval] =
-    useState<NodeJS.Timeout | null>(null);
 
   const connect = async () => {
     if (isConnecting || transport) return;
@@ -45,19 +43,12 @@ export function LedgerTransportProvider({ children }: { children: ReactNode }) {
         newTransport = await TransportWebHid.create();
       }
 
+      setTransport(newTransport);
+
       // Check if Kaspa app is open
       if (await checkKaspaAppOpen(newTransport)) {
         setIsAppOpen(true);
-      } else {
-        const checkInterval = setInterval(async () => {
-          if (await checkKaspaAppOpen(newTransport)) {
-            setIsAppOpen(true);
-            clearInterval(checkInterval);
-          }
-        }, 1000);
       }
-
-      setTransport(newTransport);
 
       newTransport.on("disconnect", () => {
         newTransport?.close();
@@ -81,11 +72,7 @@ export function LedgerTransportProvider({ children }: { children: ReactNode }) {
         console.error("Transport disconnection error:", error);
       }
     }
-
-    if (isAppOpenCheckInterval) {
-      clearInterval(isAppOpenCheckInterval);
-    }
-  }, [transport, isAppOpenCheckInterval]);
+  }, [transport]);
 
   return (
     <LedgerTransportContext.Provider
