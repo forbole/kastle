@@ -26,6 +26,7 @@ export default function MintingToken() {
   const { toFloat } = applyDecimal(tokenInfo?.dec);
   const mintAmount = toFloat(parseInt(tokenInfo?.lim ?? "0", 10));
   const [timesMinted, setTimesMinted] = useState(0);
+  const [isCanceledUi, setIsCanceledUi] = useState(false);
   const isCanceled = useRef(false);
   const { totalFees } = computeOperationFees("mint", mintTimes);
   const { totalFees: paidFees } = computeOperationFees("mint", timesMinted);
@@ -211,10 +212,21 @@ export default function MintingToken() {
 
           <div className="mt-auto flex flex-col items-center gap-2">
             <button
-              onClick={() => (isCanceled.current = true)}
-              className="mt-auto flex w-full items-center justify-center gap-2 rounded-full bg-icy-blue-400 py-4 text-lg font-medium text-white transition-colors hover:bg-icy-blue-600 disabled:bg-daintree-800 disabled:text-[#4B5563]"
+              onClick={() => {
+                isCanceled.current = true;
+                setIsCanceledUi(true);
+              }}
+              className="mt-auto flex w-full items-center justify-center gap-2 rounded-full border border-daintree-400 py-4 text-lg font-medium text-white transition-colors hover:bg-icy-blue-600 disabled:bg-daintree-800 disabled:text-[#4B5563]"
             >
-              Cancel
+              {isCanceledUi ? (
+                <div
+                  className="inline-block size-6 animate-spin rounded-full border-[3px] border-current border-t-[#A2F5FF] text-icy-blue-600"
+                  role="status"
+                  aria-label="loading"
+                ></div>
+              ) : (
+                <span>Cancel</span>
+              )}
             </button>
             <span className="text-daintree-400">You can cancel anytime</span>
           </div>
