@@ -55,6 +55,7 @@ import { TokenOperationFailed } from "@/components/screens/full-pages/TokenOpera
 import { TokenOperationSuccess } from "@/components/screens/full-pages/TokenOperationSuccess.tsx";
 import ConfirmDeploy from "@/components/screens/full-pages/ConfirmDeploy.tsx";
 import DeployingToken from "@/components/screens/full-pages/DeployingToken.tsx";
+import { RecentAddressesProvider } from "@/contexts/RecentAddressesContext.tsx";
 
 const loadKaspaWasm = async () => {
   await init(kaspaModule);
@@ -104,13 +105,15 @@ export const router = createHashRouter([
         element: (
           <KaspaPriceProvider>
             <SettingsProvider>
-              <RpcClientProvider>
-                <LedgerTransportProvider>
-                  <WalletManagerProvider>
-                    <Outlet />
-                  </WalletManagerProvider>
-                </LedgerTransportProvider>
-              </RpcClientProvider>
+              <RecentAddressesProvider>
+                <RpcClientProvider>
+                  <LedgerTransportProvider>
+                    <WalletManagerProvider>
+                      <Outlet />
+                    </WalletManagerProvider>
+                  </LedgerTransportProvider>
+                </RpcClientProvider>
+              </RecentAddressesProvider>
             </SettingsProvider>
           </KaspaPriceProvider>
         ),

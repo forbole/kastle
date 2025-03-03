@@ -188,7 +188,7 @@ export default function Dashboard() {
             <span className="text-daintree-400">Receive</span>
           </div>
 
-          {wallet?.type !== "ledger" ? (
+          {settings?.preview ? (
             <>
               <div
                 className="flex cursor-pointer flex-col items-center gap-2"

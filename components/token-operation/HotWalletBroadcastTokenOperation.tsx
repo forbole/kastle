@@ -5,6 +5,11 @@ import { useFormContext } from "react-hook-form";
 import { TokenOperationFormData } from "@/components/screens/TokenTransfer.tsx";
 import { useEffect } from "react";
 import { captureException } from "@sentry/react";
+import { Entry, PaymentOutput } from "@/lib/wallet/interface.ts";
+import { NetworkType } from "@/contexts/SettingsContext.tsx";
+import { FORBOLE_PAYOUT_ADDRESSES } from "@/lib/forbole.ts";
+import { MIN_KAS_AMOUNT } from "@/lib/kaspa.ts";
+import useRecentAddresses from "@/hooks/useRecentAddresses.ts";
 
 type HotWalletSendingProps = {
   accountFactory: AccountFactory;
@@ -21,9 +26,12 @@ export default function HotWalletBroadcastTokenOperation({
   onFail,
   onSuccess,
 }: HotWalletSendingProps) {
+  const { addRecentAddress } = useRecentAddresses();
+  const { rpcClient, networkId } = useRpcClientStateful();
   const { watch } = useFormContext<TokenOperationFormData>();
   const calledOnce = useRef(false);
   const opData = watch("opData");
+  const domain = watch("domain");
   const { walletSettings } = useWalletManager();
 
   const broadcastOperation = async () => {
@@ -43,6 +51,15 @@ export default function HotWalletBroadcastTokenOperation({
         amt: opData.amt,
         to: opData.to,
       });
+
+      const tokenOperationRecipientAddress = opData?.to;
+      if (tokenOperationRecipientAddress) {
+        await addRecentAddress({
+          kaspaAddress: tokenOperationRecipientAddress,
+          usedAt: new Date().getTime(),
+          domain,
+        });
+      }
 
       setOutTxs([]);
       onSuccess();
