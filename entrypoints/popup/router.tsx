@@ -29,13 +29,12 @@ import RemoveWallet from "@/components/screens/RemoveWallet.tsx";
 import BackupUnlock from "@/components/screens/BackupUnlock";
 import AccountsImported from "@/components/screens/full-pages/AccountsImported";
 import { getKeyringStatus } from "@/hooks/useKeyring.ts";
-import ImportLedger from "@/components/screens/full-pages/ImportLedger";
-import LedgerManageAccounts from "@/components/screens/full-pages/LedgerManageAccounts";
-import LedgerConnect from "@/components/screens/LedgerConnect";
+import ImportLedger from "@/components/screens/full-pages/ledger/ImportLedger";
+import LedgerManageAccounts from "@/components/screens/full-pages/ledger/LedgerManageAccounts";
+import LedgerConnect from "@/components/screens/full-pages/ledger/LedgerConnectForImport";
 import WalletLockedAlert from "@/components/screens/full-pages/WalletLockedAlert";
 import init from "@/wasm/core/kaspa";
 import kaspaModule from "@/assets/kaspa_bg.wasm?url";
-import { LedgerTransportProvider } from "@/contexts/LedgerTransportContext.tsx";
 import { KaspaPriceProvider } from "@/contexts/KaspaPriceContext.tsx";
 import { RpcClientProvider } from "@/contexts/RpcClientContext.tsx";
 import { SettingsProvider } from "@/contexts/SettingsContext.tsx";
@@ -50,6 +49,10 @@ import TokenAsset from "@/components/screens/TokenAsset.tsx";
 import KasAsset from "@/components/screens/KasAsset.tsx";
 import SignTxConfirm from "@/components/screens/browser-api/SignTxConfirm";
 import { RecentAddressesProvider } from "@/contexts/RecentAddressesContext.tsx";
+import ImportLedgerStart from "@/components/screens/full-pages/ledger/ImportLedgerStart";
+import LedgerConnectForImportFailed from "@/components/screens/full-pages/ledger/LedgerConnectForImportFailed";
+import LedgerConnectForSign from "@/components/screens/ledger-connect/LedgerConnectForSign";
+import LedgerConnectForSignFailed from "@/components/screens/ledger-connect/LedgerConnectForSignFailed";
 
 const loadKaspaWasm = async () => {
   await init(kaspaModule);
@@ -101,11 +104,9 @@ export const router = createHashRouter([
             <SettingsProvider>
               <RecentAddressesProvider>
                 <RpcClientProvider>
-                  <LedgerTransportProvider>
-                    <WalletManagerProvider>
-                      <Outlet />
-                    </WalletManagerProvider>
-                  </LedgerTransportProvider>
+                  <WalletManagerProvider>
+                    <Outlet />
+                  </WalletManagerProvider>
                 </RpcClientProvider>
               </RecentAddressesProvider>
             </SettingsProvider>
@@ -173,16 +174,20 @@ export const router = createHashRouter([
                     element: <BackupUnlock />,
                   },
                   {
-                    path: "connect-ledger-extension",
-                    element: <LedgerConnect />,
-                  },
-                  {
                     path: "token-asset/:ticker",
                     element: <TokenAsset />,
                   },
                   {
                     path: "kas-asset",
                     element: <KasAsset />,
+                  },
+                  {
+                    path: "ledger-connect-for-sign",
+                    element: <LedgerConnectForSign />,
+                  },
+                  {
+                    path: "ledger-connect-for-sign-failed",
+                    element: <LedgerConnectForSignFailed />,
                   },
                 ],
               },
@@ -227,10 +232,6 @@ export const router = createHashRouter([
                 element: <LedgerManageAccounts />,
               },
               {
-                path: "import-ledger",
-                element: <ImportLedger />,
-              },
-              {
                 path: "import-recovery-phrase",
                 element: <ImportRecoveryPhrase />,
               },
@@ -248,8 +249,20 @@ export const router = createHashRouter([
                 element: <AccountsImported />,
               },
               {
-                path: "connect-ledger",
+                path: "import-ledger-start",
+                element: <ImportLedgerStart />,
+              },
+              {
+                path: "import-ledger",
+                element: <ImportLedger />,
+              },
+              {
+                path: "ledger-connect-for-import",
                 element: <LedgerConnect />,
+              },
+              {
+                path: "ledger-connect-for-import-failed",
+                element: <LedgerConnectForImportFailed />,
               },
               {
                 path: "deploy-token",

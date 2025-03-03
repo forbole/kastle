@@ -2,21 +2,34 @@ import { createContext, ReactNode, useCallback, useState } from "react";
 import Transport from "@ledgerhq/hw-transport";
 import TransportWebHid from "@ledgerhq/hw-transport-webhid";
 import { captureException } from "@sentry/react";
+import KaspaApp from "hw-app-kaspa";
 
 interface LedgerTransportContextType {
   transport: Transport | null;
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
   isConnecting: boolean;
+  isAppOpen: boolean;
 }
 
 export const LedgerTransportContext = createContext<
   LedgerTransportContextType | undefined
 >(undefined);
 
+async function checkKaspaAppOpen(transport: Transport) {
+  const kaspaApp = new KaspaApp(transport);
+  try {
+    await kaspaApp.getVersion();
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
 export function LedgerTransportProvider({ children }: { children: ReactNode }) {
   const [transport, setTransport] = useState<Transport | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [isAppOpen, setIsAppOpen] = useState(false);
 
   const connect = async () => {
     if (isConnecting || transport) return;
@@ -24,25 +37,26 @@ export function LedgerTransportProvider({ children }: { children: ReactNode }) {
 
     try {
       // Try to get existing connection
-      const existingTransport = await TransportWebHid.openConnected();
-      if (existingTransport) {
-        setTransport(existingTransport);
-        return;
+      let newTransport: Transport | null =
+        await TransportWebHid.openConnected();
+      if (!newTransport) {
+        newTransport = await TransportWebHid.create();
       }
 
-      // Create new connection if none exists
-      const newTransport = await TransportWebHid.create();
       setTransport(newTransport);
 
-      newTransport.on("disconnect", () => {
-        setTransport(null);
-        newTransport.close();
-      });
+      // Check if Kaspa app is open
+      if (await checkKaspaAppOpen(newTransport)) {
+        setIsAppOpen(true);
+      }
 
-      // detect app close
+      newTransport.on("disconnect", () => {
+        newTransport?.close();
+        setTransport(null);
+        setIsAppOpen(false);
+      });
     } catch (error) {
       captureException(error);
-      console.error("Ledger connection error:", error);
       throw new Error("Failed to connect to Ledger device");
     } finally {
       setIsConnecting(false);
@@ -52,7 +66,6 @@ export function LedgerTransportProvider({ children }: { children: ReactNode }) {
   const disconnect = useCallback(async () => {
     if (transport) {
       try {
-        await transport.close();
         setTransport(null);
       } catch (error) {
         captureException(error);
@@ -68,6 +81,7 @@ export function LedgerTransportProvider({ children }: { children: ReactNode }) {
         connect,
         disconnect,
         isConnecting,
+        isAppOpen,
       }}
     >
       {children}
