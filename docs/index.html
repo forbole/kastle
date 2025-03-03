@@ -74,6 +74,32 @@
 
       <hr />
 
+      <h4>Mint Batch KRC20</h4>
+      <div>
+        Tick:
+        <input
+          type="text"
+          id="mintBatchTick"
+          placeholder="TTTT"
+          maxlength="6"
+        />
+      </div>
+      <div>
+        Times:
+        <input type="number" id="mintBatchTimes" placeholder="2" value="2" />
+      </div>
+      <button id="krcMintBatchCommit">Mint Batch KRC Commit</button>
+      <button id="krcMintBatchReveal">Mint Batch KRC Reveal</button>
+      <div>P2SH address: <span id="P2SHMintBatchAddress"></span></div>
+      <div>Script: <span id="mintBatchScript"></span></div>
+      <div>Commit Tx Id: <span id="mintBatchCommitTxId"></span></div>
+      <div>
+        Reveal Tx Ids:
+        <ul id="mintBatchRevealTxIds"></ul>
+      </div>
+      <div>Error: <span id="mintBatchErrorKRC20">None</span></div>
+      <hr />
+
       <h4>Transfer KRC20</h4>
       <div>
         Tick:

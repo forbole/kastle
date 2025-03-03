@@ -230,6 +230,112 @@ document.getElementById("krcMintReveal").addEventListener("click", async () => {
 });
 
 document
+  .getElementById("krcMintBatchCommit")
+  .addEventListener("click", async () => {
+    try {
+      const tick = document.getElementById("mintBatchTick").value;
+      const mintPayload = {
+        p: "krc-20",
+        op: "mint",
+        tick,
+      };
+      const scriptBuilder = createKRC20ScriptBuilder(mintPayload);
+
+      const scriptPublicKey = scriptBuilder.createPayToScriptHashScript();
+      const P2SHAddress = kaspaWasm.addressFromScriptPublicKey(
+        scriptPublicKey,
+        "testnet-10",
+      );
+
+      const times = document.getElementById("mintBatchTimes").value;
+      const preparedUtxos = [];
+      for (let i = 0; i < times; i++) {
+        preparedUtxos.push({ amount: "0.3", address: P2SHAddress.toString() });
+      }
+
+      const commitTxId = await kastle.signAndBroadcastTx(
+        "testnet-10",
+        preparedUtxos,
+      );
+      document.getElementById("P2SHMintBatchAddress").innerText =
+        P2SHAddress.toString();
+      document.getElementById("mintBatchCommitTxId").innerText = commitTxId;
+      document.getElementById("mintBatchScript").innerText =
+        scriptBuilder.toString();
+
+      document.getElementById("mintBatchErrorKRC20").innerText = "None";
+    } catch (error) {
+      document.getElementById("mintBatchErrorKRC20").innerText = error.message;
+    }
+  });
+
+document
+  .getElementById("krcMintBatchReveal")
+  .addEventListener("click", async () => {
+    const rpc = new kaspaWasm.RpcClient({
+      url: "wss://ws.tn10.kaspa.forbole.com/borsh",
+      networkId: "testnet-10",
+    });
+    await rpc.connect();
+
+    document.getElementById("mintBatchRevealTxIds").innerHTML = "";
+
+    try {
+      const P2SHAddress = document.getElementById(
+        "P2SHMintBatchAddress",
+      ).innerText;
+      const scriptBuilder = kaspaWasm.ScriptBuilder.fromScript(
+        document.getElementById("mintBatchScript").innerText,
+      );
+
+      let P2SHEntries = [];
+      while (P2SHEntries.length === 0) {
+        const P2SHUTXOs = await rpc.getUtxosByAddresses([
+          P2SHAddress.toString(),
+        ]);
+        P2SHEntries = P2SHUTXOs.entries;
+
+        if (P2SHEntries.length === 0) {
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
+      }
+
+      for (let i = 0; i < P2SHEntries.length; i++) {
+        const P2SHEntry = P2SHEntries[i];
+        console.log(P2SHEntry);
+        const entry = {
+          address: P2SHEntry.address.toString(),
+          amount: kaspaWasm.sompiToKaspaString(P2SHEntry.amount),
+          scriptPublicKey: JSON.parse(P2SHEntry.scriptPublicKey.toString()),
+          blockDaaScore: P2SHEntry.blockDaaScore.toString(),
+          outpoint: JSON.parse(P2SHEntry.outpoint.toString()),
+        };
+        const revealTxId = await kastle.signAndBroadcastTx("testnet-10", [], {
+          priorityEntries: [entry],
+          scripts: [
+            {
+              scriptHex: scriptBuilder.toString(),
+              inputIndex: 0,
+            },
+          ],
+          priorityFee: "1",
+        });
+
+        const li = document.createElement("li");
+        li.innerText = revealTxId;
+        document.getElementById("mintBatchRevealTxIds").appendChild(li);
+
+        await new Promise((resolve) => setTimeout(resolve, 1000)); // wait for 1 second to avoid from spending UTXOs of transaction
+      }
+      document.getElementById("mintBatchErrorKRC20").innerText = "None";
+    } catch (error) {
+      document.getElementById("mintBatchErrorKRC20").innerText = error.message;
+    } finally {
+      rpc.disconnect();
+    }
+  });
+
+document
   .getElementById("krcTransferCommit")
   .addEventListener("click", async () => {
     try {
