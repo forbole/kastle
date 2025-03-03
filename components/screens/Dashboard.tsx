@@ -18,7 +18,7 @@ import { applyDecimal } from "@/lib/krc20.ts";
 export default function Dashboard() {
   const { keyringLock } = useKeyring();
   const navigate = useNavigate();
-  const { networkId } = useRpcClientStateful();
+  const { networkId, isConnected } = useRpcClientStateful();
   const [settings, setSettings] = useSettings();
   const kapsaPrice = useKaspaPrice();
   const { showWarning } = useBackupWarning();
@@ -77,7 +77,7 @@ export default function Dashboard() {
           </div>
 
           <span className="text-sm text-daintree-400">
-            ✋👑 Hold on, Your Majesty! Please back up your recovery phrase 📜.
+            ✋👑 Hold on, Your Majesty! Please back up you r recovery phrase 📜.
             It’s the 🗝️ key to accessing your Kastle if you lose your password
             or need to reinstall your browser or extension 🌐.
           </span>
@@ -168,25 +168,49 @@ export default function Dashboard() {
 
         {/* Action Buttons */}
         <div className="flex w-full justify-center gap-10 text-sm text-daintree-400">
-          <div
-            className="flex cursor-pointer flex-col items-center gap-2"
+          <button
+            type="button"
+            className="flex flex-col items-center gap-2"
             onClick={() => navigate("/send")}
+            disabled={!isConnected}
           >
-            <div className="flex h-[46px] w-[46px] items-center justify-center rounded-full bg-white/10">
-              <i className="hn hn-arrow-up text-[20px] text-white"></i>
+            <div
+              className={twMerge(
+                "flex h-[46px] w-[46px] items-center justify-center rounded-full bg-white/10",
+                !isConnected && "animate-pulse",
+              )}
+            >
+              <i
+                className={twMerge(
+                  "hn hn-arrow-up text-[20px]",
+                  isConnected ? "text-white" : "text-daintree-600",
+                )}
+              ></i>
             </div>
             <span className="text-daintree-400">Send</span>
-          </div>
+          </button>
 
-          <div
-            className="flex cursor-pointer flex-col items-center gap-2"
+          <button
+            type="button"
+            className="flex flex-col items-center gap-2"
             onClick={() => navigate("/receive")}
+            disabled={!isConnected}
           >
-            <div className="flex h-[46px] w-[46px] items-center justify-center rounded-full bg-white/10">
-              <i className="hn hn-arrow-down text-[20px] text-white"></i>
+            <div
+              className={twMerge(
+                "flex h-[46px] w-[46px] items-center justify-center rounded-full bg-white/10",
+                !isConnected && "animate-pulse",
+              )}
+            >
+              <i
+                className={twMerge(
+                  "hn hn-arrow-down text-[20px]",
+                  isConnected ? "text-white" : "text-daintree-600",
+                )}
+              ></i>
             </div>
             <span className="text-daintree-400">Receive</span>
-          </div>
+          </button>
 
           {settings?.preview ? (
             <>
