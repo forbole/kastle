@@ -302,7 +302,6 @@ document
 
       for (let i = 0; i < P2SHEntries.length; i++) {
         const P2SHEntry = P2SHEntries[i];
-        console.log(P2SHEntry);
         const entry = {
           address: P2SHEntry.address.toString(),
           amount: kaspaWasm.sompiToKaspaString(P2SHEntry.amount),
