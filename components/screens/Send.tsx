@@ -21,14 +21,14 @@ export interface SendFormData {
   domain: string | undefined;
 }
 
-export interface State {
+export interface SendState {
   form?: SendFormData;
   step?: Step;
 }
 
 export default function Send() {
   const navigate = useNavigate();
-  const { state } = useLocation() as { state?: State };
+  const { state } = useLocation() as { state?: SendState };
   const [step, setStep] = useState<Step>(state?.step ?? "details");
 
   const form = useForm<SendFormData>({

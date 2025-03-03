@@ -9,7 +9,7 @@ import { setPopupPath } from "@/lib/utils.ts";
 import { useTokenInfo } from "@/hooks/useTokenInfo.ts";
 import { applyDecimal } from "@/lib/krc20.ts";
 import { useLocation } from "react-router";
-import { State } from "@/components/screens/Send.tsx";
+import { SendState } from "@/components/screens/Send.tsx";
 
 const steps = ["confirm", "broadcast", "success", "fail"] as const;
 
@@ -115,7 +115,7 @@ export default function TokenOperation() {
             address: to,
           },
         },
-      } as { state: State });
+      } as { state: SendState });
     }
 
     setStep((prevState) => {
