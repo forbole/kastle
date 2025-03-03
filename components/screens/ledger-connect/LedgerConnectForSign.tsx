@@ -11,9 +11,8 @@ export default function LedgerConnectForSign() {
   const navigate = useNavigate();
   const redirect = searchParams.get("redirect");
   const state = searchParams.get("state");
-  const calledConnectOnce = useRef(false);
-  const callCheckNeedRetryOnce = useRef(false);
-  const [showRetry, setShowRetry] = useState(false);
+  const [showConnect, setShowConnect] = useState(true);
+  const [isPreviousConnected, setIsPreviousConnected] = useState(false);
 
   const redirectBack = useCallback(() => {
     if (!redirect) {
@@ -39,50 +38,33 @@ export default function LedgerConnectForSign() {
     try {
       await connect();
     } catch (error) {
-      setTimeout(
-        () =>
-          navigate({
-            pathname: "/ledger-connect-for-sign-failed",
-            search: `?redirect=${redirect}&state=${state}`,
-          }),
-        1000, // Delay to prevent the page from flickering
-      );
+      navigate({
+        pathname: "/ledger-connect-for-sign-failed",
+        search: `?redirect=${redirect}&state=${state}`,
+      });
     }
   };
 
-  const retry = () => {
-    setShowRetry(false);
+  const tryConnect = () => {
+    setShowConnect(false);
     connectDevice();
     setTimeout(() => {
-      setShowRetry(true);
+      setShowConnect(true);
     }, 1000); // Show retry button after 1 seconds
   };
 
   useEffect(() => {
-    if (calledConnectOnce.current) return;
-    calledConnectOnce.current = true;
-
-    if (!transport) {
-      connectDevice();
-    }
-  }, [transport, isAppOpen, isConnecting]);
+    return () => {
+      setIsPreviousConnected(!!transport);
+    };
+  }, [transport]);
 
   useEffect(() => {
     // Redirect to the page if the connection is successful
     if (transport && isAppOpen) {
-      setTimeout(redirectBack, 2000); // Delay to prevent the page from flickering
+      redirectBack();
       return;
     }
-
-    if (callCheckNeedRetryOnce.current) return;
-    callCheckNeedRetryOnce.current = true;
-
-    const timeout = setTimeout(() => {
-      if (!transport || !isAppOpen) {
-        setShowRetry(true);
-      }
-    }, 1000); // Wait for the first attempt to connect
-    return () => clearTimeout(timeout);
   }, [transport, isAppOpen, redirectBack]);
 
   return (
@@ -110,7 +92,7 @@ export default function LedgerConnectForSign() {
                 <i
                   className={twMerge(
                     "hn text-sm",
-                    transport
+                    isPreviousConnected || !!transport
                       ? "hn-check-circle text-green-200"
                       : "hn-exclamation-triangle text-red-400",
                   )}
@@ -133,12 +115,12 @@ export default function LedgerConnectForSign() {
           </div>
         </div>
       </div>
-      {showRetry && (
+      {showConnect && (
         <button
-          onClick={retry}
+          onClick={tryConnect}
           className="items-center rounded-full bg-icy-blue-400 py-4 text-base font-semibold transition-colors hover:bg-icy-blue-600"
         >
-          Retry
+          Try Connect
         </button>
       )}
     </div>
