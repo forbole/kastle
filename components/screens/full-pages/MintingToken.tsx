@@ -16,6 +16,7 @@ export default function MintingToken() {
   const MIN_MINT_TIMES = 10;
   const navigate = useNavigate();
   const calledOnce = useRef(false);
+  const [step, setStep] = useState<string>();
 
   const { state } = useLocation();
   const { ticker, mintTimes } = state;
@@ -26,7 +27,7 @@ export default function MintingToken() {
   const mintAmount = toFloat(parseInt(tokenInfo?.lim ?? "0", 10));
   const [timesMinted, setTimesMinted] = useState(0);
   const isCanceled = useRef(false);
-  const { totalFees, forboleFee } = computeOperationFees("mint", mintTimes);
+  const { totalFees } = computeOperationFees("mint", mintTimes);
   const { totalFees: paidFees } = computeOperationFees("mint", timesMinted);
 
   const { rpcClient, networkId = NetworkType.Mainnet } = useRpcClientStateful();
@@ -67,7 +68,7 @@ export default function MintingToken() {
             )
           : accountFactory.createFromPrivateKey(secret.value);
 
-      await account.mint(
+      for await (const step of account.mint(
         { tick: ticker },
         includeForboleFees
           ? [
@@ -78,7 +79,9 @@ export default function MintingToken() {
               },
             ]
           : undefined,
-      );
+      )) {
+        setStep(step);
+      }
     };
 
     const processMinting = async () => {
@@ -142,16 +145,22 @@ export default function MintingToken() {
               </div>
             </div>
 
-            <div
-              className="flex h-4 w-full overflow-hidden rounded-full bg-daintree-700"
-              role="progressbar"
-            >
-              <div
-                className="flex flex-col justify-center overflow-hidden whitespace-nowrap rounded-full bg-icy-blue-400 text-center text-xs text-white transition duration-500"
-                style={{ width: `${progressPercentage}%` }}
-              >
-                {progressPercentage.toFixed(0)}%
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-2.5">
+                <div
+                  className="flex h-4 w-full overflow-hidden rounded-full bg-daintree-700"
+                  role="progressbar"
+                >
+                  <div
+                    className="flex flex-col justify-center overflow-hidden whitespace-nowrap rounded-full bg-icy-blue-400 text-center text-xs text-white transition duration-500"
+                    style={{ width: `${progressPercentage}%` }}
+                  ></div>
+                </div>
+                <span className="text-base font-bold">
+                  {progressPercentage.toFixed(0)}%
+                </span>
               </div>
+              <span className="self-center capitalize">{step}</span>
             </div>
 
             <div className="flex items-center gap-1 text-base">

@@ -100,12 +100,16 @@ export interface IWallet {
       pre: string;
     },
     extraOutputs: IPaymentOutput[] | undefined,
-  ): Promise<void>;
+  ): AsyncGenerator<string, void, unknown>;
 
   mint(
     payload: { tick: string },
     extraOutputs: IPaymentOutput[] | undefined,
-  ): Promise<void>;
+  ): AsyncGenerator<string, void, unknown>;
 
-  transfer(payload: { tick: string; amt: string; to: string }): Promise<void>;
+  transfer(payload: {
+    tick: string;
+    amt: string;
+    to: string;
+  }): AsyncGenerator<string, void, unknown>;
 }

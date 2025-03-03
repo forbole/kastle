@@ -57,7 +57,7 @@ export default function DeployingToken() {
             )
           : accountFactory.createFromPrivateKey(secret.value);
 
-      await account.deploy(
+      for await (const _step of account.deploy(
         {
           tick: ticker,
           max: maxSupply.toString(),
@@ -71,7 +71,9 @@ export default function DeployingToken() {
             amount: kaspaToSompi(ForboleFee.Deploy.toString())!,
           },
         ],
-      );
+      )) {
+        /* empty */
+      }
     };
 
     if (calledOnce.current) return;

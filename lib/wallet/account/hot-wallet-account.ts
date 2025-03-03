@@ -40,11 +40,13 @@ export class HotWalletAccount implements IWallet {
     private readonly networkId: NetworkType,
   ) {}
 
-  async performCommitReveal(
+  async *performCommitReveal(
     payload: any,
     revealPriorityFee: IGeneratorSettingsObject["priorityFee"],
     extraOutputs: IPaymentOutput[] = [],
   ) {
+    yield "commiting";
+
     const privateKey = this.getPrivateKey();
     const publicKey = privateKey.toPublicKey();
     const address = publicKey.toAddress(this.networkId);
@@ -129,6 +131,8 @@ export class HotWalletAccount implements IWallet {
 
     clearTimeout(commitTimeout);
 
+    yield "revealing";
+
     // Continue with reveal transaction after maturity event
     eventReceived = false;
     const { entries: newEntries } = await this.rpcClient.getUtxosByAddresses({
@@ -185,7 +189,7 @@ export class HotWalletAccount implements IWallet {
     eventReceived = false;
   }
 
-  async deploy(
+  deploy(
     payload: {
       tick: string;
       max: string;
@@ -194,31 +198,24 @@ export class HotWalletAccount implements IWallet {
       pre: string;
     },
     extraOutputs: IPaymentOutput[] = [],
-  ): Promise<void> {
-    await this.performCommitReveal(
+  ) {
+    return this.performCommitReveal(
       { p: "krc-20", op: "deploy", ...payload },
       kaspaToSompi(Fee.Deploy.toString())!,
       extraOutputs,
     );
   }
 
-  async mint(
-    payload: { tick: string },
-    extraOutputs: IPaymentOutput[] = [],
-  ): Promise<void> {
-    await this.performCommitReveal(
+  mint(payload: { tick: string }, extraOutputs: IPaymentOutput[] = []) {
+    return this.performCommitReveal(
       { p: "krc-20", op: "mint", ...payload },
       kaspaToSompi(Fee.Mint.toString())!,
       extraOutputs,
     );
   }
 
-  async transfer(payload: {
-    tick: string;
-    amt: string;
-    to: string;
-  }): Promise<void> {
-    await this.performCommitReveal(
+  transfer(payload: { tick: string; amt: string; to: string }) {
+    return this.performCommitReveal(
       { p: "krc-20", op: "transfer", ...payload },
       kaspaToSompi(Fee.Base.toString())!,
     );

@@ -38,7 +38,7 @@ export class LedgerAccount implements IWallet {
     this.path = `m/44'/111111'/${accountIndex}'/0/0`;
   }
 
-  async deploy(
+  deploy(
     payload: {
       tick: string;
       max: string;
@@ -46,23 +46,23 @@ export class LedgerAccount implements IWallet {
       dec: string;
       pre: string;
     },
-    extraOutputs: IPaymentOutput[] = [],
-  ): Promise<void> {
+    extraOutputs: IPaymentOutput[] | undefined,
+  ): AsyncGenerator<string, void, unknown> {
     throw new Error("Method not implemented.");
   }
 
-  async mint(
+  mint(
     payload: { tick: string },
-    extraOutputs: IPaymentOutput[] = [],
-  ): Promise<void> {
+    extraOutputs: IPaymentOutput[] | undefined,
+  ): AsyncGenerator<string, void, unknown> {
     throw new Error("Method not implemented.");
   }
 
-  async transfer(payload: {
+  transfer(payload: {
     tick: string;
     amt: string;
     to: string;
-  }): Promise<void> {
+  }): AsyncGenerator<string, void, unknown> {
     throw new Error("Method not implemented.");
   }
 

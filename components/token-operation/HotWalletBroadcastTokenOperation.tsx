@@ -41,11 +41,13 @@ export default function HotWalletBroadcastTokenOperation({
           ? accountFactory.createFromMnemonic(secret.value, accountIndex)
           : accountFactory.createFromPrivateKey(secret.value);
 
-      await account.transfer({
+      for await (const _step of account.transfer({
         tick: opData.tick,
         amt: opData.amt,
         to: opData.to,
-      });
+      })) {
+        /* empty */
+      }
 
       const tokenOperationRecipientAddress = opData?.to;
       if (tokenOperationRecipientAddress) {
