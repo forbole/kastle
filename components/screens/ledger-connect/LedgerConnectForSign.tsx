@@ -59,10 +59,8 @@ export default function LedgerConnectForSign() {
   };
 
   useEffect(() => {
-    if (!calledConnectOnce.current) {
-      calledConnectOnce.current = true;
-      return;
-    }
+    if (calledConnectOnce.current) return;
+    calledConnectOnce.current = true;
 
     if (!transport) {
       connectDevice();
@@ -76,10 +74,8 @@ export default function LedgerConnectForSign() {
       return;
     }
 
-    if (!callCheckNeedRetryOnce.current) {
-      callCheckNeedRetryOnce.current = true;
-      return;
-    }
+    if (callCheckNeedRetryOnce.current) return;
+    callCheckNeedRetryOnce.current = true;
 
     const timeout = setTimeout(() => {
       if (!transport || !isAppOpen) {
