@@ -238,8 +238,6 @@ export const DetailsStep = ({
     }
   }, [userInput]);
 
-  console.log(isTickerSelectShown);
-
   return (
     <>
       <Header title="Send KAS" onClose={onClose} onBack={onBack} />
