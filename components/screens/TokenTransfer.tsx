@@ -16,22 +16,23 @@ type Step = (typeof steps)[number];
 
 export interface TokenOperationFormData {
   opData: { op: string; tick: string; amt: string; to: string };
+  domain: string;
 }
 
 export default function TokenTransfer() {
   const navigate = useNavigate();
   const { state } = useLocation();
-  const [step, setStep] = useState<Step>("confirm");
-  const form = useForm<TokenOperationFormData>({
-    defaultValues: { opData: {} },
-  });
-  const [outTxs, setOutTxs] = useState<string[]>();
-
-  const { ticker, amount, to } = state as {
+  const { ticker, amount, to, domain } = state as {
     ticker: string;
     amount: string;
     to: string;
+    domain: string;
   };
+  const [step, setStep] = useState<Step>("confirm");
+  const form = useForm<TokenOperationFormData>({
+    defaultValues: { opData: {}, domain },
+  });
+  const [outTxs, setOutTxs] = useState<string[]>();
 
   const { data: tokenInfoResponse, isLoading } = useTokenInfo(
     ticker ?? undefined,
