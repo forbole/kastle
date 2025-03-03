@@ -5,23 +5,10 @@ export default function ImportLedgerStart() {
   const navigate = useNavigate();
 
   const steps = [
-    {
-      number: 1,
-      text: "Connect & Unlock Ledger",
-    },
-    {
-      number: 2,
-      text: "Open Kaspa app",
-    },
-    {
-      number: 3,
-      text: "Import accounts",
-    },
-    {
-      number: "check",
-      text: "Done! 🎉",
-      checked: true,
-    },
+    "Connect & Unlock Ledger",
+    "Open Kaspa app",
+    "Import accounts",
+    "Done! 🎉",
   ];
 
   return (
@@ -37,13 +24,13 @@ export default function ImportLedgerStart() {
         {steps.map((step, index) => (
           <div key={index} className="flex items-center gap-4">
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#203C49]">
-              {step.checked ? (
+              {index === steps.length - 1 ? (
                 <i className="hn hn-check text-white" />
               ) : (
-                step.number
+                index + 1
               )}
             </div>
-            <span className="text-base">{step.text}</span>
+            <span className="text-base">{step}</span>
           </div>
         ))}
       </div>
