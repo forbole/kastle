@@ -21,6 +21,7 @@ export type DeployFormData = {
 
 export default function MintToken() {
   const MIN_MINT_TIMES = 10;
+  const MAX_MINT_TIMES = 50;
   const navigate = useNavigate();
   const { state } = useLocation();
   const { fetchTokenInfo } = useKasplex();
@@ -45,6 +46,7 @@ export default function MintToken() {
     mintTimes,
     maxMintTimes,
   } = form.watch();
+  const cappedMaxMint = Math.min(maxMintTimes, MAX_MINT_TIMES);
   const { krc20Fee, kaspaFee, forboleFee, totalFees } = computeOperationFees(
     "mint",
     mintTimes,
@@ -261,11 +263,11 @@ export default function MintToken() {
                   type="range"
                   {...form.register("mintTimes", {
                     min: MIN_MINT_TIMES,
-                    max: maxMintTimes,
+                    max: cappedMaxMint,
                     disabled: maxMintTimes < MIN_MINT_TIMES,
                   })}
                   min={MIN_MINT_TIMES}
-                  max={maxMintTimes}
+                  max={cappedMaxMint}
                   step={MIN_MINT_TIMES}
                   className="w-full cursor-pointer appearance-none bg-transparent focus:outline-none disabled:pointer-events-none disabled:opacity-50 [&::-moz-range-thumb]:h-2.5 [&::-moz-range-thumb]:w-2.5 [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-4 [&::-moz-range-thumb]:border-icy-blue-400 [&::-moz-range-thumb]:bg-icy-blue-400 [&::-moz-range-thumb]:transition-all [&::-moz-range-thumb]:duration-150 [&::-moz-range-thumb]:ease-in-out [&::-moz-range-track]:h-2 [&::-moz-range-track]:w-full [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-daintree-800 [&::-webkit-slider-runnable-track]:h-2 [&::-webkit-slider-runnable-track]:w-full [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-daintree-800 [&::-webkit-slider-thumb]:-mt-0.5 [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-daintree-800 [&::-webkit-slider-thumb]:shadow-[0_0_0_4px_#00B1D0] [&::-webkit-slider-thumb]:transition-all [&::-webkit-slider-thumb]:duration-150 [&::-webkit-slider-thumb]:ease-in-out"
                 />
@@ -276,7 +278,7 @@ export default function MintToken() {
                   </div>
                   <div className="mr-1 flex flex-col items-center gap-2">
                     <span className="self-end text-daintree-600">|</span>
-                    <span>{mintAmount * maxMintTimes}</span>
+                    <span>{mintAmount * cappedMaxMint}</span>
                   </div>
                 </div>
               </div>
