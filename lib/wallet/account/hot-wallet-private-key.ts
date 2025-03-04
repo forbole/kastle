@@ -28,6 +28,7 @@ import {
 } from "@/lib/wallet/interface.ts";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import { Amount } from "@/lib/krc20.ts";
+import { sleep } from "@/lib/utils.ts";
 
 export class HotWalletPrivateKey implements IWallet {
   keypair: Keypair;
@@ -107,18 +108,17 @@ export class HotWalletPrivateKey implements IWallet {
       submittedTxId = hash;
     }
 
-    // Wait for the maturity event
-    const commitTimeout = setTimeout(() => {
-      if (!eventReceived) {
-        throw new Error("Commit transaction did not mature within 2 minutes");
-      }
-    }, 120000);
+    for (let i = 0; i < 240; i++) {
+      await sleep(500);
 
-    while (!eventReceived) {
-      await new Promise((resolve) => setTimeout(resolve, 500)); // wait and check every 500ms
+      if (eventReceived) {
+        break;
+      }
+    }
+    if (!eventReceived) {
+      throw new Error("Commit transaction did not mature within 2 minutes");
     }
 
-    clearTimeout(commitTimeout);
     yield "revealing";
 
     // Continue with reveal transaction after maturity event
@@ -162,18 +162,18 @@ export class HotWalletPrivateKey implements IWallet {
       submittedTxId = revealHash;
     }
 
-    const revealTimeout = setTimeout(() => {
-      if (!eventReceived) {
-        throw new Error("Reveal transaction did not mature within 2 minutes");
-      }
-    }, 120000);
+    for (let i = 0; i < 240; i++) {
+      await sleep(500);
 
-    while (!eventReceived) {
-      await new Promise((resolve) => setTimeout(resolve, 500)); // wait and check every 500ms
+      if (eventReceived) {
+        break;
+      }
+    }
+    if (!eventReceived) {
+      throw new Error("Reveal transaction did not mature within 2 minutes");
     }
 
     this.rpcClient.removeEventListener("utxos-changed", handleUtxosChanged);
-    clearTimeout(revealTimeout);
     eventReceived = false;
   }
 
