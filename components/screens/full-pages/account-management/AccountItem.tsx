@@ -104,7 +104,7 @@ export function AccountItem({ accountIndex, publicKeys }: AccountItemProps) {
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
           >
-            <a
+            <span
               data-tooltip-id={`clipboard-${accountIndex}`}
               data-tooltip-content="Copied"
             >
@@ -114,7 +114,7 @@ export function AccountItem({ accountIndex, publicKeys }: AccountItemProps) {
               >
                 {shrinkAddress}
               </a>
-            </a>
+            </span>
           </span>
           <div>
             {accountBalance !== undefined ? (
