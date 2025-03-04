@@ -34,7 +34,7 @@ export const SuccessStatus = ({ transactionIds }: SuccessProps) => {
   };
   const opDescription: Record<string, string> = {
     transfer: `Your ${ticker} has been sent to the recipient's address`,
-    deploy: "A new token has been forget",
+    deploy: "A new token has been forged",
     mint: `${ticker} has been forged!`,
   };
 
