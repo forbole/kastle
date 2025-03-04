@@ -175,7 +175,7 @@ export default function MintingToken() {
                   {progressPercentage.toFixed(0)}%
                 </span>
               </div>
-              <span className="self-center capitalize">{step}</span>
+              <span className="self-center capitalize">{`${step} TX...`}</span>
             </div>
 
             <div className="flex items-center gap-1 text-base">
