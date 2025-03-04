@@ -1,6 +1,6 @@
-import useSWR from "swr";
 import { fetcher } from "@/lib/utils.ts";
 import { useSettings } from "@/hooks/useSettings.ts";
+import useSWRInfinite from "swr/infinite";
 
 export interface Op {
   p: string;
@@ -41,10 +41,18 @@ export function useOpListByAddressAndTicker(
 
   const kasplexUrl = settings?.kasplexApiUrls[settings?.networkId];
 
-  return useSWR<OpListResponse, Error>(
-    kasplexUrl && params
-      ? `${kasplexUrl}/krc20/oplist?address=${params.address}&tick=${params.ticker}`
-      : null,
-    fetcher,
-  );
+  return useSWRInfinite<OpListResponse, Error>((index, previousPageData) => {
+    if (!kasplexUrl || !params) {
+      return null;
+    }
+    if (!!previousPageData && !previousPageData?.next) {
+      return null;
+    }
+
+    if (index === 0) {
+      return `${kasplexUrl}/krc20/oplist?address=${params.address}&tick=${params.ticker}`;
+    }
+
+    return `${kasplexUrl}/krc20/oplist?address=${params.address}&tick=${params.ticker}&next=${previousPageData.next}`;
+  }, fetcher);
 }
