@@ -124,6 +124,10 @@ export const DetailsStep = ({
     const genericErrorMessage = "Invalid address or KNS domain";
     if (!value) return genericErrorMessage;
 
+    if (ticker !== "kas" && value === account?.address) {
+      return "You cannot send KRC20 to yourself";
+    }
+
     const domainInfo = value.endsWith(".kas")
       ? await fetchDomainInfo(value)
       : undefined;
@@ -237,6 +241,10 @@ export const DetailsStep = ({
       setValue("address", undefined, { shouldValidate: true });
     }
   }, [userInput]);
+
+  useEffect(() => {
+    trigger("userInput");
+  }, [ticker]);
 
   return (
     <>
