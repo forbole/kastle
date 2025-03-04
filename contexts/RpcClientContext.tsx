@@ -11,7 +11,7 @@ import {
   UtxoEntryReference,
 } from "@/wasm/core/kaspa";
 import { PaymentOutput } from "@/lib/wallet/interface.ts";
-import { NetworkType } from "@/contexts/SettingsContext.tsx";
+import { NetworkType, RPC_URLS } from "@/contexts/SettingsContext.tsx";
 import Splash from "@/components/screens/Splash.tsx";
 
 interface RpcClientContextType {
@@ -100,7 +100,7 @@ export function RpcClientProvider({ children }: { children: ReactNode }) {
       setNetworkId(settings.networkId);
     }
 
-    const newRpcUrl = settings.rpcUrls[settings.networkId];
+    const newRpcUrl = RPC_URLS[settings.networkId];
     if (!rpcUrl || newRpcUrl !== rpcUrl) {
       setRpcUrl(newRpcUrl);
     }
