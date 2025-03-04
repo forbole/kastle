@@ -72,11 +72,7 @@ export default function ConfirmMint() {
                   <i
                     className="hn hn-info-circle text-lg"
                     data-tooltip-id="info-tooltip"
-                    data-tooltip-content={
-                      forboleFee > 0
-                        ? `${krc20Fee} KAS for KRC20 fees, ${kaspaFee} KAS for Kaspa network fees and ${forboleFee} KAS for Kastle fees.`
-                        : `${krc20Fee} KAS for KRC20 fees and ${kaspaFee} KAS for Kaspa network fees.`
-                    }
+                    data-tooltip-content={`Fee Charged Every ${(mintTimes * mintAmount).toLocaleString()} ${ticker}`}
                   ></i>
                   <Tooltip
                     id="info-tooltip"
@@ -89,7 +85,28 @@ export default function ConfirmMint() {
                   />
                 </div>
                 <div className="flex flex-col text-right">
-                  <span className="font-medium">{totalFees} KAS</span>
+                  <div className="flex items-center gap-2">
+                    <i
+                      className="hn hn-info-circle text-lg"
+                      data-tooltip-id="info-tooltip"
+                      data-tooltip-content={
+                        forboleFee > 0
+                          ? `${krc20Fee} KAS for KRC20 fees, ${kaspaFee} KAS for Kaspa network fees and ${forboleFee} KAS for Kastle fees.`
+                          : `${krc20Fee} KAS for KRC20 fees and ${kaspaFee} KAS for Kaspa network fees.`
+                      }
+                    ></i>
+                    <Tooltip
+                      id="info-tooltip"
+                      style={{
+                        backgroundColor: "#374151",
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        padding: "2px 8px",
+                      }}
+                    />
+
+                    <span className="font-medium">{totalFees} KAS</span>
+                  </div>
                   <span className="text-xs text-daintree-400">
                     {formatUSD(totalFees * kaspaPrice.kaspaPrice)} USD
                   </span>
