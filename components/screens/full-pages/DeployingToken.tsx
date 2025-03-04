@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import React, { useEffect, useState } from "react";
 import { useLocation } from "react-router";
 import Header from "@/components/GeneralHeader.tsx";
-import { ForboleFee } from "@/lib/krc20.ts";
+import { deploy, ForboleFee } from "@/lib/krc20.ts";
 import carriageImage from "@/assets/images/carriage.png";
 import { kaspaToSompi } from "@/wasm/core/kaspa";
 import { FORBOLE_PAYOUT_ADDRESSES } from "@/lib/forbole.ts";
@@ -57,7 +57,8 @@ export default function DeployingToken() {
             )
           : accountFactory.createFromPrivateKey(secret.value);
 
-      for await (const _step of account.deploy(
+      for await (const _step of deploy(
+        account,
         {
           tick: ticker,
           max: maxSupply.toString(),

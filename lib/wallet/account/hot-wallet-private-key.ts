@@ -8,9 +8,9 @@ import {
   IPaymentOutput,
   kaspaToSompi,
   Keypair,
-  Opcodes,
   PendingTransaction,
   PrivateKey,
+  PublicKey,
   RpcClient,
   ScriptBuilder,
   signTransaction,
@@ -27,7 +27,7 @@ import {
   TxSettingOptions,
 } from "@/lib/wallet/interface.ts";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
-import { Amount, Fee } from "@/lib/krc20.ts";
+import { Amount } from "@/lib/krc20.ts";
 
 export class HotWalletPrivateKey implements IWallet {
   keypair: Keypair;
@@ -41,7 +41,7 @@ export class HotWalletPrivateKey implements IWallet {
   }
 
   async *performCommitReveal(
-    payload: any,
+    scriptBuilder: ScriptBuilder,
     revealPriorityFee: IGeneratorSettingsObject["priorityFee"],
     extraOutputs: IPaymentOutput[] = [],
   ) {
@@ -74,18 +74,8 @@ export class HotWalletPrivateKey implements IWallet {
     await this.rpcClient.subscribeUtxosChanged([address.toString()]);
     this.rpcClient.addEventListener("utxos-changed", handleUtxosChanged);
 
-    const script = new ScriptBuilder()
-      .addData(publicKey.toXOnlyPublicKey().toString())
-      .addOp(Opcodes.OpCheckSig)
-      .addOp(Opcodes.OpFalse)
-      .addOp(Opcodes.OpIf)
-      .addData(Buffer.from("kasplex"))
-      .addI64(0n)
-      .addData(Buffer.from(JSON.stringify(payload, null, 0)))
-      .addOp(Opcodes.OpEndIf);
-
     const P2SHAddress = addressFromScriptPublicKey(
-      script.createPayToScriptHashScript(),
+      scriptBuilder.createPayToScriptHashScript(),
       this.networkId,
     );
 
@@ -165,7 +155,7 @@ export class HotWalletPrivateKey implements IWallet {
         );
         transaction.fillInput(
           ourOutput,
-          script.encodePayToScriptHashSignatureScript(signature),
+          scriptBuilder.encodePayToScriptHashSignatureScript(signature),
         );
       }
       revealHash = await transaction.submit(this.rpcClient);
@@ -187,40 +177,12 @@ export class HotWalletPrivateKey implements IWallet {
     eventReceived = false;
   }
 
-  deploy(
-    payload: {
-      tick: string;
-      max: string;
-      lim: string;
-      dec: string;
-      pre: string;
-    },
-    extraOutputs: IPaymentOutput[] = [],
-  ) {
-    return this.performCommitReveal(
-      { p: "krc-20", op: "deploy", ...payload },
-      kaspaToSompi(Fee.Deploy.toString())!,
-      extraOutputs,
-    );
-  }
-
-  mint(payload: { tick: string }, extraOutputs: IPaymentOutput[] = []) {
-    return this.performCommitReveal(
-      { p: "krc-20", op: "mint", ...payload },
-      kaspaToSompi(Fee.Mint.toString())!,
-      extraOutputs,
-    );
-  }
-
-  transfer(payload: { tick: string; amt: string; to: string }) {
-    return this.performCommitReveal(
-      { p: "krc-20", op: "transfer", ...payload },
-      kaspaToSompi(Fee.Base.toString())!,
-    );
-  }
-
   getPrivateKeyString() {
     return this.keypair.privateKey;
+  }
+
+  getPublicKey(): PublicKey {
+    return this.privateKey.toPublicKey();
   }
 
   getPublicKeys() {

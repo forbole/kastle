@@ -3,7 +3,12 @@ import React, { useEffect, useState } from "react";
 import { useTokenInfo } from "@/hooks/useTokenInfo.ts";
 import { useLocation } from "react-router";
 import Header from "@/components/GeneralHeader.tsx";
-import { applyDecimal, computeOperationFees, ForboleFee } from "@/lib/krc20.ts";
+import {
+  applyDecimal,
+  computeOperationFees,
+  ForboleFee,
+  mint,
+} from "@/lib/krc20.ts";
 import carriageImage from "@/assets/images/carriage.png";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import { WalletSecret } from "@/types/WalletSecret.ts";
@@ -69,7 +74,8 @@ export default function MintingToken() {
             )
           : accountFactory.createFromPrivateKey(secret.value);
 
-      for await (const step of account.mint(
+      for await (const step of mint(
+        account,
         { tick: ticker },
         includeForboleFees
           ? [

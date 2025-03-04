@@ -1,4 +1,10 @@
-import { Opcodes, PublicKey, ScriptBuilder } from "@/wasm/core/kaspa";
+import {
+  IPaymentOutput,
+  kaspaToSompi,
+  Opcodes,
+  ScriptBuilder,
+} from "@/wasm/core/kaspa";
+import { IWallet } from "@/lib/wallet/interface.ts";
 
 export type Operation = "deploy" | "mint" | "transfer";
 
@@ -30,20 +36,6 @@ export enum Amount {
   ScriptUtxoAmount = "0.3",
 }
 
-export const createKRC20ScriptBuilder = (pubKey: string, data: any) => {
-  const publicKey = new PublicKey(pubKey);
-
-  return new ScriptBuilder()
-    .addData(publicKey.toXOnlyPublicKey().toString())
-    .addOp(Opcodes.OpCheckSig)
-    .addOp(Opcodes.OpFalse)
-    .addOp(Opcodes.OpIf)
-    .addData(new TextEncoder().encode("kasplex")) // Instead of Buffer.from
-    .addI64(0n)
-    .addData(new TextEncoder().encode(JSON.stringify(data, null, 0)))
-    .addOp(Opcodes.OpEndIf);
-};
-
 export const applyDecimal = (decimalPlaces: string = "8") => {
   const decimalCoefficient = Math.pow(10, parseInt(decimalPlaces, 10));
 
@@ -64,4 +56,79 @@ export const computeOperationFees = (op: Operation, times: number = 1) => {
     forboleFee,
     totalFees: krc20Fee + kaspaFee + forboleFee,
   };
+};
+
+export const deploy = (
+  wallet: IWallet,
+  payload: {
+    tick: string;
+    max: string;
+    lim: string;
+    dec: string;
+    pre: string;
+  },
+  extraOutputs: IPaymentOutput[] = [],
+) => {
+  const data = { p: "krc-20", op: "deploy", ...payload };
+  const script = new ScriptBuilder()
+    .addData(wallet.getPublicKey().toXOnlyPublicKey().toString())
+    .addOp(Opcodes.OpCheckSig)
+    .addOp(Opcodes.OpFalse)
+    .addOp(Opcodes.OpIf)
+    .addData(Buffer.from("kasplex"))
+    .addI64(0n)
+    .addData(Buffer.from(JSON.stringify(data, null, 0)))
+    .addOp(Opcodes.OpEndIf);
+
+  return wallet.performCommitReveal(
+    script,
+    kaspaToSompi(Fee.Deploy.toString())!,
+    extraOutputs,
+  );
+};
+
+export const mint = (
+  wallet: IWallet,
+  payload: { tick: string },
+  extraOutputs: IPaymentOutput[] = [],
+) => {
+  const data = { p: "krc-20", op: "mint", ...payload };
+  const script = new ScriptBuilder()
+    .addData(wallet.getPublicKey().toXOnlyPublicKey().toString())
+    .addOp(Opcodes.OpCheckSig)
+    .addOp(Opcodes.OpFalse)
+    .addOp(Opcodes.OpIf)
+    .addData(Buffer.from("kasplex"))
+    .addI64(0n)
+    .addData(Buffer.from(JSON.stringify(data, null, 0)))
+    .addOp(Opcodes.OpEndIf);
+
+  return wallet.performCommitReveal(
+    script,
+    kaspaToSompi(Fee.Deploy.toString())!,
+    extraOutputs,
+  );
+};
+
+export const transfer = (
+  wallet: IWallet,
+  payload: { tick: string; amt: string; to: string },
+  extraOutputs: IPaymentOutput[] = [],
+) => {
+  const data = { p: "krc-20", op: "transfer", ...payload };
+  const script = new ScriptBuilder()
+    .addData(wallet.getPublicKey().toXOnlyPublicKey().toString())
+    .addOp(Opcodes.OpCheckSig)
+    .addOp(Opcodes.OpFalse)
+    .addOp(Opcodes.OpIf)
+    .addData(Buffer.from("kasplex"))
+    .addI64(0n)
+    .addData(Buffer.from(JSON.stringify(data, null, 0)))
+    .addOp(Opcodes.OpEndIf);
+
+  return wallet.performCommitReveal(
+    script,
+    kaspaToSompi(Fee.Deploy.toString())!,
+    extraOutputs,
+  );
 };

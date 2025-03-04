@@ -6,11 +6,13 @@ import {
 import {
   Address,
   Generator,
+  IGeneratorSettingsObject,
   IPaymentOutput,
   IUtxoEntry,
   PendingTransaction,
   PublicKey,
   RpcClient,
+  ScriptBuilder,
   ScriptPublicKey,
   Transaction,
   TransactionInput,
@@ -38,31 +40,11 @@ export class LedgerAccount implements IWallet {
     this.path = `m/44'/111111'/${accountIndex}'/0/0`;
   }
 
-  deploy(
-    payload: {
-      tick: string;
-      max: string;
-      lim: string;
-      dec: string;
-      pre: string;
-    },
-    extraOutputs: IPaymentOutput[] | undefined,
-  ): AsyncGenerator<string, void, unknown> {
-    throw new Error("Method not implemented.");
-  }
-
-  mint(
-    payload: { tick: string },
-    extraOutputs: IPaymentOutput[] | undefined,
-  ): AsyncGenerator<string, void, unknown> {
-    throw new Error("Method not implemented.");
-  }
-
-  transfer(payload: {
-    tick: string;
-    amt: string;
-    to: string;
-  }): AsyncGenerator<string, void, unknown> {
+  performCommitReveal(
+    scriptBuilder: ScriptBuilder,
+    revealPriorityFee: IGeneratorSettingsObject["priorityFee"],
+    extraOutputs?: IPaymentOutput[],
+  ): AsyncGenerator<"commiting" | "revealing", void, unknown> {
     throw new Error("Method not implemented.");
   }
 
@@ -140,6 +122,10 @@ export class LedgerAccount implements IWallet {
 
   public getPrivateKeyString(): string {
     throw new Error("Ledger wallet does not support getPrivateKey");
+  }
+
+  getPublicKey(): PublicKey {
+    throw new Error("Ledger wallet does not support getPublicKey");
   }
 
   public async getPublicKeys(): Promise<string[]> {

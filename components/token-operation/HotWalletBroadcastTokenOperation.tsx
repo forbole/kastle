@@ -6,6 +6,7 @@ import { TokenOperationFormData } from "@/components/screens/TokenTransfer.tsx";
 import { useEffect } from "react";
 import { captureException } from "@sentry/react";
 import useRecentAddresses from "@/hooks/useRecentAddresses.ts";
+import { transfer } from "@/lib/krc20.ts";
 
 type HotWalletSendingProps = {
   accountFactory: AccountFactory;
@@ -41,7 +42,7 @@ export default function HotWalletBroadcastTokenOperation({
           ? accountFactory.createFromMnemonic(secret.value, accountIndex)
           : accountFactory.createFromPrivateKey(secret.value);
 
-      for await (const _step of account.transfer({
+      for await (const _step of transfer(account, {
         tick: opData.tick,
         amt: opData.amt,
         to: opData.to,

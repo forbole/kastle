@@ -1,10 +1,13 @@
 import {
   Address,
+  IGeneratorSettingsObject,
   IPaymentOutput,
   IScriptPublicKey,
   ITransactionOutpoint,
   IUtxoEntry,
   kaspaToSompi,
+  PublicKey,
+  ScriptBuilder,
   SighashType,
   Transaction,
 } from "@/wasm/core/kaspa";
@@ -78,6 +81,8 @@ export interface IWallet {
 
   getPrivateKeyString(): string;
 
+  getPublicKey(): PublicKey;
+
   getPublicKeys(): string[] | Promise<string[]>;
 
   getBalance(): Promise<bigint>;
@@ -91,25 +96,9 @@ export interface IWallet {
 
   signTx(tx: Transaction, scripts?: ScriptOption[]): Promise<Transaction>;
 
-  deploy(
-    payload: {
-      tick: string;
-      max: string;
-      lim: string;
-      dec: string;
-      pre: string;
-    },
-    extraOutputs: IPaymentOutput[] | undefined,
-  ): AsyncGenerator<string, void, unknown>;
-
-  mint(
-    payload: { tick: string },
-    extraOutputs: IPaymentOutput[] | undefined,
-  ): AsyncGenerator<string, void, unknown>;
-
-  transfer(payload: {
-    tick: string;
-    amt: string;
-    to: string;
-  }): AsyncGenerator<string, void, unknown>;
+  performCommitReveal(
+    scriptBuilder: ScriptBuilder,
+    revealPriorityFee: IGeneratorSettingsObject["priorityFee"],
+    extraOutputs?: IPaymentOutput[],
+  ): AsyncGenerator<"commiting" | "revealing", void, unknown>;
 }
