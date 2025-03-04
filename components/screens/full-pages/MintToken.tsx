@@ -169,10 +169,9 @@ export default function MintToken() {
                       setTimeout(() => setShowList(false), 250);
                     },
                     onChange: (event) => {
-                      event.target.value = event.target.value.replace(
-                        /[^a-zA-Z]/g,
-                        "",
-                      );
+                      event.target.value = event.target.value
+                        .replace(/[^a-zA-Z]/g, "")
+                        .toUpperCase();
                     },
                     required: "Oh, ticker is required",
                     minLength: {

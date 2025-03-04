@@ -141,10 +141,9 @@ export default function DeployToken() {
                 )}
                 {...register("ticker", {
                   onChange: (event) => {
-                    event.target.value = event.target.value.replace(
-                      /[^a-zA-Z]/g,
-                      "",
-                    );
+                    event.target.value = event.target.value
+                      .replace(/[^a-zA-Z]/g, "")
+                      .toUpperCase();
                   },
                   required: "Oh, ticker is required",
                   minLength: {
