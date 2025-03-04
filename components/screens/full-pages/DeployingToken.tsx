@@ -112,7 +112,7 @@ export default function DeployingToken() {
             src={carriageImage}
           />
           <span className="text-xl font-semibold capitalize text-daintree-400">
-            {`${step}...`}
+            {`${step} TX...`}
           </span>
         </div>
       </div>

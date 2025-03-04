@@ -11,6 +11,7 @@ import { useTokenListByAddress } from "@/hooks/useTokenListByAddress.ts";
 import MintTokenItem from "@/components/mint-token/MintTokenItem.tsx";
 import { useNavigate } from "react-router-dom";
 import { useLocation } from "react-router";
+import kasIcon from "@/assets/images/kas-icon.svg";
 
 export type DeployFormData = {
   ticker: string;
@@ -51,6 +52,21 @@ export default function MintToken() {
     "mint",
     mintTimes,
   );
+
+  const { data: tokenMetadata } = useTokenMetadata(
+    !form.formState.errors.ticker ? tickerInput : undefined,
+  );
+  const [imageUrl, setImageUrl] = useState(kasIcon);
+
+  const onImageError = () => {
+    setImageUrl(kasIcon);
+  };
+
+  useEffect(() => {
+    if (tokenMetadata?.iconUrl) {
+      setImageUrl(tokenMetadata.iconUrl);
+    }
+  }, [tokenMetadata?.iconUrl]);
 
   const tokenListItems = tokenListResponse?.result
     ? tokenListResponse.result
@@ -133,7 +149,11 @@ export default function MintToken() {
   return (
     <div className="flex w-[41rem] flex-col items-stretch gap-4 rounded-3xl bg-icy-blue-950">
       <div className="no-scrollbar flex h-full flex-col overflow-y-scroll px-10 pb-12 pt-4 text-white">
-        <Header title="Mint KRC20" />
+        <Header
+          title="Mint KRC20"
+          showPrevious={false}
+          onClose={() => window.close()}
+        />
         <FormProvider {...form}>
           <form onSubmit={onSubmit} className="flex flex-grow flex-col gap-6">
             {/*Ticker input group*/}
@@ -156,10 +176,18 @@ export default function MintToken() {
                 <label className="text-base text-gray-200">Ticker</label>
               </div>
               <div className="relative flex flex-col gap-1">
+                <div className="absolute flex h-12 w-12 items-center justify-center">
+                  <img
+                    alt="castle"
+                    className="h-[24px] w-[24px] rounded-full"
+                    src={imageUrl}
+                    onError={onImageError}
+                  />
+                </div>
                 <input
                   onFocus={() => setShowList(true)}
                   className={twMerge(
-                    "w-full rounded-lg border-0 bg-daintree-800 px-4 py-3 ring-0 focus:ring-0",
+                    "w-full rounded-lg border-0 bg-daintree-800 px-12 py-3 ring-0 focus:ring-0",
                     form.formState.errors.ticker &&
                       "ring ring-red-500/25 focus:ring focus:ring-red-500/25",
                   )}
@@ -169,10 +197,9 @@ export default function MintToken() {
                       setTimeout(() => setShowList(false), 250);
                     },
                     onChange: (event) => {
-                      event.target.value = event.target.value.replace(
-                        /[^a-zA-Z]/g,
-                        "",
-                      );
+                      event.target.value = event.target.value
+                        .replace(/[^a-zA-Z]/g, "")
+                        .toUpperCase();
                     },
                     required: "Oh, ticker is required",
                     minLength: {

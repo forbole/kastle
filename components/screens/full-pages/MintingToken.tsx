@@ -104,7 +104,15 @@ export default function MintingToken() {
       } catch (error) {
         return navigate(
           { pathname: "/token-operation-failed" },
-          { state: { error, op: "mint" } },
+          {
+            state: {
+              error,
+              op: "mint",
+              ticker,
+              timesMinted: timesMintedLocal,
+              mintTimes,
+            },
+          },
         );
       }
 
@@ -167,14 +175,14 @@ export default function MintingToken() {
                   {progressPercentage.toFixed(0)}%
                 </span>
               </div>
-              <span className="self-center capitalize">{step}</span>
+              <span className="self-center capitalize">{`${step} TX...`}</span>
             </div>
 
             <div className="flex items-center gap-1 text-base">
               <i
                 className="hn hn-info-circle text-[24px]"
                 data-tooltip-id="info-tooltip"
-                data-tooltip-content={`Fees are charged every 10 transactions (${mintAmount.toLocaleString()} ${ticker}). If you stop before reaching 10, the remaining fee will be charged at that time.`}
+                data-tooltip-content={`Fee Charged Every ${(mintTimes * mintAmount).toLocaleString()} ${ticker}. If you stop before reaching 10, the remaining fee will be charged at that time.`}
               ></i>
               <Tooltip
                 id="info-tooltip"
