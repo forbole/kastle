@@ -12,7 +12,6 @@ import {
 } from "@/wasm/core/kaspa";
 import { PaymentOutput } from "@/lib/wallet/interface.ts";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
-import Splash from "@/components/screens/Splash.tsx";
 
 interface RpcClientContextType {
   rpcClient: RpcClient | undefined;
@@ -186,10 +185,6 @@ export function RpcClientProvider({ children }: { children: ReactNode }) {
       throw new Error(`Failed to estimate transaction fees: ${error}`);
     }
   };
-
-  if (!isConnected) {
-    return <Splash />;
-  }
 
   return (
     <RpcClientContext.Provider
