@@ -503,7 +503,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
         networkId,
       ).createFromMnemonic(walletSecret.value, accountIndex);
 
-      return hotWallet.getPrivateKey();
+      return hotWallet.getPrivateKeyString();
     } else {
       return walletSecret.value;
     }

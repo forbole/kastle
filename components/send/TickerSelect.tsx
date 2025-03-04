@@ -14,7 +14,7 @@ export default function TickerSelect({
   isShown,
   toggleShow,
 }: TickerSelectProps) {
-  const { setValue } = useFormContext<SendFormData>();
+  const { setValue, trigger } = useFormContext<SendFormData>();
   const { account } = useWalletManager();
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -44,7 +44,7 @@ export default function TickerSelect({
       );
     });
 
-  const selectTicker = (ticker: string) => {
+  const selectTicker = async (ticker: string) => {
     setValue("ticker", ticker, { shouldValidate: true });
     toggleShow();
   };

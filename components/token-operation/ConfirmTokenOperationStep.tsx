@@ -3,7 +3,7 @@ import React from "react";
 import signImage from "@/assets/images/sign.png";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/GeneralHeader.tsx";
-import { TokenOperationFormData } from "@/components/screens/TokenOperation.tsx";
+import { TokenOperationFormData } from "@/components/screens/TokenTransfer.tsx";
 import { applyDecimal, computeOperationFees, Operation } from "@/lib/krc20.ts";
 import { useTokenInfo } from "@/hooks/useTokenInfo.ts";
 import { formatUSD } from "@/lib/utils.ts";
@@ -25,17 +25,12 @@ export const ConfirmTokenOperationStep = ({
   const { krc20Fee, kaspaFee, forboleFee, totalFees } = computeOperationFees(
     opData.op as Operation,
   );
-  const { toFloat } = applyDecimal(opData.dec);
   const { toPriceInUsd } = useTokenMetadata(
     opData.op === "mint" ? opData.tick : undefined,
   );
   const { data: tokenInfoResponse } = useTokenInfo(
     opData.op !== "deploy" ? opData.tick : undefined,
   );
-  const limParam = tokenInfoResponse?.result?.[0]?.lim;
-  const mintAmount = limParam
-    ? toFloat(parseInt(limParam, 10)).toLocaleString()
-    : undefined;
   const { toFloat: toFloatForExisting } = applyDecimal(
     tokenInfoResponse?.result?.[0]?.dec,
   );
@@ -78,55 +73,17 @@ export const ConfirmTokenOperationStep = ({
               <span className="font-medium">{opData.tick}</span>
             </div>
           </li>
-          {opData.op === "deploy" && (
-            <>
-              <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
-                <div className="flex w-full items-start justify-between">
-                  <span className="font-medium">Maximum Supply</span>
-                  <span className="font-medium">
-                    {toFloat(parseInt(opData.max, 10))}
-                  </span>
-                </div>
-              </li>
-              <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
-                <div className="flex w-full items-start justify-between">
-                  <span className="font-medium">Default Mint Amount</span>
-                  <span className="font-medium">
-                    {toFloat(parseInt(opData.lim, 10))}
-                  </span>
-                </div>
-              </li>
-              <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
-                <div className="flex w-full items-start justify-between">
-                  <span className="font-medium">Preallocation</span>
-                  <span className="font-medium">
-                    {toFloat(parseInt(opData.pre, 10))}
-                  </span>
-                </div>
-              </li>
-            </>
-          )}
-          {opData.op === "mint" && (
-            <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
-              <div className="flex w-full items-start justify-between">
-                <span className="font-medium">Mint amount</span>
-                <span className="font-medium">{mintAmount}</span>
+          <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
+            <div className="flex w-full items-start justify-between">
+              <span className="font-medium">Sending amount</span>
+              <div className="flex flex-col text-right">
+                <span className="font-medium">{amount}</span>
+                <span className="text-xs text-daintree-400">
+                  {formatUSD(amount * toPriceInUsd())} USD
+                </span>
               </div>
-            </li>
-          )}
-          {opData.op === "transfer" && (
-            <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
-              <div className="flex w-full items-start justify-between">
-                <span className="font-medium">Sending amount</span>
-                <div className="flex flex-col text-right">
-                  <span className="font-medium">{amount}</span>
-                  <span className="text-xs text-daintree-400">
-                    {formatUSD(amount * toPriceInUsd())} USD
-                  </span>
-                </div>
-              </div>
-            </li>
-          )}
+            </div>
+          </li>
 
           <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
             <div className="flex w-full items-start justify-between">

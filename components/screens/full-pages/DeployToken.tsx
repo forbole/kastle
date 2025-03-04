@@ -5,8 +5,9 @@ import { Tooltip } from "react-tooltip";
 import spinner from "@/assets/images/spinner.svg";
 import React from "react";
 import useWalletManager from "@/hooks/useWalletManager.ts";
-import { setPopupPath } from "@/lib/utils.ts";
-import { computeOperationFees, Fee } from "@/lib/krc20.ts";
+import { applyDecimal, computeOperationFees } from "@/lib/krc20.ts";
+import { useNavigate } from "react-router-dom";
+import { useLocation } from "react-router";
 
 type DeployFormData = {
   ticker: string;
@@ -16,7 +17,17 @@ type DeployFormData = {
   decimalPlaces: number;
 };
 
+export type DeployTokenState = {
+  ticker: string;
+  maxSupply: number;
+  mintAmount: number;
+  preAllocation: number;
+  decimalPlaces: number;
+};
+
 export default function DeployToken() {
+  const navigate = useNavigate();
+  const { state } = useLocation();
   const { fetchTokenInfo } = useKasplex();
   const {
     formState: {
@@ -38,6 +49,7 @@ export default function DeployToken() {
       mintAmount: 1000,
       preAllocation: 0,
       decimalPlaces: 8,
+      ...state,
     },
   });
   const maxSupply = watch("maxSupply");
@@ -49,19 +61,20 @@ export default function DeployToken() {
     computeOperationFees("deploy");
 
   const onSubmit = handleSubmit(async (formValues) => {
-    const decimalCoefficient = Math.pow(10, formValues.decimalPlaces);
+    const { toInteger } = applyDecimal(formValues.decimalPlaces.toString());
 
-    const queryParams = new URLSearchParams({
-      op: "deploy",
-      ticker: formValues.ticker,
-      maxSupply: (formValues.maxSupply * decimalCoefficient).toString(),
-      mintAmount: (formValues.mintAmount * decimalCoefficient).toString(),
-      preAllocation: (formValues.preAllocation * decimalCoefficient).toString(),
-      decimalPlaces: formValues.decimalPlaces.toString(),
-    });
-
-    setPopupPath(`/token-operation?${queryParams.toString()}`, () =>
-      browser.action.openPopup(),
+    navigate(
+      { pathname: "/confirm-deploy" },
+      {
+        state: {
+          op: "deploy",
+          ticker: formValues.ticker,
+          maxSupply: toInteger(formValues.maxSupply),
+          mintAmount: toInteger(formValues.mintAmount),
+          preAllocation: toInteger(formValues.preAllocation),
+          decimalPlaces: formValues.decimalPlaces,
+        },
+      },
     );
   });
 
@@ -86,7 +99,7 @@ export default function DeployToken() {
   };
 
   useEffect(() => {
-    if (balance < Fee.Deploy + Fee.Base) {
+    if (balance < totalFees) {
       setError("root", {
         message: "Oh, you don't have enough funds to cover the estimated fees",
       });

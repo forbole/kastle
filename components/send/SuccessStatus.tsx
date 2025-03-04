@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import successImage from "@/assets/images/success.png";
 import Header from "@/components/GeneralHeader";
 import { useFormContext } from "react-hook-form";
-import { TokenOperationFormData } from "@/components/screens/TokenOperation.tsx";
+import { TokenOperationFormData } from "@/components/screens/TokenTransfer.tsx";
 import { SendFormData } from "@/components/screens/Send.tsx";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 
@@ -78,6 +78,18 @@ export const SuccessStatus = ({ transactionIds }: SuccessProps) => {
                 </span>
               )}
               <i className="hn hn-external-link text-icy-blue-400"></i>
+            </button>
+          )}
+          {isKrc20Operation && (
+            <button
+              type="button"
+              className="flex items-center gap-2"
+              onClick={() => navigate(`/token-asset/${ticker}`)}
+            >
+              <span className="text-sm font-semibold text-icy-blue-400">
+                View transaction history
+              </span>
+              <i className="hn hn-angle-right text-icy-blue-400"></i>
             </button>
           )}
         </div>

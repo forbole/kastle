@@ -6,10 +6,13 @@ import {
 import {
   Address,
   Generator,
+  IGeneratorSettingsObject,
+  IPaymentOutput,
   IUtxoEntry,
   PendingTransaction,
   PublicKey,
   RpcClient,
+  ScriptBuilder,
   ScriptPublicKey,
   Transaction,
   TransactionInput,
@@ -35,6 +38,14 @@ export class LedgerAccount implements IWallet {
   ) {
     this.app = new KaspaApp(transport);
     this.path = `m/44'/111111'/${accountIndex}'/0/0`;
+  }
+
+  performCommitReveal(
+    scriptBuilder: ScriptBuilder,
+    revealPriorityFee: IGeneratorSettingsObject["priorityFee"],
+    extraOutputs?: IPaymentOutput[],
+  ): AsyncGenerator<"commiting" | "revealing", void, unknown> {
+    throw new Error("Method not implemented.");
   }
 
   public async send(
@@ -109,8 +120,12 @@ export class LedgerAccount implements IWallet {
     return txIds;
   }
 
-  public getPrivateKey(): string {
+  public getPrivateKeyString(): string {
     throw new Error("Ledger wallet does not support getPrivateKey");
+  }
+
+  getPublicKey(): PublicKey {
+    throw new Error("Ledger wallet does not support getPublicKey");
   }
 
   public async getPublicKeys(): Promise<string[]> {
