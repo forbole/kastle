@@ -11,6 +11,7 @@ import { useTokenListByAddress } from "@/hooks/useTokenListByAddress.ts";
 import MintTokenItem from "@/components/mint-token/MintTokenItem.tsx";
 import { useNavigate } from "react-router-dom";
 import { useLocation } from "react-router";
+import kasIcon from "@/assets/images/kas-icon.svg";
 
 export type DeployFormData = {
   ticker: string;
@@ -51,6 +52,21 @@ export default function MintToken() {
     "mint",
     mintTimes,
   );
+
+  const { data: tokenMetadata } = useTokenMetadata(
+    !form.formState.errors.ticker ? tickerInput : undefined,
+  );
+  const [imageUrl, setImageUrl] = useState(kasIcon);
+
+  const onImageError = () => {
+    setImageUrl(kasIcon);
+  };
+
+  useEffect(() => {
+    if (tokenMetadata?.iconUrl) {
+      setImageUrl(tokenMetadata.iconUrl);
+    }
+  }, [tokenMetadata?.iconUrl]);
 
   const tokenListItems = tokenListResponse?.result
     ? tokenListResponse.result
@@ -156,10 +172,18 @@ export default function MintToken() {
                 <label className="text-base text-gray-200">Ticker</label>
               </div>
               <div className="relative flex flex-col gap-1">
+                <div className="absolute flex h-12 w-12 items-center justify-center">
+                  <img
+                    alt="castle"
+                    className="h-[24px] w-[24px] rounded-full"
+                    src={imageUrl}
+                    onError={onImageError}
+                  />
+                </div>
                 <input
                   onFocus={() => setShowList(true)}
                   className={twMerge(
-                    "w-full rounded-lg border-0 bg-daintree-800 px-4 py-3 ring-0 focus:ring-0",
+                    "w-full rounded-lg border-0 bg-daintree-800 px-12 py-3 ring-0 focus:ring-0",
                     form.formState.errors.ticker &&
                       "ring ring-red-500/25 focus:ring focus:ring-red-500/25",
                   )}
