@@ -104,7 +104,15 @@ export default function MintingToken() {
       } catch (error) {
         return navigate(
           { pathname: "/token-operation-failed" },
-          { state: { error, op: "mint" } },
+          {
+            state: {
+              error,
+              op: "mint",
+              ticker,
+              timesMinted: timesMintedLocal,
+              mintTimes,
+            },
+          },
         );
       }
 
