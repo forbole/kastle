@@ -24,6 +24,8 @@ export default function DeployingToken() {
   const { getWalletSecret } = useKeyring();
   const { walletSettings } = useWalletManager();
 
+  const [step, setStep] = useState<string>();
+
   useEffect(() => {
     if (!walletSettings?.selectedWalletId) {
       return;
@@ -57,7 +59,7 @@ export default function DeployingToken() {
             )
           : accountFactory.createFromPrivateKey(secret.value);
 
-      for await (const _step of deploy(
+      for await (const step of deploy(
         account,
         {
           tick: ticker,
@@ -73,7 +75,7 @@ export default function DeployingToken() {
           },
         ],
       )) {
-        /* empty */
+        setStep(step);
       }
     };
 
@@ -104,12 +106,15 @@ export default function DeployingToken() {
           showClose={false}
         />
 
-        <div className="flex h-full flex-col gap-10">
+        <div className="flex h-full flex-col items-center gap-4">
           <img
             alt="castle"
             className="h-[120px] w-[299px] self-center"
             src={carriageImage}
           />
+          <span className="text-xl font-semibold capitalize text-daintree-400">
+            {`${step}...`}
+          </span>
         </div>
       </div>
     </div>
