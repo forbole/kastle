@@ -74,7 +74,7 @@ export default function MintingToken() {
             )
           : accountFactory.createFromPrivateKey(secret.value);
 
-      for await (const step of mint(
+      for await (const result of mint(
         account,
         { tick: ticker },
         includeForboleFees
@@ -82,12 +82,12 @@ export default function MintingToken() {
               {
                 address:
                   FORBOLE_PAYOUT_ADDRESSES[networkId ?? NetworkType.Mainnet],
-                amount: kaspaToSompi(ForboleFee.Mint.toString())!,
+                amount: ForboleFee.Mint.toString(),
               },
             ]
           : undefined,
       )) {
-        setStep(step);
+        setStep(result.status);
       }
     };
 

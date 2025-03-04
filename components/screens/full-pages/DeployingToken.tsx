@@ -4,7 +4,6 @@ import { useLocation } from "react-router";
 import Header from "@/components/GeneralHeader.tsx";
 import { deploy, ForboleFee } from "@/lib/krc20.ts";
 import carriageImage from "@/assets/images/carriage.png";
-import { kaspaToSompi } from "@/wasm/core/kaspa";
 import { FORBOLE_PAYOUT_ADDRESSES } from "@/lib/forbole.ts";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import { WalletSecret } from "@/types/WalletSecret.ts";
@@ -59,7 +58,7 @@ export default function DeployingToken() {
             )
           : accountFactory.createFromPrivateKey(secret.value);
 
-      for await (const step of deploy(
+      for await (const result of deploy(
         account,
         {
           tick: ticker,
@@ -71,11 +70,11 @@ export default function DeployingToken() {
         [
           {
             address: FORBOLE_PAYOUT_ADDRESSES[networkId ?? NetworkType.Mainnet],
-            amount: kaspaToSompi(ForboleFee.Deploy.toString())!,
+            amount: ForboleFee.Deploy.toString(),
           },
         ],
       )) {
-        setStep(step);
+        setStep(result.status);
       }
     };
 

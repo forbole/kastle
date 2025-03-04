@@ -42,12 +42,14 @@ export default function HotWalletBroadcastTokenOperation({
           ? accountFactory.createFromMnemonic(secret.value, accountIndex)
           : accountFactory.createFromPrivateKey(secret.value);
 
-      for await (const _step of transfer(account, {
+      for await (const result of transfer(account, {
         tick: opData.tick,
         amt: opData.amt,
         to: opData.to,
       })) {
-        /* empty */
+        if (result.status === "completed") {
+          setOutTxs([result.commitTxId!, result.revealTxId!]);
+        }
       }
 
       const tokenOperationRecipientAddress = opData?.to;
@@ -59,7 +61,6 @@ export default function HotWalletBroadcastTokenOperation({
         });
       }
 
-      setOutTxs([]);
       onSuccess();
     } catch (e) {
       captureException(e);

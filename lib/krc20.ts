@@ -4,7 +4,7 @@ import {
   Opcodes,
   ScriptBuilder,
 } from "@/wasm/core/kaspa";
-import { IWallet } from "@/lib/wallet/interface.ts";
+import { IWallet, PaymentOutput } from "@/lib/wallet/interface.ts";
 
 export type Operation = "deploy" | "mint" | "transfer";
 
@@ -67,7 +67,7 @@ export const deploy = (
     dec: string;
     pre: string;
   },
-  extraOutputs: IPaymentOutput[] = [],
+  extraOutputs: PaymentOutput[] = [],
 ) => {
   const data = { p: "krc-20", op: "deploy", ...payload };
   const script = new ScriptBuilder()
@@ -82,7 +82,7 @@ export const deploy = (
 
   return wallet.performCommitReveal(
     script,
-    kaspaToSompi(Fee.Deploy.toString())!,
+    Fee.Deploy.toString()!,
     extraOutputs,
   );
 };
@@ -90,7 +90,7 @@ export const deploy = (
 export const mint = (
   wallet: IWallet,
   payload: { tick: string },
-  extraOutputs: IPaymentOutput[] = [],
+  extraOutputs: PaymentOutput[] = [],
 ) => {
   const data = { p: "krc-20", op: "mint", ...payload };
   const script = new ScriptBuilder()
@@ -105,15 +105,16 @@ export const mint = (
 
   return wallet.performCommitReveal(
     script,
-    kaspaToSompi(Fee.Deploy.toString())!,
+    Fee.Mint.toString()!,
     extraOutputs,
+    { waitingForReveal: true },
   );
 };
 
 export const transfer = (
   wallet: IWallet,
   payload: { tick: string; amt: string; to: string },
-  extraOutputs: IPaymentOutput[] = [],
+  extraOutputs: PaymentOutput[] = [],
 ) => {
   const data = { p: "krc-20", op: "transfer", ...payload };
   const script = new ScriptBuilder()
@@ -126,9 +127,5 @@ export const transfer = (
     .addData(Buffer.from(JSON.stringify(data, null, 0)))
     .addOp(Opcodes.OpEndIf);
 
-  return wallet.performCommitReveal(
-    script,
-    kaspaToSompi(Fee.Deploy.toString())!,
-    extraOutputs,
-  );
+  return wallet.performCommitReveal(script, Fee.Base.toString()!, extraOutputs);
 };

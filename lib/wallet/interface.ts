@@ -7,6 +7,7 @@ import {
   IUtxoEntry,
   kaspaToSompi,
   PublicKey,
+  RpcClient,
   ScriptBuilder,
   SighashType,
   Transaction,
@@ -16,6 +17,13 @@ export type PaymentOutput = {
   address: string;
   amount: string; // KAS
 };
+
+export function toKaspaPaymentOutput(output: PaymentOutput): IPaymentOutput {
+  return {
+    address: new Address(output.address),
+    amount: kaspaToSompi(output.amount) ?? 0n,
+  };
+}
 
 export type Entry = {
   amount: string; // KAS
@@ -59,6 +67,12 @@ const SIGN_TYPE = {
   SingleAnyOneCanPay: SighashType.SingleAnyOneCanPay,
 } as const;
 
+export type CommitRevealResult = {
+  status: "committing" | "revealing" | "completed";
+  commitTxId?: string;
+  revealTxId?: string;
+};
+
 export type SignType = keyof typeof SIGN_TYPE;
 
 export function toSignType(signType: SignType): SighashType {
@@ -98,7 +112,52 @@ export interface IWallet {
 
   performCommitReveal(
     scriptBuilder: ScriptBuilder,
-    revealPriorityFee: IGeneratorSettingsObject["priorityFee"],
-    extraOutputs?: IPaymentOutput[],
-  ): AsyncGenerator<"commiting" | "revealing", void, unknown>;
+    revealPriorityFee: string, // KAS
+    extraOutputs?: PaymentOutput[],
+    options?: {
+      waitingForReveal?: boolean;
+    },
+  ): AsyncGenerator<CommitRevealResult>;
 }
+
+// Wait for the transaction to be added to the UTXO set of the address
+export const waitTxForAddress = async (
+  rpcClient: RpcClient,
+  address: string,
+  txId: string,
+) => {
+  try {
+    await rpcClient.subscribeUtxosChanged([address]);
+
+    await new Promise<void>((resolve, reject) => {
+      const handleUtxosChanged = (event: any) => {
+        const addedEntry: IUtxoEntry = event.data.added.find(
+          (entry: IUtxoEntry) =>
+            entry.address?.payload === new Address(address).payload,
+        );
+
+        const removedEntry: IUtxoEntry = event.data.removed.find(
+          (entry: IUtxoEntry) =>
+            entry.address?.payload === new Address(address).payload,
+        );
+
+        const isEventReceived =
+          addedEntry?.outpoint.transactionId === txId ||
+          removedEntry?.outpoint.transactionId === txId;
+
+        if (isEventReceived) {
+          rpcClient.removeEventListener("utxos-changed", handleUtxosChanged);
+          resolve();
+        }
+      };
+
+      rpcClient.addEventListener("utxos-changed", handleUtxosChanged);
+      setTimeout(() => {
+        rpcClient.removeEventListener("utxos-changed", handleUtxosChanged);
+        reject(new Error("Timeout"));
+      }, 120000); // 2 minutes
+    });
+  } finally {
+    await rpcClient.unsubscribeUtxosChanged([address]);
+  }
+};
