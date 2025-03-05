@@ -176,6 +176,10 @@ export default function ManageAccounts({ listAccounts }: ManageAccountsProps) {
         {/* List */}
         <div className="no-scrollbar flex flex-grow flex-col gap-3 overflow-y-scroll">
           <AccountsTitle />
+          {accountList.length === 0 &&
+            Array.from({ length: pageSize }).map(() => (
+              <div className="min-h-20 rounded-xl bg-[#203C49]" />
+            ))}
           {accountList.map(({ publicKeys }, accountIndex) => (
             <AccountItem
               key={accountIndex}
@@ -183,17 +187,27 @@ export default function ManageAccounts({ listAccounts }: ManageAccountsProps) {
               publicKeys={publicKeys}
             />
           ))}
+
           <button
             type="button"
             className="inline-flex items-center justify-center gap-x-2 rounded-lg border border-transparent px-4 py-3 text-sm font-medium text-icy-blue-400 hover:bg-daintree-700 hover:text-blue-400 focus:bg-blue-100 focus:bg-blue-800/30 focus:text-blue-400 disabled:pointer-events-none disabled:opacity-50"
             onClick={nextPage}
           >
-            <i className="hn hn-angle-down text-[14px]" />
-            <span>Show more</span>
+            {isFetchingAccounts ? (
+              <div
+                className="inline-block size-6 animate-spin self-center rounded-full border-[6px] border-current border-t-[#A2F5FF] text-icy-blue-600"
+                role="status"
+                aria-label="loading"
+              />
+            ) : (
+              <>
+                <i className="hn hn-angle-down text-[14px]" />
+                <span>Show more</span>
+              </>
+            )}
           </button>
         </div>
 
-        {/* Action */}
         <button
           type="submit"
           className="inline-flex items-center justify-center rounded-full border border-transparent bg-icy-blue-400 p-4 px-4 py-3 text-base font-semibold text-white hover:bg-white/20 hover:text-white focus:bg-white/20 focus:text-white focus:outline-none disabled:pointer-events-none disabled:opacity-50"
