@@ -67,6 +67,8 @@ export default function LedgerConnectForSign() {
     }
   }, [transport, isAppOpen, redirectBack]);
 
+  const isLedgerConnected = !!transport || isPreviousConnected;
+
   return (
     <div className="flex h-full flex-col justify-between p-4">
       <div className="space-y-10">
@@ -81,35 +83,54 @@ export default function LedgerConnectForSign() {
             className="mx-auto"
             src={ledgerConnectingImage}
           />
-          <div className="space-y-2 text-center">
+          <div className="space-y-10 text-center">
             <h1 className="text-xl font-semibold">
               Please connect your Ledger device and open Kaspa app
             </h1>
-            <p className="text-sm text-[#7b9aaa]"> Waiting for connection...</p>
 
-            <div className="flex justify-center gap-4 text-center text-sm">
-              <div className="flex items-center gap-1">
-                <i
-                  className={twMerge(
-                    "hn text-sm",
-                    isPreviousConnected || !!transport
-                      ? "hn-check-circle text-green-200"
-                      : "hn-exclamation-triangle text-red-400",
-                  )}
-                ></i>
-                Ledger connected
+            <div className="flex flex-col items-center justify-center gap-4 text-xs">
+              <div
+                className={twMerge(
+                  "flex items-center gap-2 rounded-md p-2",
+                  isLedgerConnected
+                    ? "bg-[#115E59] bg-opacity-30 text-[#14B8A6]"
+                    : "bg-[#122932]",
+                )}
+              >
+                {isLedgerConnected ? (
+                  <i className="hn hn-check-circle text-xs text-[#14B8A6]"></i>
+                ) : (
+                  <div
+                    className="border-3 inline-block size-3 animate-spin rounded-full border-current border-t-transparent text-blue-600 dark:text-blue-500"
+                    role="status"
+                    aria-label="loading"
+                  >
+                    <span className="sr-only">Loading...</span>
+                  </div>
+                )}
+                Connect Ledger
               </div>
 
-              <div className="flex items-center gap-1">
-                <i
-                  className={twMerge(
-                    "hn text-sm",
-                    isAppOpen
-                      ? "hn-check-circle text-green-200"
-                      : "hn-exclamation-triangle text-red-400",
-                  )}
-                ></i>
-                Kaspa app open
+              <div
+                className={twMerge(
+                  "flex items-center gap-2 rounded-md p-2",
+                  isAppOpen
+                    ? "bg-[#115E59] bg-opacity-30 text-[#14B8A6]"
+                    : "bg-[#122932]",
+                )}
+              >
+                {isAppOpen ? (
+                  <i className="hn hn-check-circle text-xs text-[#14B8A6]"></i>
+                ) : (
+                  <div
+                    className="border-3 inline-block size-3 animate-spin rounded-full border-current border-t-transparent text-blue-600 dark:text-blue-500"
+                    role="status"
+                    aria-label="loading"
+                  >
+                    <span className="sr-only">Loading...</span>
+                  </div>
+                )}
+                Open Kaspa app
               </div>
             </div>
           </div>

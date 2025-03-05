@@ -66,7 +66,7 @@ export default function AddWallet() {
           <button
             className="flex w-full items-center justify-between rounded-xl border border-daintree-700 bg-[#1E343D] p-5 hover:border-white"
             onClick={() => {
-              browser.tabs.create({ url: "/popup.html#/import-ledger-start" });
+              browser.tabs.create({ url: "/popup.html#/import-ledger" });
             }}
           >
             <span className="text-base">Import with Ledger</span>
