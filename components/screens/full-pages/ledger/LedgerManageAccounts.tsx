@@ -45,7 +45,7 @@ export default function LedgerManageAccounts() {
 
             return accounts;
           } catch (error) {
-            navigate("/ledger-connect-failed");
+            navigate("/ledger-connect-for-import-failed");
             throw new Error(
               "Failed to list accounts, please unlock and open Kaspa app and try again",
             );
@@ -56,7 +56,7 @@ export default function LedgerManageAccounts() {
   useEffect(() => {
     if (!transport && !calledOnce.current) {
       const currentUrl = window.location.hash.replace("#", "");
-      navigate("/connect-ledger?redirect=" + currentUrl);
+      navigate("/ledger-connect-for-import?redirect=" + currentUrl);
     }
   }, [transport]);
 

@@ -49,7 +49,6 @@ import TokenAsset from "@/components/screens/TokenAsset.tsx";
 import KasAsset from "@/components/screens/KasAsset.tsx";
 import SignTxConfirm from "@/components/screens/browser-api/SignTxConfirm";
 import { RecentAddressesProvider } from "@/contexts/RecentAddressesContext.tsx";
-import ImportLedgerStart from "@/components/screens/full-pages/ledger/ImportLedgerStart";
 import LedgerConnectForImportFailed from "@/components/screens/full-pages/ledger/LedgerConnectForImportFailed";
 import LedgerConnectForSign from "@/components/screens/ledger-connect/LedgerConnectForSign";
 import LedgerConnectForSignFailed from "@/components/screens/ledger-connect/LedgerConnectForSignFailed";
@@ -247,10 +246,6 @@ export const router = createHashRouter([
               {
                 path: "accounts-imported",
                 element: <AccountsImported />,
-              },
-              {
-                path: "import-ledger-start",
-                element: <ImportLedgerStart />,
               },
               {
                 path: "import-ledger",
