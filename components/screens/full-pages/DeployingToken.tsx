@@ -105,7 +105,7 @@ export default function DeployingToken() {
           showClose={false}
         />
 
-        <div className="flex h-full flex-col items-center gap-4">
+        <div className="mt-10 flex h-full flex-col items-center gap-4">
           <img
             alt="castle"
             className="h-[120px] w-[299px] self-center"
