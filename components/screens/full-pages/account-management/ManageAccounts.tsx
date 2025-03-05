@@ -177,8 +177,8 @@ export default function ManageAccounts({ listAccounts }: ManageAccountsProps) {
         <div className="no-scrollbar flex flex-grow flex-col gap-3 overflow-y-scroll">
           <AccountsTitle />
           {accountList.length === 0 &&
-            Array.from({ length: pageSize }).map(() => (
-              <div className="min-h-20 rounded-xl bg-[#203C49]" />
+            Array.from({ length: pageSize }).map((_, index) => (
+              <div key={index} className="min-h-20 rounded-xl bg-[#203C49]" />
             ))}
           {accountList.map(({ publicKeys }, accountIndex) => (
             <AccountItem
