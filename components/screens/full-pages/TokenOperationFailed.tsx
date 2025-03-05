@@ -39,36 +39,28 @@ export const TokenOperationFailed = () => {
   const reason = {
     disconnected: {
       title: "Minting Incomplete: Network Error",
-      message: (
-        <div>
+      message: `
           Network disconnected. Only some tokens were minted.
-          <br /> Please try again.
-        </div>
-      ),
+         \n Please try again.
+         `,
     },
     reveal_timeout: {
       title: "Minting Incomplete: Mempool timeout",
-      message: (
-        <div>
-          Timeout occurred, the reveal transaction have been rejected, please
-          try again later
-        </div>
-      ),
+      message: `
+        Timeout occurred, the reveal transaction have been rejected, please
+        try again later
+       `,
     },
     commit_timeout: {
       title: "Minting Incomplete: Mempool timeout",
-      message: (
-        <div>
+      message: `
           Timeout occurred, the commit transaction have been rejected, please
           try again later
-        </div>
-      ),
+        `,
     },
     default: {
       title: "Minting Incomplete",
-      message: (
-        <div>Something unexpected happened during the mint: {error}</div>
-      ),
+      message: `Something unexpected happened during the mint: ${error}`,
     },
   }[getErrorType()];
 
