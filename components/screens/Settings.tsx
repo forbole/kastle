@@ -147,9 +147,9 @@ export default function Settings() {
           }}
         />
 
-        {/* Dev mode */}
+        {/* Experimental features */}
         <SettingItem
-          title="Dev mode"
+          title="Experimental features"
           showChevron
           onClick={() => navigate("/dev-mode")}
         />
