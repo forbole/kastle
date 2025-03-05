@@ -101,12 +101,10 @@ export default function LedgerConnectForSign() {
                   <i className="hn hn-check-circle text-xs text-[#14B8A6]"></i>
                 ) : (
                   <div
-                    className="border-3 inline-block size-3 animate-spin rounded-full border-current border-t-transparent text-blue-600 dark:text-blue-500"
+                    className="inline-block size-3 animate-spin self-center rounded-full border-[3px] border-current border-t-[#A2F5FF] text-icy-blue-600"
                     role="status"
                     aria-label="loading"
-                  >
-                    <span className="sr-only">Loading...</span>
-                  </div>
+                  />
                 )}
                 Connect Ledger
               </div>
@@ -123,12 +121,10 @@ export default function LedgerConnectForSign() {
                   <i className="hn hn-check-circle text-xs text-[#14B8A6]"></i>
                 ) : (
                   <div
-                    className="border-3 inline-block size-3 animate-spin rounded-full border-current border-t-transparent text-blue-600 dark:text-blue-500"
+                    className="inline-block size-3 animate-spin self-center rounded-full border-[3px] border-current border-t-[#A2F5FF] text-icy-blue-600"
                     role="status"
                     aria-label="loading"
-                  >
-                    <span className="sr-only">Loading...</span>
-                  </div>
+                  />
                 )}
                 Open Kaspa app
               </div>
