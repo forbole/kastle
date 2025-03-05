@@ -132,11 +132,7 @@ export class HotWalletAccount implements IWallet {
     const pending = pendingTxs[0];
     const signedTx = await this.signTx(pending.transaction);
 
-    const confirm = waitTxForAddress(
-      this.rpcClient,
-      address.toString(),
-      signedTx.id,
-    );
+    const confirm = waitTxForAddress(this.rpcClient, p2SHAddress, signedTx.id);
 
     const { transactionId } = await this.rpcClient.submitTransaction({
       transaction: signedTx,
