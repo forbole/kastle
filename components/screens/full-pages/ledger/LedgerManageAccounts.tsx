@@ -60,5 +60,5 @@ export default function LedgerManageAccounts() {
     }
   }, [transport]);
 
-  return <ManageAccounts listAccounts={listAccounts} />;
+  return <ManageAccounts walletType="ledger" listAccounts={listAccounts} />;
 }

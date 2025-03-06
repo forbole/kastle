@@ -23,12 +23,13 @@ export type ListAccountsRequest = {
 };
 
 type ManageAccountsProps = {
+  walletType: "ledger" | "mnemonic";
   listAccounts?: (
     params: ListAccountsRequest,
   ) => Promise<{ publicKeys: string[] }[]>;
 };
 
-export default function ManageAccounts({ listAccounts }: ManageAccountsProps) {
+export default function ManageAccounts({ walletType, listAccounts }: ManageAccountsProps) {
   const calledOnce = useRef(false);
 
   const navigate = useNavigate();
@@ -160,6 +161,13 @@ export default function ManageAccounts({ listAccounts }: ManageAccountsProps) {
     return null;
   }
 
+  const subtitle = {
+    mnemonic:
+      "This page shows accounts created from your recovery phrase. Each phrase can generate multiple accounts, and here you can view and manage them.",
+    ledger:
+      "This page shows accounts managed by your Ledger. You can select accounts to import and manage in Kastle.",
+  }[walletType];
+
   return (
     <FormProvider {...form}>
       <form
@@ -169,7 +177,7 @@ export default function ManageAccounts({ listAccounts }: ManageAccountsProps) {
         {/* Header */}
         <Header
           title={action === "manage" ? "Manage Accounts" : "Import Wallet"}
-          subtitle="This page shows accounts created from your recovery phrase. Each phrase can generate multiple accounts, and here you can view and manage them."
+          subtitle={subtitle}
           showPrevious={false}
         />
 
@@ -178,7 +186,10 @@ export default function ManageAccounts({ listAccounts }: ManageAccountsProps) {
           <AccountsTitle />
           {accountList.length === 0 &&
             Array.from({ length: pageSize }).map((_, index) => (
-              <div key={index} className="min-h-20 rounded-xl bg-[#203C49]" />
+              <div
+                key={index}
+                className="min-h-16 animate-pulse rounded-xl bg-[#203C49]"
+              />
             ))}
           {accountList.map(({ publicKeys }, accountIndex) => (
             <AccountItem
