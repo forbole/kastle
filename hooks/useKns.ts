@@ -1,5 +1,4 @@
-import { useSettings } from "@/hooks/useSettings.ts";
-import { NetworkType } from "@/contexts/SettingsContext.tsx";
+import { KNS_API_URLS, NetworkType } from "@/contexts/SettingsContext.tsx";
 
 export interface DomainInfoResponse {
   success: boolean;
@@ -15,9 +14,8 @@ export interface Data {
 
 export function useKns() {
   const { networkId } = useRpcClientStateful();
-  const [settings] = useSettings();
 
-  const knsApiUrl = settings?.knsApiUrls[networkId ?? NetworkType.Mainnet];
+  const knsApiUrl = KNS_API_URLS[networkId ?? NetworkType.Mainnet];
 
   const fetchDomainInfo = async (domain: string) => {
     const response = await fetch(`${knsApiUrl}/api/v1/${domain}/owner`);

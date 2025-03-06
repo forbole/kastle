@@ -1,4 +1,5 @@
 import { useSettings } from "@/hooks/useSettings.ts";
+import { KASPLEX_API_URLS, NetworkType } from "@/contexts/SettingsContext.tsx";
 
 export type TickerInfo = {
   state: string;
@@ -21,7 +22,8 @@ export type TickerInfoResponse = {
 export function useKasplex() {
   const [settings] = useSettings();
 
-  const kasplexUrl = settings?.kasplexApiUrls[settings?.networkId];
+  const kasplexUrl =
+    KASPLEX_API_URLS[settings?.networkId ?? NetworkType.Mainnet];
 
   const fetchTokenInfo = async (ticker: string) => {
     const response = await fetch(`${kasplexUrl}/krc20/token/${ticker}`);

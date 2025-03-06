@@ -9,22 +9,26 @@ export default function DevMode() {
 
   return (
     <div className="flex h-full flex-col gap-4 p-6">
-      <Header title="Dev mode" onClose={() => navigate("/dashboard")} />
+      <Header
+        title="Experimental features"
+        onClose={() => navigate("/dashboard")}
+      />
       <div
         className="flex flex-col gap-2 rounded-xl border border-[#7F1D1D] bg-[#381825] p-4 text-base"
         role="alert"
       >
         <div className="flex items-center justify-between">
           <span className="font-semibold text-daintree-200">
-            Dev mode will enable experimental features. Features that may not be
-            completed nor stable. Only activate if you know what you are doing.
+            Experimental features will enable experimental features. Features
+            that may not be completed nor stable. Only activate if you know what
+            you are doing.
           </span>
         </div>
       </div>
 
       <div className="flex cursor-pointer items-center justify-between rounded-xl border border-gray-700 bg-slate-800 p-5">
         <div className="flex items-center justify-start gap-4 text-base font-semibold">
-          <span className="font-semibold">Dev mode</span>
+          <span className="font-semibold">Experimental features</span>
         </div>
         <div className="flex items-center text-base">
           <input

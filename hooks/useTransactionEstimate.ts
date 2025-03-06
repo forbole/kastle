@@ -1,10 +1,12 @@
-import { PaymentOutput } from "@/lib/wallet/interface";
+import {
+  PaymentOutput,
+  TransactionEstimate,
+} from "@/lib/wallet/wallet-interface.ts";
 import { useState } from "react";
 import { PublicKey } from "@/wasm/core/kaspa";
 import { Account } from "@/contexts/WalletManagerContext.tsx";
 import useDeepCompareEffect from "use-deep-compare-effect";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
-import { TransactionEstimate } from "@/lib/wallet/interface.ts";
 import { captureException } from "@sentry/react";
 
 export default function useTransactionEstimate({

@@ -10,8 +10,8 @@ import {
   sompiToKaspaString,
   UtxoEntryReference,
 } from "@/wasm/core/kaspa";
-import { PaymentOutput } from "@/lib/wallet/interface.ts";
-import { NetworkType } from "@/contexts/SettingsContext.tsx";
+import { PaymentOutput } from "@/lib/wallet/wallet-interface.ts";
+import { NetworkType, RPC_URLS } from "@/contexts/SettingsContext.tsx";
 
 interface RpcClientContextType {
   rpcClient: RpcClient | undefined;
@@ -99,7 +99,7 @@ export function RpcClientProvider({ children }: { children: ReactNode }) {
       setNetworkId(settings.networkId);
     }
 
-    const newRpcUrl = settings.rpcUrls[settings.networkId];
+    const newRpcUrl = RPC_URLS[settings.networkId];
     if (!rpcUrl || newRpcUrl !== rpcUrl) {
       setRpcUrl(newRpcUrl);
     }

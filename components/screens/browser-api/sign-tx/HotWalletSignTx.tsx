@@ -1,6 +1,6 @@
 import { SignTxPayload } from "@/api/message";
 import SignTx from "@/components/screens/browser-api/sign-tx/SignTx";
-import { IWallet } from "@/lib/wallet/interface";
+import { IWallet } from "@/lib/wallet/wallet-interface.ts";
 import { AccountFactory } from "@/lib/wallet/wallet-factory";
 import useWalletManager from "@/hooks/useWalletManager.ts";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";

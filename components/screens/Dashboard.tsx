@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { SideMenu } from "@/components/side-menu/SideMenu.tsx";
-import { explorerAddressLinks } from "@/components/screens/Settings.tsx";
 import kasIcon from "@/assets/images/kas-icon.svg";
 import gavelIcon from "@/assets/images/gavel.svg";
 import { formatToken, formatTokenPrice, formatUSD } from "@/lib/utils.ts";
@@ -50,7 +49,6 @@ export default function Dashboard() {
     }));
 
   const network = networkId ?? NetworkType.Mainnet;
-  const explorerAddressLink = explorerAddressLinks[network];
   const isMainnet = network === NetworkType.Mainnet;
 
   const totalBalance = balance
@@ -212,54 +210,34 @@ export default function Dashboard() {
             <span className="text-daintree-400">Receive</span>
           </button>
 
-          {settings?.preview ? (
-            <>
-              <div
-                className="flex cursor-pointer flex-col items-center gap-2"
-                onClick={() => {
-                  const url = new URL(browser.runtime.getURL("/popup.html"));
-                  url.hash = `/deploy-token`;
+          <div
+            className="flex cursor-pointer flex-col items-center gap-2"
+            onClick={() => {
+              const url = new URL(browser.runtime.getURL("/popup.html"));
+              url.hash = `/deploy-token`;
 
-                  browser.tabs.create({ url: url.toString() });
-                }}
-              >
-                <div className="flex h-[46px] w-[46px] items-center justify-center rounded-full bg-white/10">
-                  <i className="hn hn-pencil text-[20px] text-white"></i>
-                </div>
-                <span className="text-daintree-400">Deploy</span>
-              </div>
-              <div
-                className="flex cursor-pointer flex-col items-center gap-2"
-                onClick={() => {
-                  const url = new URL(browser.runtime.getURL("/popup.html"));
-                  url.hash = `/mint-token`;
+              browser.tabs.create({ url: url.toString() });
+            }}
+          >
+            <div className="flex h-[46px] w-[46px] items-center justify-center rounded-full bg-white/10">
+              <i className="hn hn-pencil text-[20px] text-white"></i>
+            </div>
+            <span className="text-daintree-400">Deploy</span>
+          </div>
+          <div
+            className="flex cursor-pointer flex-col items-center gap-2"
+            onClick={() => {
+              const url = new URL(browser.runtime.getURL("/popup.html"));
+              url.hash = `/mint-token`;
 
-                  browser.tabs.create({ url: url.toString() });
-                }}
-              >
-                <div className="flex h-[46px] w-[46px] items-center justify-center rounded-full bg-white/10">
-                  <img
-                    alt="castle"
-                    className="h-[24px] w-[24px]"
-                    src={gavelIcon}
-                  />
-                </div>
-                <span className="text-daintree-400">Mint</span>
-              </div>
-            </>
-          ) : (
-            <a
-              className="flex cursor-pointer flex-col items-center gap-2"
-              href={`${explorerAddressLink}${address}`}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <div className="flex h-[46px] w-[46px] items-center justify-center rounded-full bg-white/10">
-                <i className="hn hn-external-link text-[20px] text-white"></i>
-              </div>
-              <span className="text-daintree-400">Explorer</span>
-            </a>
-          )}
+              browser.tabs.create({ url: url.toString() });
+            }}
+          >
+            <div className="flex h-[46px] w-[46px] items-center justify-center rounded-full bg-white/10">
+              <img alt="castle" className="h-[24px] w-[24px]" src={gavelIcon} />
+            </div>
+            <span className="text-daintree-400">Mint</span>
+          </div>
         </div>
 
         {/* Share Card */}
