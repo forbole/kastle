@@ -3,7 +3,7 @@ import {
   IWallet,
   PaymentOutput,
   TxSettingOptions,
-} from "@/lib/wallet/interface.ts";
+} from "@/lib/wallet/wallet-interface.ts";
 import {
   Address,
   Generator,

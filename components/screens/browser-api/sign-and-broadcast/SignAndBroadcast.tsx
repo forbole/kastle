@@ -1,7 +1,7 @@
 import { ApiResponse, SignAndBroadcastTxPayload } from "@/api/message";
 import { ApiExtensionUtils } from "@/api/extension";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
-import { IWallet } from "@/lib/wallet/interface";
+import { IWallet } from "@/lib/wallet/wallet-interface.ts";
 import { useBoolean } from "usehooks-ts";
 import useWalletManager from "@/hooks/useWalletManager";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";

@@ -10,7 +10,7 @@ import {
   sompiToKaspaString,
   UtxoEntryReference,
 } from "@/wasm/core/kaspa";
-import { PaymentOutput } from "@/lib/wallet/interface.ts";
+import { PaymentOutput } from "@/lib/wallet/wallet-interface.ts";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import Splash from "@/components/screens/Splash.tsx";
 

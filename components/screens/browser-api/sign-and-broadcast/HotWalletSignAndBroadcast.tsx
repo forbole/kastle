@@ -1,6 +1,6 @@
 import { SignAndBroadcastTxPayload } from "@/api/message";
 import SignAndBroadcast from "./SignAndBroadcast";
-import { IWallet } from "@/lib/wallet/interface";
+import { IWallet } from "@/lib/wallet/wallet-interface.ts";
 import { AccountFactory } from "@/lib/wallet/wallet-factory";
 import useWalletManager from "@/hooks/useWalletManager.ts";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";

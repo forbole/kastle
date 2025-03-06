@@ -1,5 +1,5 @@
 import { Opcodes, ScriptBuilder } from "@/wasm/core/kaspa";
-import { IWallet, PaymentOutput } from "@/lib/wallet/interface.ts";
+import { IWallet, PaymentOutput } from "@/lib/wallet/wallet-interface.ts";
 
 export type Operation = "deploy" | "mint" | "transfer";
 

@@ -26,7 +26,7 @@ import {
   toSignType,
   TxSettingOptions,
   waitTxForAddress,
-} from "@/lib/wallet/interface.ts";
+} from "@/lib/wallet/wallet-interface.ts";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import { Amount, Fee } from "@/lib/krc20.ts";
 
