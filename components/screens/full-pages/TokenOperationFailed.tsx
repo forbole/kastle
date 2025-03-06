@@ -5,6 +5,7 @@ import Header from "@/components/GeneralHeader";
 import { useLocation } from "react-router";
 import { useTokenInfo } from "@/hooks/useTokenInfo.ts";
 import { applyDecimal } from "@/lib/krc20.ts";
+import { setPopupPath } from "@/lib/utils.ts";
 
 export const TokenOperationFailed = () => {
   const navigate = useNavigate();
@@ -118,7 +119,11 @@ export const TokenOperationFailed = () => {
                   <button
                     type="button"
                     className="flex items-center justify-center gap-2"
-                    onClick={() => navigate(`/token-asset/${ticker}`)}
+                    onClick={() => {
+                      setPopupPath(`/token-asset/${ticker}`, () =>
+                        browser.action.openPopup(),
+                      );
+                    }}
                   >
                     <span className="text-sm font-semibold text-icy-blue-400">
                       View transaction history
