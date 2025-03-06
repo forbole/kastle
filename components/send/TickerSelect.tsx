@@ -15,7 +15,7 @@ export default function TickerSelect({
   toggleShow,
 }: TickerSelectProps) {
   const { setValue } = useFormContext<SendFormData>();
-  const { account } = useWalletManager();
+  const { wallet, account } = useWalletManager();
   const [searchQuery, setSearchQuery] = useState("");
 
   const address = account?.address;
@@ -48,6 +48,8 @@ export default function TickerSelect({
     setValue("ticker", ticker, { shouldValidate: true });
     toggleShow();
   };
+
+  const isLedger = wallet?.type === "ledger";
 
   return (
     <>
@@ -104,6 +106,7 @@ export default function TickerSelect({
               key={token.tick}
               token={token}
               selectTicker={selectTicker}
+              supported={!isLedger}
             />
           ))}
 

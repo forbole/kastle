@@ -29,7 +29,7 @@ export const DetailsStep = ({
 }) => {
   const navigate = useNavigate();
   const [settings] = useSettings();
-  const { account, addresses } = useWalletManager();
+  const { wallet, account, addresses } = useWalletManager();
   const { rpcClient, getMinimumFee } = useRpcClientStateful();
   const { fetchDomainInfo } = useKns();
 
@@ -311,7 +311,7 @@ export const DetailsStep = ({
             <div className="flex rounded-lg bg-[#102831] text-daintree-400 shadow-sm">
               <button
                 type="button"
-                onClick={() => settings?.preview && toggleTickerSelect}
+                onClick={() => settings?.preview && toggleTickerSelect()}
                 className={twMerge(
                   "inline-flex min-w-fit items-center gap-2 rounded-s-md border border-e-0 border-daintree-700 px-4 text-sm",
                   errors.amount
