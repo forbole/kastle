@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import successImage from "@/assets/images/success.png";
 import Header from "@/components/GeneralHeader";
 import { useFormContext } from "react-hook-form";
-import { TokenOperationFormData } from "@/components/screens/TokenOperation.tsx";
+import { TokenOperationFormData } from "@/components/screens/TokenTransfer.tsx";
 import { SendFormData } from "@/components/screens/Send.tsx";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 
@@ -28,14 +28,14 @@ export const SuccessStatus = ({ transactionIds }: SuccessProps) => {
   const ticker = isKrc20Operation ? formFields.opData.tick : "KAS";
   const op = isKrc20Operation ? formFields?.opData?.op : "";
   const opTitle: Record<string, string> = {
-    transfer: `${ticker} Dispatched`,
-    deploy: `${ticker} Deployed`,
-    mint: `${ticker} Minted`,
+    transfer: `${ticker.toUpperCase()} Dispatched`,
+    deploy: `${ticker.toUpperCase()} Deployed`,
+    mint: `${ticker.toUpperCase()} Minted`,
   };
   const opDescription: Record<string, string> = {
-    transfer: `Your ${ticker} has been sent to the recipient's address`,
-    deploy: "A new token has been forget",
-    mint: `${ticker} has been forged!`,
+    transfer: `Your ${ticker.toUpperCase()} has been sent to the recipient's address`,
+    deploy: "A new token has been forged",
+    mint: `${ticker.toUpperCase()} has been forged!`,
   };
 
   const title = isKrc20Operation ? opTitle[op] : "KAS Dispatched!";
@@ -78,6 +78,18 @@ export const SuccessStatus = ({ transactionIds }: SuccessProps) => {
                 </span>
               )}
               <i className="hn hn-external-link text-icy-blue-400"></i>
+            </button>
+          )}
+          {isKrc20Operation && (
+            <button
+              type="button"
+              className="flex items-center gap-2"
+              onClick={() => navigate(`/token-asset/${ticker}`)}
+            >
+              <span className="text-sm font-semibold text-icy-blue-400">
+                View transaction history
+              </span>
+              <i className="hn hn-angle-right text-icy-blue-400"></i>
             </button>
           )}
         </div>

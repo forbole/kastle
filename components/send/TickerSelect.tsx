@@ -44,7 +44,7 @@ export default function TickerSelect({
       );
     });
 
-  const selectTicker = (ticker: string) => {
+  const selectTicker = async (ticker: string) => {
     setValue("ticker", ticker, { shouldValidate: true });
     toggleShow();
   };

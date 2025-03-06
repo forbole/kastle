@@ -12,13 +12,18 @@ import { PostHogWrapperProvider } from "@/contexts/PostHogWrapperProvider.tsx";
 export default function FullscreenLayout() {
   const navigation = useNavigation();
   const location = useLocation();
+  const { isConnected } = useRpcClientStateful();
   useResetPreline([location.pathname]);
 
   return (
     <PostHogWrapperProvider>
       <div className="no-scrollbar flex h-screen justify-center overflow-y-scroll bg-icy-blue-900 py-10 font-sans text-white">
         <Toaster position="top-center" containerStyle={{ top: 35 }} />
-        {navigation.state === "loading" ? <Splash /> : <Outlet />}
+        {navigation.state === "loading" || !isConnected ? (
+          <Splash />
+        ) : (
+          <Outlet />
+        )}
       </div>
     </PostHogWrapperProvider>
   );

@@ -43,11 +43,17 @@ import RootLayout from "@/components/layouts/RootLayout.tsx";
 import WalletUnlock from "@/components/screens/WalletUnlock.tsx";
 import DevMode from "@/components/screens/DevMode.tsx";
 import DeployToken from "@/components/screens/full-pages/DeployToken.tsx";
-import TokenOperation from "@/components/screens/TokenOperation.tsx";
+import TokenTransfer from "@/components/screens/TokenTransfer.tsx";
 import MintToken from "@/components/screens/full-pages/MintToken.tsx";
 import TokenAsset from "@/components/screens/TokenAsset.tsx";
 import KasAsset from "@/components/screens/KasAsset.tsx";
 import SignTxConfirm from "@/components/screens/browser-api/SignTxConfirm";
+import ConfirmMint from "@/components/screens/full-pages/ConfirmMint.tsx";
+import MintingToken from "@/components/screens/full-pages/MintingToken.tsx";
+import { TokenOperationFailed } from "@/components/screens/full-pages/TokenOperationFailed.tsx";
+import { TokenOperationSuccess } from "@/components/screens/full-pages/TokenOperationSuccess.tsx";
+import ConfirmDeploy from "@/components/screens/full-pages/ConfirmDeploy.tsx";
+import DeployingToken from "@/components/screens/full-pages/DeployingToken.tsx";
 import { RecentAddressesProvider } from "@/contexts/RecentAddressesContext.tsx";
 import LedgerConnectForImportFailed from "@/components/screens/full-pages/ledger/LedgerConnectForImportFailed";
 import LedgerConnectForSign from "@/components/screens/ledger-connect/LedgerConnectForSign";
@@ -138,7 +144,7 @@ export const router = createHashRouter([
                 loader: keyringGuard,
                 children: [
                   { path: "send", element: <Send /> },
-                  { path: "token-operation", element: <TokenOperation /> },
+                  { path: "token-transfer", element: <TokenTransfer /> },
                   { path: "receive", element: <Receive /> },
                   { path: "settings", element: <Settings /> },
                   {
@@ -264,8 +270,32 @@ export const router = createHashRouter([
                 element: <DeployToken />,
               },
               {
+                path: "confirm-deploy",
+                element: <ConfirmDeploy />,
+              },
+              {
+                path: "deploying-token",
+                element: <DeployingToken />,
+              },
+              {
                 path: "mint-token",
                 element: <MintToken />,
+              },
+              {
+                path: "confirm-mint",
+                element: <ConfirmMint />,
+              },
+              {
+                path: "minting-token",
+                element: <MintingToken />,
+              },
+              {
+                path: "token-operation-failed",
+                element: <TokenOperationFailed />,
+              },
+              {
+                path: "token-operation-success",
+                element: <TokenOperationSuccess />,
               },
             ],
             loader: fullPageKeyringGuard,

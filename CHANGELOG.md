@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.6.0](https://github.com/forbole/kastle/compare/v2.5.0...v2.6.0) (2025-03-04)
+
+
+### Features
+
+* ledger UI integration ([#41](https://github.com/forbole/kastle/issues/41)) ([b8e27cd](https://github.com/forbole/kastle/commit/b8e27cdb509261e31c4010db2bcd27ef044d5380))
+
 ## [2.5.0](https://github.com/forbole/kastle/compare/v2.4.0...v2.5.0) (2025-02-28)
 
 

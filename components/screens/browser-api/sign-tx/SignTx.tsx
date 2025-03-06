@@ -1,6 +1,6 @@
 import { ApiResponse, SignTxPayload } from "@/api/message";
 import { ApiExtensionUtils } from "@/api/extension";
-import { IWallet } from "@/lib/wallet/interface";
+import { IWallet } from "@/lib/wallet/wallet-interface.ts";
 import { useBoolean } from "usehooks-ts";
 import useWalletManager from "@/hooks/useWalletManager";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";

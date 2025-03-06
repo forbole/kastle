@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { SideMenu } from "@/components/side-menu/SideMenu.tsx";
-import { explorerAddressLinks } from "@/components/screens/Settings.tsx";
 import kasIcon from "@/assets/images/kas-icon.svg";
 import gavelIcon from "@/assets/images/gavel.svg";
 import { formatToken, formatTokenPrice, formatUSD } from "@/lib/utils.ts";
@@ -19,7 +18,7 @@ import { Tooltip } from "react-tooltip";
 export default function Dashboard() {
   const { keyringLock } = useKeyring();
   const navigate = useNavigate();
-  const { networkId } = useRpcClientStateful();
+  const { networkId, isConnected } = useRpcClientStateful();
   const [settings, setSettings] = useSettings();
   const kapsaPrice = useKaspaPrice();
   const { showWarning } = useBackupWarning();
@@ -51,7 +50,6 @@ export default function Dashboard() {
     }));
 
   const network = networkId ?? NetworkType.Mainnet;
-  const explorerAddressLink = explorerAddressLinks[network];
   const isMainnet = network === NetworkType.Mainnet;
 
   const totalBalance = balance
@@ -173,133 +171,137 @@ export default function Dashboard() {
 
         {/* Action Buttons */}
         <div className="flex w-full justify-center gap-10 text-sm text-daintree-400">
-          <div
-            className="flex cursor-pointer flex-col items-center gap-2"
+          <button
+            type="button"
+            className="flex flex-col items-center gap-2"
             onClick={() => navigate("/send")}
+            disabled={!isConnected}
           >
-            <div className="flex h-[46px] w-[46px] items-center justify-center rounded-full bg-white/10">
-              <i className="hn hn-arrow-up text-[20px] text-white"></i>
+            <div
+              className={twMerge(
+                "flex h-[46px] w-[46px] items-center justify-center rounded-full bg-white/10",
+                !isConnected && "animate-pulse",
+              )}
+            >
+              <i
+                className={twMerge(
+                  "hn hn-arrow-up text-[20px]",
+                  isConnected ? "text-white" : "text-daintree-600",
+                )}
+              ></i>
             </div>
             <span className="text-daintree-400">Send</span>
-          </div>
+          </button>
 
-          <div
-            className="flex cursor-pointer flex-col items-center gap-2"
+          <button
+            type="button"
+            className="flex flex-col items-center gap-2"
             onClick={() => navigate("/receive")}
+            disabled={!isConnected}
           >
-            <div className="flex h-[46px] w-[46px] items-center justify-center rounded-full bg-white/10">
-              <i className="hn hn-arrow-down text-[20px] text-white"></i>
+            <div
+              className={twMerge(
+                "flex h-[46px] w-[46px] items-center justify-center rounded-full bg-white/10",
+                !isConnected && "animate-pulse",
+              )}
+            >
+              <i
+                className={twMerge(
+                  "hn hn-arrow-down text-[20px]",
+                  isConnected ? "text-white" : "text-daintree-600",
+                )}
+              ></i>
             </div>
             <span className="text-daintree-400">Receive</span>
+          </button>
+
+          {/* Deploy */}
+          {isLedger && (
+            <Tooltip
+              id="deploy"
+              style={{
+                backgroundColor: "#203C49",
+                fontSize: "12px",
+                fontWeight: 600,
+                padding: "8px",
+              }}
+              isOpen={deployHovered}
+              place="bottom"
+            />
+          )}
+          <div
+            className={twMerge(
+              "flex cursor-pointer flex-col items-center gap-2",
+              isLedger && "opacity-40",
+            )}
+            onClick={() => {
+              if (isLedger) {
+                return;
+              }
+
+              const url = new URL(browser.runtime.getURL("/popup.html"));
+              url.hash = `/deploy-token`;
+
+              browser.tabs.create({ url: url.toString() });
+            }}
+            onMouseEnter={() => {
+              if (isLedger) setDeployHovered(true);
+            }}
+            onMouseLeave={() => {
+              if (isLedger) setDeployHovered(false);
+            }}
+            data-tooltip-id="deploy"
+            data-tooltip-content="Ledger doesn’t support deploy function currently."
+          >
+            <div className="flex h-[46px] w-[46px] items-center justify-center rounded-full bg-white/10">
+              <i className="hn hn-pencil text-[20px] text-white"></i>
+            </div>
+            <span className="text-daintree-400">Deploy</span>
           </div>
 
-          {settings?.preview ? (
-            <>
-              {/* Deploy */}
-              {isLedger && (
-                <Tooltip
-                  id="deploy"
-                  style={{
-                    backgroundColor: "#203C49",
-                    fontSize: "12px",
-                    fontWeight: 600,
-                    padding: "8px",
-                  }}
-                  isOpen={deployHovered}
-                  place="bottom"
-                />
-              )}
-              <div
-                className={twMerge(
-                  "flex cursor-pointer flex-col items-center gap-2",
-                  isLedger && "opacity-40",
-                )}
-                onClick={() => {
-                  if (isLedger) {
-                    return;
-                  }
-
-                  const url = new URL(browser.runtime.getURL("/popup.html"));
-                  url.hash = `/deploy-token`;
-
-                  browser.tabs.create({ url: url.toString() });
-                }}
-                onMouseEnter={() => {
-                  if (isLedger) setDeployHovered(true);
-                }}
-                onMouseLeave={() => {
-                  if (isLedger) setDeployHovered(false);
-                }}
-                data-tooltip-id="deploy"
-                data-tooltip-content="Ledger doesn’t support deploy function currently."
-              >
-                <div className="flex h-[46px] w-[46px] items-center justify-center rounded-full bg-white/10">
-                  <i className="hn hn-pencil text-[20px] text-white"></i>
-                </div>
-                <span className="text-daintree-400">Deploy</span>
-              </div>
-
-              {/* Mint */}
-              {isLedger && (
-                <Tooltip
-                  id="mint"
-                  style={{
-                    backgroundColor: "#203C49",
-                    fontSize: "12px",
-                    fontWeight: 600,
-                    padding: "8px",
-                  }}
-                  isOpen={mintHovered}
-                  place="bottom-start"
-                />
-              )}
-              <div
-                className={twMerge(
-                  "flex cursor-pointer flex-col items-center gap-2",
-                  isLedger && "opacity-40",
-                )}
-                onClick={() => {
-                  if (isLedger) {
-                    return;
-                  }
-
-                  const url = new URL(browser.runtime.getURL("/popup.html"));
-                  url.hash = `/mint-token`;
-
-                  browser.tabs.create({ url: url.toString() });
-                }}
-                onMouseEnter={() => {
-                  if (isLedger) setMintHovered(true);
-                }}
-                onMouseLeave={() => {
-                  if (isLedger) setMintHovered(false);
-                }}
-                data-tooltip-id="mint"
-                data-tooltip-content="Ledger doesn’t support mint function currently."
-              >
-                <div className="flex h-[46px] w-[46px] items-center justify-center rounded-full bg-white/10">
-                  <img
-                    alt="castle"
-                    className="h-[24px] w-[24px]"
-                    src={gavelIcon}
-                  />
-                </div>
-                <span className="text-daintree-400">Mint</span>
-              </div>
-            </>
-          ) : (
-            <a
-              className="flex cursor-pointer flex-col items-center gap-2"
-              href={`${explorerAddressLink}${address}`}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <div className="flex h-[46px] w-[46px] items-center justify-center rounded-full bg-white/10">
-                <i className="hn hn-external-link text-[20px] text-white"></i>
-              </div>
-              <span className="text-daintree-400">Explorer</span>
-            </a>
+          {/* Mint */}
+          {isLedger && (
+            <Tooltip
+              id="mint"
+              style={{
+                backgroundColor: "#203C49",
+                fontSize: "12px",
+                fontWeight: 600,
+                padding: "8px",
+              }}
+              isOpen={mintHovered}
+              place="bottom-start"
+            />
           )}
+          <div
+            className={twMerge(
+              "flex cursor-pointer flex-col items-center gap-2",
+              isLedger && "opacity-40",
+            )}
+            onClick={() => {
+              if (isLedger) {
+                return;
+              }
+
+              const url = new URL(browser.runtime.getURL("/popup.html"));
+              url.hash = `/mint-token`;
+
+              browser.tabs.create({ url: url.toString() });
+            }}
+            onMouseEnter={() => {
+              if (isLedger) setMintHovered(true);
+            }}
+            onMouseLeave={() => {
+              if (isLedger) setMintHovered(false);
+            }}
+            data-tooltip-id="mint"
+            data-tooltip-content="Ledger doesn’t support mint function currently."
+          >
+            <div className="flex h-[46px] w-[46px] items-center justify-center rounded-full bg-white/10">
+              <img alt="castle" className="h-[24px] w-[24px]" src={gavelIcon} />
+            </div>
+            <span className="text-daintree-400">Mint</span>
+          </div>
         </div>
 
         {/* Share Card */}

@@ -9,9 +9,9 @@ import {
 } from "@/api/message";
 import {
   PaymentOutput,
-  TxSettingOptions,
   ScriptOption,
-} from "@/lib/wallet/interface";
+  TxSettingOptions,
+} from "@/lib/wallet/wallet-interface.ts";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 
 export class KastleBrowserAPI {

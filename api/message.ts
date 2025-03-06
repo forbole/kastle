@@ -1,9 +1,9 @@
 import { Buffer } from "buffer";
 import {
   PaymentOutput,
-  TxSettingOptions,
   ScriptOption,
-} from "@/lib/wallet/interface.ts";
+  TxSettingOptions,
+} from "@/lib/wallet/wallet-interface.ts";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 
 export enum Action {

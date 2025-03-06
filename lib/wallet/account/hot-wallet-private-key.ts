@@ -1,41 +1,114 @@
 import {
   Address,
+  addressFromScriptPublicKey,
+  createInputSignature,
+  createTransactions,
   Generator,
+  IUtxoEntry,
   kaspaToSompi,
   Keypair,
-  PrivateKey,
-  RpcClient,
-  UtxoEntryReference,
   PendingTransaction,
+  PrivateKey,
+  PublicKey,
+  RpcClient,
   ScriptBuilder,
-  Transaction,
-  createInputSignature,
   signTransaction,
+  Transaction,
+  UtxoEntryReference,
 } from "@/wasm/core/kaspa";
 
 import {
   IWallet,
   PaymentOutput,
-  TxSettingOptions,
-  toKaspaEntry,
   ScriptOption,
-  toSignType,
-} from "@/lib/wallet/interface.ts";
+  TxSettingOptions,
+} from "@/lib/wallet/wallet-interface.ts";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
+import { Amount, Fee } from "@/lib/krc20.ts";
+import {
+  toKaspaEntry,
+  toKaspaPaymentOutput,
+  toSignType,
+  waitTxForAddress,
+} from "@/lib/kaspa.ts";
 
 export class HotWalletPrivateKey implements IWallet {
   keypair: Keypair;
 
   constructor(
-    privateKey: PrivateKey,
+    private privateKey: PrivateKey,
     private readonly rpcClient: RpcClient,
     private readonly networkId: NetworkType,
   ) {
     this.keypair = privateKey.toKeypair();
   }
 
-  getPrivateKey() {
+  async *performCommitReveal(
+    scriptBuilder: ScriptBuilder,
+    revealPriorityFee: string,
+    extraOutputs: PaymentOutput[] = [],
+  ) {
+    const p2SHAddress = addressFromScriptPublicKey(
+      scriptBuilder.createPayToScriptHashScript(),
+      this.networkId,
+    );
+
+    if (!p2SHAddress) {
+      throw new Error("Invalid P2SH address");
+    }
+
+    yield {
+      status: "committing" as const,
+    };
+
+    const { transactionId: commitTxId, confirm: commitTxIdConfirm } =
+      await this.commitScript(p2SHAddress.toString());
+
+    await commitTxIdConfirm;
+
+    yield {
+      status: "revealing" as const,
+      commitTxId: commitTxId,
+    };
+
+    // Create the reveal transaction
+    const scriptUTXOs = await this.rpcClient.getUtxosByAddresses({
+      addresses: [p2SHAddress.toString()],
+    });
+
+    const scriptUtxo = scriptUTXOs.entries.find(
+      (entry) => entry.outpoint.transactionId === commitTxId,
+    );
+
+    if (!scriptUtxo) {
+      throw new Error("Could not find script UTXO");
+    }
+
+    const { transactionId: revealTxId, confirm: revealTxIdConfirm } =
+      await this.revealScript(
+        scriptBuilder,
+        scriptUtxo,
+        revealPriorityFee,
+        extraOutputs,
+      );
+
+    // Wait for the reveal transaction to be removed to the UTXO set of the P2SH address
+    // TODO: yield failed status if timeout
+    await revealTxIdConfirm;
+
+    yield {
+      status: "completed" as const,
+      commitTxId: commitTxId,
+      revealTxId: revealTxId,
+    };
+  }
+
+  getPrivateKeyString() {
     return this.keypair.privateKey;
+  }
+
+  getPublicKey(): PublicKey {
+    return this.privateKey.toPublicKey();
   }
 
   getPublicKeys() {
@@ -132,7 +205,7 @@ export class HotWalletPrivateKey implements IWallet {
         scripts.map((script) => this.signTxInputWithScript(tx, script)),
       );
     }
-    return signTransaction(tx, [this.getPrivateKey()], false);
+    return signTransaction(tx, [this.getPrivateKeyString()], false);
   }
 
   async signTxInputWithScript(tx: Transaction, script: ScriptOption) {
@@ -149,13 +222,93 @@ export class HotWalletPrivateKey implements IWallet {
     const signature = createInputSignature(
       tx,
       script.inputIndex,
-      new PrivateKey(this.getPrivateKey()),
+      new PrivateKey(this.getPrivateKeyString()),
       toSignType(script.signType ?? "All"),
     );
 
     const scriptBuilder = ScriptBuilder.fromScript(script.scriptHex);
     tx.inputs[script.inputIndex].signatureScript =
       scriptBuilder.encodePayToScriptHashSignatureScript(signature);
+  }
+
+  private async commitScript(p2SHAddress: string) {
+    const publicKey = this.getPublicKey();
+    const address = publicKey.toAddress(this.networkId);
+
+    // Create the commit transaction
+    const { entries } = await this.rpcClient.getUtxosByAddresses({
+      addresses: [address.toString()],
+    });
+    const { transactions: pendingTxs } = await createTransactions({
+      priorityEntries: [],
+      entries,
+      outputs: [
+        {
+          address: p2SHAddress,
+          amount: kaspaToSompi(Amount.ScriptUtxoAmount)!,
+        },
+      ],
+      priorityFee: kaspaToSompi(Fee.Base.toString())!,
+      changeAddress: address.toString(),
+      networkId: this.networkId,
+    });
+
+    const pending = pendingTxs[0];
+    const signedTx = await this.signTx(pending.transaction);
+
+    const confirm = waitTxForAddress(
+      this.rpcClient,
+      address.toString(),
+      signedTx.id,
+    );
+
+    const { transactionId } = await this.rpcClient.submitTransaction({
+      transaction: signedTx,
+    });
+
+    return {
+      transactionId,
+      confirm,
+    };
+  }
+
+  private async revealScript(
+    script: ScriptBuilder,
+    scriptUtxo: IUtxoEntry,
+    priorityFee: string,
+    extraOutputs: PaymentOutput[] = [],
+  ) {
+    const address = this.getAddress();
+    const { entries } = await this.rpcClient.getUtxosByAddresses([address]);
+
+    const { transactions: revealPendingTxs } = await createTransactions({
+      priorityEntries: [scriptUtxo],
+      entries,
+      outputs: extraOutputs.map((output) => toKaspaPaymentOutput(output)),
+      changeAddress: address,
+      priorityFee: kaspaToSompi(priorityFee),
+      networkId: this.networkId,
+    });
+
+    // Sign the transaction with the script
+    const pendingTx = revealPendingTxs[0];
+    const signedTx = await this.signTx(pendingTx.transaction, [
+      {
+        inputIndex: 0,
+        scriptHex: script.toString(),
+      },
+    ]);
+
+    const confirm = waitTxForAddress(this.rpcClient, address, signedTx.id);
+
+    const { transactionId } = await this.rpcClient.submitTransaction({
+      transaction: signedTx,
+    });
+
+    return {
+      transactionId,
+      confirm,
+    };
   }
 
   private async getUtxos(): Promise<UtxoEntryReference[]> {
