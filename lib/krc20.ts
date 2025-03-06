@@ -1,9 +1,4 @@
-import {
-  IPaymentOutput,
-  kaspaToSompi,
-  Opcodes,
-  ScriptBuilder,
-} from "@/wasm/core/kaspa";
+import { Opcodes, ScriptBuilder } from "@/wasm/core/kaspa";
 import { IWallet, PaymentOutput } from "@/lib/wallet/interface.ts";
 
 export type Operation = "deploy" | "mint" | "transfer";
@@ -103,12 +98,7 @@ export const mint = (
     .addData(Buffer.from(JSON.stringify(data, null, 0)))
     .addOp(Opcodes.OpEndIf);
 
-  return wallet.performCommitReveal(
-    script,
-    Fee.Mint.toString()!,
-    extraOutputs,
-    { waitingForReveal: true },
-  );
+  return wallet.performCommitReveal(script, Fee.Mint.toString()!, extraOutputs);
 };
 
 export const transfer = (

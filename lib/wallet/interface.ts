@@ -1,6 +1,5 @@
 import {
   Address,
-  IGeneratorSettingsObject,
   IPaymentOutput,
   IScriptPublicKey,
   ITransactionOutpoint,
@@ -114,9 +113,6 @@ export interface IWallet {
     scriptBuilder: ScriptBuilder,
     revealPriorityFee: string, // KAS
     extraOutputs?: PaymentOutput[],
-    options?: {
-      waitingForReveal?: boolean;
-    },
   ): AsyncGenerator<CommitRevealResult>;
 }
 

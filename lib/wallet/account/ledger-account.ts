@@ -1,4 +1,5 @@
 import {
+  CommitRevealResult,
   IWallet,
   PaymentOutput,
   TxSettingOptions,
@@ -7,7 +8,6 @@ import {
   Address,
   Generator,
   IGeneratorSettingsObject,
-  IPaymentOutput,
   IUtxoEntry,
   PendingTransaction,
   PublicKey,
@@ -42,9 +42,9 @@ export class LedgerAccount implements IWallet {
 
   performCommitReveal(
     scriptBuilder: ScriptBuilder,
-    revealPriorityFee: IGeneratorSettingsObject["priorityFee"],
-    extraOutputs?: IPaymentOutput[],
-  ): AsyncGenerator<"commiting" | "revealing", void, unknown> {
+    revealPriorityFee: string,
+    extraOutputs?: PaymentOutput[],
+  ): AsyncGenerator<CommitRevealResult> {
     throw new Error("Method not implemented.");
   }
 
