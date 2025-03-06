@@ -3,6 +3,7 @@ import { ExtensionService } from "@/lib/service/extension-service.ts";
 import { storage } from "wxt/storage";
 
 export const AUTO_LOCK_ALARM = "auto-lock-alarm";
+export const KEEP_ALIVE_ALARM = "keep-alive";
 export const DEFAULT_AUTO_LOCK_MINUTES = 5;
 
 export class AutoLockManager {
@@ -24,6 +25,9 @@ export class AutoLockManager {
         });
       }
     });
+
+    // start an alarm to keep the extension alive
+    browser.alarms.create(KEEP_ALIVE_ALARM, { periodInMinutes: 1 });
 
     browser.alarms.onAlarm.addListener(async (alarm) => {
       if (alarm.name === AUTO_LOCK_ALARM) {
