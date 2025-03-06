@@ -62,6 +62,8 @@ export default function LedgerConnectForImport() {
             <img
               alt="ledger connecting"
               className="mx-auto"
+              width="340"
+              height="130"
               src={ledgerConnectingImage}
             />
             <div className="space-y-2 text-center">
