@@ -118,7 +118,7 @@ export default function LedgerConnectForImport() {
       {showConnect && (
         <button
           onClick={tryConnect}
-          className="items-center rounded-full bg-icy-blue-400 p-5 text-base font-semibold hover:bg-icy-blue-600"
+          className="items-center rounded-full bg-icy-blue-400 p-5 text-base hover:bg-icy-blue-600"
         >
           Try Connect
         </button>

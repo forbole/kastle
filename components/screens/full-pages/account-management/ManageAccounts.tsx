@@ -29,7 +29,10 @@ type ManageAccountsProps = {
   ) => Promise<{ publicKeys: string[] }[]>;
 };
 
-export default function ManageAccounts({ walletType, listAccounts }: ManageAccountsProps) {
+export default function ManageAccounts({
+  walletType,
+  listAccounts,
+}: ManageAccountsProps) {
   const calledOnce = useRef(false);
 
   const navigate = useNavigate();
@@ -221,7 +224,7 @@ export default function ManageAccounts({ walletType, listAccounts }: ManageAccou
 
         <button
           type="submit"
-          className="inline-flex items-center justify-center rounded-full border border-transparent bg-icy-blue-400 p-4 px-4 py-3 text-base font-semibold text-white hover:bg-white/20 hover:text-white focus:bg-white/20 focus:text-white focus:outline-none disabled:pointer-events-none disabled:opacity-50"
+          className="mt-auto inline-flex w-full justify-center gap-x-2 rounded-full border border-transparent bg-icy-blue-400 py-5 text-base text-white hover:bg-icy-blue-600 disabled:bg-daintree-800 disabled:text-[#4B5563]"
         >
           {action === "manage" ? "Update" : "Import Wallet"}
         </button>
