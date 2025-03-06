@@ -5,8 +5,8 @@ import warningImage from "@/assets/images/warning.png";
 import Header from "@/components/GeneralHeader";
 import { useFormContext } from "react-hook-form";
 import { SendFormData } from "@/components/screens/Send.tsx";
-import { TokenOperationFormData } from "@/components/screens/TokenOperation.tsx";
-import { NetworkType } from "@/contexts/SettingsContext.tsx";
+import { TokenOperationFormData } from "@/components/screens/TokenTransfer.tsx";
+import { NetworkType } from "@/contexts/SettingsContext.tsx"; // Types for props
 
 // Types for props
 interface FailProps {

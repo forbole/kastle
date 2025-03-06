@@ -1,12 +1,11 @@
 import {
-  IUtxoEntry,
-  Address,
-  ITransactionOutpoint,
   IScriptPublicKey,
-  kaspaToSompi,
-  SighashType,
+  ITransactionOutpoint,
+  PublicKey,
+  ScriptBuilder,
   Transaction,
 } from "@/wasm/core/kaspa";
+import { SIGN_TYPE } from "@/lib/kaspa.ts";
 
 export type PaymentOutput = {
   address: string;
@@ -20,17 +19,6 @@ export type Entry = {
   blockDaaScore: string; // BigInt
   scriptPublicKey: IScriptPublicKey;
 };
-
-export function toKaspaEntry(entry: Entry): IUtxoEntry {
-  return {
-    amount: kaspaToSompi(entry.amount) ?? 0n,
-    address: entry.address ? new Address(entry.address) : undefined,
-    outpoint: entry.outpoint,
-    blockDaaScore: BigInt(entry.blockDaaScore),
-    scriptPublicKey: entry.scriptPublicKey,
-    isCoinbase: false,
-  };
-}
 
 export type TxSettingOptions = {
   priorityEntries?: Entry[];
@@ -46,20 +34,13 @@ export type ScriptOption = {
   signType?: SignType;
 };
 
-const SIGN_TYPE = {
-  All: SighashType.All,
-  None: SighashType.None,
-  Single: SighashType.Single,
-  AllAnyOneCanPay: SighashType.AllAnyOneCanPay,
-  NoneAnyOneCanPay: SighashType.NoneAnyOneCanPay,
-  SingleAnyOneCanPay: SighashType.SingleAnyOneCanPay,
-} as const;
+export type CommitRevealResult = {
+  status: "committing" | "revealing" | "completed";
+  commitTxId?: string;
+  revealTxId?: string;
+};
 
 export type SignType = keyof typeof SIGN_TYPE;
-
-export function toSignType(signType: SignType): SighashType {
-  return SIGN_TYPE[signType];
-}
 
 export type TransactionEstimate = {
   totalFees: string; // KAS
@@ -75,7 +56,9 @@ export interface IWallet {
     priorityFee?: bigint,
   ): Promise<string[]>;
 
-  getPrivateKey(): string;
+  getPrivateKeyString(): string;
+
+  getPublicKey(): PublicKey;
 
   getPublicKeys(): string[] | Promise<string[]>;
 
@@ -89,4 +72,10 @@ export interface IWallet {
   ): Promise<string>;
 
   signTx(tx: Transaction, scripts?: ScriptOption[]): Promise<Transaction>;
+
+  performCommitReveal(
+    scriptBuilder: ScriptBuilder,
+    revealPriorityFee: string, // KAS
+    extraOutputs?: PaymentOutput[],
+  ): AsyncGenerator<CommitRevealResult>;
 }

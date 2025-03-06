@@ -1,6 +1,6 @@
 import { Mnemonic, PrivateKey, RpcClient } from "@/wasm/core/kaspa";
 import { HotWalletAccount } from "@/lib/wallet/account/hot-wallet-account.ts";
-import { IWallet } from "./interface.ts";
+import { IWallet } from "./wallet-interface.ts";
 import { HotWalletPrivateKey } from "@/lib/wallet/account/hot-wallet-private-key.ts";
 import { LedgerAccount } from "@/lib/wallet/account/ledger-account.ts";
 import Transport from "@ledgerhq/hw-transport";

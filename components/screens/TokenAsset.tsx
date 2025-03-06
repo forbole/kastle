@@ -4,11 +4,16 @@ import { twMerge } from "tailwind-merge";
 import React, { useState } from "react";
 import TokenHistory from "@/components/token-asset/TokenHistory.tsx";
 import TokenInfo from "@/components/token-asset/TokenInfo.tsx";
+import { setPopupPath } from "@/lib/utils.ts";
 
 export default function TokenAsset() {
   const navigate = useNavigate();
   const { ticker } = useParams();
   const [activeTab, setActiveTab] = useState<"history" | "info">("history");
+
+  useEffect(() => {
+    setPopupPath();
+  }, []);
 
   return (
     <div className="no-scrollbar flex h-full flex-col overflow-y-scroll px-4 py-6">

@@ -19,6 +19,7 @@ import { applyDecimal, computeOperationFees, Fee } from "@/lib/krc20.ts";
 import { MIN_KAS_AMOUNT } from "@/lib/kaspa.ts";
 import RecentAddresses from "@/components/send/RecentAddresses.tsx";
 import spinner from "@/assets/images/spinner.svg";
+import { useKns } from "@/hooks/useKns.ts";
 
 export const DetailsStep = ({
   onNext,
@@ -28,7 +29,6 @@ export const DetailsStep = ({
   onBack?: () => void;
 }) => {
   const navigate = useNavigate();
-  const [settings] = useSettings();
   const { account, addresses } = useWalletManager();
   const { rpcClient, getMinimumFee } = useRpcClientStateful();
   const { fetchDomainInfo } = useKns();
@@ -124,6 +124,10 @@ export const DetailsStep = ({
     const genericErrorMessage = "Invalid address or KNS domain";
     if (!value) return genericErrorMessage;
 
+    if (ticker !== "kas" && value === account?.address) {
+      return "You cannot send KRC20 to yourself";
+    }
+
     const domainInfo = value.endsWith(".kas")
       ? await fetchDomainInfo(value)
       : undefined;
@@ -178,14 +182,13 @@ export const DetailsStep = ({
       ? onNext()
       : navigate(
           {
-            pathname: "/token-operation",
+            pathname: "/token-transfer",
           },
           {
             state: {
-              op: "transfer",
               ticker,
-              amount: amount!,
-              to: address!,
+              amount,
+              to: address,
               domain,
             },
           },
@@ -238,6 +241,10 @@ export const DetailsStep = ({
       setValue("address", undefined, { shouldValidate: true });
     }
   }, [userInput]);
+
+  useEffect(() => {
+    trigger("userInput");
+  }, [ticker]);
 
   return (
     <>
@@ -311,7 +318,7 @@ export const DetailsStep = ({
             <div className="flex rounded-lg bg-[#102831] text-daintree-400 shadow-sm">
               <button
                 type="button"
-                onClick={() => settings?.preview && toggleTickerSelect}
+                onClick={toggleTickerSelect}
                 className={twMerge(
                   "inline-flex min-w-fit items-center gap-2 rounded-s-md border border-e-0 border-daintree-700 px-4 text-sm",
                   errors.amount
@@ -326,9 +333,7 @@ export const DetailsStep = ({
                   onError={onImageError}
                 />
                 {ticker.toUpperCase()}
-                {settings?.preview && (
-                  <i className="hn hn-chevron-down h-[16px] w-[16px]"></i>
-                )}
+                <i className="hn hn-chevron-down h-[16px] w-[16px]"></i>
               </button>
               <input
                 {...register("amount", {
