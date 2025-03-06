@@ -19,9 +19,6 @@ type SettingsContextType = {
 
 export type Settings = {
   networkId: NetworkType;
-  rpcUrls: { [networkId: string]: string | undefined };
-  kasplexApiUrls: { [networkId: string]: string | undefined };
-  knsApiUrls: { [networkId: string]: string | undefined };
   lockTimeout: number;
   walletConnections: WalletConnections | undefined; // WalletId -> Account Index -> NetworkId -> WalletConnection[]
   hideBalances: boolean;
@@ -46,24 +43,25 @@ type AccountConnection = {
   icon?: string;
 };
 
+export const RPC_URLS = {
+  [NetworkType.Mainnet]:
+    "wss://ws-borsh-mainnet-kaspa-fullnode-direct.forbole.com/borsh",
+  [NetworkType.TestnetT10]: "wss://ws.tn10.kaspa.forbole.com/borsh",
+  [NetworkType.TestnetT11]: "wss://ws.tn11.kaspa.forbole.com/borsh",
+};
+export const KASPLEX_API_URLS = {
+  [NetworkType.Mainnet]: "https://api.kasplex.org/v1",
+  [NetworkType.TestnetT10]: "https://tn10api.kasplex.org/v1",
+  [NetworkType.TestnetT11]: "https://tn11api.kasplex.org/v1",
+};
+export const KNS_API_URLS = {
+  [NetworkType.Mainnet]: "https://api.knsdomains.org/mainnet",
+  [NetworkType.TestnetT10]: "https://api.knsdomains.org/tn10",
+  [NetworkType.TestnetT11]: "https://api.knsdomains.org/tn11",
+};
+
 const initialSettings = {
   networkId: NetworkType.Mainnet,
-  rpcUrls: {
-    [NetworkType.Mainnet]:
-      "wss://ws-borsh-mainnet-kaspa-fullnode-direct.forbole.com/borsh",
-    [NetworkType.TestnetT10]: "wss://ws.tn10.kaspa.forbole.com/borsh",
-    [NetworkType.TestnetT11]: "wss://ws.tn11.kaspa.forbole.com/borsh",
-  },
-  kasplexApiUrls: {
-    [NetworkType.Mainnet]: "https://api.kasplex.org/v1",
-    [NetworkType.TestnetT10]: "https://tn10api.kasplex.org/v1",
-    [NetworkType.TestnetT11]: "https://tn11api.kasplex.org/v1",
-  },
-  knsApiUrls: {
-    [NetworkType.Mainnet]: "https://api.knsdomains.org/mainnet",
-    [NetworkType.TestnetT10]: "https://api.knsdomains.org/tn10",
-    [NetworkType.TestnetT11]: "https://api.knsdomains.org/tn11",
-  },
   lockTimeout: 5, // Save 5 minutes as default value
   walletConnections: undefined,
   hideBalances: true,

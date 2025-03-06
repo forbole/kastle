@@ -1,6 +1,7 @@
 import { fetcher } from "@/lib/utils.ts";
 import { useSettings } from "@/hooks/useSettings.ts";
 import useSWRInfinite from "swr/infinite";
+import { KASPLEX_API_URLS, NetworkType } from "@/contexts/SettingsContext.tsx";
 
 export interface Op {
   p: string;
@@ -39,7 +40,8 @@ export function useOpListByAddressAndTicker(
 ) {
   const [settings] = useSettings();
 
-  const kasplexUrl = settings?.kasplexApiUrls[settings?.networkId];
+  const kasplexUrl =
+    KASPLEX_API_URLS[settings?.networkId ?? NetworkType.Mainnet];
 
   return useSWRInfinite<OpListResponse, Error>((index, previousPageData) => {
     if (!kasplexUrl || !params) {
