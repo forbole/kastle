@@ -21,14 +21,16 @@ import {
   IWallet,
   PaymentOutput,
   ScriptOption,
-  toKaspaEntry,
-  toKaspaPaymentOutput,
-  toSignType,
   TxSettingOptions,
-  waitTxForAddress,
 } from "@/lib/wallet/wallet-interface.ts";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import { Amount, Fee } from "@/lib/krc20.ts";
+import {
+  toKaspaEntry,
+  toKaspaPaymentOutput,
+  toSignType,
+  waitTxForAddress,
+} from "@/lib/kaspa.ts";
 
 export class HotWalletAccount implements IWallet {
   private readonly MAX_DERIVATION_INDEXES = 50;
