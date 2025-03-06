@@ -147,6 +147,7 @@ export default function DeployToken() {
                   onChange: (event) => {
                     event.target.value = event.target.value
                       .replace(/[^a-zA-Z]/g, "")
+                      .slice(0, 6)
                       .toUpperCase();
                   },
                   required: "Oh, ticker is required",
