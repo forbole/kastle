@@ -48,6 +48,14 @@ export function LedgerTransportProvider({ children }: { children: ReactNode }) {
       // Check if Kaspa app is open
       if (await checkKaspaAppOpen(newTransport)) {
         setIsAppOpen(true);
+      } else {
+        await newTransport.send(
+          0xe0,
+          0xd8,
+          0x00,
+          0x00,
+          Buffer.from("Kaspa", "ascii"),
+        );
       }
 
       newTransport.on("disconnect", () => {

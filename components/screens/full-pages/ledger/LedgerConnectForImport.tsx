@@ -120,7 +120,8 @@ export default function LedgerConnectForImport() {
           onClick={tryConnect}
           className="items-center rounded-full bg-icy-blue-400 p-5 text-base hover:bg-icy-blue-600"
         >
-          Try Connect
+          {!isLedgerConnected && "Connect"}
+          {isLedgerConnected && !isAppOpen && "I've opened the app"}
         </button>
       )}
     </div>
