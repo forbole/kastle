@@ -20,6 +20,7 @@ import { MIN_KAS_AMOUNT } from "@/lib/kaspa.ts";
 import RecentAddresses from "@/components/send/RecentAddresses.tsx";
 import spinner from "@/assets/images/spinner.svg";
 import { useKns } from "@/hooks/useKns.ts";
+import { Tooltip } from "react-tooltip";
 
 export const DetailsStep = ({
   onNext,
@@ -256,7 +257,27 @@ export const DetailsStep = ({
       />
 
       <div className="relative flex h-full flex-col gap-4">
-        <label className="text-base font-medium">Send to ...</label>
+        <div className="flex items-center justify-between">
+          <label className="text-base font-medium">Send to ...</label>
+          <i
+            className="hn hn-lightbulb break-all text-[16px]"
+            data-tooltip-id="info-tooltip"
+          ></i>
+          <Tooltip
+            id="info-tooltip"
+            style={{
+              backgroundColor: "#374151",
+              fontSize: "12px",
+              fontWeight: 600,
+              padding: "2px 8px",
+            }}
+            className="flex flex-col items-center"
+          >
+            <span>Check the address carefully.</span>
+            <span>Transactions are irreversible, and</span>
+            <span>mistakes can cause asset loss.</span>
+          </Tooltip>
+        </div>
         {/* Address input group */}
         <div>
           <textarea
