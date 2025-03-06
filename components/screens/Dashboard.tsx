@@ -75,7 +75,7 @@ export default function Dashboard() {
           </div>
 
           <span className="text-sm text-daintree-400">
-            ✋👑 Hold on, Your Majesty! Please back up you r recovery phrase 📜.
+            ✋👑 Hold on, Your Majesty! Please back up your recovery phrase 📜.
             It’s the 🗝️ key to accessing your Kastle if you lose your password
             or need to reinstall your browser or extension 🌐.
           </span>
