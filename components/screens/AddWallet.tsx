@@ -62,17 +62,15 @@ export default function AddWallet() {
         </button>
 
         {/* Ledger */}
-        {settings?.preview && (
-          <button
-            className="flex w-full items-center justify-between rounded-xl border border-daintree-700 bg-[#1E343D] p-5 hover:border-white"
-            onClick={() => {
-              browser.tabs.create({ url: "/popup.html#/import-ledger" });
-            }}
-          >
-            <span className="text-base">Import with Ledger</span>
-            <i className="hn hn-arrow-right flex-none text-[14px]"></i>
-          </button>
-        )}
+        <button
+          className="flex w-full items-center justify-between rounded-xl border border-daintree-700 bg-[#1E343D] p-5 hover:border-white"
+          onClick={() => {
+            browser.tabs.create({ url: "/popup.html#/import-ledger" });
+          }}
+        >
+          <span className="text-base">Import with Ledger</span>
+          <i className="hn hn-arrow-right flex-none text-[14px]"></i>
+        </button>
       </div>
     </div>
   );
