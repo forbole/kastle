@@ -66,11 +66,6 @@ export interface IWallet {
 
   getAddress(): string | Promise<string>;
 
-  signAndBroadcastTx(
-    outputs: PaymentOutput[],
-    options?: TxSettingOptions,
-  ): Promise<string>;
-
   signTx(tx: Transaction, scripts?: ScriptOption[]): Promise<Transaction>;
 
   performCommitReveal(

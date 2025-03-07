@@ -152,13 +152,6 @@ export class LedgerAccount implements IWallet {
       .toString();
   }
 
-  public async signAndBroadcastTx(
-    outputs: PaymentOutput[],
-    options?: TxSettingOptions,
-  ): Promise<string> {
-    throw new Error("Method not implemented.");
-  }
-
   public async signTx(tx: Transaction): Promise<Transaction> {
     throw new Error("Method not implemented.");
   }
