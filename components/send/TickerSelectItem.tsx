@@ -2,15 +2,19 @@ import { TokenListResponse } from "@/hooks/useTokenListByAddress.ts";
 import { applyDecimal } from "@/lib/krc20.ts";
 import kasIcon from "@/assets/images/kas-icon.svg";
 import React, { useEffect } from "react";
+import { twMerge } from "tailwind-merge";
+import { useTokenMetadata } from "@/hooks/useTokenMetadata.ts";
 
 interface TickerSelectItemProps {
   token: TokenListResponse["result"][number];
   selectTicker: (ticker: string) => void;
+  supported?: boolean;
 }
 
 export default function TickerSelectItem({
   token,
   selectTicker,
+  supported = true,
 }: TickerSelectItemProps) {
   const { data: tokenMetadata } = useTokenMetadata(token.tick);
   const [imageUrl, setImageUrl] = useState(kasIcon);
@@ -31,9 +35,16 @@ export default function TickerSelectItem({
     <button
       type="button"
       className="flex items-center justify-between rounded-lg px-4 py-2 text-base font-medium text-daintree-200 hover:bg-daintree-700"
-      onClick={() => selectTicker(token.tick)}
+      onClick={() => {
+        if (supported) selectTicker(token.tick);
+      }}
     >
-      <div className="flex items-center gap-2">
+      <div
+        className={twMerge(
+          "flex items-center gap-2",
+          !supported && "opacity-40",
+        )}
+      >
         <img
           alt="castle"
           className="h-[24px] w-[24px] rounded-full"
@@ -42,7 +53,12 @@ export default function TickerSelectItem({
         />
         <span>{token.tick}</span>
       </div>
-      <span>{toFloat(balance).toLocaleString()}</span>
+      {supported && <span>{toFloat(balance).toLocaleString()}</span>}
+      {!supported && (
+        <span className="rounded-full bg-[#1C333C] p-2 px-4 text-xs text-white">
+          Not supported with Ledger
+        </span>
+      )}
     </button>
   );
 }
