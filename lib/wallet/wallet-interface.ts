@@ -12,22 +12,6 @@ export type PaymentOutput = {
   amount: string; // KAS
 };
 
-export type Entry = {
-  amount: string; // KAS
-  address: string;
-  outpoint: ITransactionOutpoint;
-  blockDaaScore: string; // BigInt
-  scriptPublicKey: IScriptPublicKey;
-};
-
-export type TxSettingOptions = {
-  priorityEntries?: Entry[];
-  entries?: Entry[];
-  priorityFee?: string; // KAS
-  payload?: Uint8Array;
-  scripts?: ScriptOption[];
-};
-
 export type ScriptOption = {
   inputIndex: number;
   scriptHex: string;

@@ -20,12 +20,10 @@ import {
   IWallet,
   PaymentOutput,
   ScriptOption,
-  TxSettingOptions,
 } from "@/lib/wallet/wallet-interface.ts";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import { Amount, Fee } from "@/lib/krc20.ts";
 import {
-  toKaspaEntry,
   toKaspaPaymentOutput,
   toSignType,
   waitTxForAddress,

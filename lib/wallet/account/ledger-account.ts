@@ -2,7 +2,6 @@ import {
   CommitRevealResult,
   IWallet,
   PaymentOutput,
-  TxSettingOptions,
 } from "@/lib/wallet/wallet-interface.ts";
 import {
   Address,
