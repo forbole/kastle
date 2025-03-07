@@ -7,7 +7,7 @@ import {
   SignAndBroadcastTxPayload,
   SignTxPayload,
 } from "@/api/message";
-import { PaymentOutput, ScriptOption } from "@/lib/wallet/wallet-interface.ts";
+import { ScriptOption } from "@/lib/wallet/wallet-interface.ts";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 
 export class KastleBrowserAPI {
