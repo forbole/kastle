@@ -1,10 +1,4 @@
-import {
-  IScriptPublicKey,
-  ITransactionOutpoint,
-  PublicKey,
-  ScriptBuilder,
-  Transaction,
-} from "@/wasm/core/kaspa";
+import { PublicKey, ScriptBuilder, Transaction } from "@/wasm/core/kaspa";
 import { SIGN_TYPE } from "@/lib/kaspa.ts";
 
 export type PaymentOutput = {
