@@ -45,14 +45,6 @@ export class KastleBrowserAPI {
     return await this.receiveMessage(requestId);
   }
 
-  async performCommitReveal(
-    networkId: "mainnet" | "testnet-10" | "testnet-11",
-    scriptHex: string,
-    extraOutputs: PaymentOutput[],
-  ) {
-    throw new Error("Not implemented");
-  }
-
   async signAndBroadcastTx(
     networkId: "mainnet" | "testnet-10" | "testnet-11",
     txJson: string,
