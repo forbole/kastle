@@ -2,13 +2,10 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import internalToast from "@/components/Toast.tsx";
 import { v4 as uuid } from "uuid";
-import { useSettings } from "@/hooks/useSettings";
 
 export default function AddWallet() {
   const { createNewWallet } = useWalletManager();
   const navigate = useNavigate();
-  const [settings] = useSettings();
-
   const onClose = () => navigate("/dashboard");
 
   const newWallet = async () => {
