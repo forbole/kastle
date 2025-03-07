@@ -51,14 +51,7 @@ export const connectHandler: Handler = async (
   url.searchParams.set("name", payload.name);
   url.searchParams.set("icon", payload.icon ?? "");
 
-  browser.windows.create({
-    tabId,
-    type: "popup",
-    url: url.toString(),
-    width: 375,
-    height: 600,
-    focused: true,
-  });
+  ApiUtils.openPopup(tabId, url.toString());
 
   const response = await ApiUtils.receiveExtensionMessage(message.id);
   sendResponse(response);

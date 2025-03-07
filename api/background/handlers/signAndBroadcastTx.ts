@@ -42,16 +42,11 @@ export const signAndBroadcastTxHandler: Handler = async (
     message.payload,
   );
 
-  browser.windows.create({
-    tabId,
-    type: "popup",
-    url: browser.runtime.getURL(
-      `/popup.html?requestId=${encodeURIComponent(message.id)}&payload=${payload.toUriString()}#/sign-and-broadcast-tx`,
-    ),
-    width: 375,
-    height: 600,
-    focused: true,
-  });
+  const url = browser.runtime.getURL(
+    `/popup.html?requestId=${encodeURIComponent(message.id)}&payload=${payload.toUriString()}#/sign-and-broadcast-tx`,
+  );
+
+  ApiUtils.openPopup(tabId, url);
 
   const response = await ApiUtils.receiveExtensionMessage(message.id);
   sendResponse(response);

@@ -10,7 +10,21 @@ import {
   WALLET_SETTINGS,
 } from "@/contexts/WalletManagerContext";
 
+const POPUP_WINDOW_WIDTH = 375;
+const POPUP_WINDOW_HEIGHT = 600;
+
 export class ApiUtils {
+  static openPopup(tabId: number, url: string) {
+    browser.windows.create({
+      tabId,
+      type: "popup",
+      url,
+      width: POPUP_WINDOW_WIDTH,
+      height: POPUP_WINDOW_HEIGHT,
+      focused: true,
+    });
+  }
+
   static async getSettings(): Promise<Settings | null> {
     return await storage.getItem<Settings>(SETTINGS_KEY);
   }

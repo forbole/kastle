@@ -59,6 +59,7 @@ import ImportLedgerStart from "@/components/screens/full-pages/ledger/ImportLedg
 import LedgerConnectForImportFailed from "@/components/screens/full-pages/ledger/LedgerConnectForImportFailed";
 import LedgerConnectForSign from "@/components/screens/ledger-connect/LedgerConnectForSign";
 import LedgerConnectForSignFailed from "@/components/screens/ledger-connect/LedgerConnectForSignFailed";
+import BrowserApiLayout from "@/components/layouts/BrowserApiLayout";
 
 const loadKaspaWasm = async () => {
   await init(kaspaModule);
@@ -157,15 +158,6 @@ export const router = createHashRouter([
                     element: <DevMode />,
                   },
                   { path: "dashboard", element: <Dashboard /> },
-                  { path: "connect", element: <ConnectConfirm /> },
-                  {
-                    path: "sign-and-broadcast-tx",
-                    element: <SignAndBroadcastTxConfirm />,
-                  },
-                  {
-                    path: "sign-tx",
-                    element: <SignTxConfirm />,
-                  },
                   { path: "add-wallet", element: <AddWallet /> },
                   {
                     path: "rename-account/:walletId/:accountIndex",
@@ -214,6 +206,20 @@ export const router = createHashRouter([
                 // Catch all unknown routes
                 path: "*",
                 element: <Navigate to="/dashboard" replace />,
+              },
+            ],
+          },
+          {
+            element: <BrowserApiLayout />,
+            children: [
+              { path: "connect", element: <ConnectConfirm /> },
+              {
+                path: "sign-and-broadcast-tx",
+                element: <SignAndBroadcastTxConfirm />,
+              },
+              {
+                path: "sign-tx",
+                element: <SignTxConfirm />,
               },
             ],
           },

@@ -6,6 +6,7 @@ import { useBoolean } from "usehooks-ts";
 import useWalletManager from "@/hooks/useWalletManager";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import { Transaction, sompiToKaspaString } from "@/wasm/core/kaspa";
+import { useState } from "react";
 
 type SignAndBroadcastProps = {
   wallet: IWallet;
@@ -23,6 +24,7 @@ export default function SignAndBroadcast({
   const { value: isLoading, toggle: toggleLoading } = useBoolean(false);
   const { rpcClient } = useRpcClientStateful();
   const { account } = useWalletManager();
+  const [hideJson, setHideJson] = useState(true);
 
   const transaction = Transaction.deserializeFromSafeJSON(payload.txJson);
 
@@ -35,6 +37,8 @@ export default function SignAndBroadcast({
     BigInt(0),
   );
   const fees = sompiToKaspaString(inputsAmount - outputsAmount);
+
+  
 
   const handleConfirm = async () => {
     if (!rpcClient || !wallet || !account) {
@@ -96,11 +100,13 @@ export default function SignAndBroadcast({
         <>
           <span>{payload.networkId}</span>
           {/* Tx */}
-          <div className="border">
+          <div className="border" onClick={() => setHideJson(!hideJson)}>
             Transaction JSON:
-            <pre className="overflow-auto whitespace-pre-wrap rounded-md bg-gray-800 p-2">
-              {JSON.stringify(payload.txJson, null, 2)}
-            </pre>
+            {!hideJson && (
+              <pre className="overflow-auto whitespace-pre-wrap rounded-md bg-gray-800 p-2">
+                {JSON.stringify(JSON.parse(payload.txJson), null, 2)}
+              </pre>
+            )}
           </div>
 
           {/* Scripts */}
