@@ -38,7 +38,7 @@ export const signAndBroadcastTxHandler: Handler = async (
 
   // Reconstruct SignAndBroadcastTxPayload from serialized message data to restore methods
   const payload = Object.assign(
-    new SignAndBroadcastTxPayload("", []),
+    new SignAndBroadcastTxPayload("", ""),
     message.payload,
   );
 
@@ -46,7 +46,7 @@ export const signAndBroadcastTxHandler: Handler = async (
     tabId,
     type: "popup",
     url: browser.runtime.getURL(
-      `/popup.html?requestId=${encodeURIComponent(message.id)}&payload=${encodeURIComponent(payload.toBase64Url())}#/sign-and-broadcast-tx`,
+      `/popup.html?requestId=${encodeURIComponent(message.id)}&payload=${payload.toUriString()}#/sign-and-broadcast-tx`,
     ),
     width: 375,
     height: 600,

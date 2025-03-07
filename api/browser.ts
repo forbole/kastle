@@ -7,11 +7,7 @@ import {
   SignAndBroadcastTxPayload,
   SignTxPayload,
 } from "@/api/message";
-import {
-  PaymentOutput,
-  ScriptOption,
-  TxSettingOptions,
-} from "@/lib/wallet/wallet-interface.ts";
+import { PaymentOutput, ScriptOption } from "@/lib/wallet/wallet-interface.ts";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 
 export class KastleBrowserAPI {
@@ -49,16 +45,24 @@ export class KastleBrowserAPI {
     return await this.receiveMessage(requestId);
   }
 
+  async performCommitReveal(
+    networkId: "mainnet" | "testnet-10" | "testnet-11",
+    scriptHex: string,
+    extraOutputs: PaymentOutput[],
+  ) {
+    throw new Error("Not implemented");
+  }
+
   async signAndBroadcastTx(
     networkId: "mainnet" | "testnet-10" | "testnet-11",
-    outputs: PaymentOutput[],
-    options?: TxSettingOptions,
+    txJson: string,
+    scripts?: ScriptOption[],
   ): Promise<string> {
     const requestId = uuid();
     const request = new ApiRequest(
       Action.SIGN_AND_BROADCAST_TX,
       requestId,
-      new SignAndBroadcastTxPayload(networkId, outputs, options),
+      new SignAndBroadcastTxPayload(networkId, txJson, scripts),
     );
     window.postMessage(request, "*");
 

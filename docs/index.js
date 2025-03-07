@@ -21,21 +21,52 @@ document
     }
   });
 
+function getRpc() {
+  return rpc = new kaspaWasm.RpcClient({
+    url: "wss://ws.tn10.kaspa.forbole.com/borsh",
+    networkId: "testnet-10",
+  });
+}
+
 document
   .getElementById("signAndBroadcastTx")
   .addEventListener("click", async () => {
+    const rpc = getRpc();
+    await rpc.connect();
+
     try {
       const address = document.getElementById("address").innerText;
       if (!address) {
         throw new Error("Please get the account first");
       }
 
-      const txId = await kastle.signAndBroadcastTx("testnet-10", [
-        { amount: "1", address },
-      ]);
+      const { entries } = await rpc.getUtxosByAddresses([address]);
+      if (entries.length === 0) {
+        throw new Error("No UTXOs found");
+      }
+
+      const pending = await kaspaWasm.createTransactions({
+        entries,
+        outputs: [
+          {
+            address: address,
+            amount: kaspaWasm.kaspaToSompi("1"),
+          },
+        ],
+        priorityFee: 0n,
+        changeAddress: address,
+        networkId: "testnet-10",
+      });
+
+      const transaction = pending.transactions[0];
+      const txJson = transaction.serializeToSafeJSON();
+
+      const txId = await kastle.signAndBroadcastTx("testnet-10", txJson);
       document.getElementById("txId").innerText = txId;
     } catch (error) {
       document.getElementById("error").innerText = error.message;
+    } finally {
+      rpc.disconnect();
     }
   });
 
@@ -59,6 +90,75 @@ function createKRC20ScriptBuilder(data) {
     .addOp(Opcodes.OpEndIf);
 }
 
+async function commitTransaction(P2SHAddress) {
+  const address = document.getElementById("address").innerText;
+  if (!address) {
+    throw new Error("Please get the account first");
+  }
+
+  const rpc = getRpc();
+  await rpc.connect();
+
+  try {
+    const { entries } = await rpc.getUtxosByAddresses([address]);
+    if (entries.length === 0) {
+      throw new Error("No UTXOs found");
+    }
+
+    const pending = await kaspaWasm.createTransactions({
+      entries,
+      outputs: [
+        { amount: kaspaWasm.kaspaToSompi("0.3"), address: P2SHAddress.toString() },
+      ],
+      priorityFee: 0n,
+      changeAddress: address,
+      networkId: "testnet-10",
+    });
+
+    const transaction = pending.transactions[0];
+    const txJson = transaction.serializeToSafeJSON();
+
+    const commitTxId = await kastle.signAndBroadcastTx("testnet-10", txJson);
+    return commitTxId;
+  } finally {
+    rpc.disconnect();
+  }
+}
+
+async function revealTransaction(p2shEntry, outputs, scripts, priorityFee) {
+  const address = document.getElementById("address").innerText;
+  if (!address) {
+    throw new Error("Please get the account first");
+  }
+
+  const rpc = getRpc();
+  await rpc.connect();
+
+  try {
+    const { entries } = await rpc.getUtxosByAddresses([address]);
+    if (entries.length === 0) {
+      throw new Error("No UTXOs found");
+    }
+
+    const pending = await kaspaWasm.createTransactions({
+      priorityEntries: [p2shEntry],
+      entries,
+      outputs,
+      priorityFee: kaspaWasm.kaspaToSompi(priorityFee),
+      changeAddress: address,
+      networkId: "testnet-10",
+    });
+
+    const transaction = pending.transactions[0];
+    const txJson = transaction.serializeToSafeJSON();
+
+    const revealTxId = await kastle.signAndBroadcastTx("testnet-10", txJson, scripts);
+    return revealTxId;
+  } finally {
+    rpc.disconnect();
+  }
+}
+
 document
   .getElementById("krcDeployCommit")
   .addEventListener("click", async () => {
@@ -79,11 +179,7 @@ document
         "testnet-10",
       );
 
-      const commitTxId = await kastle.signAndBroadcastTx("testnet-10", [
-        { amount: "0.3", address: P2SHAddress.toString() },
-      ]);
-      document.getElementById("P2SHDeployAddress").innerText =
-        P2SHAddress.toString();
+      const commitTxId = await commitTransaction(P2SHAddress.toString());
       document.getElementById("deployCommitTxId").innerText = commitTxId;
       document.getElementById("deployScript").innerText =
         scriptBuilder.toString();
@@ -122,24 +218,13 @@ document
         }
       }
 
-      const P2SHEntry = P2SHEntries[0];
-      const entry = {
-        address: P2SHEntry.address.toString(),
-        amount: kaspaWasm.sompiToKaspaString(P2SHEntry.amount),
-        scriptPublicKey: JSON.parse(P2SHEntry.scriptPublicKey.toString()),
-        blockDaaScore: P2SHEntry.blockDaaScore.toString(),
-        outpoint: JSON.parse(P2SHEntry.outpoint.toString()),
-      };
-      const revealTxId = await kastle.signAndBroadcastTx("testnet-10", [], {
-        priorityEntries: [entry],
-        scripts: [
-          {
-            scriptHex: scriptBuilder.toString(),
-            inputIndex: 0,
-          },
-        ],
-        priorityFee: "1000",
-      });
+      const entry = P2SHEntries[0];
+      const revealTxId = await revealTransaction(entry, [], [
+        {
+          scriptHex: scriptBuilder.toString(),
+          inputIndex: 0,
+        },
+      ], "1000");
       document.getElementById("deployRevealTxId").innerText = revealTxId;
       document.getElementById("deployErrorKRC20").innerText = "";
     } catch (error) {
@@ -165,9 +250,7 @@ document.getElementById("krcMintCommit").addEventListener("click", async () => {
       "testnet-10",
     );
 
-    const commitTxId = await kastle.signAndBroadcastTx("testnet-10", [
-      { amount: "0.3", address: P2SHAddress.toString() },
-    ]);
+    const commitTxId = await commitTransaction(P2SHAddress.toString());
     document.getElementById("P2SHMintAddress").innerText =
       P2SHAddress.toString();
     document.getElementById("mintCommitTxId").innerText = commitTxId;
@@ -202,24 +285,13 @@ document.getElementById("krcMintReveal").addEventListener("click", async () => {
       }
     }
 
-    const P2SHEntry = P2SHEntries[0];
-    const entry = {
-      address: P2SHEntry.address.toString(),
-      amount: kaspaWasm.sompiToKaspaString(P2SHEntry.amount),
-      scriptPublicKey: JSON.parse(P2SHEntry.scriptPublicKey.toString()),
-      blockDaaScore: P2SHEntry.blockDaaScore.toString(),
-      outpoint: JSON.parse(P2SHEntry.outpoint.toString()),
-    };
-    const revealTxId = await kastle.signAndBroadcastTx("testnet-10", [], {
-      priorityEntries: [entry],
-      scripts: [
-        {
-          scriptHex: scriptBuilder.toString(),
-          inputIndex: 0,
-        },
-      ],
-      priorityFee: "1",
-    });
+    const entry = P2SHEntries[0];
+    const revealTxId = await revealTransaction(entry, [], [
+      {
+        scriptHex: scriptBuilder.toString(),
+        inputIndex: 0,
+      },
+    ], "1");
     document.getElementById("mintRevealTxId").innerText = revealTxId;
     document.getElementById("mintErrorKRC20").innerText = "";
   } catch (error) {
@@ -250,9 +322,7 @@ document
         "testnet-10",
       );
 
-      const commitTxId = await kastle.signAndBroadcastTx("testnet-10", [
-        { amount: "0.3", address: P2SHAddress.toString() },
-      ]);
+      const commitTxId = await commitTransaction(P2SHAddress.toString());
       document.getElementById("P2SHTransferAddress").innerText =
         P2SHAddress.toString();
       document.getElementById("trnasferCommitTxId").innerText = commitTxId;
@@ -294,24 +364,13 @@ document
         }
       }
 
-      const P2SHEntry = P2SHEntries[0];
-      const entry = {
-        address: P2SHEntry.address.toString(),
-        amount: kaspaWasm.sompiToKaspaString(P2SHEntry.amount),
-        scriptPublicKey: JSON.parse(P2SHEntry.scriptPublicKey.toString()),
-        blockDaaScore: P2SHEntry.blockDaaScore.toString(),
-        outpoint: JSON.parse(P2SHEntry.outpoint.toString()),
-      };
-      const revealTxId = await kastle.signAndBroadcastTx("testnet-10", [], {
-        priorityEntries: [entry],
-        scripts: [
-          {
-            scriptHex: scriptBuilder.toString(),
-            inputIndex: 0,
-          },
-        ],
-        priorityFee: "0.02",
-      });
+      const entry = P2SHEntries[0];
+      const revealTxId = await revealTransaction(entry, [], [
+        {
+          scriptHex: scriptBuilder.toString(),
+          inputIndex: 0,
+        },
+      ], "0.02");
       document.getElementById("transferRevealTxId").innerText = revealTxId;
       document.getElementById("transferErrorKRC20").innerText = "";
     } catch (error) {
@@ -371,9 +430,7 @@ document.getElementById("krcListCommit").addEventListener("click", async () => {
       "testnet-10",
     );
 
-    const commitTxId = await kastle.signAndBroadcastTx("testnet-10", [
-      { amount: "0.3", address: P2SHAddress.toString() },
-    ]);
+    const commitTxId = await commitTransaction(P2SHAddress.toString());
     document.getElementById("P2SHListAddress").innerText =
       P2SHAddress.toString();
     document.getElementById("listCommitTxId").innerText = commitTxId;
@@ -408,15 +465,7 @@ document.getElementById("krcListReveal").addEventListener("click", async () => {
       }
     }
 
-    const P2SHEntry = P2SHEntries[0];
-    const entry = {
-      address: P2SHEntry.address.toString(),
-      amount: kaspaWasm.sompiToKaspaString(P2SHEntry.amount),
-      scriptPublicKey: JSON.parse(P2SHEntry.scriptPublicKey.toString()),
-      blockDaaScore: P2SHEntry.blockDaaScore.toString(),
-      outpoint: JSON.parse(P2SHEntry.outpoint.toString()),
-    };
-
+    const entry = P2SHEntries[0];
     const sendPayload = {
       p: "krc-20",
       op: "send",
@@ -435,20 +484,12 @@ document.getElementById("krcListReveal").addEventListener("click", async () => {
     document.getElementById("sendScript").innerText =
       sendScriptBuilder.toString();
 
-    const revealTxId = await kastle.signAndBroadcastTx(
-      "testnet-10",
-      [{ amount: "0.3", address: sendP2SHAddress.toString() }],
+    const revealTxId = await revealTransaction(entry, [{ amount: kaspaWasm.kaspaToSompi("0.3"), address: sendP2SHAddress.toString() }], [
       {
-        priorityEntries: [entry],
-        scripts: [
-          {
-            scriptHex: listScriptBuilder.toString(),
-            inputIndex: 0,
-          },
-        ],
-        priorityFee: "1",
+        scriptHex: listScriptBuilder.toString(),
+        inputIndex: 0,
       },
-    );
+    ], "1");
 
     document.getElementById("listRevealTxId").innerText = revealTxId;
     document.getElementById("listErrorKRC20").innerText = "";
@@ -534,24 +575,14 @@ document
         }
       }
 
-      const P2SHEntry = P2SHEntries[0];
-      const entry = {
-        address: P2SHEntry.address.toString(),
-        amount: kaspaWasm.sompiToKaspaString(P2SHEntry.amount),
-        scriptPublicKey: JSON.parse(P2SHEntry.scriptPublicKey.toString()),
-        blockDaaScore: P2SHEntry.blockDaaScore.toString(),
-        outpoint: JSON.parse(P2SHEntry.outpoint.toString()),
-      };
-      const revealTxId = await kastle.signAndBroadcastTx("testnet-10", [], {
-        priorityEntries: [entry],
-        scripts: [
-          {
-            scriptHex: sendScriptBuilder.toString(),
-            inputIndex: 0,
-          },
-        ],
-        priorityFee: "0.02",
-      });
+      const entry = P2SHEntries[0];
+      const revealTxId = await revealTransaction(entry, [], [
+        {
+          scriptHex: sendScriptBuilder.toString(),
+          inputIndex: 0,
+        },
+      ], "0.02");
+
       document.getElementById("cancelTradeTxId").innerText = revealTxId;
       document.getElementById("cancelErrorKRC20").innerText = "";
     } catch (error) {

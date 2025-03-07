@@ -8,27 +8,23 @@ export default function SignAndBroadcastTxConfirm() {
   const requestId = new URLSearchParams(window.location.search).get(
     "requestId",
   );
-  if (!requestId) {
-    throw new Error("No request id found");
-  }
-
-  // Retrieve the transaction payload from the URL
-  const base64Encoded = new URLSearchParams(window.location.search).get(
+  const encodedPayload = new URLSearchParams(window.location.search).get(
     "payload",
   );
-  if (!base64Encoded) {
-    throw new Error("No transaction payload found");
-  }
-  const payload = SignAndBroadcastTxPayload.fromBase64Url(base64Encoded);
+
+  const payload = encodedPayload
+    ? SignAndBroadcastTxPayload.fromUriString(encodedPayload)
+    : null;
+
+  const loading = !wallet || !requestId || !payload;
 
   return (
     <>
-      {!wallet && <>Loading</>}
-      {wallet && wallet.type !== "ledger" ? (
+      {loading && <>Loading</>}
+      {!loading && wallet.type !== "ledger" && (
         <HotWalletSignAndBroadcast requestId={requestId} payload={payload} />
-      ) : (
-        <LedgerSignAndBroadcast />
       )}
+      {!loading && wallet.type === "ledger" && <LedgerSignAndBroadcast />}
     </>
   );
 }

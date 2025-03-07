@@ -5,6 +5,7 @@ import { IWallet } from "@/lib/wallet/wallet-interface.ts";
 import { useBoolean } from "usehooks-ts";
 import useWalletManager from "@/hooks/useWalletManager";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
+import { Transaction, sompiToKaspaString } from "@/wasm/core/kaspa";
 
 type SignAndBroadcastProps = {
   wallet: IWallet;
@@ -23,10 +24,17 @@ export default function SignAndBroadcast({
   const { rpcClient } = useRpcClientStateful();
   const { account } = useWalletManager();
 
-  const transactionEstimate = useTransactionEstimate({
-    account,
-    outputs: payload.outputs,
-  });
+  const transaction = Transaction.deserializeFromSafeJSON(payload.txJson);
+
+  const inputsAmount = transaction.inputs.reduce(
+    (acc, input) => acc + BigInt(input.utxo?.amount || 0),
+    BigInt(0),
+  );
+  const outputsAmount = transaction.outputs.reduce(
+    (acc, output) => acc + BigInt(output.value),
+    BigInt(0),
+  );
+  const fees = sompiToKaspaString(inputsAmount - outputsAmount);
 
   const handleConfirm = async () => {
     if (!rpcClient || !wallet || !account) {
@@ -35,10 +43,10 @@ export default function SignAndBroadcast({
 
     try {
       toggleLoading();
-      const txId = await wallet.signAndBroadcastTx(
-        payload.outputs,
-        payload.options,
-      );
+      const signedTx = await wallet.signTx(transaction, payload.scripts);
+      const { transactionId: txId } = await rpcClient.submitTransaction({
+        transaction: signedTx,
+      });
       toggleLoading();
       await ApiExtensionUtils.sendMessage(
         requestId,
@@ -87,54 +95,18 @@ export default function SignAndBroadcast({
       {payload.networkId === networkId && (
         <>
           <span>{payload.networkId}</span>
-          {/* Entries */}
-          {payload.options?.entries && (
-            <div className="border">
-              Inputs:
-              <div>
-                {payload.options?.entries.map((input, index) => (
-                  <div key={index}>
-                    <div>Sender: {input.address}</div>
-                    <div>Amount: {input.amount}</div>
-                    <div>Script: {input.scriptPublicKey.script}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Priority Entries */}
-          {payload.options?.priorityEntries && (
-            <div className="border">
-              Priority Inputs:
-              <div>
-                {payload.options?.priorityEntries.map((input, index) => (
-                  <div key={index}>
-                    <div>Sender: {input.address}</div>
-                    <div>Amount: {input.amount}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Outputs */}
+          {/* Tx */}
           <div className="border">
-            Outputs:
-            <div>
-              {payload.outputs.map((output, index) => (
-                <div key={index}>
-                  <div>Receiver: {output.address}</div>
-                  <div>Amount: {output.amount}</div>
-                </div>
-              ))}
-            </div>
+            Transaction JSON:
+            <pre className="overflow-auto whitespace-pre-wrap rounded-md bg-gray-800 p-2">
+              {JSON.stringify(payload.txJson, null, 2)}
+            </pre>
           </div>
 
           {/* Scripts */}
           <div>
             Scripts:
-            {payload.options?.scripts?.map((script, index) => (
+            {payload.scripts?.map((script, index) => (
               <div key={index} className="border">
                 <div>Input Index: {script.inputIndex}</div>
                 <div>Script: {script.scriptHex}</div>
@@ -143,14 +115,7 @@ export default function SignAndBroadcast({
             ))}
           </div>
 
-          {/* Payload */}
-          <div>
-            Payload:
-            {payload.options?.payload
-              ? Buffer.from(payload.options.payload).toString("hex")
-              : ""}
-          </div>
-          <div>Fees: {transactionEstimate?.totalFees}</div>
+          <div>Fees: {fees}</div>
           {isLoading && <div>Loading...</div>}
           {!isLoading && (
             <>

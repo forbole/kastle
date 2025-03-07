@@ -13,22 +13,23 @@ export default function SignTxConfirm() {
   }
 
   // Retrieve the transaction payload from the URL
-  const base64Encoded = new URLSearchParams(window.location.search).get(
+  const encodedPayload = new URLSearchParams(window.location.search).get(
     "payload",
   );
-  if (!base64Encoded) {
+  if (!encodedPayload) {
     throw new Error("No transaction payload found");
   }
-  const payload = SignTxPayload.fromBase64Url(base64Encoded);
+  const payload = SignTxPayload.fromUriString(encodedPayload);
+
+  const loading = !wallet || !payload;
 
   return (
     <>
-      {!wallet && <>Loading</>}
-      {wallet && wallet.type !== "ledger" ? (
+      {loading && <>Loading</>}
+      {!loading && wallet.type !== "ledger" && (
         <HotWalletSignTx requestId={requestId} payload={payload} />
-      ) : (
-        <LedgerSignTx />
       )}
+      {!loading && wallet.type === "ledger" && <LedgerSignTx />}
     </>
   );
 }

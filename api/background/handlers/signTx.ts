@@ -39,7 +39,7 @@ export const signTxHandler: Handler = async (
     tabId,
     type: "popup",
     url: browser.runtime.getURL(
-      `/popup.html?requestId=${encodeURIComponent(message.id)}&payload=${encodeURIComponent(payload.toBase64Url())}#/sign-tx`,
+      `/popup.html?requestId=${encodeURIComponent(message.id)}&payload=${payload.toUriString()}#/sign-tx`,
     ),
     width: 375,
     height: 600,
