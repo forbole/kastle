@@ -1,12 +1,12 @@
 import React, { useState } from "react";
-import { SignAndBroadcastTxPayload } from "@/api/message";
+import { SignTxPayload } from "@/api/message";
 import TransactionDetailsBox from "@/components/screens/browser-api/sign-and-broadcast/TransactionBox";
-import ScriptItem from "./ScriptItem";
+import ScriptItem from "@/components/screens/browser-api/sign-and-broadcast/ScriptItem";
 
 export default function TransactionDetails({
   payload,
 }: {
-  payload: SignAndBroadcastTxPayload;
+  payload: SignTxPayload;
 }) {
   const [activeTab, setActiveTab] = useState<"transaction" | "scripts">(
     "transaction",

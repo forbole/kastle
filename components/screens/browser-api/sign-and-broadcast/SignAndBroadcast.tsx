@@ -1,4 +1,4 @@
-import { ApiResponse, SignAndBroadcastTxPayload } from "@/api/message";
+import { ApiResponse, SignTxPayload } from "@/api/message";
 import { ApiExtensionUtils } from "@/api/extension";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import { IWallet } from "@/lib/wallet/wallet-interface.ts";
@@ -21,7 +21,7 @@ type SignAndBroadcastProps = {
   wallet: IWallet;
   networkId: NetworkType;
   requestId: string;
-  payload: SignAndBroadcastTxPayload;
+  payload: SignTxPayload;
 };
 
 export default function SignAndBroadcast({

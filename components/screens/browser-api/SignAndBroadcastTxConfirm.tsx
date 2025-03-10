@@ -1,4 +1,4 @@
-import { SignAndBroadcastTxPayload } from "@/api/message";
+import { SignTxPayload } from "@/api/message";
 import HotWalletSignAndBroadcast from "@/components/screens/browser-api/sign-and-broadcast/HotWalletSignAndBroadcast";
 import LedgerSignAndBroadcast from "@/components/screens/browser-api/sign-and-broadcast/LedgerSignAndBroadcast";
 import useWalletManager from "@/hooks/useWalletManager.ts";
@@ -13,7 +13,7 @@ export default function SignAndBroadcastTxConfirm() {
   );
 
   const payload = encodedPayload
-    ? SignAndBroadcastTxPayload.fromUriString(encodedPayload)
+    ? SignTxPayload.fromUriString(encodedPayload)
     : null;
 
   const loading = !wallet || !requestId || !payload;

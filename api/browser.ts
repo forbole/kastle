@@ -4,7 +4,6 @@ import {
   ApiRequest,
   ApiResponse,
   ConnectPayload,
-  SignAndBroadcastTxPayload,
   SignTxPayload,
 } from "@/api/message";
 import { ScriptOption } from "@/lib/wallet/wallet-interface.ts";
@@ -54,7 +53,7 @@ export class KastleBrowserAPI {
     const request = new ApiRequest(
       Action.SIGN_AND_BROADCAST_TX,
       requestId,
-      new SignAndBroadcastTxPayload(networkId, txJson, scripts),
+      new SignTxPayload(networkId, txJson, scripts),
     );
     window.postMessage(request, "*");
 

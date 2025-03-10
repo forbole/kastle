@@ -24,43 +24,9 @@ export class SignTxPayload {
     );
   }
 
-  static fromUriString(uriComponent: string): SignAndBroadcastTxPayload {
+  static fromUriString(uriComponent: string): SignTxPayload {
     const parsed = JSON.parse(decodeURIComponent(uriComponent));
-    return new SignAndBroadcastTxPayload(
-      parsed.networkId,
-      parsed.txJson,
-      parsed.scripts,
-    );
-  }
-
-  toUriString(): string {
-    return encodeURIComponent(JSON.stringify(this));
-  }
-}
-
-export class SignAndBroadcastTxPayload {
-  constructor(
-    public readonly networkId: string,
-    public readonly txJson: string,
-    public readonly scripts?: ScriptOption[],
-  ) {}
-
-  static validate(data: unknown): data is SignAndBroadcastTxPayload {
-    return (
-      typeof data === "object" &&
-      !!data &&
-      "networkId" in data &&
-      "txJson" in data
-    );
-  }
-
-  static fromUriString(uriComponent: string): SignAndBroadcastTxPayload {
-    const parsed = JSON.parse(decodeURIComponent(uriComponent));
-    return new SignAndBroadcastTxPayload(
-      parsed.networkId,
-      parsed.txJson,
-      parsed.scripts,
-    );
+    return new SignTxPayload(parsed.networkId, parsed.txJson, parsed.scripts);
   }
 
   toUriString(): string {

@@ -1,4 +1,4 @@
-import { SignAndBroadcastTxPayload } from "@/api/message";
+import { SignTxPayload } from "@/api/message";
 import SignAndBroadcast from "./SignAndBroadcast";
 import { IWallet } from "@/lib/wallet/wallet-interface.ts";
 import { AccountFactory } from "@/lib/wallet/wallet-factory";
@@ -7,12 +7,12 @@ import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 
 type HotWalletSignAndBroadcastProps = {
   requestId: string;
-  payload: SignAndBroadcastTxPayload;
+  payload: SignTxPayload;
 };
 
 export default function HotWalletSignAndBroadcast({
   requestId,
-  payload: transaction,
+  payload,
 }: HotWalletSignAndBroadcastProps) {
   const { getWalletSecret } = useKeyring();
   const { wallet: walletInfo, account } = useWalletManager();
@@ -51,7 +51,7 @@ export default function HotWalletSignAndBroadcast({
           wallet={wallet}
           networkId={networkId}
           requestId={requestId}
-          payload={transaction}
+          payload={payload}
         />
       )}
     </>

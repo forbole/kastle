@@ -1,9 +1,5 @@
 import { Handler } from "@/api/background/utils";
-import {
-  ApiRequest,
-  ApiResponse,
-  SignAndBroadcastTxPayload,
-} from "@/api/message";
+import { ApiRequest, ApiResponse, SignTxPayload } from "@/api/message";
 import { ApiUtils } from "@/api/background/utils";
 
 /** signAndBroadcastTx handler to serve BrowserMessageType.SIGN_AND_BROADCAST_TX message */
@@ -31,16 +27,13 @@ export const signAndBroadcastTxHandler: Handler = async (
     return;
   }
 
-  if (!SignAndBroadcastTxPayload.validate(message.payload)) {
+  if (!SignTxPayload.validate(message.payload)) {
     sendResponse(new ApiResponse(message.id, null, "Invalid transaction data"));
     return;
   }
 
   // Reconstruct SignAndBroadcastTxPayload from serialized message data to restore methods
-  const payload = Object.assign(
-    new SignAndBroadcastTxPayload("", ""),
-    message.payload,
-  );
+  const payload = Object.assign(new SignTxPayload("", ""), message.payload);
 
   const url = browser.runtime.getURL(
     `/popup.html?requestId=${encodeURIComponent(message.id)}&payload=${payload.toUriString()}#/sign-and-broadcast-tx`,
