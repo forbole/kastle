@@ -211,6 +211,7 @@ export const router = createHashRouter([
           },
           {
             element: <BrowserApiLayout />,
+            loader: keyringGuard,
             children: [
               { path: "connect", element: <ConnectConfirm /> },
               {
