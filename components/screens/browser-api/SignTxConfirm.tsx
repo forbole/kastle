@@ -19,6 +19,7 @@ export default function SignTxConfirm() {
   if (!encodedPayload) {
     throw new Error("No transaction payload found");
   }
+  
   const payload = SignTxPayload.fromUriString(encodedPayload);
 
   const loading = !wallet || !payload;

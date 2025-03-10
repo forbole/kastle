@@ -53,7 +53,7 @@ document
             amount: kaspaWasm.kaspaToSompi("1"),
           },
         ],
-        priorityFee: 0n,
+        priorityFee: kaspaWasm.kaspaToSompi("0.1"),
         changeAddress: address,
         networkId: "testnet-10",
       });
@@ -85,7 +85,7 @@ function createKRC20ScriptBuilder(data) {
     .addOp(Opcodes.OpFalse)
     .addOp(Opcodes.OpIf)
     .addData(new TextEncoder().encode("kasplex")) // Instead of Buffer.from
-    .addI64(0n)
+    .addI64(kaspaWasm.kaspaToSompi("0.1"))
     .addData(new TextEncoder().encode(JSON.stringify(data, null, 0)))
     .addOp(Opcodes.OpEndIf);
 }
@@ -110,7 +110,7 @@ async function commitTransaction(P2SHAddress) {
       outputs: [
         { amount: kaspaWasm.kaspaToSompi("0.3"), address: P2SHAddress.toString() },
       ],
-      priorityFee: 0n,
+      priorityFee: kaspaWasm.kaspaToSompi("0.1"),
       changeAddress: address,
       networkId: "testnet-10",
     });
@@ -370,7 +370,7 @@ document
           scriptHex: scriptBuilder.toString(),
           inputIndex: 0,
         },
-      ], "0.02");
+      ], "0.1");
       document.getElementById("transferRevealTxId").innerText = revealTxId;
       document.getElementById("transferErrorKRC20").innerText = "";
     } catch (error) {
@@ -528,7 +528,7 @@ document
       const tx = new kaspaWasm.createTransaction(
         [sendP2SHEntries[0]],
         [{ address: sellerAddress, amount: kaspaWasm.kaspaToSompi("1") }],
-        0n,
+        kaspaWasm.kaspaToSompi("0.1"),
       );
 
       const preparedTxJson = tx.serializeToSafeJSON();
@@ -606,11 +606,11 @@ document.getElementById("krcBuyReveal").addEventListener("click", async () => {
   try {
     const amount = tx.outputs
       .map((output) => output.value)
-      .reduce((a, b) => a + b, 0n);
+      .reduce((a, b) => a + b, kaspaWasm.kaspaToSompi("0.1"));
     const entries = [];
     const utxos = await rpc.getUtxosByAddresses([address]);
-    let total = 0n;
-    const fee = kaspaWasm.kaspaToSompi("0.01");
+    let total = kaspaWasm.kaspaToSompi("0.1");
+    const fee = kaspaWasm.kaspaToSompi("0.1");
     while (total < amount + fee) {
       const entry = utxos.entries.pop();
       entries.push(entry);
@@ -620,7 +620,7 @@ document.getElementById("krcBuyReveal").addEventListener("click", async () => {
     const newInputs = entries.map((entry) => {
       return {
         previousOutpoint: entry.outpoint,
-        sequence: 0n,
+        sequence: kaspaWasm.kaspaToSompi("0.1"),
         sigOpCount: 1,
         utxo: entry,
       };
@@ -629,7 +629,7 @@ document.getElementById("krcBuyReveal").addEventListener("click", async () => {
     tx.inputs = [...tx.inputs, ...newInputs];
     const balanceOfInputs = tx.inputs
       .map((input) => input.utxo.amount)
-      .reduce((a, b) => a + b, 0n);
+      .reduce((a, b) => a + b, kaspaWasm.kaspaToSompi("0.1"));
     const change = balanceOfInputs - amount - fee;
     tx.outputs = [
       ...tx.outputs,

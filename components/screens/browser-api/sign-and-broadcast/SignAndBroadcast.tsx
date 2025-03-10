@@ -5,8 +5,17 @@ import { IWallet } from "@/lib/wallet/wallet-interface.ts";
 import { useBoolean } from "usehooks-ts";
 import useWalletManager from "@/hooks/useWalletManager";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
-import { Transaction, sompiToKaspaString } from "@/wasm/core/kaspa";
+import {
+  Transaction,
+  sompiToKaspaString,
+  Address,
+  payToAddressScript,
+} from "@/wasm/core/kaspa";
 import { useState } from "react";
+import Header from "@/components/GeneralHeader";
+import signImage from "@/assets/images/sign.png";
+import useKaspaPrice from "@/hooks/useKaspaPrice.ts";
+import TransactionDetails from "@/components/screens/browser-api/sign-and-broadcast/TransactionDetails";
 
 type SignAndBroadcastProps = {
   wallet: IWallet;
@@ -21,10 +30,13 @@ export default function SignAndBroadcast({
   requestId,
   payload,
 }: SignAndBroadcastProps) {
-  const { value: isLoading, toggle: toggleLoading } = useBoolean(false);
+  const { value: isBroadcasting, toggle: toggleBroadcasting } =
+    useBoolean(false);
+  const kapsaPrice = useKaspaPrice();
   const { rpcClient } = useRpcClientStateful();
   const { account } = useWalletManager();
-  const [hideJson, setHideJson] = useState(true);
+  const [hideDetails, setHideDetails] = useState(true);
+
 
   const transaction = Transaction.deserializeFromSafeJSON(payload.txJson);
 
@@ -36,22 +48,42 @@ export default function SignAndBroadcast({
     (acc, output) => acc + BigInt(output.value),
     BigInt(0),
   );
+
+  // Calculate sending amount
+  const sendingAmount = transaction.outputs
+    .filter((output) => {
+      if (!account) return false;
+
+      const accountScript = payToAddressScript(
+        new Address(account.address),
+      ).toString();
+
+      return accountScript !== output.scriptPublicKey.toString();
+    })
+    .reduce((acc, output) => acc + output.value, BigInt(0));
+
+  const sendingAmountInKas = sompiToKaspaString(sendingAmount);
+
+  // Calculate fees
   const fees = sompiToKaspaString(inputsAmount - outputsAmount);
 
-  
+  const remaining =
+    parseFloat(account?.balance ?? "0") -
+    parseFloat(fees) -
+    parseFloat(sendingAmountInKas);
 
   const handleConfirm = async () => {
-    if (!rpcClient || !wallet || !account) {
+    if (!rpcClient || !wallet || !account || isBroadcasting) {
       return;
     }
 
     try {
-      toggleLoading();
+      toggleBroadcasting();
       const signedTx = await wallet.signTx(transaction, payload.scripts);
       const { transactionId: txId } = await rpcClient.submitTransaction({
         transaction: signedTx,
       });
-      toggleLoading();
+      toggleBroadcasting();
       await ApiExtensionUtils.sendMessage(
         requestId,
         new ApiResponse(requestId, txId),
@@ -80,10 +112,10 @@ export default function SignAndBroadcast({
   };
 
   return (
-    <div className="p2 text-white">
-      <h1>SignAndBroadcastTxConfirm</h1>
+    <div className="p-4">
+      <Header showPrevious={false} onClose={handleCancel} title="Confirm" />
       {payload.networkId !== networkId && (
-        <>
+        <div>
           <span>
             Network Id does not match, please switch network to{" "}
             {payload.networkId}
@@ -94,37 +126,65 @@ export default function SignAndBroadcast({
           >
             Cancel
           </button>
-        </>
+        </div>
       )}
       {payload.networkId === networkId && (
-        <>
+        <div>
+          <img src={signImage} alt="Sign" className="mx-auto" />
           <span>{payload.networkId}</span>
-          {/* Tx */}
-          <div className="border" onClick={() => setHideJson(!hideJson)}>
-            Transaction JSON:
-            {!hideJson && (
-              <pre className="overflow-auto whitespace-pre-wrap rounded-md bg-gray-800 p-2">
-                {JSON.stringify(JSON.parse(payload.txJson), null, 2)}
-              </pre>
-            )}
-          </div>
 
-          {/* Scripts */}
-          <div>
-            Scripts:
-            {payload.scripts?.map((script, index) => (
-              <div key={index} className="border">
-                <div>Input Index: {script.inputIndex}</div>
-                <div>Script: {script.scriptHex}</div>
-                <div>Sign Type: {script.signType}</div>
+          <ul className="mt-3 flex flex-col rounded-lg bg-daintree-800">
+            <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
+              <div className="flex w-full items-start justify-between">
+                <span className="font-medium">Your new balance will be</span>
+                <div className="flex flex-col text-right">
+                  <span className="font-medium">{remaining} KAS</span>
+                  <span className="text-xs text-daintree-400">
+                    {remaining * kapsaPrice.kaspaPrice} USD
+                  </span>
+                </div>
               </div>
-            ))}
-          </div>
+            </li>
+          </ul>
 
-          <div>Fees: {fees}</div>
-          {isLoading && <div>Loading...</div>}
-          {!isLoading && (
-            <>
+          {/* Result */}
+          <ul className="mt-3 flex flex-col rounded-lg bg-daintree-800">
+            <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
+              <div className="flex w-full items-start justify-between">
+                <span className="font-medium">Sending amount</span>
+                <div className="flex flex-col text-right">
+                  <span className="font-medium">{sendingAmountInKas} KAS</span>
+                  <span className="text-xs text-daintree-400">
+                    {parseFloat(sendingAmountInKas) * kapsaPrice.kaspaPrice} USD
+                  </span>
+                </div>
+              </div>
+            </li>
+            <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
+              <div className="flex w-full items-start justify-between">
+                <span className="font-medium">Fee</span>
+                <div className="flex flex-col text-right">
+                  <span className="font-medium">{fees} KAS</span>
+                  <span className="text-xs text-daintree-400">
+                    {parseFloat(fees) * kapsaPrice.kaspaPrice} USD
+                  </span>
+                </div>
+              </div>
+            </li>
+          </ul>
+
+          <div>
+            <span
+              className="cursor-pointer"
+              onClick={() => setHideDetails(!hideDetails)}
+            >
+              Show raw transaction details
+            </span>
+
+            {!hideDetails && (<TransactionDetails payload={payload} />)}
+
+            {/* Buttons */}
+            <div>
               <button
                 className="rounded bg-red-500 px-4 py-2"
                 onClick={handleCancel}
@@ -137,9 +197,9 @@ export default function SignAndBroadcast({
               >
                 Confirm
               </button>
-            </>
-          )}
-        </>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
