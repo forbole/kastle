@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { SignAndBroadcastTxPayload } from "@/api/message";
 import TransactionDetailsBox from "@/components/screens/browser-api/sign-and-broadcast/TransactionBox";
+import ScriptItem from "./ScriptItem";
 
 export default function TransactionDetails({
   payload,
@@ -12,14 +13,12 @@ export default function TransactionDetails({
   );
 
   return (
-    <div>
-      <div className="flex min-h-screen items-center justify-center bg-gray-900 p-4">
-        <div className="flex w-full max-w-xs rounded-lg bg-gray-800 p-1">
+    <div className="w-full space-y-3 pb-3">
+      <div className="flex w-full items-center justify-center">
+        <div className="flex w-full rounded-lg bg-[#102832] text-[#E5E7EB]">
           <button
             className={`flex-1 rounded-md px-4 py-2 text-center text-sm font-medium transition-colors duration-200 ${
-              activeTab === "transaction"
-                ? "bg-gray-700"
-                : "text-gray-400 hover:text-gray-300"
+              activeTab === "transaction" ? "bg-[#203C49]" : "hover:text-white"
             }`}
             onClick={() => setActiveTab("transaction")}
           >
@@ -27,9 +26,7 @@ export default function TransactionDetails({
           </button>
           <button
             className={`flex-1 rounded-md px-4 py-2 text-center text-sm font-medium transition-colors duration-200 ${
-              activeTab === "scripts"
-                ? "bg-gray-700"
-                : "text-gray-400 hover:text-gray-300"
+              activeTab === "scripts" ? "bg-[#203C49]" : "hover:text-white"
             }`}
             onClick={() => setActiveTab("scripts")}
           >
@@ -42,18 +39,18 @@ export default function TransactionDetails({
       {activeTab === "transaction" && (
         <TransactionDetailsBox jsonContent={payload.txJson} />
       )}
-      {activeTab === "scripts" && (
-        <div>
-          Scripts:
-          {payload.scripts?.map((script, index) => (
-            <div key={index} className="border">
-              <div>Input Index: {script.inputIndex}</div>
-              <div>Script: {script.scriptHex}</div>
-              <div>Sign Type: {script.signType}</div>
-            </div>
+
+      {/* Scripts */}
+      <div className="space-y-3">
+        {activeTab === "scripts" && !payload.scripts && (
+          <div className="text-center text-[#7B9AAA]">No scripts</div>
+        )}
+        {activeTab === "scripts" &&
+          payload.scripts &&
+          payload.scripts.map((script, index) => (
+            <ScriptItem key={index} script={script} />
           ))}
-        </div>
-      )}
+      </div>
     </div>
   );
 }

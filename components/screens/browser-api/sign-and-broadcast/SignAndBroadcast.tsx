@@ -37,7 +37,6 @@ export default function SignAndBroadcast({
   const { account } = useWalletManager();
   const [hideDetails, setHideDetails] = useState(true);
 
-
   const transaction = Transaction.deserializeFromSafeJSON(payload.txJson);
 
   const inputsAmount = transaction.inputs.reduce(
@@ -173,31 +172,36 @@ export default function SignAndBroadcast({
             </li>
           </ul>
 
-          <div>
+          <div className="space-y-4 py-4">
             <span
-              className="cursor-pointer"
+              className="inline-flex cursor-pointer items-center gap-2 font-semibold text-[#00B1D0]"
               onClick={() => setHideDetails(!hideDetails)}
             >
               Show raw transaction details
+              {hideDetails ? (
+                <i className="hn hn-chevron-down h-[14px] w-[14px]" />
+              ) : (
+                <i className="hn hn-chevron-up h-[14px] w-[14px]" />
+              )}
             </span>
 
-            {!hideDetails && (<TransactionDetails payload={payload} />)}
+            {!hideDetails && <TransactionDetails payload={payload} />}
+          </div>
 
-            {/* Buttons */}
-            <div>
-              <button
-                className="rounded bg-red-500 px-4 py-2"
-                onClick={handleCancel}
-              >
-                Cancel
-              </button>
-              <button
-                className="rounded bg-blue-500 px-4 py-2"
-                onClick={handleConfirm}
-              >
-                Confirm
-              </button>
-            </div>
+          {/* Buttons */}
+          <div>
+            <button
+              className="rounded bg-red-500 px-4 py-2"
+              onClick={handleCancel}
+            >
+              Cancel
+            </button>
+            <button
+              className="rounded bg-blue-500 px-4 py-2"
+              onClick={handleConfirm}
+            >
+              Confirm
+            </button>
           </div>
         </div>
       )}
