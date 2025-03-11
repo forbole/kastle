@@ -1,12 +1,15 @@
 import { ApiResponse, SignTxPayload } from "@/api/message";
 import { ApiExtensionUtils } from "@/api/extension";
-import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import { IWallet } from "@/lib/wallet/wallet-interface.ts";
-import { useBoolean } from "usehooks-ts";
 import useWalletManager from "@/hooks/useWalletManager";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import { Transaction } from "@/wasm/core/kaspa";
 import SignConfirm from "@/components/screens/browser-api/sign/SignConfirm";
+import { useState } from "react";
+import Broadcasting from "@/components/screens/browser-api/sign-and-broadcast/Broadcasting";
+import { sleep } from "@/lib/utils";
+import Success from "@/components/screens/browser-api/sign-and-broadcast/Success";
+import Error from "@/components/screens/browser-api/sign-and-broadcast/Error";
 
 type SignAndBroadcastProps = {
   wallet: IWallet;
@@ -19,10 +22,13 @@ export default function SignAndBroadcast({
   requestId,
   payload,
 }: SignAndBroadcastProps) {
-  const { value: isBroadcasting, toggle: toggleBroadcasting } =
-    useBoolean(false);
+  const [isBroadcasting, setBroadcasting] = useState(false);
+  const [state, setState] = useState<
+    "confirm" | "broadcasting" | "success" | "error"
+  >("confirm");
   const { rpcClient } = useRpcClientStateful();
   const { account } = useWalletManager();
+  const [txIds, setTxIds] = useState<string[]>([]);
 
   const transaction = Transaction.deserializeFromSafeJSON(payload.txJson);
 
@@ -32,17 +38,22 @@ export default function SignAndBroadcast({
     }
 
     try {
-      toggleBroadcasting();
+      setBroadcasting(true);
+      setState("broadcasting");
       const signedTx = await wallet.signTx(transaction, payload.scripts);
       const { transactionId: txId } = await rpcClient.submitTransaction({
         transaction: signedTx,
       });
-      toggleBroadcasting();
       await ApiExtensionUtils.sendMessage(
         requestId,
         new ApiResponse(requestId, txId),
       );
+
+      setTxIds([txId]);
+      await sleep(2000);
+      setState("success");
     } catch (err) {
+      setState("error");
       await ApiExtensionUtils.sendMessage(
         requestId,
         new ApiResponse(
@@ -53,7 +64,7 @@ export default function SignAndBroadcast({
         ),
       );
     } finally {
-      window.close();
+      setBroadcasting(false);
     }
   };
 
@@ -66,10 +77,18 @@ export default function SignAndBroadcast({
   };
 
   return (
-    <SignConfirm
-      payload={payload}
-      cancel={handleCancel}
-      confirm={handleConfirm}
-    />
+    <>
+      {state === "confirm" && (
+        <SignConfirm
+          payload={payload}
+          cancel={handleCancel}
+          confirm={handleConfirm}
+        />
+      )}
+
+      {state === "broadcasting" && <Broadcasting />}
+      {state === "success" && <Success transactionIds={txIds} />}
+      {state === "error" && <Error transactionIds={txIds} />}
+    </>
   );
 }
