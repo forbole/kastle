@@ -15,14 +15,12 @@ import DetailsSelector from "@/components/screens/browser-api/sign/DetailsSelect
 import { twMerge } from "tailwind-merge";
 
 type SignConfirmProps = {
-  networkId: NetworkType;
   payload: SignTxPayload;
   confirm: () => void;
   cancel: () => void;
 };
 
 export default function SignConfirm({
-  networkId,
   payload,
   confirm,
   cancel,
@@ -34,11 +32,11 @@ export default function SignConfirm({
   const transaction = Transaction.deserializeFromSafeJSON(payload.txJson);
 
   const inputsAmount = transaction.inputs.reduce(
-    (acc, input) => acc + BigInt(input.utxo?.amount || 0),
+    (acc, input) => acc + (input.utxo?.amount ?? BigInt(0)),
     BigInt(0),
   );
   const outputsAmount = transaction.outputs.reduce(
-    (acc, output) => acc + BigInt(output.value),
+    (acc, output) => acc + output.value,
     BigInt(0),
   );
 
@@ -58,12 +56,13 @@ export default function SignConfirm({
   const sendingAmountInKas = sompiToKaspaString(sendingAmount);
 
   // Calculate fees
-  const fees = sompiToKaspaString(inputsAmount - outputsAmount);
+  let fees = "0";
+  // If inputsAmount is greater than outputsAmount, then we don't need to calculate fees because it would be a incomplete transaction
+  if (inputsAmount > outputsAmount) {
+    fees = sompiToKaspaString(inputsAmount - outputsAmount);
+  }
 
-  const remaining =
-    parseFloat(account?.balance ?? "0") -
-    parseFloat(fees) -
-    parseFloat(sendingAmountInKas);
+  const receiving = 0 - parseFloat(fees) - parseFloat(sendingAmountInKas);
 
   const networks = [
     {
@@ -85,7 +84,7 @@ export default function SignConfirm({
       background: "bg-violet-800",
     },
   ];
-  const selectedNetwork = networks.find((n) => n.id === networkId);
+  const selectedNetwork = networks.find((n) => n.id === payload.networkId);
 
   return (
     <div className="flex h-screen flex-col justify-between p-4 pb-0">
@@ -109,10 +108,18 @@ export default function SignConfirm({
           <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
             <div className="flex w-full items-start justify-between">
               <span className="font-medium">Your new balance will be</span>
-              <div className="flex flex-col text-right">
-                <span className="font-medium">{remaining} KAS</span>
+              <div
+                className={twMerge(
+                  "flex flex-col text-right",
+                  receiving >= 0 ? "text-teal-500" : "text-red-500",
+                )}
+              >
+                <span className="font-medium">
+                  {receiving >= 0 && "+"}
+                  {receiving} KAS
+                </span>
                 <span className="text-xs text-daintree-400">
-                  {remaining * kapsaPrice.kaspaPrice} USD
+                  {receiving * kapsaPrice.kaspaPrice} USD
                 </span>
               </div>
             </div>
@@ -163,7 +170,7 @@ export default function SignConfirm({
       </div>
 
       {/* Buttons */}
-      <div className="flex gap-2 text-base font-semibold pb-4">
+      <div className="flex gap-2 pb-4 text-base font-semibold">
         <button className="rounded-full p-5 text-[#7B9AAA]" onClick={cancel}>
           Cancel
         </button>

@@ -10,14 +10,12 @@ import SignConfirm from "@/components/screens/browser-api/sign/SignConfirm";
 
 type SignAndBroadcastProps = {
   wallet: IWallet;
-  networkId: NetworkType;
   requestId: string;
   payload: SignTxPayload;
 };
 
 export default function SignAndBroadcast({
   wallet,
-  networkId,
   requestId,
   payload,
 }: SignAndBroadcastProps) {
@@ -69,7 +67,6 @@ export default function SignAndBroadcast({
 
   return (
     <SignConfirm
-      networkId={networkId}
       payload={payload}
       cancel={handleCancel}
       confirm={handleConfirm}

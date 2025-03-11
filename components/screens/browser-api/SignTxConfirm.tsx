@@ -12,17 +12,15 @@ export default function SignTxConfirm() {
     throw new Error("No request id found");
   }
 
-  // Retrieve the transaction payload from the URL
   const encodedPayload = new URLSearchParams(window.location.search).get(
     "payload",
   );
-  if (!encodedPayload) {
-    throw new Error("No transaction payload found");
-  }
-  
-  const payload = SignTxPayload.fromUriString(encodedPayload);
 
-  const loading = !wallet || !payload;
+  const payload = encodedPayload
+    ? SignTxPayload.fromUriString(encodedPayload)
+    : null;
+
+  const loading = !wallet || !requestId || !payload;
 
   return (
     <>

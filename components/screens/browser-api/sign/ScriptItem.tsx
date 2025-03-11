@@ -18,9 +18,7 @@ export default function ScriptItem({ script }: { script: ScriptOption }) {
         <div className="flex w-full items-start justify-between">
           <span className="font-medium">Sign Type</span>
           <div className="flex flex-col text-right">
-            <span className="font-medium">
-              {(script.signType ?? "All").toUpperCase()}
-            </span>
+            <span className="font-medium">{script.signType ?? "All"}</span>
           </div>
         </div>
       </li>

@@ -49,7 +49,6 @@ export default function HotWalletSignAndBroadcast({
       {!loading && (
         <SignAndBroadcast
           wallet={wallet}
-          networkId={networkId}
           requestId={requestId}
           payload={payload}
         />
