@@ -4,6 +4,7 @@ import { IWallet } from "@/lib/wallet/wallet-interface.ts";
 import { AccountFactory } from "@/lib/wallet/wallet-factory";
 import useWalletManager from "@/hooks/useWalletManager.ts";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
+import Splash from "@/components/screens/Splash.tsx";
 
 type HotWalletSignAndBroadcastProps = {
   requestId: string;
@@ -45,7 +46,7 @@ export default function HotWalletSignAndBroadcast({
 
   return (
     <>
-      {loading && <div>Loading...</div>}
+      {loading && <Splash />}
       {!loading && (
         <SignAndBroadcast
           wallet={wallet}

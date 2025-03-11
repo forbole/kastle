@@ -1,5 +1,5 @@
 import { Outlet, useNavigation } from "react-router-dom";
-import React from "react";
+import React, { useEffect } from "react";
 import Splash from "@/components/screens/Splash.tsx";
 import "@hackernoon/pixel-icon-library/fonts/iconfont.css";
 
@@ -14,6 +14,15 @@ export default function PopupLayout() {
   const location = useLocation();
   useResetPreline([location.pathname]);
 
+  // Resize the window to the target width and height for the popup
+  useEffect(() => {
+    const targetWidth = 375;
+    const targetHeight = 600;
+    const widthGap = targetWidth - window.innerWidth;
+    const heightGap = targetHeight - window.innerHeight;
+
+    window.resizeBy(widthGap, heightGap);
+  }, []);
   return (
     <PostHogWrapperProvider>
       <div className="no-scrollbar h-[600px] w-[375px] overflow-y-scroll bg-icy-blue-950 font-sans text-white">

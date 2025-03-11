@@ -59,7 +59,6 @@ import ImportLedgerStart from "@/components/screens/full-pages/ledger/ImportLedg
 import LedgerConnectForImportFailed from "@/components/screens/full-pages/ledger/LedgerConnectForImportFailed";
 import LedgerConnectForSign from "@/components/screens/ledger-connect/LedgerConnectForSign";
 import LedgerConnectForSignFailed from "@/components/screens/ledger-connect/LedgerConnectForSignFailed";
-import BrowserApiLayout from "@/components/layouts/BrowserApiLayout";
 
 const loadKaspaWasm = async () => {
   await init(kaspaModule);
@@ -122,21 +121,21 @@ export const router = createHashRouter([
         loader: loadKaspaWasm,
         children: [
           {
-            path: "unlock",
-            element: <WalletUnlock />,
-            loader: async () => {
-              const keyringStatusResponse = await getKeyringStatus();
-
-              if (!keyringStatusResponse.isInitialized) {
-                return redirect("/onboarding");
-              }
-
-              return null;
-            },
-          },
-          {
             element: <PopupLayout />,
             children: [
+              {
+                path: "unlock",
+                element: <WalletUnlock />,
+                loader: async () => {
+                  const keyringStatusResponse = await getKeyringStatus();
+
+                  if (!keyringStatusResponse.isInitialized) {
+                    return redirect("/onboarding");
+                  }
+
+                  return null;
+                },
+              },
               {
                 index: true,
                 element: <Navigate to="/dashboard" replace />,
@@ -187,6 +186,17 @@ export const router = createHashRouter([
                     path: "ledger-connect-for-sign-failed",
                     element: <LedgerConnectForSignFailed />,
                   },
+
+                  // Browser API routes
+                  { path: "connect", element: <ConnectConfirm /> },
+                  {
+                    path: "sign-and-broadcast-tx",
+                    element: <SignAndBroadcastTxConfirm />,
+                  },
+                  {
+                    path: "sign-tx",
+                    element: <SignTxConfirm />,
+                  },
                 ],
               },
               {
@@ -206,21 +216,6 @@ export const router = createHashRouter([
                 // Catch all unknown routes
                 path: "*",
                 element: <Navigate to="/dashboard" replace />,
-              },
-            ],
-          },
-          {
-            element: <BrowserApiLayout />,
-            loader: keyringGuard,
-            children: [
-              { path: "connect", element: <ConnectConfirm /> },
-              {
-                path: "sign-and-broadcast-tx",
-                element: <SignAndBroadcastTxConfirm />,
-              },
-              {
-                path: "sign-tx",
-                element: <SignTxConfirm />,
               },
             ],
           },
