@@ -39,9 +39,9 @@ export default function Error({ transactionIds }: ErrorProps) {
               Sorry, Your Majesty.
             </span>
             <span className="px-2 text-sm text-gray-500">
-              {"The carriage couldn't deliver your transaction this time."}
-              <br />
-              {"Please check and try again later."}
+              {
+                "The carriage couldn't deliver your transaction this time. Please check and try again later."
+              }
             </span>
           </div>
           {transactionIds?.length !== 0 && (

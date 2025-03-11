@@ -24,7 +24,9 @@ export default function SignAndBroadcastTxConfirm() {
       {!loading && wallet.type !== "ledger" && (
         <HotWalletSignAndBroadcast requestId={requestId} payload={payload} />
       )}
-      {!loading && wallet.type === "ledger" && <LedgerSignAndBroadcast />}
+      {!loading && wallet.type === "ledger" && (
+        <LedgerSignAndBroadcast requestId={requestId} payload={payload} />
+      )}
     </>
   );
 }

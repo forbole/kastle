@@ -28,7 +28,9 @@ export default function SignTxConfirm() {
       {!loading && wallet.type !== "ledger" && (
         <HotWalletSignTx requestId={requestId} payload={payload} />
       )}
-      {!loading && wallet.type === "ledger" && <LedgerSignTx />}
+      {!loading && wallet.type === "ledger" && (
+        <LedgerSignTx requestId={requestId} payload={payload} />
+      )}
     </>
   );
 }

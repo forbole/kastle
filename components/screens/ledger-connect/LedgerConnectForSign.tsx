@@ -19,12 +19,14 @@ export default function LedgerConnectForSign() {
       return;
     }
 
+    const [pathname, search] = redirect.split("?");
     navigate(
       {
-        pathname: redirect,
+        pathname: pathname,
+        search: search,
       },
       {
-        state: JSON.parse(decodeURIComponent(state ?? "") ?? "{}"),
+        state: state ? JSON.parse(decodeURIComponent(state)) : undefined,
       },
     );
   }, [redirect, state]);
