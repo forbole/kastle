@@ -14,7 +14,7 @@ export default function LedgerConfirm({
         <Header title="Confirm on Ledger" onBack={onBack} onClose={onClose} />
         <div className="space-y-4">
           <img
-            alt="ledger connect failed"
+            alt="ledger on confirm"
             className="mx-auto"
             src={ledgerOnConfirmImage}
           />
