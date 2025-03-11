@@ -37,7 +37,7 @@ export type WalletSettings = {
   wallets: WalletInfo[];
   lastRecoveryPhraseNumber: number;
   lastPrivateKeyNumber: number;
-  lastLedgerNumber: number;
+  lastLedgerNumber?: number;
 };
 
 type WalletManagerContextType = {
@@ -215,6 +215,10 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
       type: "ledger",
       value: deviceId,
     });
+
+    if (!walletSettings.lastLedgerNumber) {
+      walletSettings.lastLedgerNumber = 0;
+    }
 
     await addWallet({
       id,
