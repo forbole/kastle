@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import { SignTxPayload } from "@/api/message";
-import TransactionDetailsBox from "@/components/screens/browser-api/sign-and-broadcast/TransactionBox";
-import ScriptItem from "@/components/screens/browser-api/sign-and-broadcast/ScriptItem";
+import TransactionDetailsBox from "@/components/screens/browser-api/sign/TransactionBox";
+import ScriptItem from "@/components/screens/browser-api/sign/ScriptItem";
 
-export default function TransactionDetails({
+export default function DetailsSelector({
   payload,
 }: {
   payload: SignTxPayload;

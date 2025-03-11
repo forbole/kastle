@@ -1,5 +1,5 @@
 import { SignTxPayload } from "@/api/message";
-import SignAndBroadcast from "./SignAndBroadcast";
+import SignAndBroadcast from "@/components/screens/browser-api/sign-and-broadcast/SignAndBroadcast";
 import { IWallet } from "@/lib/wallet/wallet-interface.ts";
 import { AccountFactory } from "@/lib/wallet/wallet-factory";
 import useWalletManager from "@/hooks/useWalletManager.ts";
