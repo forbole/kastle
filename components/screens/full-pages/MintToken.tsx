@@ -131,8 +131,10 @@ export default function MintToken() {
       Math.ceil(mintAmount !== 0 ? mintable / mintAmount : 0),
     );
     form.setValue("mintAmount", mintAmount);
+    const percentage =
+      Number.isNaN(max) || max === 0 ? 0 : (mintable / max) * 100;
     setMintableAmount(
-      `${((mintable / max) * 100).toFixed(0)}% (${toFloat(mintable).toLocaleString()}/${toFloat(max).toLocaleString()})`,
+      `${percentage.toFixed(0)}% (${toFloat(mintable).toLocaleString()}/${toFloat(max).toLocaleString()})`,
     );
   }, [tickerInfo]);
 
@@ -199,6 +201,7 @@ export default function MintToken() {
                     onChange: (event) => {
                       event.target.value = event.target.value
                         .replace(/[^a-zA-Z]/g, "")
+                        .slice(0, 6)
                         .toUpperCase();
                     },
                     required: "Oh, ticker is required",

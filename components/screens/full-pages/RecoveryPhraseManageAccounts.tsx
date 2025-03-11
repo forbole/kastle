@@ -33,5 +33,5 @@ export default function RecoveryPhraseManageAccounts() {
         }
       : undefined;
 
-  return <ManageAccounts listAccounts={listAccounts} />;
+  return <ManageAccounts walletType="mnemonic" listAccounts={listAccounts} />;
 }

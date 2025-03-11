@@ -1,5 +1,30 @@
 # Changelog
 
+## [2.7.1](https://github.com/forbole/kastle/compare/v2.7.0...v2.7.1) (2025-03-11)
+
+
+### Bug Fixes
+
+* **ledger:** initialize ledger last number ([#52](https://github.com/forbole/kastle/issues/52)) ([47884da](https://github.com/forbole/kastle/commit/47884daac0379b93f8a8e7b35cb3ca40514b5588))
+
+## [2.7.0](https://github.com/forbole/kastle/compare/v2.6.0...v2.7.0) (2025-03-07)
+
+
+### Features
+
+* address warning tooltip ([f9f8d38](https://github.com/forbole/kastle/commit/f9f8d389c6a7b67c0258f9b43a3c6499833ed5ed))
+* delay RPC connection ([#46](https://github.com/forbole/kastle/issues/46)) ([1eaf743](https://github.com/forbole/kastle/commit/1eaf7435b006b91d7ac99652c90307cdc49188a8))
+* **krc20:** update-mint-process ([#42](https://github.com/forbole/kastle/issues/42)) ([6dab957](https://github.com/forbole/kastle/commit/6dab957c0acb307cab490551751bb8066a2da8b6))
+* **ledger:** enable ledger for production ([#51](https://github.com/forbole/kastle/issues/51)) ([92cf721](https://github.com/forbole/kastle/commit/92cf7212a0b73098da9e601f646901e8fd69a025))
+* **ledger:** improve ledger connect flow ([#44](https://github.com/forbole/kastle/issues/44)) ([f5dde20](https://github.com/forbole/kastle/commit/f5dde205dd01557fefae7c8982a56a537565b8b8))
+
+
+### Bug Fixes
+
+* avoid zero division ([ece655d](https://github.com/forbole/kastle/commit/ece655d99b93e7d73b9bae4ca35f9e504944d2bb))
+* prevent user from typing long tickers ([7aba9b9](https://github.com/forbole/kastle/commit/7aba9b93639a3059348e7462cbc146f33163a7a1))
+* typo ([86aa8dc](https://github.com/forbole/kastle/commit/86aa8dcd3260b3faac78f998484ae8812be29529))
+
 ## [2.6.0](https://github.com/forbole/kastle/compare/v2.5.0...v2.6.0) (2025-03-04)
 
 

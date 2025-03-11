@@ -55,7 +55,6 @@ import { TokenOperationSuccess } from "@/components/screens/full-pages/TokenOper
 import ConfirmDeploy from "@/components/screens/full-pages/ConfirmDeploy.tsx";
 import DeployingToken from "@/components/screens/full-pages/DeployingToken.tsx";
 import { RecentAddressesProvider } from "@/contexts/RecentAddressesContext.tsx";
-import ImportLedgerStart from "@/components/screens/full-pages/ledger/ImportLedgerStart";
 import LedgerConnectForImportFailed from "@/components/screens/full-pages/ledger/LedgerConnectForImportFailed";
 import LedgerConnectForSign from "@/components/screens/ledger-connect/LedgerConnectForSign";
 import LedgerConnectForSignFailed from "@/components/screens/ledger-connect/LedgerConnectForSignFailed";
@@ -255,10 +254,6 @@ export const router = createHashRouter([
               {
                 path: "accounts-imported",
                 element: <AccountsImported />,
-              },
-              {
-                path: "import-ledger-start",
-                element: <ImportLedgerStart />,
               },
               {
                 path: "import-ledger",

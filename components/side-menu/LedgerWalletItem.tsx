@@ -19,9 +19,16 @@ export const LedgerWalletItem = ({
   const kapsaPrice = useKaspaPrice();
   // This is a hack, preline could not handle `hs-accordion-active:` on nested tags
   const { value: collapsed, toggle } = useBoolean(false);
-  const { addAccount, selectAccount, walletSettings } = useWalletManager();
+  const { selectAccount, walletSettings } = useWalletManager();
   const isSelectedWalletId = walletSettings?.selectedWalletId === wallet.id;
   const selectedAccountIndex = walletSettings?.selectedAccountIndex;
+
+  const manageAccounts = () => {
+    const url = new URL(browser.runtime.getURL("/popup.html"));
+    url.hash = `/manage-accounts/ledger/${wallet.id}/manage`;
+
+    browser.tabs.create({ url: url.toString() });
+  };
 
   return (
     <div className="hs-accordion-group">
@@ -60,12 +67,7 @@ export const LedgerWalletItem = ({
               <div className="space-y-0.5 p-1">
                 <button
                   type="button"
-                  onClick={() => {
-                    const url = new URL(browser.runtime.getURL("/popup.html"));
-                    url.hash = `/manage-accounts/ledger/${wallet.id}/manage`;
-
-                    browser.tabs.create({ url: url.toString() });
-                  }}
+                  onClick={() => manageAccounts()}
                   className="flex w-full items-center gap-x-3.5 rounded-lg px-3 py-2 text-sm text-daintree-200 hover:bg-daintree-700 focus:bg-daintree-700 focus:outline-none"
                 >
                   Manage accounts
@@ -158,7 +160,7 @@ export const LedgerWalletItem = ({
             {/* Add account */}
             <button
               className="flex items-center justify-stretch gap-2 rounded-xl border border-daintree-700 bg-white/5 p-3 hover:border-white"
-              onClick={() => addAccount(wallet.id)}
+              onClick={() => manageAccounts()}
             >
               <span className="flex size-9 items-center justify-center rounded-lg bg-white/5 text-white">
                 <i className="hn hn-plus text-[16px]"></i>

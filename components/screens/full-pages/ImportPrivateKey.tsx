@@ -105,7 +105,7 @@ export default function ImportPrivateKey() {
                   },
                 })}
                 className={twMerge(
-                  "peer block h-[120px] w-full resize-none rounded-lg border border-daintree-700 bg-daintree-800 p-3 text-sm text-daintree-400 placeholder-daintree-200 hover:placeholder-daintree-50 focus:ring-0 disabled:pointer-events-none disabled:opacity-50",
+                  "peer block h-[120px] w-full resize-none rounded-lg border border-daintree-700 bg-daintree-800 p-3 text-sm placeholder-daintree-200 hover:placeholder-daintree-50 focus:ring-0 disabled:pointer-events-none disabled:opacity-50",
                   errors.privateKey &&
                     "border-0 ring ring-red-500/25 focus:border-0 focus:ring focus:ring-red-500/25",
                   isHidden && "blur",

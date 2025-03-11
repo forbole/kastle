@@ -3,6 +3,7 @@ import Transport from "@ledgerhq/hw-transport";
 import TransportWebHid from "@ledgerhq/hw-transport-webhid";
 import { captureException } from "@sentry/react";
 import KaspaApp from "hw-app-kaspa";
+import toast from "@/components/Toast";
 
 interface LedgerTransportContextType {
   transport: Transport | null;
@@ -46,8 +47,22 @@ export function LedgerTransportProvider({ children }: { children: ReactNode }) {
       setTransport(newTransport);
 
       // Check if Kaspa app is open
-      if (await checkKaspaAppOpen(newTransport)) {
-        setIsAppOpen(true);
+      try {
+        if (await checkKaspaAppOpen(newTransport)) {
+          setIsAppOpen(true);
+        } else {
+          await newTransport.send(
+            0xe0,
+            0xd8,
+            0x00,
+            0x00,
+            Buffer.from("Kaspa", "ascii"),
+          );
+        }
+      } catch (error) {
+        toast.error(
+          "Can not open Kaspa app on Ledger device, please check the ledger device and try again.",
+        );
       }
 
       newTransport.on("disconnect", () => {

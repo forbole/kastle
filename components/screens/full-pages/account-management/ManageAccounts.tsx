@@ -23,12 +23,16 @@ export type ListAccountsRequest = {
 };
 
 type ManageAccountsProps = {
+  walletType: "ledger" | "mnemonic";
   listAccounts?: (
     params: ListAccountsRequest,
   ) => Promise<{ publicKeys: string[] }[]>;
 };
 
-export default function ManageAccounts({ listAccounts }: ManageAccountsProps) {
+export default function ManageAccounts({
+  walletType,
+  listAccounts,
+}: ManageAccountsProps) {
   const calledOnce = useRef(false);
 
   const navigate = useNavigate();
@@ -160,6 +164,13 @@ export default function ManageAccounts({ listAccounts }: ManageAccountsProps) {
     return null;
   }
 
+  const subtitle = {
+    mnemonic:
+      "This page shows accounts created from your recovery phrase. Each phrase can generate multiple accounts, and here you can view and manage them.",
+    ledger:
+      "This page shows accounts managed by your Ledger. You can select accounts to import and manage in Kastle.",
+  }[walletType];
+
   return (
     <FormProvider {...form}>
       <form
@@ -169,13 +180,20 @@ export default function ManageAccounts({ listAccounts }: ManageAccountsProps) {
         {/* Header */}
         <Header
           title={action === "manage" ? "Manage Accounts" : "Import Wallet"}
-          subtitle="This page shows accounts created from your recovery phrase. Each phrase can generate multiple accounts, and here you can view and manage them."
+          subtitle={subtitle}
           showPrevious={false}
         />
 
         {/* List */}
         <div className="no-scrollbar flex flex-grow flex-col gap-3 overflow-y-scroll">
           <AccountsTitle />
+          {accountList.length === 0 &&
+            Array.from({ length: pageSize }).map((_, index) => (
+              <div
+                key={index}
+                className="min-h-16 animate-pulse rounded-xl bg-[#203C49]"
+              />
+            ))}
           {accountList.map(({ publicKeys }, accountIndex) => (
             <AccountItem
               key={accountIndex}
@@ -183,20 +201,30 @@ export default function ManageAccounts({ listAccounts }: ManageAccountsProps) {
               publicKeys={publicKeys}
             />
           ))}
+
           <button
             type="button"
             className="inline-flex items-center justify-center gap-x-2 rounded-lg border border-transparent px-4 py-3 text-sm font-medium text-icy-blue-400 hover:bg-daintree-700 hover:text-blue-400 focus:bg-blue-100 focus:bg-blue-800/30 focus:text-blue-400 disabled:pointer-events-none disabled:opacity-50"
             onClick={nextPage}
           >
-            <i className="hn hn-angle-down text-[14px]" />
-            <span>Show more</span>
+            {isFetchingAccounts ? (
+              <div
+                className="inline-block size-6 animate-spin self-center rounded-full border-[6px] border-current border-t-[#A2F5FF] text-icy-blue-600"
+                role="status"
+                aria-label="loading"
+              />
+            ) : (
+              <>
+                <i className="hn hn-angle-down text-[14px]" />
+                <span>Show more</span>
+              </>
+            )}
           </button>
         </div>
 
-        {/* Action */}
         <button
           type="submit"
-          className="inline-flex items-center justify-center rounded-full border border-transparent bg-icy-blue-400 p-4 px-4 py-3 text-base font-semibold text-white hover:bg-white/20 hover:text-white focus:bg-white/20 focus:text-white focus:outline-none disabled:pointer-events-none disabled:opacity-50"
+          className="mt-auto inline-flex w-full justify-center gap-x-2 rounded-full border border-transparent bg-icy-blue-400 py-5 text-base text-white hover:bg-icy-blue-600 disabled:bg-daintree-800 disabled:text-[#4B5563]"
         >
           {action === "manage" ? "Update" : "Import Wallet"}
         </button>
