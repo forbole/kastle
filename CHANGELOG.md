@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.7.1](https://github.com/forbole/kastle/compare/v2.7.0...v2.7.1) (2025-03-11)
+
+
+### Bug Fixes
+
+* **ledger:** initialize ledger last number ([#52](https://github.com/forbole/kastle/issues/52)) ([47884da](https://github.com/forbole/kastle/commit/47884daac0379b93f8a8e7b35cb3ca40514b5588))
+
 ## [2.7.0](https://github.com/forbole/kastle/compare/v2.6.0...v2.7.0) (2025-03-07)
 
 
