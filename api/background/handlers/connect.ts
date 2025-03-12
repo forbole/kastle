@@ -29,18 +29,18 @@ export const connectHandler: Handler = async (
     return;
   }
 
-  // Check if connection is already existing
-  if (await ApiUtils.isHostConnected(message.host)) {
-    sendResponse(new ApiResponse(message.id, true));
-    return;
-  }
-
   // Check if networkId matches
   if (!(await ApiUtils.matchNetworkId(payload.networkId))) {
     sendError(
       "Network ID does not match, please change network to " +
         payload.networkId,
     );
+    return;
+  }
+
+  // Check if connection is already existing
+  if (await ApiUtils.isHostConnected(message.host)) {
+    sendResponse(new ApiResponse(message.id, true));
     return;
   }
 
