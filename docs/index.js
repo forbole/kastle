@@ -1,6 +1,23 @@
+let network = "testnet-10";
+
+document.getElementById("changeToMainnet").addEventListener("click", () => {
+  network = "mainnet";
+  document.getElementById("network").innerText = network;
+});
+
+document.getElementById("changeToTestnet10").addEventListener("click", () => {
+  network = "testnet-10";
+  document.getElementById("network").innerText = network;
+});
+
+document.getElementById("changeToTestnet11").addEventListener("click", () => {
+  network = "testnet-11";
+  document.getElementById("network").innerText = network;
+});
+
 document.getElementById("connectButton").addEventListener("click", async () => {
   try {
-    const result = await kastle.connect("testnet-10");
+    const result = await kastle.connect(network);
     document.getElementById("connected").innerText = result;
     document.getElementById("error").innerText = "None";
   } catch (error) {
@@ -24,7 +41,7 @@ document
 function getRpc() {
   return (rpc = new kaspaWasm.RpcClient({
     url: "wss://ws.tn10.kaspa.forbole.com/borsh",
-    networkId: "testnet-10",
+    networkId: network,
   }));
 }
 
@@ -55,13 +72,13 @@ document
         ],
         priorityFee: kaspaWasm.kaspaToSompi("0.1"),
         changeAddress: address,
-        networkId: "testnet-10",
+        networkId: network,
       });
 
       const transaction = pending.transactions[0];
       const txJson = transaction.serializeToSafeJSON();
 
-      const txId = await kastle.signAndBroadcastTx("testnet-10", txJson);
+      const txId = await kastle.signAndBroadcastTx(network, txJson);
       document.getElementById("txId").innerText = txId;
     } catch (error) {
       document.getElementById("error").innerText = error.message;
@@ -115,13 +132,13 @@ async function commitTransaction(P2SHAddress) {
       ],
       priorityFee: kaspaWasm.kaspaToSompi("0.1"),
       changeAddress: address,
-      networkId: "testnet-10",
+      networkId: network,
     });
 
     const transaction = pending.transactions[0];
     const txJson = transaction.serializeToSafeJSON();
 
-    const commitTxId = await kastle.signAndBroadcastTx("testnet-10", txJson);
+    const commitTxId = await kastle.signAndBroadcastTx(network, txJson);
     return commitTxId;
   } finally {
     rpc.disconnect();
@@ -149,14 +166,14 @@ async function revealTransaction(p2shEntry, outputs, scripts, priorityFee) {
       outputs,
       priorityFee: kaspaWasm.kaspaToSompi(priorityFee),
       changeAddress: address,
-      networkId: "testnet-10",
+      networkId: network,
     });
 
     const transaction = pending.transactions[0];
     const txJson = transaction.serializeToSafeJSON();
 
     const revealTxId = await kastle.signAndBroadcastTx(
-      "testnet-10",
+      network,
       txJson,
       scripts,
     );
@@ -183,7 +200,7 @@ document
       const scriptPublicKey = scriptBuilder.createPayToScriptHashScript();
       const P2SHAddress = kaspaWasm.addressFromScriptPublicKey(
         scriptPublicKey,
-        "testnet-10",
+        network,
       );
 
       const commitTxId = await commitTransaction(P2SHAddress.toString());
@@ -202,7 +219,7 @@ document
   .addEventListener("click", async () => {
     const rpc = new kaspaWasm.RpcClient({
       url: "wss://ws.tn10.kaspa.forbole.com/borsh",
-      networkId: "testnet-10",
+      networkId: network,
     });
     await rpc.connect();
 
@@ -259,7 +276,7 @@ document.getElementById("krcMintCommit").addEventListener("click", async () => {
     const scriptPublicKey = scriptBuilder.createPayToScriptHashScript();
     const P2SHAddress = kaspaWasm.addressFromScriptPublicKey(
       scriptPublicKey,
-      "testnet-10",
+      network,
     );
 
     const commitTxId = await commitTransaction(P2SHAddress.toString());
@@ -277,7 +294,7 @@ document.getElementById("krcMintCommit").addEventListener("click", async () => {
 document.getElementById("krcMintReveal").addEventListener("click", async () => {
   const rpc = new kaspaWasm.RpcClient({
     url: "wss://ws.tn10.kaspa.forbole.com/borsh",
-    networkId: "testnet-10",
+    networkId: network,
   });
   await rpc.connect();
 
@@ -336,7 +353,7 @@ document
       const scriptPublicKey = scriptBuilder.createPayToScriptHashScript();
       const P2SHAddress = kaspaWasm.addressFromScriptPublicKey(
         scriptPublicKey,
-        "testnet-10",
+        network,
       );
 
       const commitTxId = await commitTransaction(P2SHAddress.toString());
@@ -357,7 +374,7 @@ document
   .addEventListener("click", async () => {
     const rpc = new kaspaWasm.RpcClient({
       url: "wss://ws.tn10.kaspa.forbole.com/borsh",
-      networkId: "testnet-10",
+      networkId: network,
     });
     await rpc.connect();
 
@@ -449,7 +466,7 @@ document.getElementById("krcListCommit").addEventListener("click", async () => {
     const scriptPublicKey = scriptBuilder.createPayToScriptHashScript();
     const P2SHAddress = kaspaWasm.addressFromScriptPublicKey(
       scriptPublicKey,
-      "testnet-10",
+      network,
     );
 
     const commitTxId = await commitTransaction(P2SHAddress.toString());
@@ -467,7 +484,7 @@ document.getElementById("krcListCommit").addEventListener("click", async () => {
 document.getElementById("krcListReveal").addEventListener("click", async () => {
   const rpc = new kaspaWasm.RpcClient({
     url: "wss://ws.tn10.kaspa.forbole.com/borsh",
-    networkId: "testnet-10",
+    networkId: network,
   });
   await rpc.connect();
 
@@ -498,7 +515,7 @@ document.getElementById("krcListReveal").addEventListener("click", async () => {
     const sendScriptPublicKey = sendScriptBuilder.createPayToScriptHashScript();
     const sendP2SHAddress = kaspaWasm.addressFromScriptPublicKey(
       sendScriptPublicKey,
-      "testnet-10",
+      network,
     );
 
     document.getElementById("sendP2SHAddress").innerText =
@@ -537,7 +554,7 @@ document
   .addEventListener("click", async () => {
     const rpc = new kaspaWasm.RpcClient({
       url: "wss://ws.tn10.kaspa.forbole.com/borsh",
-      networkId: "testnet-10",
+      networkId: network,
     });
     await rpc.connect();
 
@@ -564,7 +581,7 @@ document
       );
 
       const preparedTxJson = tx.serializeToSafeJSON();
-      const signedTx = await kastle.signTx("testnet-10", preparedTxJson, [
+      const signedTx = await kastle.signTx(network, preparedTxJson, [
         {
           inputIndex: 0,
           scriptHex: sendScriptBuilder.toString(),
@@ -585,7 +602,7 @@ document
   .addEventListener("click", async () => {
     const rpc = new kaspaWasm.RpcClient({
       url: "wss://ws.tn10.kaspa.forbole.com/borsh",
-      networkId: "testnet-10",
+      networkId: network,
     });
     await rpc.connect();
 
@@ -636,7 +653,7 @@ document.getElementById("krcBuyReveal").addEventListener("click", async () => {
   const address = document.getElementById("address").innerText;
   const rpc = new kaspaWasm.RpcClient({
     url: "wss://ws.tn10.kaspa.forbole.com/borsh",
-    networkId: "testnet-10",
+    networkId: network,
   });
   await rpc.connect();
 
@@ -674,7 +691,7 @@ document.getElementById("krcBuyReveal").addEventListener("click", async () => {
     ];
 
     const signedTx = await kastle.signTx(
-      "testnet-10",
+      network,
       tx.serializeToSafeJSON(),
     );
     const { transactionId } = await rpc.submitTransaction(
