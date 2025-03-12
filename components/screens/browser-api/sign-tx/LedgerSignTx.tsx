@@ -18,32 +18,20 @@ export default function LedgerSignTx({
   requestId,
   payload,
 }: LedgerSignTxProps) {
-  if (payload.scripts) {
-    ApiExtensionUtils.sendMessage(
-      requestId,
-      new ApiResponse(
-        requestId,
-        null,
-        "Ledger does not support advanced scripts signing",
-      ),
-    );
-    return <LedgerNotSupported />;
-  }
-
-  if (payload.scripts) {
-    ApiExtensionUtils.sendMessage(
-      requestId,
-      new ApiResponse(
-        requestId,
-        null,
-        "Ledger does not support advanced scripts signing",
-      ),
-    );
-    return <LedgerNotSupported />;
-  }
-
   const { transport, isAppOpen } = useLedgerTransport();
   const { rpcClient } = useRpcClientStateful();
+
+  if (payload.scripts) {
+    ApiExtensionUtils.sendMessage(
+      requestId,
+      new ApiResponse(
+        requestId,
+        null,
+        "Ledger does not support advanced scripts signing",
+      ),
+    );
+    return <LedgerNotSupported />;
+  }
 
   const wallet =
     rpcClient && transport

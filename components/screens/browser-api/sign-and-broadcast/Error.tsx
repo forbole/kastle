@@ -1,5 +1,4 @@
 import { explorerTxLinks } from "@/components/screens/Settings.tsx";
-import { useNavigate } from "react-router-dom";
 import React from "react";
 import warningImage from "@/assets/images/warning.png";
 import Header from "@/components/GeneralHeader";

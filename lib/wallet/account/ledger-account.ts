@@ -155,7 +155,7 @@ export class LedgerAccount implements IWallet {
     tx: Transaction,
     scripts?: ScriptOption[],
   ): Promise<Transaction> {
-    if (!!scripts) {
+    if (scripts) {
       throw new Error("Method not implemented.");
     }
 

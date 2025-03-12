@@ -18,6 +18,9 @@ export default function LedgerSignAndBroadcast({
   requestId,
   payload,
 }: LedgerSignAndBroadcastProps) {
+  const { transport, isAppOpen } = useLedgerTransport();
+  const { rpcClient } = useRpcClientStateful();
+
   if (payload.scripts) {
     ApiExtensionUtils.sendMessage(
       requestId,
@@ -29,9 +32,6 @@ export default function LedgerSignAndBroadcast({
     );
     return <LedgerNotSupported />;
   }
-
-  const { transport, isAppOpen } = useLedgerTransport();
-  const { rpcClient } = useRpcClientStateful();
 
   const wallet =
     rpcClient && transport
