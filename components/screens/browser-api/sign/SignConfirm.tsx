@@ -139,7 +139,7 @@ export default function SignConfirm({
         <ul className="mt-3 flex flex-col rounded-lg bg-daintree-800">
           <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
             <div className="flex w-full items-start justify-between">
-              <span className="font-medium">Your new balance will be</span>
+              <span className="font-medium">Change to your balance</span>
               <div
                 className={twMerge(
                   "flex flex-col text-right",
