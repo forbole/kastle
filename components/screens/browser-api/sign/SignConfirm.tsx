@@ -13,6 +13,7 @@ import signImage from "@/assets/images/sign.png";
 import useKaspaPrice from "@/hooks/useKaspaPrice.ts";
 import DetailsSelector from "@/components/screens/browser-api/sign/DetailsSelector";
 import { twMerge } from "tailwind-merge";
+import { useSettings } from "@/hooks/useSettings";
 
 type SignConfirmProps = {
   payload: SignTxPayload;
@@ -28,6 +29,7 @@ export default function SignConfirm({
   const kapsaPrice = useKaspaPrice();
   const { account } = useWalletManager();
   const [hideDetails, setHideDetails] = useState(true);
+  const [settings, setSettings] = useSettings();
 
   const transaction = Transaction.deserializeFromSafeJSON(payload.txJson);
 
@@ -118,6 +120,16 @@ export default function SignConfirm({
   ];
   const selectedNetwork = networks.find((n) => n.id === payload.networkId);
 
+  const networkId = settings?.networkId;
+
+  const networkMismatched = networkId?.toString() !== payload.networkId;
+  const switchNetwork = () => {
+    setSettings((prev) => ({
+      ...prev,
+      networkId: payload.networkId as NetworkType,
+    }));
+  };
+
   return (
     <div className="flex h-full flex-col justify-between">
       <div>
@@ -136,88 +148,111 @@ export default function SignConfirm({
           </div>
         </div>
 
-        <ul className="mt-3 flex flex-col rounded-lg bg-daintree-800">
-          <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
-            <div className="flex w-full items-start justify-between">
-              <span className="font-medium">Change to your balance</span>
-              <div
-                className={twMerge(
-                  "flex flex-col text-right",
-                  differenceInKas >= 0 ? "text-teal-500" : "text-red-500",
-                )}
+        {/* Network mismatch */}
+        {networkMismatched && (
+          <div className="mt-12 space-y-16 text-center">
+            <h3 className="text-xl font-semibold">
+              {"You're on a different network than the one required."}
+            </h3>
+            <button
+              onClick={switchNetwork}
+              className="rounded-full bg-icy-blue-400 p-5 text-base font-semibold hover:bg-icy-blue-600"
+            >
+              Switch to {selectedNetwork?.name} now
+            </button>
+          </div>
+        )}
+
+        {/* Confirm Content */}
+        {!networkMismatched && (
+          <>
+            <ul className="mt-3 flex flex-col rounded-lg bg-daintree-800">
+              <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
+                <div className="flex w-full items-start justify-between">
+                  <span className="font-medium">Change to your balance</span>
+                  <div
+                    className={twMerge(
+                      "flex flex-col text-right",
+                      differenceInKas >= 0 ? "text-teal-500" : "text-red-500",
+                    )}
+                  >
+                    <span className="font-medium">
+                      {differenceInKas >= 0 && "+"}
+                      {differenceInKas} KAS
+                    </span>
+                    <span className="text-xs text-daintree-400">
+                      {differenceInKas * kapsaPrice.kaspaPrice} USD
+                    </span>
+                  </div>
+                </div>
+              </li>
+            </ul>
+            {/* Result */}
+            <ul className="mt-3 flex flex-col rounded-lg bg-daintree-800">
+              <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
+                <div className="flex w-full items-start justify-between">
+                  <span className="font-medium">Sending amount</span>
+                  <div className="flex flex-col text-right">
+                    <span className="font-medium">
+                      {sendingAmountInKas} KAS
+                    </span>
+                    <span className="text-xs text-daintree-400">
+                      {parseFloat(sendingAmountInKas) * kapsaPrice.kaspaPrice}{" "}
+                      USD
+                    </span>
+                  </div>
+                </div>
+              </li>
+              <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
+                <div className="flex w-full items-start justify-between">
+                  <span className="font-medium">Fee</span>
+                  <div className="flex flex-col text-right">
+                    <span className="font-medium">{feesInKas} KAS</span>
+                    <span className="text-xs text-daintree-400">
+                      {parseFloat(feesInKas) * kapsaPrice.kaspaPrice} USD
+                    </span>
+                  </div>
+                </div>
+              </li>
+            </ul>
+            <div className="space-y-4 py-4">
+              <span
+                className="inline-flex cursor-pointer items-center gap-2 font-semibold text-[#00B1D0]"
+                onClick={() => setHideDetails(!hideDetails)}
               >
-                <span className="font-medium">
-                  {differenceInKas >= 0 && "+"}
-                  {differenceInKas} KAS
-                </span>
-                <span className="text-xs text-daintree-400">
-                  {differenceInKas * kapsaPrice.kaspaPrice} USD
-                </span>
-              </div>
-            </div>
-          </li>
-        </ul>
+                Show raw transaction details
+                {hideDetails ? (
+                  <i className="hn hn-chevron-down h-[14px] w-[14px]" />
+                ) : (
+                  <i className="hn hn-chevron-up h-[14px] w-[14px]" />
+                )}
+              </span>
 
-        {/* Result */}
-        <ul className="mt-3 flex flex-col rounded-lg bg-daintree-800">
-          <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
-            <div className="flex w-full items-start justify-between">
-              <span className="font-medium">Sending amount</span>
-              <div className="flex flex-col text-right">
-                <span className="font-medium">{sendingAmountInKas} KAS</span>
-                <span className="text-xs text-daintree-400">
-                  {parseFloat(sendingAmountInKas) * kapsaPrice.kaspaPrice} USD
-                </span>
-              </div>
+              {!hideDetails && <DetailsSelector payload={payload} />}
             </div>
-          </li>
-          <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
-            <div className="flex w-full items-start justify-between">
-              <span className="font-medium">Fee</span>
-              <div className="flex flex-col text-right">
-                <span className="font-medium">{feesInKas} KAS</span>
-                <span className="text-xs text-daintree-400">
-                  {parseFloat(feesInKas) * kapsaPrice.kaspaPrice} USD
-                </span>
-              </div>
-            </div>
-          </li>
-        </ul>
-
-        <div className="space-y-4 py-4">
-          <span
-            className="inline-flex cursor-pointer items-center gap-2 font-semibold text-[#00B1D0]"
-            onClick={() => setHideDetails(!hideDetails)}
-          >
-            Show raw transaction details
-            {hideDetails ? (
-              <i className="hn hn-chevron-down h-[14px] w-[14px]" />
-            ) : (
-              <i className="hn hn-chevron-up h-[14px] w-[14px]" />
-            )}
-          </span>
-
-          {!hideDetails && <DetailsSelector payload={payload} />}
-        </div>
+          </>
+        )}
       </div>
 
       {/* Buttons */}
-      <div
-        className={twMerge(
-          "flex gap-2 text-base font-semibold",
-          !hideDetails && "pb-4",
-        )}
-      >
-        <button className="rounded-full p-5 text-[#7B9AAA]" onClick={cancel}>
-          Cancel
-        </button>
-        <button
-          className="flex-auto rounded-full bg-icy-blue-400 py-5 font-semibold hover:bg-icy-blue-600"
-          onClick={confirm}
+      {!networkMismatched && (
+        <div
+          className={twMerge(
+            "flex gap-2 text-base font-semibold",
+            !hideDetails && "pb-4",
+          )}
         >
-          Confirm
-        </button>
-      </div>
+          <button className="rounded-full p-5 text-[#7B9AAA]" onClick={cancel}>
+            Cancel
+          </button>
+          <button
+            className="flex-auto rounded-full bg-icy-blue-400 py-5 font-semibold hover:bg-icy-blue-600"
+            onClick={confirm}
+          >
+            Confirm
+          </button>
+        </div>
+      )}
     </div>
   );
 }
