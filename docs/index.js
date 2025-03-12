@@ -690,10 +690,7 @@ document.getElementById("krcBuyReveal").addEventListener("click", async () => {
       { value: change, scriptPublicKey: kaspaWasm.payToAddressScript(address) },
     ];
 
-    const signedTx = await kastle.signTx(
-      network,
-      tx.serializeToSafeJSON(),
-    );
+    const signedTx = await kastle.signTx(network, tx.serializeToSafeJSON());
     const { transactionId } = await rpc.submitTransaction(
       kaspaWasm.Transaction.deserializeFromSafeJSON(signedTx),
     );
