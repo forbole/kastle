@@ -131,9 +131,8 @@ export default function ConnectConfirm() {
             "Connect to " +
             (tabName.length < 10 ? tabName : tabName.slice(0, 10) + "...")
           }
-          onClose={async () => {
-            await ApiExtensionUtils.sendMessage(requestId, denyMessage);
-          }}
+          showPrevious={false}
+          showClose={false}
         />
         <div className="relative">
           <div
