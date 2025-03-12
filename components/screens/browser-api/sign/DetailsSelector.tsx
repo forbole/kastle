@@ -43,7 +43,9 @@ export default function DetailsSelector({
       {/* Scripts */}
       <div className="space-y-3">
         {activeTab === "scripts" && !payload.scripts && (
-          <div className="text-center text-[#7B9AAA]">No scripts</div>
+          <div className="flex h-20 w-full items-center justify-center rounded-lg bg-[#102832] text-center text-[#7B9AAA]">
+            No scripts for this transaction
+          </div>
         )}
         {activeTab === "scripts" &&
           payload.scripts &&
