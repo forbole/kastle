@@ -55,7 +55,12 @@ export default function LedgerSignAndBroadcast({
       : null;
 
   return wallet ? (
-    <SignAndBroadcast wallet={wallet} requestId={requestId} payload={payload} />
+    <SignAndBroadcast
+      walletType="ledger"
+      wallet={wallet}
+      requestId={requestId}
+      payload={payload}
+    />
   ) : (
     <Splash />
   );

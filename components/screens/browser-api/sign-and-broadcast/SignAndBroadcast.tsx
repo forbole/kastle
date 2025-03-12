@@ -10,21 +10,24 @@ import Broadcasting from "@/components/screens/browser-api/sign-and-broadcast/Br
 import { sleep } from "@/lib/utils";
 import Success from "@/components/screens/browser-api/sign-and-broadcast/Success";
 import Error from "@/components/screens/browser-api/sign-and-broadcast/Error";
+import LedgerConfirm from "@/components/screens/ledger-connect/LedgerConfirm";
 
 type SignAndBroadcastProps = {
+  walletType: string;
   wallet: IWallet;
   requestId: string;
   payload: SignTxPayload;
 };
 
 export default function SignAndBroadcast({
+  walletType,
   wallet,
   requestId,
   payload,
 }: SignAndBroadcastProps) {
   const [isBroadcasting, setBroadcasting] = useState(false);
   const [state, setState] = useState<
-    "confirm" | "broadcasting" | "success" | "error"
+    "confirm" | "signing" | "broadcasting" | "success" | "error"
   >("confirm");
   const { rpcClient } = useRpcClientStateful();
   const { account } = useWalletManager();
@@ -39,11 +42,13 @@ export default function SignAndBroadcast({
 
     try {
       setBroadcasting(true);
-      setState("broadcasting");
+      setState("signing");
       const signedTx = await wallet.signTx(transaction, payload.scripts);
       const { transactionId: txId } = await rpcClient.submitTransaction({
         transaction: signedTx,
       });
+      setState("broadcasting");
+
       await ApiExtensionUtils.sendMessage(
         requestId,
         new ApiResponse(requestId, txId),
@@ -85,6 +90,12 @@ export default function SignAndBroadcast({
           confirm={handleConfirm}
         />
       )}
+
+      {state === "signing" && walletType === "ledger" && (
+        <LedgerConfirm showClose={false} showPrevious={false} />
+      )}
+
+      {state === "signing" && walletType !== "ledger" && <Broadcasting />}
 
       {state === "broadcasting" && <Broadcasting />}
       {state === "success" && <Success transactionIds={txIds} />}

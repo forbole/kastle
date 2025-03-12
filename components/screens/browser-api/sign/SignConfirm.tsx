@@ -87,7 +87,7 @@ export default function SignConfirm({
   const selectedNetwork = networks.find((n) => n.id === payload.networkId);
 
   return (
-    <div className="flex h-screen flex-col justify-between p-4 pb-0">
+    <div className="flex h-full flex-col justify-between">
       <div>
         <Header showPrevious={false} onClose={cancel} title="Confirm" />
         <div className="relative">
@@ -170,7 +170,7 @@ export default function SignConfirm({
       </div>
 
       {/* Buttons */}
-      <div className="flex gap-2 pb-4 text-base font-semibold">
+      <div className="flex gap-2 text-base font-semibold">
         <button className="rounded-full p-5 text-[#7B9AAA]" onClick={cancel}>
           Cancel
         </button>

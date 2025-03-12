@@ -23,7 +23,7 @@ export default function SignTxConfirm() {
   const loading = !wallet || !requestId || !payload;
 
   return (
-    <>
+    <div className="h-screen p-4">
       {loading && <>Loading</>}
       {!loading && wallet.type !== "ledger" && (
         <HotWalletSignTx requestId={requestId} payload={payload} />
@@ -31,6 +31,6 @@ export default function SignTxConfirm() {
       {!loading && wallet.type === "ledger" && (
         <LedgerSignTx requestId={requestId} payload={payload} />
       )}
-    </>
+    </div>
   );
 }

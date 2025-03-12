@@ -2,16 +2,26 @@ import ledgerOnConfirmImage from "@/assets/images/ledger-on-confirm.png";
 import Header from "@/components/GeneralHeader";
 
 export default function LedgerConfirm({
+  showPrevious = true,
+  showClose = true,
   onBack,
   onClose,
 }: {
-  onBack: () => void;
-  onClose: () => void;
+  showPrevious?: boolean;
+  showClose?: boolean;
+  onBack?: () => void;
+  onClose?: () => void;
 }) {
   return (
     <>
       <div className="space-y-10">
-        <Header title="Confirm on Ledger" onBack={onBack} onClose={onClose} />
+        <Header
+          title="Confirm on Ledger"
+          showPrevious={showPrevious}
+          showClose={showClose}
+          onBack={onBack}
+          onClose={onClose}
+        />
         <div className="space-y-4">
           <img
             alt="ledger on confirm"

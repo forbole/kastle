@@ -19,7 +19,7 @@ export default function SignAndBroadcastTxConfirm() {
   const loading = !wallet || !requestId || !payload;
 
   return (
-    <>
+    <div className="h-screen p-4">
       {loading && <>Loading</>}
       {!loading && wallet.type !== "ledger" && (
         <HotWalletSignAndBroadcast requestId={requestId} payload={payload} />
@@ -27,6 +27,6 @@ export default function SignAndBroadcastTxConfirm() {
       {!loading && wallet.type === "ledger" && (
         <LedgerSignAndBroadcast requestId={requestId} payload={payload} />
       )}
-    </>
+    </div>
   );
 }
