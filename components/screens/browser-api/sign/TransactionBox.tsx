@@ -10,7 +10,7 @@ export default function TransactionDetailsBox({
   const prettierJson = JSON.stringify(JSON.parse(jsonContent), null, 2);
 
   return (
-    <div className="font-mono text-[#7B9AAA] bg-[#102832] rounded-lg">
+    <div className="rounded-lg bg-[#102832] font-mono text-[#7B9AAA]">
       <div className="relative mx-auto max-w-3xl">
         <div
           className="absolute right-2 top-2 z-10 cursor-pointer rounded p-2 transition duration-200 hover:bg-gray-600 hover:text-white"
