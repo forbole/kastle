@@ -4,6 +4,7 @@ import LedgerSignTx from "@/components/screens/browser-api/sign-tx/LedgerSignTx"
 import useWalletManager from "@/hooks/useWalletManager.ts";
 import { ApiExtensionUtils } from "@/api/extension";
 import { ApiResponse } from "@/api/message";
+import Splash from "@/components/screens/Splash";
 
 export default function SignTxConfirm() {
   const { wallet } = useWalletManager();
@@ -39,7 +40,7 @@ export default function SignTxConfirm() {
 
   return (
     <div className="h-screen p-4">
-      {loading && <>Loading</>}
+      {loading && <Splash />}
       {!loading && wallet.type !== "ledger" && (
         <HotWalletSignTx requestId={requestId} payload={payload} />
       )}

@@ -5,6 +5,7 @@ import useWalletManager from "@/hooks/useWalletManager.ts";
 import { useEffect } from "react";
 import { ApiExtensionUtils } from "@/api/extension";
 import { ApiResponse } from "@/api/message";
+import Splash from "@/components/screens/Splash";
 
 export default function SignAndBroadcastTxConfirm() {
   const { wallet } = useWalletManager();
@@ -36,7 +37,7 @@ export default function SignAndBroadcastTxConfirm() {
 
   return (
     <div className="h-screen p-4">
-      {loading && <>Loading</>}
+      {loading && <Splash />}
       {!loading && wallet.type !== "ledger" && (
         <HotWalletSignAndBroadcast requestId={requestId} payload={payload} />
       )}
