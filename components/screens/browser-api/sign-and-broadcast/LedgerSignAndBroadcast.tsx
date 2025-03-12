@@ -1,6 +1,5 @@
 import { SignTxPayload } from "@/api/message";
 import LedgerNotSupported from "@/components/screens/browser-api/sign/LedgerNotSupported";
-import { useNavigate } from "react-router-dom";
 import SignAndBroadcast from "@/components/screens/browser-api/sign-and-broadcast/SignAndBroadcast";
 import { AccountFactory } from "@/lib/wallet/wallet-factory";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
@@ -8,6 +7,7 @@ import { NetworkType } from "@/contexts/SettingsContext";
 import Splash from "@/components/screens/Splash";
 import { ApiExtensionUtils } from "@/api/extension";
 import { ApiResponse } from "@/api/message";
+import LedgerConnectForSign from "@/components/screens/ledger-connect/LedgerConnectForSign";
 
 type LedgerSignAndBroadcastProps = {
   requestId: string;
@@ -30,21 +30,8 @@ export default function LedgerSignAndBroadcast({
     return <LedgerNotSupported />;
   }
 
-  const navigate = useNavigate();
   const { transport, isAppOpen } = useLedgerTransport();
   const { rpcClient } = useRpcClientStateful();
-
-  useEffect(() => {
-    if (!transport || !isAppOpen) {
-      const currentUrl = new URL(window.location.href);
-      const pathname = window.location.hash.replace(/#/, "");
-      navigate({
-        pathname: "/ledger-connect-for-sign",
-        search: `?redirect=${pathname}${encodeURIComponent(currentUrl.search)}`,
-      });
-      return;
-    }
-  }, [transport]);
 
   const wallet =
     rpcClient && transport
@@ -54,14 +41,20 @@ export default function LedgerSignAndBroadcast({
         ).createFromLedger(transport)
       : null;
 
-  return wallet ? (
-    <SignAndBroadcast
-      walletType="ledger"
-      wallet={wallet}
-      requestId={requestId}
-      payload={payload}
-    />
-  ) : (
-    <Splash />
+  return (
+    <>
+      {(!transport || !isAppOpen) && (
+        <LedgerConnectForSign showClose={false} showPrevious={false} />
+      )}
+      {transport && isAppOpen && !wallet && <Splash />}
+      {wallet && isAppOpen && (
+        <SignAndBroadcast
+          walletType="ledger"
+          wallet={wallet}
+          requestId={requestId}
+          payload={payload}
+        />
+      )}
+    </>
   );
 }

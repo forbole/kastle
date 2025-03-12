@@ -2,12 +2,14 @@ import { SignTxPayload } from "@/api/message";
 import HotWalletSignAndBroadcast from "@/components/screens/browser-api/sign-and-broadcast/HotWalletSignAndBroadcast";
 import LedgerSignAndBroadcast from "@/components/screens/browser-api/sign-and-broadcast/LedgerSignAndBroadcast";
 import useWalletManager from "@/hooks/useWalletManager.ts";
+import { useEffect } from "react";
+import { ApiExtensionUtils } from "@/api/extension";
+import { ApiResponse } from "@/api/message";
 
 export default function SignAndBroadcastTxConfirm() {
   const { wallet } = useWalletManager();
-  const requestId = new URLSearchParams(window.location.search).get(
-    "requestId",
-  );
+  const requestId =
+    new URLSearchParams(window.location.search).get("requestId") ?? "";
   const encodedPayload = new URLSearchParams(window.location.search).get(
     "payload",
   );
@@ -17,6 +19,20 @@ export default function SignAndBroadcastTxConfirm() {
     : null;
 
   const loading = !wallet || !requestId || !payload;
+
+  useEffect(() => {
+    // Handle beforeunload event
+    async function beforeunload(event: BeforeUnloadEvent) {
+      const denyMessage = new ApiResponse(requestId, false, "User denied");
+      await ApiExtensionUtils.sendMessage(requestId, denyMessage);
+    }
+
+    window.addEventListener("beforeunload", beforeunload);
+
+    return () => {
+      window.removeEventListener("beforeunload", beforeunload);
+    };
+  }, []);
 
   return (
     <div className="h-screen p-4">

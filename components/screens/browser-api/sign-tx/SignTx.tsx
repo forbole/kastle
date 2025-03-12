@@ -4,15 +4,22 @@ import { IWallet } from "@/lib/wallet/wallet-interface.ts";
 import { useBoolean } from "usehooks-ts";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import { Transaction } from "@/wasm/core/kaspa";
-import SignConfirm from "../sign/SignConfirm";
+import SignConfirm from "@/components/screens/browser-api/sign/SignConfirm";
+import LedgerConfirm from "@/components/screens/ledger-connect/LedgerConfirm";
 
 type SignTxProps = {
+  walletType: string;
   wallet: IWallet;
   requestId: string;
   payload: SignTxPayload;
 };
 
-export default function SignTx({ wallet, requestId, payload }: SignTxProps) {
+export default function SignTx({
+  walletType,
+  wallet,
+  requestId,
+  payload,
+}: SignTxProps) {
   const { value: isLoading, toggle: toggleLoading } = useBoolean(false);
   const { rpcClient } = useRpcClientStateful();
 
@@ -54,10 +61,17 @@ export default function SignTx({ wallet, requestId, payload }: SignTxProps) {
   };
 
   return (
-    <SignConfirm
-      confirm={handleConfirm}
-      cancel={handleCancel}
-      payload={payload}
-    />
+    <>
+      {isLoading && walletType === "ledger" && (
+        <LedgerConfirm showClose={false} showPrevious={false} />
+      )}
+      {!isLoading && walletType != "ledger" && (
+        <SignConfirm
+          confirm={handleConfirm}
+          cancel={handleCancel}
+          payload={payload}
+        />
+      )}
+    </>
   );
 }

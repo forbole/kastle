@@ -32,15 +32,15 @@ export default function SignConfirm({
   const transaction = Transaction.deserializeFromSafeJSON(payload.txJson);
 
   const inputsAmount = transaction.inputs.reduce(
-    (acc, input) => acc + (input.utxo?.amount ?? BigInt(0)),
-    BigInt(0),
+    (acc, input) => acc + (input.utxo?.amount ?? 0n),
+    0n,
   );
   const outputsAmount = transaction.outputs.reduce(
     (acc, output) => acc + output.value,
-    BigInt(0),
+    0n,
   );
 
-  // Calculate sending amount
+  // Calculate sending amount in output
   const sendingAmount = transaction.outputs
     .filter((output) => {
       if (!account) return false;
@@ -51,18 +51,50 @@ export default function SignConfirm({
 
       return accountScript !== output.scriptPublicKey.toString();
     })
-    .reduce((acc, output) => acc + output.value, BigInt(0));
+    .reduce((acc, output) => acc + output.value, 0n);
 
   const sendingAmountInKas = sompiToKaspaString(sendingAmount);
 
   // Calculate fees
-  let fees = "0";
+  let feesInKas = "0";
   // If inputsAmount is greater than outputsAmount, then we don't need to calculate fees because it would be a incomplete transaction
   if (inputsAmount > outputsAmount) {
-    fees = sompiToKaspaString(inputsAmount - outputsAmount);
+    feesInKas = sompiToKaspaString(inputsAmount - outputsAmount);
   }
 
-  const receiving = 0 - parseFloat(fees) - parseFloat(sendingAmountInKas);
+  // Calculate user sending amount for current user
+  const userSending = transaction.inputs
+    .filter((input) => {
+      if (!account) return false;
+
+      const accountScript = payToAddressScript(
+        new Address(account.address),
+      ).toString();
+
+      return accountScript === input.utxo?.scriptPublicKey.toString();
+    })
+    .reduce((acc, input) => acc + (input.utxo?.amount ?? 0n), 0n);
+
+  // Calculate receiving amount for current user
+  const userReceiving = transaction.outputs
+    .filter((output) => {
+      if (!account) return false;
+
+      const accountScript = payToAddressScript(
+        new Address(account.address),
+      ).toString();
+
+      return accountScript === output.scriptPublicKey.toString();
+    })
+    .reduce((acc, output) => acc + output.value, 0n);
+
+  // Calculate difference, note that sompToKaspaString only works with positive numbers
+  const abs = (n: bigint) => (n < 0n ? -n : n);
+  const difference = userReceiving - userSending;
+  let differenceInKas = parseFloat(sompiToKaspaString(abs(difference)));
+  if (difference < 0n) {
+    differenceInKas = -differenceInKas;
+  }
 
   const networks = [
     {
@@ -89,7 +121,7 @@ export default function SignConfirm({
   return (
     <div className="flex h-full flex-col justify-between">
       <div>
-        <Header showPrevious={false} onClose={cancel} title="Confirm" />
+        <Header showPrevious={false} showClose={false} title="Confirm" />
         <div className="relative">
           <img src={signImage} alt="Sign" className="mx-auto" />
           <div
@@ -111,15 +143,15 @@ export default function SignConfirm({
               <div
                 className={twMerge(
                   "flex flex-col text-right",
-                  receiving >= 0 ? "text-teal-500" : "text-red-500",
+                  differenceInKas >= 0 ? "text-teal-500" : "text-red-500",
                 )}
               >
                 <span className="font-medium">
-                  {receiving >= 0 && "+"}
-                  {receiving} KAS
+                  {differenceInKas >= 0 && "+"}
+                  {differenceInKas} KAS
                 </span>
                 <span className="text-xs text-daintree-400">
-                  {receiving * kapsaPrice.kaspaPrice} USD
+                  {differenceInKas * kapsaPrice.kaspaPrice} USD
                 </span>
               </div>
             </div>
@@ -143,9 +175,9 @@ export default function SignConfirm({
             <div className="flex w-full items-start justify-between">
               <span className="font-medium">Fee</span>
               <div className="flex flex-col text-right">
-                <span className="font-medium">{fees} KAS</span>
+                <span className="font-medium">{feesInKas} KAS</span>
                 <span className="text-xs text-daintree-400">
-                  {parseFloat(fees) * kapsaPrice.kaspaPrice} USD
+                  {parseFloat(feesInKas) * kapsaPrice.kaspaPrice} USD
                 </span>
               </div>
             </div>
@@ -170,7 +202,12 @@ export default function SignConfirm({
       </div>
 
       {/* Buttons */}
-      <div className="flex gap-2 text-base font-semibold">
+      <div
+        className={twMerge(
+          "flex gap-2 text-base font-semibold",
+          !hideDetails && "pb-4",
+        )}
+      >
         <button className="rounded-full p-5 text-[#7B9AAA]" onClick={cancel}>
           Cancel
         </button>
