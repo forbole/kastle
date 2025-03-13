@@ -155,19 +155,19 @@ export default function ConnectConfirm() {
           </div>
 
           {/* App info */}
-          <div className="flex flex-col items-center gap-2">
+          <div className="flex flex-col items-center gap-3">
             {icon ? (
               <img
                 alt={tabName}
-                className="h-12 w-12 rounded-full"
+                className="h-16 w-16 rounded-full"
                 src={icon}
               />
             ) : (
-              <div className="h-12 w-12 rounded-full bg-white" />
+              <div className="h-16 w-16 rounded-full bg-white" />
             )}
             <div className="text-center">
               <div className="text-sm font-semibold">{tabName}</div>
-              <div className="text-xs text-gray-400">{host}</div>
+              <div className="text-xs text-[#7B9AAA]">{host}</div>
             </div>
 
             <div className="pb-3">
@@ -177,7 +177,7 @@ export default function ConnectConfirm() {
 
           <div className="space-y-6">
             {/* Account info */}
-            <div className="rounded-xl border border-gray-600 bg-gray-800 p-4">
+            <div className="rounded-xl border border-[#203C49] bg-[#102832] p-4">
               <div className="flex gap-2">
                 <span className="flex h-9 w-9 min-w-9 items-center justify-center rounded-lg bg-slate-700">
                   {account?.name?.[0]}
@@ -185,7 +185,7 @@ export default function ConnectConfirm() {
                 </span>
                 <div className="flex flex-col font-medium">
                   <span className="text-sm font-semibold">{account?.name}</span>
-                  <div className="break-all text-xs text-gray-400">
+                  <div className="break-all text-xs text-[#7B9AAA]">
                     {account?.address}
                   </div>
                 </div>
@@ -197,7 +197,7 @@ export default function ConnectConfirm() {
               <span className="text-sm font-semibold">
                 Connect this website to:
               </span>
-              <div className="space-y-3 rounded-xl border border-gray-600 bg-gray-800 px-4 py-3 text-xs text-gray-400">
+              <div className="space-y-3 rounded-xl border border-[#203C49] bg-[#102832] px-4 py-3 text-xs text-[#7B9AAA]">
                 <div className="flex items-center gap-2">
                   <img alt="check" className="h-4 w-4" src={CheckCircle} />
                   <span>View your wallet balance and activity</span>
