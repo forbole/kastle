@@ -105,18 +105,21 @@ export default function ConnectConfirm() {
       id: NetworkType.Mainnet,
       name: "Mainnet",
       text: "text-teal-500",
+      iconColor: "bg-teal-500",
       background: "bg-teal-800",
     },
     {
       id: NetworkType.TestnetT10,
       name: "Testnet | T10",
       text: "text-yellow-500",
+      iconColor: "bg-yellow-500",
       background: "bg-yellow-800",
     },
     {
       id: NetworkType.TestnetT11,
       name: "Testnet | T11",
       text: "text-violet-500",
+      iconColor: "bg-violet-500",
       background: "bg-violet-800",
     },
   ];
@@ -137,12 +140,17 @@ export default function ConnectConfirm() {
         <div className="relative">
           <div
             className={twMerge(
-              "absolute right-0 top-0 flex items-center gap-1 rounded-full px-2",
+              "absolute right-0 top-0 flex items-center gap-2 rounded-full px-2",
               selectedNetwork?.text,
               selectedNetwork?.background,
             )}
           >
-            <i className="hn hn-globe-solid" />
+            <i
+              className={twMerge(
+                "rounded-full p-1",
+                selectedNetwork?.iconColor,
+              )}
+            />
             {selectedNetwork?.name}
           </div>
 

@@ -47,17 +47,20 @@ export default function Settings() {
     {
       id: NetworkType.Mainnet,
       name: "Mainnet",
-      color: "text-teal-500",
+      text: "text-teal-500",
+      iconColor: "bg-teal-500",
     },
     {
       id: NetworkType.TestnetT10,
       name: "Testnet T10",
-      color: "text-yellow-500",
+      text: "text-yellow-500",
+      iconColor: "bg-yellow-500",
     },
     {
       id: NetworkType.TestnetT11,
       name: "Testnet T11",
-      color: "text-violet-500",
+      text: "text-violet-500",
+      iconColor: "bg-violet-500",
     },
   ];
   const selectedNetwork = networks.find((n) => n.id === settings?.networkId);
@@ -111,7 +114,7 @@ export default function Settings() {
             title="Network"
             onClick={() => setNetworkDropdownOpen(!networkDropdownOpen)}
           >
-            <span className={twMerge("font-semibold", selectedNetwork?.color)}>
+            <span className={twMerge("font-semibold", selectedNetwork?.text)}>
               {selectedNetwork?.name}
             </span>
           </SettingItem>
@@ -121,15 +124,17 @@ export default function Settings() {
                 <div
                   key={network.id}
                   className={twMerge(
-                    "flex w-full cursor-pointer items-center gap-1 rounded-lg p-2 opacity-80 hover:bg-daintree-700",
-                    network.color,
+                    "flex w-full cursor-pointer items-center gap-2 rounded-lg p-2 opacity-80 hover:bg-daintree-700",
+                    network.text,
                   )}
                   onClick={async () => {
                     await changeNetwork(network.id);
                     setNetworkDropdownOpen(false);
                   }}
                 >
-                  <i className="hn hn-globe-solid text-sm" />
+                  <i
+                    className={twMerge("rounded-full p-1", network.iconColor)}
+                  />
                   <span className="text-sm font-semibold">{network.name}</span>
                   <div className="text-sm"></div>
                 </div>
