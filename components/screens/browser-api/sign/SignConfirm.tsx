@@ -158,7 +158,7 @@ export default function SignConfirm({
               onClick={switchNetwork}
               className="rounded-full bg-icy-blue-400 p-5 text-base font-semibold hover:bg-icy-blue-600"
             >
-              Switch to {selectedNetwork?.name} now
+              Switch to {selectedNetwork?.name}
             </button>
           </div>
         )}
