@@ -38,7 +38,9 @@ export default function GeneralHeader({
             <i className="hn hn-angle-left flex items-center justify-center text-[1.25rem]" />
           </button>
         ) : (
-          <div className="h-5 w-5"></div>
+          <div className="p-3">
+            <div className="h-5 w-5"></div>
+          </div>
         )}
         <h1 className="text-xl font-bold text-white">{title}</h1>
         {showClose ? (
@@ -55,7 +57,9 @@ export default function GeneralHeader({
             <i className="hn hn-times flex items-center justify-center text-[1.25rem]" />
           </button>
         ) : (
-          <div className="h-5 w-5"></div>
+          <div className="p-3">
+            <div className="h-5 w-5"></div>
+          </div>
         )}
       </div>
       {subtitle && (
