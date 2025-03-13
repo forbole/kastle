@@ -179,7 +179,7 @@ export default function ManageAccounts({
       >
         {/* Header */}
         <Header
-          title={action === "manage" ? "Manage Accounts" : "Import Wallet"}
+          title={action === "manage" ? "Manage Accounts" : "Import Accounts"}
           subtitle={subtitle}
           showPrevious={false}
         />
