@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { SignTxPayload } from "@/api/message";
 import TransactionDetailsBox from "@/components/screens/browser-api/sign/TransactionBox";
 import ScriptItem from "@/components/screens/browser-api/sign/ScriptItem";
+import { twMerge } from "tailwind-merge";
 
 export default function DetailsSelector({
   payload,
@@ -15,19 +16,21 @@ export default function DetailsSelector({
   return (
     <div className="w-full space-y-3 pb-3">
       <div className="flex w-full items-center justify-center">
-        <div className="flex w-full rounded-lg bg-[#102832] text-[#E5E7EB]">
+        <div className="flex w-full rounded-lg bg-[#102832] p-1 text-[#E5E7EB]">
           <button
-            className={`flex-1 rounded-md px-4 py-2 text-center text-sm font-medium transition-colors duration-200 ${
-              activeTab === "transaction" ? "bg-[#203C49]" : "hover:text-white"
-            }`}
+            className={twMerge(
+              "flex-1 rounded-md px-4 py-2 text-center text-sm font-medium transition-colors duration-200",
+              activeTab === "transaction" ? "bg-[#203C49]" : "hover:text-white",
+            )}
             onClick={() => setActiveTab("transaction")}
           >
             Transactions
           </button>
           <button
-            className={`flex-1 rounded-md px-4 py-2 text-center text-sm font-medium transition-colors duration-200 ${
-              activeTab === "scripts" ? "bg-[#203C49]" : "hover:text-white"
-            }`}
+            className={twMerge(
+              "flex-1 rounded-md px-4 py-2 text-center text-sm font-medium transition-colors duration-200",
+              activeTab === "scripts" ? "bg-[#203C49]" : "hover:text-white",
+            )}
             onClick={() => setActiveTab("scripts")}
           >
             Scripts

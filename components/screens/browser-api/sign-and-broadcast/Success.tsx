@@ -26,7 +26,7 @@ export default function Success({ transactionIds }: SuccessProps) {
   };
 
   return (
-    <div className="flex h-full flex-col p-4">
+    <div className="flex h-full flex-col">
       <Header title="Dispatched!" showPrevious={false} showClose={false} />
       <div className="mt-20 flex flex-1 flex-col justify-between">
         <div className="flex flex-col items-center gap-4">

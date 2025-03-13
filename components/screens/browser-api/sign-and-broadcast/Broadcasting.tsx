@@ -3,9 +3,9 @@ import carriageImage from "@/assets/images/carriage.png";
 
 export default function Broadcasting() {
   return (
-    <div className="space-y-20 p-4">
+    <div className="space-y-20">
       <div className="flex items-center justify-center">
-        <h1 className="text-center text-3xl font-semibold">Broadcasting</h1>
+        <h1 className="text-center text-xl font-semibold">Broadcasting</h1>
       </div>
 
       <div className="flex h-full flex-col items-center gap-4">
