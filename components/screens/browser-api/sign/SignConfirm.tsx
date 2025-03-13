@@ -186,10 +186,10 @@ export default function SignConfirm({
                   >
                     <span className="font-medium">
                       {differenceInKas >= 0 && "+"}
-                      {differenceInKas} KAS
+                      {differenceInKas.toFixed(3)} KAS
                     </span>
                     <span className="text-xs text-daintree-400">
-                      {differenceInKas * kapsaPrice.kaspaPrice} USD
+                      {(differenceInKas * kapsaPrice.kaspaPrice).toFixed(3)} USD
                     </span>
                   </div>
                 </div>
@@ -202,10 +202,12 @@ export default function SignConfirm({
                   <span className="font-medium">Sending amount</span>
                   <div className="flex flex-col text-right">
                     <span className="font-medium">
-                      {sendingAmountInKas} KAS
+                      {parseFloat(sendingAmountInKas).toFixed(3)} KAS
                     </span>
                     <span className="text-xs text-daintree-400">
-                      {parseFloat(sendingAmountInKas) * kapsaPrice.kaspaPrice}{" "}
+                      {(
+                        parseFloat(sendingAmountInKas) * kapsaPrice.kaspaPrice
+                      ).toFixed(3)}{" "}
                       USD
                     </span>
                   </div>
@@ -215,9 +217,14 @@ export default function SignConfirm({
                 <div className="flex w-full items-start justify-between">
                   <span className="font-medium">Fee</span>
                   <div className="flex flex-col text-right">
-                    <span className="font-medium">{feesInKas} KAS</span>
+                    <span className="font-medium">
+                      {parseFloat(feesInKas).toFixed(3)} KAS
+                    </span>
                     <span className="text-xs text-daintree-400">
-                      {parseFloat(feesInKas) * kapsaPrice.kaspaPrice} USD
+                      {(parseFloat(feesInKas) * kapsaPrice.kaspaPrice).toFixed(
+                        3,
+                      )}{" "}
+                      USD
                     </span>
                   </div>
                 </div>
