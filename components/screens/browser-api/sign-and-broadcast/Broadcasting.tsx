@@ -1,12 +1,11 @@
 import React from "react";
 import carriageImage from "@/assets/images/carriage.png";
+import Header from "@/components/GeneralHeader";
 
 export default function Broadcasting() {
   return (
-    <div className="space-y-20">
-      <div className="flex items-center justify-center">
-        <h1 className="text-center text-xl font-semibold">Broadcasting</h1>
-      </div>
+    <div className="space-y-14">
+      <Header title="Broadcasting" showClose={false} showPrevious={false} />
 
       <div className="flex h-full flex-col items-center gap-4">
         <img
