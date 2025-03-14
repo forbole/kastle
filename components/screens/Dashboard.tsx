@@ -1,19 +1,17 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { SideMenu } from "@/components/side-menu/SideMenu.tsx";
-import kasIcon from "@/assets/images/kas-icon.svg";
 import gavelIcon from "@/assets/images/gavel.svg";
-import { formatToken, formatTokenPrice, formatUSD } from "@/lib/utils.ts";
+import { formatUSD } from "@/lib/utils.ts";
 import ClipboardCopy from "@/components/ClipboardCopy";
 import { twMerge } from "tailwind-merge";
 import useBackupWarning from "@/hooks/useBackupWarning.ts";
 import useKeyring from "@/hooks/useKeyring.ts";
 import useWalletManager from "@/hooks/useWalletManager.ts";
-import TokenListItem from "@/components/dashboard/TokenListItem.tsx";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
-import { useTokenListByAddress } from "@/hooks/useTokenListByAddress.ts";
-import { applyDecimal } from "@/lib/krc20.ts";
 import { Tooltip } from "react-tooltip";
+import Assets from "@/components/dashboard/Assets";
+import KNS from "@/components/dashboard/KNS";
 
 export default function Dashboard() {
   const { keyringLock } = useKeyring();
@@ -25,23 +23,12 @@ export default function Dashboard() {
   const { account, wallet } = useWalletManager();
   const [dismissWarning, setDismissWarning] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("Assets");
 
+  const tabs = ["Assets", "KNS"];
   const address = account?.address;
   const balance = account?.balance;
   const showBalance = !settings?.hideBalances;
-
-  const { data: tokenListResponse } = useTokenListByAddress(address, 5000);
-  const tokenListItems = tokenListResponse?.result
-    ? tokenListResponse.result
-    : [];
-  const tokens = tokenListItems.sort((a, b) => {
-    const { toFloat: aToFloat } = applyDecimal(a.dec);
-    const { toFloat: bToFloat } = applyDecimal(b.dec);
-
-    return (
-      bToFloat(parseInt(b.balance, 10)) - aToFloat(parseInt(a.balance, 10))
-    );
-  });
 
   const toggleBalance = () =>
     setSettings((prevSettings) => ({
@@ -55,8 +42,6 @@ export default function Dashboard() {
   const totalBalance = balance
     ? formatUSD(parseFloat(balance) * kapsaPrice.kaspaPrice)
     : undefined;
-
-  const isAssetListLoading = balance === null;
 
   const isLedger = wallet?.type === "ledger";
   const [deployHovered, setDeployHovered] = useState(false);
@@ -329,53 +314,28 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="flex w-full flex-col gap-2">
-          <span className="py-2 text-lg font-semibold text-white">Assets</span>
-
-          {/* Assets list */}
-          {isAssetListLoading ? (
-            <div className="flex animate-pulse items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3">
-              <span className="block size-12 rounded-full bg-daintree-700"></span>
-              <div className="h-[44px] flex-grow self-center rounded-xl bg-daintree-700" />
-            </div>
-          ) : (
-            <div className="mb-4 flex flex-col items-stretch gap-2">
-              {/*KAS*/}
-              <div
-                className="flex cursor-pointer items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3 hover:border-white"
-                onClick={() => navigate("/kas-asset")}
+        {/* Tabs */}
+        <div className="flex w-full flex-col gap-2 text-lg">
+          <div className="flex items-center font-semibold">
+            {tabs.map((tab, index) => (
+              <span
+                key={index}
+                className={twMerge(
+                  "cursor-pointer border-b-2 px-3 py-2",
+                  activeTab === tab
+                    ? "border-cyan-500 text-cyan-500"
+                    : "border-[#203C49]",
+                )}
+                onClick={() => setActiveTab(tab)}
               >
-                <img alt="castle" className="h-[40px] w-[40px]" src={kasIcon} />
-                <div className="flex flex-grow flex-col gap-1">
-                  <div className="flex items-center justify-between text-base text-white">
-                    <span>KAS</span>
-                    <span>
-                      {showBalance
-                        ? formatToken(parseFloat(balance ?? "0"))
-                        : "*****"}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm text-daintree-400">
-                    <span>{formatTokenPrice(kapsaPrice.kaspaPrice)}</span>
-                    <span>
-                      ≈{" "}
-                      {showBalance
-                        ? formatUSD(
-                            parseFloat(balance ?? "0") * kapsaPrice.kaspaPrice,
-                          )
-                        : "$*****"}{" "}
-                      USD
-                    </span>
-                  </div>
-                </div>
-              </div>
+                {tab}
+              </span>
+            ))}
+          </div>
 
-              {/*KRC20 tokens*/}
-              {tokens.map((token) => (
-                <TokenListItem key={token.tick} token={token} />
-              ))}
-            </div>
-          )}
+          {/* Tab Content */}
+          {activeTab === "Assets" && <Assets />}
+          {activeTab === "KNS" && <KNS />}
         </div>
       </div>
     </div>

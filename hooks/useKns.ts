@@ -2,10 +2,10 @@ import { KNS_API_URLS, NetworkType } from "@/contexts/SettingsContext.tsx";
 
 export interface DomainInfoResponse {
   success: boolean;
-  data: Data;
+  data: DomainData;
 }
 
-export interface Data {
+export interface DomainData {
   id: string;
   assetId: string;
   asset: string;

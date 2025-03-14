@@ -11,7 +11,7 @@ import Send from "@/components/screens/Send.tsx";
 import Welcome from "@/components/screens/Welcome.tsx";
 import ConnectConfirm from "@/components/screens/browser-api/ConnectConfirm";
 import SignAndBroadcastTxConfirm from "@/components/screens/browser-api/SignAndBroadcastTxConfirm";
-import Dashboard from "@/components/screens/Dashboard.tsx";
+import Dashboard from "@/components/screens/Dashboard";
 import Settings from "@/components/screens/Settings.tsx";
 import Receive from "@/components/screens/Receive.tsx";
 import Onboarding from "@/components/screens/Onboarding.tsx";
