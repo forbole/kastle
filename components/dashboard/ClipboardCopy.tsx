@@ -36,7 +36,7 @@ export default function ClipboardCopy({
       <Tooltip
         id="clipboard"
         style={{
-          backgroundColor: "#6b7280",
+          backgroundColor: "#203C49",
           fontSize: "12px",
           fontWeight: 600,
           padding: "8px",

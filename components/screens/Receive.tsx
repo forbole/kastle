@@ -8,6 +8,7 @@ import Header from "@/components/GeneralHeader";
 import { useNavigate } from "react-router-dom";
 import useWalletManager from "@/hooks/useWalletManager.ts";
 import { captureException } from "@sentry/react";
+import KNSMenu from "@/components/receive/KNSMenu.tsx";
 
 const Receive = () => {
   const navigate = useNavigate();
@@ -79,7 +80,10 @@ const Receive = () => {
         />
 
         {/* QR Code Card */}
-        <div className="flex flex-col items-center gap-6 rounded-2xl border border-daintree-700 bg-icy-blue-900 px-4 py-8">
+        <div className="flex flex-col items-center gap-6 rounded-2xl border border-daintree-700 bg-icy-blue-900 px-4 py-6">
+          {/* KNS */}
+          <KNSMenu />
+
           {/* QR Code */}
           <img
             src={qrCodeUrl}
@@ -89,11 +93,7 @@ const Receive = () => {
 
           {/* Token Info */}
           <div className="flex flex-col gap-2 text-center">
-            <h2 className="text-base font-semibold text-white">
-              Receiving KAS
-            </h2>
-
-            <div className="w-full break-all rounded-lg border border-daintree-700 bg-icy-blue-950 p-3 text-start text-sm text-daintree-400">
+            <div className="w-full break-all rounded-lg border border-daintree-700 bg-icy-blue-950 p-3 text-start text-sm">
               {address}
             </div>
           </div>
