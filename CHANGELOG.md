@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.7.2](https://github.com/forbole/kastle/compare/v2.7.1...v2.7.2) (2025-03-14)
+
+
+### Bug Fixes
+
+* **account-management:** update header title for account import ([#55](https://github.com/forbole/kastle/issues/55)) ([c7a60fd](https://github.com/forbole/kastle/commit/c7a60fdc546a85ddf45f08c2f67402329f3d20b7))
+
 ## [2.7.1](https://github.com/forbole/kastle/compare/v2.7.0...v2.7.1) (2025-03-11)
 
 
