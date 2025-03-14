@@ -9,11 +9,7 @@ import {
   RpcClient,
   SighashType,
 } from "@/wasm/core/kaspa";
-import {
-  Entry,
-  PaymentOutput,
-  SignType,
-} from "@/lib/wallet/wallet-interface.ts";
+import { PaymentOutput, SignType } from "@/lib/wallet/wallet-interface.ts";
 
 export const MIN_KAS_AMOUNT = 0.2;
 
@@ -34,17 +30,6 @@ export function toKaspaPaymentOutput(output: PaymentOutput): IPaymentOutput {
   return {
     address: new Address(output.address),
     amount: kaspaToSompi(output.amount) ?? 0n,
-  };
-}
-
-export function toKaspaEntry(entry: Entry): IUtxoEntry {
-  return {
-    amount: kaspaToSompi(entry.amount) ?? 0n,
-    address: entry.address ? new Address(entry.address) : undefined,
-    outpoint: entry.outpoint,
-    blockDaaScore: BigInt(entry.blockDaaScore),
-    scriptPublicKey: entry.scriptPublicKey,
-    isCoinbase: false,
   };
 }
 

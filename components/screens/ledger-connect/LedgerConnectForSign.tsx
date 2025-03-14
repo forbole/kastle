@@ -5,7 +5,13 @@ import Header from "@/components/GeneralHeader";
 import ledgerConnectingImage from "@/assets/images/ledger-connecting.png";
 import { twMerge } from "tailwind-merge";
 
-export default function LedgerConnectForSign() {
+export default function LedgerConnectForSign({
+  showPrevious = true,
+  showClose = true,
+}: {
+  showPrevious?: boolean;
+  showClose?: boolean;
+}) {
   const { transport, connect, isAppOpen, isConnecting } = useLedgerTransport();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -19,19 +25,21 @@ export default function LedgerConnectForSign() {
       return;
     }
 
+    const [pathname, search] = redirect.split("?");
     navigate(
       {
-        pathname: redirect,
+        pathname: pathname,
+        search: search,
       },
       {
-        state: JSON.parse(decodeURIComponent(state ?? "") ?? "{}"),
+        state: state ? JSON.parse(decodeURIComponent(state)) : undefined,
       },
     );
   }, [redirect, state]);
 
   const connectDevice = async () => {
     // Do nothing if the connection is in progress
-    if (isConnecting || !redirect) {
+    if (isConnecting) {
       return;
     }
 
@@ -74,6 +82,8 @@ export default function LedgerConnectForSign() {
       <div className="space-y-10">
         <Header
           title="Connect Ledger"
+          showPrevious={showPrevious}
+          showClose={showClose}
           onBack={redirectBack}
           onClose={() => navigate("/dashboard")}
         />

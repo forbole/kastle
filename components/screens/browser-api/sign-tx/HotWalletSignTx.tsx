@@ -4,6 +4,7 @@ import { IWallet } from "@/lib/wallet/wallet-interface.ts";
 import { AccountFactory } from "@/lib/wallet/wallet-factory";
 import useWalletManager from "@/hooks/useWalletManager.ts";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
+import Splash from "@/components/screens/Splash.tsx";
 
 type HotWalletSignAndBroadcastProps = {
   requestId: string;
@@ -16,19 +17,19 @@ export default function HotWalletSignTx({
 }: HotWalletSignAndBroadcastProps) {
   const { getWalletSecret } = useKeyring();
   const { wallet: walletInfo, account } = useWalletManager();
-  const { rpcClient, networkId } = useRpcClientStateful();
+  const { rpcClient, networkId: rpcNetworkId } = useRpcClientStateful();
   const [wallet, setWallet] = useState<IWallet>();
   const loading =
-    !rpcClient || !wallet || !walletInfo || !account || !networkId;
+    !rpcClient || !wallet || !walletInfo || !account || !rpcNetworkId;
 
   useEffect(() => {
-    if (!rpcClient || !walletInfo || !networkId || !account) return;
+    if (!rpcClient || !walletInfo || !rpcNetworkId || !account) return;
     if (walletInfo.type !== "mnemonic" && walletInfo.type !== "privateKey") {
       throw new Error("Unsupported wallet type");
     }
 
     getWalletSecret({ walletId: walletInfo.id }).then(({ walletSecret }) => {
-      const factory = new AccountFactory(rpcClient, networkId);
+      const factory = new AccountFactory(rpcClient, rpcNetworkId);
 
       switch (walletInfo.type) {
         case "mnemonic":
@@ -45,9 +46,14 @@ export default function HotWalletSignTx({
 
   return (
     <>
-      {loading && <div>Loading...</div>}
+      {loading && <Splash />}
       {!loading && (
-        <SignTx wallet={wallet} requestId={requestId} payload={payload} />
+        <SignTx
+          walletType={walletInfo.type}
+          wallet={wallet}
+          requestId={requestId}
+          payload={payload}
+        />
       )}
     </>
   );

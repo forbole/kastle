@@ -1,31 +1,9 @@
-import {
-  IScriptPublicKey,
-  ITransactionOutpoint,
-  PublicKey,
-  ScriptBuilder,
-  Transaction,
-} from "@/wasm/core/kaspa";
+import { PublicKey, ScriptBuilder, Transaction } from "@/wasm/core/kaspa";
 import { SIGN_TYPE } from "@/lib/kaspa.ts";
 
 export type PaymentOutput = {
   address: string;
   amount: string; // KAS
-};
-
-export type Entry = {
-  amount: string; // KAS
-  address: string;
-  outpoint: ITransactionOutpoint;
-  blockDaaScore: string; // BigInt
-  scriptPublicKey: IScriptPublicKey;
-};
-
-export type TxSettingOptions = {
-  priorityEntries?: Entry[];
-  entries?: Entry[];
-  priorityFee?: string; // KAS
-  payload?: Uint8Array;
-  scripts?: ScriptOption[];
 };
 
 export type ScriptOption = {
@@ -65,11 +43,6 @@ export interface IWallet {
   getBalance(): Promise<bigint>;
 
   getAddress(): string | Promise<string>;
-
-  signAndBroadcastTx(
-    outputs: PaymentOutput[],
-    options?: TxSettingOptions,
-  ): Promise<string>;
 
   signTx(tx: Transaction, scripts?: ScriptOption[]): Promise<Transaction>;
 

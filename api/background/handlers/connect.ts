@@ -29,18 +29,18 @@ export const connectHandler: Handler = async (
     return;
   }
 
-  // Check if connection is already existing
-  if (await ApiUtils.isHostConnected(message.host)) {
-    sendResponse(new ApiResponse(message.id, true));
-    return;
-  }
-
   // Check if networkId matches
   if (!(await ApiUtils.matchNetworkId(payload.networkId))) {
     sendError(
       "Network ID does not match, please change network to " +
         payload.networkId,
     );
+    return;
+  }
+
+  // Check if connection is already existing
+  if (await ApiUtils.isHostConnected(message.host)) {
+    sendResponse(new ApiResponse(message.id, true));
     return;
   }
 
@@ -51,14 +51,7 @@ export const connectHandler: Handler = async (
   url.searchParams.set("name", payload.name);
   url.searchParams.set("icon", payload.icon ?? "");
 
-  browser.windows.create({
-    tabId,
-    type: "popup",
-    url: url.toString(),
-    width: 375,
-    height: 600,
-    focused: true,
-  });
+  ApiUtils.openPopup(tabId, url.toString());
 
   const response = await ApiUtils.receiveExtensionMessage(message.id);
   sendResponse(response);

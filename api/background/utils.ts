@@ -10,7 +10,21 @@ import {
   WALLET_SETTINGS,
 } from "@/contexts/WalletManagerContext";
 
+const POPUP_WINDOW_WIDTH = 375;
+const POPUP_WINDOW_HEIGHT = 600;
+
 export class ApiUtils {
+  static openPopup(tabId: number, url: string) {
+    browser.windows.create({
+      tabId,
+      type: "popup",
+      url,
+      width: POPUP_WINDOW_WIDTH,
+      height: POPUP_WINDOW_HEIGHT,
+      focused: true,
+    });
+  }
+
   static async getSettings(): Promise<Settings | null> {
     return await storage.getItem<Settings>(SETTINGS_KEY);
   }
@@ -50,14 +64,16 @@ export class ApiUtils {
     if (!walletSettings?.selectedWalletId) return false;
     if (walletSettings.selectedAccountIndex === undefined) return false;
 
-    const walletConnection =
-      settings?.walletConnections?.[walletSettings.selectedWalletId][
-        walletSettings.selectedAccountIndex
-      ];
+    const walletConnections =
+      settings?.walletConnections?.[walletSettings.selectedWalletId];
 
-    if (!walletConnection) return false;
+    if (!walletConnections) return false;
 
-    const connections = walletConnection[settings.networkId] ?? [];
+    const accountConnections =
+      walletConnections[walletSettings.selectedAccountIndex];
+    if (!accountConnections) return false;
+
+    const connections = accountConnections[settings.networkId] ?? [];
 
     return connections.map((connection) => connection.host).includes(host);
   }

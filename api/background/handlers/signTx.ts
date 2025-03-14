@@ -35,16 +35,11 @@ export const signTxHandler: Handler = async (
   // Reconstruct SignTxPayload from serialized message data to restore methods
   const payload = Object.assign(new SignTxPayload("", ""), message.payload);
 
-  browser.windows.create({
-    tabId,
-    type: "popup",
-    url: browser.runtime.getURL(
-      `/popup.html?requestId=${encodeURIComponent(message.id)}&payload=${encodeURIComponent(payload.toBase64Url())}#/sign-tx`,
-    ),
-    width: 375,
-    height: 600,
-    focused: true,
-  });
+  const url = browser.runtime.getURL(
+    `/popup.html?requestId=${encodeURIComponent(message.id)}&payload=${payload.toUriString()}#/sign-tx`,
+  );
+
+  ApiUtils.openPopup(tabId, url);
 
   const response = await ApiUtils.receiveExtensionMessage(message.id);
   sendResponse(response);

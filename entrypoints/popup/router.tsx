@@ -120,21 +120,21 @@ export const router = createHashRouter([
         loader: loadKaspaWasm,
         children: [
           {
-            path: "unlock",
-            element: <WalletUnlock />,
-            loader: async () => {
-              const keyringStatusResponse = await getKeyringStatus();
-
-              if (!keyringStatusResponse.isInitialized) {
-                return redirect("/onboarding");
-              }
-
-              return null;
-            },
-          },
-          {
             element: <PopupLayout />,
             children: [
+              {
+                path: "unlock",
+                element: <WalletUnlock />,
+                loader: async () => {
+                  const keyringStatusResponse = await getKeyringStatus();
+
+                  if (!keyringStatusResponse.isInitialized) {
+                    return redirect("/onboarding");
+                  }
+
+                  return null;
+                },
+              },
               {
                 index: true,
                 element: <Navigate to="/dashboard" replace />,
@@ -156,15 +156,6 @@ export const router = createHashRouter([
                     element: <DevMode />,
                   },
                   { path: "dashboard", element: <Dashboard /> },
-                  { path: "connect", element: <ConnectConfirm /> },
-                  {
-                    path: "sign-and-broadcast-tx",
-                    element: <SignAndBroadcastTxConfirm />,
-                  },
-                  {
-                    path: "sign-tx",
-                    element: <SignTxConfirm />,
-                  },
                   { path: "add-wallet", element: <AddWallet /> },
                   {
                     path: "rename-account/:walletId/:accountIndex",
@@ -193,6 +184,17 @@ export const router = createHashRouter([
                   {
                     path: "ledger-connect-for-sign-failed",
                     element: <LedgerConnectForSignFailed />,
+                  },
+
+                  // Browser API routes
+                  { path: "connect", element: <ConnectConfirm /> },
+                  {
+                    path: "sign-and-broadcast-tx",
+                    element: <SignAndBroadcastTxConfirm />,
+                  },
+                  {
+                    path: "sign-tx",
+                    element: <SignTxConfirm />,
                   },
                 ],
               },

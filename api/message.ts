@@ -1,9 +1,4 @@
-import { Buffer } from "buffer";
-import {
-  PaymentOutput,
-  ScriptOption,
-  TxSettingOptions,
-} from "@/lib/wallet/wallet-interface.ts";
+import { ScriptOption } from "@/lib/wallet/wallet-interface.ts";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 
 export enum Action {
@@ -29,61 +24,13 @@ export class SignTxPayload {
     );
   }
 
-  static fromBase64Url(base64Url: string): SignTxPayload {
-    return JSON.parse(
-      Buffer.from(
-        base64Url
-          .replace(/-/g, "+")
-          .replace(/_/g, "/")
-          .padEnd(base64Url.length + ((4 - (base64Url.length % 4)) % 4), "="),
-        "base64",
-      ).toString(),
-    );
+  static fromUriString(uriComponent: string): SignTxPayload {
+    const parsed = JSON.parse(decodeURIComponent(uriComponent));
+    return new SignTxPayload(parsed.networkId, parsed.txJson, parsed.scripts);
   }
 
-  toBase64Url(): string {
-    return Buffer.from(JSON.stringify(this))
-      .toString("base64")
-      .replace(/\+/g, "-")
-      .replace(/\//g, "_")
-      .replace(/=/g, "");
-  }
-}
-
-export class SignAndBroadcastTxPayload {
-  constructor(
-    public readonly networkId: string,
-    public readonly outputs: PaymentOutput[],
-    public readonly options?: TxSettingOptions,
-  ) {}
-
-  static validate(data: unknown): data is SignAndBroadcastTxPayload {
-    return (
-      typeof data === "object" &&
-      !!data &&
-      "networkId" in data &&
-      "outputs" in data
-    );
-  }
-
-  static fromBase64Url(base64Url: string): SignAndBroadcastTxPayload {
-    return JSON.parse(
-      Buffer.from(
-        base64Url
-          .replace(/-/g, "+")
-          .replace(/_/g, "/")
-          .padEnd(base64Url.length + ((4 - (base64Url.length % 4)) % 4), "="),
-        "base64",
-      ).toString(),
-    );
-  }
-
-  toBase64Url(): string {
-    return Buffer.from(JSON.stringify(this))
-      .toString("base64")
-      .replace(/\+/g, "-")
-      .replace(/\//g, "_")
-      .replace(/=/g, "");
+  toUriString(): string {
+    return encodeURIComponent(JSON.stringify(this));
   }
 }
 
