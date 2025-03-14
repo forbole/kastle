@@ -1,4 +1,4 @@
-import { AssetData } from "@/hooks/useDomainsByAddress.ts";
+import { AssetData } from "@/hooks/useKns.ts";
 import avatarIcon from "@/assets/images/avatar.png";
 import { useNavigate } from "react-router-dom";
 import { walletAddressEllipsis } from "@/lib/utils.ts";

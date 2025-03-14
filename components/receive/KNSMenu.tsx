@@ -1,6 +1,6 @@
 import { useCopyToClipboard } from "usehooks-ts";
 import { Tooltip } from "react-tooltip";
-import useDomainsByAddress from "@/hooks/useDomainsByAddress.ts";
+import { useDomainsByAddress } from "@/hooks/useKns.ts";
 import useWalletManager from "@/hooks/useWalletManager.ts";
 import { useEffect } from "react";
 
@@ -36,8 +36,6 @@ export default function KNSMenu() {
       callOnce.current = true;
     }
   }, [domains]);
-
-  console.log(selectedDomain);
 
   return (
     selectedDomain && (

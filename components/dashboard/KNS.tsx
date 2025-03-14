@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React from "react";
 import useWalletManager from "@/hooks/useWalletManager.ts";
-import useDomainsByAddress from "@/hooks/useDomainsByAddress.ts";
+import { useDomainsByAddress } from "@/hooks/useKns.ts";
 import KNSItem from "@/components/dashboard/KNSItem.tsx";
 
 export default function KNS() {
