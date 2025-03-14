@@ -28,7 +28,7 @@ export default function RemoveWallet() {
 
   return (
     <div className="flex h-full flex-col p-4">
-      <Header title="Remove wallet" />
+      <Header title="Remove wallet" showPrevious={false} onClose={onClose} />
       <form className="flex flex-grow flex-col gap-6" onSubmit={onSubmit}>
         <div className="flex h-full flex-col items-stretch justify-center gap-6">
           <img
@@ -59,12 +59,8 @@ export default function RemoveWallet() {
               </span>
               <ul className="list-disc text-xs">
                 <li className="ml-4">
-                  Make sure you have your recovery phrase! It’s required to
+                  Make sure you have your recovery phrase or Ledger device to
                   restore your wallet.
-                </li>
-                <li className="ml-4">
-                  Without it, you won’t be able to restore your wallet or access
-                  your funds.
                 </li>
               </ul>
             </div>
