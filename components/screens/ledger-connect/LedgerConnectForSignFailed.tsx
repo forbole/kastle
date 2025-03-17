@@ -9,16 +9,19 @@ export default function LedgerConnectForSignFailed() {
   const state = searchParams.get("state");
 
   const retry = () => {
-    if (redirect) {
-      navigate(
-        {
-          pathname: redirect,
-        },
-        {
-          state: JSON.parse(decodeURIComponent(state ?? "") ?? "{}"),
-        },
-      );
+    if (!redirect) {
+      navigate(-1);
+      return;
     }
+
+    navigate(
+      {
+        pathname: redirect,
+      },
+      {
+        state: JSON.parse(decodeURIComponent(state ?? "") ?? "{}"),
+      },
+    );
   };
 
   return (

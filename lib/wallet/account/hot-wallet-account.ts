@@ -21,12 +21,10 @@ import {
   IWallet,
   PaymentOutput,
   ScriptOption,
-  TxSettingOptions,
 } from "@/lib/wallet/wallet-interface.ts";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import { Amount, Fee } from "@/lib/krc20.ts";
 import {
-  toKaspaEntry,
   toKaspaPaymentOutput,
   toSignType,
   waitTxForAddress,
@@ -174,47 +172,6 @@ export class HotWalletAccount implements IWallet {
       .toPrivateKey();
 
     return privateKey.toKeypair().toAddress(this.networkId).toString();
-  }
-
-  // NOTE: This method does not support signing with multiple keys
-  async signAndBroadcastTx(
-    outputs: PaymentOutput[],
-    options?: TxSettingOptions,
-  ): Promise<string> {
-    const { entries } = await this.rpcClient.getUtxosByAddresses([
-      this.getAddress(),
-    ]);
-
-    const txGenerator = new Generator({
-      priorityEntries: options?.priorityEntries?.map((entry) => {
-        return toKaspaEntry(entry);
-      }),
-      entries:
-        options?.entries?.map((entry) => {
-          return toKaspaEntry(entry);
-        }) ?? entries,
-      outputs: outputs.map((output) => {
-        return {
-          address: output.address,
-          amount: kaspaToSompi(output.amount) ?? 0n,
-        };
-      }),
-      priorityFee: options?.priorityFee
-        ? kaspaToSompi(options.priorityFee)
-        : 0n,
-      changeAddress: this.getAddress(),
-      payload: options?.payload,
-      networkId: this.networkId,
-    });
-
-    const pending: PendingTransaction = await txGenerator.next();
-    if (!pending) {
-      throw new Error("No transaction to sign");
-    }
-
-    const signed = await this.signTx(pending.transaction, options?.scripts);
-    return (await this.rpcClient.submitTransaction({ transaction: signed }))
-      .transactionId;
   }
 
   // NOTE: This method does not support signing with multiple keys

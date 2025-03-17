@@ -2,12 +2,11 @@ import {
   CommitRevealResult,
   IWallet,
   PaymentOutput,
-  TxSettingOptions,
+  ScriptOption,
 } from "@/lib/wallet/wallet-interface.ts";
 import {
   Address,
   Generator,
-  IGeneratorSettingsObject,
   IUtxoEntry,
   PendingTransaction,
   PublicKey,
@@ -67,7 +66,7 @@ export class LedgerAccount implements IWallet {
           amount,
         },
       ],
-      priorityFee: 0n,
+      priorityFee: priorityFee ?? 0n,
       changeAddress: await this.getAddress(),
       networkId: this.networkId,
     });
@@ -152,15 +151,47 @@ export class LedgerAccount implements IWallet {
       .toString();
   }
 
-  public async signAndBroadcastTx(
-    outputs: PaymentOutput[],
-    options?: TxSettingOptions,
-  ): Promise<string> {
-    throw new Error("Method not implemented.");
-  }
+  public async signTx(
+    tx: Transaction,
+    scripts?: ScriptOption[],
+  ): Promise<Transaction> {
+    if (scripts) {
+      throw new Error("Method not implemented.");
+    }
 
-  public async signTx(tx: Transaction): Promise<Transaction> {
-    throw new Error("Method not implemented.");
+    const inputs = tx.inputs.map(
+      (input) =>
+        new LedgerTransactionInput({
+          value: Number(input.utxo?.amount),
+          prevTxId: input.utxo?.outpoint.transactionId ?? "",
+          outpointIndex: input.utxo?.outpoint.index ?? 0,
+          addressType: 0,
+          addressIndex: 0,
+        }),
+    );
+
+    const outputs = tx.outputs.map(
+      (output) =>
+        new LedgerTransactionOutput({
+          value: Number(output.value),
+          scriptPublicKey:
+            typeof output.scriptPublicKey === "string"
+              ? output.scriptPublicKey
+              : output.scriptPublicKey.script,
+        }),
+    );
+
+    const ledgerTx = new LedgerTransaction({
+      version: 0,
+      inputs,
+      outputs,
+      changeAddressType: 0,
+      changeAddressIndex: 0,
+    });
+
+    await this.app.signTransaction(ledgerTx);
+
+    return this.toRpcTransaction(ledgerTx);
   }
 
   private async getUtxos(): Promise<IUtxoEntry[]> {

@@ -24,7 +24,7 @@ export default function GeneralHeader({
   return (
     <div className={twMerge("w-full", !subtitle ? "pb-8" : "pb-6")}>
       <div className="flex items-center justify-between">
-        {showPrevious || onBack ? (
+        {showPrevious ? (
           <button
             className="rounded-lg p-3 text-white hover:bg-gray-800"
             onClick={async () => {

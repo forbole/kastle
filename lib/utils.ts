@@ -4,6 +4,9 @@ export const isProduction = process.env.NODE_ENV === "production";
 
 export const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
+export const POPUP_WINDOW_WIDTH = 375;
+export const POPUP_WINDOW_HEIGHT = 600;
+
 export const sendMessage = <T>(method: Method, data = {}): Promise<T> =>
   browser.runtime.sendMessage({ method, ...data });
 
