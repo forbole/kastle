@@ -60,9 +60,11 @@ export const ConfirmStep = ({
             <div className="flex w-full items-start justify-between">
               <span className="font-medium">Sending amount</span>
               <div className="flex flex-col text-right">
-                <span className="font-medium">{amount} KAS</span>
+                <span className="font-medium">
+                  {amountNumber.toFixed(3)} KAS
+                </span>
                 <span className="text-xs text-daintree-400">
-                  {amountNumber * kapsaPrice.kaspaPrice} USD
+                  {(amountNumber * kapsaPrice.kaspaPrice).toFixed(3)} USD
                 </span>
               </div>
             </div>
@@ -71,9 +73,15 @@ export const ConfirmStep = ({
             <div className="flex w-full items-start justify-between">
               <span className="font-medium">Fee</span>
               <div className="flex flex-col text-right">
-                <span className="font-medium">{transactionFee} KAS</span>
+                <span className="font-medium">
+                  {transactionFeeNumber != 0 && transactionFeeNumber < 0.001
+                    ? "<0.001"
+                    : transactionFeeNumber.toFixed(3)}{" "}
+                  KAS
+                </span>
                 <span className="text-xs text-daintree-400">
-                  {transactionFeeNumber * kapsaPrice.kaspaPrice} USD
+                  {(transactionFeeNumber * kapsaPrice.kaspaPrice).toFixed(3)}{" "}
+                  USD
                 </span>
               </div>
             </div>
