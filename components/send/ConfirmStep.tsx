@@ -55,14 +55,16 @@ export const ConfirmStep = ({
           <span className="break-all text-xs text-daintree-400">{address}</span>
         </div>
 
-        <ul className="mt-3 flex flex-col rounded-lg bg-daintree-800">
+        <ul className="flex flex-col rounded-lg bg-daintree-800">
           <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
             <div className="flex w-full items-start justify-between">
               <span className="font-medium">Sending amount</span>
               <div className="flex flex-col text-right">
-                <span className="font-medium">{amount} KAS</span>
+                <span className="font-medium">
+                  {amountNumber.toFixed(3)} KAS
+                </span>
                 <span className="text-xs text-daintree-400">
-                  {amountNumber * kapsaPrice.kaspaPrice} USD
+                  {(amountNumber * kapsaPrice.kaspaPrice).toFixed(3)} USD
                 </span>
               </div>
             </div>
@@ -71,9 +73,15 @@ export const ConfirmStep = ({
             <div className="flex w-full items-start justify-between">
               <span className="font-medium">Fee</span>
               <div className="flex flex-col text-right">
-                <span className="font-medium">{transactionFee} KAS</span>
+                <span className="font-medium">
+                  {transactionFeeNumber != 0 && transactionFeeNumber < 0.001
+                    ? "<0.001"
+                    : transactionFeeNumber.toFixed(3)}{" "}
+                  KAS
+                </span>
                 <span className="text-xs text-daintree-400">
-                  {transactionFeeNumber * kapsaPrice.kaspaPrice} USD
+                  {(transactionFeeNumber * kapsaPrice.kaspaPrice).toFixed(3)}{" "}
+                  USD
                 </span>
               </div>
             </div>

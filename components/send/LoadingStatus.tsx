@@ -1,14 +1,12 @@
 import React from "react";
 import carriageImage from "@/assets/images/carriage.png";
-
+import Header from "@/components/GeneralHeader";
 export const LoadingStatus = () => {
   return (
     <>
-      <div className="flex items-center justify-center">
-        <h1 className="text-center text-3xl font-semibold">Broadcasting</h1>
-      </div>
+      <Header title="Broadcasting" showPrevious={false} showClose={false} />
 
-      <div className="flex h-full flex-col items-center gap-4">
+      <div className="mt-10 flex h-full flex-col items-center gap-4">
         <img
           alt="castle"
           className="h-[120px] w-[299px] self-center"

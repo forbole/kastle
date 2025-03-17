@@ -136,7 +136,7 @@ export class HotWalletPrivateKey implements IWallet {
           amount,
         },
       ],
-      priorityFee,
+      priorityFee: priorityFee ?? 0n,
       changeAddress: this.getAddress(),
       networkId: this.networkId,
     });
