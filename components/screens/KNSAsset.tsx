@@ -116,7 +116,16 @@ export default function KNSAsset() {
                     id="copy-asset-timestamp"
                   >
                     <span className="cursor-pointer font-medium">
-                      {asset.creationBlockTime}
+                      {new Date(asset.creationBlockTime).toLocaleString(
+                        "en-GB",
+                        {
+                          month: "short",
+                          day: "2-digit",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        },
+                      )}
                     </span>
                   </Copy>
                 </div>
