@@ -3,6 +3,7 @@ import { Tooltip } from "react-tooltip";
 import { useDomainsByAddress } from "@/hooks/useKns.ts";
 import useWalletManager from "@/hooks/useWalletManager.ts";
 import { useEffect } from "react";
+import Copy from "@/components/Copy";
 
 export default function KNSMenu() {
   const [showMenu, setShowMenu] = useState(false);
@@ -41,24 +42,9 @@ export default function KNSMenu() {
     selectedDomain && (
       <div className="relative">
         <div className="flex h-12 w-[14rem] items-center justify-start rounded-lg border border-[#203C49] bg-[#051D27]">
-          <Tooltip
-            id="copy"
-            style={{
-              backgroundColor: "#203C49",
-              fontSize: "12px",
-              fontWeight: 600,
-              padding: "8px",
-              zIndex: 9999,
-            }}
-            isOpen={copied}
-            place="bottom"
-          />
-          <i
-            onClick={copyDomain}
-            data-tooltip-id="copy"
-            data-tooltip-content="Copied"
-            className="hn hn-copy cursor-pointer p-4 text-base text-[#7B9AAA]"
-          ></i>
+          <Copy textToCopy={selectedDomain} id="copy" place="bottom">
+            <i className="hn hn-copy cursor-pointer p-4 text-base text-[#7B9AAA]"></i>
+          </Copy>
           <div
             className="flex w-full cursor-pointer items-center justify-between"
             onClick={() => setShowMenu(!showMenu)}
@@ -69,7 +55,7 @@ export default function KNSMenu() {
         </div>
 
         {showMenu && (
-          <div className="no-scrollbar absolute left-0 top-16 max-h-36 w-[14rem] overflow-hidden overflow-y-scroll rounded-lg border border-[#203C49] bg-[#102832]">
+          <div className="no-scrollbar absolute left-0 top-14 max-h-36 w-[14rem] overflow-hidden overflow-y-scroll rounded-lg border border-[#203C49] bg-[#102832]">
             {domains.map((domain) => (
               <div
                 key={domain}
