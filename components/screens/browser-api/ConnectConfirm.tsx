@@ -215,7 +215,7 @@ export default function ConnectConfirm() {
       {/* Buttons */}
       <div className="flex gap-2 text-base font-semibold">
         <button
-          className="rounded-full p-5 text-rose-400"
+          className="rounded-full p-5 text-[#7B9AAA]"
           onClick={handleConnectDeny}
         >
           Cancel
