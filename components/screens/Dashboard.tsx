@@ -23,9 +23,10 @@ export default function Dashboard() {
   const { account, wallet } = useWalletManager();
   const [dismissWarning, setDismissWarning] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("Assets");
 
-  const tabs = ["Assets", "KNS"];
+  const tabs = ["Assets", "KNS"] as const;
+  const [activeTab, setActiveTab] = useState<(typeof tabs)[number]>("Assets");
+
   const address = account?.address;
   const balance = account?.balance;
   const showBalance = !settings?.hideBalances;
