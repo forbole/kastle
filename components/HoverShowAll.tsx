@@ -44,6 +44,7 @@ export default function HoverShowAll({
           width: tooltipWidth,
           lineBreak: "anywhere",
         }}
+        opacity={1}
         isOpen={isHovered}
         place={place}
       />

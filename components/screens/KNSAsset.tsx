@@ -1,6 +1,6 @@
 import { useParams } from "react-router-dom";
 import Header from "@/components/GeneralHeader";
-import patchCheckFill from "@/assets/images/patch-check-fill.png";
+import badgeCheck from "@/assets/images/badge-check.svg";
 import avatarIcon from "@/assets/images/avatar.png";
 import { useDomainDetails, AssetDataWithId } from "@/hooks/useKns.ts";
 import { walletAddressEllipsis } from "@/lib/utils";
@@ -25,9 +25,9 @@ export default function KNSAsset() {
               <div className="relative">
                 {asset.isVerifiedDomain && (
                   <img
-                    src={patchCheckFill}
+                    src={badgeCheck}
                     alt="verified"
-                    className="absolute right-0 top-0 -mr-1 -mt-1 h-3 w-3 text-daintree-800"
+                    className="absolute right-0 top-0 -mr-1 -mt-1 h-3 w-3"
                   />
                 )}
                 <img
@@ -37,13 +37,13 @@ export default function KNSAsset() {
                 />
               </div>
               <div className="flex flex-grow flex-col gap-1">
-                <div className="flex items-center gap-2 text-base text-white">
+                <div className="inline-flex items-center gap-2 text-base text-white">
                   <span>{asset.asset}</span>
                   <Copy textToCopy={asset.asset} id="copy-asset" place="top">
                     <i className="hn hn-copy cursor-pointer text-[#7B9AAA]" />
                   </Copy>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-daintree-400">
+                <div className="inline-flex items-center gap-2 text-sm text-daintree-400">
                   <HoverShowAll
                     text={asset.owner}
                     id="hover-show-all-asset-owner"

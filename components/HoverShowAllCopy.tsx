@@ -61,7 +61,9 @@ export default function HoverShowAllCopy({
           fontSize: "12px",
           fontWeight: 600,
           padding: "8px",
+          opacity: 1,
         }}
+        opacity={1}
         isOpen={copied}
         place={place}
       />
@@ -75,6 +77,7 @@ export default function HoverShowAllCopy({
           width: tooltipWidth,
           lineBreak: "anywhere",
         }}
+        opacity={1}
         isOpen={isHovered && !copied}
         place={place}
       />

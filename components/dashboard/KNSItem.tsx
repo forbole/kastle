@@ -2,7 +2,7 @@ import { AssetData } from "@/hooks/useKns.ts";
 import avatarIcon from "@/assets/images/avatar.png";
 import { useNavigate } from "react-router-dom";
 import { walletAddressEllipsis } from "@/lib/utils.ts";
-import patchCheckFill from "@/assets/images/patch-check-fill.png";
+import badgeCheckFill from "@/assets/images/badge-check.svg";
 
 type KNSItemProps = {
   asset: AssetData;
@@ -19,9 +19,9 @@ export default function KNSItem({ asset }: KNSItemProps) {
       <div className="relative">
         {asset.isVerifiedDomain && (
           <img
-            src={patchCheckFill}
+            src={badgeCheckFill}
             alt="verified"
-            className="absolute right-0 top-0 -mr-1 -mt-1 h-3 w-3 text-daintree-800"
+            className="absolute right-0 top-0 -mr-1 -mt-1 h-3 w-3"
           />
         )}
         <img alt="castle" className="h-[40px] w-[40px]" src={avatarIcon}></img>

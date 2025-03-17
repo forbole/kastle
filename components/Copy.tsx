@@ -42,6 +42,7 @@ export default function Copy({
           padding: "8px",
         }}
         isOpen={copied}
+        opacity={1}
         place={place}
       />
       <div data-tooltip-id={id} data-tooltip-content="Copied">
