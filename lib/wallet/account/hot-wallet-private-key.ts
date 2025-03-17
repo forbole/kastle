@@ -172,7 +172,7 @@ export class HotWalletPrivateKey implements IWallet {
     }
 
     // check if the input is not already signed
-    if (tx.inputs[script.inputIndex].signatureScript !== "") {
+    if (tx.inputs[script.inputIndex].signatureScript) {
       throw new Error("Input already signed");
     }
 
