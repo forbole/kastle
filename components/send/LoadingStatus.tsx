@@ -4,7 +4,7 @@ import Header from "@/components/GeneralHeader";
 export const LoadingStatus = () => {
   return (
     <>
-      <Header title="Broadcasting" />
+      <Header title="Broadcasting" showPrevious={false} showClose={false} />
 
       <div className="mt-10 flex h-full flex-col items-center gap-4">
         <img
