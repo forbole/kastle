@@ -60,9 +60,7 @@ export default function KNSAsset() {
             <ul className="mt-3 flex flex-col rounded-xl bg-daintree-800">
               <li className="-mt-px inline-flex items-center gap-x-2 rounded-t-xl border border-daintree-700 px-4 py-3 text-sm">
                 <div className="flex w-full items-start justify-between">
-                  <span className="cursor-pointer font-medium">
-                    Inscription Number
-                  </span>
+                  <span className="font-medium">Inscription Number</span>
                   <Copy textToCopy={asset.id} id="copy-asset-id-number">
                     <span className="cursor-pointer font-medium">
                       #{asset.id}
@@ -72,9 +70,7 @@ export default function KNSAsset() {
               </li>
               <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm">
                 <div className="flex w-full items-start justify-between">
-                  <span className="cursor-pointer font-medium">
-                    Inscription ID
-                  </span>
+                  <span className="font-medium">Asset ID</span>
                   <span className="cursor-pointer font-medium">
                     <HoverShowAllCopy
                       text={asset.assetId}
@@ -89,7 +85,22 @@ export default function KNSAsset() {
               </li>
               <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm">
                 <div className="flex w-full items-start justify-between">
-                  <span className="cursor-pointer font-medium">Status</span>
+                  <span className="font-medium">Owner</span>
+                  <span className="cursor-pointer font-medium">
+                    <HoverShowAllCopy
+                      text={asset.owner}
+                      id="hover-show-all-copy-asset-owner"
+                      tooltipWidth="20rem"
+                      place="bottom-end"
+                    >
+                      {walletAddressEllipsis(asset.owner)}
+                    </HoverShowAllCopy>
+                  </span>
+                </div>
+              </li>
+              <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm">
+                <div className="flex w-full items-start justify-between">
+                  <span className="font-medium">Status</span>
                   <Copy textToCopy={asset.status} id="copy-asset-status">
                     <span className="cursor-pointer font-medium">
                       {asset.status}
@@ -99,7 +110,7 @@ export default function KNSAsset() {
               </li>
               <li className="-mt-px inline-flex items-center gap-x-2 rounded-b-xl border border-daintree-700 px-4 py-3 text-sm">
                 <div className="flex w-full items-start justify-between">
-                  <span className="cursor-pointer font-medium">Timestamp</span>
+                  <span className="font-medium">Timestamp</span>
                   <Copy
                     textToCopy={asset.creationBlockTime}
                     id="copy-asset-timestamp"
@@ -114,13 +125,19 @@ export default function KNSAsset() {
           </div>
 
           <div className="flex flex-col gap-2 text-base font-semibold text-[#083344]">
-            <button className="inline-flex w-full rounded-full border border-[#093446] py-3">
+            <button
+              className="inline-flex w-full rounded-full border border-[#093446] py-3"
+              disabled
+            >
               <span className="ml-[120px]">Transfer KNS</span>
               <div className="ml-2 rounded-full bg-[#164E63] bg-opacity-30 px-2 text-[10px] text-[#0E7490]">
                 Coming soon
               </div>
             </button>
-            <button className="inline-flex w-full rounded-full border border-[#093446] py-3">
+            <button
+              className="inline-flex w-full rounded-full border border-[#093446] py-3"
+              disabled
+            >
               <span className="ml-[140px]">List KNS</span>
               <div className="ml-2 rounded-full bg-[#164E63] bg-opacity-30 px-2 text-[10px] text-[#0E7490]">
                 Coming soon
