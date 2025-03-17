@@ -55,7 +55,7 @@ export default function ConnectedApps() {
               alt="empty"
               className="mx-auto h-[120px] w-[152px]"
             />
-            <div className="text-center text-sm text-gray-400">
+            <div className="text-center text-sm text-[#7B9AAA]">
               Looks like no apps are connected yet
             </div>
           </div>
@@ -63,9 +63,9 @@ export default function ConnectedApps() {
         {connections?.map((connection) => (
           <div
             key={connection.host}
-            className="flex w-full justify-between bg-slate-800"
+            className="flex w-full justify-between bg-[#10252D]"
           >
-            <div className="flex flex-1 items-center gap-2 rounded-l-lg border border-gray-600 p-2 hover:border-white">
+            <div className="flex flex-1 items-center gap-2 rounded-l-lg border border-[#203C49] p-2 hover:border-white">
               {/* Icon */}
               {connection.icon ? (
                 <img
@@ -78,7 +78,7 @@ export default function ConnectedApps() {
               )}
 
               {/* Content */}
-              <div className="flex flex-col">
+              <div className="flex flex-1 flex-col">
                 <span className="text-sm font-semibold">
                   {!connection.name
                     ? "Unknown"
@@ -86,13 +86,15 @@ export default function ConnectedApps() {
                       ? `${connection.name.slice(0, 29)}...`
                       : connection.name}
                 </span>
-                <span className="text-xs text-gray-400">{connection.host}</span>
+                <span className="text-xs text-[#7B9AAA]">
+                  {connection.host}
+                </span>
               </div>
             </div>
 
             {/* Unlink button */}
             <button
-              className="rounded-r-lg border border-gray-600 p-2 hover:border-white"
+              className="rounded-r-lg border border-[#203C49] p-2 text-sm font-semibold text-[#94A3B8;] hover:border-white"
               onClick={() => {
                 handleUnlink(connection.host);
               }}
