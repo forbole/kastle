@@ -37,13 +37,13 @@ export default function KNSAsset() {
                 />
               </div>
               <div className="flex flex-grow flex-col gap-1">
-                <div className="inline-flex items-center gap-2 text-base text-white">
+                <div className="flex items-center gap-2 text-base leading-none text-white">
                   <span>{asset.asset}</span>
                   <Copy textToCopy={asset.asset} id="copy-asset" place="top">
                     <i className="hn hn-copy cursor-pointer text-[#7B9AAA]" />
                   </Copy>
                 </div>
-                <div className="inline-flex items-center gap-2 text-sm text-daintree-400">
+                <div className="flex items-center gap-2 text-sm leading-none text-daintree-400">
                   <HoverShowAll
                     text={asset.owner}
                     id="hover-show-all-asset-owner"
