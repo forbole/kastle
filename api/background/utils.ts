@@ -9,9 +9,7 @@ import {
   WalletSettings,
   WALLET_SETTINGS,
 } from "@/contexts/WalletManagerContext";
-
-const POPUP_WINDOW_WIDTH = 375;
-const POPUP_WINDOW_HEIGHT = 600;
+import { POPUP_WINDOW_HEIGHT, POPUP_WINDOW_WIDTH } from "@/lib/utils";
 
 export class ApiUtils {
   static openPopup(tabId: number, url: string) {

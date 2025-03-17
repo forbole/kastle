@@ -2,6 +2,7 @@ import { Outlet, useNavigation } from "react-router-dom";
 import React, { useEffect } from "react";
 import Splash from "@/components/screens/Splash.tsx";
 import "@hackernoon/pixel-icon-library/fonts/iconfont.css";
+import { POPUP_WINDOW_HEIGHT, POPUP_WINDOW_WIDTH } from "@/lib/utils";
 
 import "preline/preline";
 import { useLocation } from "react-router";
@@ -16,10 +17,8 @@ export default function PopupLayout() {
 
   // Resize the window to the target width and height for the popup
   useEffect(() => {
-    const targetWidth = 375;
-    const targetHeight = 600;
-    const widthGap = targetWidth - window.innerWidth;
-    const heightGap = targetHeight - window.innerHeight;
+    const widthGap = POPUP_WINDOW_WIDTH - window.innerWidth;
+    const heightGap = POPUP_WINDOW_HEIGHT - window.innerHeight;
 
     window.resizeBy(widthGap, heightGap);
   }, []);
