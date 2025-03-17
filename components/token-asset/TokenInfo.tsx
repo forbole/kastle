@@ -24,7 +24,8 @@ export default function TokenInfo() {
   const { toFloat } = applyDecimal(tokenInfo?.dec);
   const max = tokenInfo ? parseInt(tokenInfo.max, 10) : 0;
   const minted = tokenInfo ? parseInt(tokenInfo.minted, 10) : 0;
-  const totalMinted = `${((minted / max) * 100).toFixed(0)}% (${toFloat(minted).toLocaleString()}/${toFloat(max).toLocaleString()})`;
+  const mintedPercentage = (minted / max) * 100;
+  const totalMinted = `${mintedPercentage < 0.1 ? "<0.1" : mintedPercentage.toFixed(1)}% (${toFloat(minted).toLocaleString()}/${toFloat(max).toLocaleString()})`;
 
   const onImageError = () => {
     setImageUrl(kasIcon);
