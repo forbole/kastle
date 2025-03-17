@@ -36,7 +36,7 @@ export default function KNSAsset() {
                   src={avatarIcon}
                 />
               </div>
-              <div className="flex flex-grow flex-col gap-1">
+              <div className="flex flex-grow flex-col gap-2">
                 <div className="flex items-center gap-2 text-base leading-none text-white">
                   <span>{asset.asset}</span>
                   <Copy textToCopy={asset.asset} id="copy-asset" place="top">
