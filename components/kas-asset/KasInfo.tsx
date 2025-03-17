@@ -10,7 +10,11 @@ export default function KasInfo() {
       {/* Header card */}
       <div className="flex flex-col items-stretch gap-2">
         <div className="flex items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3">
-          <img alt="castle" className="h-[40px] w-[40px]" src={kasIcon} />
+          <img
+            alt="castle"
+            className="h-[40px] w-[40px] rounded-full"
+            src={kasIcon}
+          />
           <div className="flex flex-grow flex-col gap-1">
             <div className="flex items-center justify-between text-base text-white">
               <span className="capitalize">KAS</span>
