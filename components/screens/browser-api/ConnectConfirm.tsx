@@ -179,7 +179,7 @@ export default function ConnectConfirm() {
             {/* Account info */}
             <div className="rounded-xl border border-[#203C49] bg-[#102832] p-4">
               <div className="flex gap-2">
-                <span className="flex h-9 w-9 min-w-9 items-center justify-center rounded-lg bg-slate-700">
+                <span className="flex h-9 w-9 min-w-9 items-center justify-center rounded-lg bg-[#1E333C] font-semibold">
                   {account?.name?.[0]}
                   {account?.name?.[account?.name?.length - 1]}
                 </span>
