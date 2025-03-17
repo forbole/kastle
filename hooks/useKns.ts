@@ -68,6 +68,22 @@ export function useDomainsByAddress(
   );
 }
 
+export function useDomainDetails(id?: string, refreshInterval?: number) {
+  const { networkId } = useRpcClientStateful();
+
+  const knsApiUrl = KNS_API_URLS[networkId ?? NetworkType.Mainnet];
+
+  return useSWR<DomainDetailsResponse, Error>(
+    `${knsApiUrl}/api/v1/asset/${id}/detail`,
+    id
+      ? fetcher
+      : () => {
+          return Promise.resolve(undefined);
+        },
+    { refreshInterval },
+  );
+}
+
 export function useKns() {
   const { networkId } = useRpcClientStateful();
 
@@ -81,14 +97,5 @@ export function useKns() {
     return (await response.json()) as DomainInfoResponse;
   };
 
-  const fetchDomainDetails = async (id: string) => {
-    const response = await fetch(`${knsApiUrl}/api/v1/asset/${id}/detail`);
-    if (!response.ok) {
-      return undefined;
-    }
-
-    return (await response.json()).data as AssetDataWithId;
-  };
-
-  return { fetchDomainInfo: fetchDomainInfo, fetchDomainDetails };
+  return { fetchDomainInfo: fetchDomainInfo };
 }

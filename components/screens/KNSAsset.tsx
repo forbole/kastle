@@ -2,8 +2,7 @@ import { useParams } from "react-router-dom";
 import Header from "@/components/GeneralHeader";
 import patchCheckFill from "@/assets/images/patch-check-fill.png";
 import avatarIcon from "@/assets/images/avatar.png";
-import { useKns, AssetDataWithId } from "@/hooks/useKns.ts";
-import { useState, useRef } from "react";
+import { useDomainDetails, AssetDataWithId } from "@/hooks/useKns.ts";
 import { walletAddressEllipsis } from "@/lib/utils";
 import Copy from "@/components/Copy";
 import HoverShowAllCopy from "@/components/HoverShowAllCopy";
@@ -11,20 +10,9 @@ import HoverShowAll from "@/components/HoverShowAll";
 
 export default function KNSAsset() {
   const { assetId } = useParams();
-  const { fetchDomainDetails } = useKns();
-  const [asset, setAsset] = useState<AssetDataWithId>();
-  const callOnce = useRef(false);
+  const { data: response } = useDomainDetails(assetId ?? "");
 
-  useEffect(() => {
-    if (callOnce.current) return;
-
-    if (assetId) {
-      callOnce.current = true;
-      fetchDomainDetails(assetId).then((data) => {
-        setAsset(data);
-      });
-    }
-  }, [assetId]);
+  const asset = response?.data;
 
   return (
     <div className="flex h-full flex-col p-4">
