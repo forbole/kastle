@@ -72,7 +72,7 @@ export default function ConfirmMint() {
                   <i
                     className="hn hn-info-circle text-lg"
                     data-tooltip-id="info-tooltip"
-                    data-tooltip-content={`Fee Charged Every 10 transactions (${(10 * mintAmount).toLocaleString()} ${ticker})`}
+                    data-tooltip-content={`Fee Charged Every (${(10 * mintAmount).toLocaleString()} ${ticker})`}
                   ></i>
                   <Tooltip
                     id="info-tooltip"
