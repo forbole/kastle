@@ -182,7 +182,7 @@ export default function MintingToken() {
               <i
                 className="hn hn-info-circle text-[24px]"
                 data-tooltip-id="info-tooltip"
-                data-tooltip-content={`Fee Charged Every ${(10 * mintAmount).toLocaleString()} ${ticker}. If you stop before reaching 10, the remaining fee will be charged at that time.`}
+                data-tooltip-content={`Fee Charged Every ${(10 * mintAmount).toLocaleString()} ${ticker}. If you stop before reaching  ${(10 * mintAmount).toLocaleString()} ${ticker}, the remaining fee will be charged at that time.`}
               ></i>
               <Tooltip
                 id="info-tooltip"
