@@ -27,10 +27,8 @@ export default function TokenAsset() {
         <button
           type="button"
           className={twMerge(
-            "inline-flex flex-grow items-center justify-center gap-x-2 rounded-lg px-4 py-3 text-center text-sm font-medium hover:text-neutral-400 focus:text-neutral-400 focus:outline-none disabled:pointer-events-none disabled:opacity-50",
-            activeTab === "history"
-              ? "bg-daintree-700 text-white"
-              : "bg-transparent text-[##E5E7EB]",
+            "inline-flex flex-grow items-center justify-center gap-x-2 rounded-lg px-4 py-3 text-center text-sm font-medium text-[#E5E7EB] focus:outline-none disabled:pointer-events-none disabled:opacity-50",
+            activeTab === "history" ? "bg-daintree-700" : "bg-transparent",
           )}
           onClick={() => setActiveTab("history")}
         >
@@ -39,10 +37,8 @@ export default function TokenAsset() {
         <button
           type="button"
           className={twMerge(
-            "inline-flex flex-grow items-center justify-center gap-x-2 rounded-lg px-4 py-3 text-center text-sm font-medium hover:text-neutral-400 focus:text-neutral-400 focus:outline-none disabled:pointer-events-none disabled:opacity-50",
-            activeTab === "info"
-              ? "bg-daintree-700 text-white"
-              : "bg-transparent text-neutral-500",
+            "inline-flex flex-grow items-center justify-center gap-x-2 rounded-lg px-4 py-3 text-center text-sm font-medium text-[#E5E7EB] focus:outline-none disabled:pointer-events-none disabled:opacity-50",
+            activeTab === "info" ? "bg-daintree-700" : "bg-transparent",
           )}
           onClick={() => setActiveTab("info")}
         >

@@ -119,7 +119,7 @@ export default function Settings() {
             </span>
           </SettingItem>
           {networkDropdownOpen && (
-            <div className="absolute right-0 top-[4.5rem] flex flex-col items-start justify-start overflow-hidden rounded-xl border border-gray-700 bg-gray-800 p-2 shadow">
+            <div className="absolute right-0 top-[4.5rem] flex flex-col items-start justify-start overflow-hidden rounded-xl border border-gray-700 bg-daintree-800 p-2 shadow">
               {networks.map((network) => (
                 <div
                   key={network.id}

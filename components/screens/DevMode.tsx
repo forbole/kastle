@@ -26,7 +26,7 @@ export default function DevMode() {
         </div>
       </div>
 
-      <div className="flex cursor-pointer items-center justify-between rounded-xl border border-gray-700 bg-slate-800 p-5">
+      <div className="flex cursor-pointer items-center justify-between rounded-xl border border-gray-700 bg-[#1E343D] p-5">
         <div className="flex items-center justify-start gap-4 text-base font-semibold">
           <span className="font-semibold">Experimental features</span>
         </div>
@@ -37,7 +37,7 @@ export default function DevMode() {
               setSettings((prev) => ({ ...prev, preview: e.target.checked }))
             }
             type="checkbox"
-            className="relative h-6 w-11 cursor-pointer rounded-full border-neutral-700 border-transparent bg-daintree-700 p-px text-transparent transition-colors duration-200 ease-in-out before:inline-block before:size-5 before:translate-x-0 before:transform before:rounded-full before:bg-neutral-400 before:shadow before:ring-0 before:transition before:duration-200 before:ease-in-out checked:border-icy-blue-400 checked:bg-icy-blue-400 checked:bg-none checked:text-icy-blue-400 checked:before:translate-x-full checked:before:bg-blue-200 focus:ring-blue-600 focus:ring-offset-gray-600 focus:checked:border-blue-600 disabled:pointer-events-none disabled:opacity-50"
+            className="relative h-6 w-11 cursor-pointer rounded-full border-neutral-700 border-transparent bg-daintree-700 p-px text-transparent transition-colors duration-200 ease-in-out before:inline-block before:size-5 before:translate-x-0 before:transform before:rounded-full before:bg-white before:shadow before:ring-0 before:transition before:duration-200 before:ease-in-out checked:border-icy-blue-400 checked:bg-icy-blue-400 checked:bg-none checked:text-icy-blue-400 checked:before:translate-x-full checked:before:bg-white focus:ring-transparent focus:ring-offset-transparent focus:checked:border-transparent disabled:pointer-events-none disabled:opacity-50"
           />
         </div>
       </div>

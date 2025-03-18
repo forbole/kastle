@@ -110,7 +110,7 @@ export default function ShowRecoveryPhrase() {
                 <input
                   onChange={(e) => setHasAgreed(e.target.checked)}
                   type="checkbox"
-                  className="mt-0.5 shrink-0 rounded border-neutral-700 bg-neutral-800 text-blue-600 checked:border-icy-blue-400 checked:bg-icy-blue-400 focus:ring-blue-500 focus:ring-offset-gray-800 disabled:pointer-events-none disabled:opacity-50"
+                  className="mt-0.5 shrink-0 cursor-pointer rounded border-daintree-700 bg-icy-blue-950 text-icy-blue-400 checked:border-icy-blue-400 checked:bg-icy-blue-400 focus:ring-0 focus:ring-offset-0 disabled:pointer-events-none disabled:opacity-50"
                   id="agreed-reset"
                 />
                 <label

@@ -18,10 +18,10 @@ export default function Onboarding() {
       <div className="flex flex-col items-center gap-10 pt-12">
         <img alt="castle" className="h-[229px] w-[229px]" src={castleImage} />
         <div className="flex flex-col items-center gap-3">
-          <div className="text-center text-lg font-semibold text-[#a8a09c]">
+          <div className="text-center text-lg font-semibold text-daintree-400">
             Welcome to Kastle
           </div>
-          <div className="text-3xl font-semibold text-[#a8a09c]">
+          <div className="text-3xl font-semibold text-gray-200">
             Your Gateway to Kaspa
           </div>
         </div>

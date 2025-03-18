@@ -73,7 +73,7 @@ export default function SetupPassword() {
                 id="hs-strong-password-input"
                 {...register("password", { maxLength: 64 })}
                 type={showPassword ? "text" : "password"}
-                className="w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-white placeholder-daintree-200 hover:placeholder-daintree-50 focus:border-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                className="w-full rounded-lg border-0 bg-daintree-800 px-4 py-3 text-white placeholder-daintree-400 focus:outline-none focus:ring-2 focus:ring-gray-500"
                 placeholder="New password"
               />
               <button
@@ -100,10 +100,10 @@ export default function SetupPassword() {
                 {...register("confirmPassword", { maxLength: 64 })}
                 type={showConfirmPassword ? "text" : "password"}
                 className={twMerge(
-                  "w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-white placeholder-daintree-200 hover:placeholder-daintree-50 focus:outline-none",
+                  "w-full rounded-lg bg-daintree-800 px-4 py-3 text-white placeholder-daintree-400 focus:outline-none",
                   isMismatchShown
-                    ? "border-red-700 focus:border-red-600 focus:ring-red-800"
-                    : "focus:border-gray-600 focus:ring-2 focus:ring-gray-500",
+                    ? "border border-red-700 focus:border-red-600 focus:ring-red-800"
+                    : "border-0 focus:ring-2 focus:ring-gray-500",
                 )}
                 placeholder="Confirm password"
               />
@@ -134,7 +134,7 @@ export default function SetupPassword() {
             data-hs-strong-password={JSON.stringify({
               target: "#hs-strong-password-input",
               stripClasses:
-                "hs-strong-password:bg-[#14B8A6] hs-strong-password-accepted:bg-teal-500 h-2 flex-auto rounded-full bg-gray-700 opacity-100 mx-1",
+                "hs-strong-password:bg-[#14B8A6] hs-strong-password-accepted:bg-teal-500 h-2 flex-auto rounded-full bg-daintree-700 opacity-100 mx-1",
               minLength: 8,
             })}
             id="hs-strong-password-input"
@@ -146,7 +146,7 @@ export default function SetupPassword() {
           <input
             {...register("agreedTnc", { required: true })}
             type="checkbox"
-            className="mt-0.5 shrink-0 rounded border-neutral-700 bg-neutral-800 text-blue-600 checked:border-icy-blue-400 checked:bg-icy-blue-400 focus:ring-blue-500 focus:ring-offset-gray-800 disabled:pointer-events-none disabled:opacity-50"
+            className="mt-0.5 shrink-0 cursor-pointer rounded border-daintree-700 bg-icy-blue-950 text-icy-blue-400 checked:border-icy-blue-400 checked:bg-icy-blue-400 focus:ring-0 focus:ring-offset-0 disabled:pointer-events-none disabled:opacity-50"
             id="agreed-reset"
           />
           <label htmlFor="agreed-reset" className="ms-3 text-sm">
@@ -178,7 +178,7 @@ export default function SetupPassword() {
           className={twMerge(
             "w-full rounded-full py-4 text-base font-semibold",
             isDisabled
-              ? "bg-gray-800 text-gray-600"
+              ? "bg-daintree-800 text-gray-600"
               : "bg-icy-blue-400 text-white",
           )}
           disabled={isDisabled}
