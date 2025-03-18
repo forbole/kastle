@@ -24,7 +24,11 @@ export default function KasHistory() {
         className="flex cursor-pointer items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3 hover:border-white"
         onClick={() => openTransaction()}
       >
-        <img alt="castle" className="h-[40px] w-[40px]" src={kasIcon} />
+        <img
+          alt="castle"
+          className="h-[40px] w-[40px] rounded-full"
+          src={kasIcon}
+        />
         <span className="text-base font-medium">
           See activity history in explorer
         </span>

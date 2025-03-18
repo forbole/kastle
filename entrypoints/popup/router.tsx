@@ -11,7 +11,7 @@ import Send from "@/components/screens/Send.tsx";
 import Welcome from "@/components/screens/Welcome.tsx";
 import ConnectConfirm from "@/components/screens/browser-api/ConnectConfirm";
 import SignAndBroadcastTxConfirm from "@/components/screens/browser-api/SignAndBroadcastTxConfirm";
-import Dashboard from "@/components/screens/Dashboard.tsx";
+import Dashboard from "@/components/screens/Dashboard";
 import Settings from "@/components/screens/Settings.tsx";
 import Receive from "@/components/screens/Receive.tsx";
 import Onboarding from "@/components/screens/Onboarding.tsx";
@@ -58,6 +58,7 @@ import { RecentAddressesProvider } from "@/contexts/RecentAddressesContext.tsx";
 import LedgerConnectForImportFailed from "@/components/screens/full-pages/ledger/LedgerConnectForImportFailed";
 import LedgerConnectForSign from "@/components/screens/ledger-connect/LedgerConnectForSign";
 import LedgerConnectForSignFailed from "@/components/screens/ledger-connect/LedgerConnectForSignFailed";
+import KNSAsset from "@/components/screens/KNSAsset";
 
 const loadKaspaWasm = async () => {
   await init(kaspaModule);
@@ -172,6 +173,10 @@ export const router = createHashRouter([
                   {
                     path: "token-asset/:ticker",
                     element: <TokenAsset />,
+                  },
+                  {
+                    path: "kns/:assetId",
+                    element: <KNSAsset />,
                   },
                   {
                     path: "kas-asset",
