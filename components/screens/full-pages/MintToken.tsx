@@ -345,7 +345,7 @@ export default function MintToken() {
                   <i
                     className="hn hn-info-circle text-[24px]"
                     data-tooltip-id="info-tooltip"
-                    data-tooltip-content={`Fee Charged Every 10 transactions (${10 * mintAmount} ${tickerInput}).`}
+                    data-tooltip-content={`Fee Charged Every ${(10 * mintAmount).toLocaleString()} ${tickerInput}.`}
                   ></i>
                   <Tooltip
                     id="info-tooltip"
