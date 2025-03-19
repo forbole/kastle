@@ -18,8 +18,8 @@ export default function Welcome() {
       <div className="flex flex-col items-center pt-9">
         <img alt="castle" className="h-[229px] w-[229px]" src={castleImage} />
         <div className="flex flex-col items-center pt-10">
-          <div className="text-center text-lg text-[#a8a09c]">Success!</div>
-          <div className="text-3xl font-semibold text-[#a8a09c]">
+          <div className="text-center text-lg text-daintree-400">Success!</div>
+          <div className="text-3xl font-semibold text-gray-200">
             Welcome your Majesty
           </div>
         </div>
