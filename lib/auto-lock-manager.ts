@@ -4,7 +4,7 @@ import { storage } from "wxt/storage";
 
 export const AUTO_LOCK_ALARM = "auto-lock-alarm";
 export const DEFAULT_AUTO_LOCK_MINUTES = 5;
-const MAX_AUTO_LOCK_MINUTES = 30;
+const MAX_AUTO_LOCK_MINUTES = 60;
 const KEEP_ALIVE_INTERVAL = 25 * 1000;
 const KEEP_ALIVE_KEY = "local:keep-alive";
 
@@ -25,7 +25,7 @@ export class AutoLockManager {
         this.clearInactivityAlarm();
 
         port.onDisconnect.addListener(() => {
-          // Keep alive until the keyring is locked (max 30 minutes)
+          // Keep alive until the keyring is locked (max 60 minutes)
           this.startKeepAlive();
           this.resetInactivityAlarm();
         });
@@ -43,7 +43,7 @@ export class AutoLockManager {
 
     storage.watch(SETTINGS_KEY, async () => {
       let timeout = await this.getLockTimeout();
-      // Limit the maximum auto lock time to 30 minutes
+      // Limit the maximum auto lock time to 60 minutes
       if (timeout > MAX_AUTO_LOCK_MINUTES) timeout = MAX_AUTO_LOCK_MINUTES;
 
       if (this.timeout !== timeout) {
