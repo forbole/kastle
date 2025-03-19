@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.8.0](https://github.com/forbole/kastle/compare/v2.7.1...v2.8.0) (2025-03-19)
+
+
+### Features
+
+* browser api signing flow ([#54](https://github.com/forbole/kastle/issues/54)) ([ade8b68](https://github.com/forbole/kastle/commit/ade8b68fd1e2fca08b6de184a6cbf2d605e2c28b))
+* kns display UI ([#58](https://github.com/forbole/kastle/issues/58)) ([c304566](https://github.com/forbole/kastle/commit/c304566c1ab6a68f72c30ca9de9f48a33031b95f))
+* update UI to indicate small percentage minted ([#59](https://github.com/forbole/kastle/issues/59)) ([1f566d4](https://github.com/forbole/kastle/commit/1f566d40237acd7eb335fd20f41e6c60830f4647))
+
+
+### Bug Fixes
+
+* **account-management:** update header title for account import ([#55](https://github.com/forbole/kastle/issues/55)) ([c7a60fd](https://github.com/forbole/kastle/commit/c7a60fdc546a85ddf45f08c2f67402329f3d20b7))
+
 ## [2.7.1](https://github.com/forbole/kastle/compare/v2.7.0...v2.7.1) (2025-03-11)
 
 
