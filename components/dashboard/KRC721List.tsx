@@ -11,7 +11,7 @@ export default function KRC721List() {
 
   return (
     data && (
-      <div>
+      <>
         <div className="grid grid-cols-3 gap-3">
           {data.map((page) =>
             page.result.map((krc721) => (
@@ -44,7 +44,7 @@ export default function KRC721List() {
             )}
           </button>
         )}
-      </div>
+      </>
     )
   );
 }
