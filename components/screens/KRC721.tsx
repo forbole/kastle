@@ -7,23 +7,30 @@ import Copy from "@/components/Copy";
 import HoverShowAll from "@/components/HoverShowAll";
 import expandImage from "@/assets/images/expand.svg";
 
-const DESCRIPTION_LIMIT = 105;
+const SHOW_DESCRIPTION_LIMIT = 105;
+const SHOW_ATTRIBUTES_LIMIT = 4;
 
 export default function KRC721() {
   const { tick, tokenId } = useParams();
   const { data } = useKRC721Details(tick, tokenId);
-  const [seeMore, setSeeMore] = useState(false);
+  const [seeMoreDescription, setSeeMoreDescription] = useState(false);
+  const [showMoreAttributes, setShowMoreAttributes] = useState(false);
   const { account } = useWalletManager();
 
   const isLoading = !data;
   const name = `${tick} #${tokenId}`;
+
+  // Description
   const description =
     data && data.description ? data.description : "No description";
-  const shownDescription = seeMore
+  const shownDescription = seeMoreDescription
     ? description
-    : description.slice(0, DESCRIPTION_LIMIT);
+    : description.slice(0, SHOW_DESCRIPTION_LIMIT);
 
   const attributes = data?.attributes ?? [];
+  const shownAttributes = showMoreAttributes
+    ? attributes
+    : attributes.slice(0, SHOW_ATTRIBUTES_LIMIT);
 
   return (
     <div className="flex h-full flex-col p-4">
@@ -88,14 +95,15 @@ export default function KRC721() {
             <>
               <h3>Description</h3>
               <span className="text-xs text-[#7B9AAA]">{shownDescription}</span>
-              {!seeMore && description.length > DESCRIPTION_LIMIT && (
-                <p
-                  className="cursor-pointer text-cyan-500 underline"
-                  onClick={() => setSeeMore(true)}
-                >
-                  See more
-                </p>
-              )}
+              {!seeMoreDescription &&
+                description.length > SHOW_DESCRIPTION_LIMIT && (
+                  <p
+                    className="cursor-pointer text-cyan-500 underline"
+                    onClick={() => setSeeMoreDescription(true)}
+                  >
+                    See more
+                  </p>
+                )}
             </>
           )}
         </div>
@@ -109,7 +117,7 @@ export default function KRC721() {
               <span>VALUE</span>
             </div>
             <ul className="flex flex-col">
-              {attributes.map((attr, index) => (
+              {shownAttributes.map((attr, index) => (
                 <li
                   key={index}
                   className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:rounded-t-xl last:rounded-b-xl"
@@ -125,6 +133,16 @@ export default function KRC721() {
                 </li>
               ))}
             </ul>
+
+            {!showMoreAttributes &&
+              attributes.length > SHOW_ATTRIBUTES_LIMIT && (
+                <div
+                  className="mx-auto cursor-pointer text-center text-base font-semibold leading-none text-cyan-500"
+                  onClick={() => setShowMoreAttributes(true)}
+                >
+                  <i className="hn hn-chevron-down ml-1"></i> Show more
+                </div>
+              )}
           </div>
         )}
 
