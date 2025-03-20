@@ -1,0 +1,13 @@
+<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Pixel/Regular/Expand" clip-path="url(#clip0_6256_23064)">
+<path id="Vector" d="M1.50002 1.99984V5.49984H1.16669V1.83317H1.33335H1.50002V1.99984ZM2.00002 1.49984H1.83335V1.33317V1.1665H5.50002V1.49984H2.00002Z" stroke="white"/>
+<path id="Vector_2" d="M2.00002 14.5H5.50002V14.8333H1.83335V14.6667V14.5H2.00002ZM1.50002 14V14.1667H1.33335H1.16669V10.5H1.50002V14Z" stroke="white"/>
+<path id="Vector_3" d="M14.5 14V10.5H14.8333V14.1667H14.6667H14.5V14ZM14 14.5H14.1667V14.6667V14.8333H10.5V14.5H14Z" fill="#3B6273" stroke="white"/>
+<path id="Vector_4" d="M10.5 1.1665H14.1667V1.33317V1.49984H14H10.5V1.1665ZM14.5 1.99984V1.83317H14.6667H14.8333V5.49984H14.5V1.99984Z" fill="#3B6273" stroke="white"/>
+</g>
+<defs>
+<clipPath id="clip0_6256_23064">
+<rect width="16" height="16" fill="white"/>
+</clipPath>
+</defs>
+</svg>

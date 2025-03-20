@@ -12,6 +12,7 @@ import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import { Tooltip } from "react-tooltip";
 import Assets from "@/components/dashboard/Assets";
 import KNS from "@/components/dashboard/KNS";
+import KRC721List from "@/components/dashboard/KRC721List";
 
 export default function Dashboard() {
   const { keyringLock } = useKeyring();
@@ -24,7 +25,7 @@ export default function Dashboard() {
   const [dismissWarning, setDismissWarning] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  const tabs = ["Assets", "KNS"] as const;
+  const tabs = ["Assets", "NFT", "KNS"] as const;
   const [activeTab, setActiveTab] = useState<(typeof tabs)[number]>("Assets");
 
   const address = account?.address;
@@ -336,6 +337,7 @@ export default function Dashboard() {
 
           {/* Tab Content */}
           {activeTab === "Assets" && <Assets />}
+          {activeTab === "NFT" && <KRC721List />}
           {activeTab === "KNS" && <KNS />}
         </div>
       </div>

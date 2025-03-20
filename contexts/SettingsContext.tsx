@@ -60,6 +60,18 @@ export const KNS_API_URLS = {
   [NetworkType.TestnetT11]: "https://api.knsdomains.org/tn11",
 };
 
+export const KRC721_API_URLS = {
+  [NetworkType.Mainnet]: "https://mainnet.krc721.stream",
+  [NetworkType.TestnetT10]: "https://testnet-10.krc721.stream",
+  [NetworkType.TestnetT11]: undefined,
+};
+
+export const KRC721_CACHE_URLS = {
+  [NetworkType.Mainnet]: "https://cache.krc721.stream/krc721/mainnet",
+  [NetworkType.TestnetT10]: "https://cache.krc721.stream/krc721/testnet-10",
+  [NetworkType.TestnetT11]: undefined,
+};
+
 const initialSettings = {
   networkId: NetworkType.Mainnet,
   lockTimeout: 5, // Save 5 minutes as default value
