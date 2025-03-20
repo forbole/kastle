@@ -5,10 +5,12 @@ import {
 } from "@/contexts/SettingsContext";
 import { fetcher, emptyFetcher } from "@/lib/utils";
 import useSWR from "swr";
+import useSWRInfinite from "swr/infinite";
 
 type KRC721ByAddressResponse = {
   message: string;
   result: KRC721Info[];
+  next?: string;
 };
 
 type KRC721Info = {
@@ -16,17 +18,24 @@ type KRC721Info = {
   tokenId: string;
 };
 
-export function useKRC721ByAddress(address?: string, refreshInterval?: number) {
+export function useKRC721ByAddress(address?: string) {
   const { networkId } = useRpcClientStateful();
 
   const krc721ApiUrl = KRC721_API_URLS[networkId ?? NetworkType.Mainnet];
 
-  return useSWR<KRC721ByAddressResponse, Error>(
-    `${krc721ApiUrl}/api/v1/krc721/${networkId}/address/${address}`,
-    address && krc721ApiUrl ? fetcher : emptyFetcher,
-    {
-      refreshInterval,
-    },
+  const getKey = (
+    pageIndex: number,
+    previousPageData: KRC721ByAddressResponse,
+  ) => {
+    if (pageIndex === 0)
+      return `${krc721ApiUrl}/api/v1/krc721/${networkId}/address/${address}`;
+    if (!previousPageData?.next) return null;
+    return `${krc721ApiUrl}/api/v1/krc721/${networkId}/address/${address}?offset=${previousPageData.next}`;
+  };
+
+  return useSWRInfinite<KRC721ByAddressResponse, Error>(
+    getKey,
+    address ? fetcher : emptyFetcher,
   );
 }
 
