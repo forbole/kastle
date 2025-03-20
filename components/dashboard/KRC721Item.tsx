@@ -2,6 +2,8 @@ import { useKRC721Details } from "@/hooks/useKRC721";
 import { convertIPFStoHTTP } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 
+const NAME_LIMIT = 14;
+
 export default function KRC721Item({
   tick,
   tokenId,
@@ -28,7 +30,9 @@ export default function KRC721Item({
             className="rounded-xl"
           />
           <div className="absolute bottom-0 left-0 right-0 m-1 rounded-full border-[#203C49] bg-[#102832] py-1.5 text-center text-[10px] leading-none text-white">
-            {name.length >= 14 ? `${name.slice(0, 14)}...` : name}
+            {name.length > NAME_LIMIT
+              ? `${name.slice(0, NAME_LIMIT)}...`
+              : name}
           </div>
         </div>
       )}
