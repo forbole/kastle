@@ -1,10 +1,17 @@
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import useKeyring from "@/hooks/useKeyring";
+import { useEffect } from "react";
+import { KEYRING_CHANGE_TIME } from "@/lib/keyring-manager.ts";
+import useStorageState from "@/hooks/useStorageState.ts";
 
 export default function WalletLockedAlert() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { getKeyringStatus } = useKeyring();
+  const [unlockTime] = useStorageState(
+    `local:${KEYRING_CHANGE_TIME}`,
+    Date.now(),
+  );
 
   const onClick = () => {
     browser.action.openPopup();
@@ -22,7 +29,7 @@ export default function WalletLockedAlert() {
     };
 
     checkWalletStatus();
-  }, []);
+  }, [unlockTime]);
 
   return (
     <div className="flex h-full w-full flex-col items-center justify-center gap-12">
