@@ -43,7 +43,7 @@ export default function KRC721() {
           <img
             src={convertIPFStoHTTP(data.image)}
             alt="KRC721"
-            className="h-full w-full"
+            className="max-h-48 max-w-48 m-auto rounded-xl"
           />
           <div
             className="absolute bottom-0 right-0 m-2 cursor-pointer rounded-full bg-[#3B6273] p-3"
