@@ -32,6 +32,18 @@ export default function KRC721() {
     ? attributes
     : attributes.slice(0, SHOW_ATTRIBUTES_LIMIT);
 
+  const handleDownload = async (imageUrl: string) => {
+    const result = await fetch(imageUrl);
+    const blob = await result.blob();
+
+    const link = document.createElement("a");
+    link.href = window.URL.createObjectURL(blob);
+    link.download = `${tick}_${tokenId}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="flex h-full flex-col p-4">
       <Header title="KRC721" showClose={false} />
@@ -43,11 +55,11 @@ export default function KRC721() {
           <img
             src={convertIPFStoHTTP(data.image)}
             alt="KRC721"
-            className="max-h-48 max-w-48 m-auto rounded-xl"
+            className="m-auto max-h-48 max-w-48 rounded-xl"
           />
           <div
             className="absolute bottom-0 right-0 m-2 cursor-pointer rounded-full bg-[#3B6273] p-3"
-            onClick={() => window.open(convertIPFStoHTTP(data.image))}
+            onClick={() => handleDownload(convertIPFStoHTTP(data.image))}
           >
             <img src={expandImage} alt="expand" />
           </div>

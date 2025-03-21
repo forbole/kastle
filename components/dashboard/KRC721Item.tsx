@@ -27,7 +27,7 @@ export default function KRC721Item({
           <img
             src={convertIPFStoHTTP(data.image)}
             alt={data.name}
-            className="m-auto h-auto rounded-xl"
+            className="m-auto max-h-28 rounded-xl"
           />
           <div className="absolute bottom-0 left-0 right-0 m-1 rounded-full border-[#203C49] bg-[#102832] py-1.5 text-center text-[10px] leading-none text-white">
             {name.length > NAME_LIMIT
