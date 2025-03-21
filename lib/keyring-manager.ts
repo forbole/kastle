@@ -14,6 +14,7 @@ interface EncryptedData {
 const ALGORITHM = "AES-GCM";
 const KEY_LENGTH = 256;
 const VERIFICATION_KEY = "verification";
+export const KEYRING_CHANGE_TIME = "KEYRING_CHANGE_TIME";
 const VERIFICATION_VALUE = "keyring-verification-value";
 
 export class Keyring {
@@ -22,6 +23,10 @@ export class Keyring {
 
   constructor(namespace: string = "keyring") {
     this.namespace = namespace;
+  }
+
+  updateWalletChangeTime() {
+    return storage.setItem(`local:${KEYRING_CHANGE_TIME}`, Date.now());
   }
 
   async isInitialized(): Promise<boolean> {
@@ -50,6 +55,7 @@ export class Keyring {
     await this.storeVerificationValue(key);
 
     this.masterKey = key;
+    await this.updateWalletChangeTime();
   }
 
   async unlock(password: string): Promise<boolean> {
@@ -70,11 +76,13 @@ export class Keyring {
     }
 
     this.masterKey = key;
+    await this.updateWalletChangeTime();
     return true;
   }
 
-  lock(): void {
+  async lock(): Promise<void> {
     this.masterKey = null;
+    await this.updateWalletChangeTime();
   }
 
   async setValue<T>(key: AllowedKey, value: T): Promise<void> {
@@ -178,6 +186,7 @@ export class Keyring {
 
     // Update master key and re-encrypt all data
     this.masterKey = newKey;
+    await this.updateWalletChangeTime();
     await Promise.all(
       dataToMigrate.map(async (item) => {
         if (!item) return;
@@ -200,6 +209,7 @@ export class Keyring {
     ]);
 
     this.masterKey = null;
+    await this.updateWalletChangeTime();
   }
 
   private generateIV(): Uint8Array {
