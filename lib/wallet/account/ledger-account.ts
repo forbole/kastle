@@ -25,13 +25,15 @@ import KaspaApp, {
   TransactionOutput as LedgerTransactionOutput,
 } from "hw-app-kaspa";
 
+const LEDGER_ACCOUNT_INDEX_OFFSET = 0x80000000;
+
 export class LedgerAccount implements IWallet {
   private readonly app: KaspaApp;
   private readonly path: string;
 
   constructor(
     transport: Transport,
-    accountIndex: number,
+    private readonly accountIndex: number,
     private readonly rpcClient: RpcClient,
     private readonly networkId: string,
   ) {
@@ -105,6 +107,7 @@ export class LedgerAccount implements IWallet {
 
         changeAddressType: 0,
         changeAddressIndex: 0,
+        account: this.accountIndex + LEDGER_ACCOUNT_INDEX_OFFSET,
       });
 
       await this.app.signTransaction(tx);
@@ -187,6 +190,7 @@ export class LedgerAccount implements IWallet {
       outputs,
       changeAddressType: 0,
       changeAddressIndex: 0,
+      account: this.accountIndex + LEDGER_ACCOUNT_INDEX_OFFSET,
     });
 
     await this.app.signTransaction(ledgerTx);
