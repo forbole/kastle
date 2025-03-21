@@ -20,9 +20,9 @@ export class AutoLockManager {
 
   listen() {
     // start listeners
-    browser.runtime.onConnect.addListener((port) => {
+    browser.runtime.onConnect.addListener(async (port) => {
       if (port.name === "popup") {
-        this.clearInactivityAlarm();
+        await this.clearInactivityAlarm();
 
         port.onDisconnect.addListener(() => {
           // Keep alive until the keyring is locked (max 60 minutes)
@@ -55,9 +55,9 @@ export class AutoLockManager {
   private startKeepAlive() {
     if (this.keepAlive) clearInterval(this.keepAlive);
 
-    this.keepAlive = setInterval(() => {
-      chrome.runtime.getPlatformInfo();
-      storage.setItem(KEEP_ALIVE_KEY, Date.now());
+    this.keepAlive = setInterval(async () => {
+      await chrome.runtime.getPlatformInfo();
+      await storage.setItem(KEEP_ALIVE_KEY, Date.now());
     }, KEEP_ALIVE_INTERVAL);
   }
 
@@ -79,13 +79,13 @@ export class AutoLockManager {
     });
   }
 
-  private clearInactivityAlarm() {
-    browser.alarms.clear(AUTO_LOCK_ALARM);
+  private async clearInactivityAlarm() {
+    await browser.alarms.clear(AUTO_LOCK_ALARM);
   }
 
-  private executeAutoLock() {
+  private async executeAutoLock() {
     const extensionService = ExtensionService.getInstance();
     extensionService.getKeyring().lock();
-    browser.alarms.clear(AUTO_LOCK_ALARM);
+    await browser.alarms.clear(AUTO_LOCK_ALARM);
   }
 }
