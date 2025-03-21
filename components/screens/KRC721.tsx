@@ -40,7 +40,11 @@ export default function KRC721() {
         <div className="mx-auto h-48 w-48 rounded-xl bg-[#102832]"></div>
       ) : (
         <div className="relative mx-auto h-48 w-48 rounded-xl">
-          <img src={convertIPFStoHTTP(data.image)} alt="KRC721" />
+          <img
+            src={convertIPFStoHTTP(data.image)}
+            alt="KRC721"
+            className="h-full w-full"
+          />
           <div
             className="absolute bottom-0 right-0 m-2 cursor-pointer rounded-full bg-[#3B6273] p-3"
             onClick={() => window.open(convertIPFStoHTTP(data.image))}

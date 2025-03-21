@@ -12,7 +12,7 @@ export default function KRC721List() {
   return (
     data && (
       <>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 gap-3 items-start">
           {data.map((page) =>
             page.result.map((krc721) => (
               <KRC721Item
