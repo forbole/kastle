@@ -70,7 +70,7 @@ export default function Settings() {
   };
 
   return (
-    <div className="flex h-full flex-col p-6">
+    <div className="relative flex h-full flex-col p-6">
       {/* Header */}
       <Header
         title="Settings"
@@ -81,67 +81,92 @@ export default function Settings() {
       {/* Settings List */}
       <div className="flex flex-col gap-3">
         {/* Auto lock after */}
-        <div className="relative">
-          <SettingItem
-            title="Auto lock after"
-            onClick={() => setLockAfterDropdownOpen(!lockAfterDropdownOpen)}
+        <SettingItem
+          title="Auto lock after"
+          onClick={() => setLockAfterDropdownOpen(!lockAfterDropdownOpen)}
+        >
+          <button className="font-semibold text-[#3c73ff]">
+            {selectedLockAfter?.name}
+          </button>
+        </SettingItem>
+        <>
+          <div
+            className={`fixed inset-0 z-40 bg-black/50 transition-opacity duration-300 ${
+              lockAfterDropdownOpen
+                ? "opacity-100"
+                : "pointer-events-none opacity-0"
+            }`}
+            onClick={() => setLockAfterDropdownOpen(false)}
+          />
+          <div
+            className={twMerge(
+              "no-scrollbar absolute bottom-0 left-0 z-50 h-[35vh] w-full transform rounded-t-2xl border border-daintree-700 bg-daintree-800 p-3 transition-transform duration-300 ease-out",
+              lockAfterDropdownOpen ? "translate-y-0" : "translate-y-[35vh]",
+            )}
           >
-            <button className="font-semibold text-[#3c73ff]">
-              {selectedLockAfter?.name}
-            </button>
-          </SettingItem>
-          {lockAfterDropdownOpen && (
-            <div className="absolute right-0 top-[4.5rem] z-10 flex flex-col items-start justify-start overflow-hidden rounded-xl border border-gray-700 bg-gray-800 p-2 shadow">
-              {lockAfterOptions.map((option) => (
-                <div
-                  key={option.value}
-                  className="flex w-full cursor-pointer items-center rounded-lg p-2 opacity-80 hover:bg-daintree-700"
-                  onClick={async () => {
-                    await changeLockAfter(option.value);
-                    setLockAfterDropdownOpen(false);
-                  }}
-                >
-                  <span className="text-sm font-semibold">{option.name}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+            {lockAfterOptions.map((option) => (
+              <div
+                key={option.value}
+                className={twMerge(
+                  "flex w-full cursor-pointer items-center rounded-lg p-2 opacity-80 hover:bg-daintree-700",
+                  selectedLockAfter?.value === option.value &&
+                    "bg-daintree-700",
+                )}
+                onClick={async () => {
+                  await changeLockAfter(option.value);
+                  setLockAfterDropdownOpen(false);
+                }}
+              >
+                <span className="text-sm font-semibold">{option.name}</span>
+              </div>
+            ))}
+          </div>
+        </>
 
         {/* Network */}
-        <div className="relative">
-          <SettingItem
-            title="Network"
-            onClick={() => setNetworkDropdownOpen(!networkDropdownOpen)}
+        <SettingItem
+          title="Network"
+          onClick={() => setNetworkDropdownOpen(!networkDropdownOpen)}
+        >
+          <span className={twMerge("font-semibold", selectedNetwork?.text)}>
+            {selectedNetwork?.name}
+          </span>
+        </SettingItem>
+
+        <>
+          <div
+            className={`fixed inset-0 z-40 bg-black/50 transition-opacity duration-300 ${
+              networkDropdownOpen
+                ? "opacity-100"
+                : "pointer-events-none opacity-0"
+            }`}
+            onClick={() => setNetworkDropdownOpen(false)}
+          />
+          <div
+            className={twMerge(
+              "no-scrollbar absolute bottom-0 left-0 z-50 h-[25vh] w-full transform rounded-t-2xl border border-daintree-700 bg-daintree-800 p-3 transition-transform duration-300 ease-out",
+              networkDropdownOpen ? "translate-y-0" : "translate-y-[25vh]",
+            )}
           >
-            <span className={twMerge("font-semibold", selectedNetwork?.text)}>
-              {selectedNetwork?.name}
-            </span>
-          </SettingItem>
-          {networkDropdownOpen && (
-            <div className="absolute right-0 top-[4.5rem] flex flex-col items-start justify-start overflow-hidden rounded-xl border border-gray-700 bg-daintree-800 p-2 shadow">
-              {networks.map((network) => (
-                <div
-                  key={network.id}
-                  className={twMerge(
-                    "flex w-full cursor-pointer items-center gap-2 rounded-lg p-2 opacity-80 hover:bg-daintree-700",
-                    network.text,
-                  )}
-                  onClick={async () => {
-                    await changeNetwork(network.id);
-                    setNetworkDropdownOpen(false);
-                  }}
-                >
-                  <i
-                    className={twMerge("rounded-full p-1", network.iconColor)}
-                  />
-                  <span className="text-sm font-semibold">{network.name}</span>
-                  <div className="text-sm"></div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+            {networks.map((network) => (
+              <div
+                key={network.id}
+                className={twMerge(
+                  "flex w-full cursor-pointer items-center gap-2 rounded-lg p-2 opacity-80 hover:bg-daintree-700",
+                  network.text,
+                )}
+                onClick={async () => {
+                  await changeNetwork(network.id);
+                  setNetworkDropdownOpen(false);
+                }}
+              >
+                <i className={twMerge("rounded-full p-1", network.iconColor)} />
+                <span className="text-sm font-semibold">{network.name}</span>
+                <div className="text-sm"></div>
+              </div>
+            ))}
+          </div>
+        </>
 
         {/* Connected Apps */}
         <SettingItem
