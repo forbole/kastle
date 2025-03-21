@@ -59,6 +59,7 @@ import LedgerConnectForImportFailed from "@/components/screens/full-pages/ledger
 import LedgerConnectForSign from "@/components/screens/ledger-connect/LedgerConnectForSign";
 import LedgerConnectForSignFailed from "@/components/screens/ledger-connect/LedgerConnectForSignFailed";
 import KNSAsset from "@/components/screens/KNSAsset";
+import KRC721 from "@/components/screens/KRC721";
 
 const loadKaspaWasm = async () => {
   await init(kaspaModule);
@@ -177,6 +178,10 @@ export const router = createHashRouter([
                   {
                     path: "kns/:assetId",
                     element: <KNSAsset />,
+                  },
+                  {
+                    path: "krc721/:tick/:tokenId",
+                    element: <KRC721 />,
                   },
                   {
                     path: "kas-asset",
