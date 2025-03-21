@@ -140,7 +140,10 @@ export default function KRC721() {
                 >
                   <div className="flex w-full items-start justify-between">
                     <span>{attr.trait_type}</span>
-                    <Copy textToCopy={attr.value} id="copy-asset-id-number">
+                    <Copy
+                      textToCopy={attr.value}
+                      id={`copy-krc721-attribute-${index}`}
+                    >
                       <span className="cursor-pointer font-medium">
                         {attr.value}
                       </span>
