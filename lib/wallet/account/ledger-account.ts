@@ -31,7 +31,7 @@ export class LedgerAccount implements IWallet {
 
   constructor(
     transport: Transport,
-    accountIndex: number,
+    private readonly accountIndex: number,
     private readonly rpcClient: RpcClient,
     private readonly networkId: string,
   ) {
@@ -105,6 +105,7 @@ export class LedgerAccount implements IWallet {
 
         changeAddressType: 0,
         changeAddressIndex: 0,
+        account: this.accountIndex,
       });
 
       await this.app.signTransaction(tx);
@@ -187,6 +188,7 @@ export class LedgerAccount implements IWallet {
       outputs,
       changeAddressType: 0,
       changeAddressIndex: 0,
+      account: this.accountIndex,
     });
 
     await this.app.signTransaction(ledgerTx);
