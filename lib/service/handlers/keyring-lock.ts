@@ -7,7 +7,7 @@ export const keyringLock = async (
   const extensionService = ExtensionService.getInstance();
   const keyring = extensionService.getKeyring();
 
-  keyring.lock();
+  await keyring.lock();
 
   sendResponse();
 };
