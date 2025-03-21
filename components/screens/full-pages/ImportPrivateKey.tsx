@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React from "react";
 import { useForm } from "react-hook-form";
 import { twMerge } from "tailwind-merge";
 import { useNavigate } from "react-router-dom";
 import { v4 as uuid } from "uuid";
 import useAnalytics from "@/hooks/useAnalytics.ts";
 import { PrivateKey } from "@/wasm/core/kaspa";
+import { useBoolean } from "usehooks-ts";
 
 type PrivateKeyFormValues = { privateKey: string };
 
@@ -21,7 +22,7 @@ export default function ImportPrivateKey() {
     mode: "all",
   });
 
-  const [isHidden, setIsHidden] = useState(true);
+  const { value: isHidden, toggle: toggleHidden } = useBoolean(true);
 
   const onClose = () => window.close();
 
@@ -70,15 +71,17 @@ export default function ImportPrivateKey() {
           className="flex flex-grow flex-col items-stretch gap-4"
         >
           <div className="relative">
-            <div className={twMerge("flex flex-col gap-4", isHidden && "blur")}>
+            <div className="flex flex-col gap-4">
               <div className="flex justify-between">
                 <button
                   type="button"
                   className="inline-flex items-center gap-x-2 rounded-lg border border-transparent px-4 py-3 text-sm font-medium text-icy-blue-400 hover:bg-daintree-700 hover:text-blue-400 focus:bg-blue-100 focus:bg-blue-800/30 focus:text-blue-400 focus:outline-none disabled:pointer-events-none disabled:opacity-50"
-                  onClick={() => setIsHidden(true)}
+                  onClick={toggleHidden}
                 >
                   <i className="hn hn-eye text-[14px]" />
-                  <span>Hide private key</span>
+                  <span>
+                    {isHidden ? "Show private key" : "Hide private key"}
+                  </span>
                 </button>
                 <button
                   type="button"
@@ -108,22 +111,10 @@ export default function ImportPrivateKey() {
                   "peer block h-[120px] w-full resize-none rounded-lg border border-daintree-700 bg-daintree-800 p-3 text-sm placeholder-daintree-200 hover:placeholder-daintree-50 focus:ring-0 disabled:pointer-events-none disabled:opacity-50",
                   errors.privateKey &&
                     "border-0 ring ring-red-500/25 focus:border-0 focus:ring focus:ring-red-500/25",
-                  isHidden && "blur",
+                  isHidden && "text-security-disc",
                 )}
               />
             </div>
-            {isHidden && (
-              <button
-                type="button"
-                onClick={() => setIsHidden(false)}
-                className="absolute inset-0 flex flex-col items-center justify-center gap-4"
-              >
-                <i className="hn hn-eye-cross text-[46px]"></i>
-                <span className="text-base text-[#C8C3C0]">
-                  Make sure no one is looking your screen
-                </span>
-              </button>
-            )}
           </div>
 
           {errors.privateKey && (
