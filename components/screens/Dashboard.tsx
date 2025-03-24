@@ -26,6 +26,9 @@ export default function Dashboard() {
 
   const tabs = ["Assets", "KNS"] as const;
   const [activeTab, setActiveTab] = useState<(typeof tabs)[number]>("Assets");
+  const segmenter = new Intl.Segmenter("en", { granularity: "grapheme" });
+  const segments = Array.from(segmenter.segment(account?.name ?? ""));
+  const shortAccountName = `${segments[0]?.segment}${segments[segments.length - 1]?.segment}`;
 
   const address = account?.address;
   const balance = account?.balance;
@@ -96,8 +99,7 @@ export default function Dashboard() {
             onClick={() => setIsMenuOpen(true)}
           >
             <span className="flex size-6 items-center justify-center rounded-lg bg-[#9CA3AF] text-white">
-              {account?.name?.[0]}
-              {account?.name?.[account?.name?.length - 1]}
+              {shortAccountName}
             </span>
             <span className="text-base text-white">{account?.name}</span>
             <i className="hn hn-angle-right text-[16px] text-white" />
