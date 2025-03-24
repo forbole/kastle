@@ -85,7 +85,7 @@ export class AutoLockManager {
 
   private async executeAutoLock() {
     const extensionService = ExtensionService.getInstance();
-    extensionService.getKeyring().lock();
+    await extensionService.getKeyring().lock();
     await browser.alarms.clear(AUTO_LOCK_ALARM);
   }
 }
