@@ -1,7 +1,7 @@
 import { useParams } from "react-router-dom";
 import React, { useState } from "react";
 import { twMerge } from "tailwind-merge";
-import { useCopyToClipboard } from "usehooks-ts";
+import { useBoolean, useCopyToClipboard } from "usehooks-ts";
 import Header from "@/components/GeneralHeader";
 import { Tooltip } from "react-tooltip";
 
@@ -12,7 +12,7 @@ export default function ShowRecoveryPhrase() {
   const [hasAgreed, setHasAgreed] = useState(false);
   const [, copy] = useCopyToClipboard();
   const [copied, setCopied] = useState(false);
-  const [isHidden, setIsHidden] = useState(true);
+  const { value: isHidden, toggle: toggleHidden } = useBoolean(true);
   const [recoveryPhrase, setRecoveryPhrase] = useState<string[]>();
 
   const copyPhrase = async () => {
@@ -53,15 +53,15 @@ export default function ShowRecoveryPhrase() {
 
         <div className="flex flex-grow flex-col items-stretch gap-4">
           <div className="relative">
-            <div className={twMerge("flex flex-col gap-4", isHidden && "blur")}>
+            <div className="flex flex-col gap-4">
               <div className="flex justify-between">
                 <button
                   type="button"
                   className="disabled:opacity-50/30 inline-flex items-center gap-x-2 rounded-lg border border-transparent py-3 text-sm font-medium text-icy-blue-400 hover:bg-daintree-700 hover:text-blue-400 focus:bg-blue-100 focus:bg-blue-800/30 focus:text-blue-400 focus:outline-none disabled:pointer-events-none disabled:opacity-50"
-                  onClick={() => setIsHidden(true)}
+                  onClick={toggleHidden}
                 >
                   <i className="hn hn-eye text-[14px]" />
-                  <span>Hide words</span>
+                  <span>{isHidden ? "Show words" : "Hide words"}</span>
                 </button>
                 <button
                   data-tooltip-id="copy"
@@ -94,6 +94,7 @@ export default function ShowRecoveryPhrase() {
                     <input
                       value={recoveryPhrase?.[index]}
                       disabled
+                      type={isHidden ? "password" : "text"}
                       className={twMerge(
                         "peer block w-full rounded-lg border border-daintree-700 bg-daintree-800 py-3 pe-0 text-base font-medium text-white focus:ring-0 disabled:pointer-events-none",
                         index >= 9 ? "ps-8" : "ps-7",
@@ -121,18 +122,6 @@ export default function ShowRecoveryPhrase() {
                 </label>
               </div>
             </div>
-            {isHidden && (
-              <button
-                type="button"
-                onClick={() => setIsHidden(false)}
-                className="absolute inset-0 flex flex-col items-center justify-center gap-4"
-              >
-                <i className="hn hn-eye-cross text-[46px]"></i>
-                <span className="text-base text-[#C8C3C0]">
-                  Make sure no one is looking your screen
-                </span>
-              </button>
-            )}
           </div>
 
           <button
