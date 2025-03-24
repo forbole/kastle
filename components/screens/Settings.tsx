@@ -154,6 +154,7 @@ export default function Settings() {
                 className={twMerge(
                   "flex w-full cursor-pointer items-center gap-2 rounded-lg p-2 opacity-80 hover:bg-daintree-700",
                   network.text,
+                  selectedNetwork?.id === network.id && "bg-daintree-700",
                 )}
                 onClick={async () => {
                   await changeNetwork(network.id);
