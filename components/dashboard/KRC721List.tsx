@@ -14,10 +14,10 @@ export default function KRC721List() {
     <>
       <div className="grid grid-cols-3 items-end gap-3">
         {firstLoading &&
-          Array(6).map((_, index) => (
+          Array.from({ length: 6 }).map((_, index) => (
             <div
               key={index}
-              className="h-28 w-28 animate-pulse rounded-xl bg-daintree-800"
+              className="h-28 w-auto animate-pulse rounded-xl bg-daintree-800"
             />
           ))}
 
