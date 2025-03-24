@@ -5,10 +5,15 @@ import { twMerge } from "tailwind-merge";
 import { convertIPFStoHTTP, walletAddressEllipsis } from "@/lib/utils";
 import Copy from "@/components/Copy";
 import HoverShowAll from "@/components/HoverShowAll";
-import expandImage from "@/assets/images/expand.svg";
+import downloadImage from "@/assets/images/download.svg";
 
 const SHOW_DESCRIPTION_LIMIT = 105;
 const SHOW_ATTRIBUTES_LIMIT = 4;
+
+function toSentenceCase(sentence: string) {
+  if (!sentence) return "";
+  return sentence.charAt(0).toUpperCase() + sentence.slice(1).toLowerCase();
+}
 
 export default function KRC721() {
   const { tick, tokenId } = useParams();
@@ -27,7 +32,14 @@ export default function KRC721() {
     ? description
     : description.slice(0, SHOW_DESCRIPTION_LIMIT);
 
-  const attributes = data?.attributes ?? [];
+  const attributes =
+    data?.attributes.map((attr) => {
+      return {
+        trait_type: toSentenceCase(attr.trait_type),
+        value: attr.value,
+      };
+    }) ?? [];
+
   const shownAttributes = showMoreAttributes
     ? attributes
     : attributes.slice(0, SHOW_ATTRIBUTES_LIMIT);
@@ -46,22 +58,22 @@ export default function KRC721() {
 
   return (
     <div className="flex h-full flex-col p-4">
-      <Header title="KRC721" showClose={false} />
+      <Header title={name} showClose={false} />
 
       {isLoading ? (
-        <div className="mx-auto h-48 w-48 rounded-xl bg-[#102832]"></div>
+        <div className="mx-auto h-28 w-28 animate-pulse rounded-xl bg-[#102832]"></div>
       ) : (
-        <div className="relative mx-auto h-48 w-48 rounded-xl">
+        <div className="relative mx-auto h-28 w-28 rounded-xl bg-[#102832]">
           <img
             src={convertIPFStoHTTP(data.image)}
             alt="KRC721"
-            className="m-auto max-h-48 max-w-48 rounded-xl"
+            className="m-auto max-h-28 rounded-xl"
           />
           <div
-            className="absolute bottom-0 right-0 m-2 cursor-pointer rounded-full bg-[#3B6273] p-3"
+            className="absolute bottom-0 right-0 m-2 cursor-pointer rounded-full bg-[#3B6273]"
             onClick={() => handleDownload(convertIPFStoHTTP(data.image))}
           >
-            <img src={expandImage} alt="expand" />
+            <img src={downloadImage} alt="expand" />
           </div>
         </div>
       )}
@@ -129,7 +141,7 @@ export default function KRC721() {
           <div className="space-y-3 rounded-xl border border-daintree-700 bg-daintree-800 p-4">
             <h3 className="text-sm">Attributes</h3>
             <div className="flex justify-between px-2 text-[#7B9AAA]">
-              <span>TRAIT_TYPE</span>
+              <span>TRAIT TYPE</span>
               <span>VALUE</span>
             </div>
             <ul className="flex flex-col">
