@@ -61,13 +61,13 @@ export default function KRC721() {
       <Header title={name} showClose={false} />
 
       {isLoading ? (
-        <div className="mx-auto h-28 w-28 animate-pulse rounded-xl bg-[#102832]"></div>
+        <div className="mx-auto h-48 w-48 animate-pulse rounded-xl bg-[#102832]"></div>
       ) : (
-        <div className="relative mx-auto h-28 w-28 rounded-xl bg-[#102832]">
+        <div className="relative mx-auto h-48 w-48 rounded-xl bg-[#102832]">
           <img
             src={convertIPFStoHTTP(data.image)}
             alt="KRC721"
-            className="m-auto max-h-28 rounded-xl"
+            className="m-auto max-h-48 max-w-48 rounded-xl"
           />
           <div
             className="absolute bottom-0 right-0 m-2 cursor-pointer rounded-full bg-[#3B6273]"
