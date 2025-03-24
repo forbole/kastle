@@ -57,12 +57,6 @@ export default function LedgerSending({
       }
 
       const account = accountFactory.createFromLedger(transport, accountIndex);
-      const publicKeys = await account.getPublicKeys();
-
-      if (secret.value !== publicKeys[0]) {
-        throw new Error("Invalid Ledger device");
-      }
-
       const transactionResponse = {
         txIds: await account.send(kaspaToSompi(amount) ?? BigInt(0), address),
       };

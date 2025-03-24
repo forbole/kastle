@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.8.1](https://github.com/forbole/kastle/compare/v2.8.0...v2.8.1) (2025-03-21)
+
+
+### Bug Fixes
+
+* ensure service worker stays alive until auto-lock completes ([#63](https://github.com/forbole/kastle/issues/63)) ([52f4023](https://github.com/forbole/kastle/commit/52f4023388c17ff06e0a27fb030a71735bcfe68d))
+* include account index in ledger transaction signing ([#68](https://github.com/forbole/kastle/issues/68)) ([d5ebfe7](https://github.com/forbole/kastle/commit/d5ebfe7f75d5571412bf03461d80ffffc04bad44))
+
 ## [2.8.0](https://github.com/forbole/kastle/compare/v2.7.1...v2.8.0) (2025-03-19)
 
 

@@ -13,13 +13,14 @@ import { Tooltip } from "react-tooltip";
 import Assets from "@/components/dashboard/Assets";
 import KNS from "@/components/dashboard/KNS";
 import KRC721List from "@/components/dashboard/KRC721List";
+import useTotalBalance from "@/hooks/useTotalBalance.ts";
 
 export default function Dashboard() {
   const { keyringLock } = useKeyring();
   const navigate = useNavigate();
   const { networkId, isConnected } = useRpcClientStateful();
   const [settings, setSettings] = useSettings();
-  const kapsaPrice = useKaspaPrice();
+  const totalBalance = useTotalBalance();
   const { showWarning } = useBackupWarning();
   const { account, wallet } = useWalletManager();
   const [dismissWarning, setDismissWarning] = useState(false);
@@ -27,10 +28,13 @@ export default function Dashboard() {
 
   const tabs = ["Assets", "NFT", "KNS"] as const;
   const [activeTab, setActiveTab] = useState<(typeof tabs)[number]>("Assets");
+  const segmenter = new Intl.Segmenter("en", { granularity: "grapheme" });
+  const segments = Array.from(segmenter.segment(account?.name ?? ""));
+  const shortAccountName = `${segments[0]?.segment}${segments[segments.length - 1]?.segment}`;
 
   const address = account?.address;
-  const balance = account?.balance;
   const showBalance = !settings?.hideBalances;
+  const totalBalanceFormatted = formatUSD(totalBalance);
 
   const toggleBalance = () =>
     setSettings((prevSettings) => ({
@@ -40,10 +44,6 @@ export default function Dashboard() {
 
   const network = networkId ?? NetworkType.Mainnet;
   const isMainnet = network === NetworkType.Mainnet;
-
-  const totalBalance = balance
-    ? formatUSD(parseFloat(balance) * kapsaPrice.kaspaPrice)
-    : undefined;
 
   const isLedger = wallet?.type === "ledger";
   const [deployHovered, setDeployHovered] = useState(false);
@@ -97,8 +97,7 @@ export default function Dashboard() {
             onClick={() => setIsMenuOpen(true)}
           >
             <span className="flex size-6 items-center justify-center rounded-lg bg-[#9CA3AF] text-white">
-              {account?.name?.[0]}
-              {account?.name?.[account?.name?.length - 1]}
+              {shortAccountName}
             </span>
             <span className="text-base text-white">{account?.name}</span>
             <i className="hn hn-angle-right text-[16px] text-white" />
@@ -137,12 +136,12 @@ export default function Dashboard() {
       <div className="flex flex-col items-center gap-3">
         {/* Balance Display */}
         <div className="py-3">
-          {totalBalance === undefined ? (
+          {totalBalanceFormatted === undefined ? (
             <div className="h-[54px] w-[160px] animate-pulse self-center rounded-xl bg-daintree-700" />
           ) : (
             <div className="relative flex items-center">
               <span className="text-center text-4xl font-semibold text-white">
-                {showBalance ? totalBalance : "$*****"}
+                {showBalance ? totalBalanceFormatted : "$*****"}
               </span>
               <button onClick={() => toggleBalance()} className="p-4">
                 <i

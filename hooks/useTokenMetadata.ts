@@ -1,5 +1,5 @@
 import useSWR from "swr";
-import { fetcher } from "@/lib/utils.ts";
+import { fetcher, multiFetcher } from "@/lib/utils.ts";
 
 export interface TokenMetadata {
   ticker: string;
@@ -79,9 +79,9 @@ export interface Metadata {
   isKrc20Market?: boolean;
 }
 
-export function useTokenMetadata(ticker?: string) {
-  const baseUrl = "https://api-v2-do.kas.fyi";
+const baseUrl = "https://api-v2-do.kas.fyi";
 
+export function useTokenMetadata(ticker?: string) {
   const swrResponse = useSWR<TokenMetadata, Error>(
     ticker ? `${baseUrl}/token/krc20/${ticker}/info` : null,
     fetcher,
@@ -108,6 +108,45 @@ export function useTokenMetadata(ticker?: string) {
     };
 
     return swrResponse.data?.price?.priceInUsd ?? getMarketAverage();
+  };
+
+  return { ...swrResponse, toPriceInUsd };
+}
+
+export function useTokensMetadata(tickers: string[]) {
+  const urls = tickers
+    .map((ticker) => (ticker ? `${baseUrl}/token/krc20/${ticker}/info` : null))
+    .filter(Boolean);
+  const swrResponse = useSWR<TokenMetadata[], Error>(urls, multiFetcher);
+
+  const toPriceInUsd = () => {
+    return swrResponse.data?.reduce<Record<string, number>>(
+      (acc, tokenMetadata) => {
+        const getMarketAverage = () => {
+          const marketDaum = tokenMetadata?.marketsData?.filter(
+            (m) => m.marketData.priceInUsd !== 0,
+          );
+          const numberOfListings = marketDaum?.length ?? 0;
+
+          if (numberOfListings === 0) {
+            return 0;
+          }
+
+          const marketsSum =
+            marketDaum?.reduce(
+              (acc, cur) => acc + (cur?.marketData?.priceInUsd ?? 0),
+              0,
+            ) ?? 0;
+
+          return marketsSum / numberOfListings;
+        };
+
+        acc[tokenMetadata.ticker] =
+          tokenMetadata?.price?.priceInUsd ?? getMarketAverage();
+        return acc;
+      },
+      {},
+    );
   };
 
   return { ...swrResponse, toPriceInUsd };
