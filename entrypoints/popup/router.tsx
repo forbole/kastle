@@ -6,9 +6,7 @@ import {
   redirect,
 } from "react-router-dom";
 import PopupLayout from "@/components/layouts/PopupLayout.tsx";
-import SetupPassword from "@/components/screens/SetupPassword.tsx";
 import Send from "@/components/screens/Send.tsx";
-import Welcome from "@/components/screens/Welcome.tsx";
 import ConnectConfirm from "@/components/screens/browser-api/ConnectConfirm";
 import SignAndBroadcastTxConfirm from "@/components/screens/browser-api/SignAndBroadcastTxConfirm";
 import Dashboard from "@/components/screens/Dashboard";
@@ -65,6 +63,7 @@ const loadKaspaWasm = async () => {
   return null;
 };
 
+// FIXME use URL instead or title?
 export const forceOnboarding = async () => {
   const url = new URL(browser.runtime.getURL("/popup.html"));
   url.hash = `/onboarding`;
@@ -240,14 +239,6 @@ export const router = createHashRouter([
               {
                 path: "onboarding",
                 element: <Onboarding />,
-              },
-              {
-                path: "setup",
-                element: <SetupPassword />,
-              },
-              {
-                path: "success",
-                element: <Welcome />,
               },
             ],
           },

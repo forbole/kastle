@@ -1,42 +1,30 @@
-import castleImage from "@/assets/images/castle.png";
-import { NavLink } from "react-router-dom";
-import useAnalytics from "@/hooks/useAnalytics.ts";
+import { FormProvider, useForm } from "react-hook-form";
+import Welcome from "@/components/onboarding/Welcome.tsx";
+import SetupPassword from "@/components/onboarding/SetupPassword.tsx";
+import OnboardingSuccess from "@/components/onboarding/OnboardingSuccess.tsx";
+
+export type OnboardingData = {
+  step: "welcome" | "password" | "choose" | "accounts" | "success";
+  method: "create" | "import";
+  password: string;
+  confirmPassword: string;
+  agreedTnc: boolean;
+};
 
 export default function Onboarding() {
-  const calledOnce = useRef(false);
-  const { emitOnboardingComplete } = useAnalytics();
-
-  useEffect(() => {
-    if (calledOnce.current) return;
-    calledOnce.current = true;
-
-    emitOnboardingComplete();
-  }, []);
+  const form = useForm<OnboardingData>({
+    defaultValues: {
+      step: "welcome",
+    },
+    mode: "onChange",
+  });
+  const step = form.watch("step");
 
   return (
-    <div className="flex w-[41rem] flex-col items-stretch gap-4 rounded-3xl bg-icy-blue-950">
-      <div id="onboarding" className="flex h-full flex-col justify-between">
-        <div className="flex flex-col items-center gap-10 pt-12">
-          <img alt="castle" className="h-[229px] w-[229px]" src={castleImage} />
-          <div className="flex flex-col items-center gap-3">
-            <div className="text-center text-lg font-semibold text-daintree-400">
-              Welcome to Kastle
-            </div>
-            <div className="text-3xl font-semibold text-gray-200">
-              Your Gateway to Kaspa
-            </div>
-          </div>
-        </div>
-        <div className="flex flex-col gap-3 px-4 py-6">
-          <NavLink
-            id="pass-onboarding"
-            to="/setup"
-            className="flex justify-center gap-2 rounded-full bg-icy-blue-400 px-6 py-3.5 text-center text-base font-semibold text-white"
-          >
-            Start your Journey
-          </NavLink>
-        </div>
-      </div>
-    </div>
+    <FormProvider {...form}>
+      {step === "welcome" && <Welcome />}
+      {step === "password" && <SetupPassword />}
+      {step === "success" && <OnboardingSuccess />}
+    </FormProvider>
   );
 }
