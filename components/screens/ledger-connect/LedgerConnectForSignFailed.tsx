@@ -1,4 +1,4 @@
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import Header from "@/components/GeneralHeader";
 import ledgerConnectFailedImage from "@/assets/images/ledger-connect-error.png";
 

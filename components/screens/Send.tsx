@@ -1,4 +1,4 @@
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { FormProvider, useForm } from "react-hook-form";
 import { DetailsStep } from "@/components/send/DetailsStep.tsx";
 import { SuccessStatus } from "@/components/send/SuccessStatus.tsx";

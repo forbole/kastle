@@ -1,5 +1,4 @@
 import { useEffect, useState, useRef } from "react";
-import { WalletSecret } from "@/types/WalletSecret";
 import { AccountFactory } from "@/lib/wallet/wallet-factory";
 import { ConfirmStep } from "@/components/send/ConfirmStep";
 import { IWallet } from "@/lib/wallet/wallet-interface";
