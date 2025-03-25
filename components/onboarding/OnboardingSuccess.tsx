@@ -2,7 +2,17 @@ import React, { useEffect } from "react";
 import castleImage from "@/assets/images/castle.png";
 import confetti from "canvas-confetti";
 
-export default function Welcome() {
+export default function OnboardingSuccess() {
+  const calledOnce = useRef(false);
+  const { emitOnboardingComplete } = useAnalytics();
+
+  useEffect(() => {
+    if (calledOnce.current) return;
+    calledOnce.current = true;
+
+    emitOnboardingComplete();
+  }, []);
+
   useEffect(() => {
     confetti({
       particleCount: 50,

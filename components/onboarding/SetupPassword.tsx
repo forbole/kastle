@@ -1,44 +1,43 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useForm } from "react-hook-form";
+import { useFormContext } from "react-hook-form";
 import { twMerge } from "tailwind-merge";
-import Header from "@/components/GeneralHeader";
+import Header from "@/components/GeneralHeader.tsx";
 import useKeyring from "@/hooks/useKeyring.ts";
 import useWalletManager from "@/hooks/useWalletManager.ts";
 import { v4 as uuid } from "uuid";
-
-interface PasswordFormData {
-  password: string;
-  confirmPassword: string;
-  agreedTnc: boolean;
-}
+import useResetPreline from "@/hooks/useResetPreline.ts";
+import { useLocation } from "react-router";
+import { OnboardingData } from "@/components/screens/Onboarding.tsx";
 
 export default function SetupPassword() {
   const { keyringInitialize } = useKeyring();
   const { createNewWallet } = useWalletManager();
-  const navigate = useNavigate();
+  const location = useLocation();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isMismatchShown, setIsMismatchShown] = useState(false);
+  useResetPreline([location.pathname]);
 
   const {
     register,
     handleSubmit,
     watch,
     formState: { isValid, errors },
-  } = useForm<PasswordFormData>({
-    mode: "onChange",
-  });
+    setValue,
+  } = useFormContext<OnboardingData>();
 
-  const { password, confirmPassword } = watch();
+  const { password, confirmPassword, method } = watch();
   const passwordMatch = password === confirmPassword;
   const isDisabled = !password || !passwordMatch || !isValid;
 
   const onSubmit = handleSubmit(async (data) => {
-    await keyringInitialize(data.password);
-    await createNewWallet(uuid());
-
-    navigate("/success");
+    if (method === "create") {
+      await keyringInitialize(data.password);
+      await createNewWallet(uuid());
+      setValue("step", "success");
+    } else {
+      setValue("step", "choose");
+    }
   });
 
   useEffect(() => {
@@ -62,7 +61,13 @@ export default function SetupPassword() {
         id="setup-password-screen"
         className="flex h-full w-full flex-col p-4"
       >
-        <Header title="Create a password" />
+        <Header
+          title="Create a password"
+          onBack={() => {
+            setValue("step", "welcome");
+          }}
+          showClose={false}
+        />
 
         <form
           onSubmit={onSubmit}
