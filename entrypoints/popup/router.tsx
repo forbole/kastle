@@ -56,8 +56,6 @@ import ConfirmDeploy from "@/components/screens/full-pages/ConfirmDeploy.tsx";
 import DeployingToken from "@/components/screens/full-pages/DeployingToken.tsx";
 import { RecentAddressesProvider } from "@/contexts/RecentAddressesContext.tsx";
 import LedgerConnectForImportFailed from "@/components/screens/full-pages/ledger/LedgerConnectForImportFailed";
-import LedgerConnectForSign from "@/components/screens/ledger-connect/LedgerConnectForSign";
-import LedgerConnectForSignFailed from "@/components/screens/ledger-connect/LedgerConnectForSignFailed";
 import KNSAsset from "@/components/screens/KNSAsset";
 import KRC721 from "@/components/screens/KRC721";
 
@@ -186,14 +184,6 @@ export const router = createHashRouter([
                   {
                     path: "kas-asset",
                     element: <KasAsset />,
-                  },
-                  {
-                    path: "ledger-connect-for-sign",
-                    element: <LedgerConnectForSign />,
-                  },
-                  {
-                    path: "ledger-connect-for-sign-failed",
-                    element: <LedgerConnectForSignFailed />,
                   },
 
                   // Browser API routes

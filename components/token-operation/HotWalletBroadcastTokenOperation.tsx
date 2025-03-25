@@ -1,4 +1,4 @@
-import { LoadingStatus } from "@/components/send/LoadingStatus";
+import { Broadcasting } from "@/components/send/Broadcasting";
 import { WalletSecret } from "@/types/WalletSecret";
 import { AccountFactory } from "@/lib/wallet/wallet-factory";
 import { useFormContext } from "react-hook-form";
@@ -76,5 +76,5 @@ export default function HotWalletBroadcastTokenOperation({
     broadcastOperation();
   }, []);
 
-  return <LoadingStatus />;
+  return <Broadcasting onSuccess={onSuccess} />;
 }

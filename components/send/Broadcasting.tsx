@@ -1,7 +1,19 @@
 import React from "react";
 import carriageImage from "@/assets/images/carriage.png";
 import Header from "@/components/GeneralHeader";
-export const LoadingStatus = () => {
+import { useEffect } from "react";
+
+export const Broadcasting = ({ onSuccess }: { onSuccess: () => void }) => {
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      onSuccess();
+    }, 1000); // Delay to prevent the page from flickering
+
+    return () => {
+      clearTimeout(timeout);
+    };
+  });
+
   return (
     <>
       <Header title="Broadcasting" showPrevious={false} showClose={false} />
