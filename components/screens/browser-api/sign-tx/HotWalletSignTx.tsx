@@ -48,12 +48,7 @@ export default function HotWalletSignTx({
     <>
       {loading && <Splash />}
       {!loading && (
-        <SignTx
-          walletType={walletInfo.type}
-          wallet={wallet}
-          requestId={requestId}
-          payload={payload}
-        />
+        <SignTx wallet={wallet} requestId={requestId} payload={payload} />
       )}
     </>
   );

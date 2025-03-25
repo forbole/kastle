@@ -41,15 +41,26 @@ export default function LedgerSignAndBroadcast({
         ).createFromLedger(transport)
       : null;
 
+  const ledgerOnError = async () => {
+    await ApiExtensionUtils.sendMessage(
+      requestId,
+      new ApiResponse(requestId, null, "Ledger error, please try again"),
+    );
+    window.close();
+  };
+
   return (
     <>
       {(!transport || !isAppOpen) && (
-        <LedgerConnectForSign showClose={false} showPrevious={false} />
+        <LedgerConnectForSign
+          showClose={false}
+          showPrevious={false}
+          onBack={ledgerOnError}
+        />
       )}
       {transport && isAppOpen && !wallet && <Splash />}
       {wallet && isAppOpen && (
         <SignAndBroadcast
-          walletType="ledger"
           wallet={wallet}
           requestId={requestId}
           payload={payload}

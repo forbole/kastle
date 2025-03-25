@@ -14,6 +14,8 @@ import useKaspaPrice from "@/hooks/useKaspaPrice.ts";
 import DetailsSelector from "@/components/screens/browser-api/sign/DetailsSelector";
 import { twMerge } from "tailwind-merge";
 import { useSettings } from "@/hooks/useSettings";
+import { useBoolean } from "usehooks-ts";
+import ledgerSignImage from "@/assets/images/ledger-on-sign.svg";
 
 type SignConfirmProps = {
   payload: SignTxPayload;
@@ -27,9 +29,10 @@ export default function SignConfirm({
   cancel,
 }: SignConfirmProps) {
   const kapsaPrice = useKaspaPrice();
-  const { account } = useWalletManager();
+  const { account, wallet } = useWalletManager();
   const [hideDetails, setHideDetails] = useState(true);
   const [settings, setSettings] = useSettings();
+  const { value: isSigning, toggle: toggleLoading } = useBoolean(false);
 
   const transaction = Transaction.deserializeFromSafeJSON(payload.txJson);
 
@@ -133,12 +136,27 @@ export default function SignConfirm({
     }));
   };
 
+  const onConfirm = async () => {
+    if (isSigning) {
+      return;
+    }
+
+    toggleLoading();
+    await confirm();
+    toggleLoading();
+  };
+
   return (
     <div className="flex h-full flex-col justify-between">
       <div>
         <Header showPrevious={false} showClose={false} title="Confirm" />
         <div className="relative">
-          <img src={signImage} alt="Sign" className="mx-auto" />
+          {wallet?.type !== "ledger" && (
+            <img src={signImage} alt="Sign" className="mx-auto" />
+          )}
+          {wallet?.type === "ledger" && (
+            <img src={ledgerSignImage} alt="Sign" className="mx-auto" />
+          )}
           <div
             className={twMerge(
               "absolute right-0 top-0 flex items-center gap-2 rounded-full px-2",
@@ -261,10 +279,23 @@ export default function SignConfirm({
             Cancel
           </button>
           <button
-            className="flex-auto rounded-full bg-icy-blue-400 py-5 font-semibold hover:bg-icy-blue-600"
-            onClick={confirm}
+            className="flex flex-auto items-center justify-center rounded-full bg-icy-blue-400 py-5 font-semibold hover:bg-icy-blue-600"
+            onClick={onConfirm}
           >
-            Confirm
+            {isSigning ? (
+              <div className="flex gap-2">
+                <div
+                  className="inline-block size-5 animate-spin self-center rounded-full border-[3px] border-current border-t-[#A2F5FF] text-icy-blue-600"
+                  role="status"
+                  aria-label="loading"
+                />
+                {wallet?.type === "ledger" && (
+                  <span className="text-sm">Please approve on Ledger</span>
+                )}
+              </div>
+            ) : (
+              `Confirm`
+            )}
           </button>
         </div>
       )}
