@@ -6,7 +6,7 @@ import { FailStatus } from "@/components/send/FailStatus.tsx";
 import { useLocation } from "react-router";
 import { Broadcasting } from "@/components/send/Broadcasting.tsx";
 import useWalletManager from "@/hooks/useWalletManager.ts";
-import HotWalletConfirm from "@/components/send/HotwalletConfirm";
+import HotWalletConfirm from "@/components/send/HotWalletConfirm";
 import LedgerConfirm from "@/components/send/LedgerConfirm";
 
 const steps = ["details", "confirm", "broadcast", "success", "fail"] as const;
