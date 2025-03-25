@@ -6,12 +6,16 @@ import { v4 as uuid } from "uuid";
 import { captureException } from "@sentry/react";
 import Header from "@/components/GeneralHeader";
 import successImage from "@/assets/images/success.png";
+import { OnboardingData } from "@/components/screens/Onboarding.tsx";
+import { useFormContext } from "react-hook-form";
 
 export default function ImportLedger() {
   const { transport, isConnecting, isAppOpen } = useLedgerTransport();
   const navigate = useNavigate();
+  const { keyringInitialize } = useKeyring();
   const { rpcClient, networkId } = useRpcClientStateful();
   const { importWalletByLedger } = useWalletManager();
+  const onboardingForm = useFormContext<OnboardingData>();
 
   const importLedgerAccount = async () => {
     if (!transport || !rpcClient || !networkId) {
@@ -19,6 +23,10 @@ export default function ImportLedger() {
     }
 
     try {
+      if (onboardingForm) {
+        await keyringInitialize(onboardingForm.getValues("password"));
+      }
+
       const accountFactory = new AccountFactory(rpcClient, networkId);
       const account = accountFactory.createFromLedger(transport);
 
@@ -32,7 +40,9 @@ export default function ImportLedger() {
         publicKeys,
       );
 
-      navigate(`/manage-accounts/ledger/${walletId}/import`);
+      navigate(`/manage-accounts/ledger/${walletId}/import`, {
+        state: { ...(onboardingForm && { redirect: "/onboarding-success" }) },
+      });
     } catch (error) {
       captureException(error);
       console.error(error);
@@ -58,7 +68,8 @@ export default function ImportLedger() {
         <Header
           title="Ledger connected"
           showClose={false}
-          showPrevious={false}
+          showPrevious={!!onboardingForm}
+          onBack={() => onboardingForm.setValue("step", "choose")}
         />
 
         <div className="text-center">
