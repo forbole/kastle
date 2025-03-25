@@ -1,11 +1,14 @@
 import { useNavigate } from "react-router-dom";
 import React, { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useFormContext } from "react-hook-form";
 import { twMerge } from "tailwind-merge";
 import { v4 as uuid } from "uuid";
 import useAnalytics from "@/hooks/useAnalytics.ts";
 import { Mnemonic } from "@/wasm/core/kaspa";
 import { useBoolean } from "usehooks-ts";
+import { OnboardingData } from "@/components/screens/Onboarding.tsx";
+import useKeyring from "@/hooks/useKeyring.ts";
+import Header from "@/components/GeneralHeader.tsx";
 
 type PhraseLength = 12 | 24;
 
@@ -18,7 +21,9 @@ type SeedPhraseFormValues = {
 export default function ImportRecoveryPhrase() {
   const { emitWalletImported } = useAnalytics();
   const navigate = useNavigate();
+  const { keyringInitialize } = useKeyring();
   const { importWalletByMnemonic } = useWalletManager();
+  const onboardingForm = useFormContext<OnboardingData>();
   const {
     register,
     formState: { isValid, dirtyFields },
@@ -75,11 +80,17 @@ export default function ImportRecoveryPhrase() {
       words.push(data[`word${index + 1}` as `word${WordNumber}`]);
     }
 
+    if (onboardingForm) {
+      await keyringInitialize(onboardingForm.getValues("password"));
+    }
+
     const walletId = uuid();
     await importWalletByMnemonic(walletId, words.join(" "));
 
     emitWalletImported();
-    navigate(`/manage-accounts/recovery-phrase/${walletId}/import`);
+    navigate(`/manage-accounts/recovery-phrase/${walletId}/import`, {
+      state: { ...(onboardingForm && { redirect: "/onboarding-success" }) },
+    });
   });
 
   const pasteAllInCell = (str: string) => {
@@ -106,24 +117,14 @@ export default function ImportRecoveryPhrase() {
   return (
     <div className="flex h-[56rem] w-[41rem] flex-col items-stretch gap-4 rounded-3xl bg-icy-blue-950 px-4">
       <div className="flex h-full flex-col justify-stretch gap-6 p-4 pb-6 text-white">
-        <div className="flex justify-between">
-          {/* Placeholder */}
-          <div className="h-12 w-12"></div>
-
-          <div className="text-center">
-            <h1 className="text-xl font-bold">Import Recovery Phrase</h1>
-            <span className="text-xs text-daintree-400">
-              Please fill in the recovery phrase
-            </span>
-          </div>
-
-          <button
-            onClick={onClose}
-            className="flex h-12 w-12 items-center justify-center"
-          >
-            <i className="hn hn-times text-xl"></i>
-          </button>
-        </div>
+        <Header
+          title="Import Recovery Phrase"
+          subtitle="Please fill in the recovery phrase"
+          showPrevious={!!onboardingForm}
+          onBack={() => onboardingForm.setValue("step", "choose")}
+          showClose={!onboardingForm}
+          onClose={onClose}
+        />
 
         <form
           onSubmit={onSubmit}

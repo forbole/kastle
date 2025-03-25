@@ -8,11 +8,13 @@ import { v4 as uuid } from "uuid";
 import useResetPreline from "@/hooks/useResetPreline.ts";
 import { useLocation } from "react-router";
 import { OnboardingData } from "@/components/screens/Onboarding.tsx";
+import { useNavigate } from "react-router-dom";
 
 export default function SetupPassword() {
   const { keyringInitialize } = useKeyring();
   const { createNewWallet } = useWalletManager();
   const location = useLocation();
+  const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isMismatchShown, setIsMismatchShown] = useState(false);
@@ -34,7 +36,7 @@ export default function SetupPassword() {
     if (method === "create") {
       await keyringInitialize(data.password);
       await createNewWallet(uuid());
-      setValue("step", "success");
+      navigate("/onboarding-success");
     } else {
       setValue("step", "choose");
     }
