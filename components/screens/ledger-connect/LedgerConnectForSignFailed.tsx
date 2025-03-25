@@ -25,7 +25,7 @@ export default function LedgerConnectForSignFailed({
   };
 
   return (
-    <div className="flex h-full flex-col justify-between p-4">
+    <div className="flex h-full flex-col justify-between">
       <div className="space-y-10">
         <Header
           title="Confirm on Ledger"
