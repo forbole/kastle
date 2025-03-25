@@ -10,7 +10,13 @@ import useResetPreline from "@/hooks/useResetPreline.ts";
 import { PostHogWrapperProvider } from "@/contexts/PostHogWrapperProvider.tsx";
 import { KEYRING_CHANGE_TIME } from "@/lib/keyring-manager.ts";
 
-export default function FullscreenLayout() {
+type FullscreenLayoutProps = {
+  listenKeyring?: boolean;
+};
+
+export default function FullscreenLayout({
+  listenKeyring = false,
+}: FullscreenLayoutProps) {
   const navigation = useNavigation();
   const navigate = useNavigate();
   const location = useLocation();
@@ -42,7 +48,9 @@ export default function FullscreenLayout() {
       return null;
     };
 
-    checkWalletStatus();
+    if (listenKeyring) {
+      checkWalletStatus();
+    }
   }, [unlockTime]);
 
   return (

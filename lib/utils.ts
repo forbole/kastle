@@ -1,4 +1,8 @@
 import { Method } from "@/lib/service/extension-service.ts";
+import {
+  WALLET_SETTINGS,
+  WalletSettings,
+} from "@/contexts/WalletManagerContext.tsx";
 
 export const isProduction = process.env.NODE_ENV === "production";
 
@@ -68,4 +72,8 @@ export function setPopupPath(path?: `/${string}`, cb: () => void = () => {}) {
 
 export function convertIPFStoHTTP(url: string) {
   return url.replace("ipfs://", "https://ipfs.io/ipfs/");
+}
+
+export async function getWalletSettings() {
+  return await storage.getItem<WalletSettings>(WALLET_SETTINGS);
 }
