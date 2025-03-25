@@ -57,6 +57,7 @@ import LedgerConnectForImportFailed from "@/components/screens/full-pages/ledger
 import KNSAsset from "@/components/screens/KNSAsset";
 import KRC721 from "@/components/screens/KRC721";
 import packageJson from "../../package.json";
+import OnboardingSuccess from "@/components/onboarding/OnboardingSuccess.tsx";
 
 const loadKaspaWasm = async () => {
   await init(kaspaModule);
@@ -230,6 +231,10 @@ export const router = createHashRouter([
               {
                 path: "wallet-locked-alert",
                 element: <WalletLockedAlert />,
+              },
+              {
+                path: "onboarding-success",
+                element: <OnboardingSuccess />,
               },
             ],
           },

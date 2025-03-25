@@ -5,15 +5,17 @@ import { OnboardingData } from "@/components/screens/Onboarding.tsx";
 import useKeyring from "@/hooks/useKeyring.ts";
 import useWalletManager from "@/hooks/useWalletManager.ts";
 import { v4 as uuid } from "uuid";
+import { useNavigate } from "react-router-dom";
 
 export default function ChooseImport() {
   const form = useFormContext<OnboardingData>();
+  const navigate = useNavigate();
   const { keyringInitialize } = useKeyring();
   const { createNewWallet } = useWalletManager();
   const password = form.watch("password");
 
   return (
-    <div className="flex w-[41rem] flex-col items-stretch gap-4 rounded-3xl bg-icy-blue-950">
+    <div className="flex h-[35rem] w-[41rem] flex-col items-stretch gap-4 rounded-3xl bg-icy-blue-950">
       <div className="flex h-full w-full flex-col items-center p-4">
         <Header
           title="Import wallet with"
@@ -25,6 +27,9 @@ export default function ChooseImport() {
           <button
             type="button"
             className="flex w-full items-center justify-center gap-4 rounded-xl border border-daintree-700 bg-[#1E343D] p-5 hover:border-white"
+            onClick={() => {
+              form.setValue("step", "recovery-phrase");
+            }}
           >
             <span className="text-base">Recovery phrase</span>
             <i className="hn hn-arrow-right flex-none text-[14px]"></i>
@@ -49,7 +54,7 @@ export default function ChooseImport() {
             onClick={async () => {
               await keyringInitialize(password);
               await createNewWallet(uuid());
-              form.setValue("step", "success");
+              navigate("/onboarding-success");
             }}
           >
             No wallet? Create one now
