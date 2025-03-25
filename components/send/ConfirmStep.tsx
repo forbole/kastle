@@ -161,7 +161,7 @@ export const ConfirmStep = ({
         <div className="mt-auto">
           <button
             onClick={onConfirm}
-            className="mt-auto flex w-full items-center justify-center gap-2 rounded-full bg-icy-blue-400 py-4 text-lg font-medium text-white transition-colors hover:bg-icy-blue-600 disabled:bg-daintree-800 disabled:text-[#4B5563]"
+            className="mt-auto flex w-full items-center justify-center gap-2 rounded-full bg-icy-blue-400 py-4 text-base font-medium text-white transition-colors hover:bg-icy-blue-600 disabled:bg-daintree-800 disabled:text-[#4B5563]"
           >
             {isSigning ? (
               <div className="flex gap-2">
@@ -171,7 +171,7 @@ export const ConfirmStep = ({
                   aria-label="loading"
                 />
                 {wallet?.type === "ledger" && (
-                  <span className="text-base">Please approve on Ledger</span>
+                  <span>Please approve on Ledger</span>
                 )}
               </div>
             ) : (

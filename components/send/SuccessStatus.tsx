@@ -96,7 +96,7 @@ export const SuccessStatus = ({ transactionIds }: SuccessProps) => {
 
         <button
           onClick={onClose}
-          className="flex justify-center rounded-full bg-icy-blue-400 py-4 text-lg font-medium text-white"
+          className="flex justify-center rounded-full bg-icy-blue-400 py-4 text-base font-medium text-white"
         >
           Close
         </button>
