@@ -2,10 +2,12 @@ import React, { useEffect } from "react";
 import confetti from "canvas-confetti";
 import Header from "@/components/GeneralHeader.tsx";
 import successImage from "@/assets/images/success.png";
+import useExtensionUtils from "@/hooks/useExtensionUtils.ts";
 
 export default function OnboardingSuccess() {
   const calledOnce = useRef(false);
   const { emitOnboardingComplete } = useAnalytics();
+  const { reopenPopup } = useExtensionUtils();
 
   useEffect(() => {
     if (calledOnce.current) return;
@@ -40,7 +42,7 @@ export default function OnboardingSuccess() {
           </div>
           <button
             className="rounded-full bg-icy-blue-400 py-5 text-base hover:bg-icy-blue-600"
-            onClick={() => browser.action.openPopup()}
+            onClick={reopenPopup}
           >
             Open Wallet
           </button>

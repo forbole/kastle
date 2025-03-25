@@ -1,10 +1,9 @@
 import Header from "@/components/GeneralHeader";
 import successImage from "@/assets/images/success.png";
+import useExtensionUtils from "@/hooks/useExtensionUtils.ts";
 
 export default function AccountsImported() {
-  const onClick = () => {
-    browser.action.openPopup();
-  };
+  const { reopenPopup } = useExtensionUtils();
 
   return (
     <div className="flex h-[35rem] w-[41rem] flex-col items-stretch gap-4 rounded-3xl bg-icy-blue-950">
@@ -28,7 +27,7 @@ export default function AccountsImported() {
           </div>
           <button
             className="rounded-full bg-icy-blue-400 py-5 text-base hover:bg-icy-blue-600"
-            onClick={onClick}
+            onClick={reopenPopup}
           >
             Back to extension
           </button>
