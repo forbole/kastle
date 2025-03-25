@@ -1,18 +1,22 @@
 import React from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useFormContext } from "react-hook-form";
 import { twMerge } from "tailwind-merge";
 import { useNavigate } from "react-router-dom";
 import { v4 as uuid } from "uuid";
 import useAnalytics from "@/hooks/useAnalytics.ts";
 import { PrivateKey } from "@/wasm/core/kaspa";
 import { useBoolean } from "usehooks-ts";
+import { OnboardingData } from "@/components/screens/Onboarding.tsx";
+import Header from "@/components/GeneralHeader.tsx";
 
 type PrivateKeyFormValues = { privateKey: string };
 
 export default function ImportPrivateKey() {
   const { emitPrivateKeyImported } = useAnalytics();
   const navigate = useNavigate();
+  const { keyringInitialize } = useKeyring();
   const { importPrivateKey } = useWalletManager();
+  const onboardingForm = useFormContext<OnboardingData>();
   const {
     handleSubmit,
     register,
@@ -35,36 +39,27 @@ export default function ImportPrivateKey() {
   };
 
   const onSubmit = handleSubmit(async ({ privateKey }) => {
+    if (onboardingForm) {
+      await keyringInitialize(onboardingForm.getValues("password"));
+    }
+
     await importPrivateKey(uuid(), privateKey);
 
     emitPrivateKeyImported();
-    navigate("/accounts-imported");
+    navigate(onboardingForm ? "/onboarding-success" : "/accounts-imported");
   });
 
   return (
     <div className="flex h-[35rem] w-[41rem] flex-col items-stretch gap-4 rounded-3xl bg-icy-blue-950 p-4 pb-6">
       <div className="flex h-full flex-col justify-stretch gap-6 text-white">
-        <div className="flex justify-between">
-          {/* Placeholder */}
-          <div
-            onClick={onClose}
-            className="flex h-12 w-12 items-center justify-center"
-          ></div>
-
-          <div className="text-center">
-            <h1 className="text-xl font-bold">Import Private Key</h1>
-            <span className="text-xs text-daintree-400">
-              Please fill in the private key
-            </span>
-          </div>
-
-          <button
-            onClick={onClose}
-            className="flex h-12 w-12 items-center justify-center"
-          >
-            <i className="hn hn-times text-xl"></i>
-          </button>
-        </div>
+        <Header
+          title="Import Private Key"
+          subtitle="Please fill in the private key"
+          showPrevious={!!onboardingForm}
+          onBack={() => onboardingForm.setValue("step", "choose")}
+          showClose={!onboardingForm}
+          onClose={onClose}
+        />
 
         <form
           onSubmit={onSubmit}

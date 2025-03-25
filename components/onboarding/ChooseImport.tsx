@@ -27,9 +27,7 @@ export default function ChooseImport() {
           <button
             type="button"
             className="flex w-full items-center justify-center gap-4 rounded-xl border border-daintree-700 bg-[#1E343D] p-5 hover:border-white"
-            onClick={() => {
-              form.setValue("step", "recovery-phrase");
-            }}
+            onClick={() => form.setValue("step", "recovery-phrase")}
           >
             <span className="text-base">Recovery phrase</span>
             <i className="hn hn-arrow-right flex-none text-[14px]"></i>
@@ -37,6 +35,7 @@ export default function ChooseImport() {
           <button
             type="button"
             className="flex w-full items-center justify-center gap-4 rounded-xl border border-daintree-700 bg-[#1E343D] p-5 hover:border-white"
+            onClick={() => form.setValue("step", "private-key")}
           >
             <span className="text-base">Private key</span>
             <i className="hn hn-arrow-right flex-none text-[14px]"></i>
@@ -44,6 +43,7 @@ export default function ChooseImport() {
           <button
             type="button"
             className="flex w-full items-center justify-center gap-4 rounded-xl border border-daintree-700 bg-[#1E343D] p-5 hover:border-white"
+            onClick={() => form.setValue("step", "ledger")}
           >
             <span className="text-base">Ledger</span>
             <i className="hn hn-arrow-right flex-none text-[14px]"></i>

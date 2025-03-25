@@ -3,6 +3,7 @@ import Welcome from "@/components/onboarding/Welcome.tsx";
 import SetupPassword from "@/components/onboarding/SetupPassword.tsx";
 import ChooseImport from "@/components/onboarding/ChooseImport.tsx";
 import ImportRecoveryPhrase from "@/components/screens/full-pages/ImportRecoveryPhrase.tsx";
+import ImportPrivateKey from "@/components/screens/full-pages/ImportPrivateKey.tsx";
 
 export type OnboardingData = {
   step:
@@ -33,6 +34,7 @@ export default function Onboarding() {
       {step === "password" && <SetupPassword />}
       {step === "choose" && <ChooseImport />}
       {step === "recovery-phrase" && <ImportRecoveryPhrase />}
+      {step === "private-key" && <ImportPrivateKey />}
     </FormProvider>
   );
 }
