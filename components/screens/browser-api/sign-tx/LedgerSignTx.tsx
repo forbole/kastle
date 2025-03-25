@@ -41,22 +41,10 @@ export default function LedgerSignTx({
         ).createFromLedger(transport)
       : null;
 
-  const ledgerOnError = async () => {
-    await ApiExtensionUtils.sendMessage(
-      requestId,
-      new ApiResponse(requestId, null, "Ledger error, please try again"),
-    );
-    window.close();
-  };
-
   return (
     <>
       {(!transport || !isAppOpen) && (
-        <LedgerConnectForSign
-          showClose={false}
-          showPrevious={false}
-          onBack={ledgerOnError}
-        />
+        <LedgerConnectForSign showClose={false} showPrevious={false} />
       )}
       {transport && isAppOpen && !wallet && <Splash />}
       {wallet && isAppOpen && (

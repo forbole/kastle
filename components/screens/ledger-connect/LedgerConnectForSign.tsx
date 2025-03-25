@@ -50,13 +50,20 @@ export default function LedgerConnectForSign({
 
   const isLedgerConnected = !!transport || isPreviousConnected;
 
+  const errorRetry = () => {
+    setIsError(false);
+
+    if (onBack) {
+      onBack();
+    }
+  };
+
   return (
     <>
       {isError && (
         <LedgerConnectForSignFailed
-          showPrevious={showPrevious}
           showClose={showClose}
-          onBack={onBack}
+          retry={errorRetry}
           onClose={onClose}
         />
       )}
