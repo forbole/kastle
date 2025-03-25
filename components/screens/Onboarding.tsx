@@ -2,6 +2,7 @@ import { FormProvider, useForm } from "react-hook-form";
 import Welcome from "@/components/onboarding/Welcome.tsx";
 import SetupPassword from "@/components/onboarding/SetupPassword.tsx";
 import OnboardingSuccess from "@/components/onboarding/OnboardingSuccess.tsx";
+import ChooseImport from "@/components/onboarding/ChooseImport.tsx";
 
 export type OnboardingData = {
   step: "welcome" | "password" | "choose" | "accounts" | "success";
@@ -24,6 +25,7 @@ export default function Onboarding() {
     <FormProvider {...form}>
       {step === "welcome" && <Welcome />}
       {step === "password" && <SetupPassword />}
+      {step === "choose" && <ChooseImport />}
       {step === "success" && <OnboardingSuccess />}
     </FormProvider>
   );
