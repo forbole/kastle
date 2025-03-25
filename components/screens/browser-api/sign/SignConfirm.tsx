@@ -32,7 +32,7 @@ export default function SignConfirm({
   const { account, wallet } = useWalletManager();
   const [hideDetails, setHideDetails] = useState(true);
   const [settings, setSettings] = useSettings();
-  const { value: isSigning, toggle: toggleLoading } = useBoolean(false);
+  const { value: isSigning, toggle: toggleIsSigning } = useBoolean(false);
 
   const transaction = Transaction.deserializeFromSafeJSON(payload.txJson);
 
@@ -141,9 +141,9 @@ export default function SignConfirm({
       return;
     }
 
-    toggleLoading();
+    toggleIsSigning();
     await confirm();
-    toggleLoading();
+    toggleIsSigning();
   };
 
   return (

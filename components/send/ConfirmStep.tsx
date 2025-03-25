@@ -33,7 +33,6 @@ export const ConfirmStep = ({
   const { addRecentAddress } = useRecentAddresses();
   const [isSigning, setIsSigning] = useState(false);
 
-  const form = useFormContext<SendFormData>();
   const { account, wallet } = useWalletManager();
   const { watch } = useFormContext<SendFormData>();
   const { address, amount, domain } = watch();
@@ -53,7 +52,7 @@ export const ConfirmStep = ({
   };
 
   const onConfirm = async () => {
-    if (form.formState.isSubmitting || !amount || !address) {
+    if (isSigning || !amount || !address) {
       return;
     }
 
@@ -175,7 +174,7 @@ export const ConfirmStep = ({
                 )}
               </div>
             ) : (
-              `Confirm`
+              "Confirm"
             )}
           </button>
         </div>
