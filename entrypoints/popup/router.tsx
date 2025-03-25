@@ -58,17 +58,35 @@ import { RecentAddressesProvider } from "@/contexts/RecentAddressesContext.tsx";
 import LedgerConnectForImportFailed from "@/components/screens/full-pages/ledger/LedgerConnectForImportFailed";
 import KNSAsset from "@/components/screens/KNSAsset";
 import KRC721 from "@/components/screens/KRC721";
+import packageJson from "../../package.json";
 
 const loadKaspaWasm = async () => {
   await init(kaspaModule);
   return null;
 };
 
+export const forceOnboarding = async () => {
+  const url = new URL(browser.runtime.getURL("/popup.html"));
+  url.hash = `/onboarding`;
+  const [tab] = await browser.tabs.query({
+    title: packageJson.name,
+  });
+  const previousTabId = tab?.id;
+
+  if (previousTabId) {
+    await chrome.tabs.update(previousTabId, { active: true });
+    window.close();
+  } else {
+    await browser.tabs.create({ url: url.toString() });
+  }
+};
+
 const keyringGuard = async ({ request }: LoaderFunctionArgs) => {
   const keyringStatusResponse = await getKeyringStatus();
 
   if (!keyringStatusResponse.isInitialized) {
-    return redirect("/onboarding");
+    await forceOnboarding();
+    return null;
   }
 
   if (!keyringStatusResponse.isUnlocked) {
@@ -129,7 +147,8 @@ export const router = createHashRouter([
                   const keyringStatusResponse = await getKeyringStatus();
 
                   if (!keyringStatusResponse.isInitialized) {
-                    return redirect("/onboarding");
+                    await forceOnboarding();
+                    return null;
                   }
 
                   return null;
@@ -198,6 +217,26 @@ export const router = createHashRouter([
                   },
                 ],
               },
+              { path: "password-lost", element: <ResetWallet /> },
+              {
+                // Catch all unknown routes
+                path: "*",
+                element: <Navigate to="/dashboard" replace />,
+              },
+            ],
+          },
+          {
+            element: <FullscreenLayout listenKeyring />,
+            children: [
+              {
+                path: "wallet-locked-alert",
+                element: <WalletLockedAlert />,
+              },
+            ],
+          },
+          {
+            element: <FullscreenLayout />,
+            children: [
               {
                 path: "onboarding",
                 element: <Onboarding />,
@@ -209,21 +248,6 @@ export const router = createHashRouter([
               {
                 path: "success",
                 element: <Welcome />,
-              },
-              { path: "password-lost", element: <ResetWallet /> },
-              {
-                // Catch all unknown routes
-                path: "*",
-                element: <Navigate to="/dashboard" replace />,
-              },
-            ],
-          },
-          {
-            element: <FullscreenLayout />,
-            children: [
-              {
-                path: "wallet-locked-alert",
-                element: <WalletLockedAlert />,
               },
             ],
           },
