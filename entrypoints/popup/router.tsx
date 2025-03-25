@@ -56,7 +56,6 @@ import { RecentAddressesProvider } from "@/contexts/RecentAddressesContext.tsx";
 import LedgerConnectForImportFailed from "@/components/screens/full-pages/ledger/LedgerConnectForImportFailed";
 import KNSAsset from "@/components/screens/KNSAsset";
 import KRC721 from "@/components/screens/KRC721";
-import packageJson from "../../package.json";
 import OnboardingSuccess from "@/components/onboarding/OnboardingSuccess.tsx";
 
 const loadKaspaWasm = async () => {
@@ -64,12 +63,10 @@ const loadKaspaWasm = async () => {
   return null;
 };
 
-// FIXME use URL instead or title?
 export const forceOnboarding = async () => {
   const url = new URL(browser.runtime.getURL("/popup.html"));
-  url.hash = `/onboarding`;
   const [tab] = await browser.tabs.query({
-    title: packageJson.name,
+    url: url.toString(),
   });
   const previousTabId = tab?.id;
 
@@ -77,6 +74,7 @@ export const forceOnboarding = async () => {
     await chrome.tabs.update(previousTabId, { active: true });
     window.close();
   } else {
+    url.hash = `/onboarding`;
     await browser.tabs.create({ url: url.toString() });
   }
 };
