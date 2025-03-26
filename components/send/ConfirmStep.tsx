@@ -13,6 +13,7 @@ import useRecentAddresses from "@/hooks/useRecentAddresses.ts";
 import { captureException } from "@sentry/react";
 import { kaspaToSompi } from "@/wasm/core/kaspa";
 import { useState } from "react";
+import { twMerge } from "tailwind-merge";
 
 export const ConfirmStep = ({
   onNext,
@@ -156,7 +157,11 @@ export const ConfirmStep = ({
         <div className="mt-auto">
           <button
             onClick={onConfirm}
-            className="mt-auto flex w-full items-center justify-center gap-2 rounded-full bg-icy-blue-400 py-4 text-base font-medium text-white transition-colors hover:bg-icy-blue-600 disabled:bg-daintree-800 disabled:text-[#4B5563]"
+            className={twMerge(
+              "mt-auto flex w-full items-center justify-center gap-2 rounded-full bg-icy-blue-400 py-4 text-base font-medium text-white transition-colors",
+              !isSigning && "hover:bg-icy-blue-600",
+            )}
+            disabled={isSigning}
           >
             {isSigning ? (
               <div className="flex gap-2">
@@ -170,7 +175,7 @@ export const ConfirmStep = ({
                 )}
               </div>
             ) : (
-              "Confirm"
+              "Next"
             )}
           </button>
         </div>
