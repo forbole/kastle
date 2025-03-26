@@ -52,11 +52,7 @@ export const ConfirmStep = ({
   };
 
   const onConfirm = async () => {
-    if (isSigning || !amount || !address) {
-      return;
-    }
-
-    if (!signer) {
+    if (isSigning || !amount || !address || !signer) {
       return;
     }
 
