@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { AccountFactory } from "@/lib/wallet/wallet-factory";
 import { ConfirmStep } from "@/components/send/ConfirmStep";
 import { IWallet } from "@/lib/wallet/wallet-interface";
@@ -23,14 +23,9 @@ export default function HotWalletConfirm({
   const [walletSigner, setWalletSigner] = useState<IWallet>();
   const { getWalletSecret } = useKeyring();
   const { walletSettings } = useWalletManager();
-  const calledOnce = useRef(false);
 
   // Build wallet signer
   useEffect(() => {
-    if (calledOnce.current) {
-      return;
-    }
-
     if (!walletSettings || !rpcClient || !networkId) {
       return;
     }
@@ -59,7 +54,6 @@ export default function HotWalletConfirm({
     };
 
     buildWallet();
-    calledOnce.current = true;
   }, [walletSettings, rpcClient, networkId]);
 
   return (

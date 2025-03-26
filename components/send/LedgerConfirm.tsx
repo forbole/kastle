@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { AccountFactory } from "@/lib/wallet/wallet-factory";
 import { ConfirmStep } from "@/components/send/ConfirmStep";
 import { IWallet } from "@/lib/wallet/wallet-interface";
@@ -26,7 +26,6 @@ export default function LedgerConfirm({
   const { rpcClient, networkId } = useRpcClientStateful();
   const [walletSigner, setWalletSigner] = useState<IWallet>();
   const { walletSettings } = useWalletManager();
-  const calledOnce = useRef(false);
   const { transport, isAppOpen } = useLedgerTransport();
 
   // Build wallet signer
@@ -38,10 +37,6 @@ export default function LedgerConfirm({
       !transport ||
       !isAppOpen
     ) {
-      return;
-    }
-
-    if (calledOnce.current) {
       return;
     }
 
@@ -63,7 +58,6 @@ export default function LedgerConfirm({
     };
 
     buildWallet();
-    calledOnce.current = true;
   }, [walletSettings, rpcClient, networkId, transport, isAppOpen]);
 
   return (
