@@ -155,7 +155,7 @@ export default function SetupPassword() {
 
             <div className="text-xs text-daintree-400">
               Use a mix of letters, numbers and symbols to better protect your
-              wallet in case your device is compromised Description text
+              wallet in case your device is compromised
             </div>
           </div>
 
