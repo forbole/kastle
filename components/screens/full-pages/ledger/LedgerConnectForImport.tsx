@@ -52,7 +52,7 @@ export default function LedgerConnectForImport({
       {isError && <LedgerConnectForImportFailed retry={errorRetry} />}
 
       {!isError && (
-        <div className="flex h-[39rem] w-[41rem] flex-col items-stretch justify-between rounded-3xl bg-icy-blue-950 p-4 pb-6">
+        <div className="flex h-[39rem] w-[41rem] flex-col items-stretch justify-between rounded-3xl bg-icy-blue-950 px-10 py-4 pb-6">
           <div className="space-y-4">
             <Header
               title="Connect Ledger"

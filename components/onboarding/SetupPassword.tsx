@@ -61,10 +61,11 @@ export default function SetupPassword() {
     <div className="flex w-[41rem] flex-col items-stretch gap-4 rounded-3xl bg-icy-blue-950">
       <div
         id="setup-password-screen"
-        className="flex h-full w-full flex-col p-4"
+        className="flex h-full w-full flex-col px-10 py-4"
       >
         <Header
           title="Create a password"
+          subtitle="This password encrypts your wallet."
           onBack={() => {
             setValue("step", "welcome");
           }}
@@ -151,51 +152,57 @@ export default function SetupPassword() {
               id="hs-strong-password-input"
               className="-mx-1 mt-2 flex"
             />
+
+            <div className="text-xs text-daintree-400">
+              Use a mix of letters, numbers and symbols to better protect your
+              wallet in case your device is compromised Description text
+            </div>
           </div>
 
-          <div className="flex">
-            <input
-              {...register("agreedTnc", { required: true })}
-              type="checkbox"
-              className="mt-0.5 shrink-0 cursor-pointer rounded border-daintree-700 bg-icy-blue-950 text-icy-blue-400 checked:border-icy-blue-400 checked:bg-icy-blue-400 focus:ring-0 focus:ring-offset-0 disabled:pointer-events-none disabled:opacity-50"
-              id="agreed-reset"
-            />
-            <label htmlFor="agreed-reset" className="ms-3 text-sm">
-              I agree to the{" "}
-              <a
-                href="https://kastle.cc/term-and-conditions"
-                className="text-icy-blue-400 underline"
-                target="_blank"
-                rel="noreferrer"
-              >
-                Term and Conditions
-              </a>{" "}
-              and{" "}
-              <a
-                href="https://kastle.cc/privacy-policy"
-                target="_blank"
-                className="text-icy-blue-400 underline"
-                rel="noreferrer"
-              >
-                {" "}
-                Privacy Policy
-              </a>
-              .
-            </label>
+          <div className="flex flex-col gap-6">
+            <div className="flex self-center">
+              <input
+                {...register("agreedTnc", { required: true })}
+                type="checkbox"
+                className="mt-0.5 shrink-0 cursor-pointer rounded border-daintree-700 bg-icy-blue-950 text-icy-blue-400 checked:border-icy-blue-400 checked:bg-icy-blue-400 focus:ring-0 focus:ring-offset-0 disabled:pointer-events-none disabled:opacity-50"
+                id="agreed-reset"
+              />
+              <label htmlFor="agreed-reset" className="ms-3 text-sm">
+                I agree to the{" "}
+                <a
+                  href="https://kastle.cc/term-and-conditions"
+                  className="text-icy-blue-400 underline"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Term and Conditions
+                </a>{" "}
+                and{" "}
+                <a
+                  href="https://kastle.cc/privacy-policy"
+                  target="_blank"
+                  className="text-icy-blue-400 underline"
+                  rel="noreferrer"
+                >
+                  {" "}
+                  Privacy Policy
+                </a>
+                .
+              </label>
+            </div>
+            <button
+              type="submit"
+              className={twMerge(
+                "w-full rounded-full py-4 text-base font-semibold",
+                isDisabled
+                  ? "bg-daintree-800 text-gray-600"
+                  : "bg-icy-blue-400 text-white",
+              )}
+              disabled={isDisabled}
+            >
+              {method === "import" ? "Next" : "Create wallet"}
+            </button>
           </div>
-
-          <button
-            type="submit"
-            className={twMerge(
-              "w-full rounded-full py-4 text-base font-semibold",
-              isDisabled
-                ? "bg-daintree-800 text-gray-600"
-                : "bg-icy-blue-400 text-white",
-            )}
-            disabled={isDisabled}
-          >
-            Next
-          </button>
         </form>
       </div>
     </div>

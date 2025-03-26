@@ -16,7 +16,7 @@ export default function ChooseImport() {
 
   return (
     <div className="flex h-[35rem] w-[41rem] flex-col items-stretch gap-4 rounded-3xl bg-icy-blue-950">
-      <div className="flex h-full w-full flex-col items-center p-4">
+      <div className="flex h-full w-full flex-col items-center px-10 py-4">
         <Header
           title="Import wallet with"
           onBack={() => form.setValue("step", "password")}

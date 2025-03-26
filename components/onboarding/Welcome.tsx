@@ -7,7 +7,10 @@ export default function Welcome() {
 
   return (
     <div className="flex w-[41rem] flex-col items-stretch gap-4 rounded-3xl bg-icy-blue-950">
-      <div id="onboarding" className="flex h-full flex-col justify-between">
+      <div
+        id="onboarding"
+        className="flex h-full flex-col justify-between px-10"
+      >
         <div className="flex flex-col items-center gap-10 pt-12">
           <img alt="castle" className="h-[229px] w-[229px]" src={castleImage} />
           <div className="flex flex-col items-center gap-3">
@@ -19,7 +22,7 @@ export default function Welcome() {
             </div>
           </div>
         </div>
-        <div className="flex flex-col gap-3 px-4 py-6">
+        <div className="flex flex-col gap-3 py-6">
           <button
             className="flex justify-center gap-2 rounded-full bg-icy-blue-400 px-6 py-3.5 text-center text-base font-semibold text-white"
             onClick={() => {

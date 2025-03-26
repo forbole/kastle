@@ -59,7 +59,7 @@ export default function ImportLedger() {
       {(!transport || !isAppOpen) && <LedgerConnectForImport onBack={onBack} />}
 
       {transport && isAppOpen && (
-        <div className="flex h-[35rem] w-[41rem] flex-col items-stretch justify-between gap-4 rounded-3xl bg-icy-blue-950 p-4 pb-6">
+        <div className="flex h-[35rem] w-[41rem] flex-col items-stretch justify-between gap-4 rounded-3xl bg-icy-blue-950 px-10 py-4 pb-6">
           <div className="space-y-16">
             <Header
               title="Ledger connected"

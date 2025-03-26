@@ -50,8 +50,8 @@ export default function ImportPrivateKey() {
   });
 
   return (
-    <div className="flex h-[35rem] w-[41rem] flex-col items-stretch gap-4 rounded-3xl bg-icy-blue-950 p-4 pb-6">
-      <div className="flex h-full flex-col justify-stretch gap-6 text-white">
+    <div className="flex h-[35rem] w-[41rem] flex-col items-stretch gap-4 rounded-3xl bg-icy-blue-950 pb-6">
+      <div className="flex h-full flex-col justify-stretch gap-6 px-10 py-4 text-white">
         <Header
           title="Import Private Key"
           subtitle="Please fill in the private key"
