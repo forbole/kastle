@@ -3,8 +3,10 @@ import successImage from "@/assets/images/success.png";
 import Header from "@/components/GeneralHeader";
 import { useLocation } from "react-router";
 import { setPopupPath } from "@/lib/utils.ts";
+import useExtensionUtils from "@/hooks/useExtensionUtils.ts";
 
 export const TokenOperationSuccess = () => {
+  const { reopenPopup } = useExtensionUtils();
   const {
     state: { ticker, op },
   } = useLocation();
@@ -45,9 +47,7 @@ export const TokenOperationSuccess = () => {
               type="button"
               className="flex items-center gap-2"
               onClick={() =>
-                setPopupPath(`/token-asset/${ticker}`, () =>
-                  browser.action.openPopup(),
-                )
+                setPopupPath(`/token-asset/${ticker}`, reopenPopup)
               }
             >
               <span className="text-sm font-semibold text-icy-blue-400">
@@ -58,7 +58,7 @@ export const TokenOperationSuccess = () => {
           </div>
 
           <button
-            onClick={() => browser.action.openPopup()}
+            onClick={reopenPopup}
             className="flex justify-center rounded-full bg-icy-blue-400 py-4 text-lg font-medium text-white"
           >
             Back to extension

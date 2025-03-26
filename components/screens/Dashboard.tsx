@@ -54,22 +54,22 @@ export default function Dashboard() {
       {/* Warning popup */}
       {showWarning && !dismissWarning && (
         <div
-          className="absolute bottom-0 left-0 m-3 flex flex-col gap-2 rounded-xl border border-[#7F1D1D] bg-[#381825] p-4 text-base"
+          className="absolute bottom-0 left-0 m-3 flex flex-col gap-2 rounded-xl border border-[#713F12] bg-[#281704] p-4 text-base"
           role="alert"
         >
           <div className="flex items-center justify-between">
             <span className="font-semibold text-daintree-200">
-              Backup your Kastle recovery phrase
+              ✋ Hold on, Your Majesty! 👑
             </span>
             <button type="button" onClick={() => setDismissWarning(true)}>
-              <i className="hn hn-times text-[16px]"></i>
+              <i className="hn hn-times text-[16px] text-[#854D0E]"></i>
             </button>
           </div>
 
           <span className="text-sm text-daintree-400">
-            ✋👑 Hold on, Your Majesty! Please back up your recovery phrase 📜.
-            It’s the 🗝️ key to accessing your Kastle if you lose your password
-            or need to reinstall your browser or extension 🌐.
+            Please back up your recovery phrase 📜. It’s the 🗝️ key to accessing
+            your Kastle if you lose your password or reinstall your browser or
+            extension 🌐
           </span>
           <button
             onClick={() =>
@@ -78,7 +78,7 @@ export default function Dashboard() {
               )
             }
             type="button"
-            className="inline-flex items-center gap-x-2 self-start rounded-lg border border-transparent bg-red-800/30 px-4 py-3 text-sm font-medium text-red-500 hover:bg-red-200 hover:bg-red-800/20 focus:bg-red-200 focus:bg-red-800/20 focus:outline-none disabled:pointer-events-none disabled:opacity-50"
+            className="inline-flex items-center gap-x-2 self-start rounded-lg border border-transparent bg-[#854D0E]/30 px-4 py-3 text-sm font-medium text-[#EAB308] hover:bg-[#854D0E]/20 focus:bg-[#854D0E4D] focus:outline-none disabled:pointer-events-none disabled:opacity-50"
           >
             Back up now
             <i className="hn hn-angle-right"></i>

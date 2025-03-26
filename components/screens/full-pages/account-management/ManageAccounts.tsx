@@ -7,6 +7,7 @@ import { ErrorResponse } from "@/lib/service/handlers/error-response";
 import { useBoolean } from "usehooks-ts";
 import Header from "@/components/GeneralHeader";
 import AccountsTitle from "./AccountsTitle";
+import { useLocation } from "react-router";
 
 export type AccountsFormValues = Record<
   string,
@@ -35,6 +36,7 @@ export default function ManageAccounts({
 }: ManageAccountsProps) {
   const calledOnce = useRef(false);
 
+  const location = useLocation();
   const navigate = useNavigate();
   const { walletId, action } = useParams();
   const pageSize = 10;
@@ -100,7 +102,7 @@ export default function ManageAccounts({
         throw new Error(response.error);
       }
 
-      navigate("/accounts-imported");
+      navigate(location?.state?.redirect ?? "/accounts-imported");
     } catch (error: any) {
       toast.error(error.message);
     }
