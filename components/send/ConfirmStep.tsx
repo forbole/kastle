@@ -68,7 +68,7 @@ export const ConfirmStep = ({
       }
 
       await addRecentAddress({
-        usedAt: new Date().getTime(),
+        usedAt: Date.now(),
         kaspaAddress: address,
         domain,
       });
