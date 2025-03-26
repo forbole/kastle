@@ -1,4 +1,5 @@
 import castleImage from "@/assets/images/castle.png";
+import kastleBanner from "@/assets/images/kastle-banner.svg";
 import { useFormContext } from "react-hook-form";
 import { OnboardingData } from "@/components/screens/Onboarding.tsx";
 
@@ -12,13 +13,17 @@ export default function Welcome() {
         className="flex h-full flex-col justify-between px-10"
       >
         <div className="flex flex-col items-center gap-10 pt-12">
+          <div className="flex items-center justify-center gap-2">
+            <img alt="bank" className="h-[20px] w-[112px]" src={kastleBanner} />
+          </div>
+
           <img alt="castle" className="h-[229px] w-[229px]" src={castleImage} />
           <div className="flex flex-col items-center gap-3">
             <div className="text-center text-lg font-semibold text-daintree-400">
               Welcome to Kastle
             </div>
             <div className="text-3xl font-semibold text-gray-200">
-              Your Gateway to Kaspa
+              Your Secure & Fast Kaspa Wallet
             </div>
           </div>
         </div>
