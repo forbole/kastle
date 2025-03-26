@@ -1,12 +1,13 @@
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { FormProvider, useForm } from "react-hook-form";
 import { DetailsStep } from "@/components/send/DetailsStep.tsx";
-import { ConfirmStep } from "@/components/send/ConfirmStep.tsx";
 import { SuccessStatus } from "@/components/send/SuccessStatus.tsx";
 import { FailStatus } from "@/components/send/FailStatus.tsx";
-import Sending from "@/components/send/Sending.tsx";
-import React, { useRef } from "react";
 import { useLocation } from "react-router";
+import { Broadcasting } from "@/components/send/Broadcasting.tsx";
+import useWalletManager from "@/hooks/useWalletManager.ts";
+import HotWalletConfirm from "@/components/send/HotWalletConfirm";
+import LedgerConfirm from "@/components/send/LedgerConfirm";
 
 const steps = ["details", "confirm", "broadcast", "success", "fail"] as const;
 
@@ -30,6 +31,7 @@ export default function Send() {
   const navigate = useNavigate();
   const { state } = useLocation() as { state?: SendState };
   const [step, setStep] = useState<Step>(state?.step ?? "details");
+  const { wallet } = useWalletManager();
 
   const form = useForm<SendFormData>({
     defaultValues: {
@@ -58,15 +60,24 @@ export default function Send() {
         {step === "details" && (
           <DetailsStep onNext={() => setStep("confirm")} onBack={onBack} />
         )}
-        {step === "confirm" && (
-          <ConfirmStep onNext={() => setStep("broadcast")} onBack={onBack} />
-        )}
-        {step === "broadcast" && (
-          <Sending
+        {step === "confirm" && wallet?.type !== "ledger" && (
+          <HotWalletConfirm
+            onNext={() => setStep("broadcast")}
+            onBack={onBack}
             setOutTxs={setOutTxs}
             onFail={() => setStep("fail")}
-            onSuccess={() => setStep("success")}
           />
+        )}
+        {step === "confirm" && wallet?.type === "ledger" && (
+          <LedgerConfirm
+            onNext={() => setStep("broadcast")}
+            onBack={onBack}
+            setOutTxs={setOutTxs}
+            onFail={() => setStep("fail")}
+          />
+        )}
+        {step === "broadcast" && (
+          <Broadcasting onSuccess={() => setStep("success")} />
         )}
         {step === "success" && <SuccessStatus transactionIds={outTxs} />}
         {step === "fail" && <FailStatus transactionIds={outTxs} />}
