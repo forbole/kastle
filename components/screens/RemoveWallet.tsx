@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import warningImage from "@/assets/images/warning.png";
 import Header from "@/components/GeneralHeader";
+import { forceOnboarding } from "@/entrypoints/popup/router.tsx";
 
 type RemoveWalletFormValues = { agreedRemove: boolean };
 
@@ -22,7 +23,11 @@ export default function RemoveWallet() {
     if (agreedRemove && !!walletId) {
       const { noWallet } = await removeWallet(walletId);
 
-      navigate(noWallet ? "/onboarding" : "/dashboard");
+      if (noWallet) {
+        await forceOnboarding();
+      } else {
+        navigate("/dashboard");
+      }
     }
   });
 
