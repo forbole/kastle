@@ -61,7 +61,7 @@ export default function SetupPassword() {
     <div className="flex w-[41rem] flex-col items-stretch gap-4 rounded-3xl bg-icy-blue-950">
       <div
         id="setup-password-screen"
-        className="flex h-full w-full flex-col px-10 py-4"
+        className="flex h-full w-full flex-col px-10 py-4 pb-6"
       >
         <Header
           title="Create a password"
