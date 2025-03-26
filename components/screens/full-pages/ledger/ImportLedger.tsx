@@ -42,7 +42,9 @@ export default function ImportLedger() {
       );
 
       navigate(`/manage-accounts/ledger/${walletId}/import`, {
-        state: { ...(onboardingForm && { redirect: "/onboarding-success" }) },
+        state: {
+          ...(onboardingForm && { redirect: "/onboarding-success/import" }),
+        },
       });
     } catch (error) {
       captureException(error);

@@ -54,7 +54,7 @@ export default function ChooseImport() {
             onClick={async () => {
               await keyringInitialize(password);
               await createNewWallet(uuid());
-              navigate("/onboarding-success");
+              navigate("/onboarding-success/create");
             }}
           >
             No wallet? Create one now

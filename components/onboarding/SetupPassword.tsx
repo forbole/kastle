@@ -36,7 +36,7 @@ export default function SetupPassword() {
     if (method === "create") {
       await keyringInitialize(data.password);
       await createNewWallet(uuid());
-      navigate("/onboarding-success");
+      navigate("/onboarding-success/create");
     } else {
       setValue("step", "choose");
     }

@@ -89,7 +89,9 @@ export default function ImportRecoveryPhrase() {
 
     emitWalletImported();
     navigate(`/manage-accounts/recovery-phrase/${walletId}/import`, {
-      state: { ...(onboardingForm && { redirect: "/onboarding-success" }) },
+      state: {
+        ...(onboardingForm && { redirect: "/onboarding-success/import" }),
+      },
     });
   });
 

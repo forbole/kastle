@@ -229,7 +229,7 @@ export const router = createHashRouter([
                 element: <WalletLockedAlert />,
               },
               {
-                path: "onboarding-success",
+                path: "onboarding-success/:method",
                 element: <OnboardingSuccess />,
               },
             ],

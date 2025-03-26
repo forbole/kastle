@@ -3,9 +3,11 @@ import confetti from "canvas-confetti";
 import Header from "@/components/GeneralHeader.tsx";
 import successImage from "@/assets/images/success.png";
 import useExtensionUtils from "@/hooks/useExtensionUtils.ts";
+import { useParams } from "react-router-dom";
 
 export default function OnboardingSuccess() {
   const calledOnce = useRef(false);
+  const { method } = useParams();
   const { emitOnboardingComplete } = useAnalytics();
   const { reopenPopup } = useExtensionUtils();
 
@@ -27,7 +29,11 @@ export default function OnboardingSuccess() {
   return (
     <div className="flex h-[35rem] w-[41rem] flex-col items-stretch gap-4 rounded-3xl bg-icy-blue-950">
       <div className="flex h-full flex-col px-10 pb-12 pt-4 text-white">
-        <Header title="Wallet Created" showPrevious={false} showClose={false} />
+        <Header
+          title={method === "create" ? "Wallet Created" : "Account Imported"}
+          showPrevious={false}
+          showClose={false}
+        />
         <div className="mt-16 flex flex-grow flex-col justify-between">
           <div className="space-y-4">
             <img src={successImage} alt="Success" className="mx-auto" />
@@ -36,7 +42,9 @@ export default function OnboardingSuccess() {
                 Success
               </h3>
               <h5 className="text-center text-sm text-gray-400">
-                Wallet created successfully
+                {method === "create"
+                  ? "Wallet created successfully"
+                  : "Account successfully imported!"}
               </h5>
             </div>
           </div>

@@ -46,7 +46,9 @@ export default function ImportPrivateKey() {
     await importPrivateKey(uuid(), privateKey);
 
     emitPrivateKeyImported();
-    navigate(onboardingForm ? "/onboarding-success" : "/accounts-imported");
+    navigate(
+      onboardingForm ? "/onboarding-success/import" : "/accounts-imported",
+    );
   });
 
   return (
