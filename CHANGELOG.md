@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.9.0](https://github.com/forbole/kastle/compare/v2.8.1...v2.9.0) (2025-03-26)
+
+
+### Features
+
+* improve ledger sign flow ([#72](https://github.com/forbole/kastle/issues/72)) ([adc2f9b](https://github.com/forbole/kastle/commit/adc2f9bd81df0f13295324e1f6eaedeb4c0b0b96))
+* krc721 display UI ([#65](https://github.com/forbole/kastle/issues/65)) ([3956d5f](https://github.com/forbole/kastle/commit/3956d5ff21c6c792942a533e5f9df394af39e3d4))
+* onboarding-rework ([#73](https://github.com/forbole/kastle/issues/73)) ([f5b4d5e](https://github.com/forbole/kastle/commit/f5b4d5e93767e16ff0b831218637a61d3327a39d))
+
+
+### Bug Fixes
+
+* include tokens in total balance ([#64](https://github.com/forbole/kastle/issues/64)) ([838469b](https://github.com/forbole/kastle/commit/838469bfab27d476af6542e9f813333d89705da2))
+* support emoji in account names ([b0ac19b](https://github.com/forbole/kastle/commit/b0ac19b3a99c8fcd28086539aafbebef8acc31b0))
+* sync full page keyring status ([#66](https://github.com/forbole/kastle/issues/66)) ([15f22cb](https://github.com/forbole/kastle/commit/15f22cbe939a37e691dd525e4a0ae26ef8018424))
+
 ## [2.8.1](https://github.com/forbole/kastle/compare/v2.8.0...v2.8.1) (2025-03-21)
 
 
