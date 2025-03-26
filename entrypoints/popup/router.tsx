@@ -29,7 +29,6 @@ import AccountsImported from "@/components/screens/full-pages/AccountsImported";
 import { getKeyringStatus } from "@/hooks/useKeyring.ts";
 import ImportLedger from "@/components/screens/full-pages/ledger/ImportLedger";
 import LedgerManageAccounts from "@/components/screens/full-pages/ledger/LedgerManageAccounts";
-import LedgerConnect from "@/components/screens/full-pages/ledger/LedgerConnectForImport";
 import WalletLockedAlert from "@/components/screens/full-pages/WalletLockedAlert";
 import init from "@/wasm/core/kaspa";
 import kaspaModule from "@/assets/kaspa_bg.wasm?url";
@@ -53,7 +52,6 @@ import { TokenOperationSuccess } from "@/components/screens/full-pages/TokenOper
 import ConfirmDeploy from "@/components/screens/full-pages/ConfirmDeploy.tsx";
 import DeployingToken from "@/components/screens/full-pages/DeployingToken.tsx";
 import { RecentAddressesProvider } from "@/contexts/RecentAddressesContext.tsx";
-import LedgerConnectForImportFailed from "@/components/screens/full-pages/ledger/LedgerConnectForImportFailed";
 import KNSAsset from "@/components/screens/KNSAsset";
 import KRC721 from "@/components/screens/KRC721";
 import OnboardingSuccess from "@/components/onboarding/OnboardingSuccess.tsx";
@@ -276,14 +274,6 @@ export const router = createHashRouter([
               {
                 path: "import-ledger",
                 element: <ImportLedger />,
-              },
-              {
-                path: "ledger-connect-for-import",
-                element: <LedgerConnect />,
-              },
-              {
-                path: "ledger-connect-for-import-failed",
-                element: <LedgerConnectForImportFailed />,
               },
               {
                 path: "deploy-token",
