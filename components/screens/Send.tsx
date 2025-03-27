@@ -20,6 +20,7 @@ export interface SendFormData {
   amount: string | undefined;
   amountUSD: string | undefined;
   domain: string | undefined;
+  priority: "low" | "medium" | "high";
 }
 
 export interface SendState {
@@ -35,6 +36,7 @@ export default function Send() {
 
   const form = useForm<SendFormData>({
     defaultValues: {
+      priority: "medium",
       ticker: state?.form?.ticker ?? "kas",
       address: state?.form?.address,
       amount: state?.form?.amount ?? "",

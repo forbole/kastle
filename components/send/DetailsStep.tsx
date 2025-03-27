@@ -21,6 +21,7 @@ import RecentAddresses from "@/components/send/RecentAddresses.tsx";
 import spinner from "@/assets/images/spinner.svg";
 import { useKns } from "@/hooks/useKns.ts";
 import { Tooltip } from "react-tooltip";
+import PriorityFeeSelection from "@/components/send/PriorityFeeSelection.tsx";
 
 export const DetailsStep = ({
   onNext,
@@ -42,6 +43,11 @@ export const DetailsStep = ({
   const { value: isTickerSelectShown, toggle: toggleTickerSelect } =
     useBoolean(false);
   const [accountMinimumFees, setAccountMinimumFees] = useState<number>(0.0);
+  const {
+    value: isPriorityFeeSelectionOpen,
+    setTrue: openPriorityFeeSelection,
+    setFalse: closePriorityFeeSelection,
+  } = useBoolean(false);
 
   const {
     register,
@@ -256,6 +262,11 @@ export const DetailsStep = ({
         toggleShow={toggleTickerSelect}
       />
 
+      <PriorityFeeSelection
+        isPriorityFeeSelectionOpen={isPriorityFeeSelectionOpen}
+        closePriorityFeeSelection={closePriorityFeeSelection}
+      />
+
       <div className="relative flex h-full flex-col gap-4">
         <div className="flex items-center justify-between">
           <label className="text-base font-medium">Send to ...</label>
@@ -428,14 +439,24 @@ export const DetailsStep = ({
         </div>
 
         {/* Fee segment */}
-        <div className="flex items-center justify-end gap-2 text-sm">
-          <span>Fee</span>
-          <span>
-            {ticker === "kas"
-              ? (transactionEstimate?.totalFees ?? "0")
-              : computeOperationFees("transfer").totalFees}{" "}
-            KAS
-          </span>
+        <div className="flex items-center justify-between gap-2 text-sm">
+          <button
+            className="flex items-center gap-2"
+            onClick={openPriorityFeeSelection}
+          >
+            <span>Fee</span>
+            <i className="hn hn-cog text-[16px]"></i>
+          </button>
+          <div className="flex items-center gap-2">
+            <i className="hn hn-info-circle text-[16px]"></i>
+            <span>Estimated</span>
+            <span>
+              {ticker === "kas"
+                ? (transactionEstimate?.totalFees ?? "0")
+                : computeOperationFees("transfer").totalFees}{" "}
+              KAS
+            </span>
+          </div>
         </div>
 
         <div className="mt-auto">
