@@ -4,7 +4,6 @@ import { SendFormData } from "@/components/screens/Send.tsx";
 import { useFormContext } from "react-hook-form";
 import useMempoolStatus from "@/hooks/useMempoolStatus.ts";
 import usePriorityFeeEstimate from "@/hooks/usePriorityFeeEstimate.ts";
-import { kaspaToSompi } from "@/wasm/core/kaspa";
 import { formatDuration } from "@/lib/utils.ts";
 
 type Priority = SendFormData["priority"];
@@ -18,12 +17,9 @@ export default function PriorityFeeSelection({
   closePriorityFeeSelection,
 }: PriorityFeeSelectionProps) {
   const { setValue, watch } = useFormContext<SendFormData>();
-  const { priority: selectedPriority, address, amount } = watch();
+  const selectedPriority = watch("priority");
   const { pendingTransactionsNumber } = useMempoolStatus();
-  const feeEstimate = usePriorityFeeEstimate(
-    kaspaToSompi(amount ?? "0") ?? 0n,
-    address,
-  );
+  const feeEstimate = usePriorityFeeEstimate();
   const evaluateMempoolCongestion = (): Priority => {
     if (pendingTransactionsNumber < 5000) {
       return "low";

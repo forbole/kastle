@@ -7,10 +7,9 @@ import { formatToken } from "@/lib/utils.ts";
 import kasIcon from "@/assets/images/kas-icon.svg";
 import usdIcon from "@/assets/images/usd-icon.svg";
 import Header from "@/components/GeneralHeader.tsx";
-import useTransactionEstimate from "@/hooks/useTransactionEstimate";
 import useWalletManager from "@/hooks/useWalletManager.ts";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
-import { Address } from "@/wasm/core/kaspa";
+import { Address, kaspaToSompi, sompiToKaspaString } from "@/wasm/core/kaspa";
 import { twMerge } from "tailwind-merge";
 import { useBoolean } from "usehooks-ts";
 import TickerSelect from "@/components/send/TickerSelect.tsx";
@@ -22,6 +21,8 @@ import spinner from "@/assets/images/spinner.svg";
 import { useKns } from "@/hooks/useKns.ts";
 import { Tooltip } from "react-tooltip";
 import PriorityFeeSelection from "@/components/send/PriorityFeeSelection.tsx";
+import useMassCalculation from "@/hooks/useMassCalculation.ts";
+import usePriorityFeeEstimate from "@/hooks/usePriorityFeeEstimate.ts";
 
 export const DetailsStep = ({
   onNext,
@@ -57,7 +58,14 @@ export const DetailsStep = ({
     trigger,
     formState: { isValid, errors, validatingFields },
   } = useFormContext<SendFormData>();
-  const { ticker, userInput, address, amount, domain } = watch();
+  const { ticker, userInput, address, amount, domain, priority, priorityFee } =
+    watch();
+  const priorityFeeEstimate = usePriorityFeeEstimate();
+  const estimatedMass = useMassCalculation(
+    kaspaToSompi(amount ?? "0") ?? 0n,
+    address,
+  );
+
   const { value: isAddressFieldFocused, setValue: setAddressFieldFocused } =
     useBoolean(false);
   const { data: tokenMetadata, toPriceInUsd } = useTokenMetadata(
@@ -82,14 +90,6 @@ export const DetailsStep = ({
   );
   const kasBalance = account?.balance ? parseFloat(account.balance) : 0;
   const currentBalance = ticker === "kas" ? kasBalance : tokenBalanceFloat;
-
-  const transactionEstimate = useTransactionEstimate({
-    account,
-    outputs:
-      address && amount && !Number.isNaN(parseFloat(amount))
-        ? [{ address, amount }]
-        : [],
-  });
 
   const amountValidator = async (value: string | undefined) => {
     const amountNumber = parseFloat(value ?? "0");
@@ -252,6 +252,32 @@ export const DetailsStep = ({
   useEffect(() => {
     trigger("userInput");
   }, [ticker]);
+
+  useEffect(() => {
+    const selectedPriorityFee = (() => {
+      if (priority === "low") {
+        return (
+          (priorityFeeEstimate?.estimate?.lowBuckets?.[0]?.feerate ?? 0) *
+          Number(estimatedMass)
+        );
+      }
+      if (priority === "medium") {
+        return (
+          (priorityFeeEstimate?.estimate?.normalBuckets?.[0]?.feerate ?? 0) *
+          Number(estimatedMass)
+        );
+      }
+      return (
+        (priorityFeeEstimate?.estimate?.priorityBucket?.feerate ?? 0) *
+        Number(estimatedMass)
+      );
+    })();
+
+    console.log(estimatedMass);
+    console.log(priorityFeeEstimate);
+
+    setValue("priorityFee", BigInt(Math.round(selectedPriorityFee)));
+  }, [estimatedMass, priorityFeeEstimate, priority]);
 
   return (
     <>
@@ -452,7 +478,7 @@ export const DetailsStep = ({
             <span>Estimated</span>
             <span>
               {ticker === "kas"
-                ? (transactionEstimate?.totalFees ?? "0")
+                ? sompiToKaspaString(priorityFee)
                 : computeOperationFees("transfer").totalFees}{" "}
               KAS
             </span>

@@ -1,11 +1,8 @@
 import { IGetFeeEstimateResponse } from "@/wasm/core/kaspa";
 import { useEffect } from "react";
 
-export default function usePriorityFeeEstimate(
-  amount: bigint,
-  address?: string,
-) {
-  const { rpcClient } = useRpcClientStateful();
+export default function usePriorityFeeEstimate() {
+  const { rpcClient, isConnected } = useRpcClientStateful();
   const [feeEstimate, setFeeEstimate] = useState<IGetFeeEstimateResponse>();
 
   useEffect(() => {
@@ -17,7 +14,7 @@ export default function usePriorityFeeEstimate(
     };
 
     fetchFeeEstimate();
-  }, [address, amount]);
+  }, [rpcClient, isConnected]);
 
   return feeEstimate;
 }
