@@ -48,6 +48,28 @@ export function formatToken(
   return formatter.format(number);
 }
 
+export function formatDuration(seconds: number): string {
+  if (seconds < 0 || isNaN(seconds)) {
+    return "0 seconds";
+  }
+
+  const roundedSeconds = Math.round(seconds);
+
+  if (roundedSeconds < 90) {
+    return `${roundedSeconds} second${roundedSeconds === 1 ? "" : "s"}`;
+  }
+
+  const minutes = roundedSeconds / 60;
+  if (minutes < 90) {
+    const wholeMinutes = Math.round(minutes);
+    return `${wholeMinutes} minute${wholeMinutes === 1 ? "" : "s"}`;
+  }
+
+  const hours = minutes / 60;
+  const wholeHours = Math.round(hours);
+  return `${wholeHours} hour${wholeHours === 1 ? "" : "s"}`;
+}
+
 export function walletAddressEllipsis(address: string) {
   const start = address.substring(0, 8);
   const end = address.substring(address.length - 5, address.length);

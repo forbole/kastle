@@ -5,6 +5,7 @@ import { useFormContext } from "react-hook-form";
 import useMempoolStatus from "@/hooks/useMempoolStatus.ts";
 import usePriorityFeeEstimate from "@/hooks/usePriorityFeeEstimate.ts";
 import { kaspaToSompi } from "@/wasm/core/kaspa";
+import { formatDuration } from "@/lib/utils.ts";
 
 type Priority = SendFormData["priority"];
 type PriorityFeeSelectionProps = {
@@ -85,10 +86,9 @@ export default function PriorityFeeSelection({
           >
             <span className="text-base font-semibold">Low</span>
             <span>
-              {(
-                feeEstimate?.estimate.lowBuckets?.[0]?.estimatedSeconds ?? 0
-              ).toFixed(2)}{" "}
-              secs
+              {formatDuration(
+                feeEstimate?.estimate.lowBuckets?.[0]?.estimatedSeconds ?? 0,
+              )}
             </span>
           </button>
           <button
@@ -106,10 +106,9 @@ export default function PriorityFeeSelection({
             </span>
             <span className="text-base font-semibold">Med</span>
             <span>
-              {(
-                feeEstimate?.estimate.normalBuckets?.[0]?.estimatedSeconds ?? 0
-              ).toFixed(2)}{" "}
-              secs
+              {formatDuration(
+                feeEstimate?.estimate.normalBuckets?.[0]?.estimatedSeconds ?? 0,
+              )}
             </span>
           </button>
           <button
@@ -124,10 +123,9 @@ export default function PriorityFeeSelection({
           >
             <span className="text-base font-semibold">High </span>
             <span>
-              {(
-                feeEstimate?.estimate.priorityBucket?.estimatedSeconds ?? 0
-              ).toFixed(2)}{" "}
-              secs
+              {formatDuration(
+                feeEstimate?.estimate.priorityBucket?.estimatedSeconds ?? 0,
+              )}
             </span>
           </button>
         </div>
