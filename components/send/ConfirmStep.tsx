@@ -1,18 +1,16 @@
 import { useFormContext } from "react-hook-form";
 import { SendFormData } from "@/components/screens/Send.tsx";
-import React from "react";
+import React, { useState } from "react";
 import signImage from "@/assets/images/sign.png";
 import ledgerSignImage from "@/assets/images/ledger-on-sign.svg";
 import useKaspaPrice from "@/hooks/useKaspaPrice.ts";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/GeneralHeader.tsx";
-import useTransactionEstimate from "@/hooks/useTransactionEstimate";
 import useWalletManager from "@/hooks/useWalletManager.ts";
 import { IWallet } from "@/lib/wallet/wallet-interface";
 import useRecentAddresses from "@/hooks/useRecentAddresses.ts";
 import { captureException } from "@sentry/react";
-import { kaspaToSompi } from "@/wasm/core/kaspa";
-import { useState } from "react";
+import { kaspaToSompi, sompiToKaspaString } from "@/wasm/core/kaspa";
 import { twMerge } from "tailwind-merge";
 
 export const ConfirmStep = ({
@@ -34,19 +32,12 @@ export const ConfirmStep = ({
   const { addRecentAddress } = useRecentAddresses();
   const [isSigning, setIsSigning] = useState(false);
 
-  const { account, wallet } = useWalletManager();
+  const { wallet } = useWalletManager();
   const { watch } = useFormContext<SendFormData>();
-  const { address, amount, domain } = watch();
+  const { address, amount, domain, priorityFee } = watch();
   const kapsaPrice = useKaspaPrice();
   const amountNumber = parseFloat(amount ?? "0");
-
-  const transactionEstimate = useTransactionEstimate({
-    account,
-    outputs: address && amount ? [{ address, amount }] : [],
-  });
-
-  const transactionFee = transactionEstimate?.totalFees ?? "0";
-  const transactionFeeNumber = parseFloat(transactionFee);
+  const priorityFeeKas = sompiToKaspaString(priorityFee);
 
   const onClose = () => {
     navigate("/dashboard");
@@ -60,7 +51,11 @@ export const ConfirmStep = ({
     try {
       setIsSigning(true);
       const transactionResponse = {
-        txIds: await signer.send(kaspaToSompi(amount) ?? BigInt(0), address),
+        txIds: await signer.send(
+          kaspaToSompi(amount) ?? BigInt(0),
+          address,
+          priorityFee,
+        ),
       };
 
       if (typeof transactionResponse === "string") {
@@ -139,14 +134,11 @@ export const ConfirmStep = ({
             <div className="flex w-full items-start justify-between">
               <span className="font-medium">Fee</span>
               <div className="flex flex-col text-right">
-                <span className="font-medium">
-                  {transactionFeeNumber != 0 && transactionFeeNumber < 0.001
-                    ? "<0.001"
-                    : transactionFeeNumber.toFixed(3)}{" "}
-                  KAS
-                </span>
+                <span className="font-medium">{priorityFeeKas} KAS</span>
                 <span className="text-xs text-daintree-400">
-                  {(transactionFeeNumber * kapsaPrice.kaspaPrice).toFixed(3)}{" "}
+                  {(parseFloat(priorityFeeKas) * kapsaPrice.kaspaPrice).toFixed(
+                    3,
+                  )}{" "}
                   USD
                 </span>
               </div>
