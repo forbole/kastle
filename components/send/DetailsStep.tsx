@@ -62,6 +62,7 @@ export const DetailsStep = ({
   } = useFormContext<SendFormData>();
   const { ticker, userInput, address, amount, domain, priority, priorityFee } =
     watch();
+  const isKasTransfer = ticker === "kas";
   const priorityFeeEstimate = usePriorityFeeEstimate();
   const estimatedMass = useMassCalculation(
     kaspaToSompi(amount ?? "0") ?? 0n,
@@ -71,13 +72,13 @@ export const DetailsStep = ({
   const { value: isAddressFieldFocused, setValue: setAddressFieldFocused } =
     useBoolean(false);
   const { data: tokenMetadata, toPriceInUsd } = useTokenMetadata(
-    ticker === "kas" ? undefined : ticker,
+    isKasTransfer ? undefined : ticker,
   );
   const [imageUrl, setImageUrl] = useState(kasIcon);
   const { kaspaPrice } = useKaspaPrice();
-  const tokenPrice = ticker === "kas" ? kaspaPrice : toPriceInUsd();
+  const tokenPrice = isKasTransfer ? kaspaPrice : toPriceInUsd();
   const { data: tokenBalanceResponse } = useTokenBalance(
-    account?.address && ticker !== "kas"
+    account?.address && !isKasTransfer
       ? {
           ticker,
           address: account.address,
@@ -91,7 +92,7 @@ export const DetailsStep = ({
     tokenBalance?.balance ? parseInt(tokenBalance.balance, 10) : 0,
   );
   const kasBalance = account?.balance ? parseFloat(account.balance) : 0;
-  const currentBalance = ticker === "kas" ? kasBalance : tokenBalanceFloat;
+  const currentBalance = isKasTransfer ? kasBalance : tokenBalanceFloat;
 
   const amountValidator = async (value: string | undefined) => {
     const amountNumber = parseFloat(value ?? "0");
@@ -133,7 +134,7 @@ export const DetailsStep = ({
     const genericErrorMessage = "Invalid address or KNS domain";
     if (!value) return genericErrorMessage;
 
-    if (ticker !== "kas" && value === account?.address) {
+    if (!isKasTransfer && value === account?.address) {
       return "You cannot send KRC20 to yourself";
     }
 
@@ -178,8 +179,9 @@ export const DetailsStep = ({
       return;
     }
 
-    const maxAmount =
-      ticker === "kas" ? currentBalance - accountMinimumFees : currentBalance;
+    const maxAmount = isKasTransfer
+      ? currentBalance - accountMinimumFees
+      : currentBalance;
 
     setValue("amount", maxAmount > 0 ? maxAmount.toFixed(8) : "0", {
       shouldValidate: true,
@@ -187,7 +189,7 @@ export const DetailsStep = ({
   };
 
   const navigateToNextStep = () =>
-    ticker === "kas"
+    isKasTransfer
       ? onNext()
       : navigate(
           {
@@ -208,7 +210,7 @@ export const DetailsStep = ({
   };
 
   useEffect(() => {
-    if (ticker === "kas") {
+    if (isKasTransfer) {
       setImageUrl(kasIcon);
       return;
     }
@@ -274,9 +276,6 @@ export const DetailsStep = ({
         Number(estimatedMass)
       );
     })();
-
-    console.log(estimatedMass);
-    console.log(priorityFeeEstimate);
 
     setValue("priorityFee", BigInt(Math.round(selectedPriorityFee)));
   }, [estimatedMass, priorityFeeEstimate, priority]);
@@ -398,8 +397,9 @@ export const DetailsStep = ({
               <input
                 {...register("amount", {
                   required: true,
-                  validate:
-                    ticker === "kas" ? amountValidator : tokenAmountValidator,
+                  validate: isKasTransfer
+                    ? amountValidator
+                    : tokenAmountValidator,
                   onChange: (event) => {
                     const [int, dec] = event.target.value.split(".");
 
@@ -469,8 +469,11 @@ export const DetailsStep = ({
         {/* Fee segment */}
         <div className="flex items-center justify-between gap-2 text-sm">
           <button
-            className="relative flex items-center gap-2"
-            onClick={openPriorityFeeSelection}
+            className={twMerge(
+              "relative flex items-center gap-2",
+              !isKasTransfer && "cursor-default",
+            )}
+            onClick={isKasTransfer ? openPriorityFeeSelection : undefined}
           >
             {mempoolCongestionLevel === "medium" && (
               <span className="absolute -end-1 top-0 -me-1.5 -mt-1.5 flex size-2">
@@ -485,13 +488,45 @@ export const DetailsStep = ({
               </span>
             )}
             <span>Fee</span>
-            <i className="hn hn-cog text-[16px]"></i>
+            <i
+              className={twMerge(
+                "hn hn-cog text-[16px]",
+                !isKasTransfer && "text-[#4B5563]",
+              )}
+              data-tooltip-id="fee-tooltip"
+              data-tooltip-content="KRC20 currently doesn’t support custom fees."
+            ></i>
+            {!isKasTransfer && (
+              <Tooltip
+                id="fee-tooltip"
+                style={{
+                  backgroundColor: "#374151",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  padding: "2px 8px",
+                }}
+              />
+            )}
           </button>
           <div className="flex items-center gap-2">
-            <i className="hn hn-info-circle text-[16px]"></i>
+            <Tooltip
+              id="fee-estimation-tooltip"
+              style={{
+                backgroundColor: "#374151",
+                fontSize: "12px",
+                fontWeight: 600,
+                padding: "2px 8px",
+              }}
+            />
+            <i
+              className="hn hn-info-circle text-[16px]"
+              data-tooltip-id="fee-estimation-tooltip"
+              data-tooltip-content={`${sompiToKaspaString(priorityFee)} KAS for miner fees.`}
+            ></i>
+
             <span>Estimated</span>
             <span>
-              {ticker === "kas"
+              {isKasTransfer
                 ? sompiToKaspaString(priorityFee)
                 : computeOperationFees("transfer").totalFees}{" "}
               KAS

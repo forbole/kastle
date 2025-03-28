@@ -4,7 +4,6 @@ import { SendFormData } from "@/components/screens/Send.tsx";
 import { useFormContext } from "react-hook-form";
 import useMempoolStatus from "@/hooks/useMempoolStatus.ts";
 import usePriorityFeeEstimate from "@/hooks/usePriorityFeeEstimate.ts";
-import { formatDuration } from "@/lib/utils.ts";
 
 type PriorityFeeSelectionProps = {
   isPriorityFeeSelectionOpen: boolean;
@@ -19,6 +18,28 @@ export default function PriorityFeeSelection({
   const selectedPriority = watch("priority");
   const { mempoolCongestionLevel } = useMempoolStatus();
   const feeEstimate = usePriorityFeeEstimate();
+
+  const formatDuration = (seconds: number): string => {
+    if (seconds < 0 || isNaN(seconds)) {
+      return "<0 sec";
+    }
+
+    const roundedSeconds = Math.round(seconds);
+
+    if (roundedSeconds < 90) {
+      return `<${roundedSeconds} sec${roundedSeconds === 1 ? "" : "s"}`;
+    }
+
+    const minutes = roundedSeconds / 60;
+    if (minutes < 90) {
+      const wholeMinutes = Math.round(minutes);
+      return `<${wholeMinutes} min${wholeMinutes === 1 ? "" : "s"}`;
+    }
+
+    const hours = minutes / 60;
+    const wholeHours = Math.round(hours);
+    return `<${wholeHours} hour${wholeHours === 1 ? "" : "s"}`;
+  };
 
   return (
     <>
@@ -37,7 +58,9 @@ export default function PriorityFeeSelection({
         )}
       >
         <div className="flex items-center justify-between">
-          <span className="text-base font-semibold">Fee & Speed</span>
+          <span className="text-base font-semibold text-[#E5E7EB]">
+            Fee & Speed
+          </span>
           {mempoolCongestionLevel === "low" && (
             <span className="inline-flex items-center gap-x-1.5 rounded-full bg-[#115E594D] px-2.5 py-1.5 text-xs font-medium text-[#14B8A6]">
               <span className="inline-block size-1.5 rounded-full bg-[#14B8A6]"></span>
@@ -70,7 +93,7 @@ export default function PriorityFeeSelection({
             onClick={() => setValue("priority", "low")}
           >
             <span className="text-base font-semibold">Low</span>
-            <span>
+            <span className="text-daintree-400">
               {formatDuration(
                 feeEstimate?.estimate.lowBuckets?.[0]?.estimatedSeconds ?? 0,
               )}
@@ -90,7 +113,7 @@ export default function PriorityFeeSelection({
               Recommended
             </span>
             <span className="text-base font-semibold">Med</span>
-            <span>
+            <span className="text-daintree-400">
               {formatDuration(
                 feeEstimate?.estimate.normalBuckets?.[0]?.estimatedSeconds ?? 0,
               )}
@@ -107,7 +130,7 @@ export default function PriorityFeeSelection({
             onClick={() => setValue("priority", "high")}
           >
             <span className="text-base font-semibold">High </span>
-            <span>
+            <span className="text-daintree-400">
               {formatDuration(
                 feeEstimate?.estimate.priorityBucket?.estimatedSeconds ?? 0,
               )}
