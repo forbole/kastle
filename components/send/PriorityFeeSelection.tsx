@@ -3,6 +3,8 @@ import React from "react";
 import { SendFormData } from "@/components/screens/Send.tsx";
 import { useFormContext } from "react-hook-form";
 import useMempoolStatus from "@/hooks/useMempoolStatus.ts";
+import usePriorityFeeEstimate from "@/hooks/usePriorityFeeEstimate.ts";
+import { kaspaToSompi } from "@/wasm/core/kaspa";
 
 type Priority = SendFormData["priority"];
 type PriorityFeeSelectionProps = {
@@ -15,8 +17,12 @@ export default function PriorityFeeSelection({
   closePriorityFeeSelection,
 }: PriorityFeeSelectionProps) {
   const { setValue, watch } = useFormContext<SendFormData>();
-  const selectedPriority = watch("priority");
+  const { priority: selectedPriority, address, amount } = watch();
   const { pendingTransactionsNumber } = useMempoolStatus();
+  const feeEstimate = usePriorityFeeEstimate(
+    kaspaToSompi(amount ?? "0") ?? 0n,
+    address,
+  );
   const evaluateMempoolCongestion = (): Priority => {
     if (pendingTransactionsNumber < 5000) {
       return "low";
@@ -78,7 +84,12 @@ export default function PriorityFeeSelection({
             onClick={() => setValue("priority", "low")}
           >
             <span className="text-base font-semibold">Low</span>
-            <span>Low</span>
+            <span>
+              {(
+                feeEstimate?.estimate.lowBuckets?.[0]?.estimatedSeconds ?? 0
+              ).toFixed(2)}{" "}
+              secs
+            </span>
           </button>
           <button
             type="button"
@@ -94,7 +105,12 @@ export default function PriorityFeeSelection({
               Recommended
             </span>
             <span className="text-base font-semibold">Med</span>
-            <span>Med</span>
+            <span>
+              {(
+                feeEstimate?.estimate.normalBuckets?.[0]?.estimatedSeconds ?? 0
+              ).toFixed(2)}{" "}
+              secs
+            </span>
           </button>
           <button
             type="button"
@@ -106,8 +122,13 @@ export default function PriorityFeeSelection({
             )}
             onClick={() => setValue("priority", "high")}
           >
-            <span className="text-base font-semibold">High</span>
-            <span>High</span>
+            <span className="text-base font-semibold">High </span>
+            <span>
+              {(
+                feeEstimate?.estimate.priorityBucket?.estimatedSeconds ?? 0
+              ).toFixed(2)}{" "}
+              secs
+            </span>
           </button>
         </div>
         <div className="flex items-center gap-2 text-xs text-daintree-400">
