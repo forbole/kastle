@@ -6,7 +6,6 @@ import useMempoolStatus from "@/hooks/useMempoolStatus.ts";
 import usePriorityFeeEstimate from "@/hooks/usePriorityFeeEstimate.ts";
 import { formatDuration } from "@/lib/utils.ts";
 
-type Priority = SendFormData["priority"];
 type PriorityFeeSelectionProps = {
   isPriorityFeeSelectionOpen: boolean;
   closePriorityFeeSelection: () => void;
@@ -18,18 +17,8 @@ export default function PriorityFeeSelection({
 }: PriorityFeeSelectionProps) {
   const { setValue, watch } = useFormContext<SendFormData>();
   const selectedPriority = watch("priority");
-  const { pendingTransactionsNumber } = useMempoolStatus();
+  const { mempoolCongestionLevel } = useMempoolStatus();
   const feeEstimate = usePriorityFeeEstimate();
-  const evaluateMempoolCongestion = (): Priority => {
-    if (pendingTransactionsNumber < 5000) {
-      return "low";
-    }
-    if (pendingTransactionsNumber < 10000) {
-      return "medium";
-    }
-    return "high";
-  };
-  const mempoolCongestion = evaluateMempoolCongestion();
 
   return (
     <>
@@ -49,19 +38,19 @@ export default function PriorityFeeSelection({
       >
         <div className="flex items-center justify-between">
           <span className="text-base font-semibold">Fee & Speed</span>
-          {mempoolCongestion === "low" && (
+          {mempoolCongestionLevel === "low" && (
             <span className="inline-flex items-center gap-x-1.5 rounded-full bg-[#115E594D] px-2.5 py-1.5 text-xs font-medium text-[#14B8A6]">
               <span className="inline-block size-1.5 rounded-full bg-[#14B8A6]"></span>
               Network: Smooth
             </span>
           )}
-          {mempoolCongestion === "medium" && (
+          {mempoolCongestionLevel === "medium" && (
             <span className="inline-flex items-center gap-x-1.5 rounded-full bg-[#854D0E4D] px-2.5 py-1.5 text-xs font-medium text-[#EAB308]">
               <span className="inline-block size-1.5 rounded-full bg-[#EAB308]"></span>
               Network: Slowing
             </span>
           )}
-          {mempoolCongestion === "high" && (
+          {mempoolCongestionLevel === "high" && (
             <span className="inline-flex items-center gap-x-1.5 rounded-full bg-[#991B1B4D] px-2.5 py-1.5 text-xs font-medium text-[#EF4444]">
               <span className="inline-block size-1.5 rounded-full bg-[#EF4444]"></span>
               Network: Busy

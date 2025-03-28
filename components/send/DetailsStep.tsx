@@ -23,6 +23,7 @@ import { Tooltip } from "react-tooltip";
 import PriorityFeeSelection from "@/components/send/PriorityFeeSelection.tsx";
 import useMassCalculation from "@/hooks/useMassCalculation.ts";
 import usePriorityFeeEstimate from "@/hooks/usePriorityFeeEstimate.ts";
+import useMempoolStatus from "@/hooks/useMempoolStatus.ts";
 
 export const DetailsStep = ({
   onNext,
@@ -34,6 +35,7 @@ export const DetailsStep = ({
   const navigate = useNavigate();
   const { account, addresses } = useWalletManager();
   const { rpcClient, getMinimumFee } = useRpcClientStateful();
+  const { mempoolCongestionLevel } = useMempoolStatus();
   const { fetchDomainInfo } = useKns();
 
   const {
@@ -467,9 +469,21 @@ export const DetailsStep = ({
         {/* Fee segment */}
         <div className="flex items-center justify-between gap-2 text-sm">
           <button
-            className="flex items-center gap-2"
+            className="relative flex items-center gap-2"
             onClick={openPriorityFeeSelection}
           >
+            {mempoolCongestionLevel === "medium" && (
+              <span className="absolute -end-1 top-0 -me-1.5 -mt-1.5 flex size-2">
+                <span className="absolute inline-flex size-full animate-ping rounded-full bg-[#E9B306] opacity-75"></span>
+                <span className="relative inline-flex size-2 rounded-full bg-[#E9B306]"></span>
+              </span>
+            )}
+            {mempoolCongestionLevel === "high" && (
+              <span className="absolute -end-1 top-0 -me-1.5 -mt-1.5 flex size-2">
+                <span className="absolute inline-flex size-full animate-ping rounded-full bg-[#EF4444] opacity-75"></span>
+                <span className="relative inline-flex size-2 rounded-full bg-[#EF4444]"></span>
+              </span>
+            )}
             <span>Fee</span>
             <i className="hn hn-cog text-[16px]"></i>
           </button>

@@ -19,5 +19,18 @@ export default function useMempoolStatus() {
     fetchMempoolStatus();
   }, [rpcClient, isConnected]);
 
-  return { pendingTransactionsNumber };
+  const evaluateMempoolCongestion = () => {
+    if (pendingTransactionsNumber < 5000) {
+      return "low";
+    }
+    if (pendingTransactionsNumber < 10000) {
+      return "medium";
+    }
+    return "high";
+  };
+
+  return {
+    pendingTransactionsNumber,
+    mempoolCongestionLevel: evaluateMempoolCongestion(),
+  };
 }
