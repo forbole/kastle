@@ -70,7 +70,7 @@ export default function PriorityFeeSelection({
           {mempoolCongestionLevel === "medium" && (
             <span className="inline-flex items-center gap-x-1.5 rounded-full bg-[#854D0E4D] px-2.5 py-1.5 text-xs font-medium text-[#EAB308]">
               <span className="inline-block size-1.5 rounded-full bg-[#EAB308]"></span>
-              Network: Slowing
+              Network: Slow
             </span>
           )}
           {mempoolCongestionLevel === "high" && (
