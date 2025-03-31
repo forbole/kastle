@@ -7,7 +7,7 @@ export default function usePriorityFeeEstimate() {
 
   useEffect(() => {
     const fetchFeeEstimate = async () => {
-      if (!rpcClient) return;
+      if (!rpcClient || !isConnected) return;
 
       const estimate = await rpcClient.getFeeEstimate({});
       setFeeEstimate(estimate);
