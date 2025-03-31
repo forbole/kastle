@@ -21,7 +21,7 @@ export default function PriorityFeeSelection({
 
   const formatDuration = (seconds: number): string => {
     if (seconds < 0 || isNaN(seconds)) {
-      return "<0 sec";
+      return "<1 sec";
     }
 
     const roundedSeconds = Math.round(seconds);
