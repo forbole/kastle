@@ -65,8 +65,14 @@ export const DetailsStep = ({
   const isKasTransfer = ticker === "kas";
   const priorityFeeEstimate = usePriorityFeeEstimate();
   const estimatedMass = useMassCalculation(
-    kaspaToSompi(amount ?? "0") ?? 0n,
-    address,
+    address
+      ? [
+          {
+            address: address,
+            amount: kaspaToSompi(amount ?? "0") ?? 0n,
+          },
+        ]
+      : [],
   );
 
   const { value: isAddressFieldFocused, setValue: setAddressFieldFocused } =

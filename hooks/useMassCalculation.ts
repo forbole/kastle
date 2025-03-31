@@ -1,19 +1,25 @@
 import {
   calculateTransactionMass,
   createTransaction,
+  IPaymentOutput,
   IUtxoEntry,
 } from "@/wasm/core/kaspa";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
-import { useEffect } from "react";
+import useDeepCompareEffect from "use-deep-compare-effect";
 
-export default function useMassCalculation(amount: bigint, address?: string) {
+export default function useMassCalculation(outputs: IPaymentOutput[]) {
   const { account } = useWalletManager();
   const { networkId, getUtxos } = useRpcClientStateful();
   const [mass, setMass] = useState(0n);
 
-  useEffect(() => {
+  useDeepCompareEffect(() => {
+    if (!account?.address) return;
+
     const calculateMass = async () => {
-      if (!address || !account?.address) return;
+      const amountSum = outputs.reduce(
+        (acc, curr) => acc + (curr.amount ?? 0n),
+        0n,
+      );
 
       const entries = await getUtxos([account.address]);
       const selected: IUtxoEntry[] = [];
@@ -23,16 +29,12 @@ export default function useMassCalculation(amount: bigint, address?: string) {
         selected.push(entry);
         selectedSum += entry.amount;
 
-        if (selectedSum > amount) {
+        if (selectedSum > amountSum) {
           break;
         }
       }
 
-      const transaction = createTransaction(
-        selected,
-        [{ address, amount }],
-        0n,
-      );
+      const transaction = createTransaction(selected, outputs, 0n);
 
       const mass = calculateTransactionMass(
         networkId ?? NetworkType.Mainnet,
@@ -43,7 +45,7 @@ export default function useMassCalculation(amount: bigint, address?: string) {
     };
 
     calculateMass();
-  }, [address, amount]);
+  }, [outputs]);
 
   return mass;
 }
