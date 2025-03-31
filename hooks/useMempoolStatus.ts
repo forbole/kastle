@@ -8,12 +8,9 @@ export default function useMempoolStatus() {
     const fetchMempoolStatus = async () => {
       if (!isConnected || !rpcClient) return;
 
-      const { mempoolEntries } = await rpcClient.getMempoolEntries({
-        includeOrphanPool: false,
-        filterTransactionPool: false,
-      });
+      const { mempoolSize } = await rpcClient.getInfo();
 
-      setPendingTransactionsNumber(mempoolEntries.length);
+      setPendingTransactionsNumber(Number(mempoolSize));
     };
 
     fetchMempoolStatus();
