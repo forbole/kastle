@@ -87,6 +87,17 @@ document
     }
   });
 
+document.getElementById("signMessage").addEventListener("click", async () => {
+  try {
+    const message = "Hello, World!";
+    const signature = await kastle.signMessage(message);
+    document.getElementById("signature").innerText = signature;
+    document.getElementById("signMessageError").innerText = "None";
+  } catch (error) {
+    document.getElementById("signMessageError").innerText = error.message;
+  }
+});
+
 function createKRC20ScriptBuilder(data) {
   const { Opcodes } = kaspaWasm;
   const accountPublicKey = document.getElementById("publicKey").innerText;
