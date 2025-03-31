@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import warningImage from "@/assets/images/warning.png";
 import Header from "@/components/GeneralHeader";
+import { forceOnboarding } from "@/entrypoints/popup/router.tsx";
 
 type ResetWalletFormValues = { agreedReset: boolean };
 
@@ -20,7 +21,7 @@ export default function ResetWallet() {
   const onSubmit = handleSubmit(async ({ agreedReset }) => {
     if (agreedReset) {
       await resetWallet();
-      navigate("/onboarding");
+      await forceOnboarding();
     }
   });
 

@@ -1,36 +1,23 @@
-import { useNavigate, useSearchParams } from "react-router-dom";
 import Header from "@/components/GeneralHeader";
 import ledgerConnectFailedImage from "@/assets/images/ledger-connect-error.png";
 
-export default function LedgerConnectForSignFailed() {
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const redirect = searchParams.get("redirect");
-  const state = searchParams.get("state");
-
-  const retry = () => {
-    if (!redirect) {
-      navigate(-1);
-      return;
-    }
-
-    navigate(
-      {
-        pathname: redirect,
-      },
-      {
-        state: JSON.parse(decodeURIComponent(state ?? "") ?? "{}"),
-      },
-    );
-  };
-
+export default function LedgerConnectForSignFailed({
+  showClose = true,
+  retry,
+  onClose,
+}: {
+  showClose?: boolean;
+  retry: () => void;
+  onClose?: () => void;
+}) {
   return (
-    <div className="flex h-full flex-col justify-between p-4">
+    <div className="flex h-full flex-col justify-between">
       <div className="space-y-10">
         <Header
           title="Confirm on Ledger"
-          onBack={retry}
-          onClose={() => navigate("/dashboard")}
+          onClose={onClose}
+          showPrevious={false}
+          showClose={showClose}
         />
         <div className="space-y-4">
           <img

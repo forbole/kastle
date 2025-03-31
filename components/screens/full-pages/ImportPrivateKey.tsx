@@ -1,17 +1,22 @@
-import React, { useState } from "react";
-import { useForm } from "react-hook-form";
+import React from "react";
+import { useForm, useFormContext } from "react-hook-form";
 import { twMerge } from "tailwind-merge";
 import { useNavigate } from "react-router-dom";
 import { v4 as uuid } from "uuid";
 import useAnalytics from "@/hooks/useAnalytics.ts";
 import { PrivateKey } from "@/wasm/core/kaspa";
+import { useBoolean } from "usehooks-ts";
+import { OnboardingData } from "@/components/screens/Onboarding.tsx";
+import Header from "@/components/GeneralHeader.tsx";
 
 type PrivateKeyFormValues = { privateKey: string };
 
 export default function ImportPrivateKey() {
   const { emitPrivateKeyImported } = useAnalytics();
   const navigate = useNavigate();
+  const { keyringInitialize } = useKeyring();
   const { importPrivateKey } = useWalletManager();
+  const onboardingForm = useFormContext<OnboardingData>();
   const {
     handleSubmit,
     register,
@@ -21,7 +26,7 @@ export default function ImportPrivateKey() {
     mode: "all",
   });
 
-  const [isHidden, setIsHidden] = useState(true);
+  const { value: isHidden, toggle: toggleHidden } = useBoolean(true);
 
   const onClose = () => window.close();
 
@@ -34,51 +39,46 @@ export default function ImportPrivateKey() {
   };
 
   const onSubmit = handleSubmit(async ({ privateKey }) => {
+    if (onboardingForm) {
+      await keyringInitialize(onboardingForm.getValues("password"));
+    }
+
     await importPrivateKey(uuid(), privateKey);
 
     emitPrivateKeyImported();
-    navigate("/accounts-imported");
+    navigate(
+      onboardingForm ? "/onboarding-success/import" : "/accounts-imported",
+    );
   });
 
   return (
-    <div className="flex h-[35rem] w-[41rem] flex-col items-stretch gap-4 rounded-3xl bg-icy-blue-950 p-4 pb-6">
-      <div className="flex h-full flex-col justify-stretch gap-6 text-white">
-        <div className="flex justify-between">
-          {/* Placeholder */}
-          <div
-            onClick={onClose}
-            className="flex h-12 w-12 items-center justify-center"
-          ></div>
-
-          <div className="text-center">
-            <h1 className="text-xl font-bold">Import Private Key</h1>
-            <span className="text-xs text-daintree-400">
-              Please fill in the private key
-            </span>
-          </div>
-
-          <button
-            onClick={onClose}
-            className="flex h-12 w-12 items-center justify-center"
-          >
-            <i className="hn hn-times text-xl"></i>
-          </button>
-        </div>
+    <div className="flex h-[35rem] w-[41rem] flex-col items-stretch gap-4 rounded-3xl bg-icy-blue-950 pb-6">
+      <div className="flex h-full flex-col justify-stretch gap-6 px-10 py-4 text-white">
+        <Header
+          title="Import Private Key"
+          subtitle="Please fill in the private key"
+          showPrevious={!!onboardingForm}
+          onBack={() => onboardingForm.setValue("step", "choose")}
+          showClose={!onboardingForm}
+          onClose={onClose}
+        />
 
         <form
           onSubmit={onSubmit}
           className="flex flex-grow flex-col items-stretch gap-4"
         >
           <div className="relative">
-            <div className={twMerge("flex flex-col gap-4", isHidden && "blur")}>
+            <div className="flex flex-col gap-4">
               <div className="flex justify-between">
                 <button
                   type="button"
                   className="inline-flex items-center gap-x-2 rounded-lg border border-transparent px-4 py-3 text-sm font-medium text-icy-blue-400 hover:bg-daintree-700 hover:text-blue-400 focus:bg-blue-100 focus:bg-blue-800/30 focus:text-blue-400 focus:outline-none disabled:pointer-events-none disabled:opacity-50"
-                  onClick={() => setIsHidden(true)}
+                  onClick={toggleHidden}
                 >
                   <i className="hn hn-eye text-[14px]" />
-                  <span>Hide private key</span>
+                  <span>
+                    {isHidden ? "Show private key" : "Hide private key"}
+                  </span>
                 </button>
                 <button
                   type="button"
@@ -108,22 +108,10 @@ export default function ImportPrivateKey() {
                   "peer block h-[120px] w-full resize-none rounded-lg border border-daintree-700 bg-daintree-800 p-3 text-sm placeholder-daintree-200 hover:placeholder-daintree-50 focus:ring-0 disabled:pointer-events-none disabled:opacity-50",
                   errors.privateKey &&
                     "border-0 ring ring-red-500/25 focus:border-0 focus:ring focus:ring-red-500/25",
-                  isHidden && "blur",
+                  isHidden && "text-security-disc",
                 )}
               />
             </div>
-            {isHidden && (
-              <button
-                type="button"
-                onClick={() => setIsHidden(false)}
-                className="absolute inset-0 flex flex-col items-center justify-center gap-4"
-              >
-                <i className="hn hn-eye-cross text-[46px]"></i>
-                <span className="text-base text-[#C8C3C0]">
-                  Make sure no one is looking your screen
-                </span>
-              </button>
-            )}
           </div>
 
           {errors.privateKey && (

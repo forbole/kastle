@@ -48,12 +48,7 @@ export default function LedgerSignTx({
       )}
       {transport && isAppOpen && !wallet && <Splash />}
       {wallet && isAppOpen && (
-        <SignTx
-          walletType="ledger"
-          wallet={wallet}
-          requestId={requestId}
-          payload={payload}
-        />
+        <SignTx wallet={wallet} requestId={requestId} payload={payload} />
       )}
     </>
   );

@@ -8,6 +8,7 @@ import { keyringAddWalletSecret } from "@/lib/service/handlers/keyring-add-walle
 import { keyringGetWalletSecret } from "@/lib/service/handlers/keyring-get-wallet-secret.ts";
 import { keyringReset } from "@/lib/service/handlers/keyring-reset.ts";
 import { keyringRemoveWalletSecret } from "@/lib/service/handlers/keyring-remove-wallet-secret.ts";
+import { reopenPopup } from "@/lib/service/handlers/reopenPopup.ts";
 
 export enum Method {
   KEYRING_STATUS = "KEYRING_STATUS",
@@ -18,6 +19,7 @@ export enum Method {
   KEYRING_REMOVE_WALLET_SECRET = "KEYRING_REMOVE_WALLET_SECRET",
   KEYRING_GET_WALLET_SECRET = "KEYRING_GET_WALLET_SECRET",
   KEYRING_RESET = "KEYRING_RESET",
+  REOPEN_POPUP = "REOPEN_POPUP",
 }
 
 export type Message<T = object> = {
@@ -41,6 +43,7 @@ export class ExtensionService {
       [Method.KEYRING_REMOVE_WALLET_SECRET]: keyringRemoveWalletSecret,
       [Method.KEYRING_GET_WALLET_SECRET]: keyringGetWalletSecret,
       [Method.KEYRING_RESET]: keyringReset,
+      [Method.REOPEN_POPUP]: reopenPopup,
     } as const;
   }
 

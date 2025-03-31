@@ -6,9 +6,7 @@ import {
   redirect,
 } from "react-router-dom";
 import PopupLayout from "@/components/layouts/PopupLayout.tsx";
-import SetupPassword from "@/components/screens/SetupPassword.tsx";
 import Send from "@/components/screens/Send.tsx";
-import Welcome from "@/components/screens/Welcome.tsx";
 import ConnectConfirm from "@/components/screens/browser-api/ConnectConfirm";
 import SignAndBroadcastTxConfirm from "@/components/screens/browser-api/SignAndBroadcastTxConfirm";
 import Dashboard from "@/components/screens/Dashboard";
@@ -31,7 +29,6 @@ import AccountsImported from "@/components/screens/full-pages/AccountsImported";
 import { getKeyringStatus } from "@/hooks/useKeyring.ts";
 import ImportLedger from "@/components/screens/full-pages/ledger/ImportLedger";
 import LedgerManageAccounts from "@/components/screens/full-pages/ledger/LedgerManageAccounts";
-import LedgerConnect from "@/components/screens/full-pages/ledger/LedgerConnectForImport";
 import WalletLockedAlert from "@/components/screens/full-pages/WalletLockedAlert";
 import init from "@/wasm/core/kaspa";
 import kaspaModule from "@/assets/kaspa_bg.wasm?url";
@@ -55,21 +52,37 @@ import { TokenOperationSuccess } from "@/components/screens/full-pages/TokenOper
 import ConfirmDeploy from "@/components/screens/full-pages/ConfirmDeploy.tsx";
 import DeployingToken from "@/components/screens/full-pages/DeployingToken.tsx";
 import { RecentAddressesProvider } from "@/contexts/RecentAddressesContext.tsx";
-import LedgerConnectForImportFailed from "@/components/screens/full-pages/ledger/LedgerConnectForImportFailed";
-import LedgerConnectForSign from "@/components/screens/ledger-connect/LedgerConnectForSign";
-import LedgerConnectForSignFailed from "@/components/screens/ledger-connect/LedgerConnectForSignFailed";
 import KNSAsset from "@/components/screens/KNSAsset";
+import KRC721 from "@/components/screens/KRC721";
+import OnboardingSuccess from "@/components/onboarding/OnboardingSuccess.tsx";
 
 const loadKaspaWasm = async () => {
   await init(kaspaModule);
   return null;
 };
 
+export const forceOnboarding = async () => {
+  const url = new URL(browser.runtime.getURL("/popup.html"));
+  const [tab] = await browser.tabs.query({
+    url: url.toString(),
+  });
+  const previousTabId = tab?.id;
+
+  if (previousTabId) {
+    await chrome.tabs.update(previousTabId, { active: true });
+    window.close();
+  } else {
+    url.hash = `/onboarding`;
+    await browser.tabs.create({ url: url.toString() });
+  }
+};
+
 const keyringGuard = async ({ request }: LoaderFunctionArgs) => {
   const keyringStatusResponse = await getKeyringStatus();
 
   if (!keyringStatusResponse.isInitialized) {
-    return redirect("/onboarding");
+    await forceOnboarding();
+    return null;
   }
 
   if (!keyringStatusResponse.isUnlocked) {
@@ -130,7 +143,8 @@ export const router = createHashRouter([
                   const keyringStatusResponse = await getKeyringStatus();
 
                   if (!keyringStatusResponse.isInitialized) {
-                    return redirect("/onboarding");
+                    await forceOnboarding();
+                    return null;
                   }
 
                   return null;
@@ -179,16 +193,12 @@ export const router = createHashRouter([
                     element: <KNSAsset />,
                   },
                   {
+                    path: "krc721/:tick/:tokenId",
+                    element: <KRC721 />,
+                  },
+                  {
                     path: "kas-asset",
                     element: <KasAsset />,
-                  },
-                  {
-                    path: "ledger-connect-for-sign",
-                    element: <LedgerConnectForSign />,
-                  },
-                  {
-                    path: "ledger-connect-for-sign-failed",
-                    element: <LedgerConnectForSignFailed />,
                   },
 
                   // Browser API routes
@@ -203,18 +213,6 @@ export const router = createHashRouter([
                   },
                 ],
               },
-              {
-                path: "onboarding",
-                element: <Onboarding />,
-              },
-              {
-                path: "setup",
-                element: <SetupPassword />,
-              },
-              {
-                path: "success",
-                element: <Welcome />,
-              },
               { path: "password-lost", element: <ResetWallet /> },
               {
                 // Catch all unknown routes
@@ -224,11 +222,24 @@ export const router = createHashRouter([
             ],
           },
           {
-            element: <FullscreenLayout />,
+            element: <FullscreenLayout listenKeyring />,
             children: [
               {
                 path: "wallet-locked-alert",
                 element: <WalletLockedAlert />,
+              },
+              {
+                path: "onboarding-success/:method",
+                element: <OnboardingSuccess />,
+              },
+            ],
+          },
+          {
+            element: <FullscreenLayout />,
+            children: [
+              {
+                path: "onboarding",
+                element: <Onboarding />,
               },
             ],
           },
@@ -263,14 +274,6 @@ export const router = createHashRouter([
               {
                 path: "import-ledger",
                 element: <ImportLedger />,
-              },
-              {
-                path: "ledger-connect-for-import",
-                element: <LedgerConnect />,
-              },
-              {
-                path: "ledger-connect-for-import-failed",
-                element: <LedgerConnectForImportFailed />,
               },
               {
                 path: "deploy-token",

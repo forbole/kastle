@@ -3,6 +3,10 @@ import { Method } from "@/lib/service/extension-service.ts";
 export const isProduction = process.env.NODE_ENV === "production";
 
 export const fetcher = (url: string) => fetch(url).then((r) => r.json());
+export const emptyFetcher = (_: string) => Promise.resolve(undefined);
+
+export const multiFetcher = (urls: string[]) =>
+  Promise.all(urls.map((url) => fetcher(url)));
 
 export const POPUP_WINDOW_WIDTH = 375;
 export const POPUP_WINDOW_HEIGHT = 600;
@@ -60,4 +64,8 @@ export function setPopupPath(path?: `/${string}`, cb: () => void = () => {}) {
     { popup: path ? `popup.html#${path}` : "popup.html" },
     cb,
   );
+}
+
+export function convertIPFStoHTTP(url: string) {
+  return url.replace("ipfs://", "https://ipfs.io/ipfs/");
 }

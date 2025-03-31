@@ -6,8 +6,10 @@ import { useLocation } from "react-router";
 import { useTokenInfo } from "@/hooks/useTokenInfo.ts";
 import { applyDecimal } from "@/lib/krc20.ts";
 import { setPopupPath } from "@/lib/utils.ts";
+import useExtensionUtils from "@/hooks/useExtensionUtils.ts";
 
 export const TokenOperationFailed = () => {
+  const { reopenPopup } = useExtensionUtils();
   const navigate = useNavigate();
   const {
     state: { error, op, ticker, timesMinted, mintTimes },
@@ -120,9 +122,7 @@ export const TokenOperationFailed = () => {
                     type="button"
                     className="flex items-center justify-center gap-2"
                     onClick={() => {
-                      setPopupPath(`/token-asset/${ticker}`, () =>
-                        browser.action.openPopup(),
-                      );
+                      setPopupPath(`/token-asset/${ticker}`, reopenPopup);
                     }}
                   >
                     <span className="text-sm font-semibold text-icy-blue-400">

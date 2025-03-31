@@ -12,24 +12,29 @@ import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import { Tooltip } from "react-tooltip";
 import Assets from "@/components/dashboard/Assets";
 import KNS from "@/components/dashboard/KNS";
+import KRC721List from "@/components/dashboard/KRC721List";
+import useTotalBalance from "@/hooks/useTotalBalance.ts";
 
 export default function Dashboard() {
   const { keyringLock } = useKeyring();
   const navigate = useNavigate();
   const { networkId, isConnected } = useRpcClientStateful();
   const [settings, setSettings] = useSettings();
-  const kapsaPrice = useKaspaPrice();
+  const totalBalance = useTotalBalance();
   const { showWarning } = useBackupWarning();
   const { account, wallet } = useWalletManager();
   const [dismissWarning, setDismissWarning] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  const tabs = ["Assets", "KNS"] as const;
+  const tabs = ["Assets", "NFT", "KNS"] as const;
   const [activeTab, setActiveTab] = useState<(typeof tabs)[number]>("Assets");
+  const segmenter = new Intl.Segmenter("en", { granularity: "grapheme" });
+  const segments = Array.from(segmenter.segment(account?.name ?? ""));
+  const shortAccountName = `${segments[0]?.segment}${segments[segments.length - 1]?.segment}`;
 
   const address = account?.address;
-  const balance = account?.balance;
   const showBalance = !settings?.hideBalances;
+  const totalBalanceFormatted = formatUSD(totalBalance);
 
   const toggleBalance = () =>
     setSettings((prevSettings) => ({
@@ -40,10 +45,6 @@ export default function Dashboard() {
   const network = networkId ?? NetworkType.Mainnet;
   const isMainnet = network === NetworkType.Mainnet;
 
-  const totalBalance = balance
-    ? formatUSD(parseFloat(balance) * kapsaPrice.kaspaPrice)
-    : undefined;
-
   const isLedger = wallet?.type === "ledger";
   const [deployHovered, setDeployHovered] = useState(false);
   const [mintHovered, setMintHovered] = useState(false);
@@ -53,22 +54,22 @@ export default function Dashboard() {
       {/* Warning popup */}
       {showWarning && !dismissWarning && (
         <div
-          className="absolute bottom-0 left-0 m-3 flex flex-col gap-2 rounded-xl border border-[#7F1D1D] bg-[#381825] p-4 text-base"
+          className="absolute bottom-0 left-0 m-3 flex flex-col gap-2 rounded-xl border border-[#713F12] bg-[#281704] p-4 text-base"
           role="alert"
         >
           <div className="flex items-center justify-between">
             <span className="font-semibold text-daintree-200">
-              Backup your Kastle recovery phrase
+              ✋ Hold on, Your Majesty! 👑
             </span>
             <button type="button" onClick={() => setDismissWarning(true)}>
-              <i className="hn hn-times text-[16px]"></i>
+              <i className="hn hn-times text-[16px] text-[#854D0E]"></i>
             </button>
           </div>
 
           <span className="text-sm text-daintree-400">
-            ✋👑 Hold on, Your Majesty! Please back up your recovery phrase 📜.
-            It’s the 🗝️ key to accessing your Kastle if you lose your password
-            or need to reinstall your browser or extension 🌐.
+            Please back up your recovery phrase 📜. It’s the 🗝️ key to accessing
+            your Kastle if you lose your password or reinstall your browser or
+            extension 🌐
           </span>
           <button
             onClick={() =>
@@ -77,7 +78,7 @@ export default function Dashboard() {
               )
             }
             type="button"
-            className="inline-flex items-center gap-x-2 self-start rounded-lg border border-transparent bg-red-800/30 px-4 py-3 text-sm font-medium text-red-500 hover:bg-red-200 hover:bg-red-800/20 focus:bg-red-200 focus:bg-red-800/20 focus:outline-none disabled:pointer-events-none disabled:opacity-50"
+            className="inline-flex items-center gap-x-2 self-start rounded-lg border border-transparent bg-[#854D0E]/30 px-4 py-3 text-sm font-medium text-[#EAB308] hover:bg-[#854D0E]/20 focus:bg-[#854D0E4D] focus:outline-none disabled:pointer-events-none disabled:opacity-50"
           >
             Back up now
             <i className="hn hn-angle-right"></i>
@@ -96,8 +97,7 @@ export default function Dashboard() {
             onClick={() => setIsMenuOpen(true)}
           >
             <span className="flex size-6 items-center justify-center rounded-lg bg-[#9CA3AF] text-white">
-              {account?.name?.[0]}
-              {account?.name?.[account?.name?.length - 1]}
+              {shortAccountName}
             </span>
             <span className="text-base text-white">{account?.name}</span>
             <i className="hn hn-angle-right text-[16px] text-white" />
@@ -136,12 +136,12 @@ export default function Dashboard() {
       <div className="flex flex-col items-center gap-3">
         {/* Balance Display */}
         <div className="py-3">
-          {totalBalance === undefined ? (
+          {totalBalanceFormatted === undefined ? (
             <div className="h-[54px] w-[160px] animate-pulse self-center rounded-xl bg-daintree-700" />
           ) : (
             <div className="relative flex items-center">
               <span className="text-center text-4xl font-semibold text-white">
-                {showBalance ? totalBalance : "$*****"}
+                {showBalance ? totalBalanceFormatted : "$*****"}
               </span>
               <button onClick={() => toggleBalance()} className="p-4">
                 <i
@@ -336,6 +336,7 @@ export default function Dashboard() {
 
           {/* Tab Content */}
           {activeTab === "Assets" && <Assets />}
+          {activeTab === "NFT" && <KRC721List />}
           {activeTab === "KNS" && <KNS />}
         </div>
       </div>

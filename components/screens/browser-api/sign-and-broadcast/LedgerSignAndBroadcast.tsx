@@ -49,7 +49,6 @@ export default function LedgerSignAndBroadcast({
       {transport && isAppOpen && !wallet && <Splash />}
       {wallet && isAppOpen && (
         <SignAndBroadcast
-          walletType="ledger"
           wallet={wallet}
           requestId={requestId}
           payload={payload}

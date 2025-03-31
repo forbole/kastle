@@ -1,10 +1,14 @@
 import { useNavigate } from "react-router-dom";
 import React, { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useFormContext } from "react-hook-form";
 import { twMerge } from "tailwind-merge";
 import { v4 as uuid } from "uuid";
 import useAnalytics from "@/hooks/useAnalytics.ts";
 import { Mnemonic } from "@/wasm/core/kaspa";
+import { useBoolean } from "usehooks-ts";
+import { OnboardingData } from "@/components/screens/Onboarding.tsx";
+import useKeyring from "@/hooks/useKeyring.ts";
+import Header from "@/components/GeneralHeader.tsx";
 
 type PhraseLength = 12 | 24;
 
@@ -17,7 +21,9 @@ type SeedPhraseFormValues = {
 export default function ImportRecoveryPhrase() {
   const { emitWalletImported } = useAnalytics();
   const navigate = useNavigate();
+  const { keyringInitialize } = useKeyring();
   const { importWalletByMnemonic } = useWalletManager();
+  const onboardingForm = useFormContext<OnboardingData>();
   const {
     register,
     formState: { isValid, dirtyFields },
@@ -32,7 +38,7 @@ export default function ImportRecoveryPhrase() {
 
   const [recoveryPhraseError, setRecoveryPhraseError] = useState<string>();
   const [phraseLength, setPhraseLength] = useState<PhraseLength>(12);
-  const [isHidden, setIsHidden] = useState(true);
+  const { value: isHidden, toggle: toggleHidden } = useBoolean(true);
 
   const onClose = () => window.close();
 
@@ -74,11 +80,19 @@ export default function ImportRecoveryPhrase() {
       words.push(data[`word${index + 1}` as `word${WordNumber}`]);
     }
 
+    if (onboardingForm) {
+      await keyringInitialize(onboardingForm.getValues("password"));
+    }
+
     const walletId = uuid();
     await importWalletByMnemonic(walletId, words.join(" "));
 
     emitWalletImported();
-    navigate(`/manage-accounts/recovery-phrase/${walletId}/import`);
+    navigate(`/manage-accounts/recovery-phrase/${walletId}/import`, {
+      state: {
+        ...(onboardingForm && { redirect: "/onboarding-success/import" }),
+      },
+    });
   });
 
   const pasteAllInCell = (str: string) => {
@@ -103,33 +117,23 @@ export default function ImportRecoveryPhrase() {
   }, [inputWords]);
 
   return (
-    <div className="flex h-[56rem] w-[41rem] flex-col items-stretch gap-4 rounded-3xl bg-icy-blue-950 px-4">
-      <div className="flex h-full flex-col justify-stretch gap-6 p-4 pb-6 text-white">
-        <div className="flex justify-between">
-          {/* Placeholder */}
-          <div className="h-12 w-12"></div>
-
-          <div className="text-center">
-            <h1 className="text-xl font-bold">Import Recovery Phrase</h1>
-            <span className="text-xs text-daintree-400">
-              Please fill in the recovery phrase
-            </span>
-          </div>
-
-          <button
-            onClick={onClose}
-            className="flex h-12 w-12 items-center justify-center"
-          >
-            <i className="hn hn-times text-xl"></i>
-          </button>
-        </div>
+    <div className="flex h-[56rem] w-[41rem] flex-col items-stretch gap-4 rounded-3xl bg-icy-blue-950">
+      <div className="flex h-full flex-col justify-stretch gap-6 px-10 py-4 pb-6 text-white">
+        <Header
+          title="Import Recovery Phrase"
+          subtitle="Please fill in the recovery phrase"
+          showPrevious={!!onboardingForm}
+          onBack={() => onboardingForm.setValue("step", "choose")}
+          showClose={!onboardingForm}
+          onClose={onClose}
+        />
 
         <form
           onSubmit={onSubmit}
           className="flex flex-grow flex-col items-stretch gap-4"
         >
           <div className="relative">
-            <div className={twMerge("flex flex-col gap-4", isHidden && "blur")}>
+            <div className="flex flex-col gap-4">
               {/* Word length switcher */}
               <nav className="flex gap-x-2 rounded-xl bg-daintree-800 p-1">
                 <button
@@ -158,10 +162,10 @@ export default function ImportRecoveryPhrase() {
                 <button
                   type="button"
                   className="inline-flex items-center gap-x-2 rounded-lg border border-transparent px-4 py-3 text-sm font-medium text-icy-blue-400 hover:bg-daintree-700 hover:text-blue-400 focus:bg-blue-100 focus:bg-blue-800/30 focus:text-blue-400 focus:outline-none disabled:pointer-events-none disabled:opacity-50"
-                  onClick={() => setIsHidden(true)}
+                  onClick={toggleHidden}
                 >
                   <i className="hn hn-eye text-[14px]" />
-                  <span>Hide words</span>
+                  <span>{isHidden ? "Show words" : "Hide words"}</span>
                 </button>
                 <button
                   onClick={readFromClipboard}
@@ -185,6 +189,7 @@ export default function ImportRecoveryPhrase() {
                           required: "Word is required",
                         },
                       )}
+                      type={isHidden ? "password" : "text"}
                       autoComplete="off"
                       className={twMerge(
                         "peer block w-full rounded-lg border border-daintree-700 bg-daintree-800 py-3 pe-0 text-base text-white focus:ring-0 disabled:pointer-events-none",
@@ -199,18 +204,6 @@ export default function ImportRecoveryPhrase() {
                 ))}
               </div>
             </div>
-            {isHidden && (
-              <button
-                type="button"
-                onClick={() => setIsHidden(false)}
-                className="absolute inset-0 flex flex-col items-center justify-center gap-4"
-              >
-                <i className="hn hn-eye-cross text-[46px]"></i>
-                <span className="text-base text-[#C8C3C0]">
-                  Make sure no one is looking your screen
-                </span>
-              </button>
-            )}
           </div>
 
           {(!isValid || recoveryPhraseError) && isDirtyAlt && (

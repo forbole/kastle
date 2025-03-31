@@ -49,7 +49,6 @@ export default function HotWalletSignAndBroadcast({
       {loading && <Splash />}
       {!loading && (
         <SignAndBroadcast
-          walletType={walletInfo.type}
           wallet={wallet}
           requestId={requestId}
           payload={payload}
