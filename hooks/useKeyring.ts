@@ -8,6 +8,14 @@ import {
 } from "@/lib/service/handlers/keyring-get-wallet-secret.ts";
 import { KeyringAddWalletSecretRequest } from "@/lib/service/handlers/keyring-add-wallet-secret.ts";
 import { KeyringRemoveWalletSecretRequest } from "@/lib/service/handlers/keyring-remove-wallet-secret.ts";
+import {
+  KeyringCheckPasswordRequest,
+  KeyringCheckPasswordResponse,
+} from "@/lib/service/handlers/keyring-check-password.ts";
+import {
+  KeyringChangePasswordRequest,
+  KeyringChangePasswordResponse,
+} from "@/lib/service/handlers/keyring-change-password.ts";
 
 export const getKeyringStatus = () =>
   sendMessage<KeyringStatusResponse>(Method.KEYRING_STATUS);
@@ -23,6 +31,22 @@ export default function useKeyring() {
       sendMessage<KeyringUnlockResponse>(Method.KEYRING_UNLOCK, { password }),
 
     keyringLock: () => sendMessage<void>(Method.KEYRING_LOCK),
+
+    keyringCheckPassword: (
+      keyringCheckPasswordRequest: KeyringCheckPasswordRequest,
+    ) =>
+      sendMessage<KeyringCheckPasswordResponse>(
+        Method.KEYRING_CHECK_PASSWORD,
+        keyringCheckPasswordRequest,
+      ),
+
+    keyringChangePassword: (
+      keyringChangePasswordRequest: KeyringChangePasswordRequest,
+    ) =>
+      sendMessage<KeyringChangePasswordResponse>(
+        Method.KEYRING_CHANGE_PASSWORD,
+        keyringChangePasswordRequest,
+      ),
 
     keyringReset: () => sendMessage<void>(Method.KEYRING_RESET),
 

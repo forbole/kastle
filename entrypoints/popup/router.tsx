@@ -55,6 +55,7 @@ import { RecentAddressesProvider } from "@/contexts/RecentAddressesContext.tsx";
 import KNSAsset from "@/components/screens/KNSAsset";
 import KRC721 from "@/components/screens/KRC721";
 import OnboardingSuccess from "@/components/onboarding/OnboardingSuccess.tsx";
+import ChangePassword from "@/components/screens/ChangePassword.tsx";
 
 const loadKaspaWasm = async () => {
   await init(kaspaModule);
@@ -183,6 +184,10 @@ export const router = createHashRouter([
                   {
                     path: "backup-unlock",
                     element: <BackupUnlock />,
+                  },
+                  {
+                    path: "change-password",
+                    element: <ChangePassword />,
                   },
                   {
                     path: "token-asset/:ticker",

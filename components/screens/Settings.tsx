@@ -169,6 +169,15 @@ export default function Settings() {
           </div>
         </>
 
+        {/* Change password */}
+        <SettingItem
+          title="Change password"
+          showChevron
+          onClick={() => {
+            navigate("/change-password");
+          }}
+        />
+
         {/* Connected Apps */}
         <SettingItem
           title="Connected apps"

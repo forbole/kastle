@@ -69,3 +69,56 @@ export function setPopupPath(path?: `/${string}`, cb: () => void = () => {}) {
 export function convertIPFStoHTTP(url: string) {
   return url.replace("ipfs://", "https://ipfs.io/ipfs/");
 }
+
+export function debounce<T extends (...args: any[]) => Promise<any>>(
+  func: T,
+  wait: number,
+): (...args: Parameters<T>) => Promise<Awaited<ReturnType<T>> | undefined> {
+  let timeoutId: NodeJS.Timeout | undefined;
+  let latestPromise: Promise<Awaited<ReturnType<T>>> | undefined;
+  let latestResolve: ((value: Awaited<ReturnType<T>>) => void) | undefined;
+  let latestReject: ((reason?: any) => void) | undefined;
+
+  return async (
+    ...args: Parameters<T>
+  ): Promise<Awaited<ReturnType<T>> | undefined> => {
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId);
+    }
+
+    if (latestPromise) {
+      //If a previous promise exists, and has not yet been resolved/rejected, we may want to cancel it.
+      //However, in a typical debounce, we just want to replace it.
+      //Here, we do NOT reject the previous promise.
+
+      latestPromise = undefined;
+      latestResolve = undefined;
+      latestReject = undefined;
+    }
+
+    latestPromise = new Promise<Awaited<ReturnType<T>>>((resolve, reject) => {
+      latestResolve = resolve;
+      latestReject = reject;
+    });
+
+    timeoutId = setTimeout(async () => {
+      try {
+        const result = await func(...args);
+        if (latestResolve) {
+          latestResolve(result);
+        }
+      } catch (error) {
+        if (latestReject) {
+          latestReject(error);
+        }
+      } finally {
+        timeoutId = undefined;
+        latestPromise = undefined;
+        latestResolve = undefined;
+        latestReject = undefined;
+      }
+    }, wait);
+
+    return latestPromise;
+  };
+}
