@@ -1,5 +1,6 @@
 import { createContext, ReactNode, useEffect, useState } from "react";
 import { captureException } from "@sentry/react";
+import { CurrencyCode } from "@/components/settings/CurrencySelection.tsx";
 
 export const SETTINGS_KEY = "local:settings";
 
@@ -18,6 +19,7 @@ type SettingsContextType = {
 
 export type Settings = {
   networkId: NetworkType;
+  currency: CurrencyCode;
   lockTimeout: number;
   walletConnections: WalletConnections | undefined; // WalletId -> Account Index -> NetworkId -> WalletConnection[]
   hideBalances: boolean;
@@ -68,6 +70,7 @@ export const KRC721_CACHE_URLS = {
 
 const initialSettings = {
   networkId: NetworkType.Mainnet,
+  currency: "usd",
   lockTimeout: 5, // Save 5 minutes as default value
   walletConnections: undefined,
   hideBalances: true,
