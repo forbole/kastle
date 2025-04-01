@@ -67,7 +67,7 @@ export default function ChangePassword() {
         password: currentPassword,
       });
 
-      if (success) {
+      if (currentPassword === "" || success) {
         clearErrors("currentPassword");
       } else {
         timeout = setTimeout(() => {
