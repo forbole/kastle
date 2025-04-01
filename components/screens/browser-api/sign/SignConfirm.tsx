@@ -269,12 +269,7 @@ export default function SignConfirm({
 
       {/* Buttons */}
       {!networkMismatched && (
-        <div
-          className={twMerge(
-            "flex gap-2 text-base font-semibold",
-            !hideDetails && "pb-4",
-          )}
-        >
+        <div className="flex gap-2 text-base font-semibold">
           <button className="rounded-full p-5 text-[#7B9AAA]" onClick={cancel}>
             Cancel
           </button>
