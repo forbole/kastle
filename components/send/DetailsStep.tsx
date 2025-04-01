@@ -500,7 +500,7 @@ export const DetailsStep = ({
                 !isKasTransfer && "text-[#4B5563]",
               )}
               data-tooltip-id="fee-tooltip"
-              data-tooltip-content="KRC20 currently doesn’t support custom fees."
+              data-tooltip-content="KRC20 fees are handled automatically by Kastle."
             ></i>
             {!isKasTransfer && (
               <Tooltip

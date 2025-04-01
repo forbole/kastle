@@ -4,6 +4,7 @@ import { SendFormData } from "@/components/screens/Send.tsx";
 import { useFormContext } from "react-hook-form";
 import useMempoolStatus from "@/hooks/useMempoolStatus.ts";
 import usePriorityFeeEstimate from "@/hooks/usePriorityFeeEstimate.ts";
+import { Tooltip } from "react-tooltip";
 
 type PriorityFeeSelectionProps = {
   isPriorityFeeSelectionOpen: boolean;
@@ -62,23 +63,44 @@ export default function PriorityFeeSelection({
             Fee & Speed
           </span>
           {mempoolCongestionLevel === "low" && (
-            <span className="inline-flex items-center gap-x-1.5 rounded-full bg-[#115E594D] px-2.5 py-1.5 text-xs font-medium text-[#14B8A6]">
+            <span
+              className="inline-flex items-center gap-x-1.5 rounded-full bg-[#115E594D] px-2.5 py-1.5 text-xs font-medium text-[#14B8A6]"
+              data-tooltip-id="network-status-tooltip"
+              data-tooltip-content="Currently the network is smooth"
+            >
               <span className="inline-block size-1.5 rounded-full bg-[#14B8A6]"></span>
               Network: Smooth
             </span>
           )}
           {mempoolCongestionLevel === "medium" && (
-            <span className="inline-flex items-center gap-x-1.5 rounded-full bg-[#854D0E4D] px-2.5 py-1.5 text-xs font-medium text-[#EAB308]">
+            <span
+              className="inline-flex items-center gap-x-1.5 rounded-full bg-[#854D0E4D] px-2.5 py-1.5 text-xs font-medium text-[#EAB308]"
+              data-tooltip-id="network-status-tooltip"
+              data-tooltip-content="Currently the network is slow"
+            >
               <span className="inline-block size-1.5 rounded-full bg-[#EAB308]"></span>
               Network: Slow
             </span>
           )}
           {mempoolCongestionLevel === "high" && (
-            <span className="inline-flex items-center gap-x-1.5 rounded-full bg-[#991B1B4D] px-2.5 py-1.5 text-xs font-medium text-[#EF4444]">
+            <span
+              className="inline-flex items-center gap-x-1.5 rounded-full bg-[#991B1B4D] px-2.5 py-1.5 text-xs font-medium text-[#EF4444]"
+              data-tooltip-id="network-status-tooltip"
+              data-tooltip-content="Currently the network is congested"
+            >
               <span className="inline-block size-1.5 rounded-full bg-[#EF4444]"></span>
-              Network: Busy
+              Network: Congested
             </span>
           )}
+          <Tooltip
+            id="network-status-tooltip"
+            style={{
+              backgroundColor: "#374151",
+              fontSize: "12px",
+              fontWeight: 600,
+              padding: "2px 8px",
+            }}
+          />
         </div>
 
         <div className="shadow-2xs flex grow items-center divide-x divide-[#203C49] rounded-lg border border-[#203C49]">
@@ -112,7 +134,7 @@ export default function PriorityFeeSelection({
             <span className="absolute -top-2.5 rounded bg-icy-blue-400 px-1.5 py-0.5 text-[10px]">
               Recommended
             </span>
-            <span className="text-base font-semibold">Med</span>
+            <span className="text-base font-semibold">Medium</span>
             <span className="text-daintree-400">
               {formatDuration(
                 feeEstimate?.estimate.normalBuckets?.[0]?.estimatedSeconds ?? 0,
