@@ -7,10 +7,9 @@ import { formatToken } from "@/lib/utils.ts";
 import kasIcon from "@/assets/images/kas-icon.svg";
 import usdIcon from "@/assets/images/usd-icon.svg";
 import Header from "@/components/GeneralHeader.tsx";
-import useTransactionEstimate from "@/hooks/useTransactionEstimate";
 import useWalletManager from "@/hooks/useWalletManager.ts";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
-import { Address } from "@/wasm/core/kaspa";
+import { Address, kaspaToSompi, sompiToKaspaString } from "@/wasm/core/kaspa";
 import { twMerge } from "tailwind-merge";
 import { useBoolean } from "usehooks-ts";
 import TickerSelect from "@/components/send/TickerSelect.tsx";
@@ -21,6 +20,10 @@ import RecentAddresses from "@/components/send/RecentAddresses.tsx";
 import spinner from "@/assets/images/spinner.svg";
 import { useKns } from "@/hooks/useKns.ts";
 import { Tooltip } from "react-tooltip";
+import PriorityFeeSelection from "@/components/send/PriorityFeeSelection.tsx";
+import useMassCalculation from "@/hooks/useMassCalculation.ts";
+import usePriorityFeeEstimate from "@/hooks/usePriorityFeeEstimate.ts";
+import useMempoolStatus from "@/hooks/useMempoolStatus.ts";
 
 export const DetailsStep = ({
   onNext,
@@ -32,6 +35,7 @@ export const DetailsStep = ({
   const navigate = useNavigate();
   const { account, addresses } = useWalletManager();
   const { rpcClient, getMinimumFee } = useRpcClientStateful();
+  const { mempoolCongestionLevel } = useMempoolStatus();
   const { fetchDomainInfo } = useKns();
 
   const {
@@ -42,6 +46,11 @@ export const DetailsStep = ({
   const { value: isTickerSelectShown, toggle: toggleTickerSelect } =
     useBoolean(false);
   const [accountMinimumFees, setAccountMinimumFees] = useState<number>(0.0);
+  const {
+    value: isPriorityFeeSelectionOpen,
+    setTrue: openPriorityFeeSelection,
+    setFalse: closePriorityFeeSelection,
+  } = useBoolean(false);
 
   const {
     register,
@@ -51,17 +60,31 @@ export const DetailsStep = ({
     trigger,
     formState: { isValid, errors, validatingFields },
   } = useFormContext<SendFormData>();
-  const { ticker, userInput, address, amount, domain } = watch();
+  const { ticker, userInput, address, amount, domain, priority, priorityFee } =
+    watch();
+  const isKasTransfer = ticker === "kas";
+  const priorityFeeEstimate = usePriorityFeeEstimate();
+  const estimatedMass = useMassCalculation(
+    address
+      ? [
+          {
+            address: address,
+            amount: kaspaToSompi(amount ?? "0") ?? 0n,
+          },
+        ]
+      : [],
+  );
+
   const { value: isAddressFieldFocused, setValue: setAddressFieldFocused } =
     useBoolean(false);
   const { data: tokenMetadata, toPriceInUsd } = useTokenMetadata(
-    ticker === "kas" ? undefined : ticker,
+    isKasTransfer ? undefined : ticker,
   );
   const [imageUrl, setImageUrl] = useState(kasIcon);
   const { kaspaPrice } = useKaspaPrice();
-  const tokenPrice = ticker === "kas" ? kaspaPrice : toPriceInUsd();
+  const tokenPrice = isKasTransfer ? kaspaPrice : toPriceInUsd();
   const { data: tokenBalanceResponse } = useTokenBalance(
-    account?.address && ticker !== "kas"
+    account?.address && !isKasTransfer
       ? {
           ticker,
           address: account.address,
@@ -75,15 +98,7 @@ export const DetailsStep = ({
     tokenBalance?.balance ? parseInt(tokenBalance.balance, 10) : 0,
   );
   const kasBalance = account?.balance ? parseFloat(account.balance) : 0;
-  const currentBalance = ticker === "kas" ? kasBalance : tokenBalanceFloat;
-
-  const transactionEstimate = useTransactionEstimate({
-    account,
-    outputs:
-      address && amount && !Number.isNaN(parseFloat(amount))
-        ? [{ address, amount }]
-        : [],
-  });
+  const currentBalance = isKasTransfer ? kasBalance : tokenBalanceFloat;
 
   const amountValidator = async (value: string | undefined) => {
     const amountNumber = parseFloat(value ?? "0");
@@ -125,7 +140,7 @@ export const DetailsStep = ({
     const genericErrorMessage = "Invalid address or KNS domain";
     if (!value) return genericErrorMessage;
 
-    if (ticker !== "kas" && value === account?.address) {
+    if (!isKasTransfer && value === account?.address) {
       return "You cannot send KRC20 to yourself";
     }
 
@@ -170,8 +185,9 @@ export const DetailsStep = ({
       return;
     }
 
-    const maxAmount =
-      ticker === "kas" ? currentBalance - accountMinimumFees : currentBalance;
+    const maxAmount = isKasTransfer
+      ? currentBalance - accountMinimumFees
+      : currentBalance;
 
     setValue("amount", maxAmount > 0 ? maxAmount.toFixed(8) : "0", {
       shouldValidate: true,
@@ -179,7 +195,7 @@ export const DetailsStep = ({
   };
 
   const navigateToNextStep = () =>
-    ticker === "kas"
+    isKasTransfer
       ? onNext()
       : navigate(
           {
@@ -200,7 +216,7 @@ export const DetailsStep = ({
   };
 
   useEffect(() => {
-    if (ticker === "kas") {
+    if (isKasTransfer) {
       setImageUrl(kasIcon);
       return;
     }
@@ -247,6 +263,29 @@ export const DetailsStep = ({
     trigger("userInput");
   }, [ticker]);
 
+  useEffect(() => {
+    const selectedPriorityFee = (() => {
+      if (priority === "low") {
+        return (
+          (priorityFeeEstimate?.estimate?.lowBuckets?.[0]?.feerate ?? 0) *
+          Number(estimatedMass)
+        );
+      }
+      if (priority === "medium") {
+        return (
+          (priorityFeeEstimate?.estimate?.normalBuckets?.[0]?.feerate ?? 0) *
+          Number(estimatedMass)
+        );
+      }
+      return (
+        (priorityFeeEstimate?.estimate?.priorityBucket?.feerate ?? 0) *
+        Number(estimatedMass)
+      );
+    })();
+
+    setValue("priorityFee", BigInt(Math.round(selectedPriorityFee)));
+  }, [estimatedMass, priorityFeeEstimate, priority]);
+
   return (
     <>
       <Header title="Send KAS" onClose={onClose} onBack={onBack} />
@@ -254,6 +293,11 @@ export const DetailsStep = ({
       <TickerSelect
         isShown={isTickerSelectShown}
         toggleShow={toggleTickerSelect}
+      />
+
+      <PriorityFeeSelection
+        isPriorityFeeSelectionOpen={isPriorityFeeSelectionOpen}
+        closePriorityFeeSelection={closePriorityFeeSelection}
       />
 
       <div className="relative flex h-full flex-col gap-4">
@@ -359,8 +403,9 @@ export const DetailsStep = ({
               <input
                 {...register("amount", {
                   required: true,
-                  validate:
-                    ticker === "kas" ? amountValidator : tokenAmountValidator,
+                  validate: isKasTransfer
+                    ? amountValidator
+                    : tokenAmountValidator,
                   onChange: (event) => {
                     const [int, dec] = event.target.value.split(".");
 
@@ -428,14 +473,71 @@ export const DetailsStep = ({
         </div>
 
         {/* Fee segment */}
-        <div className="flex items-center justify-end gap-2 text-sm">
-          <span>Fee</span>
-          <span>
-            {ticker === "kas"
-              ? (transactionEstimate?.totalFees ?? "0")
-              : computeOperationFees("transfer").totalFees}{" "}
-            KAS
-          </span>
+        <div className="flex items-center justify-between gap-2 text-sm">
+          <button
+            className={twMerge(
+              "relative flex items-center gap-2",
+              !isKasTransfer && "cursor-default",
+            )}
+            onClick={isKasTransfer ? openPriorityFeeSelection : undefined}
+          >
+            {mempoolCongestionLevel === "medium" && (
+              <span className="absolute -end-1 top-0 -me-1.5 -mt-1.5 flex size-2">
+                <span className="absolute inline-flex size-full animate-ping rounded-full bg-[#E9B306] opacity-75"></span>
+                <span className="relative inline-flex size-2 rounded-full bg-[#E9B306]"></span>
+              </span>
+            )}
+            {mempoolCongestionLevel === "high" && (
+              <span className="absolute -end-1 top-0 -me-1.5 -mt-1.5 flex size-2">
+                <span className="absolute inline-flex size-full animate-ping rounded-full bg-[#EF4444] opacity-75"></span>
+                <span className="relative inline-flex size-2 rounded-full bg-[#EF4444]"></span>
+              </span>
+            )}
+            <span>Fee</span>
+            <i
+              className={twMerge(
+                "hn hn-cog text-[16px]",
+                !isKasTransfer && "text-[#4B5563]",
+              )}
+              data-tooltip-id="fee-tooltip"
+              data-tooltip-content="KRC20 fees are handled automatically by Kastle."
+            ></i>
+            {!isKasTransfer && (
+              <Tooltip
+                id="fee-tooltip"
+                style={{
+                  backgroundColor: "#374151",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  padding: "2px 8px",
+                }}
+              />
+            )}
+          </button>
+          <div className="flex items-center gap-2">
+            <Tooltip
+              id="fee-estimation-tooltip"
+              style={{
+                backgroundColor: "#374151",
+                fontSize: "12px",
+                fontWeight: 600,
+                padding: "2px 8px",
+              }}
+            />
+            <i
+              className="hn hn-info-circle text-[16px]"
+              data-tooltip-id="fee-estimation-tooltip"
+              data-tooltip-content={`${sompiToKaspaString(priorityFee)} KAS for miner fees.`}
+            ></i>
+
+            <span>Estimated</span>
+            <span>
+              {isKasTransfer
+                ? sompiToKaspaString(priorityFee)
+                : computeOperationFees("transfer").totalFees}{" "}
+              KAS
+            </span>
+          </div>
         </div>
 
         <div className="mt-auto">
