@@ -32,10 +32,6 @@ export const requestAccountsHandler = async (
     const result = (await ApiUtils.receiveExtensionMessage(
       message.id,
     )) as ApiResponse<Boolean>;
-    if (result?.error) {
-      return;
-    }
-
     const isConnected = result.response;
     if (!isConnected) {
       sendError(RPC_ERRORS.USER_REJECTED_REQUEST);
