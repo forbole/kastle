@@ -63,7 +63,7 @@ export default function GeneralHeader({
         )}
       </div>
       {subtitle && (
-        <div className="mx-auto w-[27.75rem] text-center text-xs text-gray-400">
+        <div className="mx-auto text-center text-xs text-gray-400">
           {subtitle}
         </div>
       )}

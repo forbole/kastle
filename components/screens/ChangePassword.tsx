@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { twMerge } from "tailwind-merge";
 import Header from "@/components/GeneralHeader";
 import useKeyring from "@/hooks/useKeyring.ts";
+import toast from "@/components/Toast.tsx";
 
 interface PasswordFormData {
   currentPassword: string;
@@ -41,6 +42,7 @@ export default function ChangePassword() {
       newPassword: data.newPassword,
     });
 
+    toast.success("Password has been changed successfully");
     navigate("/settings");
   });
 
@@ -85,7 +87,11 @@ export default function ChangePassword() {
 
   return (
     <div id="setup-password-screen" className="flex h-full w-full flex-col p-4">
-      <Header title="Change password" onClose={() => navigate("/dashboard")} />
+      <Header
+        title="Change password"
+        subtitle="This password encrypts your wallet."
+        onClose={() => navigate("/dashboard")}
+      />
 
       <form
         onSubmit={onSubmit}
@@ -198,6 +204,10 @@ export default function ChangePassword() {
             id="hs-strong-password-input"
             className="-mx-1 mt-2 flex"
           />
+          <div className="text-xs text-daintree-400">
+            Use a mix of letters, numbers and symbols to better protect your
+            wallet in case your device is compromised
+          </div>
         </div>
 
         <button
