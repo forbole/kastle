@@ -71,7 +71,9 @@ export default function ChangePassword() {
       >
         <div className="space-y-4">
           <div className="space-y-2 text-lg">
-            <label className="text-white">Enter current password</label>
+            <label className="text-base text-white">
+              Enter current password
+            </label>
             <div className="relative">
               <input
                 tabIndex={0}
@@ -104,7 +106,7 @@ export default function ChangePassword() {
           </div>
 
           <div className="space-y-2 text-lg">
-            <label className="text-white">Enter new password</label>
+            <label className="text-base text-white">Enter new password</label>
             <div className="relative">
               <input
                 tabIndex={0}
@@ -131,7 +133,7 @@ export default function ChangePassword() {
           </div>
 
           <div className="space-y-2 text-lg">
-            <label className="text-white">Confirm new password</label>
+            <label className="text-base text-white">Confirm new password</label>
             <div className="relative">
               <input
                 tabIndex={0}
