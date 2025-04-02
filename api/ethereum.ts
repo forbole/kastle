@@ -1,4 +1,10 @@
-import { ApiResponse, RpcRequest, ApiRequest, Action } from "@/api/message";
+import {
+  ApiResponse,
+  RpcRequest,
+  ApiRequest,
+  Action,
+  RPC_ERRORS,
+} from "@/api/message";
 import { v4 as uuid } from "uuid";
 
 export class EthereumBrowserAPI {
@@ -112,7 +118,7 @@ export class EthereumBrowserAPI {
 
       setTimeout(() => {
         window.removeEventListener("message", onMessage);
-        reject(new Error("Timeout"));
+        reject(RPC_ERRORS.TIMEOUT);
       }, timeout);
     });
   }

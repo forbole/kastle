@@ -7,6 +7,7 @@ import {
 } from "@/api/message";
 import { ApiUtils } from "@/api/background/utils";
 import { requestAccountsHandler } from "./requestAccounts";
+import { accountsHandler } from "./accounts";
 
 /** ethereumRequestHandler to serve BrowserMessageType.ETHEREUM_REQUEST message */
 export const ethereumRequestHandler: Handler = async (
@@ -38,6 +39,9 @@ export const ethereumRequestHandler: Handler = async (
   switch (payload.method) {
     case ETHEREUM_METHODS.REQUEST_ACCOUNTS:
       await requestAccountsHandler(tabId, message, sendResponse);
+      break;
+    case ETHEREUM_METHODS.ACCOUNTS:
+      await accountsHandler(tabId, message, sendResponse);
       break;
     default:
       sendResponse(new ApiResponse(message.id, null, "Method not supported"));

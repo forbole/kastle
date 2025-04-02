@@ -20,8 +20,9 @@ export type SignTxPayload = z.infer<typeof SignTxPayloadSchema>;
 // ================================================================================================
 
 export class RpcRequest {
+  jsonrpc = "2.0";
   constructor(
-    public readonly id: string,
+    public readonly id: number,
     public readonly method: string,
     public readonly params: unknown[],
   ) {}
@@ -32,7 +33,8 @@ export class RpcRequest {
       !!data &&
       "id" in data &&
       "method" in data &&
-      "params" in data
+      "params" in data &&
+      "jsonrpc" in data
     );
   }
 }
@@ -67,6 +69,7 @@ export const RPC_ERRORS = {
     RpcErrorCode.METHOD_NOT_SUPPORTED,
     "Method not supported",
   ),
+  TIMEOUT: new RpcError(-320603, "Request timeout"),
 };
 
 export enum ETHEREUM_METHODS {
