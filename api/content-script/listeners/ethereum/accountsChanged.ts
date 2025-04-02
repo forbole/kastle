@@ -5,25 +5,31 @@ import {
 } from "@/contexts/WalletManagerContext";
 import { ApiResponse } from "@/api/message";
 import { publicKeyToAddress } from "viem/accounts";
+import { ApiUtils } from "@/api/background/utils";
 
 export class EthereumAccountsChangedListener {
   constructor(private currentAddress?: string) {
     // Initialize from storage
     storage
       .getItem<WalletSettings>(WALLET_SETTINGS)
-      .then((walletSettings: WalletSettings | null) => {
+      .then(async (walletSettings: WalletSettings | null) => {
         if (walletSettings) {
-          const selectedWalletId = walletSettings.selectedWalletId;
-          const selectedAccountIndex = walletSettings.selectedAccountIndex;
+          const isHostConnected = await ApiUtils.isHostConnected(
+            window.location.origin,
+          );
+          if (!isHostConnected) {
+            return;
+          }
 
-          const publicKey = walletSettings.wallets
-            .find((w) => w.id === selectedWalletId)
-            ?.accounts.find((a) => a.index === selectedAccountIndex)
-            ?.publicKeys?.[0];
+          const account = await ApiUtils.getCurrentAccount();
+          if (!account?.publicKeys) {
+            return;
+          }
 
-          if (publicKey) {
+          const selectedPublicKey = account.publicKeys[0];
+          if (selectedPublicKey) {
             this.currentAddress = publicKeyToAddress(
-              `0x${publicKey}` as `0x${string}`,
+              `0x${selectedPublicKey}` as `0x${string}`,
             );
           }
         }
@@ -31,32 +37,41 @@ export class EthereumAccountsChangedListener {
   }
 
   start() {
-    storage.watch(WALLET_SETTINGS, (walletSettings: WalletSettings | null) => {
-      if (walletSettings) {
-        const selectedWalletId = walletSettings.selectedWalletId;
-        const selectedAccountIndex = walletSettings.selectedAccountIndex;
-
-        const selectedPublicKey = walletSettings.wallets
-          .find((w) => w.id === selectedWalletId)
-          ?.accounts.find((a) => a.index === selectedAccountIndex)
-          ?.publicKeys?.[0];
-
-        if (!selectedPublicKey) {
-          return;
-        }
-
-        const selectedAddress = publicKeyToAddress(
-          `0x${selectedPublicKey}` as `0x${string}`,
-        );
-
-        if (this.currentAddress !== selectedAddress) {
-          this.currentAddress = selectedAddress;
-          window.postMessage(
-            new ApiResponse("accountsChanged", [selectedAddress]),
+    storage.watch(
+      WALLET_SETTINGS,
+      async (walletSettings: WalletSettings | null) => {
+        if (walletSettings) {
+          // send empty addresses array if host is not connected
+          const isHostConnected = await ApiUtils.isHostConnected(
             window.location.origin,
           );
+          if (!isHostConnected) {
+            window.postMessage(
+              new ApiResponse("accountsChanged", []),
+              window.location.origin,
+            );
+            return;
+          }
+
+          const account = await ApiUtils.getCurrentAccount();
+          if (!account?.publicKeys) {
+            return;
+          }
+
+          const selectedPublicKey = account.publicKeys[0];
+          const selectedAddress = publicKeyToAddress(
+            `0x${selectedPublicKey}` as `0x${string}`,
+          );
+
+          if (this.currentAddress !== selectedAddress) {
+            this.currentAddress = selectedAddress;
+            window.postMessage(
+              new ApiResponse("accountsChanged", [selectedAddress]),
+              window.location.origin,
+            );
+          }
         }
-      }
-    });
+      },
+    );
   }
 }
