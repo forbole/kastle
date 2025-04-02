@@ -123,7 +123,7 @@ export const DetailsStep = ({
 
   const addressValidator = async (value: string | undefined) => {
     const genericErrorMessage = "Invalid address or KNS domain";
-    if (!value) return genericErrorMessage;
+    if (!value) return undefined;
 
     if (ticker !== "kas" && value === account?.address) {
       return "You cannot send KRC20 to yourself";

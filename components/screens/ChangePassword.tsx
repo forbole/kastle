@@ -18,15 +18,12 @@ export default function ChangePassword() {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isMismatchShown, setIsMismatchShown] = useState(false);
 
   const {
     register,
     handleSubmit,
     watch,
     formState: { isValid, errors },
-    setError,
-    clearErrors,
   } = useForm<PasswordFormData>({
     mode: "onChange",
   });
@@ -35,6 +32,7 @@ export default function ChangePassword() {
   const passwordMatch = newPassword === confirmPassword;
   const isDisabled =
     !currentPassword || !newPassword || !passwordMatch || !isValid;
+  const isMismatchShown = !passwordMatch && !!confirmPassword;
 
   const onSubmit = handleSubmit(async (data) => {
     await keyringChangePassword({
@@ -46,44 +44,18 @@ export default function ChangePassword() {
     navigate("/settings");
   });
 
-  useEffect(() => {
-    let timeout: NodeJS.Timeout | undefined;
+  const validateCurrentPassword = async (currentPassword: string) => {
+    if (currentPassword === "") return undefined;
+    const { success } = await keyringCheckPassword({
+      password: currentPassword,
+    });
 
-    const hasMismatch = !passwordMatch && !!confirmPassword;
-
-    if (!hasMismatch) {
-      setIsMismatchShown(hasMismatch);
-    } else {
-      timeout = setTimeout(() => {
-        setIsMismatchShown(hasMismatch);
-      }, 600);
+    if (!success) {
+      return "Incorrect current password";
     }
-    return () => clearTimeout(timeout);
-  }, [newPassword, confirmPassword]);
 
-  useEffect(() => {
-    let timeout: NodeJS.Timeout | undefined;
-
-    const validatePassword = async () => {
-      const { success } = await keyringCheckPassword({
-        password: currentPassword,
-      });
-
-      if (currentPassword === "" || success) {
-        clearErrors("currentPassword");
-      } else {
-        timeout = setTimeout(() => {
-          setError("currentPassword", {
-            type: "validate",
-            message: "Incorrect current password",
-          });
-        }, 600);
-      }
-    };
-
-    validatePassword();
-    return () => clearTimeout(timeout);
-  }, [currentPassword]);
+    return undefined;
+  };
 
   return (
     <div id="setup-password-screen" className="flex h-full w-full flex-col p-4">
@@ -103,7 +75,9 @@ export default function ChangePassword() {
             <div className="relative">
               <input
                 tabIndex={0}
-                {...register("currentPassword")}
+                {...register("currentPassword", {
+                  validate: validateCurrentPassword,
+                })}
                 type={showCurrentPassword ? "text" : "password"}
                 className="w-full rounded-lg border-0 bg-daintree-800 px-4 py-3 text-white placeholder-daintree-400 focus:outline-none focus:ring-2 focus:ring-gray-500"
                 placeholder="Current password"
