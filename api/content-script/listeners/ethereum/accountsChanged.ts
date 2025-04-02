@@ -15,7 +15,7 @@ export class EthereumAccountsChangedListener {
       .then(async (walletSettings: WalletSettings | null) => {
         if (walletSettings) {
           const isHostConnected = await ApiUtils.isHostConnected(
-            window.location.origin,
+            window.location.host,
           );
           if (!isHostConnected) {
             return;
@@ -43,9 +43,10 @@ export class EthereumAccountsChangedListener {
         if (walletSettings) {
           // send empty addresses array if host is not connected
           const isHostConnected = await ApiUtils.isHostConnected(
-            window.location.origin,
+            window.location.host,
           );
           if (!isHostConnected) {
+            this.currentAddress = undefined;
             window.postMessage(
               new ApiResponse("accountsChanged", []),
               window.location.origin,
