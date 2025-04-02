@@ -126,7 +126,7 @@ export default function ConnectConfirm() {
   const selectedNetwork = networks.find((n) => n.id === settings?.networkId);
 
   return (
-    <div className="flex h-full w-full flex-col justify-between rounded-xl p-6">
+    <div className="flex h-full w-full flex-col justify-between rounded-xl p-4">
       <div className="flex flex-col items-center">
         {/* Header */}
         <Header

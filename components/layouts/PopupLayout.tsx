@@ -24,7 +24,7 @@ export default function PopupLayout() {
   }, []);
   return (
     <PostHogWrapperProvider>
-      <div className="no-scrollbar h-[600px] w-[375px] overflow-y-scroll bg-icy-blue-950 font-sans text-white">
+      <div className="h-[600px] w-[375px] overflow-hidden bg-icy-blue-950 font-sans text-white">
         <Toaster position="top-center" containerStyle={{ top: 35 }} />
         {navigation.state === "loading" ? <Splash /> : <Outlet />}
       </div>
