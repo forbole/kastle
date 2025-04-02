@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.10.0](https://github.com/forbole/kastle/compare/v2.9.0...v2.10.0) (2025-04-02)
+
+
+### Features
+
+* **keyring:** change password ([#77](https://github.com/forbole/kastle/issues/77)) ([ae910cc](https://github.com/forbole/kastle/commit/ae910cc2d16f72a802d30c77832c6803c252454e))
+* priority fee selection ([#75](https://github.com/forbole/kastle/issues/75)) ([9fd5ae3](https://github.com/forbole/kastle/commit/9fd5ae32d22521d035bcefa2c59b9e0298a99891))
+
+
+### Bug Fixes
+
+* **ui:** prevent layout from scrolling ([#78](https://github.com/forbole/kastle/issues/78)) ([aaeb471](https://github.com/forbole/kastle/commit/aaeb4714dddb97b8a03c0e8362f4a121815c9899))
+
 ## [2.9.0](https://github.com/forbole/kastle/compare/v2.8.1...v2.9.0) (2025-03-26)
 
 
