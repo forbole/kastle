@@ -1,6 +1,5 @@
 import { Settings, SETTINGS_KEY } from "@/contexts/SettingsContext.tsx";
 import { ExtensionService } from "@/lib/service/extension-service.ts";
-import { storage } from "wxt/storage";
 
 export const AUTO_LOCK_ALARM = "auto-lock-alarm";
 export const DEFAULT_AUTO_LOCK_MINUTES = 5;

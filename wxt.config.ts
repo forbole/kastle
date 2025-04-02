@@ -1,9 +1,9 @@
 import { defineConfig } from "wxt"; // See https://wxt.dev/api/config.html
 import { nodePolyfills } from "vite-plugin-node-polyfills";
+import tailwindcss from "@tailwindcss/vite";
 
 // See https://wxt.dev/api/config.html
 export default defineConfig({
-  extensionApi: "chrome",
   modules: ["@wxt-dev/module-react"],
   manifest: {
     permissions: ["storage", "alarms", "clipboardRead"],
@@ -21,7 +21,7 @@ export default defineConfig({
       matches: ["*://*/*"],
     },
   },
-  runner: {
+  webExt: {
     startUrls: ["https://forbole.github.io/kastle/"],
   },
   vite: () => ({
@@ -38,6 +38,7 @@ export default defineConfig({
       },
     },
     plugins: [
+      tailwindcss(),
       nodePolyfills({
         protocolImports: true,
         include: ["buffer"],
