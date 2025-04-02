@@ -1,4 +1,5 @@
 import { ApiRequestSchema, ApiRequestWithHostSchema } from "@/api/message";
+import { EthereumAccountsChangedListener } from "@/api/content-script/listeners/ethereum/accountsChanged";
 
 export default defineContentScript({
   matches: ["*://*/*"],
@@ -7,6 +8,9 @@ export default defineContentScript({
     await injectScript("/injected.js", {
       keepInDom: true,
     });
+
+    // TODO: implement tabs connections manager and authentication for listeners
+    new EthereumAccountsChangedListener().start();
 
     // Listen for messages from the source
     window.addEventListener("message", async (event: MessageEvent<unknown>) => {
@@ -29,7 +33,7 @@ export default defineContentScript({
       const response = await browser.runtime.sendMessage(parsedMessageWithHost);
 
       // Send the response back to the source
-      window.postMessage(response, "*");
+      window.postMessage(response, window.location.origin);
     });
   },
 });

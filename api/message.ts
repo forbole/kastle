@@ -1,5 +1,4 @@
 import { ScriptOption } from "@/lib/wallet/wallet-interface.ts";
-import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import { z } from "zod";
 
 export enum Action {
@@ -7,6 +6,7 @@ export enum Action {
   GET_ACCOUNT,
   SIGN_AND_BROADCAST_TX,
   SIGN_TX,
+  ETHEREUM_REQUEST,
 }
 
 export const SignTxPayloadSchema = z.object({
@@ -16,6 +16,68 @@ export const SignTxPayloadSchema = z.object({
 });
 
 export type SignTxPayload = z.infer<typeof SignTxPayloadSchema>;
+
+// ================================================================================================
+
+export class RpcRequest {
+  constructor(
+    public readonly id: string,
+    public readonly method: string,
+    public readonly params: unknown[],
+  ) {}
+
+  static validate(data: unknown): data is RpcRequest {
+    return (
+      typeof data === "object" &&
+      !!data &&
+      "id" in data &&
+      "method" in data &&
+      "params" in data
+    );
+  }
+}
+
+// TODO: use viem RpcError types
+export class RpcError {
+  constructor(
+    public readonly code: number,
+    public readonly message: string,
+  ) {}
+
+  static validate(data: unknown): data is RpcError {
+    return (
+      typeof data === "object" && !!data && "code" in data && "message" in data
+    );
+  }
+}
+
+export enum RpcErrorCode {
+  USER_REJECTED_REQUEST = 4001,
+  UNAUTHORIZED = 4100,
+  METHOD_NOT_SUPPORTED = 4200,
+}
+
+export const RPC_ERRORS = {
+  USER_REJECTED_REQUEST: new RpcError(
+    RpcErrorCode.USER_REJECTED_REQUEST,
+    "User rejected the request",
+  ),
+  UNAUTHORIZED: new RpcError(RpcErrorCode.UNAUTHORIZED, "Unauthorized"),
+  METHOD_NOT_SUPPORTED: new RpcError(
+    RpcErrorCode.METHOD_NOT_SUPPORTED,
+    "Method not supported",
+  ),
+};
+
+export enum ETHEREUM_METHODS {
+  REQUEST_ACCOUNTS = "eth_requestAccounts",
+  CHAIN_ID = "eth_chainId",
+  ACCOUNTS = "eth_accounts",
+  SIGN_TYPED_DATA_V4 = "eth_signTypedData_v4",
+  SEND_TRANSACTION = "eth_sendTransaction",
+  SIGN_MESSAGE = "personal_sign",
+  WALLET_SWITCH_ETHEREUM_NETWORK = "wallet_switchEthereumChain",
+}
 
 // ================================================================================================
 

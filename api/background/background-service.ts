@@ -55,6 +55,7 @@ export class BackgroundService {
       [Action.GET_ACCOUNT]: getAccountHandler,
       [Action.SIGN_AND_BROADCAST_TX]: signAndBroadcastTxHandler,
       [Action.SIGN_TX]: signTxHandler,
+      [Action.ETHEREUM_REQUEST]: ethereumRequestHandler,
     };
 
     return handlers[action];
