@@ -4,6 +4,7 @@ import {
   ApiRequest,
   ApiResponse,
   ConnectPayload,
+  SignMessagePayload,
   SignTxPayload,
 } from "@/api/message";
 import { ScriptOption } from "@/lib/wallet/wallet-interface.ts";
@@ -70,6 +71,18 @@ export class KastleBrowserAPI {
       Action.SIGN_TX,
       requestId,
       new SignTxPayload(networkId, txJson, scripts),
+    );
+    window.postMessage(request, "*");
+
+    return await this.receiveMessage(requestId);
+  }
+
+  async signMessage(message: string): Promise<string> {
+    const requestId = uuid();
+    const request = new ApiRequest(
+      Action.SIGN_MESSAGE,
+      requestId,
+      new SignMessagePayload(message),
     );
     window.postMessage(request, "*");
 

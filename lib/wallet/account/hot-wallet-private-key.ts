@@ -14,6 +14,7 @@ import {
   signTransaction,
   Transaction,
   UtxoEntryReference,
+  signMessage,
 } from "@/wasm/core/kaspa";
 
 import {
@@ -186,6 +187,10 @@ export class HotWalletPrivateKey implements IWallet {
     const scriptBuilder = ScriptBuilder.fromScript(script.scriptHex);
     tx.inputs[script.inputIndex].signatureScript =
       scriptBuilder.encodePayToScriptHashSignatureScript(signature);
+  }
+
+  signMessage(message: string): string {
+    return signMessage({ message, privateKey: this.privateKey });
   }
 
   private async commitScript(p2SHAddress: string) {

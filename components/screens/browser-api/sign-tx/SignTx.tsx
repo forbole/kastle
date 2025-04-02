@@ -32,8 +32,7 @@ export default function SignTx({ wallet, requestId, payload }: SignTxProps) {
         new ApiResponse(
           requestId,
           null,
-          "Failed to sign and broadcast transaction: " +
-            (err as any).toString(),
+          "Failed to sign transaction: " + (err as any).toString(),
         ),
       );
     } finally {

@@ -55,6 +55,7 @@ import { RecentAddressesProvider } from "@/contexts/RecentAddressesContext.tsx";
 import KNSAsset from "@/components/screens/KNSAsset";
 import KRC721 from "@/components/screens/KRC721";
 import OnboardingSuccess from "@/components/onboarding/OnboardingSuccess.tsx";
+import SignMessageConfirm from "@/components/screens/browser-api/SignMessageConfirm";
 
 const loadKaspaWasm = async () => {
   await init(kaspaModule);
@@ -210,6 +211,10 @@ export const router = createHashRouter([
                   {
                     path: "sign-tx",
                     element: <SignTxConfirm />,
+                  },
+                  {
+                    path: "sign-message",
+                    element: <SignMessageConfirm />,
                   },
                 ],
               },

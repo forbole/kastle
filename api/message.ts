@@ -6,6 +6,7 @@ export enum Action {
   GET_ACCOUNT,
   SIGN_AND_BROADCAST_TX,
   SIGN_TX,
+  SIGN_MESSAGE,
 }
 
 export class SignTxPayload {
@@ -31,6 +32,24 @@ export class SignTxPayload {
 
   toUriString(): string {
     return encodeURIComponent(JSON.stringify(this));
+  }
+}
+
+// ================================================================================================
+
+export class SignMessagePayload {
+  constructor(public readonly message: string) {}
+
+  static validate(data: unknown): data is SignMessagePayload {
+    return typeof data === "object" && !!data && "message" in data;
+  }
+
+  static fromUriString(uriComponent: string): SignMessagePayload {
+    return new SignMessagePayload(decodeURIComponent(uriComponent));
+  }
+
+  toUriString(): string {
+    return encodeURIComponent(this.message);
   }
 }
 

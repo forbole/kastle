@@ -15,6 +15,7 @@ import {
   Transaction,
   UtxoEntryReference,
   XPrv,
+  signMessage,
 } from "@/wasm/core/kaspa";
 
 import {
@@ -209,6 +210,10 @@ export class HotWalletAccount implements IWallet {
 
   getPublicKey(): PublicKey {
     return this.getPrivateKey().toPublicKey();
+  }
+
+  signMessage(message: string): string {
+    return signMessage({ message, privateKey: this.getPrivateKey() });
   }
 
   private async commitScript(p2SHAddress: string) {
