@@ -1,4 +1,8 @@
-import { ApiExtensionResponse, ApiRequest } from "@/api/message";
+import {
+  ApiExtensionResponseSchema,
+  ApiResponseSchema,
+  ApiRequestWithHost,
+} from "@/api/message";
 import { ExtensionService } from "@/lib/service/extension-service";
 import {
   NetworkType,
@@ -80,25 +84,34 @@ export class ApiUtils {
     return ExtensionService.getInstance().getKeyring().isUnlocked();
   }
 
+  static createApiResponse(id: string, response: unknown, error?: unknown) {
+    return ApiResponseSchema.parse({
+      source: "background",
+      target: "browser",
+      id,
+      response,
+      error,
+    });
+  }
+
   static async receiveExtensionMessage(
     id: string,
     timeout = 60_000, // 1 minute
   ): Promise<unknown> {
     return new Promise<unknown>((resolve, reject) => {
       const listener = (message: unknown) => {
-        if (!ApiExtensionResponse.validate(message)) {
+        const result = ApiExtensionResponseSchema.safeParse(message);
+        if (!result.success) {
           return;
         }
-        if (
-          message.id !== id ||
-          message.source !== "extension" ||
-          message.target !== "background"
-        ) {
+
+        const parsedMessage = result.data;
+        if (parsedMessage.id !== id) {
           return;
         }
 
         browser.runtime.onMessage.removeListener(listener);
-        resolve(message.response);
+        resolve(parsedMessage.response);
       };
 
       browser.runtime.onMessage.addListener(listener);
@@ -113,6 +126,6 @@ export class ApiUtils {
 
 export type Handler = (
   tabId: number,
-  message: ApiRequest<any>,
+  message: ApiRequestWithHost,
   sendResponse: (response: any) => void,
 ) => Promise<void>;

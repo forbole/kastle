@@ -1,10 +1,10 @@
-import { SignTxPayload } from "@/api/message";
+import { SignTxPayloadSchema } from "@/api/message";
 import HotWalletSignAndBroadcast from "@/components/screens/browser-api/sign-and-broadcast/HotWalletSignAndBroadcast";
 import LedgerSignAndBroadcast from "@/components/screens/browser-api/sign-and-broadcast/LedgerSignAndBroadcast";
 import useWalletManager from "@/hooks/useWalletManager.ts";
 import { useEffect } from "react";
 import { ApiExtensionUtils } from "@/api/extension";
-import { ApiResponse } from "@/api/message";
+import { ApiUtils } from "@/api/background/utils";
 import Splash from "@/components/screens/Splash";
 
 export default function SignAndBroadcastTxConfirm() {
@@ -16,15 +16,21 @@ export default function SignAndBroadcastTxConfirm() {
   );
 
   const payload = encodedPayload
-    ? SignTxPayload.fromUriString(encodedPayload)
+    ? JSON.parse(decodeURIComponent(encodedPayload))
     : null;
 
-  const loading = !wallet || !requestId || !payload;
+  const parsedPayload = payload ? SignTxPayloadSchema.parse(payload) : null;
+
+  const loading = !wallet || !requestId || !parsedPayload;
 
   useEffect(() => {
     // Handle beforeunload event
     async function beforeunload(event: BeforeUnloadEvent) {
-      const denyMessage = new ApiResponse(requestId, false, "User denied");
+      const denyMessage = ApiUtils.createApiResponse(
+        requestId,
+        false,
+        "User denied",
+      );
       await ApiExtensionUtils.sendMessage(requestId, denyMessage);
     }
 
@@ -39,10 +45,13 @@ export default function SignAndBroadcastTxConfirm() {
     <div className="h-screen p-4">
       {loading && <Splash />}
       {!loading && wallet.type !== "ledger" && (
-        <HotWalletSignAndBroadcast requestId={requestId} payload={payload} />
+        <HotWalletSignAndBroadcast
+          requestId={requestId}
+          payload={parsedPayload}
+        />
       )}
       {!loading && wallet.type === "ledger" && (
-        <LedgerSignAndBroadcast requestId={requestId} payload={payload} />
+        <LedgerSignAndBroadcast requestId={requestId} payload={parsedPayload} />
       )}
     </div>
   );

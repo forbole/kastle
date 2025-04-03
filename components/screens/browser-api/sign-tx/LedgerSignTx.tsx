@@ -6,8 +6,8 @@ import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import { NetworkType } from "@/contexts/SettingsContext";
 import Splash from "@/components/screens/Splash";
 import { ApiExtensionUtils } from "@/api/extension";
-import { ApiResponse } from "@/api/message";
 import LedgerConnectForSign from "@/components/screens/ledger-connect/LedgerConnectForSign";
+import { ApiUtils } from "@/api/background/utils";
 
 type LedgerSignTxProps = {
   requestId: string;
@@ -24,7 +24,7 @@ export default function LedgerSignTx({
   if (payload.scripts) {
     ApiExtensionUtils.sendMessage(
       requestId,
-      new ApiResponse(
+      ApiUtils.createApiResponse(
         requestId,
         null,
         "Ledger does not support advanced scripts signing",

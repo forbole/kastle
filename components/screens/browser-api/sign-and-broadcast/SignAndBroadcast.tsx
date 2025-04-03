@@ -1,4 +1,4 @@
-import { ApiResponse, SignTxPayload } from "@/api/message";
+import { SignTxPayload } from "@/api/message";
 import { ApiExtensionUtils } from "@/api/extension";
 import { IWallet } from "@/lib/wallet/wallet-interface.ts";
 import useWalletManager from "@/hooks/useWalletManager";
@@ -10,6 +10,7 @@ import Broadcasting from "@/components/screens/browser-api/sign-and-broadcast/Br
 import { sleep } from "@/lib/utils";
 import Success from "@/components/screens/browser-api/sign-and-broadcast/Success";
 import Error from "@/components/screens/browser-api/sign-and-broadcast/Error";
+import { ApiUtils } from "@/api/background/utils";
 
 type SignAndBroadcastProps = {
   wallet: IWallet;
@@ -47,7 +48,7 @@ export default function SignAndBroadcast({
 
       await ApiExtensionUtils.sendMessage(
         requestId,
-        new ApiResponse(requestId, txId),
+        ApiUtils.createApiResponse(requestId, txId),
       );
 
       setTxIds([txId]);
@@ -57,7 +58,7 @@ export default function SignAndBroadcast({
       setState("error");
       await ApiExtensionUtils.sendMessage(
         requestId,
-        new ApiResponse(
+        ApiUtils.createApiResponse(
           requestId,
           null,
           "Failed to sign and broadcast transaction: " +
@@ -72,7 +73,7 @@ export default function SignAndBroadcast({
   const handleCancel = async () => {
     await ApiExtensionUtils.sendMessage(
       requestId,
-      new ApiResponse(requestId, null, "User cancelled"),
+      ApiUtils.createApiResponse(requestId, null, "User cancelled"),
     );
     window.close();
   };

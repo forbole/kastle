@@ -2,12 +2,25 @@ import { v4 as uuid } from "uuid";
 import {
   Action,
   ApiRequest,
-  ApiResponse,
-  ConnectPayload,
-  SignTxPayload,
+  ApiResponseSchema,
+  ConnectPayloadSchema,
+  SignTxPayloadSchema,
 } from "@/api/message";
 import { ScriptOption } from "@/lib/wallet/wallet-interface.ts";
-import { NetworkType } from "@/contexts/SettingsContext.tsx";
+
+function createApiRequest(
+  action: Action,
+  requestId: string,
+  payload?: unknown,
+): ApiRequest {
+  return {
+    action,
+    id: requestId,
+    source: "browser",
+    target: "background",
+    payload,
+  };
+}
 
 export class KastleBrowserAPI {
   constructor() {}
@@ -26,11 +39,16 @@ export class KastleBrowserAPI {
       iconUrl = iconElement.href;
     }
 
-    const request = new ApiRequest(
+    const request = createApiRequest(
       Action.CONNECT,
       requestId,
-      new ConnectPayload(document.title, networkId as NetworkType, iconUrl),
+      ConnectPayloadSchema.parse({
+        networkId,
+        name: document.title,
+        icon: iconUrl,
+      }),
     );
+
     window.postMessage(request, "*");
 
     return await this.receiveMessage(requestId);
@@ -38,7 +56,7 @@ export class KastleBrowserAPI {
 
   async getAccount(): Promise<{ address: string; publicKey: string }> {
     const requestId = uuid();
-    const request = new ApiRequest(Action.GET_ACCOUNT, requestId);
+    const request = createApiRequest(Action.GET_ACCOUNT, requestId);
     window.postMessage(request, "*");
 
     return await this.receiveMessage(requestId);
@@ -50,10 +68,14 @@ export class KastleBrowserAPI {
     scripts?: ScriptOption[],
   ): Promise<string> {
     const requestId = uuid();
-    const request = new ApiRequest(
+    const request = createApiRequest(
       Action.SIGN_AND_BROADCAST_TX,
       requestId,
-      new SignTxPayload(networkId, txJson, scripts),
+      SignTxPayloadSchema.parse({
+        networkId,
+        txJson,
+        scripts,
+      }),
     );
     window.postMessage(request, "*");
 
@@ -66,10 +88,14 @@ export class KastleBrowserAPI {
     scripts?: ScriptOption[],
   ): Promise<string> {
     const requestId = uuid();
-    const request = new ApiRequest(
+    const request = createApiRequest(
       Action.SIGN_TX,
       requestId,
-      new SignTxPayload(networkId, txJson, scripts),
+      SignTxPayloadSchema.parse({
+        networkId,
+        txJson,
+        scripts,
+      }),
     );
     window.postMessage(request, "*");
 
@@ -83,23 +109,26 @@ export class KastleBrowserAPI {
     return new Promise<T>((resolve, reject) => {
       const onMessage = async (event: MessageEvent<unknown>) => {
         const message = event.data;
-        if (!ApiResponse.validate(message)) {
+
+        const result = ApiResponseSchema.safeParse(message);
+        if (!result.success) {
           return;
         }
 
-        if (message.id !== id || message.target !== "browser") {
+        const parsedMessage = ApiResponseSchema.parse(message);
+        if (parsedMessage.id !== id) {
           return;
         }
 
         window.removeEventListener("message", onMessage);
 
         // Reject if the message is an error
-        if (message.error) {
-          reject(new Error(message.error));
+        if (parsedMessage.error) {
+          reject(new Error(parsedMessage.error));
           return;
         }
 
-        resolve(message.response as T);
+        resolve(parsedMessage.response as T);
       };
 
       window.addEventListener("message", onMessage);

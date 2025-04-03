@@ -4,6 +4,7 @@ import { IWallet } from "@/lib/wallet/wallet-interface.ts";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import { Transaction } from "@/wasm/core/kaspa";
 import SignConfirm from "@/components/screens/browser-api/sign/SignConfirm";
+import { ApiUtils } from "@/api/background/utils";
 
 type SignTxProps = {
   wallet: IWallet;
@@ -24,12 +25,12 @@ export default function SignTx({ wallet, requestId, payload }: SignTxProps) {
       const signed = await wallet.signTx(tx, payload.scripts);
       await ApiExtensionUtils.sendMessage(
         requestId,
-        new ApiResponse(requestId, signed.serializeToSafeJSON()),
+        ApiUtils.createApiResponse(requestId, signed.serializeToSafeJSON()),
       );
     } catch (err) {
       await ApiExtensionUtils.sendMessage(
         requestId,
-        new ApiResponse(
+        ApiUtils.createApiResponse(
           requestId,
           null,
           "Failed to sign and broadcast transaction: " +
@@ -44,7 +45,7 @@ export default function SignTx({ wallet, requestId, payload }: SignTxProps) {
   const handleCancel = async () => {
     await ApiExtensionUtils.sendMessage(
       requestId,
-      new ApiResponse(requestId, null, "User cancelled"),
+      ApiUtils.createApiResponse(requestId, null, "User cancelled"),
     );
     window.close();
   };

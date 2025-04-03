@@ -7,6 +7,7 @@ import Header from "@/components/GeneralHeader";
 import Link from "@/assets/images/link.svg";
 import CheckCircle from "@/assets/images/check-circle.svg";
 import { twMerge } from "tailwind-merge";
+import { ApiUtils } from "@/api/background/utils";
 
 export default function ConnectConfirm() {
   const [settings, setSettings] = useSettings();
@@ -27,8 +28,12 @@ export default function ConnectConfirm() {
   const icon = urlSearchParams.get("icon") ?? undefined;
 
   // Create confirm and deny messages
-  const confirmMessage = new ApiResponse(requestId, true);
-  const denyMessage = new ApiResponse(requestId, false, "User denied");
+  const confirmMessage = ApiUtils.createApiResponse(requestId, true);
+  const denyMessage = ApiUtils.createApiResponse(
+    requestId,
+    false,
+    "User denied",
+  );
 
   useEffect(() => {
     // Handle beforeunload event
@@ -83,7 +88,7 @@ export default function ConnectConfirm() {
       // Send false to background if error
       await ApiExtensionUtils.sendMessage(
         requestId,
-        new ApiResponse(
+        ApiUtils.createApiResponse(
           requestId,
           false,
           "Error happens while connecting: " + (err as any).toString(),
