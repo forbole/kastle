@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.10.1](https://github.com/forbole/kastle/compare/v2.10.0...v2.10.1) (2025-04-03)
+
+
+### Miscellaneous Chores
+
+* release 2.10.1 ([ef7b6db](https://github.com/forbole/kastle/commit/ef7b6db579bc427ea3b0d42d6fbe6c3b17fefad2))
+
 ## [2.10.0](https://github.com/forbole/kastle/compare/v2.9.0...v2.10.0) (2025-04-02)
 
 
