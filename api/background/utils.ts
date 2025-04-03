@@ -94,11 +94,11 @@ export class ApiUtils {
     });
   }
 
-  static async receiveExtensionMessage(
+  static async receiveExtensionMessage<T>(
     id: string,
     timeout = 60_000, // 1 minute
-  ): Promise<unknown> {
-    return new Promise<unknown>((resolve, reject) => {
+  ): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
       const listener = (message: unknown) => {
         const result = ApiExtensionResponseSchema.safeParse(message);
         if (!result.success) {
@@ -111,7 +111,7 @@ export class ApiUtils {
         }
 
         browser.runtime.onMessage.removeListener(listener);
-        resolve(parsedMessage.response);
+        resolve(parsedMessage.response as T);
       };
 
       browser.runtime.onMessage.addListener(listener);

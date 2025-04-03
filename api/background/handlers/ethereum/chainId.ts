@@ -1,10 +1,11 @@
-import { ApiRequest, ApiResponse, RpcError, RPC_ERRORS } from "@/api/message";
+import { ApiRequestWithHost } from "@/api/message";
+import { ApiUtils } from "@/api/background/utils";
 
 export const chainIdHandler = async (
   tabId: number,
-  message: ApiRequest,
+  message: ApiRequestWithHost,
   sendResponse: (response?: any) => void,
 ) => {
   // TODO: read ethereum chainId from the settings, now returns Goerli chainId
-  sendResponse(new ApiResponse(message.id, "0x5"));
+  sendResponse(ApiUtils.createApiResponse(message.id, "0x5"));
 };

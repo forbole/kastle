@@ -19,39 +19,21 @@ export type SignTxPayload = z.infer<typeof SignTxPayloadSchema>;
 
 // ================================================================================================
 
-export class RpcRequest {
-  jsonrpc = "2.0";
-  constructor(
-    public readonly id: number,
-    public readonly method: string,
-    public readonly params: unknown[],
-  ) {}
+export const RpcRequestSchema = z.object({
+  jsonrpc: z.literal("2.0"),
+  id: z.number(),
+  method: z.string(),
+  params: z.array(z.unknown()),
+});
 
-  static validate(data: unknown): data is RpcRequest {
-    return (
-      typeof data === "object" &&
-      !!data &&
-      "id" in data &&
-      "method" in data &&
-      "params" in data &&
-      "jsonrpc" in data
-    );
-  }
-}
+export type RpcRequest = z.infer<typeof RpcRequestSchema>;
 
-// TODO: use viem RpcError types
-export class RpcError {
-  constructor(
-    public readonly code: number,
-    public readonly message: string,
-  ) {}
+export const RpcErrorSchema = z.object({
+  code: z.number(),
+  message: z.string(),
+});
 
-  static validate(data: unknown): data is RpcError {
-    return (
-      typeof data === "object" && !!data && "code" in data && "message" in data
-    );
-  }
-}
+export type RpcError = z.infer<typeof RpcErrorSchema>;
 
 export enum RpcErrorCode {
   USER_REJECTED_REQUEST = 4001,
@@ -62,17 +44,27 @@ export enum RpcErrorCode {
 }
 
 export const RPC_ERRORS = {
-  USER_REJECTED_REQUEST: new RpcError(
-    RpcErrorCode.USER_REJECTED_REQUEST,
-    "User rejected the request",
-  ),
-  UNAUTHORIZED: new RpcError(RpcErrorCode.UNAUTHORIZED, "Unauthorized"),
-  METHOD_NOT_SUPPORTED: new RpcError(
-    RpcErrorCode.METHOD_NOT_SUPPORTED,
-    "Method not supported",
-  ),
-  TIMEOUT: new RpcError(RpcErrorCode.TIMEOUT, "Request timeout"),
-  INTERNAL_ERROR: new RpcError(RpcErrorCode.INTERNAL_ERROR, "Internal error"),
+  USER_REJECTED_REQUEST: RpcErrorSchema.parse({
+    code: RpcErrorCode.USER_REJECTED_REQUEST,
+    message: "User rejected the request",
+  }),
+
+  UNAUTHORIZED: RpcErrorSchema.parse({
+    code: RpcErrorCode.UNAUTHORIZED,
+    message: "Unauthorized",
+  }),
+  METHOD_NOT_SUPPORTED: RpcErrorSchema.parse({
+    code: RpcErrorCode.METHOD_NOT_SUPPORTED,
+    message: "Method not supported",
+  }),
+  TIMEOUT: RpcErrorSchema.parse({
+    code: RpcErrorCode.TIMEOUT,
+    message: "Timeout",
+  }),
+  INTERNAL_ERROR: RpcErrorSchema.parse({
+    code: RpcErrorCode.INTERNAL_ERROR,
+    message: "Internal error",
+  }),
 };
 
 export enum ETHEREUM_METHODS {
@@ -116,7 +108,7 @@ export type ApiRequestWithHost = z.infer<typeof ApiRequestWithHostSchema>;
 export const ApiResponseSchema = z.object({
   id: z.string(),
   response: z.unknown(),
-  error: z.string().optional(),
+  error: z.union([z.string(), RpcErrorSchema]).optional(),
   source: z.literal("background"),
   target: z.literal("browser"),
 });

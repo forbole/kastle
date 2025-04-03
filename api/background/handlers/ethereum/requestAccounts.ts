@@ -1,22 +1,21 @@
-import { ApiRequest, ApiResponse, RpcError, RPC_ERRORS } from "@/api/message";
+import {
+  ApiRequestWithHost,
+  RpcError,
+  RPC_ERRORS,
+  ApiResponse,
+} from "@/api/message";
 import { ApiUtils } from "@/api/background/utils";
 import { publicKeyToAddress } from "viem/accounts";
 
 export const requestAccountsHandler = async (
   tabId: number,
-  message: ApiRequest,
+  message: ApiRequestWithHost,
   sendResponse: (response?: any) => void,
 ) => {
   const sendError = function (error: RpcError) {
     // NOTE: can not send undefined as response, so send null
-    sendResponse(new ApiResponse(message.id, null, error));
+    sendResponse(ApiUtils.createApiResponse(message.id, null, error));
   };
-
-  if (!message.host) {
-    // TODO: use proper
-    sendError(RPC_ERRORS.USER_REJECTED_REQUEST);
-    return;
-  }
 
   const isConnected = await ApiUtils.isHostConnected(message.host);
   if (!isConnected) {
@@ -29,10 +28,10 @@ export const requestAccountsHandler = async (
 
     ApiUtils.openPopup(tabId, url.toString());
 
-    const result = (await ApiUtils.receiveExtensionMessage(
-      message.id,
-    )) as ApiResponse<Boolean>;
-    const isConnected = result.response;
+    const extensionResponse: ApiResponse =
+      await ApiUtils.receiveExtensionMessage(message.id);
+
+    const isConnected = extensionResponse.response;
     if (!isConnected) {
       sendError(RPC_ERRORS.USER_REJECTED_REQUEST);
       return;
@@ -47,12 +46,11 @@ export const requestAccountsHandler = async (
 
   const account = await ApiUtils.getCurrentAccount();
   if (!account?.publicKeys) {
-    // TODO: use proper error
-    sendError(RPC_ERRORS.USER_REJECTED_REQUEST);
+    sendError(RPC_ERRORS.INTERNAL_ERROR);
     return;
   }
 
   const publicKey = account.publicKeys[0];
   const ethAddress = publicKeyToAddress(`0x${publicKey}` as `0x${string}`);
-  sendResponse(new ApiResponse(message.id, [ethAddress]));
+  sendResponse(ApiUtils.createApiResponse(message.id, [ethAddress]));
 };

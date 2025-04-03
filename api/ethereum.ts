@@ -1,11 +1,24 @@
 import {
-  ApiResponse,
   RpcRequest,
-  ApiRequest,
   Action,
-  RPC_ERRORS,
+  ApiResponseSchema,
+  ApiRequest,
 } from "@/api/message";
 import { v4 as uuid } from "uuid";
+
+function createApiRequest(
+  action: Action,
+  requestId: string,
+  payload?: unknown,
+): ApiRequest {
+  return {
+    action,
+    id: requestId,
+    source: "browser",
+    target: "background",
+    payload,
+  };
+}
 
 export class EthereumBrowserAPI {
   private listerMap = new Map<
@@ -16,7 +29,7 @@ export class EthereumBrowserAPI {
   request(request: RpcRequest) {
     const requestId = uuid();
     window.postMessage(
-      new ApiRequest(Action.ETHEREUM_REQUEST, requestId, request),
+      createApiRequest(Action.ETHEREUM_REQUEST, requestId, request),
       "*",
     );
 
@@ -73,24 +86,26 @@ export class EthereumBrowserAPI {
       }
 
       const message = event.data;
-      if (!ApiResponse.validate(message)) {
+      const result = ApiResponseSchema.safeParse(message);
+      if (!result.success) {
         return;
       }
 
-      if (message.id !== id || message.target !== "browser") {
+      const parsedMessage = ApiResponseSchema.parse(message);
+      if (parsedMessage.id !== id) {
         return;
       }
 
       // Reject if the message is an error
-      if (message.error) {
-        if (typeof message.error === "string") {
-          throw new Error(message.error);
+      if (parsedMessage.error) {
+        if (typeof parsedMessage.error === "string") {
+          throw new Error(parsedMessage.error);
         } else {
-          throw message.error;
+          throw parsedMessage.error;
         }
       }
 
-      return message.response as T;
+      return parsedMessage.response as T;
     };
   }
 
@@ -118,7 +133,7 @@ export class EthereumBrowserAPI {
 
       setTimeout(() => {
         window.removeEventListener("message", onMessage);
-        reject(RPC_ERRORS.TIMEOUT);
+        reject(new Error("Timeout"));
       }, timeout);
     });
   }

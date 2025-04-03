@@ -3,7 +3,6 @@ import {
   WALLET_SETTINGS,
   WalletSettings,
 } from "@/contexts/WalletManagerContext";
-import { ApiResponse } from "@/api/message";
 import { publicKeyToAddress } from "viem/accounts";
 import { ApiUtils } from "@/api/background/utils";
 
@@ -48,7 +47,7 @@ export class EthereumAccountsChangedListener {
           if (!isHostConnected) {
             this.currentAddress = undefined;
             window.postMessage(
-              new ApiResponse("accountsChanged", []),
+              ApiUtils.createApiResponse("accountsChanged", []),
               window.location.origin,
             );
             return;
@@ -67,7 +66,7 @@ export class EthereumAccountsChangedListener {
           if (this.currentAddress !== selectedAddress) {
             this.currentAddress = selectedAddress;
             window.postMessage(
-              new ApiResponse("accountsChanged", [selectedAddress]),
+              ApiUtils.createApiResponse("accountsChanged", [selectedAddress]),
               window.location.origin,
             );
           }

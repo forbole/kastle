@@ -116,6 +116,9 @@ export class KastleBrowserAPI {
       }
 
       const parsedMessage = ApiResponseSchema.parse(message);
+      if (parsedMessage.id !== id) {
+        return;
+      }
 
       // Reject if the message is an error
       if (parsedMessage.error) {

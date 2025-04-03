@@ -7,6 +7,7 @@ import {
   ApiRequestWithHostSchema,
   ApiResponseSchema,
 } from "@/api/message";
+import { ethereumRequestHandler } from "@/api/background/handlers/ethereum/request";
 
 export class BackgroundService {
   public listen(): void {

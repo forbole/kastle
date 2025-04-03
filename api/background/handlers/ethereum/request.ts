@@ -1,10 +1,9 @@
 import { Handler } from "@/api/background/utils";
 import {
-  ApiRequest,
-  ApiResponse,
-  RpcRequest,
+  RpcRequestSchema,
   ETHEREUM_METHODS,
   RPC_ERRORS,
+  ApiRequestWithHost,
 } from "@/api/message";
 import { ApiUtils } from "@/api/background/utils";
 import { requestAccountsHandler } from "./requestAccounts";
@@ -14,18 +13,17 @@ import { chainIdHandler } from "./chainId";
 /** ethereumRequestHandler to serve BrowserMessageType.ETHEREUM_REQUEST message */
 export const ethereumRequestHandler: Handler = async (
   tabId: number,
-  message: ApiRequest,
+  message: ApiRequestWithHost,
   sendResponse: any,
 ) => {
-  if (!message.host) {
-    sendResponse(new ApiResponse(message.id, null, "Host is required"));
-    return;
-  }
-
   // Check if extension is initialized
   if (!(await ApiUtils.isInitialized())) {
     sendResponse(
-      new ApiResponse(message.id, null, "Extension is not initialized"),
+      ApiUtils.createApiResponse(
+        message.id,
+        null,
+        "Extension is not initialized",
+      ),
     );
     return;
   }
@@ -33,13 +31,17 @@ export const ethereumRequestHandler: Handler = async (
   // TODO: Check if the network is evm compatible
 
   const { payload } = message;
-  if (!RpcRequest.validate(payload)) {
-    sendResponse(new ApiResponse(message.id, null, "Invalid payload"));
+  const result = RpcRequestSchema.safeParse(payload);
+  if (!result.success) {
+    sendResponse(
+      ApiUtils.createApiResponse(message.id, null, "Invalid payload"),
+    );
     return;
   }
 
+  const parsedPayload = result.data;
   try {
-    switch (payload.method) {
+    switch (parsedPayload.method) {
       case ETHEREUM_METHODS.REQUEST_ACCOUNTS:
         await requestAccountsHandler(tabId, message, sendResponse);
         break;
@@ -50,10 +52,14 @@ export const ethereumRequestHandler: Handler = async (
         await chainIdHandler(tabId, message, sendResponse);
         break;
       default:
-        sendResponse(new ApiResponse(message.id, null, "Method not supported"));
+        sendResponse(
+          ApiUtils.createApiResponse(message.id, null, "Method not supported"),
+        );
         break;
     }
   } catch (error) {
-    sendResponse(new ApiResponse(message.id, null, RPC_ERRORS.INTERNAL_ERROR));
+    sendResponse(
+      ApiUtils.createApiResponse(message.id, null, RPC_ERRORS.INTERNAL_ERROR),
+    );
   }
 };
