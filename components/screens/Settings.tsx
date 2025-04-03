@@ -14,13 +14,11 @@ import packageJson from "../../package.json";
 export const explorerTxLinks = {
   [NetworkType.Mainnet]: "https://kas.fyi/transaction/",
   [NetworkType.TestnetT10]: "https://explorer-tn10.kaspa.org/txs/",
-  [NetworkType.TestnetT11]: "https://explorer-tn11.kaspa.org/txs/",
 };
 
 export const explorerAddressLinks = {
   [NetworkType.Mainnet]: "https://kas.fyi/address/",
   [NetworkType.TestnetT10]: "https://explorer-tn10.kaspa.org/addresses/",
-  [NetworkType.TestnetT11]: "https://explorer-tn11.kaspa.org/addresses/",
 };
 
 export default function Settings() {
@@ -55,12 +53,6 @@ export default function Settings() {
       name: "Testnet T10",
       text: "text-yellow-500",
       iconColor: "bg-yellow-500",
-    },
-    {
-      id: NetworkType.TestnetT11,
-      name: "Testnet T11",
-      text: "text-violet-500",
-      iconColor: "bg-violet-500",
     },
   ];
   const selectedNetwork = networks.find((n) => n.id === settings?.networkId);

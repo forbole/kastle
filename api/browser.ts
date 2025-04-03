@@ -12,9 +12,7 @@ import { NetworkType } from "@/contexts/SettingsContext.tsx";
 export class KastleBrowserAPI {
   constructor() {}
 
-  async connect(
-    networkId: "mainnet" | "testnet-10" | "testnet-11",
-  ): Promise<boolean> {
+  async connect(networkId: "mainnet" | "testnet-10"): Promise<boolean> {
     const requestId = uuid();
 
     const iconElement =
@@ -45,7 +43,7 @@ export class KastleBrowserAPI {
   }
 
   async signAndBroadcastTx(
-    networkId: "mainnet" | "testnet-10" | "testnet-11",
+    networkId: "mainnet" | "testnet-10",
     txJson: string,
     scripts?: ScriptOption[],
   ): Promise<string> {
@@ -61,7 +59,7 @@ export class KastleBrowserAPI {
   }
 
   async signTx(
-    networkId: "mainnet" | "testnet-10" | "testnet-11",
+    networkId: "mainnet" | "testnet-10",
     txJson: string,
     scripts?: ScriptOption[],
   ): Promise<string> {

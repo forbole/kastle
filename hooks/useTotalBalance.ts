@@ -12,7 +12,7 @@ export default function useTotalBalance() {
     5000,
   );
 
-  const balancePerTicker = tokenListResponse?.result.reduce<
+  const balancePerTicker = tokenListResponse?.result?.reduce<
     Record<string, number>
   >((acc, token) => {
     const { toFloat } = applyDecimal(token.dec);
