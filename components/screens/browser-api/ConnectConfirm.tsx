@@ -115,13 +115,6 @@ export default function ConnectConfirm() {
       iconColor: "bg-yellow-500",
       background: "bg-yellow-800",
     },
-    {
-      id: NetworkType.TestnetT11,
-      name: "Testnet | T11",
-      text: "text-violet-500",
-      iconColor: "bg-violet-500",
-      background: "bg-violet-800",
-    },
   ];
   const selectedNetwork = networks.find((n) => n.id === settings?.networkId);
 
