@@ -4,10 +4,12 @@ import {
   ApiResponse,
   RpcRequest,
   ETHEREUM_METHODS,
+  RPC_ERRORS,
 } from "@/api/message";
 import { ApiUtils } from "@/api/background/utils";
 import { requestAccountsHandler } from "./requestAccounts";
 import { accountsHandler } from "./accounts";
+import { chainIdHandler } from "./chainId";
 
 /** ethereumRequestHandler to serve BrowserMessageType.ETHEREUM_REQUEST message */
 export const ethereumRequestHandler: Handler = async (
@@ -36,15 +38,22 @@ export const ethereumRequestHandler: Handler = async (
     return;
   }
 
-  switch (payload.method) {
-    case ETHEREUM_METHODS.REQUEST_ACCOUNTS:
-      await requestAccountsHandler(tabId, message, sendResponse);
-      break;
-    case ETHEREUM_METHODS.ACCOUNTS:
-      await accountsHandler(tabId, message, sendResponse);
-      break;
-    default:
-      sendResponse(new ApiResponse(message.id, null, "Method not supported"));
-      break;
+  try {
+    switch (payload.method) {
+      case ETHEREUM_METHODS.REQUEST_ACCOUNTS:
+        await requestAccountsHandler(tabId, message, sendResponse);
+        break;
+      case ETHEREUM_METHODS.ACCOUNTS:
+        await accountsHandler(tabId, message, sendResponse);
+        break;
+      case ETHEREUM_METHODS.CHAIN_ID:
+        await chainIdHandler(tabId, message, sendResponse);
+        break;
+      default:
+        sendResponse(new ApiResponse(message.id, null, "Method not supported"));
+        break;
+    }
+  } catch (error) {
+    sendResponse(new ApiResponse(message.id, null, RPC_ERRORS.INTERNAL_ERROR));
   }
 };

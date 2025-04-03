@@ -57,6 +57,8 @@ export enum RpcErrorCode {
   USER_REJECTED_REQUEST = 4001,
   UNAUTHORIZED = 4100,
   METHOD_NOT_SUPPORTED = 4200,
+  INTERNAL_ERROR = 5000,
+  TIMEOUT = -320603,
 }
 
 export const RPC_ERRORS = {
@@ -69,7 +71,8 @@ export const RPC_ERRORS = {
     RpcErrorCode.METHOD_NOT_SUPPORTED,
     "Method not supported",
   ),
-  TIMEOUT: new RpcError(-320603, "Request timeout"),
+  TIMEOUT: new RpcError(RpcErrorCode.TIMEOUT, "Request timeout"),
+  INTERNAL_ERROR: new RpcError(RpcErrorCode.INTERNAL_ERROR, "Internal error"),
 };
 
 export enum ETHEREUM_METHODS {
