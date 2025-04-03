@@ -1,15 +1,16 @@
-import { ApiRequest, ApiResponse, ConnectPayload } from "@/api/message";
+import { ApiRequestWithHost, ConnectPayloadSchema } from "@/api/message";
 import { ApiUtils, Handler } from "@/api/background/utils";
+import { NetworkType } from "@/contexts/SettingsContext";
 
 /** Connect handler to serve BrowserMessageType.CONNECT message */
 export const connectHandler: Handler = async (
   tabId: number,
-  message: ApiRequest,
+  message: ApiRequestWithHost,
   sendResponse: (response?: any) => void,
 ) => {
   const sendError = function (error: string) {
     // NOTE: can not send undefined as response, so send null
-    sendResponse(new ApiResponse(message.id, null, error));
+    sendResponse(ApiUtils.createApiResponse(message.id, null, error));
   };
 
   if (!message.host) {
@@ -18,10 +19,12 @@ export const connectHandler: Handler = async (
   }
 
   const { payload } = message;
-  if (!ConnectPayload.validate(payload)) {
+  const result = ConnectPayloadSchema.safeParse(payload);
+  if (!result.success) {
     sendError("Invalid payload");
     return;
   }
+  const parsedPayload = result.data;
 
   // Check if extension is initialized
   if (!(await ApiUtils.isInitialized())) {
@@ -30,17 +33,19 @@ export const connectHandler: Handler = async (
   }
 
   // Check if networkId matches
-  if (!(await ApiUtils.matchNetworkId(payload.networkId))) {
+  if (
+    !(await ApiUtils.matchNetworkId(parsedPayload.networkId as NetworkType))
+  ) {
     sendError(
       "Network ID does not match, please change network to " +
-        payload.networkId,
+        parsedPayload.networkId,
     );
     return;
   }
 
   // Check if connection is already existing
   if (await ApiUtils.isHostConnected(message.host)) {
-    sendResponse(new ApiResponse(message.id, true));
+    sendResponse(ApiUtils.createApiResponse(message.id, true));
     return;
   }
 
@@ -48,8 +53,8 @@ export const connectHandler: Handler = async (
   url.hash = `/connect`;
   url.searchParams.set("host", message.host);
   url.searchParams.set("requestId", message.id);
-  url.searchParams.set("name", payload.name);
-  url.searchParams.set("icon", payload.icon ?? "");
+  url.searchParams.set("name", parsedPayload.name);
+  url.searchParams.set("icon", parsedPayload.icon ?? "");
 
   ApiUtils.openPopup(tabId, url.toString());
 

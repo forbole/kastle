@@ -1,4 +1,4 @@
-import { ApiRequest } from "@/api/message";
+import { ApiRequestSchema, ApiRequestWithHostSchema } from "@/api/message";
 
 export default defineContentScript({
   matches: ["*://*/*"],
@@ -12,19 +12,21 @@ export default defineContentScript({
     window.addEventListener("message", async (event: MessageEvent<unknown>) => {
       const message = event.data;
 
-      if (!ApiRequest.validate(message)) {
+      const result = ApiRequestSchema.safeParse(message);
+      if (!result.success) {
         return;
       }
 
-      // Filter out messages that are not to the background script from the browser
-      if (message.target !== "background" && message.source !== "browser") {
-        return;
-      }
-
-      message.host = window.location.host;
+      const parsedMessage = ApiRequestSchema.parse(message);
+      const messageWithHost = {
+        ...parsedMessage,
+        host: window.location.host,
+      };
+      const parsedMessageWithHost =
+        ApiRequestWithHostSchema.parse(messageWithHost);
 
       // Send the message to the background script
-      const response = await browser.runtime.sendMessage(message);
+      const response = await browser.runtime.sendMessage(parsedMessageWithHost);
 
       // Send the response back to the source
       window.postMessage(response, "*");

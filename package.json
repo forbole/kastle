@@ -48,7 +48,8 @@
     "tailwind-merge": "^2.6.0",
     "use-deep-compare-effect": "^1.8.1",
     "usehooks-ts": "^3.1.0",
-    "uuid": "^11.0.5"
+    "uuid": "^11.0.5",
+    "zod": "^3.24.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.15.0",

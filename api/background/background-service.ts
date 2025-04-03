@@ -2,25 +2,32 @@ import { connectHandler } from "@/api/background/handlers/connect";
 import { getAccountHandler } from "@/api/background/handlers/getAccount";
 import { signAndBroadcastTxHandler } from "@/api/background/handlers/signAndBroadcastTx";
 import { signTxHandler } from "@/api/background/handlers/signTx";
-import { Action, ApiRequest, ApiResponse } from "@/api/message";
+import {
+  Action,
+  ApiRequestWithHostSchema,
+  ApiResponseSchema,
+} from "@/api/message";
 
 export class BackgroundService {
   public listen(): void {
     browser.runtime.onMessage.addListener(
       (message: unknown, sender, sendResponse) => {
-        if (!ApiRequest.validate(message)) {
+        const result = ApiRequestWithHostSchema.safeParse(message);
+        if (!result.success) {
           return;
         }
 
-        if (message.source !== "browser") {
-          return;
-        }
+        const parsedMessage = ApiRequestWithHostSchema.parse(message);
 
-        const handler = this.getHandler(message.action);
+        const handler = this.getHandler(parsedMessage.action);
 
         if (!handler) {
           sendResponse(
-            new ApiResponse(message.id, undefined, "Invalid action"),
+            ApiResponseSchema.parse({
+              id: parsedMessage.id,
+              target: "browser",
+              error: "Invalid action",
+            }),
           );
 
           // Set return true to enable sendResponse callback
@@ -30,7 +37,7 @@ export class BackgroundService {
         browser.tabs.query({ active: true, currentWindow: true }, (tabs) => {
           const tab = tabs[0];
           if (tab?.id) {
-            handler(tab.id, message, sendResponse).catch((error) => {
+            handler(tab.id, parsedMessage, sendResponse).catch((error) => {
               console.error("Unresolved error:", error);
             });
           }

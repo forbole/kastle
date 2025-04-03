@@ -1,5 +1,6 @@
 import { ScriptOption } from "@/lib/wallet/wallet-interface.ts";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
+import { z } from "zod";
 
 export enum Action {
   CONNECT,
@@ -8,116 +9,58 @@ export enum Action {
   SIGN_TX,
 }
 
-export class SignTxPayload {
-  constructor(
-    public readonly networkId: string,
-    public readonly txJson: string,
-    public readonly scripts?: ScriptOption[],
-  ) {}
+export const SignTxPayloadSchema = z.object({
+  networkId: z.string(),
+  txJson: z.string(),
+  scripts: z.array(z.custom<ScriptOption>()).optional(),
+});
 
-  static validate(data: unknown): data is SignTxPayload {
-    return (
-      typeof data === "object" &&
-      !!data &&
-      "networkId" in data &&
-      "txJson" in data
-    );
-  }
-
-  static fromUriString(uriComponent: string): SignTxPayload {
-    const parsed = JSON.parse(decodeURIComponent(uriComponent));
-    return new SignTxPayload(parsed.networkId, parsed.txJson, parsed.scripts);
-  }
-
-  toUriString(): string {
-    return encodeURIComponent(JSON.stringify(this));
-  }
-}
+export type SignTxPayload = z.infer<typeof SignTxPayloadSchema>;
 
 // ================================================================================================
 
-export class ConnectPayload {
-  constructor(
-    public readonly name: string,
-    public readonly networkId: NetworkType,
-    public readonly icon?: string,
-  ) {}
+export const ConnectPayloadSchema = z.object({
+  networkId: z.string(),
+  name: z.string(),
+  icon: z.string().optional(),
+});
 
-  static validate(data: unknown): data is ConnectPayload {
-    return (
-      typeof data === "object" &&
-      !!data &&
-      "name" in data &&
-      "networkId" in data
-    );
-  }
-}
+export type ConnectPayload = z.infer<typeof ConnectPayloadSchema>;
 
 // ================================================================================================
 
-export class ApiRequest<T = unknown> {
-  host?: string;
-  source = "browser";
-  target = "background";
+export const ApiRequestSchema = z.object({
+  action: z.nativeEnum(Action),
+  id: z.string(),
+  source: z.literal("browser"),
+  target: z.literal("background"),
+  payload: z.unknown().optional(),
+});
 
-  constructor(
-    public readonly action: Action,
-    public readonly id: string,
-    public readonly payload?: T,
-  ) {}
+export type ApiRequest = z.infer<typeof ApiRequestSchema>;
 
-  static validate(data: unknown): data is ApiRequest {
-    return (
-      typeof data === "object" &&
-      !!data &&
-      "action" in data &&
-      "id" in data &&
-      "source" in data &&
-      "target" in data
-    );
-  }
-}
+export const ApiRequestWithHostSchema = ApiRequestSchema.extend({
+  host: z.string(),
+});
 
-export class ApiResponse<T = unknown> {
-  target = "browser";
+export type ApiRequestWithHost = z.infer<typeof ApiRequestWithHostSchema>;
 
-  constructor(
-    public readonly id: string,
-    public readonly response: T,
-    public readonly error?: string,
-  ) {}
+export const ApiResponseSchema = z.object({
+  id: z.string(),
+  response: z.unknown(),
+  error: z.string().optional(),
+  source: z.literal("background"),
+  target: z.literal("browser"),
+});
 
-  static validate(data: unknown): data is ApiResponse {
-    return (
-      typeof data === "object" &&
-      !!data &&
-      "id" in data &&
-      "response" in data &&
-      "target" in data &&
-      (!("error" in data) || typeof data.error === "string")
-    );
-  }
-}
+export type ApiResponse = z.infer<typeof ApiResponseSchema>;
 
-export class ApiExtensionResponse<T = unknown> {
-  source = "extension";
-  target = "background";
+export const ApiExtensionResponseSchema = z.object({
+  id: z.string(),
+  response: z.unknown().optional(),
+  error: z.string().optional(),
+  source: z.literal("extension"),
+  target: z.literal("background"),
+});
 
-  constructor(
-    public readonly id: string,
-    public readonly response?: T,
-    public readonly error?: string,
-  ) {}
-
-  static validate(data: unknown): data is ApiExtensionResponse {
-    return (
-      typeof data === "object" &&
-      !!data &&
-      "id" in data &&
-      "source" in data &&
-      "target" in data &&
-      "response" in data &&
-      (!("error" in data) || typeof data.error === "string")
-    );
-  }
-}
+export type ApiExtensionResponse = z.infer<typeof ApiExtensionResponseSchema>;
