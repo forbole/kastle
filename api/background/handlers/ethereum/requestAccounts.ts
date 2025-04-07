@@ -2,7 +2,7 @@ import {
   ApiRequestWithHost,
   RpcError,
   RPC_ERRORS,
-  ApiResponse,
+  ApiResponseSchema,
 } from "@/api/message";
 import { ApiUtils } from "@/api/background/utils";
 import { publicKeyToAddress } from "viem/accounts";
@@ -28,10 +28,17 @@ export const requestAccountsHandler = async (
 
     ApiUtils.openPopup(tabId, url.toString());
 
-    const extensionResponse: ApiResponse =
-      await ApiUtils.receiveExtensionMessage(message.id);
+    const extensionResponse = await ApiUtils.receiveExtensionMessage(
+      message.id,
+    );
 
-    const isConnected = extensionResponse.response;
+    const result = ApiResponseSchema.safeParse(extensionResponse);
+    if (!result.success) {
+      sendError(RPC_ERRORS.INTERNAL_ERROR);
+      return;
+    }
+
+    const isConnected = result.data.response as boolean;
     if (!isConnected) {
       sendError(RPC_ERRORS.USER_REJECTED_REQUEST);
       return;

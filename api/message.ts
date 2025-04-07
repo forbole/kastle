@@ -40,6 +40,7 @@ export enum RpcErrorCode {
   UNAUTHORIZED = 4100,
   METHOD_NOT_SUPPORTED = 4200,
   INTERNAL_ERROR = 5000,
+  INVALID_PARAMS = -32602,
   TIMEOUT = -320603,
 }
 
@@ -64,6 +65,10 @@ export const RPC_ERRORS = {
   INTERNAL_ERROR: RpcErrorSchema.parse({
     code: RpcErrorCode.INTERNAL_ERROR,
     message: "Internal error",
+  }),
+  INVALID_PARAMS: RpcErrorSchema.parse({
+    code: RpcErrorCode.INVALID_PARAMS,
+    message: "Invalid params",
   }),
 };
 

@@ -2,6 +2,7 @@ import {
   ApiExtensionResponseSchema,
   ApiResponseSchema,
   ApiRequestWithHost,
+  RPC_ERRORS,
 } from "@/api/message";
 import { ExtensionService } from "@/lib/service/extension-service";
 import {
@@ -94,11 +95,11 @@ export class ApiUtils {
     });
   }
 
-  static async receiveExtensionMessage<T>(
+  static async receiveExtensionMessage(
     id: string,
     timeout = 60_000, // 1 minute
-  ): Promise<T> {
-    return new Promise<T>((resolve, reject) => {
+  ): Promise<unknown> {
+    return new Promise<unknown>((resolve, reject) => {
       const listener = (message: unknown) => {
         const result = ApiExtensionResponseSchema.safeParse(message);
         if (!result.success) {
@@ -110,15 +111,20 @@ export class ApiUtils {
           return;
         }
 
+        if (parsedMessage.error) {
+          reject(parsedMessage.error);
+          return;
+        }
+
         browser.runtime.onMessage.removeListener(listener);
-        resolve(parsedMessage.response as T);
+        resolve(parsedMessage.response);
       };
 
       browser.runtime.onMessage.addListener(listener);
 
       setTimeout(() => {
         browser.runtime.onMessage.removeListener(listener);
-        reject(new Error("Timeout"));
+        reject(RPC_ERRORS.TIMEOUT);
       }, timeout);
     });
   }

@@ -56,6 +56,7 @@ import KNSAsset from "@/components/screens/KNSAsset";
 import KRC721 from "@/components/screens/KRC721";
 import OnboardingSuccess from "@/components/onboarding/OnboardingSuccess.tsx";
 import ChangePassword from "@/components/screens/ChangePassword.tsx";
+import EthereumSignMessageConfirm from "@/components/screens/browser-api/ethereum/EthereumSignMessageConfirm";
 
 const loadKaspaWasm = async () => {
   await init(kaspaModule);
@@ -216,6 +217,12 @@ export const router = createHashRouter([
                     path: "sign-tx",
                     element: <SignTxConfirm />,
                   },
+
+                  // Ethereum browser API routes
+                  {
+                    path: "ethereum/sign-message",
+                    element: <EthereumSignMessageConfirm />,
+                  }
                 ],
               },
               { path: "password-lost", element: <ResetWallet /> },

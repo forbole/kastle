@@ -3,12 +3,14 @@ import {
   RpcRequestSchema,
   ETHEREUM_METHODS,
   RPC_ERRORS,
+  RpcErrorSchema,
   ApiRequestWithHost,
 } from "@/api/message";
 import { ApiUtils } from "@/api/background/utils";
 import { requestAccountsHandler } from "./requestAccounts";
 import { accountsHandler } from "./accounts";
 import { chainIdHandler } from "./chainId";
+import { signMessageHandler } from "./signMessage";
 
 /** ethereumRequestHandler to serve BrowserMessageType.ETHEREUM_REQUEST message */
 export const ethereumRequestHandler: Handler = async (
@@ -34,7 +36,7 @@ export const ethereumRequestHandler: Handler = async (
   const result = RpcRequestSchema.safeParse(payload);
   if (!result.success) {
     sendResponse(
-      ApiUtils.createApiResponse(message.id, null, "Invalid payload"),
+      ApiUtils.createApiResponse(message.id, null, RPC_ERRORS.INVALID_PARAMS),
     );
     return;
   }
@@ -50,6 +52,9 @@ export const ethereumRequestHandler: Handler = async (
         break;
       case ETHEREUM_METHODS.CHAIN_ID:
         await chainIdHandler(tabId, message, sendResponse);
+        break;
+      case ETHEREUM_METHODS.SIGN_MESSAGE:
+        await signMessageHandler(tabId, message, sendResponse);
         break;
       default:
         sendResponse(
