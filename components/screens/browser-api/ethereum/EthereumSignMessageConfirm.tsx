@@ -14,16 +14,18 @@ export default function EthereumSignMessageConfirm() {
     "payload",
   );
 
-  const payload = encodedPayload
-    ? decodeURIComponent(encodedPayload)
-    : null;
+  const payload = encodedPayload ? decodeURIComponent(encodedPayload) : null;
 
   const loading = !wallet || !requestId || !payload;
 
   useEffect(() => {
     // Handle beforeunload event
     async function beforeunload(event: BeforeUnloadEvent) {
-      const denyMessage = ApiUtils.createApiResponse(requestId, false, RPC_ERRORS.USER_REJECTED_REQUEST);
+      const denyMessage = ApiUtils.createApiResponse(
+        requestId,
+        false,
+        RPC_ERRORS.USER_REJECTED_REQUEST,
+      );
       await ApiExtensionUtils.sendMessage(requestId, denyMessage);
     }
 
@@ -40,9 +42,7 @@ export default function EthereumSignMessageConfirm() {
       {!loading && wallet.type !== "ledger" && (
         <HotWalletSignMessage requestId={requestId} payload={payload} />
       )}
-      {!loading && wallet.type === "ledger" && (
-        <>Not Supported</>
-      )}
+      {!loading && wallet.type === "ledger" && <>Not Supported</>}
     </div>
   );
 }

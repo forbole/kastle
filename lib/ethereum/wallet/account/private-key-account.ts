@@ -1,5 +1,9 @@
-import { XPrv } from "@/wasm/core/kaspa";
-import { privateKeyToAccount, PrivateKeyAccount } from "viem/accounts";
+import {
+  privateKeyToAccount,
+  PrivateKeyAccount,
+  SignTypedDataParameters,
+} from "viem/accounts";
+import { TransactionSerializable } from "viem";
 
 export class EthereumPrivateKeyAccount {
   private readonly account: PrivateKeyAccount;
@@ -11,7 +15,16 @@ export class EthereumPrivateKeyAccount {
     this.account = privateKeyToAccount(privateKey as `0x${string}`);
   }
 
+  async signTransaction(transaction: TransactionSerializable) {
+    return this.account.signTransaction(transaction);
+  }
+
+  async signTypedData(typedData: SignTypedDataParameters) {
+    return this.account.signTypedData(typedData);
+  }
+
   async signMessage(message: string) {
-    return this.account.signMessage({ message });
+    const hexMessage = `0x${Buffer.from(message, "utf-8").toString("hex")}`;
+    return this.account.signMessage({ message: hexMessage });
   }
 }

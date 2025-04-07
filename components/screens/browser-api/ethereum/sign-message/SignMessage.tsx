@@ -40,11 +40,7 @@ export default function SignMessage({
       console.log(err);
       await ApiExtensionUtils.sendMessage(
         requestId,
-        ApiUtils.createApiResponse(
-          requestId,
-          null,
-          RPC_ERRORS.INTERNAL_ERROR,
-        ),
+        ApiUtils.createApiResponse(requestId, null, RPC_ERRORS.INTERNAL_ERROR),
       );
     } finally {
       window.close();
@@ -54,7 +50,11 @@ export default function SignMessage({
   const cancel = async () => {
     await ApiExtensionUtils.sendMessage(
       requestId,
-      ApiUtils.createApiResponse(requestId, null, RPC_ERRORS.USER_REJECTED_REQUEST),
+      ApiUtils.createApiResponse(
+        requestId,
+        null,
+        RPC_ERRORS.USER_REJECTED_REQUEST,
+      ),
     );
     window.close();
   };

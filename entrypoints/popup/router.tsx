@@ -222,7 +222,7 @@ export const router = createHashRouter([
                   {
                     path: "ethereum/sign-message",
                     element: <EthereumSignMessageConfirm />,
-                  }
+                  },
                 ],
               },
               { path: "password-lost", element: <ResetWallet /> },

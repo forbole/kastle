@@ -1,3 +1,5 @@
+import { TransactionRequest } from "viem";
+import { z } from "zod";
 import {
   ApiRequestWithHost,
   RpcError,
@@ -5,16 +7,14 @@ import {
   RpcRequestSchema,
 } from "@/api/message";
 import { ApiUtils } from "@/api/background/utils";
-import { z } from "zod";
 import { isMatchCurrentAddress } from "./utils";
 
-export const signMessageHandler = async (
+export const signTransactionHandler = async (
   tabId: number,
   message: ApiRequestWithHost,
   sendResponse: (response?: any) => void,
 ) => {
   const sendError = function (error: RpcError) {
-    // NOTE: can not send undefined as response, so send null
     sendResponse(ApiUtils.createApiResponse(message.id, null, error));
   };
 
@@ -26,44 +26,45 @@ export const signMessageHandler = async (
 
   const request = RpcRequestSchema.parse(message.payload);
   const { params } = request;
-  if (params.length < 2) {
+  if (params.length < 1) {
     sendError(RPC_ERRORS.INVALID_PARAMS);
     return;
   }
+  const payload = params[0];
+  const schema = z.object({}).passthrough() as z.ZodType<TransactionRequest>;
 
-  const fromAddress = params[1];
-  const addressResult = z
-    .string()
-    .regex(/^0x[a-fA-F0-9]{40}$/)
-    .safeParse(fromAddress);
-  if (!addressResult.success) {
-    sendError(RPC_ERRORS.INVALID_PARAMS);
-    return;
-  }
-
-  const isMatch = await isMatchCurrentAddress(addressResult.data);
-  if (!isMatch) {
-    sendError(RPC_ERRORS.UNAUTHORIZED);
-    return;
-  }
-
-  const messageToSign = params[0];
-  const result = z.string().safeParse(messageToSign);
+  const result = schema.safeParse(payload);
   if (!result.success) {
     sendError(RPC_ERRORS.INVALID_PARAMS);
     return;
   }
 
-  const parsedPayload = result.data;
+  const transaction = result.data;
+  const fromAddress = transaction.from;
+  if (!fromAddress) {
+    sendError(RPC_ERRORS.INVALID_PARAMS);
+    return;
+  }
+
+  const isMatch = await isMatchCurrentAddress(fromAddress);
+  if (!isMatch) {
+    sendError(RPC_ERRORS.UNAUTHORIZED);
+    return;
+  }
+
   const url = new URL(browser.runtime.getURL("/popup.html"));
-  url.hash = `/ethereum/sign-message`;
+  url.hash = `/ethereum/sign-transaction`;
   url.searchParams.set("requestId", message.id);
-  url.searchParams.set("payload", encodeURIComponent(parsedPayload));
+  url.searchParams.set(
+    "payload",
+    encodeURIComponent(JSON.stringify(transaction)),
+  );
 
   ApiUtils.openPopup(tabId, url.toString());
 
   // Wait for the response from the popup
-  const response = await ApiUtils.receiveExtensionMessage(message.id);
-
-  sendResponse(response);
+  const ApiExtensionResponse = await ApiUtils.receiveExtensionMessage(
+    message.id,
+  );
+  sendResponse(ApiExtensionResponse);
 };

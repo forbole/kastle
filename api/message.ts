@@ -77,6 +77,7 @@ export enum ETHEREUM_METHODS {
   CHAIN_ID = "eth_chainId",
   ACCOUNTS = "eth_accounts",
   SIGN_TYPED_DATA_V4 = "eth_signTypedData_v4",
+  SIGN_TRANSACTION = "eth_signTransaction",
   SEND_TRANSACTION = "eth_sendTransaction",
   SIGN_MESSAGE = "personal_sign",
   WALLET_SWITCH_ETHEREUM_NETWORK = "wallet_switchEthereumChain",

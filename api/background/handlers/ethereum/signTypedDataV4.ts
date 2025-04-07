@@ -1,3 +1,4 @@
+import { type SignTypedDataParameters } from "viem/accounts";
 import {
   ApiRequestWithHost,
   RpcError,
@@ -8,13 +9,12 @@ import { ApiUtils } from "@/api/background/utils";
 import { z } from "zod";
 import { isMatchCurrentAddress } from "./utils";
 
-export const signMessageHandler = async (
+export const signTypedDataV4Handler = async (
   tabId: number,
   message: ApiRequestWithHost,
   sendResponse: (response?: any) => void,
 ) => {
   const sendError = function (error: RpcError) {
-    // NOTE: can not send undefined as response, so send null
     sendResponse(ApiUtils.createApiResponse(message.id, null, error));
   };
 
@@ -31,7 +31,7 @@ export const signMessageHandler = async (
     return;
   }
 
-  const fromAddress = params[1];
+  const fromAddress = params[0];
   const addressResult = z
     .string()
     .regex(/^0x[a-fA-F0-9]{40}$/)
@@ -40,30 +40,34 @@ export const signMessageHandler = async (
     sendError(RPC_ERRORS.INVALID_PARAMS);
     return;
   }
-
   const isMatch = await isMatchCurrentAddress(addressResult.data);
   if (!isMatch) {
     sendError(RPC_ERRORS.UNAUTHORIZED);
     return;
   }
 
-  const messageToSign = params[0];
-  const result = z.string().safeParse(messageToSign);
+  const payload = params[1];
+  const schema = z.any() as z.ZodType<SignTypedDataParameters>;
+  const result = schema.safeParse(payload);
   if (!result.success) {
     sendError(RPC_ERRORS.INVALID_PARAMS);
     return;
   }
 
-  const parsedPayload = result.data;
+  const transaction = result.data;
   const url = new URL(browser.runtime.getURL("/popup.html"));
-  url.hash = `/ethereum/sign-message`;
+  url.hash = `/ethereum/sign-transaction`;
   url.searchParams.set("requestId", message.id);
-  url.searchParams.set("payload", encodeURIComponent(parsedPayload));
+  url.searchParams.set(
+    "payload",
+    encodeURIComponent(JSON.stringify(transaction)),
+  );
 
   ApiUtils.openPopup(tabId, url.toString());
 
   // Wait for the response from the popup
-  const response = await ApiUtils.receiveExtensionMessage(message.id);
-
-  sendResponse(response);
+  const ApiExtensionResponse = await ApiUtils.receiveExtensionMessage(
+    message.id,
+  );
+  sendResponse(ApiExtensionResponse);
 };
