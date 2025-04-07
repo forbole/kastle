@@ -223,6 +223,15 @@ export const router = createHashRouter([
                     path: "ethereum/sign-message",
                     element: <EthereumSignMessageConfirm />,
                   },
+                  {
+                    path: "ethereum/sign-typed-data-v4",
+                  },
+                  {
+                    path: "ethereum/sign-transaction",
+                  },
+                  {
+                    path: "ethereum/send-transaction",
+                  }
                 ],
               },
               { path: "password-lost", element: <ResetWallet /> },

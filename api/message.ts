@@ -20,10 +20,8 @@ export type SignTxPayload = z.infer<typeof SignTxPayloadSchema>;
 // ================================================================================================
 
 export const RpcRequestSchema = z.object({
-  jsonrpc: z.literal("2.0"),
-  id: z.number(),
   method: z.string(),
-  params: z.array(z.unknown()),
+  params: z.array(z.unknown()).optional(),
 });
 
 export type RpcRequest = z.infer<typeof RpcRequestSchema>;

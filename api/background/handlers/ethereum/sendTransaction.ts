@@ -26,7 +26,7 @@ export const sendTransactionHandler = async (
 
   const request = RpcRequestSchema.parse(message.payload);
   const { params } = request;
-  if (params.length < 1) {
+  if (!params || params.length < 2) {
     sendError(RPC_ERRORS.INVALID_PARAMS);
     return;
   }
