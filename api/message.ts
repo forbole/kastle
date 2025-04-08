@@ -1,5 +1,4 @@
 import { ScriptOption } from "@/lib/wallet/wallet-interface.ts";
-import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import { z } from "zod";
 
 export enum Action {
@@ -7,6 +6,18 @@ export enum Action {
   GET_ACCOUNT,
   SIGN_AND_BROADCAST_TX,
   SIGN_TX,
+  GET_WALLET_ADDRESS,
+  GET_NETWORK,
+  SWITCH_NETWORK,
+  SEND_KASPA,
+  GET_BALANCE,
+  SIGN_PSKT,
+  DO_COMMIT_REVEAL,
+  DO_REVEAL_ONLY,
+  GET_PUBLIC_KEY,
+  SIGN_MESSAGE,
+  GET_UTXO_ADDRESS,
+  COMPOUND_UTXO,
 }
 
 export const SignTxPayloadSchema = z.object({

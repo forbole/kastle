@@ -25,7 +25,9 @@ function createApiRequest(
 export class KastleBrowserAPI {
   constructor() {}
 
-  async connect(networkId: "mainnet" | "testnet-10"): Promise<boolean> {
+  async connect(
+    networkId: "mainnet" | "testnet-10" = "mainnet",
+  ): Promise<boolean> {
     const requestId = uuid();
 
     const iconElement =
@@ -47,6 +49,35 @@ export class KastleBrowserAPI {
       }),
     );
 
+    window.postMessage(request, "*");
+
+    return await this.receiveMessage(requestId);
+  }
+
+  async disconnect(): Promise<void> {}
+
+  async request(method: string, args?: unknown): Promise<any> {
+    const requestId = uuid();
+    const action = {
+      "get-wallet-address": Action.GET_WALLET_ADDRESS,
+      "get-network": Action.GET_NETWORK,
+      "switch-network": Action.SWITCH_NETWORK,
+      "send-kaspa": Action.SEND_KASPA,
+      "get-balance": Action.GET_BALANCE,
+      "sign-pskt": Action.SIGN_PSKT,
+      "do-commit-reveal": Action.DO_COMMIT_REVEAL,
+      "do-reveal-only": Action.DO_REVEAL_ONLY,
+      "get-public-key": Action.GET_PUBLIC_KEY,
+      "sign-message": Action.SIGN_MESSAGE,
+      "get-utxo-address": Action.GET_UTXO_ADDRESS,
+      "compount-utxo": Action.COMPOUND_UTXO,
+    }[method];
+
+    if (!action) {
+      return;
+    }
+
+    const request = createApiRequest(action, requestId, args);
     window.postMessage(request, "*");
 
     return await this.receiveMessage(requestId);

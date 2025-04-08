@@ -1,7 +1,7 @@
 import {
   ApiExtensionResponseSchema,
-  ApiResponseSchema,
   ApiRequestWithHost,
+  ApiResponseSchema,
 } from "@/api/message";
 import { ExtensionService } from "@/lib/service/extension-service";
 import {
@@ -10,8 +10,8 @@ import {
   SETTINGS_KEY,
 } from "@/contexts/SettingsContext.tsx";
 import {
-  WalletSettings,
   WALLET_SETTINGS,
+  WalletSettings,
 } from "@/contexts/WalletManagerContext";
 import { POPUP_WINDOW_HEIGHT, POPUP_WINDOW_WIDTH } from "@/lib/utils";
 
@@ -27,8 +27,16 @@ export class ApiUtils {
     });
   }
 
-  static async getSettings(): Promise<Settings | null> {
-    return await storage.getItem<Settings>(SETTINGS_KEY);
+  static async getSettings() {
+    return await storage.getItem<Settings>(SETTINGS_KEY, {
+      fallback: {
+        networkId: NetworkType.Mainnet,
+        lockTimeout: 5, // Save 5 minutes as default value
+        walletConnections: undefined,
+        hideBalances: true,
+        preview: false,
+      },
+    });
   }
 
   static async getWalletSettings() {
@@ -82,6 +90,18 @@ export class ApiUtils {
 
   static isUnlocked(): boolean {
     return ExtensionService.getInstance().getKeyring().isUnlocked();
+  }
+
+  static async isWalletReady(host?: string): Promise<string | undefined> {
+    if (!(await ApiUtils.isInitialized())) {
+      return "Extension is not initialized";
+    }
+    if (!ApiUtils.isUnlocked()) {
+      return "Wallet is locked";
+    }
+    if (!!host && !(await ApiUtils.isHostConnected(host))) {
+      return "Host not connected";
+    }
   }
 
   static createApiResponse(id: string, response: unknown, error?: unknown) {
