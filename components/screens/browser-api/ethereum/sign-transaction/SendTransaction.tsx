@@ -78,11 +78,12 @@ export default function SendTransaction({
         data: parsedRequest.data,
 
         gas: gasLimit,
-        maxFeePerGas:
-          parsedRequest.maxFeePerGas ? hexToBigInt(parsedRequest.maxFeePerGas) : estimatedGas.maxFeePerGas,
-        maxPriorityFeePerGas:
-          parsedRequest.maxPriorityFeePerGas ?
-          hexToBigInt(parsedRequest.maxPriorityFeePerGas) : estimatedGas.maxPriorityFeePerGas,
+        maxFeePerGas: parsedRequest.maxFeePerGas
+          ? hexToBigInt(parsedRequest.maxFeePerGas)
+          : estimatedGas.maxFeePerGas,
+        maxPriorityFeePerGas: parsedRequest.maxPriorityFeePerGas
+          ? hexToBigInt(parsedRequest.maxPriorityFeePerGas)
+          : estimatedGas.maxPriorityFeePerGas,
         chainId: sepolia.id,
         type: "eip1559",
         nonce,
@@ -141,7 +142,7 @@ export default function SendTransaction({
             Please confirm the transaction you are signing
           </p>
           <div className="mt-4 rounded-md bg-daintree-700 p-4">
-            <p className="whitespace-pre text-start text-sm overflow-auto">
+            <p className="overflow-auto whitespace-pre text-start text-sm">
               {JSON.stringify(payload, null, 2)}
             </p>
           </div>

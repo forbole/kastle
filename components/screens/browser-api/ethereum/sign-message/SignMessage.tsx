@@ -37,7 +37,7 @@ export default function SignMessage({
       );
       toggleIsSigning();
     } catch (err) {
-      console.log(err);
+      console.error(err);
       await ApiExtensionUtils.sendMessage(
         requestId,
         ApiUtils.createApiResponse(requestId, null, RPC_ERRORS.INTERNAL_ERROR),
