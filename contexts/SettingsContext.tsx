@@ -1,8 +1,19 @@
 import { createContext, ReactNode, useEffect, useState } from "react";
 import { captureException } from "@sentry/react";
-import { CurrencyCode } from "@/components/settings/CurrencySelection.tsx";
 
 export const SETTINGS_KEY = "local:settings";
+
+export const CURRENCIES = [
+  ["USD", "United States Dollar", "$"],
+  ["EUR", "Euro", "€"],
+  ["CNY", "Chinese Yuan", "¥"],
+  ["JPY", "Japanese Yen", "¥"],
+  ["HKD", "Hong Kong Dollar", "HK$"],
+  ["TWD", "New Taiwan Dollar", "NT$"],
+  ["RUB", "Russian Ruble", "₽"],
+] as const;
+
+export type CurrencyCode = (typeof CURRENCIES)[number][0];
 
 export enum NetworkType {
   Mainnet = "mainnet",
@@ -70,7 +81,7 @@ export const KRC721_CACHE_URLS = {
 
 const initialSettings = {
   networkId: NetworkType.Mainnet,
-  currency: "usd",
+  currency: "USD",
   lockTimeout: 5, // Save 5 minutes as default value
   walletConnections: undefined,
   hideBalances: true,

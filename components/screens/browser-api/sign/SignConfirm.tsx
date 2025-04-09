@@ -16,6 +16,7 @@ import { twMerge } from "tailwind-merge";
 import { useSettings } from "@/hooks/useSettings";
 import { useBoolean } from "usehooks-ts";
 import ledgerSignImage from "@/assets/images/ledger-on-sign.svg";
+import { formatCurrency } from "@/lib/utils.ts";
 
 type SignConfirmProps = {
   payload: SignTxPayload;
@@ -100,6 +101,17 @@ export default function SignConfirm({
   if (difference < 0n) {
     differenceInKas = -differenceInKas;
   }
+
+  const fiatDifference = differenceInKas * kapsaPrice.kaspaPrice;
+  const fiatAmount = parseFloat(sendingAmountInKas) * kapsaPrice.kaspaPrice;
+  const fiatFees = parseFloat(feesInKas) * kapsaPrice.kaspaPrice;
+
+  const { amount: differenceCurrency, code: differenceCurrencyCode } =
+    useCurrencyValue(fiatDifference);
+  const { amount: amountCurrency, code: amountCurrencyCode } =
+    useCurrencyValue(fiatAmount);
+  const { amount: feesCurrency, code: feesCurrencyCode } =
+    useCurrencyValue(fiatFees);
 
   const networks = [
     {
@@ -200,7 +212,10 @@ export default function SignConfirm({
                       {differenceInKas.toFixed(3)} KAS
                     </span>
                     <span className="text-xs text-daintree-400">
-                      {(differenceInKas * kapsaPrice.kaspaPrice).toFixed(3)} USD
+                      {formatCurrency(
+                        differenceCurrency,
+                        differenceCurrencyCode,
+                      )}
                     </span>
                   </div>
                 </div>
@@ -216,10 +231,7 @@ export default function SignConfirm({
                       {parseFloat(sendingAmountInKas).toFixed(3)} KAS
                     </span>
                     <span className="text-xs text-daintree-400">
-                      {(
-                        parseFloat(sendingAmountInKas) * kapsaPrice.kaspaPrice
-                      ).toFixed(3)}{" "}
-                      USD
+                      {formatCurrency(amountCurrency, amountCurrencyCode)}
                     </span>
                   </div>
                 </div>
@@ -232,10 +244,7 @@ export default function SignConfirm({
                       {parseFloat(feesInKas).toFixed(3)} KAS
                     </span>
                     <span className="text-xs text-daintree-400">
-                      {(parseFloat(feesInKas) * kapsaPrice.kaspaPrice).toFixed(
-                        3,
-                      )}{" "}
-                      USD
+                      {formatCurrency(feesCurrency, feesCurrencyCode)}
                     </span>
                   </div>
                 </div>

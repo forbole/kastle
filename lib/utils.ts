@@ -26,10 +26,10 @@ export function formatTokenPrice(number: number) {
   return formatter.format(number);
 }
 
-export function formatUSD(number: number) {
+export function formatCurrency(number: number, code: string = "USD") {
   const formatter = new Intl.NumberFormat("en-US", {
     style: "currency",
-    currency: "USD",
+    currency: code,
   });
 
   return formatter.format(number);

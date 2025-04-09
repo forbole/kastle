@@ -1,9 +1,12 @@
 import React from "react";
-import { formatToken } from "@/lib/utils.ts";
+import { formatCurrency } from "@/lib/utils.ts";
 import kasIcon from "@/assets/images/kas-icon.svg";
+import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 
 export default function KasInfo() {
   const { kaspaPrice } = useKaspaPrice();
+  const { amount: kaspaCurrency, code: kaspaCurrencyCode } =
+    useCurrencyValue(kaspaPrice);
 
   return (
     <div className="mb-4 mt-8 flex flex-col items-stretch gap-2">
@@ -20,7 +23,7 @@ export default function KasInfo() {
               <span className="capitalize">KAS</span>
             </div>
             <div className="flex items-center justify-start text-sm text-daintree-400">
-              <span>≈ {formatToken(kaspaPrice ?? 0)} USD</span>
+              <span>≈ {formatCurrency(kaspaCurrency, kaspaCurrencyCode)} </span>
             </div>
           </div>
         </div>

@@ -33,6 +33,7 @@ export const DetailsStep = ({
   onBack?: () => void;
 }) => {
   const navigate = useNavigate();
+  const [settings] = useSettings();
   const { account, addresses } = useWalletManager();
   const { rpcClient, getMinimumFee } = useRpcClientStateful();
   const { mempoolCongestionLevel } = useMempoolStatus();
@@ -83,6 +84,8 @@ export const DetailsStep = ({
   const [imageUrl, setImageUrl] = useState(kasIcon);
   const { kaspaPrice } = useKaspaPrice();
   const tokenPrice = isKasTransfer ? kaspaPrice : toPriceInUsd();
+  const { amount: tokenCurrency, code: tokenCurrencyCode } =
+    useCurrencyValue(tokenPrice);
   const { data: tokenBalanceResponse } = useTokenBalance(
     account?.address && !isKasTransfer
       ? {
@@ -238,9 +241,9 @@ export const DetailsStep = ({
     const amountNumber = parseFloat(amount ?? "0");
 
     if (!Number.isNaN(amountNumber)) {
-      setValue("amountUSD", formatToken(amountNumber * tokenPrice, 3));
+      setValue("amountFiat", formatToken(amountNumber * tokenCurrency, 3));
     } else {
-      setValue("amountUSD", undefined);
+      setValue("amountFiat", undefined);
     }
   }, [amount, tokenPrice]);
 
@@ -434,19 +437,19 @@ export const DetailsStep = ({
                 )}
               >
                 <img alt="kas" className="h-[18px] w-[18px]" src={usdIcon} />
-                USD
+                {settings?.currency}
               </span>
               <input
-                {...register("amountUSD", {
+                {...register("amountFiat", {
                   onChange: async (event) => {
                     const amountUsdNumber = parseFloat(
                       event.target.value ?? "0",
                     );
 
-                    if (!Number.isNaN(amountUsdNumber) && tokenPrice !== 0) {
+                    if (!Number.isNaN(amountUsdNumber) && tokenCurrency !== 0) {
                       setValue(
                         "amount",
-                        (amountUsdNumber / tokenPrice).toFixed(8),
+                        (amountUsdNumber / tokenCurrency).toFixed(8),
                       );
 
                       await trigger("amount");

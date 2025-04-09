@@ -1,17 +1,6 @@
 import { twMerge } from "tailwind-merge";
 import React from "react";
-
-const CURRENCIES = [
-  ["usd", "United States Dollar", "US$"],
-  ["eur", "Euro", "€"],
-  ["cny", "Chinese Yuan", "¥"],
-  ["jpy", "Japanese Yen", "¥"],
-  ["hkd", "Hong Kong Dollar", "HK$"],
-  ["twd", "New Taiwan Dollar", "NT$"],
-  ["rub", "Russian Ruble", "₽"],
-] as const;
-
-export type CurrencyCode = (typeof CURRENCIES)[number][0];
+import { CURRENCIES } from "@/contexts/SettingsContext";
 
 type CurrencySelectionProps = { isShown: boolean; toggleShow: () => void };
 
