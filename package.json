@@ -34,6 +34,7 @@
     "canvas": "^2.11.2",
     "canvas-confetti": "^1.9.3",
     "eslint-plugin-react-hooks": "^5.1.0",
+    "flag-icons": "^7.3.2",
     "hw-app-kaspa": "github:coderofstuff/hw-app-kaspa#v1.2.1",
     "posthog-js-lite": "^3.3.0",
     "preline": "^2.7.0",

@@ -5,7 +5,6 @@ import useKaspaPrice from "@/hooks/useKaspaPrice.ts";
 import { useNavigate } from "react-router-dom";
 import { formatToken } from "@/lib/utils.ts";
 import kasIcon from "@/assets/images/kas-icon.svg";
-import usdIcon from "@/assets/images/usd-icon.svg";
 import Header from "@/components/GeneralHeader.tsx";
 import useWalletManager from "@/hooks/useWalletManager.ts";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
@@ -24,6 +23,7 @@ import PriorityFeeSelection from "@/components/send/PriorityFeeSelection.tsx";
 import useMassCalculation from "@/hooks/useMassCalculation.ts";
 import usePriorityFeeEstimate from "@/hooks/usePriorityFeeEstimate.ts";
 import useMempoolStatus from "@/hooks/useMempoolStatus.ts";
+import "/node_modules/flag-icons/css/flag-icons.min.css";
 
 export const DetailsStep = ({
   onNext,
@@ -436,7 +436,11 @@ export const DetailsStep = ({
                     : "border-daintree-700",
                 )}
               >
-                <img alt="kas" className="h-[18px] w-[18px]" src={usdIcon} />
+                <span
+                  className={twMerge(
+                    `fi fi-${settings?.currency.slice(0, 2).toLocaleLowerCase()} fis rounded-full`,
+                  )}
+                ></span>
                 {settings?.currency}
               </span>
               <input
