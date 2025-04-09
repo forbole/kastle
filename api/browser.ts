@@ -63,13 +63,11 @@ export class KastleBrowserAPI {
       "get-network": Action.GET_NETWORK,
       "switch-network": Action.SWITCH_NETWORK,
       "send-kaspa": Action.SEND_KASPA,
-      "get-balance": Action.GET_BALANCE,
       "sign-pskt": Action.SIGN_PSKT,
       "do-commit-reveal": Action.DO_COMMIT_REVEAL,
       "do-reveal-only": Action.DO_REVEAL_ONLY,
       "get-public-key": Action.GET_PUBLIC_KEY,
       "sign-message": Action.SIGN_MESSAGE,
-      "get-utxo-address": Action.GET_UTXO_ADDRESS,
       "compount-utxo": Action.COMPOUND_UTXO,
     }[method];
 
