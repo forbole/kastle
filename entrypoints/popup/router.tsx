@@ -58,7 +58,7 @@ import OnboardingSuccess from "@/components/onboarding/OnboardingSuccess.tsx";
 import ChangePassword from "@/components/screens/ChangePassword.tsx";
 
 const loadKaspaWasm = async () => {
-  await init(kaspaModule);
+  await init({ module_or_path: kaspaModule });
   return null;
 };
 
