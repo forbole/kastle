@@ -7,6 +7,7 @@ import {
 import { ApiUtils } from "@/api/background/utils";
 import { z } from "zod";
 import { isMatchCurrentAddress } from "./utils";
+import { isAddress } from "viem";
 
 export const signMessageHandler = async (
   tabId: number,
@@ -26,7 +27,7 @@ export const signMessageHandler = async (
 
   const request = RpcRequestSchema.parse(message.payload);
   const { params } = request;
-  if (params.length < 2) {
+  if (!params || params.length < 2) {
     sendError(RPC_ERRORS.INVALID_PARAMS);
     return;
   }
@@ -34,7 +35,9 @@ export const signMessageHandler = async (
   const fromAddress = params[1];
   const addressResult = z
     .string()
-    .regex(/^0x[a-fA-F0-9]{40}$/)
+    .refine((address) => isAddress(address), {
+      message: "Invalid address",
+    })
     .safeParse(fromAddress);
   if (!addressResult.success) {
     sendError(RPC_ERRORS.INVALID_PARAMS);

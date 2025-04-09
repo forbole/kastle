@@ -1,5 +1,6 @@
 import { ScriptOption } from "@/lib/wallet/wallet-interface.ts";
 import { z } from "zod";
+import { isAddress, isHex } from "viem";
 
 export enum Action {
   CONNECT,
@@ -75,11 +76,25 @@ export enum ETHEREUM_METHODS {
   CHAIN_ID = "eth_chainId",
   ACCOUNTS = "eth_accounts",
   SIGN_TYPED_DATA_V4 = "eth_signTypedData_v4",
-  SIGN_TRANSACTION = "eth_signTransaction",
   SEND_TRANSACTION = "eth_sendTransaction",
   SIGN_MESSAGE = "personal_sign",
   WALLET_SWITCH_ETHEREUM_NETWORK = "wallet_switchEthereumChain",
 }
+
+export const ethereumTransactionRequestSchema = z.object({
+  from: z.string().refine(isAddress, "Must be a valid Ethereum address"),
+  to: z.string().refine(isAddress, "Must be a valid Ethereum address"),
+  value: z.string().refine(isHex, "Value must be a hex string"),
+  data: z.string().refine(isHex, "Data must be a hex string").optional(),
+  maxFeePerGas: z
+    .string()
+    .refine(isHex, "Max fee per gas must be a hex string")
+    .optional(),
+  maxPriorityFeePerGas: z
+    .string()
+    .refine(isHex, "Max priority fee must be a hex string")
+    .optional(),
+});
 
 // ================================================================================================
 

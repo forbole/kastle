@@ -1,10 +1,9 @@
-import { TransactionRequest } from "viem";
-import { z } from "zod";
 import {
   ApiRequestWithHost,
   RpcError,
   RPC_ERRORS,
   RpcRequestSchema,
+  ethereumTransactionRequestSchema,
 } from "@/api/message";
 import { ApiUtils } from "@/api/background/utils";
 import { isMatchCurrentAddress } from "./utils";
@@ -26,14 +25,13 @@ export const sendTransactionHandler = async (
 
   const request = RpcRequestSchema.parse(message.payload);
   const { params } = request;
-  if (!params || params.length < 2) {
+  if (!params || params.length < 1) {
     sendError(RPC_ERRORS.INVALID_PARAMS);
     return;
   }
-  const payload = params[0];
-  const schema = z.object({}).passthrough() as z.ZodType<TransactionRequest>;
 
-  const result = schema.safeParse(payload);
+  const payload = params[0];
+  const result = ethereumTransactionRequestSchema.safeParse(payload);
   if (!result.success) {
     sendError(RPC_ERRORS.INVALID_PARAMS);
     return;
@@ -41,11 +39,6 @@ export const sendTransactionHandler = async (
 
   const transaction = result.data;
   const fromAddress = transaction.from;
-  if (!fromAddress) {
-    sendError(RPC_ERRORS.INVALID_PARAMS);
-    return;
-  }
-
   const isMatch = await isMatchCurrentAddress(fromAddress);
   if (!isMatch) {
     sendError(RPC_ERRORS.UNAUTHORIZED);

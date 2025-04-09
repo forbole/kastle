@@ -57,6 +57,7 @@ import KRC721 from "@/components/screens/KRC721";
 import OnboardingSuccess from "@/components/onboarding/OnboardingSuccess.tsx";
 import ChangePassword from "@/components/screens/ChangePassword.tsx";
 import EthereumSignMessageConfirm from "@/components/screens/browser-api/ethereum/EthereumSignMessageConfirm";
+import EthereumSendTransactionConfirm from "@/components/screens/browser-api/ethereum/EthereumSendTransactionConfirm";
 
 const loadKaspaWasm = async () => {
   await init(kaspaModule);
@@ -227,11 +228,9 @@ export const router = createHashRouter([
                     path: "ethereum/sign-typed-data-v4",
                   },
                   {
-                    path: "ethereum/sign-transaction",
-                  },
-                  {
                     path: "ethereum/send-transaction",
-                  }
+                    element: <EthereumSendTransactionConfirm />,
+                  },
                 ],
               },
               { path: "password-lost", element: <ResetWallet /> },

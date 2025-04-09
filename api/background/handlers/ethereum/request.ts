@@ -11,7 +11,6 @@ import { accountsHandler } from "./accounts";
 import { chainIdHandler } from "./chainId";
 import { signMessageHandler } from "./signMessage";
 import { sendTransactionHandler } from "./sendTransaction";
-import { signTransactionHandler } from "./signTransaction";
 import { signTypedDataV4Handler } from "./signTypedDataV4";
 
 /** ethereumRequestHandler to serve BrowserMessageType.ETHEREUM_REQUEST message */
@@ -31,8 +30,6 @@ export const ethereumRequestHandler: Handler = async (
     );
     return;
   }
-
-  // TODO: Check if the network is evm compatible
 
   const { payload } = message;
   const result = RpcRequestSchema.safeParse(payload);
@@ -57,9 +54,6 @@ export const ethereumRequestHandler: Handler = async (
         break;
       case ETHEREUM_METHODS.SIGN_MESSAGE:
         await signMessageHandler(tabId, message, sendResponse);
-        break;
-      case ETHEREUM_METHODS.SIGN_TRANSACTION:
-        await signTransactionHandler(tabId, message, sendResponse);
         break;
       case ETHEREUM_METHODS.SEND_TRANSACTION:
         await sendTransactionHandler(tabId, message, sendResponse);
