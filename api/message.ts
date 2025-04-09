@@ -84,7 +84,7 @@ export enum ETHEREUM_METHODS {
 export const ethereumTransactionRequestSchema = z.object({
   from: z.string().refine(isAddress, "Must be a valid Ethereum address"),
   to: z.string().refine(isAddress, "Must be a valid Ethereum address"),
-  value: z.string().refine(isHex, "Value must be a hex string"),
+  value: z.string().refine(isHex, "Value must be a hex string").optional(),
   data: z.string().refine(isHex, "Data must be a hex string").optional(),
   maxFeePerGas: z
     .string()

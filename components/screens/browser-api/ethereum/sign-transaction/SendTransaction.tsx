@@ -101,12 +101,12 @@ export default function SendTransaction({
       );
       toggleIsSigning();
     } catch (err) {
-      console.log(err);
       await ApiExtensionUtils.sendMessage(
         requestId,
         ApiUtils.createApiResponse(requestId, null, RPC_ERRORS.INTERNAL_ERROR),
       );
     } finally {
+      window.close();
     }
   };
 
@@ -137,7 +137,7 @@ export default function SendTransaction({
 
         {/* Confirm Content */}
         <div className="text-center">
-          <h2 className="mt-4 text-2xl font-semibold">Sign Message</h2>
+          <h2 className="mt-4 text-2xl font-semibold">Send Transaction</h2>
           <p className="mt-2 text-base text-daintree-400">
             Please confirm the transaction you are signing
           </p>

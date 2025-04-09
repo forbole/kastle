@@ -28,12 +28,13 @@ export class EthereumBrowserAPI {
 
   request(request: RpcRequest) {
     const requestId = uuid();
-    window.postMessage(
-      createApiRequest(Action.ETHEREUM_REQUEST, requestId, request),
-      "*",
+    const apiRequest = createApiRequest(
+      Action.ETHEREUM_REQUEST,
+      requestId,
+      request,
     );
 
-    return this.receiveMessageWithTimeout(requestId);
+    return this.postAndReceive(apiRequest);
   }
 
   on(eventName: string, listener: (...args: unknown[]) => void) {
@@ -43,7 +44,7 @@ export class EthereumBrowserAPI {
         onMessage = this.onAccountsChanged(listener);
         break;
       default:
-        throw new Error(`Event ${eventName} is not supported`);
+        return;
     }
 
     this.listerMap.set(listener, onMessage);
@@ -77,6 +78,12 @@ export class EthereumBrowserAPI {
 
     window.addEventListener("message", onMessage);
     return onMessage;
+  }
+
+  private async postAndReceive<T>(request: ApiRequest) {
+    const receiveCallback = this.receiveMessageWithTimeout<T>(request.id);
+    window.postMessage(request, "*");
+    return receiveCallback;
   }
 
   private createReceiveCallback<T>(id: string) {
