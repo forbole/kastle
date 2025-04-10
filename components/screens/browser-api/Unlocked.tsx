@@ -1,6 +1,7 @@
 import Header from "@/components/GeneralHeader";
 import { ApiExtensionUtils } from "@/api/extension";
 import { ApiUtils } from "@/api/background/utils";
+import successImage from "@/assets/images/success.png";
 
 export default function Unlocked() {
   const requestId =
@@ -23,13 +24,7 @@ export default function Unlocked() {
 
         {/* Message */}
         <div className="flex flex-col items-center gap-3">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white">
-            <img
-              alt="Unlocked"
-              className="h-12 w-12"
-              src="/assets/images/success.png"
-            />
-          </div>
+          <img src={successImage} alt="Success" className="mx-auto h-24 w-24" />
           <p className="text-center text-lg font-semibold">
             Your wallet is now unlocked.
           </p>
