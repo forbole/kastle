@@ -18,24 +18,6 @@ export default function EthereumSignMessageConfirm() {
 
   const loading = !wallet || !requestId || !payload;
 
-  useEffect(() => {
-    // Handle beforeunload event
-    async function beforeunload(event: BeforeUnloadEvent) {
-      const denyMessage = ApiUtils.createApiResponse(
-        requestId,
-        false,
-        RPC_ERRORS.USER_REJECTED_REQUEST,
-      );
-      await ApiExtensionUtils.sendMessage(requestId, denyMessage);
-    }
-
-    window.addEventListener("beforeunload", beforeunload);
-
-    return () => {
-      window.removeEventListener("beforeunload", beforeunload);
-    };
-  }, []);
-
   return (
     <div className="h-screen p-4">
       {loading && <Splash />}

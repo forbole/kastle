@@ -12,7 +12,7 @@ export default defineContentScript({
     // TODO: implement tabs connections manager and authentication for listeners
     new EthereumAccountsChangedListener().start();
 
-    // Listen for messages from the source
+    // Listen for messages from the browser
     window.addEventListener("message", async (event: MessageEvent<unknown>) => {
       const message = event.data;
 

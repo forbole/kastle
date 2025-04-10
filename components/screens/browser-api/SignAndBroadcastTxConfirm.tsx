@@ -2,9 +2,6 @@ import { SignTxPayloadSchema } from "@/api/message";
 import HotWalletSignAndBroadcast from "@/components/screens/browser-api/sign-and-broadcast/HotWalletSignAndBroadcast";
 import LedgerSignAndBroadcast from "@/components/screens/browser-api/sign-and-broadcast/LedgerSignAndBroadcast";
 import useWalletManager from "@/hooks/useWalletManager.ts";
-import { useEffect } from "react";
-import { ApiExtensionUtils } from "@/api/extension";
-import { ApiUtils } from "@/api/background/utils";
 import Splash from "@/components/screens/Splash";
 
 export default function SignAndBroadcastTxConfirm() {
@@ -22,24 +19,6 @@ export default function SignAndBroadcastTxConfirm() {
   const parsedPayload = payload ? SignTxPayloadSchema.parse(payload) : null;
 
   const loading = !wallet || !requestId || !parsedPayload;
-
-  useEffect(() => {
-    // Handle beforeunload event
-    async function beforeunload(event: BeforeUnloadEvent) {
-      const denyMessage = ApiUtils.createApiResponse(
-        requestId,
-        false,
-        "User denied",
-      );
-      await ApiExtensionUtils.sendMessage(requestId, denyMessage);
-    }
-
-    window.addEventListener("beforeunload", beforeunload);
-
-    return () => {
-      window.removeEventListener("beforeunload", beforeunload);
-    };
-  }, []);
 
   return (
     <div className="no-scrollbar h-screen overflow-y-scroll p-4">

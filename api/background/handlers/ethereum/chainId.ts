@@ -1,6 +1,6 @@
 import { ApiRequestWithHost } from "@/api/message";
 import { ApiUtils } from "@/api/background/utils";
-import { sepolia } from "viem/chains";
+import { kaia } from "viem/chains";
 import { numberToHex } from "viem";
 
 export const chainIdHandler = async (
@@ -8,6 +8,6 @@ export const chainIdHandler = async (
   message: ApiRequestWithHost,
   sendResponse: (response?: any) => void,
 ) => {
-  // TODO: read ethereum chainId from the settings, now returns sepolia chainId
-  sendResponse(ApiUtils.createApiResponse(message.id, numberToHex(sepolia.id)));
+  // TODO: read ethereum chainId from the settings, now returns kaia chainId
+  sendResponse(ApiUtils.createApiResponse(message.id, numberToHex(kaia.id)));
 };
