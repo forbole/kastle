@@ -1,21 +1,13 @@
 import { ScriptOption } from "@/lib/wallet/wallet-interface.ts";
 import { z } from "zod";
+import { NetworkType } from "@/contexts/SettingsContext.tsx";
 
 export enum Action {
   CONNECT,
   GET_ACCOUNT,
   SIGN_AND_BROADCAST_TX,
   SIGN_TX,
-  GET_WALLET_ADDRESS,
-  GET_PUBLIC_KEY,
   GET_NETWORK,
-  SWITCH_NETWORK,
-  SEND_KASPA,
-  SIGN_MESSAGE,
-  SIGN_PSKT,
-  DO_COMMIT_REVEAL,
-  DO_REVEAL_ONLY,
-  COMPOUND_UTXO,
 }
 
 export const SignTxPayloadSchema = z.object({
@@ -29,7 +21,7 @@ export type SignTxPayload = z.infer<typeof SignTxPayloadSchema>;
 // ================================================================================================
 
 export const ConnectPayloadSchema = z.object({
-  networkId: z.string(),
+  networkId: z.nativeEnum(NetworkType),
   name: z.string(),
   icon: z.string().optional(),
 });

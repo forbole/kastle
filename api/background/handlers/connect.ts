@@ -1,6 +1,5 @@
-import { ApiRequestWithHost, ConnectPayloadSchema } from "@/api/message";
-import { ApiUtils, Handler } from "@/api/background/utils";
-import { NetworkType } from "@/contexts/SettingsContext";
+import {ApiRequestWithHost, ConnectPayloadSchema} from "@/api/message";
+import {ApiUtils, Handler} from "@/api/background/utils";
 
 /** Connect handler to serve BrowserMessageType.CONNECT message */
 export const connectHandler: Handler = async (
@@ -8,6 +7,7 @@ export const connectHandler: Handler = async (
   message: ApiRequestWithHost,
   sendResponse: (response?: any) => void,
 ) => {
+  console.log("connectHandler", message);
   const sendError = function (error: string) {
     // NOTE: can not send undefined as response, so send null
     sendResponse(ApiUtils.createApiResponse(message.id, null, error));
@@ -32,17 +32,6 @@ export const connectHandler: Handler = async (
     return;
   }
 
-  // Check if networkId matches
-  if (
-    !(await ApiUtils.matchNetworkId(parsedPayload.networkId as NetworkType))
-  ) {
-    sendError(
-      "Network ID does not match, please change network to " +
-        parsedPayload.networkId,
-    );
-    return;
-  }
-
   // Check if connection is already existing
   if (await ApiUtils.isHostConnected(message.host)) {
     sendResponse(ApiUtils.createApiResponse(message.id, true));
@@ -53,11 +42,12 @@ export const connectHandler: Handler = async (
   url.hash = `/connect`;
   url.searchParams.set("host", message.host);
   url.searchParams.set("requestId", message.id);
+  url.searchParams.set("network", parsedPayload.networkId);
   url.searchParams.set("name", parsedPayload.name);
   url.searchParams.set("icon", parsedPayload.icon ?? "");
 
   ApiUtils.openPopup(tabId, url.toString());
 
-  const response = await ApiUtils.receiveExtensionMessage(message.id);
-  sendResponse(response);
+  await ApiUtils.receiveExtensionMessage(message.id);
+  sendResponse(ApiUtils.createApiResponse(message.id, true));
 };

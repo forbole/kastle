@@ -92,18 +92,6 @@ export class ApiUtils {
     return ExtensionService.getInstance().getKeyring().isUnlocked();
   }
 
-  static async isWalletReady(host?: string): Promise<string | undefined> {
-    if (!(await ApiUtils.isInitialized())) {
-      return "Extension is not initialized";
-    }
-    if (!ApiUtils.isUnlocked()) {
-      return "Wallet is locked";
-    }
-    if (!!host && !(await ApiUtils.isHostConnected(host))) {
-      return "Host not connected";
-    }
-  }
-
   static createApiResponse(id: string, response: unknown, error?: unknown) {
     return ApiResponseSchema.parse({
       source: "background",
