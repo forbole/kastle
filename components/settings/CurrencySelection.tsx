@@ -17,6 +17,7 @@ export default function CurrencySelection({
 
   const selectCurrency = async ([code]: (typeof CURRENCIES)[number]) => {
     await setSettings((prev) => ({ ...prev, currency: code }));
+    toggleShow();
   };
 
   return (
