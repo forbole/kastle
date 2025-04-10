@@ -6,7 +6,7 @@ import {
 } from "@/api/message";
 import { ApiUtils } from "@/api/background/utils";
 import { z } from "zod";
-import { isMatchCurrentAddress } from "./utils";
+import { isMatchCurrentAddress, isUserDeniedResponse } from "./utils";
 import { isAddress } from "viem";
 
 export const signMessageHandler = async (
@@ -67,6 +67,16 @@ export const signMessageHandler = async (
 
   // Wait for the response from the popup
   const response = await ApiUtils.receiveExtensionMessage(message.id);
+  if (isUserDeniedResponse(response)) {
+    sendResponse(
+      ApiUtils.createApiResponse(
+        message.id,
+        null,
+        RPC_ERRORS.USER_REJECTED_REQUEST,
+      ),
+    );
+    return;
+  }
 
   sendResponse(response);
 };

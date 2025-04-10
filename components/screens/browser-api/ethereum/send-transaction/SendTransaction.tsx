@@ -13,7 +13,7 @@ import {
   createPublicClient,
   http,
 } from "viem";
-import { kaia } from "viem/chains";
+import { kairos } from "viem/chains";
 import { estimateFeesPerGas } from "viem/actions";
 
 type SignTransactionProps = {
@@ -55,8 +55,8 @@ export default function SendTransaction({
     toggleIsSigning();
     try {
       const ethClient = createPublicClient({
-        chain: kaia,
-        transport: http("https://ethereum-sepolia-rpc.publicnode.com"),
+        chain: kairos,
+        transport: http("https://kaia-kairos.blockpi.network/v1/rpc/public"),
       });
 
       const nonce = await ethClient.getTransactionCount({
@@ -84,7 +84,7 @@ export default function SendTransaction({
         maxPriorityFeePerGas: parsedRequest.maxPriorityFeePerGas
           ? hexToBigInt(parsedRequest.maxPriorityFeePerGas)
           : estimatedGas.maxPriorityFeePerGas,
-        chainId: kaia.id,
+        chainId: kairos.id,
         type: "eip1559",
         nonce,
       };

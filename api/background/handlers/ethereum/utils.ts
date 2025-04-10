@@ -2,6 +2,7 @@ import { ApiUtils } from "@/api/background/utils";
 import { publicKeyToAddress } from "viem/accounts";
 import * as secp from "@noble/secp256k1";
 import { bytesToHex } from "viem";
+import { ApiResponseSchema } from "@/api/message";
 
 export const isMatchCurrentAddress = async (address: string) => {
   const account = await ApiUtils.getCurrentAccount();
@@ -19,4 +20,9 @@ export const uncompressPublicKey = (publicKey: string) => {
   const uncompressed =
     secp.ProjectivePoint.fromHex(publicKey).toRawBytes(false);
   return bytesToHex(uncompressed);
+};
+
+export const isUserDeniedResponse = (response: unknown) => {
+  const result = ApiResponseSchema.safeParse(response);
+  return result.success && result.data.error === "User Denied";
 };

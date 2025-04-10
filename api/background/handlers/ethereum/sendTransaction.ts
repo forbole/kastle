@@ -6,7 +6,7 @@ import {
   ethereumTransactionRequestSchema,
 } from "@/api/message";
 import { ApiUtils } from "@/api/background/utils";
-import { isMatchCurrentAddress } from "./utils";
+import { isMatchCurrentAddress, isUserDeniedResponse } from "./utils";
 
 export const sendTransactionHandler = async (
   tabId: number,
@@ -56,8 +56,17 @@ export const sendTransactionHandler = async (
   ApiUtils.openPopup(tabId, url.toString());
 
   // Wait for the response from the popup
-  const ApiExtensionResponse = await ApiUtils.receiveExtensionMessage(
-    message.id,
-  );
-  sendResponse(ApiExtensionResponse);
+  const response = await ApiUtils.receiveExtensionMessage(message.id);
+  if (isUserDeniedResponse(response)) {
+    sendResponse(
+      ApiUtils.createApiResponse(
+        message.id,
+        null,
+        RPC_ERRORS.USER_REJECTED_REQUEST,
+      ),
+    );
+    return;
+  }
+
+  sendResponse(response);
 };

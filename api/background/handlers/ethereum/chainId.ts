@@ -1,6 +1,6 @@
 import { ApiRequestWithHost } from "@/api/message";
 import { ApiUtils } from "@/api/background/utils";
-import { kaia } from "viem/chains";
+import { kairos } from "viem/chains";
 import { numberToHex } from "viem";
 
 export const chainIdHandler = async (
@@ -8,6 +8,6 @@ export const chainIdHandler = async (
   message: ApiRequestWithHost,
   sendResponse: (response?: any) => void,
 ) => {
-  // TODO: read ethereum chainId from the settings, now returns kaia chainId
-  sendResponse(ApiUtils.createApiResponse(message.id, numberToHex(kaia.id)));
+  // TODO: read ethereum chainId from the settings, now returns kairos(kaia testnet) chainId
+  sendResponse(ApiUtils.createApiResponse(message.id, numberToHex(kairos.id)));
 };
