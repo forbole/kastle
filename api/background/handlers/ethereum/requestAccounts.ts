@@ -48,8 +48,27 @@ export const requestAccountsHandler = async (
 
   const isUnlocked = ApiUtils.isUnlocked();
   if (!isUnlocked) {
-    sendError(RPC_ERRORS.UNAUTHORIZED);
-    return;
+    const url = new URL(browser.runtime.getURL("/popup.html"));
+    url.hash = `/unlocked`;
+    url.searchParams.set("requestId", message.id);
+    console.log("requestId", message.id);
+
+    ApiUtils.openPopup(tabId, url.toString());
+    const extensionResponse = await ApiUtils.receiveExtensionMessage(
+      message.id,
+    );
+
+    const result = ApiResponseSchema.safeParse(extensionResponse);
+    if (!result.success) {
+      sendError(RPC_ERRORS.INTERNAL_ERROR);
+      return;
+    }
+
+    const isUnlocked = result.data.response as boolean;
+    if (!isUnlocked) {
+      sendError(RPC_ERRORS.USER_REJECTED_REQUEST);
+      return;
+    }
   }
 
   const account = await ApiUtils.getCurrentAccount();

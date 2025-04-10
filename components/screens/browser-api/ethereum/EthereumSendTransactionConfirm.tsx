@@ -1,4 +1,4 @@
-import HotWalletSignTransaction from "@/components/screens/browser-api/ethereum/sign-transaction/HotWalletSendTransaction";
+import HotWalletSignTransaction from "@/components/screens/browser-api/ethereum/send-transaction/HotWalletSendTransaction";
 import useWalletManager from "@/hooks/useWalletManager.ts";
 import Splash from "@/components/screens/Splash";
 

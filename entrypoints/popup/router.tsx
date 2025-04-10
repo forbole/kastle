@@ -59,6 +59,7 @@ import ChangePassword from "@/components/screens/ChangePassword.tsx";
 import EthereumSignMessageConfirm from "@/components/screens/browser-api/ethereum/EthereumSignMessageConfirm";
 import EthereumSendTransactionConfirm from "@/components/screens/browser-api/ethereum/EthereumSendTransactionConfirm";
 import BrowserAPILayout from "@/components/layouts/BrowserAPILayout";
+import Unlocked from "@/components/screens/browser-api/Unlocked";
 
 const loadKaspaWasm = async () => {
   await init(kaspaModule);
@@ -246,6 +247,10 @@ export const router = createHashRouter([
                       {
                         path: "sign-tx",
                         element: <SignTxConfirm />,
+                      },
+                      {
+                        path: "unlocked",
+                        element: <Unlocked />,
                       },
 
                       // Ethereum BrowserAPI routes
