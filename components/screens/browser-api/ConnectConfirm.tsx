@@ -1,6 +1,5 @@
 import { ApiExtensionUtils } from "@/api/extension";
 import { useSettings } from "@/hooks/useSettings";
-import { ApiResponse } from "@/api/message";
 import { useEffect } from "react";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import Header from "@/components/GeneralHeader";
@@ -34,19 +33,6 @@ export default function ConnectConfirm() {
     false,
     "User denied",
   );
-
-  useEffect(() => {
-    // Handle beforeunload event
-    async function beforeunload(event: BeforeUnloadEvent) {
-      await ApiExtensionUtils.sendMessage(requestId, denyMessage);
-    }
-
-    window.addEventListener("beforeunload", beforeunload);
-
-    return () => {
-      window.removeEventListener("beforeunload", beforeunload);
-    };
-  }, []);
 
   const handleConnectConfirm = async () => {
     if (!settings) {
