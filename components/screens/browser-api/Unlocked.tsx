@@ -8,7 +8,6 @@ export default function Unlocked() {
     new URLSearchParams(window.location.search).get("requestId") ?? "";
 
   const onClose = async () => {
-    console.log(requestId);
     await ApiExtensionUtils.sendMessage(
       requestId,
       ApiUtils.createApiResponse(requestId, true),

@@ -51,7 +51,6 @@ export const requestAccountsHandler = async (
     const url = new URL(browser.runtime.getURL("/popup.html"));
     url.hash = `/unlocked`;
     url.searchParams.set("requestId", message.id);
-    console.log("requestId", message.id);
 
     ApiUtils.openPopup(tabId, url.toString());
     const extensionResponse = await ApiUtils.receiveExtensionMessage(
@@ -72,7 +71,7 @@ export const requestAccountsHandler = async (
   }
 
   const account = await ApiUtils.getCurrentAccount();
-  if (!account?.publicKeys) {
+  if (!account?.publicKeys || account.publicKeys.length === 0) {
     sendError(RPC_ERRORS.INTERNAL_ERROR);
     return;
   }
