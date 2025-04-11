@@ -22,7 +22,7 @@ export default function useCurrencyValue(usdAmount: number) {
   );
 
   if (currency === "USD") {
-    return { amount: usdAmount, code: "USD" };
+    return { amount: usdAmount, code: "USD" as const };
   }
 
   const rate = exchangeRatesResponse.data?.quotes?.[`USD${currency}`] ?? 1;

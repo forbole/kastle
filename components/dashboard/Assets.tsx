@@ -1,6 +1,11 @@
 import { useNavigate } from "react-router-dom";
 import kasIcon from "@/assets/images/kas-icon.svg";
-import { formatCurrency, formatToken, formatTokenPrice } from "@/lib/utils.ts";
+import {
+  formatCurrency,
+  formatToken,
+  formatTokenPrice,
+  symbolForCurrencyCode,
+} from "@/lib/utils.ts";
 import TokenListItem from "@/components/dashboard/TokenListItem.tsx";
 import { applyDecimal } from "@/lib/krc20.ts";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
@@ -16,8 +21,12 @@ export default function Assets() {
   const balance = account?.balance;
   const fiatBalance = parseFloat(balance ?? "0") * kapsaPrice.kaspaPrice;
   const showBalance = !settings?.hideBalances;
+  const fiatKaspaPrice = kapsaPrice.kaspaPrice;
+
   const { amount: totalBalanceCurrency, code: currencyCode } =
     useCurrencyValue(fiatBalance);
+  const { amount: kaspaPriceCurrency, code: kaspaPriceCurrencyCode } =
+    useCurrencyValue(fiatKaspaPrice);
 
   const { data: tokenListResponse } = useTokenListByAddress(address, 5000);
   const tokenListItems = tokenListResponse?.result
@@ -55,12 +64,14 @@ export default function Assets() {
             </span>
           </div>
           <div className="flex items-center justify-between text-sm text-daintree-400">
-            <span>{formatTokenPrice(kapsaPrice.kaspaPrice)}</span>
+            <span>
+              {formatTokenPrice(kaspaPriceCurrency, kaspaPriceCurrencyCode)}
+            </span>
             <span>
               ≈{" "}
               {showBalance
                 ? formatCurrency(totalBalanceCurrency, currencyCode)
-                : "$*****"}{" "}
+                : `${symbolForCurrencyCode(currencyCode)}*****`}
             </span>
           </div>
         </div>

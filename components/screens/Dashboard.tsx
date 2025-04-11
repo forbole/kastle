@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { SideMenu } from "@/components/side-menu/SideMenu.tsx";
 import gavelIcon from "@/assets/images/gavel.svg";
-import { formatCurrency } from "@/lib/utils.ts";
+import { formatCurrency, symbolForCurrencyCode } from "@/lib/utils.ts";
 import ClipboardCopy from "@/components/dashboard/ClipboardCopy";
 import { twMerge } from "tailwind-merge";
 import useBackupWarning from "@/hooks/useBackupWarning.ts";
@@ -147,7 +147,9 @@ export default function Dashboard() {
           ) : (
             <div className="relative flex items-center">
               <span className="text-center text-4xl font-semibold text-white">
-                {showBalance ? totalBalanceFormatted : "$*****"}
+                {showBalance
+                  ? totalBalanceFormatted
+                  : `${symbolForCurrencyCode(currencyCode)}*****`}
               </span>
               <button onClick={() => toggleBalance()} className="p-4">
                 <i

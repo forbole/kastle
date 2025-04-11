@@ -1,5 +1,10 @@
 import kasIcon from "@/assets/images/kas-icon.svg";
-import { formatCurrency, formatToken, formatTokenPrice } from "@/lib/utils.ts";
+import {
+  formatCurrency,
+  formatToken,
+  formatTokenPrice,
+  symbolForCurrencyCode,
+} from "@/lib/utils.ts";
 import React, { useEffect, useState } from "react";
 import { useTokenMetadata } from "@/hooks/useTokenMetadata.ts";
 import { useNavigate } from "react-router-dom";
@@ -21,8 +26,10 @@ export default function TokenListItem({ token }: TokenListItemProps) {
   const balanceNumber = toFloat(
     token.balance ? parseInt(token.balance, 10) : 0,
   );
-  const tokenPrice = toPriceInUsd();
-  const fiatBalance = balanceNumber * tokenPrice;
+  const fiatTokenPrice = toPriceInUsd();
+  const fiatBalance = balanceNumber * fiatTokenPrice;
+  const { amount: tokenPriceCurrency, code: tokenPriceCurrencyCode } =
+    useCurrencyValue(fiatTokenPrice);
   const { amount: totalBalanceCurrency, code: currencyCode } =
     useCurrencyValue(fiatBalance);
 
@@ -53,12 +60,14 @@ export default function TokenListItem({ token }: TokenListItemProps) {
           <span>{showBalance ? formatToken(balanceNumber) : "*****"}</span>
         </div>
         <div className="flex items-center justify-between text-sm text-daintree-400">
-          <span>{formatTokenPrice(tokenPrice)}</span>
+          <span>
+            {formatTokenPrice(tokenPriceCurrency, tokenPriceCurrencyCode)}
+          </span>
           <span>
             ≈{" "}
             {showBalance
               ? formatCurrency(totalBalanceCurrency, currencyCode)
-              : "$*****"}{" "}
+              : `${symbolForCurrencyCode(currencyCode)}*****`}
           </span>
         </div>
       </div>
