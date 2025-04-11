@@ -27,9 +27,21 @@ export function formatTokenPrice(number: number) {
 }
 
 export function formatCurrency(number: number, code: string = "USD") {
+  const mappings: Record<string, "narrowSymbol" | "symbol" | "code" | "name"> =
+    {
+      CNY: "narrowSymbol",
+      EUR: "symbol",
+      HKD: "symbol",
+      JPY: "narrowSymbol",
+      RUB: "narrowSymbol",
+      TWD: "symbol",
+      USD: "symbol",
+    } as const;
+
   const formatter = new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: code,
+    currencyDisplay: mappings[code] ?? "symbol",
   });
 
   return formatter.format(number);
