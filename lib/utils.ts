@@ -1,4 +1,5 @@
 import { Method } from "@/lib/service/extension-service.ts";
+import { CURRENCIES } from "@/contexts/SettingsContext.tsx";
 
 export const isProduction = process.env.NODE_ENV === "production";
 
@@ -14,25 +15,44 @@ export const POPUP_WINDOW_HEIGHT = 600;
 export const sendMessage = <T>(method: Method, data = {}): Promise<T> =>
   browser.runtime.sendMessage({ method, ...data });
 
-export function formatTokenPrice(number: number) {
+const CURRENCY_SYMBOL_MAPPING: Record<
+  string,
+  "narrowSymbol" | "symbol" | "code" | "name"
+> = {
+  CNY: "narrowSymbol",
+  EUR: "symbol",
+  HKD: "symbol",
+  JPY: "narrowSymbol",
+  RUB: "narrowSymbol",
+  TWD: "symbol",
+  USD: "symbol",
+} as const;
+
+export function formatTokenPrice(number: number, code: string = "USD") {
   const formatter = new Intl.NumberFormat("en-US", {
     style: "currency",
-    currency: "USD",
+    currency: code,
     notation: "standard",
     minimumFractionDigits: 0,
     maximumFractionDigits: 8,
+    currencyDisplay: CURRENCY_SYMBOL_MAPPING[code] ?? "symbol",
   });
 
   return formatter.format(number);
 }
 
-export function formatUSD(number: number) {
+export function formatCurrency(number: number, code: string = "USD") {
   const formatter = new Intl.NumberFormat("en-US", {
     style: "currency",
-    currency: "USD",
+    currency: code,
+    currencyDisplay: CURRENCY_SYMBOL_MAPPING[code] ?? "symbol",
   });
 
   return formatter.format(number);
+}
+
+export function symbolForCurrencyCode(currencyCode: string): string {
+  return CURRENCIES.find((value) => value[0] === currencyCode)?.[2] ?? "$";
 }
 
 export function formatToken(

@@ -18,7 +18,7 @@ export interface SendFormData {
   userInput: string | undefined;
   address: string | undefined;
   amount: string | undefined;
-  amountUSD: string | undefined;
+  amountFiat: string | undefined;
   domain: string | undefined;
   priority: "low" | "medium" | "high";
   priorityFee: bigint;

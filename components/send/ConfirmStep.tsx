@@ -12,6 +12,7 @@ import useRecentAddresses from "@/hooks/useRecentAddresses.ts";
 import { captureException } from "@sentry/react";
 import { kaspaToSompi, sompiToKaspaString } from "@/wasm/core/kaspa";
 import { twMerge } from "tailwind-merge";
+import { formatCurrency } from "@/lib/utils.ts";
 
 export const ConfirmStep = ({
   onNext,
@@ -38,6 +39,12 @@ export const ConfirmStep = ({
   const kapsaPrice = useKaspaPrice();
   const amountNumber = parseFloat(amount ?? "0");
   const priorityFeeKas = sompiToKaspaString(priorityFee);
+  const fiatAmount = amountNumber * kapsaPrice.kaspaPrice;
+  const fiatFees = parseFloat(priorityFeeKas);
+  const { amount: amountCurrency, code: amountCurrencyCode } =
+    useCurrencyValue(fiatAmount);
+  const { amount: feesCurrency, code: feesCurrencyCode } =
+    useCurrencyValue(fiatFees);
 
   const onClose = () => {
     navigate("/dashboard");
@@ -125,7 +132,7 @@ export const ConfirmStep = ({
                   {amountNumber.toFixed(3)} KAS
                 </span>
                 <span className="text-xs text-daintree-400">
-                  {(amountNumber * kapsaPrice.kaspaPrice).toFixed(3)} USD
+                  {formatCurrency(amountCurrency, amountCurrencyCode)}
                 </span>
               </div>
             </div>
@@ -136,10 +143,7 @@ export const ConfirmStep = ({
               <div className="flex flex-col text-right">
                 <span className="font-medium">{priorityFeeKas} KAS</span>
                 <span className="text-xs text-daintree-400">
-                  {(parseFloat(priorityFeeKas) * kapsaPrice.kaspaPrice).toFixed(
-                    3,
-                  )}{" "}
-                  USD
+                  {formatCurrency(feesCurrency, feesCurrencyCode)}
                 </span>
               </div>
             </div>

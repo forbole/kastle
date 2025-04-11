@@ -62,7 +62,7 @@ import BrowserAPILayout from "@/components/layouts/BrowserAPILayout";
 import Unlocked from "@/components/screens/browser-api/Unlocked";
 
 const loadKaspaWasm = async () => {
-  await init(kaspaModule);
+  await init({ module_or_path: kaspaModule });
   return null;
 };
 
