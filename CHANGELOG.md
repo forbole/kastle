@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.11.0](https://github.com/forbole/kastle/compare/v2.10.2...v2.11.0) (2025-04-11)
+
+
+### Features
+
+* **browser-api:** evm compatible ([#90](https://github.com/forbole/kastle/issues/90)) ([62a208f](https://github.com/forbole/kastle/commit/62a208f4b211bcbfded5e06ae777a4a7dcbacb1d))
+
 ## [2.10.2](https://github.com/forbole/kastle/compare/v2.10.1...v2.10.2) (2025-04-07)
 
 
