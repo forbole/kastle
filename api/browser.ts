@@ -75,7 +75,7 @@ export class KastleBrowserAPI {
     const request = createApiRequest(action, requestId, args);
     window.postMessage(request, "*");
 
-    return await this.receiveMessage(requestId);
+    return await this.receiveMessageWithTimeout(requestId);
   }
 
   async getAccount(): Promise<{ address: string; publicKey: string }> {
