@@ -38,14 +38,18 @@ export class ApiUtils {
 
   static async getCurrentAccount() {
     const walletSettings = await this.getWalletSettings();
-    if (!walletSettings?.selectedWalletId) return null;
-    if (walletSettings.selectedAccountIndex === undefined) return null;
-    const selectedWallet = walletSettings.wallets.find(
-      (wallet) => wallet.id === walletSettings.selectedWalletId,
+    return await this.getSelectedAccountFromSettings(walletSettings);
+  }
+
+  static async getSelectedAccountFromSettings(settings: WalletSettings | null) {
+    if (!settings?.selectedWalletId) return null;
+    if (settings.selectedAccountIndex === undefined) return null;
+    const selectedWallet = settings.wallets.find(
+      (wallet) => wallet.id === settings.selectedWalletId,
     );
     if (!selectedWallet) return null;
     const selectedAccount = selectedWallet.accounts.find((account) => {
-      return account.index === walletSettings.selectedAccountIndex;
+      return account.index === settings.selectedAccountIndex;
     });
 
     if (!selectedAccount) return null;
