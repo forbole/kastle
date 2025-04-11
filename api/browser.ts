@@ -8,6 +8,12 @@ import {
 } from "@/api/message";
 import { ScriptOption } from "@/lib/wallet/wallet-interface.ts";
 import { EthereumBrowserAPI } from "./ethereum";
+import { ApiUtils } from "@/api/background/utils.ts";
+
+window.postMessage(
+  ApiUtils.createApiResponse("kastle_installed", []),
+  window.location.origin,
+);
 
 function createApiRequest(
   action: Action,
