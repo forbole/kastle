@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.10.2](https://github.com/forbole/kastle/compare/v2.10.1...v2.10.2) (2025-04-07)
+
+
+### Bug Fixes
+
+* **KRC721:** add scroll for KRC721 details page ([#86](https://github.com/forbole/kastle/issues/86)) ([e3a90e1](https://github.com/forbole/kastle/commit/e3a90e168fa187fb5eed0f8fc2b098ead4a92ed1))
+
 ## [2.10.1](https://github.com/forbole/kastle/compare/v2.10.0...v2.10.1) (2025-04-03)
 
 

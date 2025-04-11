@@ -35,19 +35,6 @@ export default function ConnectConfirm() {
     "User denied",
   );
 
-  useEffect(() => {
-    // Handle beforeunload event
-    async function beforeunload(event: BeforeUnloadEvent) {
-      await ApiExtensionUtils.sendMessage(requestId, denyMessage);
-    }
-
-    window.addEventListener("beforeunload", beforeunload);
-
-    return () => {
-      window.removeEventListener("beforeunload", beforeunload);
-    };
-  }, []);
-
   const handleConnectConfirm = async () => {
     if (!settings) {
       return;

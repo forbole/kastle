@@ -15,13 +15,6 @@ export default function PopupLayout() {
   const location = useLocation();
   useResetPreline([location.pathname]);
 
-  // Resize the window to the target width and height for the popup
-  useEffect(() => {
-    const widthGap = POPUP_WINDOW_WIDTH - window.innerWidth;
-    const heightGap = POPUP_WINDOW_HEIGHT - window.innerHeight;
-
-    window.resizeBy(widthGap, heightGap);
-  }, []);
   return (
     <PostHogWrapperProvider>
       <div className="h-[600px] w-[375px] overflow-hidden bg-icy-blue-950 font-sans text-white">

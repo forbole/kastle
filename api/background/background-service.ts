@@ -8,6 +8,7 @@ import {
   ApiResponseSchema,
 } from "@/api/message";
 import { getNetwork } from "@/api/background/handlers/get-network.ts";
+import { ethereumRequestHandler } from "@/api/background/handlers/ethereum/request";
 
 export class BackgroundService {
   public listen(): void {
@@ -57,6 +58,7 @@ export class BackgroundService {
       [Action.SIGN_AND_BROADCAST_TX]: signAndBroadcastTxHandler,
       [Action.SIGN_TX]: signTxHandler,
       [Action.GET_NETWORK]: getNetwork,
+      [Action.ETHEREUM_REQUEST]: ethereumRequestHandler,
     };
 
     return handlers[action];

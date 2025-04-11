@@ -57,7 +57,7 @@ export default function KRC721() {
   };
 
   return (
-    <div className="flex h-full flex-col p-4">
+    <div className="no-scrollbar flex h-full flex-col overflow-y-scroll p-4">
       <Header title={name} showClose={false} />
 
       {isLoading ? (

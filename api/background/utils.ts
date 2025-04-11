@@ -2,6 +2,7 @@ import {
   ApiExtensionResponseSchema,
   ApiRequestWithHost,
   ApiResponseSchema,
+  RPC_ERRORS,
 } from "@/api/message";
 import { ExtensionService } from "@/lib/service/extension-service";
 import {
@@ -118,6 +119,11 @@ export class ApiUtils {
           return;
         }
 
+        if (parsedMessage.error) {
+          reject(parsedMessage.error);
+          return;
+        }
+
         browser.runtime.onMessage.removeListener(listener);
         resolve(parsedMessage.response);
       };
@@ -126,7 +132,7 @@ export class ApiUtils {
 
       setTimeout(() => {
         browser.runtime.onMessage.removeListener(listener);
-        reject(new Error("Timeout"));
+        reject(RPC_ERRORS.TIMEOUT);
       }, timeout);
     });
   }

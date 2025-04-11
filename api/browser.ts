@@ -7,6 +7,7 @@ import {
   SignTxPayloadSchema,
 } from "@/api/message";
 import { ScriptOption } from "@/lib/wallet/wallet-interface.ts";
+import { EthereumBrowserAPI } from "./ethereum";
 
 function createApiRequest(
   action: Action,
@@ -23,6 +24,8 @@ function createApiRequest(
 }
 
 export class KastleBrowserAPI {
+  public readonly ethereum = new EthereumBrowserAPI();
+
   constructor() {}
 
   async connect(
@@ -51,7 +54,7 @@ export class KastleBrowserAPI {
 
     window.postMessage(request, "*");
 
-    return await this.receiveMessage(requestId);
+    return await this.receiveMessageWithTimeout(requestId);
   }
 
   async disconnect(): Promise<void> {}
@@ -80,7 +83,7 @@ export class KastleBrowserAPI {
     const request = createApiRequest(Action.GET_ACCOUNT, requestId);
     window.postMessage(request, "*");
 
-    return await this.receiveMessage(requestId);
+    return await this.receiveMessageWithTimeout(requestId);
   }
 
   async signAndBroadcastTx(
@@ -100,7 +103,7 @@ export class KastleBrowserAPI {
     );
     window.postMessage(request, "*");
 
-    return await this.receiveMessage(requestId);
+    return await this.receiveMessageWithTimeout(requestId);
   }
 
   async signTx(
@@ -120,36 +123,57 @@ export class KastleBrowserAPI {
     );
     window.postMessage(request, "*");
 
-    return await this.receiveMessage(requestId);
+    return await this.receiveMessageWithTimeout(requestId);
   }
 
-  private async receiveMessage<T>(
+  private createReceiveCallback<T>(id: string) {
+    return (event: MessageEvent<unknown>) => {
+      if (event.origin !== window.location.origin) {
+        return;
+      }
+
+      const message = event.data;
+      const result = ApiResponseSchema.safeParse(message);
+      if (!result.success) {
+        return;
+      }
+
+      const parsedMessage = ApiResponseSchema.parse(message);
+      if (parsedMessage.id !== id) {
+        return;
+      }
+
+      // Reject if the message is an error
+      if (parsedMessage.error) {
+        if (typeof parsedMessage.error === "string") {
+          throw new Error(parsedMessage.error);
+        } else {
+          throw parsedMessage.error;
+        }
+      }
+
+      return parsedMessage.response as T;
+    };
+  }
+
+  private async receiveMessageWithTimeout<T>(
     id: string,
     timeout = 60_000, // 1 minute
   ): Promise<T> {
     return new Promise<T>((resolve, reject) => {
+      const callback = this.createReceiveCallback<T>(id);
       const onMessage = async (event: MessageEvent<unknown>) => {
-        const message = event.data;
+        try {
+          const result = callback(event);
+          if (!result) {
+            return; // Skip if the result is empty, which means the message is not for this channel
+          }
 
-        const result = ApiResponseSchema.safeParse(message);
-        if (!result.success) {
-          return;
+          resolve(result);
+        } catch (error) {
+          window.removeEventListener("message", onMessage);
+          reject(error);
         }
-
-        const parsedMessage = ApiResponseSchema.parse(message);
-        if (parsedMessage.id !== id) {
-          return;
-        }
-
-        window.removeEventListener("message", onMessage);
-
-        // Reject if the message is an error
-        if (parsedMessage.error) {
-          reject(new Error(parsedMessage.error));
-          return;
-        }
-
-        resolve(parsedMessage.response as T);
       };
 
       window.addEventListener("message", onMessage);
