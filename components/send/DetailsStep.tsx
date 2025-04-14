@@ -393,7 +393,7 @@ export const DetailsStep = ({
               >
                 <img
                   alt="kas"
-                  className="h-[18px] w-[18px]"
+                  className="h-[18px] w-[18px] rounded-full"
                   src={imageUrl}
                   onError={onImageError}
                 />
