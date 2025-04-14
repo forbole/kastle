@@ -1,5 +1,39 @@
 # Changelog
 
+## [2.11.0](https://github.com/forbole/kastle/compare/v2.10.2...v2.11.0) (2025-04-11)
+
+
+### Features
+
+* **browser-api:** evm compatible ([#90](https://github.com/forbole/kastle/issues/90)) ([62a208f](https://github.com/forbole/kastle/commit/62a208f4b211bcbfded5e06ae777a4a7dcbacb1d))
+
+## [2.10.2](https://github.com/forbole/kastle/compare/v2.10.1...v2.10.2) (2025-04-07)
+
+
+### Bug Fixes
+
+* **KRC721:** add scroll for KRC721 details page ([#86](https://github.com/forbole/kastle/issues/86)) ([e3a90e1](https://github.com/forbole/kastle/commit/e3a90e168fa187fb5eed0f8fc2b098ead4a92ed1))
+
+## [2.10.1](https://github.com/forbole/kastle/compare/v2.10.0...v2.10.1) (2025-04-03)
+
+
+### Miscellaneous Chores
+
+* release 2.10.1 ([ef7b6db](https://github.com/forbole/kastle/commit/ef7b6db579bc427ea3b0d42d6fbe6c3b17fefad2))
+
+## [2.10.0](https://github.com/forbole/kastle/compare/v2.9.0...v2.10.0) (2025-04-02)
+
+
+### Features
+
+* **keyring:** change password ([#77](https://github.com/forbole/kastle/issues/77)) ([ae910cc](https://github.com/forbole/kastle/commit/ae910cc2d16f72a802d30c77832c6803c252454e))
+* priority fee selection ([#75](https://github.com/forbole/kastle/issues/75)) ([9fd5ae3](https://github.com/forbole/kastle/commit/9fd5ae32d22521d035bcefa2c59b9e0298a99891))
+
+
+### Bug Fixes
+
+* **ui:** prevent layout from scrolling ([#78](https://github.com/forbole/kastle/issues/78)) ([aaeb471](https://github.com/forbole/kastle/commit/aaeb4714dddb97b8a03c0e8362f4a121815c9899))
+
 ## [2.9.0](https://github.com/forbole/kastle/compare/v2.8.1...v2.9.0) (2025-03-26)
 
 

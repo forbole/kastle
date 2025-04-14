@@ -1,8 +1,12 @@
+import v2_10_1 from "@/lib/migrations/v2.10.1.ts";
+
 export class MigrationManager {
   private migrations: Record<string, () => Promise<void>>;
 
   constructor() {
-    this.migrations = {};
+    this.migrations = {
+      "2.10.1": v2_10_1,
+    };
   }
 
   async run(previous: string): Promise<void> {

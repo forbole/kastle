@@ -1,4 +1,9 @@
-import { ApiExtensionResponse, ApiRequest } from "@/api/message";
+import {
+  ApiExtensionResponseSchema,
+  ApiResponseSchema,
+  ApiRequestWithHost,
+  RPC_ERRORS,
+} from "@/api/message";
 import { ExtensionService } from "@/lib/service/extension-service";
 import {
   NetworkType,
@@ -33,14 +38,18 @@ export class ApiUtils {
 
   static async getCurrentAccount() {
     const walletSettings = await this.getWalletSettings();
-    if (!walletSettings?.selectedWalletId) return null;
-    if (walletSettings.selectedAccountIndex === undefined) return null;
-    const selectedWallet = walletSettings.wallets.find(
-      (wallet) => wallet.id === walletSettings.selectedWalletId,
+    return await this.getSelectedAccountFromSettings(walletSettings);
+  }
+
+  static async getSelectedAccountFromSettings(settings: WalletSettings | null) {
+    if (!settings?.selectedWalletId) return null;
+    if (settings.selectedAccountIndex === undefined) return null;
+    const selectedWallet = settings.wallets.find(
+      (wallet) => wallet.id === settings.selectedWalletId,
     );
     if (!selectedWallet) return null;
     const selectedAccount = selectedWallet.accounts.find((account) => {
-      return account.index === walletSettings.selectedAccountIndex;
+      return account.index === settings.selectedAccountIndex;
     });
 
     if (!selectedAccount) return null;
@@ -80,32 +89,46 @@ export class ApiUtils {
     return ExtensionService.getInstance().getKeyring().isUnlocked();
   }
 
+  static createApiResponse(id: string, response: unknown, error?: unknown) {
+    return ApiResponseSchema.parse({
+      source: "background",
+      target: "browser",
+      id,
+      response,
+      error,
+    });
+  }
+
   static async receiveExtensionMessage(
     id: string,
     timeout = 60_000, // 1 minute
   ): Promise<unknown> {
     return new Promise<unknown>((resolve, reject) => {
       const listener = (message: unknown) => {
-        if (!ApiExtensionResponse.validate(message)) {
+        const result = ApiExtensionResponseSchema.safeParse(message);
+        if (!result.success) {
           return;
         }
-        if (
-          message.id !== id ||
-          message.source !== "extension" ||
-          message.target !== "background"
-        ) {
+
+        const parsedMessage = result.data;
+        if (parsedMessage.id !== id) {
+          return;
+        }
+
+        if (parsedMessage.error) {
+          reject(parsedMessage.error);
           return;
         }
 
         browser.runtime.onMessage.removeListener(listener);
-        resolve(message.response);
+        resolve(parsedMessage.response);
       };
 
       browser.runtime.onMessage.addListener(listener);
 
       setTimeout(() => {
         browser.runtime.onMessage.removeListener(listener);
-        reject(new Error("Timeout"));
+        reject(RPC_ERRORS.TIMEOUT);
       }, timeout);
     });
   }
@@ -113,6 +136,6 @@ export class ApiUtils {
 
 export type Handler = (
   tabId: number,
-  message: ApiRequest<any>,
+  message: ApiRequestWithHost,
   sendResponse: (response: any) => void,
 ) => Promise<void>;

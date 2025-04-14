@@ -1,12 +1,12 @@
 import { ApiExtensionUtils } from "@/api/extension";
 import { useSettings } from "@/hooks/useSettings";
-import { ApiResponse } from "@/api/message";
 import { useEffect } from "react";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import Header from "@/components/GeneralHeader";
 import Link from "@/assets/images/link.svg";
 import CheckCircle from "@/assets/images/check-circle.svg";
 import { twMerge } from "tailwind-merge";
+import { ApiUtils } from "@/api/background/utils";
 
 export default function ConnectConfirm() {
   const [settings, setSettings] = useSettings();
@@ -27,21 +27,12 @@ export default function ConnectConfirm() {
   const icon = urlSearchParams.get("icon") ?? undefined;
 
   // Create confirm and deny messages
-  const confirmMessage = new ApiResponse(requestId, true);
-  const denyMessage = new ApiResponse(requestId, false, "User denied");
-
-  useEffect(() => {
-    // Handle beforeunload event
-    async function beforeunload(event: BeforeUnloadEvent) {
-      await ApiExtensionUtils.sendMessage(requestId, denyMessage);
-    }
-
-    window.addEventListener("beforeunload", beforeunload);
-
-    return () => {
-      window.removeEventListener("beforeunload", beforeunload);
-    };
-  }, []);
+  const confirmMessage = ApiUtils.createApiResponse(requestId, true);
+  const denyMessage = ApiUtils.createApiResponse(
+    requestId,
+    false,
+    "User denied",
+  );
 
   const handleConnectConfirm = async () => {
     if (!settings) {
@@ -83,7 +74,7 @@ export default function ConnectConfirm() {
       // Send false to background if error
       await ApiExtensionUtils.sendMessage(
         requestId,
-        new ApiResponse(
+        ApiUtils.createApiResponse(
           requestId,
           false,
           "Error happens while connecting: " + (err as any).toString(),
@@ -115,18 +106,11 @@ export default function ConnectConfirm() {
       iconColor: "bg-yellow-500",
       background: "bg-yellow-800",
     },
-    {
-      id: NetworkType.TestnetT11,
-      name: "Testnet | T11",
-      text: "text-violet-500",
-      iconColor: "bg-violet-500",
-      background: "bg-violet-800",
-    },
   ];
   const selectedNetwork = networks.find((n) => n.id === settings?.networkId);
 
   return (
-    <div className="flex h-full w-full flex-col justify-between rounded-xl p-6">
+    <div className="flex h-full w-full flex-col justify-between rounded-xl p-4">
       <div className="flex flex-col items-center">
         {/* Header */}
         <Header

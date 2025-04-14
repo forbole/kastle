@@ -145,6 +145,20 @@ export class Keyring {
     return ALLOWED_KEYS;
   }
 
+  async checkPassword(currentPassword: string) {
+    const saltBase64 = await storage.getItem<string>(
+      `local:${this.namespace}:salt`,
+    );
+    if (!saltBase64) {
+      throw new Error("Keyring is not initialized");
+    }
+
+    const salt = Buffer.from(saltBase64, "base64");
+    const key = await this.deriveKey(currentPassword, salt);
+
+    return await this.verifyKey(key);
+  }
+
   async changePassword(
     currentPassword: string,
     newPassword: string,

@@ -55,6 +55,11 @@ import { RecentAddressesProvider } from "@/contexts/RecentAddressesContext.tsx";
 import KNSAsset from "@/components/screens/KNSAsset";
 import KRC721 from "@/components/screens/KRC721";
 import OnboardingSuccess from "@/components/onboarding/OnboardingSuccess.tsx";
+import ChangePassword from "@/components/screens/ChangePassword.tsx";
+import EthereumSignMessageConfirm from "@/components/screens/browser-api/ethereum/EthereumSignMessageConfirm";
+import EthereumSendTransactionConfirm from "@/components/screens/browser-api/ethereum/EthereumSendTransactionConfirm";
+import BrowserAPILayout from "@/components/layouts/BrowserAPILayout";
+import Unlocked from "@/components/screens/browser-api/Unlocked";
 
 const loadKaspaWasm = async () => {
   await init(kaspaModule);
@@ -89,6 +94,22 @@ const keyringGuard = async ({ request }: LoaderFunctionArgs) => {
     const url = new URL(request.url);
     url.searchParams.set("redirect", url.pathname);
     url.pathname = "/unlock";
+
+    return redirect(url.toString());
+  }
+
+  return null;
+};
+
+const browserAPIKeyringGuard = async ({ request }: LoaderFunctionArgs) => {
+  const keyringStatusResponse = await getKeyringStatus();
+
+  if (!keyringStatusResponse.isUnlocked) {
+    const urlParams = new URLSearchParams(window.location.search);
+    const url = new URL(request.url);
+    url.searchParams.set("redirect", url.pathname);
+    url.searchParams.set("requestId", urlParams.get("requestId") ?? "");
+    url.pathname = "/browser-api/unlock";
 
     return redirect(url.toString());
   }
@@ -185,6 +206,10 @@ export const router = createHashRouter([
                     element: <BackupUnlock />,
                   },
                   {
+                    path: "change-password",
+                    element: <ChangePassword />,
+                  },
+                  {
                     path: "token-asset/:ticker",
                     element: <TokenAsset />,
                   },
@@ -200,19 +225,51 @@ export const router = createHashRouter([
                     path: "kas-asset",
                     element: <KasAsset />,
                   },
+                ],
+              },
 
-                  // Browser API routes
-                  { path: "connect", element: <ConnectConfirm /> },
+              {
+                element: <BrowserAPILayout />,
+                children: [
                   {
-                    path: "sign-and-broadcast-tx",
-                    element: <SignAndBroadcastTxConfirm />,
+                    path: "browser-api/unlock",
+                    element: <WalletUnlock />,
                   },
                   {
-                    path: "sign-tx",
-                    element: <SignTxConfirm />,
+                    element: <Outlet />,
+                    loader: browserAPIKeyringGuard,
+                    children: [
+                      { path: "connect", element: <ConnectConfirm /> },
+                      {
+                        path: "sign-and-broadcast-tx",
+                        element: <SignAndBroadcastTxConfirm />,
+                      },
+                      {
+                        path: "sign-tx",
+                        element: <SignTxConfirm />,
+                      },
+                      {
+                        path: "unlocked",
+                        element: <Unlocked />,
+                      },
+
+                      // Ethereum BrowserAPI routes
+                      {
+                        path: "ethereum/sign-message",
+                        element: <EthereumSignMessageConfirm />,
+                      },
+                      {
+                        path: "ethereum/sign-typed-data-v4",
+                      },
+                      {
+                        path: "ethereum/send-transaction",
+                        element: <EthereumSendTransactionConfirm />,
+                      },
+                    ],
                   },
                 ],
               },
+
               { path: "password-lost", element: <ResetWallet /> },
               {
                 // Catch all unknown routes

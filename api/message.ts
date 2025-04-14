@@ -1,123 +1,145 @@
 import { ScriptOption } from "@/lib/wallet/wallet-interface.ts";
-import { NetworkType } from "@/contexts/SettingsContext.tsx";
+import { z } from "zod";
+import { isAddress, isHex } from "viem";
 
 export enum Action {
   CONNECT,
   GET_ACCOUNT,
   SIGN_AND_BROADCAST_TX,
   SIGN_TX,
+  ETHEREUM_REQUEST,
 }
 
-export class SignTxPayload {
-  constructor(
-    public readonly networkId: string,
-    public readonly txJson: string,
-    public readonly scripts?: ScriptOption[],
-  ) {}
+export const SignTxPayloadSchema = z.object({
+  networkId: z.string(),
+  txJson: z.string(),
+  scripts: z.array(z.custom<ScriptOption>()).optional(),
+});
 
-  static validate(data: unknown): data is SignTxPayload {
-    return (
-      typeof data === "object" &&
-      !!data &&
-      "networkId" in data &&
-      "txJson" in data
-    );
-  }
-
-  static fromUriString(uriComponent: string): SignTxPayload {
-    const parsed = JSON.parse(decodeURIComponent(uriComponent));
-    return new SignTxPayload(parsed.networkId, parsed.txJson, parsed.scripts);
-  }
-
-  toUriString(): string {
-    return encodeURIComponent(JSON.stringify(this));
-  }
-}
+export type SignTxPayload = z.infer<typeof SignTxPayloadSchema>;
 
 // ================================================================================================
 
-export class ConnectPayload {
-  constructor(
-    public readonly name: string,
-    public readonly networkId: NetworkType,
-    public readonly icon?: string,
-  ) {}
+export const RpcRequestSchema = z.object({
+  method: z.string(),
+  params: z.array(z.unknown()).optional(),
+});
 
-  static validate(data: unknown): data is ConnectPayload {
-    return (
-      typeof data === "object" &&
-      !!data &&
-      "name" in data &&
-      "networkId" in data
-    );
-  }
+export type RpcRequest = z.infer<typeof RpcRequestSchema>;
+
+export const RpcErrorSchema = z.object({
+  code: z.number(),
+  message: z.string(),
+});
+
+export type RpcError = z.infer<typeof RpcErrorSchema>;
+
+export enum RpcErrorCode {
+  USER_REJECTED_REQUEST = 4001,
+  UNAUTHORIZED = 4100,
+  METHOD_NOT_SUPPORTED = 4200,
+  INTERNAL_ERROR = 5000,
+  INVALID_PARAMS = -32602,
+  TIMEOUT = -320603,
 }
+
+export const RPC_ERRORS = {
+  USER_REJECTED_REQUEST: RpcErrorSchema.parse({
+    code: RpcErrorCode.USER_REJECTED_REQUEST,
+    message: "User rejected the request",
+  }),
+
+  UNAUTHORIZED: RpcErrorSchema.parse({
+    code: RpcErrorCode.UNAUTHORIZED,
+    message: "Unauthorized",
+  }),
+  METHOD_NOT_SUPPORTED: RpcErrorSchema.parse({
+    code: RpcErrorCode.METHOD_NOT_SUPPORTED,
+    message: "Method not supported",
+  }),
+  TIMEOUT: RpcErrorSchema.parse({
+    code: RpcErrorCode.TIMEOUT,
+    message: "Timeout",
+  }),
+  INTERNAL_ERROR: RpcErrorSchema.parse({
+    code: RpcErrorCode.INTERNAL_ERROR,
+    message: "Internal error",
+  }),
+  INVALID_PARAMS: RpcErrorSchema.parse({
+    code: RpcErrorCode.INVALID_PARAMS,
+    message: "Invalid params",
+  }),
+};
+
+export enum ETHEREUM_METHODS {
+  REQUEST_ACCOUNTS = "eth_requestAccounts",
+  CHAIN_ID = "eth_chainId",
+  ACCOUNTS = "eth_accounts",
+  SEND_TRANSACTION = "eth_sendTransaction",
+  SIGN_MESSAGE = "personal_sign",
+  SIGN_TYPED_DATA_V4 = "eth_signTypedData_v4",
+  WALLET_SWITCH_ETHEREUM_NETWORK = "wallet_switchEthereumChain",
+}
+
+export const ethereumTransactionRequestSchema = z.object({
+  from: z.string().refine(isAddress, "Must be a valid Ethereum address"),
+  to: z.string().refine(isAddress, "Must be a valid Ethereum address"),
+  value: z.string().refine(isHex, "Value must be a hex string").optional(),
+  data: z.string().refine(isHex, "Data must be a hex string").optional(),
+  maxFeePerGas: z
+    .string()
+    .refine(isHex, "Max fee per gas must be a hex string")
+    .optional(),
+  maxPriorityFeePerGas: z
+    .string()
+    .refine(isHex, "Max priority fee must be a hex string")
+    .optional(),
+});
 
 // ================================================================================================
 
-export class ApiRequest<T = unknown> {
-  host?: string;
-  source = "browser";
-  target = "background";
+export const ConnectPayloadSchema = z.object({
+  networkId: z.string(),
+  name: z.string(),
+  icon: z.string().optional(),
+});
 
-  constructor(
-    public readonly action: Action,
-    public readonly id: string,
-    public readonly payload?: T,
-  ) {}
+export type ConnectPayload = z.infer<typeof ConnectPayloadSchema>;
 
-  static validate(data: unknown): data is ApiRequest {
-    return (
-      typeof data === "object" &&
-      !!data &&
-      "action" in data &&
-      "id" in data &&
-      "source" in data &&
-      "target" in data
-    );
-  }
-}
+// ================================================================================================
 
-export class ApiResponse<T = unknown> {
-  target = "browser";
+export const ApiRequestSchema = z.object({
+  action: z.nativeEnum(Action),
+  id: z.string(),
+  source: z.literal("browser"),
+  target: z.literal("background"),
+  payload: z.unknown().optional(),
+});
 
-  constructor(
-    public readonly id: string,
-    public readonly response: T,
-    public readonly error?: string,
-  ) {}
+export type ApiRequest = z.infer<typeof ApiRequestSchema>;
 
-  static validate(data: unknown): data is ApiResponse {
-    return (
-      typeof data === "object" &&
-      !!data &&
-      "id" in data &&
-      "response" in data &&
-      "target" in data &&
-      (!("error" in data) || typeof data.error === "string")
-    );
-  }
-}
+export const ApiRequestWithHostSchema = ApiRequestSchema.extend({
+  host: z.string(),
+});
 
-export class ApiExtensionResponse<T = unknown> {
-  source = "extension";
-  target = "background";
+export type ApiRequestWithHost = z.infer<typeof ApiRequestWithHostSchema>;
 
-  constructor(
-    public readonly id: string,
-    public readonly response?: T,
-    public readonly error?: string,
-  ) {}
+export const ApiResponseSchema = z.object({
+  id: z.string(),
+  response: z.unknown(),
+  error: z.union([z.string(), RpcErrorSchema]).optional(),
+  source: z.literal("background"),
+  target: z.literal("browser"),
+});
 
-  static validate(data: unknown): data is ApiExtensionResponse {
-    return (
-      typeof data === "object" &&
-      !!data &&
-      "id" in data &&
-      "source" in data &&
-      "target" in data &&
-      "response" in data &&
-      (!("error" in data) || typeof data.error === "string")
-    );
-  }
-}
+export type ApiResponse = z.infer<typeof ApiResponseSchema>;
+
+export const ApiExtensionResponseSchema = z.object({
+  id: z.string(),
+  response: z.unknown().optional(),
+  error: z.string().optional(),
+  source: z.literal("extension"),
+  target: z.literal("background"),
+});
+
+export type ApiExtensionResponse = z.infer<typeof ApiExtensionResponseSchema>;

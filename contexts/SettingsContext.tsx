@@ -6,7 +6,6 @@ export const SETTINGS_KEY = "local:settings";
 export enum NetworkType {
   Mainnet = "mainnet",
   TestnetT10 = "testnet-10",
-  TestnetT11 = "testnet-11",
 }
 
 type SettingsContextType = {
@@ -47,29 +46,24 @@ export const RPC_URLS = {
   [NetworkType.Mainnet]:
     "wss://ws-borsh-mainnet-kaspa-fullnode-direct.forbole.com/borsh",
   [NetworkType.TestnetT10]: "wss://ws.tn10.kaspa.forbole.com/borsh",
-  [NetworkType.TestnetT11]: "wss://ws.tn11.kaspa.forbole.com/borsh",
 };
 export const KASPLEX_API_URLS = {
   [NetworkType.Mainnet]: "https://api.kasplex.org/v1",
   [NetworkType.TestnetT10]: "https://tn10api.kasplex.org/v1",
-  [NetworkType.TestnetT11]: "https://tn11api.kasplex.org/v1",
 };
 export const KNS_API_URLS = {
   [NetworkType.Mainnet]: "https://api.knsdomains.org/mainnet",
   [NetworkType.TestnetT10]: "https://api.knsdomains.org/tn10",
-  [NetworkType.TestnetT11]: "https://api.knsdomains.org/tn11",
 };
 
 export const KRC721_API_URLS = {
   [NetworkType.Mainnet]: "https://mainnet.krc721.stream",
   [NetworkType.TestnetT10]: "https://testnet-10.krc721.stream",
-  [NetworkType.TestnetT11]: undefined,
 };
 
 export const KRC721_CACHE_URLS = {
   [NetworkType.Mainnet]: "https://cache.krc721.stream/krc721/mainnet",
   [NetworkType.TestnetT10]: "https://cache.krc721.stream/krc721/testnet-10",
-  [NetworkType.TestnetT11]: undefined,
 };
 
 const initialSettings = {

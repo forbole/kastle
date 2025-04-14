@@ -50,7 +50,7 @@ export default function Dashboard() {
   const [mintHovered, setMintHovered] = useState(false);
 
   return (
-    <div className="relative flex h-full w-full flex-col px-3">
+    <div className="no-scrollbar relative flex h-full w-full flex-col overflow-y-scroll px-3">
       {/* Warning popup */}
       {showWarning && !dismissWarning && (
         <div
