@@ -2,10 +2,8 @@ import { Settings, SETTINGS_KEY } from "@/contexts/SettingsContext.tsx";
 import { ApiUtils } from "@/api/background/utils.ts";
 
 export const watchSettingsUpdated = () => {
-  storage.watch<Settings>(SETTINGS_KEY, async (newValue, oldValue) => {
+  storage.watch<Settings>(SETTINGS_KEY, (newValue, oldValue) => {
     if (newValue?.networkId !== oldValue?.networkId) {
-      const account = await ApiUtils.getCurrentAccount();
-
       window.postMessage(
         ApiUtils.createApiResponse("kas:network_changed", [
           newValue?.networkId,
@@ -13,7 +11,7 @@ export const watchSettingsUpdated = () => {
         window.location.origin,
       );
       window.postMessage(
-        ApiUtils.createApiResponse("kas:account_changed", account?.address),
+        ApiUtils.createApiResponse("kas:account_changed", null),
         window.location.origin,
       );
     }

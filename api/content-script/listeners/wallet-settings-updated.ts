@@ -5,14 +5,12 @@ import {
 } from "@/contexts/WalletManagerContext.tsx";
 
 export const watchWalletSettingsUpdated = () => {
-  storage.watch<WalletSettings>(WALLET_SETTINGS, async (newValue, oldValue) => {
+  storage.watch<WalletSettings>(WALLET_SETTINGS, (newValue, oldValue) => {
     if (
       newValue?.selectedWalletId !== oldValue?.selectedWalletId ||
       newValue?.selectedAccountIndex !== oldValue?.selectedAccountIndex
     ) {
-      const account = await ApiUtils.getCurrentAccount();
-
-      ApiUtils.createApiResponse("kas:account_changed", account?.address);
+      ApiUtils.createApiResponse("kas:account_changed", null);
     }
   });
 };
