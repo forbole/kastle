@@ -7,11 +7,13 @@ export const watchSettingsUpdated = () => {
       const account = await ApiUtils.getCurrentAccount();
 
       window.postMessage(
-        ApiUtils.createApiResponse("kas_networkChanged", [newValue?.networkId]),
+        ApiUtils.createApiResponse("kas:network_changed", [
+          newValue?.networkId,
+        ]),
         window.location.origin,
       );
       window.postMessage(
-        ApiUtils.createApiResponse("kas_accountChanged", account?.address),
+        ApiUtils.createApiResponse("kas:account_changed", account?.address),
         window.location.origin,
       );
     }

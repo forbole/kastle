@@ -12,7 +12,7 @@ export const watchWalletSettingsUpdated = () => {
     ) {
       const account = await ApiUtils.getCurrentAccount();
 
-      ApiUtils.createApiResponse("kas_accountChanged", account?.address);
+      ApiUtils.createApiResponse("kas:account_changed", account?.address);
     }
   });
 };

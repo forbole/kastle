@@ -68,10 +68,10 @@ export class KastleBrowserAPI {
   async request(method: string, args?: unknown): Promise<any> {
     const requestId = uuid();
     const action = {
-      "get-account": Action.GET_ACCOUNT,
-      "get-network": Action.GET_NETWORK,
-      "sign-tx": Action.SIGN_TX,
-      "sign-and-broadcast-tx": Action.SIGN_AND_BROADCAST_TX,
+      "kas:get_account": Action.GET_ACCOUNT,
+      "kas:get_network": Action.GET_NETWORK,
+      "kas:sign_tx": Action.SIGN_TX,
+      "kas:sign_and_broadcast_tx": Action.SIGN_AND_BROADCAST_TX,
     }[method];
 
     if (!action) {
