@@ -1,5 +1,6 @@
 import { ScriptOption } from "@/lib/wallet/wallet-interface.ts";
 import { z } from "zod";
+import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import { isAddress, isHex } from "viem";
 
 export enum Action {
@@ -7,6 +8,7 @@ export enum Action {
   GET_ACCOUNT,
   SIGN_AND_BROADCAST_TX,
   SIGN_TX,
+  GET_NETWORK,
   ETHEREUM_REQUEST,
 }
 
@@ -99,7 +101,7 @@ export const ethereumTransactionRequestSchema = z.object({
 // ================================================================================================
 
 export const ConnectPayloadSchema = z.object({
-  networkId: z.string(),
+  networkId: z.nativeEnum(NetworkType),
   name: z.string(),
   icon: z.string().optional(),
 });

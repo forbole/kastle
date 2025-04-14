@@ -8,6 +8,7 @@ import {
 } from "@/api/message";
 import { ScriptOption } from "@/lib/wallet/wallet-interface.ts";
 import { EthereumBrowserAPI } from "./ethereum";
+import { ApiUtils } from "@/api/background/utils.ts";
 
 function createApiRequest(
   action: Action,
@@ -26,9 +27,16 @@ function createApiRequest(
 export class KastleBrowserAPI {
   public readonly ethereum = new EthereumBrowserAPI();
 
-  constructor() {}
+  constructor() {
+    window.postMessage(
+      ApiUtils.createApiResponse("kastle_installed", []),
+      window.location.origin,
+    );
+  }
 
-  async connect(networkId: "mainnet" | "testnet-10"): Promise<boolean> {
+  async connect(
+    networkId: "mainnet" | "testnet-10" = "mainnet",
+  ): Promise<boolean> {
     const requestId = uuid();
 
     const iconElement =
@@ -50,6 +58,27 @@ export class KastleBrowserAPI {
       }),
     );
 
+    window.postMessage(request, "*");
+
+    return await this.receiveMessageWithTimeout(requestId);
+  }
+
+  async disconnect(): Promise<void> {}
+
+  async request(method: string, args?: unknown): Promise<any> {
+    const requestId = uuid();
+    const action = {
+      "kas:get_account": Action.GET_ACCOUNT,
+      "kas:get_network": Action.GET_NETWORK,
+      "kas:sign_tx": Action.SIGN_TX,
+      "kas:sign_and_broadcast_tx": Action.SIGN_AND_BROADCAST_TX,
+    }[method];
+
+    if (!action) {
+      return;
+    }
+
+    const request = createApiRequest(action, requestId, args);
     window.postMessage(request, "*");
 
     return await this.receiveMessageWithTimeout(requestId);
