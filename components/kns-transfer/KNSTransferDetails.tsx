@@ -53,7 +53,7 @@ export const KNSTransferDetails = ({
 
   const addressValidator = async (value: string | undefined) => {
     const genericErrorMessage = "Invalid address or KNS domain";
-    if (!value) return undefined;
+    if (!value) return false;
 
     if (currentBalance < Fee.Base) {
       return "Oh, you don’t have enough funds";
