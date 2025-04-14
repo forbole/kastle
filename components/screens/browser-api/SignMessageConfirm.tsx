@@ -16,11 +16,11 @@ export default function SignMessageConfirm() {
   );
 
   const payload = encodedPayload
-  ? JSON.parse(decodeURIComponent(encodedPayload))
-  : null;
+    ? JSON.parse(decodeURIComponent(encodedPayload))
+    : null;
 
   const loading = !wallet || !requestId || !payload;
- 
+
   return (
     <div className="h-screen p-4">
       {loading && <Splash />}
