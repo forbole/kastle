@@ -42,7 +42,12 @@ export const connectHandler: Handler = async (
   }
 
   // Check if connection is already existing
-  if (await ApiUtils.isHostConnected(message.host)) {
+  if (
+    await ApiUtils.isHostConnectedWithNetworkId(
+      message.host,
+      parsedPayload.networkId,
+    )
+  ) {
     sendResponse(ApiUtils.createApiResponse(message.id, true));
     return;
   }
@@ -57,6 +62,6 @@ export const connectHandler: Handler = async (
 
   ApiUtils.openPopup(tabId, url.toString());
 
-  await ApiUtils.receiveExtensionMessage(message.id);
-  sendResponse(ApiUtils.createApiResponse(message.id, true));
+  const response = await ApiUtils.receiveExtensionMessage(message.id);
+  sendResponse(response);
 };
