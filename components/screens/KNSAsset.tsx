@@ -2,11 +2,14 @@ import { useParams } from "react-router-dom";
 import Header from "@/components/GeneralHeader";
 import badgeCheck from "@/assets/images/badge-check.svg";
 import avatarIcon from "@/assets/images/avatar.png";
-import { useDomainDetails, AssetDataWithId } from "@/hooks/useKns.ts";
+import { useDomainDetails } from "@/hooks/useKns.ts";
 import { walletAddressEllipsis } from "@/lib/utils";
 import Copy from "@/components/Copy";
 import HoverShowAllCopy from "@/components/HoverShowAllCopy";
 import HoverShowAll from "@/components/HoverShowAll";
+import { Tooltip } from "react-tooltip";
+import React from "react";
+import { twMerge } from "tailwind-merge";
 
 export default function KNSAsset() {
   const { assetId } = useParams();
@@ -134,21 +137,48 @@ export default function KNSAsset() {
             </ul>
           </div>
 
-          <div className="flex flex-col gap-2 text-base font-semibold text-[#083344]">
+          <div className="flex flex-col gap-2 text-base font-semibold">
+            <>
+              {asset.status !== "default" && (
+                <Tooltip
+                  id="transer-disabled"
+                  style={{
+                    backgroundColor: "#203C49",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    padding: "8px",
+                    width: "60%",
+                  }}
+                  opacity={1}
+                  place="top"
+                />
+              )}
+              <button
+                type="button"
+                data-tooltip-id="transer-disabled"
+                data-tooltip-content="This domain is listed for sale and must be unlisted before transferring."
+                className="inline-flex w-full rounded-full border border-white py-3 text-white disabled:border-[#093446] disabled:text-[#083344]"
+                disabled={asset.status !== "default"}
+              >
+                <span className="ml-[120px]">Transfer</span>
+                <div
+                  className={twMerge(
+                    "ml-2 rounded-full px-2 text-[10px]",
+                    asset.status === "default"
+                      ? "bg-icy-blue-400 text-white"
+                      : "bg-[#164E63] bg-opacity-30 text-[#0E7490]",
+                  )}
+                >
+                  New
+                </div>
+              </button>
+            </>
+
             <button
-              className="inline-flex w-full rounded-full border border-[#093446] py-3"
+              className="inline-flex w-full rounded-full border border-[#093446] py-3 text-[#083344]"
               disabled
             >
-              <span className="ml-[120px]">Transfer KNS</span>
-              <div className="ml-2 rounded-full bg-[#164E63] bg-opacity-30 px-2 text-[10px] text-[#0E7490]">
-                Coming soon
-              </div>
-            </button>
-            <button
-              className="inline-flex w-full rounded-full border border-[#093446] py-3"
-              disabled
-            >
-              <span className="ml-[140px]">List KNS</span>
+              <span className="ml-[140px]">List</span>
               <div className="ml-2 rounded-full bg-[#164E63] bg-opacity-30 px-2 text-[10px] text-[#0E7490]">
                 Coming soon
               </div>
