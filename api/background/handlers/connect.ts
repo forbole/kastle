@@ -1,5 +1,5 @@
-import {ApiRequestWithHost, ConnectPayloadSchema} from "@/api/message";
-import {ApiUtils, Handler} from "@/api/background/utils";
+import { ApiRequestWithHost, ConnectPayloadSchema } from "@/api/message";
+import { ApiUtils, Handler } from "@/api/background/utils";
 
 /** Connect handler to serve BrowserMessageType.CONNECT message */
 export const connectHandler: Handler = async (
@@ -7,7 +7,6 @@ export const connectHandler: Handler = async (
   message: ApiRequestWithHost,
   sendResponse: (response?: any) => void,
 ) => {
-  console.log("connectHandler", message);
   const sendError = function (error: string) {
     // NOTE: can not send undefined as response, so send null
     sendResponse(ApiUtils.createApiResponse(message.id, null, error));
