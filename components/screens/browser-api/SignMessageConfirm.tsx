@@ -16,25 +16,11 @@ export default function SignMessageConfirm() {
   );
 
   const payload = encodedPayload
-    ? SignMessagePayload.fromUriString(encodedPayload)
-    : null;
+  ? JSON.parse(decodeURIComponent(encodedPayload))
+  : null;
 
   const loading = !wallet || !requestId || !payload;
-
-  useEffect(() => {
-    // Handle beforeunload event
-    async function beforeunload(event: BeforeUnloadEvent) {
-      const denyMessage = new ApiResponse(requestId, false, "User denied");
-      await ApiExtensionUtils.sendMessage(requestId, denyMessage);
-    }
-
-    window.addEventListener("beforeunload", beforeunload);
-
-    return () => {
-      window.removeEventListener("beforeunload", beforeunload);
-    };
-  }, []);
-
+ 
   return (
     <div className="h-screen p-4">
       {loading && <Splash />}

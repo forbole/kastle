@@ -5,7 +5,7 @@ import Header from "@/components/GeneralHeader";
 import { useBoolean } from "usehooks-ts";
 import { IWallet } from "@/lib/wallet/wallet-interface";
 import { ApiExtensionUtils } from "@/api/extension";
-import { ApiResponse } from "@/api/message";
+import { ApiUtils } from "@/api/background/utils";
 
 type SignMessageProps = {
   requestId: string;
@@ -32,13 +32,13 @@ export default function SignMessage({
       const signed = await walletSigner.signMessage(message);
       await ApiExtensionUtils.sendMessage(
         requestId,
-        new ApiResponse(requestId, signed),
+        ApiUtils.createApiResponse(requestId, signed),
       );
       toggleIsSigning();
     } catch (err) {
       await ApiExtensionUtils.sendMessage(
         requestId,
-        new ApiResponse(
+        ApiUtils.createApiResponse(
           requestId,
           null,
           "Failed to sign message: " + (err as any).toString(),
@@ -52,7 +52,7 @@ export default function SignMessage({
   const cancel = async () => {
     await ApiExtensionUtils.sendMessage(
       requestId,
-      new ApiResponse(requestId, null, "User cancelled"),
+      ApiUtils.createApiResponse(requestId, null, "User cancelled"),
     );
     window.close();
   };
