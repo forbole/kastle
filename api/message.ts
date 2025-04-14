@@ -8,7 +8,18 @@ export enum Action {
   SIGN_AND_BROADCAST_TX,
   SIGN_TX,
   ETHEREUM_REQUEST,
+  SIGN_MESSAGE,
 }
+
+// ================================================================================================
+
+export const SignMessagePayloadSchema = z.object({
+  message: z.string(),
+});
+
+export type SignMessagePayload = z.infer<typeof SignMessagePayloadSchema>;
+
+// ================================================================================================
 
 export const SignTxPayloadSchema = z.object({
   networkId: z.string(),
@@ -24,6 +35,8 @@ export const RpcRequestSchema = z.object({
   method: z.string(),
   params: z.array(z.unknown()).optional(),
 });
+
+// ================================================================================================
 
 export type RpcRequest = z.infer<typeof RpcRequestSchema>;
 

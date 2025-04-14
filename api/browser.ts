@@ -5,6 +5,7 @@ import {
   ApiResponseSchema,
   ConnectPayloadSchema,
   SignTxPayloadSchema,
+  SignMessagePayloadSchema,
 } from "@/api/message";
 import { ScriptOption } from "@/lib/wallet/wallet-interface.ts";
 import { EthereumBrowserAPI } from "./ethereum";
@@ -96,6 +97,20 @@ export class KastleBrowserAPI {
         networkId,
         txJson,
         scripts,
+      }),
+    );
+    window.postMessage(request, "*");
+
+    return await this.receiveMessageWithTimeout(requestId);
+  }
+
+  async signMessage(message: string): Promise<string> {
+    const requestId = uuid();
+    const request = createApiRequest(
+      Action.SIGN_MESSAGE,
+      requestId,
+      SignMessagePayloadSchema.parse({
+        message,
       }),
     );
     window.postMessage(request, "*");
