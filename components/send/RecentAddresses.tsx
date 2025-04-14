@@ -43,7 +43,7 @@ export default function RecentAddresses({
       <div
         ref={ref}
         className={twMerge(
-          "no-scrollbar absolute left-0 top-32 z-50 h-[18rem] w-full overflow-y-scroll rounded-2xl border border-daintree-700 bg-daintree-800 transition-opacity duration-300",
+          "no-scrollbar absolute bottom-0 left-0 z-50 h-[18rem] w-full overflow-y-scroll rounded-2xl border border-daintree-700 bg-daintree-800 transition-opacity duration-300",
           isShown ? "opacity-100" : "pointer-events-none opacity-0",
         )}
       >
