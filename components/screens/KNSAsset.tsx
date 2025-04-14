@@ -10,13 +10,17 @@ import HoverShowAll from "@/components/HoverShowAll";
 import { Tooltip } from "react-tooltip";
 import React from "react";
 import { twMerge } from "tailwind-merge";
+import useWalletManager from "@/hooks/useWalletManager.ts";
 
 export default function KNSAsset() {
   const navigate = useNavigate();
+  const { wallet } = useWalletManager();
   const { assetId } = useParams();
   const { data: response } = useDomainDetails(assetId ?? "");
 
   const asset = response?.data;
+  const isLedger = wallet?.type === "ledger";
+  const isTransferDisabled = asset?.status !== "default" || isLedger;
 
   return (
     <div className="flex h-full flex-col p-4">
@@ -140,7 +144,7 @@ export default function KNSAsset() {
 
           <div className="flex flex-col gap-2 text-base font-semibold">
             <>
-              {asset.status !== "default" && (
+              {isTransferDisabled && (
                 <Tooltip
                   id="transer-disabled"
                   style={{
@@ -157,9 +161,13 @@ export default function KNSAsset() {
               <button
                 type="button"
                 data-tooltip-id="transer-disabled"
-                data-tooltip-content="This domain is listed for sale and must be unlisted before transferring."
+                data-tooltip-content={
+                  isLedger
+                    ? "Ledger doesn’t support deploy function currently."
+                    : "This domain is listed for sale and must be unlisted before transferring."
+                }
                 className="inline-flex w-full rounded-full border border-white py-3 text-white disabled:border-[#093446] disabled:text-[#083344]"
-                disabled={asset.status !== "default"}
+                disabled={isTransferDisabled}
                 onClick={() => navigate(`/kns-transfer/${assetId}`)}
               >
                 <span className="ml-[120px]">Transfer</span>
