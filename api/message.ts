@@ -1,7 +1,4 @@
-import { ScriptOption } from "@/lib/wallet/wallet-interface.ts";
 import { z } from "zod";
-import { NetworkType } from "@/contexts/SettingsContext.tsx";
-import { isAddress, isHex } from "viem";
 
 export enum Action {
   CONNECT,
@@ -15,30 +12,10 @@ export enum Action {
 
 // ================================================================================================
 
-export const SignMessagePayloadSchema = z.object({
-  message: z.string(),
-});
-
-export type SignMessagePayload = z.infer<typeof SignMessagePayloadSchema>;
-
-// ================================================================================================
-
-export const SignTxPayloadSchema = z.object({
-  networkId: z.string(),
-  txJson: z.string(),
-  scripts: z.array(z.custom<ScriptOption>()).optional(),
-});
-
-export type SignTxPayload = z.infer<typeof SignTxPayloadSchema>;
-
-// ================================================================================================
-
 export const RpcRequestSchema = z.object({
   method: z.string(),
   params: z.array(z.unknown()).optional(),
 });
-
-// ================================================================================================
 
 export type RpcRequest = z.infer<typeof RpcRequestSchema>;
 
@@ -95,31 +72,6 @@ export enum ETHEREUM_METHODS {
   SIGN_TYPED_DATA_V4 = "eth_signTypedData_v4",
   WALLET_SWITCH_ETHEREUM_NETWORK = "wallet_switchEthereumChain",
 }
-
-export const ethereumTransactionRequestSchema = z.object({
-  from: z.string().refine(isAddress, "Must be a valid Ethereum address"),
-  to: z.string().refine(isAddress, "Must be a valid Ethereum address"),
-  value: z.string().refine(isHex, "Value must be a hex string").optional(),
-  data: z.string().refine(isHex, "Data must be a hex string").optional(),
-  maxFeePerGas: z
-    .string()
-    .refine(isHex, "Max fee per gas must be a hex string")
-    .optional(),
-  maxPriorityFeePerGas: z
-    .string()
-    .refine(isHex, "Max priority fee must be a hex string")
-    .optional(),
-});
-
-// ================================================================================================
-
-export const ConnectPayloadSchema = z.object({
-  networkId: z.nativeEnum(NetworkType),
-  name: z.string(),
-  icon: z.string().optional(),
-});
-
-export type ConnectPayload = z.infer<typeof ConnectPayloadSchema>;
 
 // ================================================================================================
 

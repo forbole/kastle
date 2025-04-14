@@ -1,4 +1,4 @@
-import { SignMessagePayload } from "@/api/message";
+import { SignMessagePayload } from "@/api/background/handlers/kaspa/signMessage";
 import { AccountFactory } from "@/lib/wallet/wallet-factory";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import { NetworkType } from "@/contexts/SettingsContext";

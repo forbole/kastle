@@ -1,19 +1,14 @@
 import { Handler } from "@/api/background/utils";
-import { ApiRequestWithHost, SignTxPayloadSchema } from "@/api/message";
+import { ApiRequestWithHost } from "@/api/message";
 import { ApiUtils } from "@/api/background/utils";
-/** signAndBroadcastTx handler to serve BrowserMessageType.SIGN_AND_BROADCAST_TX message */
-export const signAndBroadcastTxHandler: Handler = async (
+import { SignTxPayloadSchema } from "./utils";
+
+/** signTxHandler to serve BrowserMessageType.SIGN_TX message */
+export const signTxHandler: Handler = async (
   tabId: number,
   message: ApiRequestWithHost,
   sendResponse: any,
 ) => {
-  if (!message.host) {
-    sendResponse(
-      ApiUtils.createApiResponse(message.id, null, "Host is required"),
-    );
-    return;
-  }
-
   // Check if extension is initialized
   if (!(await ApiUtils.isInitialized())) {
     sendResponse(
@@ -43,7 +38,7 @@ export const signAndBroadcastTxHandler: Handler = async (
   }
 
   const url = new URL(browser.runtime.getURL("/popup.html"));
-  url.hash = "/sign-and-broadcast-tx";
+  url.hash = "/sign-tx";
   url.searchParams.set("requestId", message.id);
   url.searchParams.set("payload", JSON.stringify(result.data));
 

@@ -1,10 +1,7 @@
-import { SignMessagePayload } from "@/api/message";
+import { SignMessagePayloadSchema } from "@/api/background/handlers/kaspa/signMessage";
 import HotWalletSignMessage from "@/components/screens/browser-api/sign-message/HotWalletSignMessage";
 import LedgerSignMessage from "@/components/screens/browser-api/sign-message/LedgerSignMessage";
 import useWalletManager from "@/hooks/useWalletManager.ts";
-import { useEffect } from "react";
-import { ApiExtensionUtils } from "@/api/extension";
-import { ApiResponse } from "@/api/message";
 import Splash from "@/components/screens/Splash";
 
 export default function SignMessageConfirm() {
@@ -19,16 +16,26 @@ export default function SignMessageConfirm() {
     ? JSON.parse(decodeURIComponent(encodedPayload))
     : null;
 
-  const loading = !wallet || !requestId || !payload;
+  const parsedPayload = payload
+    ? SignMessagePayloadSchema.parse(payload)
+    : null;
+
+  const loading = !wallet || !requestId || !parsedPayload;
 
   return (
     <div className="h-screen p-4">
       {loading && <Splash />}
       {!loading && wallet.type !== "ledger" && (
-        <HotWalletSignMessage requestId={requestId} payload={payload} />
+        <HotWalletSignMessage
+          requestId={requestId}
+          payload={SignMessagePayloadSchema.parse(parsedPayload)}
+        />
       )}
       {!loading && wallet.type === "ledger" && (
-        <LedgerSignMessage requestId={requestId} payload={payload} />
+        <LedgerSignMessage
+          requestId={requestId}
+          payload={SignMessagePayloadSchema.parse(parsedPayload)}
+        />
       )}
     </div>
   );

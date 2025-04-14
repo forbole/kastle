@@ -1,10 +1,15 @@
 import { Handler } from "@/api/background/utils";
-import {
-  ApiRequestWithHost,
-  ApiResponse,
-  SignMessagePayloadSchema,
-} from "@/api/message";
+import { ApiRequestWithHost, ApiResponse } from "@/api/message";
 import { ApiUtils } from "@/api/background/utils";
+import { z } from "zod";
+
+export const SignMessagePayloadSchema = z.object({
+  message: z.string(),
+});
+
+export type SignMessagePayload = z.infer<typeof SignMessagePayloadSchema>;
+
+// ================================================================================
 
 /** signMessageHandler to serve BrowserMessageType.SIGN_MESSAGE message */
 export const signMessageHandler: Handler = async (

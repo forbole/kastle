@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { SignTxPayload } from "@/api/message";
+import { SignTxPayload } from "@/api/background/handlers/kaspa/utils";
 import TransactionDetailsBox from "@/components/screens/browser-api/sign/TransactionBox";
 import ScriptItem from "@/components/screens/browser-api/sign/ScriptItem";
 import { twMerge } from "tailwind-merge";

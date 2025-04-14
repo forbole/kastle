@@ -1,6 +1,5 @@
 import { ApiExtensionUtils } from "@/api/extension";
 import { useSettings } from "@/hooks/useSettings";
-import { useEffect } from "react";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import Header from "@/components/GeneralHeader";
 import Link from "@/assets/images/link.svg";
@@ -23,7 +22,7 @@ export default function ConnectConfirm() {
   const urlSearchParams = new URLSearchParams(window.location.search);
   const requestId = urlSearchParams.get("requestId") ?? "";
   const host = urlSearchParams.get("host") ?? "";
-  const network = urlSearchParams.get("network") ?? "";
+  const network = urlSearchParams.get("network") ?? settings?.networkId;
   const tabName = urlSearchParams.get("name") ?? "Unknown";
   const icon = urlSearchParams.get("icon") ?? undefined;
 
@@ -47,7 +46,9 @@ export default function ConnectConfirm() {
       }
 
       const walletConnections = settings.walletConnections ?? {};
-      const targetNetwork = (network as NetworkType) ?? settings.networkId;
+      const targetNetwork = (network ?? settings.networkId) as NetworkType;
+      console.log(targetNetwork, settings.networkId);
+
       const connections =
         walletConnections[selectedWalletId]?.[selectedAccountIndex]?.[
           targetNetwork
@@ -84,7 +85,6 @@ export default function ConnectConfirm() {
         ),
       );
     } finally {
-      window.close();
     }
   };
 
@@ -110,6 +110,7 @@ export default function ConnectConfirm() {
       background: "bg-yellow-800",
     },
   ];
+
   const selectedNetwork = networks.find(
     (n) => n.id === (network ?? settings?.networkId),
   );

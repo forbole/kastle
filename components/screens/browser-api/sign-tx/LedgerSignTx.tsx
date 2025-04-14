@@ -1,4 +1,4 @@
-import { SignTxPayload } from "@/api/message";
+import { SignTxPayload } from "@/api/background/handlers/kaspa/utils";
 import LedgerNotSupported from "@/components/screens/browser-api/sign/LedgerNotSupported";
 import SignTx from "@/components/screens/browser-api/sign-tx/SignTx";
 import { AccountFactory } from "@/lib/wallet/wallet-factory";

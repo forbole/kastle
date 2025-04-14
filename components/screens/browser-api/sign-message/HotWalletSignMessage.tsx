@@ -1,4 +1,4 @@
-import { SignMessagePayload } from "@/api/message";
+import { SignMessagePayload } from "@/api/background/handlers/kaspa/signMessage";
 import SignMessage from "@/components/screens/browser-api/sign-message/SignMessage";
 import { IWallet } from "@/lib/wallet/wallet-interface.ts";
 import { AccountFactory } from "@/lib/wallet/wallet-factory";
