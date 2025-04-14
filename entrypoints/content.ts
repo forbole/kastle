@@ -1,5 +1,7 @@
 import { ApiRequestSchema, ApiRequestWithHostSchema } from "@/api/message";
 import { EthereumAccountsChangedListener } from "@/api/content-script/listeners/ethereum/accountsChanged";
+import { watchSettingsUpdated } from "@/api/content-script/listeners/settings-updated.ts";
+import { watchWalletSettingsUpdated } from "@/api/content-script/listeners/wallet-settings-updated.ts";
 
 export default defineContentScript({
   matches: ["*://*/*"],
@@ -11,6 +13,9 @@ export default defineContentScript({
 
     // TODO: implement tabs connections manager and authentication for listeners
     new EthereumAccountsChangedListener().start();
+
+    watchSettingsUpdated();
+    watchWalletSettingsUpdated();
 
     // Listen for messages from the browser
     window.addEventListener("message", async (event: MessageEvent<unknown>) => {

@@ -66,7 +66,7 @@ export default function TokenHistoryItem({
       <div className="flex items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3">
         <img
           alt="castle"
-          className="h-[40px] w-[40px]"
+          className="h-[40px] w-[40px] rounded-full"
           src={imageUrl}
           onError={onImageError}
         />
