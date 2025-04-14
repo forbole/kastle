@@ -1,5 +1,15 @@
-import { ApiRequestWithHost, ConnectPayloadSchema } from "@/api/message";
+import { ApiRequestWithHost } from "@/api/message";
 import { ApiUtils, Handler } from "@/api/background/utils";
+import { NetworkType } from "@/contexts/SettingsContext";
+import { z } from "zod";
+
+export const ConnectPayloadSchema = z.object({
+  networkId: z.nativeEnum(NetworkType),
+  name: z.string(),
+  icon: z.string().optional(),
+});
+
+export type ConnectPayload = z.infer<typeof ConnectPayloadSchema>;
 
 /** Connect handler to serve BrowserMessageType.CONNECT message */
 export const connectHandler: Handler = async (

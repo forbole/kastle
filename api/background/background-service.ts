@@ -1,7 +1,7 @@
-import { connectHandler } from "@/api/background/handlers/connect";
-import { getAccountHandler } from "@/api/background/handlers/getAccount";
-import { signAndBroadcastTxHandler } from "@/api/background/handlers/signAndBroadcastTx";
-import { signTxHandler } from "@/api/background/handlers/signTx";
+import { connectHandler } from "@/api/background/handlers/kaspa/connect";
+import { getAccountHandler } from "@/api/background/handlers/kaspa/getAccount";
+import { signAndBroadcastTxHandler } from "@/api/background/handlers/kaspa/signAndBroadcastTx";
+import { signTxHandler } from "@/api/background/handlers/kaspa/signTx";
 import {
   Action,
   ApiRequestWithHostSchema,
@@ -9,6 +9,7 @@ import {
 } from "@/api/message";
 import { getNetwork } from "@/api/background/handlers/get-network.ts";
 import { ethereumRequestHandler } from "@/api/background/handlers/ethereum/request";
+import { signMessageHandler } from "@/api/background/handlers/kaspa/signMessage";
 
 export class BackgroundService {
   public listen(): void {
@@ -59,6 +60,7 @@ export class BackgroundService {
       [Action.SIGN_TX]: signTxHandler,
       [Action.GET_NETWORK]: getNetwork,
       [Action.ETHEREUM_REQUEST]: ethereumRequestHandler,
+      [Action.SIGN_MESSAGE]: signMessageHandler,
     };
 
     return handlers[action];

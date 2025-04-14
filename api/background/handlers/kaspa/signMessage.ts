@@ -1,17 +1,29 @@
 import { Handler } from "@/api/background/utils";
-import {
-  ApiRequestWithHost,
-  ApiResponse,
-  SignTxPayloadSchema,
-} from "@/api/message";
+import { ApiRequestWithHost, ApiResponse } from "@/api/message";
 import { ApiUtils } from "@/api/background/utils";
+import { z } from "zod";
 
-/** signTxHandler to serve BrowserMessageType.SIGN_TX message */
-export const signTxHandler: Handler = async (
+export const SignMessagePayloadSchema = z.object({
+  message: z.string(),
+});
+
+export type SignMessagePayload = z.infer<typeof SignMessagePayloadSchema>;
+
+// ================================================================================
+
+/** signMessageHandler to serve BrowserMessageType.SIGN_MESSAGE message */
+export const signMessageHandler: Handler = async (
   tabId: number,
   message: ApiRequestWithHost,
   sendResponse: any,
 ) => {
+  if (!message.host) {
+    sendResponse(
+      ApiUtils.createApiResponse(message.id, null, "Host is required"),
+    );
+    return;
+  }
+
   // Check if extension is initialized
   if (!(await ApiUtils.isInitialized())) {
     sendResponse(
@@ -32,7 +44,7 @@ export const signTxHandler: Handler = async (
     return;
   }
 
-  const result = SignTxPayloadSchema.safeParse(message.payload);
+  const result = SignMessagePayloadSchema.safeParse(message.payload);
   if (!result.success) {
     sendResponse(
       ApiUtils.createApiResponse(message.id, null, "Invalid transaction data"),
@@ -41,7 +53,7 @@ export const signTxHandler: Handler = async (
   }
 
   const url = new URL(browser.runtime.getURL("/popup.html"));
-  url.hash = "/sign-tx";
+  url.hash = "/sign-message";
   url.searchParams.set("requestId", message.id);
   url.searchParams.set("payload", JSON.stringify(result.data));
 

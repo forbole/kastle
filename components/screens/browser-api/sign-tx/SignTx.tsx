@@ -1,4 +1,4 @@
-import { ApiResponse, SignTxPayload } from "@/api/message";
+import { SignTxPayload } from "@/api/background/handlers/kaspa/utils";
 import { ApiExtensionUtils } from "@/api/extension";
 import { IWallet } from "@/lib/wallet/wallet-interface.ts";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
@@ -33,8 +33,7 @@ export default function SignTx({ wallet, requestId, payload }: SignTxProps) {
         ApiUtils.createApiResponse(
           requestId,
           null,
-          "Failed to sign and broadcast transaction: " +
-            (err as any).toString(),
+          "Failed to sign transaction: " + (err as any).toString(),
         ),
       );
     } finally {

@@ -1,20 +1,20 @@
-import { SignTxPayload } from "@/api/background/handlers/kaspa/utils";
-import SignTx from "@/components/screens/browser-api/sign-tx/SignTx";
+import { SignMessagePayload } from "@/api/background/handlers/kaspa/signMessage";
+import SignMessage from "@/components/screens/browser-api/sign-message/SignMessage";
 import { IWallet } from "@/lib/wallet/wallet-interface.ts";
 import { AccountFactory } from "@/lib/wallet/wallet-factory";
 import useWalletManager from "@/hooks/useWalletManager.ts";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import Splash from "@/components/screens/Splash.tsx";
 
-type HotWalletSignAndBroadcastProps = {
+type HotWalletSignMessageProps = {
   requestId: string;
-  payload: SignTxPayload;
+  payload: SignMessagePayload;
 };
 
-export default function HotWalletSignTx({
+export default function HotWalletSignMessage({
   requestId,
   payload,
-}: HotWalletSignAndBroadcastProps) {
+}: HotWalletSignMessageProps) {
   const { getWalletSecret } = useKeyring();
   const { wallet: walletInfo, account } = useWalletManager();
   const { rpcClient, networkId: rpcNetworkId } = useRpcClientStateful();
@@ -48,7 +48,11 @@ export default function HotWalletSignTx({
     <>
       {loading && <Splash />}
       {!loading && (
-        <SignTx wallet={wallet} requestId={requestId} payload={payload} />
+        <SignMessage
+          walletSigner={wallet}
+          requestId={requestId}
+          message={payload.message}
+        />
       )}
     </>
   );

@@ -1,14 +1,10 @@
 import { v4 as uuid } from "uuid";
-import {
-  Action,
-  ApiRequest,
-  ApiResponseSchema,
-  ConnectPayloadSchema,
-  SignTxPayloadSchema,
-} from "@/api/message";
+import { Action, ApiRequest, ApiResponseSchema } from "@/api/message";
 import { ScriptOption } from "@/lib/wallet/wallet-interface.ts";
 import { EthereumBrowserAPI } from "./ethereum";
-import { ApiUtils } from "@/api/background/utils.ts";
+import { ConnectPayloadSchema } from "@/api/background/handlers/kaspa/connect";
+import { SignTxPayloadSchema } from "@/api/background/handlers/kaspa/utils";
+import { SignMessagePayloadSchema } from "@/api/background/handlers/kaspa/signMessage";
 
 function createApiRequest(
   action: Action,
@@ -27,12 +23,7 @@ function createApiRequest(
 export class KastleBrowserAPI {
   public readonly ethereum = new EthereumBrowserAPI();
 
-  constructor() {
-    window.postMessage(
-      ApiUtils.createApiResponse("kastle_installed", []),
-      window.location.origin,
-    );
-  }
+  constructor() {}
 
   async connect(
     networkId: "mainnet" | "testnet-10" = "mainnet",
@@ -125,6 +116,20 @@ export class KastleBrowserAPI {
         networkId,
         txJson,
         scripts,
+      }),
+    );
+    window.postMessage(request, "*");
+
+    return await this.receiveMessageWithTimeout(requestId);
+  }
+
+  async signMessage(message: string): Promise<string> {
+    const requestId = uuid();
+    const request = createApiRequest(
+      Action.SIGN_MESSAGE,
+      requestId,
+      SignMessagePayloadSchema.parse({
+        message,
       }),
     );
     window.postMessage(request, "*");

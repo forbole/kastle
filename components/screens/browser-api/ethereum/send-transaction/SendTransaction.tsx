@@ -6,7 +6,7 @@ import Header from "@/components/GeneralHeader";
 import { useBoolean } from "usehooks-ts";
 import { ApiExtensionUtils } from "@/api/extension";
 import { ApiUtils } from "@/api/background/utils";
-import { RPC_ERRORS, ethereumTransactionRequestSchema } from "@/api/message";
+import { RPC_ERRORS } from "@/api/message";
 import {
   TransactionSerializable,
   hexToBigInt,
@@ -15,6 +15,7 @@ import {
 } from "viem";
 import { kairos } from "viem/chains";
 import { estimateFeesPerGas } from "viem/actions";
+import { ethereumTransactionRequestSchema } from "@/api/background/handlers/ethereum/sendTransaction";
 
 type SignTransactionProps = {
   walletSigner: IWallet;

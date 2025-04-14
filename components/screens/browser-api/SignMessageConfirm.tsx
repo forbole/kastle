@@ -1,10 +1,10 @@
-import { SignTxPayloadSchema } from "@/api/background/handlers/kaspa/utils";
-import HotWalletSignAndBroadcast from "@/components/screens/browser-api/sign-and-broadcast/HotWalletSignAndBroadcast";
-import LedgerSignAndBroadcast from "@/components/screens/browser-api/sign-and-broadcast/LedgerSignAndBroadcast";
+import { SignMessagePayloadSchema } from "@/api/background/handlers/kaspa/signMessage";
+import HotWalletSignMessage from "@/components/screens/browser-api/sign-message/HotWalletSignMessage";
+import LedgerSignMessage from "@/components/screens/browser-api/sign-message/LedgerSignMessage";
 import useWalletManager from "@/hooks/useWalletManager.ts";
 import Splash from "@/components/screens/Splash";
 
-export default function SignAndBroadcastTxConfirm() {
+export default function SignMessageConfirm() {
   const { wallet } = useWalletManager();
   const requestId =
     new URLSearchParams(window.location.search).get("requestId") ?? "";
@@ -16,21 +16,26 @@ export default function SignAndBroadcastTxConfirm() {
     ? JSON.parse(decodeURIComponent(encodedPayload))
     : null;
 
-  const parsedPayload = payload ? SignTxPayloadSchema.parse(payload) : null;
+  const parsedPayload = payload
+    ? SignMessagePayloadSchema.parse(payload)
+    : null;
 
   const loading = !wallet || !requestId || !parsedPayload;
 
   return (
-    <div className="no-scrollbar h-screen overflow-y-scroll p-4">
+    <div className="h-screen p-4">
       {loading && <Splash />}
       {!loading && wallet.type !== "ledger" && (
-        <HotWalletSignAndBroadcast
+        <HotWalletSignMessage
           requestId={requestId}
-          payload={parsedPayload}
+          payload={SignMessagePayloadSchema.parse(parsedPayload)}
         />
       )}
       {!loading && wallet.type === "ledger" && (
-        <LedgerSignAndBroadcast requestId={requestId} payload={parsedPayload} />
+        <LedgerSignMessage
+          requestId={requestId}
+          payload={SignMessagePayloadSchema.parse(parsedPayload)}
+        />
       )}
     </div>
   );

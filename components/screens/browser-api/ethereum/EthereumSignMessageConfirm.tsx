@@ -1,10 +1,6 @@
 import HotWalletSignMessage from "@/components/screens/browser-api/ethereum/sign-message/HotWalletSignMessage";
 import useWalletManager from "@/hooks/useWalletManager.ts";
-import { useEffect } from "react";
-import { ApiExtensionUtils } from "@/api/extension";
-import { RPC_ERRORS } from "@/api/message";
 import Splash from "@/components/screens/Splash";
-import { ApiUtils } from "@/api/background/utils";
 
 export default function EthereumSignMessageConfirm() {
   const { wallet } = useWalletManager();
