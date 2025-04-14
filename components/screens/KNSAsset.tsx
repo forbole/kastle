@@ -1,4 +1,4 @@
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import Header from "@/components/GeneralHeader";
 import badgeCheck from "@/assets/images/badge-check.svg";
 import avatarIcon from "@/assets/images/avatar.png";
@@ -12,6 +12,7 @@ import React from "react";
 import { twMerge } from "tailwind-merge";
 
 export default function KNSAsset() {
+  const navigate = useNavigate();
   const { assetId } = useParams();
   const { data: response } = useDomainDetails(assetId ?? "");
 
@@ -159,6 +160,7 @@ export default function KNSAsset() {
                 data-tooltip-content="This domain is listed for sale and must be unlisted before transferring."
                 className="inline-flex w-full rounded-full border border-white py-3 text-white disabled:border-[#093446] disabled:text-[#083344]"
                 disabled={asset.status !== "default"}
+                onClick={() => navigate(`/kns-transfer/${assetId}`)}
               >
                 <span className="ml-[120px]">Transfer</span>
                 <div

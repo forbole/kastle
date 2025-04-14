@@ -60,6 +60,7 @@ import EthereumSignMessageConfirm from "@/components/screens/browser-api/ethereu
 import EthereumSendTransactionConfirm from "@/components/screens/browser-api/ethereum/EthereumSendTransactionConfirm";
 import BrowserAPILayout from "@/components/layouts/BrowserAPILayout";
 import Unlocked from "@/components/screens/browser-api/Unlocked";
+import KNSTransfer from "@/components/screens/KNSTransfer.tsx";
 
 const loadKaspaWasm = async () => {
   await init(kaspaModule);
@@ -181,6 +182,7 @@ export const router = createHashRouter([
                 children: [
                   { path: "send", element: <Send /> },
                   { path: "token-transfer", element: <TokenTransfer /> },
+                  { path: "kns-transfer/:assetId", element: <KNSTransfer /> },
                   { path: "receive", element: <Receive /> },
                   { path: "settings", element: <Settings /> },
                   {

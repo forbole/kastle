@@ -1,7 +1,7 @@
 import { IWallet, PaymentOutput } from "@/lib/wallet/wallet-interface.ts";
 import { Opcodes, ScriptBuilder } from "@/wasm/core/kaspa";
 
-enum Fee {
+export enum Fee {
   Base = 0.001,
 }
 
