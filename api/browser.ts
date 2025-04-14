@@ -10,11 +10,6 @@ import { ScriptOption } from "@/lib/wallet/wallet-interface.ts";
 import { EthereumBrowserAPI } from "./ethereum";
 import { ApiUtils } from "@/api/background/utils.ts";
 
-window.postMessage(
-  ApiUtils.createApiResponse("kastle_installed", []),
-  window.location.origin,
-);
-
 function createApiRequest(
   action: Action,
   requestId: string,
@@ -32,7 +27,12 @@ function createApiRequest(
 export class KastleBrowserAPI {
   public readonly ethereum = new EthereumBrowserAPI();
 
-  constructor() {}
+  constructor() {
+    window.postMessage(
+      ApiUtils.createApiResponse("kastle_installed", []),
+      window.location.origin,
+    );
+  }
 
   async connect(
     networkId: "mainnet" | "testnet-10" = "mainnet",
