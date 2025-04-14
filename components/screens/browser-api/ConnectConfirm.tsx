@@ -47,7 +47,6 @@ export default function ConnectConfirm() {
 
       const walletConnections = settings.walletConnections ?? {};
       const targetNetwork = (network ?? settings.networkId) as NetworkType;
-      console.log(targetNetwork, settings.networkId);
 
       const connections =
         walletConnections[selectedWalletId]?.[selectedAccountIndex]?.[
@@ -85,6 +84,7 @@ export default function ConnectConfirm() {
         ),
       );
     } finally {
+      window.close();
     }
   };
 
