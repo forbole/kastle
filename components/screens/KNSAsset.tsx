@@ -24,7 +24,11 @@ export default function KNSAsset() {
 
   return (
     <div className="flex h-full flex-col p-4">
-      <Header title="KNS Asset" showClose={false} />
+      <Header
+        title="KNS Asset"
+        showClose={false}
+        onBack={() => navigate("/dashboard")}
+      />
 
       {asset && (
         <div className="flex flex-1 flex-col justify-between">

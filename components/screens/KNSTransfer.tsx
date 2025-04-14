@@ -2,11 +2,10 @@ import { useNavigate, useParams } from "react-router-dom";
 import { FormProvider, useForm } from "react-hook-form";
 import { SuccessStatus } from "@/components/send/SuccessStatus.tsx";
 import { FailStatus } from "@/components/send/FailStatus.tsx";
-import { Broadcasting } from "@/components/send/Broadcasting.tsx";
-import useWalletManager from "@/hooks/useWalletManager.ts";
-import HotWalletConfirm from "@/components/send/HotWalletConfirm";
-import LedgerConfirm from "@/components/send/LedgerConfirm";
-import { DetailsStep } from "@/components/kns-transfer/DetailsStep.tsx";
+import { KNSTransferDetails } from "@/components/kns-transfer/KNSTransferDetails.tsx";
+import React from "react";
+import KNSTransferConfirm from "@/components/kns-transfer/KNSTransferConfirm.tsx";
+import KNSTransferBroadcast from "@/components/kns-transfer/KNSTransferBroadcast.tsx";
 
 const steps = ["details", "confirm", "broadcast", "success", "fail"] as const;
 
@@ -23,7 +22,6 @@ export default function KNSTransfer() {
   const { assetId } = useParams();
   const navigate = useNavigate();
   const [step, setStep] = useState<Step>("details");
-  const { wallet } = useWalletManager();
 
   const form = useForm<KNSTransferFormData>({
     defaultValues: { assetId },
@@ -46,26 +44,23 @@ export default function KNSTransfer() {
     <div className="flex h-full flex-col p-4 text-white">
       <FormProvider {...form}>
         {step === "details" && (
-          <DetailsStep onNext={() => setStep("confirm")} onBack={onBack} />
-        )}
-        {step === "confirm" && wallet?.type !== "ledger" && (
-          <HotWalletConfirm
-            onNext={() => setStep("broadcast")}
+          <KNSTransferDetails
+            onNext={() => setStep("confirm")}
             onBack={onBack}
-            setOutTxs={setOutTxs}
-            onFail={() => setStep("fail")}
           />
         )}
-        {step === "confirm" && wallet?.type === "ledger" && (
-          <LedgerConfirm
+        {step === "confirm" && (
+          <KNSTransferConfirm
             onNext={() => setStep("broadcast")}
             onBack={onBack}
-            setOutTxs={setOutTxs}
-            onFail={() => setStep("fail")}
           />
         )}
         {step === "broadcast" && (
-          <Broadcasting onSuccess={() => setStep("success")} />
+          <KNSTransferBroadcast
+            setOutTxs={setOutTxs}
+            onFail={() => setStep("fail")}
+            onSuccess={() => setStep("success")}
+          />
         )}
         {step === "success" && <SuccessStatus transactionIds={outTxs} />}
         {step === "fail" && <FailStatus transactionIds={outTxs} />}

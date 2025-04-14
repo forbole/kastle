@@ -13,13 +13,15 @@ import { Tooltip } from "react-tooltip";
 import { KNSTransferFormData } from "@/components/screens/KNSTransfer.tsx";
 import { Fee } from "@/lib/kns.ts";
 
-export const DetailsStep = ({
-  onNext,
-  onBack,
-}: {
+type KNSTransferDetailsProps = {
   onNext: () => void;
   onBack?: () => void;
-}) => {
+};
+
+export const KNSTransferDetails = ({
+  onNext,
+  onBack,
+}: KNSTransferDetailsProps) => {
   const navigate = useNavigate();
   const { account } = useWalletManager();
   const { fetchDomainInfo } = useKns();
