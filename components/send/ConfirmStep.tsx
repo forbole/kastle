@@ -133,7 +133,7 @@ export const ConfirmStep = ({
                   {amountNumber.toFixed(3)} KAS
                 </span>
                 <span className="text-xs text-daintree-400">
-                  {(amountNumber * kaspaPrice.kaspaPrice).toFixed(3)} USD
+                  {formatCurrency(amountCurrency, amountCurrencyCode)}
                 </span>
               </div>
             </div>
