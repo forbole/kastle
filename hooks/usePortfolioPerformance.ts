@@ -1,4 +1,4 @@
-import { useTokensMetadata, useTokenPrices } from "@/hooks/useTokenMetadata.ts";
+import { useTokenPrices } from "@/hooks/useTokenMetadata.ts";
 import { applyDecimal } from "@/lib/krc20.ts";
 
 export default function usePortfolioPerformance() {
