@@ -54,7 +54,7 @@ export default function Dashboard() {
       {/* Warning popup */}
       {showWarning && !dismissWarning && (
         <div
-          className="absolute bottom-0 left-0 m-3 flex flex-col gap-2 rounded-xl border border-[#713F12] bg-[#281704] p-4 text-base"
+          className="absolute bottom-0 left-0 z-10 m-3 flex flex-col gap-2 rounded-xl border border-[#713F12] bg-[#281704] p-4 text-base"
           role="alert"
         >
           <div className="flex items-center justify-between">
