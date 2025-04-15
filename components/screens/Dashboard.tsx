@@ -186,7 +186,7 @@ export default function Dashboard() {
                 <span
                   className={twMerge(
                     "rounded-md px-1.5 py-1",
-                    performance < 0 ? "bg-[##EF4444]30" : "bg-[#14B8A6]/30",
+                    performance < 0 ? "bg-[#EF4444]/30" : "bg-[#14B8A6]/30",
                   )}
                 >
                   {" "}
