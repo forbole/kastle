@@ -183,7 +183,7 @@ export default function KNSAsset() {
                 <div
                   className={twMerge(
                     "ml-2 rounded-full px-2 text-[10px]",
-                    asset.status === "default"
+                    !isTransferDisabled
                       ? "bg-icy-blue-400 text-white"
                       : "bg-[#164E63] bg-opacity-30 text-[#0E7490]",
                   )}
