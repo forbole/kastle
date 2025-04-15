@@ -1,11 +1,11 @@
 import { useNavigate, useParams } from "react-router-dom";
 import { FormProvider, useForm } from "react-hook-form";
-import { SuccessStatus } from "@/components/send/SuccessStatus.tsx";
-import { FailStatus } from "@/components/send/FailStatus.tsx";
 import { KNSTransferDetails } from "@/components/kns-transfer/KNSTransferDetails.tsx";
 import React from "react";
 import KNSTransferConfirm from "@/components/kns-transfer/KNSTransferConfirm.tsx";
 import KNSTransferBroadcast from "@/components/kns-transfer/KNSTransferBroadcast.tsx";
+import KNSTransferSuccess from "@/components/kns-transfer/KNSTransferSuccess.tsx";
+import KNSTransferFailure from "@/components/kns-transfer/KNSTransferFailure.tsx";
 
 const steps = ["details", "confirm", "broadcast", "success", "fail"] as const;
 
@@ -62,8 +62,8 @@ export default function KNSTransfer() {
             onSuccess={() => setStep("success")}
           />
         )}
-        {step === "success" && <SuccessStatus transactionIds={outTxs} />}
-        {step === "fail" && <FailStatus transactionIds={outTxs} />}
+        {step === "success" && <KNSTransferSuccess transactionIds={outTxs} />}
+        {step === "fail" && <KNSTransferFailure transactionIds={outTxs} />}
       </FormProvider>
     </div>
   );

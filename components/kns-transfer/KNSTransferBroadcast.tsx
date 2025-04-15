@@ -1,5 +1,4 @@
-import { Broadcasting } from "@/components/send/Broadcasting.tsx";
-import { useEffect } from "react";
+import React, { useEffect } from "react";
 import { captureException } from "@sentry/react";
 import { AccountFactory } from "@/lib/wallet/wallet-factory.ts";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful.ts";
@@ -9,6 +8,8 @@ import { KNSTransferFormData } from "@/components/screens/KNSTransfer.tsx";
 import useRecentAddresses from "@/hooks/useRecentAddresses.ts";
 import useKNSRecentTransfer from "@/hooks/useKNSRecentTransfer.ts";
 import useWalletManager from "@/hooks/useWalletManager.ts";
+import Header from "@/components/GeneralHeader.tsx";
+import carriageImage from "@/assets/images/carriage.png";
 
 interface KNSTransferBroadcastProps {
   setOutTxs: (value: string[] | undefined) => void;
@@ -95,5 +96,20 @@ export default function KNSTransferBroadcast({
     broadcastOperation();
   }, []);
 
-  return <Broadcasting onSuccess={() => {}} />;
+  return (
+    <>
+      <Header title="Transferring" showPrevious={false} showClose={false} />
+
+      <div className="mt-10 flex h-full flex-col items-center gap-4">
+        <img
+          alt="castle"
+          className="h-[120px] w-[299px] self-center"
+          src={carriageImage}
+        />
+        <span className="text-xl font-semibold text-daintree-400">
+          Transferring...
+        </span>
+      </div>
+    </>
+  );
 }
