@@ -40,7 +40,7 @@ export const ConfirmStep = ({
   const amountNumber = parseFloat(amount ?? "0");
   const priorityFeeKas = sompiToKaspaString(priorityFee);
   const fiatAmount = amountNumber * kapsaPrice.kaspaPrice;
-  const fiatFees = parseFloat(priorityFeeKas);
+  const fiatFees = parseFloat(priorityFeeKas) * kapsaPrice.kaspaPrice;
   const { amount: amountCurrency, code: amountCurrencyCode } =
     useCurrencyValue(fiatAmount);
   const { amount: feesCurrency, code: feesCurrencyCode } =

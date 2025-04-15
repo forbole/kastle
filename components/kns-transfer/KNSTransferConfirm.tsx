@@ -6,6 +6,8 @@ import signImage from "@/assets/images/sign.png";
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { Fee } from "@/lib/kns.ts";
+import { formatCurrency } from "@/lib/utils.ts";
+import useKaspaPrice from "@/hooks/useKaspaPrice.ts";
 
 type KNSTransferConfirmProps = {
   onNext?: () => void;
@@ -20,6 +22,10 @@ export default function KNSTransferConfirm({
   const { watch } = useFormContext<KNSTransferFormData>();
   const { assetId, address, domain } = watch();
   const { data: response } = useDomainDetails(assetId);
+  const kaspaPrice = useKaspaPrice();
+  const { amount: feesCurrency, code: feesCurrencyCode } = useCurrencyValue(
+    Fee.Base * kaspaPrice.kaspaPrice,
+  );
 
   const asset = response?.data;
 
@@ -62,8 +68,9 @@ export default function KNSTransferConfirm({
             <span className="text-base font-medium text-white">
               {Fee.Base} KAS
             </span>
-            {/* FIXME use currency */}
-            <span className="text-xs text-daintree-400">TODO</span>
+            <span className="text-xs text-daintree-400">
+              {formatCurrency(feesCurrency, feesCurrencyCode)}
+            </span>
           </div>
         </div>
 
