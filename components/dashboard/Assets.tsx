@@ -51,11 +51,11 @@ export default function Assets() {
             </span>
           </div>
           <div className="flex items-center justify-between text-sm text-daintree-400">
-            <span>{formatTokenPrice(kapsaPrice.kaspaPrice)}</span>
+            <span>{formatTokenPrice(kaspaPrice.kaspaPrice)}</span>
             <span>
               ≈{" "}
               {showBalance
-                ? formatUSD(parseFloat(balance ?? "0") * kapsaPrice.kaspaPrice)
+                ? formatUSD(parseFloat(balance ?? "0") * kaspaPrice.kaspaPrice)
                 : "$*****"}{" "}
               USD
             </span>

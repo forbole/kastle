@@ -125,7 +125,7 @@ export const ConfirmStep = ({
                   {amountNumber.toFixed(3)} KAS
                 </span>
                 <span className="text-xs text-daintree-400">
-                  {(amountNumber * kapsaPrice.kaspaPrice).toFixed(3)} USD
+                  {(amountNumber * kaspaPrice.kaspaPrice).toFixed(3)} USD
                 </span>
               </div>
             </div>
@@ -136,7 +136,7 @@ export const ConfirmStep = ({
               <div className="flex flex-col text-right">
                 <span className="font-medium">{priorityFeeKas} KAS</span>
                 <span className="text-xs text-daintree-400">
-                  {(parseFloat(priorityFeeKas) * kapsaPrice.kaspaPrice).toFixed(
+                  {(parseFloat(priorityFeeKas) * kaspaPrice.kaspaPrice).toFixed(
                     3,
                   )}{" "}
                   USD

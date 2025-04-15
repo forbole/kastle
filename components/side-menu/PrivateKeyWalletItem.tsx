@@ -104,7 +104,7 @@ export const PrivateKeyWalletItem = ({
                             : account.balance &&
                               formatUSD(
                                 parseFloat(account.balance) *
-                                  kapsaPrice.kaspaPrice,
+                                  kaspaPrice.kaspaPrice,
                               )}
                         </span>
                       </div>

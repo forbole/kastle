@@ -120,7 +120,7 @@ export const LedgerWalletItem = ({
                             : account.balance &&
                               formatUSD(
                                 parseFloat(account.balance) *
-                                  kapsaPrice.kaspaPrice,
+                                  kaspaPrice.kaspaPrice,
                               )}
                         </span>
                       </div>

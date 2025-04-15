@@ -149,7 +149,7 @@ export const RecoveryPhraseWalletItem = ({
                             : account.balance &&
                               formatUSD(
                                 parseFloat(account.balance) *
-                                  kapsaPrice.kaspaPrice,
+                                  kaspaPrice.kaspaPrice,
                               )}
                         </span>
                       </div>
