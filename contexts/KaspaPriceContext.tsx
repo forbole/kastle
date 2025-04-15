@@ -49,6 +49,7 @@ export function KaspaPriceProvider({ children }: { children: ReactNode }) {
       lastSync + INTERVAL > Date.now() &&
       lastDayPrice !== undefined
     ) {
+      return;
     }
 
     try {
