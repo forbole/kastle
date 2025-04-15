@@ -63,7 +63,7 @@ import Unlocked from "@/components/screens/browser-api/Unlocked";
 import SignMessageConfirm from "@/components/screens/browser-api/SignMessageConfirm";
 
 const loadKaspaWasm = async () => {
-  await init(kaspaModule);
+  await init({ module_or_path: kaspaModule });
   return null;
 };
 

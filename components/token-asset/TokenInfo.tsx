@@ -2,11 +2,12 @@ import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useTokenInfo } from "@/hooks/useTokenInfo.ts";
 import { useTokenMetadata } from "@/hooks/useTokenMetadata.ts";
-import { formatUSD } from "@/lib/utils.ts";
+import { formatCurrency } from "@/lib/utils.ts";
 import kasIcon from "@/assets/images/kas-icon.svg";
 import { twMerge } from "tailwind-merge";
 import LabelLoading from "@/components/LabelLoading.tsx";
 import { applyDecimal } from "@/lib/krc20.ts";
+import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 
 export default function TokenInfo() {
   const { ticker } = useParams();
@@ -26,6 +27,8 @@ export default function TokenInfo() {
   const minted = tokenInfo ? parseInt(tokenInfo.minted, 10) : 0;
   const mintedPercentage = (minted / max) * 100;
   const totalMinted = `${mintedPercentage < 0.1 ? "<0.1" : mintedPercentage.toFixed(1)}% (${toFloat(minted).toLocaleString()}/${toFloat(max).toLocaleString()})`;
+  const { amount: amountCurrency, code: amountCurrencyCode } =
+    useCurrencyValue(toPriceInUsd());
 
   const onImageError = () => {
     setImageUrl(kasIcon);
@@ -53,7 +56,9 @@ export default function TokenInfo() {
               <span className="capitalize">{ticker}</span>
             </div>
             <div className="flex items-center justify-start text-sm text-daintree-400">
-              <span>≈ {formatUSD(toPriceInUsd())} USD</span>
+              <span>
+                ≈ {formatCurrency(amountCurrency, amountCurrencyCode)}
+              </span>
             </div>
           </div>
         </div>

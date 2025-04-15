@@ -10,6 +10,7 @@ import x from "@/assets/images/x.svg";
 import github from "@/assets/images/github.svg";
 
 import packageJson from "../../package.json";
+import CurrencySelection from "@/components/settings/CurrencySelection.tsx";
 
 export const explorerTxLinks = {
   [NetworkType.Mainnet]: "https://kas.fyi/transaction/",
@@ -24,6 +25,7 @@ export const explorerAddressLinks = {
 export default function Settings() {
   const [networkDropdownOpen, setNetworkDropdownOpen] = useState(false);
   const [lockAfterDropdownOpen, setLockAfterDropdownOpen] = useState(false);
+  const [currencyDropdownOpen, setCurrencyDropdownOpen] = useState(false);
   const [settings, setSettings] = useSettings();
   const navigate = useNavigate();
 
@@ -114,6 +116,20 @@ export default function Settings() {
             ))}
           </div>
         </>
+
+        {/* Currency */}
+        <SettingItem
+          title="Currency"
+          onClick={() => setCurrencyDropdownOpen((prev) => !prev)}
+        >
+          <button className="font-semibold uppercase">
+            {settings?.currency}
+          </button>
+        </SettingItem>
+        <CurrencySelection
+          isShown={currencyDropdownOpen}
+          toggleShow={() => setCurrencyDropdownOpen((prev) => !prev)}
+        />
 
         {/* Network */}
         <SettingItem
