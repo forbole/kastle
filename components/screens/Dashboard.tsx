@@ -175,7 +175,7 @@ export default function Dashboard() {
             >
               <div
                 className={twMerge(
-                  "flex items-center gap-2 py-2 text-xs font-medium",
+                  "flex items-center gap-2 py-2 text-sm font-medium",
                   performance < 0 ? "text-[#EF4444]" : "text-[#14B8A6]",
                 )}
               >
