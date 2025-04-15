@@ -1,5 +1,6 @@
 import { useTokenPrices } from "@/hooks/useTokenMetadata.ts";
 import { applyDecimal } from "@/lib/krc20.ts";
+import { useWalletManager } from "@/hooks/useWalletManager";
 
 export default function usePortfolioPerformance() {
   const { account } = useWalletManager();
