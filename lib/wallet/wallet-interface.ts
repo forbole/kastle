@@ -46,6 +46,8 @@ export interface IWallet {
 
   signTx(tx: Transaction, scripts?: ScriptOption[]): Promise<Transaction>;
 
+  signMessage(message: string): string | Promise<string>;
+
   performCommitReveal(
     scriptBuilder: ScriptBuilder,
     revealPriorityFee: string, // KAS

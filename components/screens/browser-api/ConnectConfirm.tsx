@@ -1,6 +1,5 @@
 import { ApiExtensionUtils } from "@/api/extension";
 import { useSettings } from "@/hooks/useSettings";
-import { useEffect } from "react";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import Header from "@/components/GeneralHeader";
 import Link from "@/assets/images/link.svg";
@@ -23,6 +22,7 @@ export default function ConnectConfirm() {
   const urlSearchParams = new URLSearchParams(window.location.search);
   const requestId = urlSearchParams.get("requestId") ?? "";
   const host = urlSearchParams.get("host") ?? "";
+  const network = urlSearchParams.get("network") ?? settings?.networkId;
   const tabName = urlSearchParams.get("name") ?? "Unknown";
   const icon = urlSearchParams.get("icon") ?? undefined;
 
@@ -46,9 +46,11 @@ export default function ConnectConfirm() {
       }
 
       const walletConnections = settings.walletConnections ?? {};
+      const targetNetwork = (network ?? settings.networkId) as NetworkType;
+
       const connections =
         walletConnections[selectedWalletId]?.[selectedAccountIndex]?.[
-          settings.networkId
+          targetNetwork
         ] ?? [];
 
       // Add connection to wallet connections and save if not exists
@@ -58,13 +60,14 @@ export default function ConnectConfirm() {
           ...walletConnections[selectedWalletId],
           [selectedAccountIndex]: {
             ...walletConnections[selectedWalletId]?.[selectedAccountIndex],
-            [settings.networkId]: connections,
+            [targetNetwork]: connections,
           },
         };
 
         await setSettings({
           ...settings,
           walletConnections: walletConnections,
+          networkId: targetNetwork,
         });
       }
 
@@ -107,7 +110,10 @@ export default function ConnectConfirm() {
       background: "bg-yellow-800",
     },
   ];
-  const selectedNetwork = networks.find((n) => n.id === settings?.networkId);
+
+  const selectedNetwork = networks.find(
+    (n) => n.id === (network ?? settings?.networkId),
+  );
 
   return (
     <div className="flex h-full w-full flex-col justify-between rounded-xl p-4">

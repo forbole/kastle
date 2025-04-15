@@ -1,5 +1,8 @@
 import { ApiRequestSchema, ApiRequestWithHostSchema } from "@/api/message";
 import { EthereumAccountsChangedListener } from "@/api/content-script/listeners/ethereum/accountsChanged";
+import { watchSettingsUpdated } from "@/api/content-script/listeners/settings-updated.ts";
+import { watchWalletSettingsUpdated } from "@/api/content-script/listeners/wallet-settings-updated.ts";
+import { ApiUtils } from "@/api/background/utils";
 
 export default defineContentScript({
   matches: ["*://*/*"],
@@ -9,8 +12,17 @@ export default defineContentScript({
       keepInDom: true,
     });
 
+    // Emit the kastle_installed event to the page to notify that the extension is installed
+    window.postMessage(
+      ApiUtils.createApiResponse("kastle_installed", []),
+      window.location.origin,
+    );
+
     // TODO: implement tabs connections manager and authentication for listeners
     new EthereumAccountsChangedListener().start();
+
+    watchSettingsUpdated();
+    watchWalletSettingsUpdated();
 
     // Listen for messages from the browser
     window.addEventListener("message", async (event: MessageEvent<unknown>) => {

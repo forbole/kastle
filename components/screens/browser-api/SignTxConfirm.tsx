@@ -1,4 +1,4 @@
-import { SignTxPayloadSchema } from "@/api/message";
+import { SignTxPayloadSchema } from "@/api/background/handlers/kaspa/utils";
 import HotWalletSignTx from "@/components/screens/browser-api/sign-tx/HotWalletSignTx";
 import LedgerSignTx from "@/components/screens/browser-api/sign-tx/LedgerSignTx";
 import useWalletManager from "@/hooks/useWalletManager.ts";

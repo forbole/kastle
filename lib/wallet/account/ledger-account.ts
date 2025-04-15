@@ -198,6 +198,17 @@ export class LedgerAccount implements IWallet {
     return this.toRpcTransaction(ledgerTx);
   }
 
+  async signMessage(message: string): Promise<string> {
+    return (
+      await this.app.signMessage(
+        message,
+        0,
+        0,
+        this.accountIndex + LEDGER_ACCOUNT_INDEX_OFFSET,
+      )
+    ).signature;
+  }
+
   private async getUtxos(): Promise<IUtxoEntry[]> {
     const address = await this.getAddress();
     return (

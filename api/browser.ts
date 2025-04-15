@@ -1,13 +1,10 @@
 import { v4 as uuid } from "uuid";
-import {
-  Action,
-  ApiRequest,
-  ApiResponseSchema,
-  ConnectPayloadSchema,
-  SignTxPayloadSchema,
-} from "@/api/message";
+import { Action, ApiRequest, ApiResponseSchema } from "@/api/message";
 import { ScriptOption } from "@/lib/wallet/wallet-interface.ts";
 import { EthereumBrowserAPI } from "./ethereum";
+import { ConnectPayloadSchema } from "@/api/background/handlers/kaspa/connect";
+import { SignTxPayloadSchema } from "@/api/background/handlers/kaspa/utils";
+import { SignMessagePayloadSchema } from "@/api/background/handlers/kaspa/signMessage";
 
 function createApiRequest(
   action: Action,
@@ -28,7 +25,9 @@ export class KastleBrowserAPI {
 
   constructor() {}
 
-  async connect(networkId: "mainnet" | "testnet-10"): Promise<boolean> {
+  async connect(
+    networkId: "mainnet" | "testnet-10" = "mainnet",
+  ): Promise<boolean> {
     const requestId = uuid();
 
     const iconElement =
@@ -50,6 +49,27 @@ export class KastleBrowserAPI {
       }),
     );
 
+    window.postMessage(request, "*");
+
+    return await this.receiveMessageWithTimeout(requestId);
+  }
+
+  async disconnect(): Promise<void> {}
+
+  async request(method: string, args?: unknown): Promise<any> {
+    const requestId = uuid();
+    const action = {
+      "kas:get_account": Action.GET_ACCOUNT,
+      "kas:get_network": Action.GET_NETWORK,
+      "kas:sign_tx": Action.SIGN_TX,
+      "kas:sign_and_broadcast_tx": Action.SIGN_AND_BROADCAST_TX,
+    }[method];
+
+    if (!action) {
+      return;
+    }
+
+    const request = createApiRequest(action, requestId, args);
     window.postMessage(request, "*");
 
     return await this.receiveMessageWithTimeout(requestId);
@@ -96,6 +116,20 @@ export class KastleBrowserAPI {
         networkId,
         txJson,
         scripts,
+      }),
+    );
+    window.postMessage(request, "*");
+
+    return await this.receiveMessageWithTimeout(requestId);
+  }
+
+  async signMessage(message: string): Promise<string> {
+    const requestId = uuid();
+    const request = createApiRequest(
+      Action.SIGN_MESSAGE,
+      requestId,
+      SignMessagePayloadSchema.parse({
+        message,
       }),
     );
     window.postMessage(request, "*");

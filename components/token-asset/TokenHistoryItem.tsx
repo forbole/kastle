@@ -1,5 +1,5 @@
 import kasIcon from "@/assets/images/kas-icon.svg";
-import { formatUSD } from "@/lib/utils.ts";
+import { formatCurrency } from "@/lib/utils.ts";
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useTokenMetadata } from "@/hooks/useTokenMetadata.ts";
@@ -7,6 +7,7 @@ import { twMerge } from "tailwind-merge";
 import { applyDecimal } from "@/lib/krc20.ts";
 import { Op } from "@/hooks/useOpListByAddressAndTicker.ts";
 import { explorerTxLinks } from "@/components/screens/Settings.tsx";
+import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 
 type TokenHistoryItemProps = { op: Op; tickerInfo?: TickerInfo | undefined };
 
@@ -45,6 +46,10 @@ export default function TokenHistoryItem({
       }
   }
 
+  const fiatAmount = amount * toPriceInUsd();
+  const { amount: amountCurrency, code: amountCurrencyCode } =
+    useCurrencyValue(fiatAmount);
+
   const openTransaction = (transactionId: string) => {
     browser.tabs.create({
       url: `${explorerTxLink}${transactionId}`,
@@ -66,7 +71,7 @@ export default function TokenHistoryItem({
       <div className="flex items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3">
         <img
           alt="castle"
-          className="h-[40px] w-[40px]"
+          className="h-[40px] w-[40px] rounded-full"
           src={imageUrl}
           onError={onImageError}
         />
@@ -115,7 +120,7 @@ export default function TokenHistoryItem({
                 2
               </span>
             </span>
-            <span>≈ {formatUSD(amount * toPriceInUsd())} USD</span>
+            <span>≈ {formatCurrency(amountCurrency, amountCurrencyCode)}</span>
           </div>
         </div>
       </div>

@@ -60,11 +60,12 @@ import EthereumSignMessageConfirm from "@/components/screens/browser-api/ethereu
 import EthereumSendTransactionConfirm from "@/components/screens/browser-api/ethereum/EthereumSendTransactionConfirm";
 import BrowserAPILayout from "@/components/layouts/BrowserAPILayout";
 import Unlocked from "@/components/screens/browser-api/Unlocked";
+import SignMessageConfirm from "@/components/screens/browser-api/SignMessageConfirm";
 import KNSTransfer from "@/components/screens/KNSTransfer.tsx";
 import { KNSRecentTransferProvider } from "@/contexts/KNSRecentTransfer.tsx";
 
 const loadKaspaWasm = async () => {
-  await init(kaspaModule);
+  await init({ module_or_path: kaspaModule });
   return null;
 };
 
@@ -253,6 +254,12 @@ export const router = createHashRouter([
                     element: <Outlet />,
                     loader: browserAPIKeyringGuard,
                     children: [
+                      {
+                        path: "unlocked",
+                        element: <Unlocked />,
+                      },
+
+                      // Kaspa BrowserAPI routes
                       { path: "connect", element: <ConnectConfirm /> },
                       {
                         path: "sign-and-broadcast-tx",
@@ -263,8 +270,8 @@ export const router = createHashRouter([
                         element: <SignTxConfirm />,
                       },
                       {
-                        path: "unlocked",
-                        element: <Unlocked />,
+                        path: "sign-message",
+                        element: <SignMessageConfirm />,
                       },
 
                       // Ethereum BrowserAPI routes

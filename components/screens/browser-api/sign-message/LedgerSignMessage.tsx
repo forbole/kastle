@@ -1,43 +1,28 @@
-import { SignTxPayload } from "@/api/background/handlers/kaspa/utils";
-import LedgerNotSupported from "@/components/screens/browser-api/sign/LedgerNotSupported";
-import SignTx from "@/components/screens/browser-api/sign-tx/SignTx";
+import { SignMessagePayload } from "@/api/background/handlers/kaspa/signMessage";
 import { AccountFactory } from "@/lib/wallet/wallet-factory";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import { NetworkType } from "@/contexts/SettingsContext";
 import Splash from "@/components/screens/Splash";
-import { ApiExtensionUtils } from "@/api/extension";
 import LedgerConnectForSign from "@/components/screens/ledger-connect/LedgerConnectForSign";
-import { ApiUtils } from "@/api/background/utils";
+import SignMessage from "@/components/screens/browser-api/sign-message/SignMessage";
 
 type LedgerSignTxProps = {
   requestId: string;
-  payload: SignTxPayload;
+  payload: SignMessagePayload;
 };
 
-export default function LedgerSignTx({
+export default function LedgerSignMessage({
   requestId,
   payload,
 }: LedgerSignTxProps) {
   const { transport, isAppOpen } = useLedgerTransport();
-  const { rpcClient } = useRpcClientStateful();
-
-  if (payload.scripts) {
-    ApiExtensionUtils.sendMessage(
-      requestId,
-      ApiUtils.createApiResponse(
-        requestId,
-        null,
-        "Ledger does not support advanced scripts signing",
-      ),
-    );
-    return <LedgerNotSupported />;
-  }
+  const { rpcClient, networkId } = useRpcClientStateful();
 
   const wallet =
     rpcClient && transport
       ? new AccountFactory(
           rpcClient,
-          payload.networkId as NetworkType,
+          networkId ?? ("mainnet" as NetworkType),
         ).createFromLedger(transport)
       : null;
 
@@ -48,7 +33,11 @@ export default function LedgerSignTx({
       )}
       {transport && isAppOpen && !wallet && <Splash />}
       {wallet && isAppOpen && (
-        <SignTx wallet={wallet} requestId={requestId} payload={payload} />
+        <SignMessage
+          walletSigner={wallet}
+          requestId={requestId}
+          message={payload.message}
+        />
       )}
     </>
   );

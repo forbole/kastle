@@ -3,10 +3,28 @@ import {
   RpcError,
   RPC_ERRORS,
   RpcRequestSchema,
-  ethereumTransactionRequestSchema,
 } from "@/api/message";
 import { ApiUtils } from "@/api/background/utils";
 import { isMatchCurrentAddress, isUserDeniedResponse } from "./utils";
+import { isAddress, isHex } from "viem";
+import { z } from "zod";
+
+export const ethereumTransactionRequestSchema = z.object({
+  from: z.string().refine(isAddress, "Must be a valid Ethereum address"),
+  to: z.string().refine(isAddress, "Must be a valid Ethereum address"),
+  value: z.string().refine(isHex, "Value must be a hex string").optional(),
+  data: z.string().refine(isHex, "Data must be a hex string").optional(),
+  maxFeePerGas: z
+    .string()
+    .refine(isHex, "Max fee per gas must be a hex string")
+    .optional(),
+  maxPriorityFeePerGas: z
+    .string()
+    .refine(isHex, "Max priority fee must be a hex string")
+    .optional(),
+});
+
+// ================================================================================
 
 export const sendTransactionHandler = async (
   tabId: number,

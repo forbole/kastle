@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { SideMenu } from "@/components/side-menu/SideMenu.tsx";
 import gavelIcon from "@/assets/images/gavel.svg";
-import { formatUSD } from "@/lib/utils.ts";
+import { formatCurrency, symbolForCurrencyCode } from "@/lib/utils.ts";
 import ClipboardCopy from "@/components/dashboard/ClipboardCopy";
 import { twMerge } from "tailwind-merge";
 import useBackupWarning from "@/hooks/useBackupWarning.ts";
@@ -14,6 +14,7 @@ import Assets from "@/components/dashboard/Assets";
 import KNS from "@/components/dashboard/KNS";
 import KRC721List from "@/components/dashboard/KRC721List";
 import useTotalBalance from "@/hooks/useTotalBalance.ts";
+import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 
 export default function Dashboard() {
   const { keyringLock } = useKeyring();
@@ -21,6 +22,8 @@ export default function Dashboard() {
   const { networkId, isConnected } = useRpcClientStateful();
   const [settings, setSettings] = useSettings();
   const totalBalance = useTotalBalance();
+  const { amount: totalBalanceCurrency, code: currencyCode } =
+    useCurrencyValue(totalBalance);
   const { showWarning } = useBackupWarning();
   const { account, wallet } = useWalletManager();
   const [dismissWarning, setDismissWarning] = useState(false);
@@ -34,7 +37,10 @@ export default function Dashboard() {
 
   const address = account?.address;
   const showBalance = !settings?.hideBalances;
-  const totalBalanceFormatted = formatUSD(totalBalance);
+  const totalBalanceFormatted = formatCurrency(
+    totalBalanceCurrency,
+    currencyCode,
+  );
 
   const toggleBalance = () =>
     setSettings((prevSettings) => ({
@@ -54,7 +60,7 @@ export default function Dashboard() {
       {/* Warning popup */}
       {showWarning && !dismissWarning && (
         <div
-          className="absolute bottom-0 left-0 m-3 flex flex-col gap-2 rounded-xl border border-[#713F12] bg-[#281704] p-4 text-base"
+          className="absolute bottom-0 left-0 z-10 m-3 flex flex-col gap-2 rounded-xl border border-[#713F12] bg-[#281704] p-4 text-base"
           role="alert"
         >
           <div className="flex items-center justify-between">
@@ -141,7 +147,9 @@ export default function Dashboard() {
           ) : (
             <div className="relative flex items-center">
               <span className="text-center text-4xl font-semibold text-white">
-                {showBalance ? totalBalanceFormatted : "$*****"}
+                {showBalance
+                  ? totalBalanceFormatted
+                  : `${symbolForCurrencyCode(currencyCode)}*****`}
               </span>
               <button onClick={() => toggleBalance()} className="p-4">
                 <i

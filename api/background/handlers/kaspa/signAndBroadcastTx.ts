@@ -1,6 +1,8 @@
 import { Handler } from "@/api/background/utils";
-import { ApiRequestWithHost, SignTxPayloadSchema } from "@/api/message";
+import { ApiRequestWithHost } from "@/api/message";
 import { ApiUtils } from "@/api/background/utils";
+import { SignTxPayloadSchema } from "./utils";
+
 /** signAndBroadcastTx handler to serve BrowserMessageType.SIGN_AND_BROADCAST_TX message */
 export const signAndBroadcastTxHandler: Handler = async (
   tabId: number,
