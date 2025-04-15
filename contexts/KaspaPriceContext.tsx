@@ -44,8 +44,7 @@ export function KaspaPriceProvider({ children }: { children: ReactNode }) {
     const { lastSync, lastDayPrice } = await getSavedKaspaPriceData();
 
     // Guard against premature fetches
-    if (lastSync && lastSync + INTERVAL > Date.now() && lastDayPrice) {
-      return;
+    if (lastSync && lastSync + INTERVAL > Date.now() && lastDayPrice !== undefined) {
     }
 
     try {
