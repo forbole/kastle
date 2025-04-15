@@ -11,16 +11,21 @@ import { Tooltip } from "react-tooltip";
 import React from "react";
 import { twMerge } from "tailwind-merge";
 import useWalletManager from "@/hooks/useWalletManager.ts";
+import useKNSRecentTransfer from "@/hooks/useKNSRecentTransfer.ts";
 
 export default function KNSAsset() {
   const navigate = useNavigate();
   const { wallet } = useWalletManager();
   const { assetId } = useParams();
   const { data: response } = useDomainDetails(assetId ?? "");
+  const { isRecentKNSTransfer } = useKNSRecentTransfer();
 
   const asset = response?.data;
   const isLedger = wallet?.type === "ledger";
-  const isTransferDisabled = asset?.status !== "default" || isLedger;
+  const isTransferDisabled =
+    asset?.status !== "default" ||
+    isLedger ||
+    isRecentKNSTransfer(assetId ?? "");
 
   return (
     <div className="flex h-full flex-col p-4">

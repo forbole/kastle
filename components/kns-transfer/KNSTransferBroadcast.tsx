@@ -7,6 +7,8 @@ import { transfer } from "@/lib/kns";
 import { useFormContext } from "react-hook-form";
 import { KNSTransferFormData } from "@/components/screens/KNSTransfer.tsx";
 import useRecentAddresses from "@/hooks/useRecentAddresses.ts";
+import useKNSRecentTransfer from "@/hooks/useKNSRecentTransfer.ts";
+import useWalletManager from "@/hooks/useWalletManager.ts";
 
 interface KNSTransferBroadcastProps {
   setOutTxs: (value: string[] | undefined) => void;
@@ -21,6 +23,7 @@ export default function KNSTransferBroadcast({
 }: KNSTransferBroadcastProps) {
   const calledOnce = useRef(false);
   const { addRecentAddress } = useRecentAddresses();
+  const { addRecentKNSTransfer } = useKNSRecentTransfer();
   const { walletSettings } = useWalletManager();
   const { getWalletSecret } = useKeyring();
   const { rpcClient, networkId } = useRpcClientStateful();
@@ -64,6 +67,12 @@ export default function KNSTransferBroadcast({
           setOutTxs([result.commitTxId!, result.revealTxId!]);
         }
       }
+
+      await addRecentKNSTransfer({
+        id: assetId,
+        from: await account.getAddress(),
+        at: new Date().getTime(),
+      });
 
       await addRecentAddress({
         kaspaAddress: address,
