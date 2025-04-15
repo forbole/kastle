@@ -28,7 +28,7 @@ export default function SignConfirm({
   confirm,
   cancel,
 }: SignConfirmProps) {
-  const kapsaPrice = useKaspaPrice();
+  const kaspaPrice = useKaspaPrice();
   const { account, wallet } = useWalletManager();
   const [hideDetails, setHideDetails] = useState(true);
   const [settings, setSettings] = useSettings();
@@ -200,7 +200,7 @@ export default function SignConfirm({
                       {differenceInKas.toFixed(3)} KAS
                     </span>
                     <span className="text-xs text-daintree-400">
-                      {(differenceInKas * kapsaPrice.kaspaPrice).toFixed(3)} USD
+                      {(differenceInKas * kaspaPrice.kaspaPrice).toFixed(3)} USD
                     </span>
                   </div>
                 </div>
@@ -217,7 +217,7 @@ export default function SignConfirm({
                     </span>
                     <span className="text-xs text-daintree-400">
                       {(
-                        parseFloat(sendingAmountInKas) * kapsaPrice.kaspaPrice
+                        parseFloat(sendingAmountInKas) * kaspaPrice.kaspaPrice
                       ).toFixed(3)}{" "}
                       USD
                     </span>
@@ -232,7 +232,7 @@ export default function SignConfirm({
                       {parseFloat(feesInKas).toFixed(3)} KAS
                     </span>
                     <span className="text-xs text-daintree-400">
-                      {(parseFloat(feesInKas) * kapsaPrice.kaspaPrice).toFixed(
+                      {(parseFloat(feesInKas) * kaspaPrice.kaspaPrice).toFixed(
                         3,
                       )}{" "}
                       USD

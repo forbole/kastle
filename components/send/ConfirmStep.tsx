@@ -35,7 +35,7 @@ export const ConfirmStep = ({
   const { wallet } = useWalletManager();
   const { watch } = useFormContext<SendFormData>();
   const { address, amount, domain, priorityFee } = watch();
-  const kapsaPrice = useKaspaPrice();
+  const kaspaPrice = useKaspaPrice();
   const amountNumber = parseFloat(amount ?? "0");
   const priorityFeeKas = sompiToKaspaString(priorityFee);
 

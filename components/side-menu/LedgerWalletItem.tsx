@@ -16,7 +16,7 @@ export const LedgerWalletItem = ({
 }: LedgerWalletItemProps) => {
   const navigate = useNavigate();
   const [settings] = useSettings();
-  const kapsaPrice = useKaspaPrice();
+  const kaspaPrice = useKaspaPrice();
   // This is a hack, preline could not handle `hs-accordion-active:` on nested tags
   const { value: collapsed, toggle } = useBoolean(false);
   const { selectAccount, walletSettings } = useWalletManager();

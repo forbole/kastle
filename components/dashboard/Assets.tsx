@@ -6,7 +6,7 @@ import { applyDecimal } from "@/lib/krc20.ts";
 
 export default function Assets() {
   const navigate = useNavigate();
-  const kapsaPrice = useKaspaPrice();
+  const kaspaPrice = useKaspaPrice();
 
   const [settings] = useSettings();
   const { account } = useWalletManager();

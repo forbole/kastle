@@ -6,11 +6,11 @@ import useWalletManager from "@/hooks/useWalletManager.ts";
 
 export default function usePortfolioPerformance() {
   const { account } = useWalletManager();
-  const kapsaPrice = useKaspaPrice();
+  const kaspaPrice = useKaspaPrice();
   const balance = account?.balance;
-  const kaspaUsd = balance ? parseFloat(balance) * kapsaPrice.kaspaPrice : 0;
+  const kaspaUsd = balance ? parseFloat(balance) * kaspaPrice.kaspaPrice : 0;
   const kaspaLastDayUsd = balance
-    ? parseFloat(balance) * kapsaPrice.lastDayKaspaPrice
+    ? parseFloat(balance) * kaspaPrice.lastDayKaspaPrice
     : 0;
 
   const { data: tokenListResponse } = useTokenListByAddress(
