@@ -14,6 +14,8 @@ import Assets from "@/components/dashboard/Assets";
 import KNS from "@/components/dashboard/KNS";
 import KRC721List from "@/components/dashboard/KRC721List";
 import useTotalBalance from "@/hooks/useTotalBalance.ts";
+import usePortfolioPerformance from "@/hooks/usePortfolioPerformance";
+import HoverTooltip from "../HoverTooltip";
 
 export default function Dashboard() {
   const { keyringLock } = useKeyring();
@@ -35,6 +37,8 @@ export default function Dashboard() {
   const address = account?.address;
   const showBalance = !settings?.hideBalances;
   const totalBalanceFormatted = formatUSD(totalBalance);
+
+  const { performance, performanceInPercent } = usePortfolioPerformance();
 
   const toggleBalance = () =>
     setSettings((prevSettings) => ({
@@ -135,23 +139,64 @@ export default function Dashboard() {
       {/* Content */}
       <div className="flex flex-col items-center gap-3">
         {/* Balance Display */}
-        <div className="py-3">
+        <div className="flex flex-col items-center py-3">
+          <button onClick={() => toggleBalance()} className="mx-auto p-4">
+            <i
+              className={twMerge(
+                "hn text-[16px]",
+                showBalance ? "hn-eye-cross" : "hn-eye",
+              )}
+            ></i>
+          </button>
+
           {totalBalanceFormatted === undefined ? (
-            <div className="h-[54px] w-[160px] animate-pulse self-center rounded-xl bg-daintree-700" />
+            <div className="mx-auto h-[54px] w-[160px] animate-pulse self-center rounded-xl bg-daintree-700" />
           ) : (
             <div className="relative flex items-center">
               <span className="text-center text-4xl font-semibold text-white">
                 {showBalance ? totalBalanceFormatted : "$*****"}
               </span>
-              <button onClick={() => toggleBalance()} className="p-4">
-                <i
-                  className={twMerge(
-                    "hn text-[16px]",
-                    showBalance ? "hn-eye-cross" : "hn-eye",
-                  )}
-                ></i>
-              </button>
             </div>
+          )}
+
+          {/* Performance */}
+          {showBalance ? (
+            <HoverTooltip
+              id="performance"
+              text={"Your wallet’s total value change over the past 24 hours."}
+              tooltipWidth="292px"
+              place="bottom"
+              style={{
+                fontSize: "14px",
+                lineBreak: "normal",
+                textAlign: "center",
+                marginTop: "-8px",
+              }}
+            >
+              <div
+                className={twMerge(
+                  "flex items-center gap-2 py-2 text-xs font-medium",
+                  performance < 0 ? "text-[#EF4444]" : "text-[#14B8A6]",
+                )}
+              >
+                <span>
+                  {performance >= 0 ? "+" : "-"}{" "}
+                  {formatUSD(Math.abs(performance))}
+                </span>
+                <span
+                  className={twMerge(
+                    "rounded-md px-1.5 py-1",
+                    performance < 0 ? "bg-[##EF4444]30" : "bg-[#14B8A6]/30",
+                  )}
+                >
+                  {" "}
+                  {performance >= 0 && "+"}
+                  {performanceInPercent}%
+                </span>
+              </div>
+            </HoverTooltip>
+          ) : (
+            <div className="h-10 py-2"></div>
           )}
         </div>
 

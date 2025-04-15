@@ -6,7 +6,7 @@ import { useDomainDetails, AssetDataWithId } from "@/hooks/useKns.ts";
 import { walletAddressEllipsis } from "@/lib/utils";
 import Copy from "@/components/Copy";
 import HoverShowAllCopy from "@/components/HoverShowAllCopy";
-import HoverShowAll from "@/components/HoverShowAll";
+import HoverShowAll from "@/components/HoverTooltip";
 
 export default function KNSAsset() {
   const { assetId } = useParams();
