@@ -197,7 +197,6 @@ export default function Dashboard() {
                     performance < 0 ? "bg-[#EF4444]/30" : "bg-[#14B8A6]/30",
                   )}
                 >
-                  {" "}
                   {performance >= 0 && "+"}
                   {performanceInPercent}%
                 </span>
