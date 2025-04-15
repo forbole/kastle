@@ -6,7 +6,7 @@ import Header from "@/components/GeneralHeader.tsx";
 import signImage from "@/assets/images/sign.png";
 import { applyDecimal, computeOperationFees } from "@/lib/krc20.ts";
 import { Tooltip } from "react-tooltip";
-import { formatUSD } from "@/lib/utils.ts";
+import { formatCurrency } from "@/lib/utils.ts";
 
 export default function ConfirmMint() {
   const navigate = useNavigate();
@@ -21,6 +21,10 @@ export default function ConfirmMint() {
     "mint",
     mintTimes,
   );
+
+  const fiatFees = totalFees * kaspaPrice.kaspaPrice;
+  const { amount: feesCurrency, code: feesCurrencyCode } =
+    useCurrencyValue(fiatFees);
 
   const onBack = () =>
     navigate(
@@ -108,7 +112,7 @@ export default function ConfirmMint() {
                     <span className="font-medium">{totalFees} KAS</span>
                   </div>
                   <span className="text-xs text-daintree-400">
-                    {formatUSD(totalFees * kaspaPrice.kaspaPrice)} USD
+                    {formatCurrency(feesCurrency, feesCurrencyCode)}
                   </span>
                 </div>
               </div>

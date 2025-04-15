@@ -3,6 +3,18 @@ import { captureException } from "@sentry/react";
 
 export const SETTINGS_KEY = "local:settings";
 
+export const CURRENCIES = [
+  ["USD", "United States Dollar", "$"],
+  ["EUR", "Euro", "€"],
+  ["CNY", "Chinese Yuan", "¥"],
+  ["JPY", "Japanese Yen", "¥"],
+  ["HKD", "Hong Kong Dollar", "HK$"],
+  ["TWD", "New Taiwan Dollar", "NT$"],
+  ["RUB", "Russian Ruble", "₽"],
+] as const;
+
+export type CurrencyCode = (typeof CURRENCIES)[number][0];
+
 export enum NetworkType {
   Mainnet = "mainnet",
   TestnetT10 = "testnet-10",
@@ -18,6 +30,7 @@ type SettingsContextType = {
 
 export type Settings = {
   networkId: NetworkType;
+  currency: CurrencyCode;
   lockTimeout: number;
   walletConnections: WalletConnections | undefined; // WalletId -> Account Index -> NetworkId -> WalletConnection[]
   hideBalances: boolean;
@@ -68,6 +81,7 @@ export const KRC721_CACHE_URLS = {
 
 const initialSettings = {
   networkId: NetworkType.Mainnet,
+  currency: "USD",
   lockTimeout: 5, // Save 5 minutes as default value
   walletConnections: undefined,
   hideBalances: true,
