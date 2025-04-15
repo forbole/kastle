@@ -168,43 +168,44 @@ export default function Dashboard() {
           )}
 
           {/* Performance */}
-          {showBalance ? (
-            <HoverTooltip
-              id="performance"
-              text={"Your wallet’s total value change over the past 24 hours."}
-              tooltipWidth="292px"
-              place="bottom"
-              style={{
-                fontSize: "14px",
-                lineBreak: "normal",
-                textAlign: "center",
-                marginTop: "-8px",
-              }}
-            >
-              <div
-                className={twMerge(
-                  "flex items-center gap-2 py-2 text-sm font-medium",
-                  performance < 0 ? "text-[#EF4444]" : "text-[#14B8A6]",
-                )}
+          <div className="min-h-[44px] pt-2">
+            {showBalance && (
+              <HoverTooltip
+                id="performance"
+                text={
+                  "Your wallet’s total value change over the past 24 hours."
+                }
+                tooltipWidth="292px"
+                place="bottom"
+                style={{
+                  fontSize: "14px",
+                  lineBreak: "normal",
+                  textAlign: "center",
+                }}
               >
-                <span>
-                  {performance >= 0 ? "+" : "-"}{" "}
-                  {formatCurrency(Math.abs(performance), currencyCode)}{" "}
-                </span>
-                <span
+                <div
                   className={twMerge(
-                    "rounded-md px-1.5 py-1",
-                    performance < 0 ? "bg-[#EF4444]/30" : "bg-[#14B8A6]/30",
+                    "flex items-center gap-2 text-sm font-medium",
+                    performance < 0 ? "text-[#EF4444]" : "text-[#14B8A6]",
                   )}
                 >
-                  {performance >= 0 && "+"}
-                  {performanceInPercent}%
-                </span>
-              </div>
-            </HoverTooltip>
-          ) : (
-            <div className="h-10 py-2"></div>
-          )}
+                  <span>
+                    {performance >= 0 ? "+" : "-"}{" "}
+                    {formatCurrency(Math.abs(performance), currencyCode)}{" "}
+                  </span>
+                  <span
+                    className={twMerge(
+                      "rounded-md px-1.5 py-1",
+                      performance < 0 ? "bg-[#EF4444]/30" : "bg-[#14B8A6]/30",
+                    )}
+                  >
+                    {performance >= 0 && "+"}
+                    {performanceInPercent}%
+                  </span>
+                </div>
+              </HoverTooltip>
+            )}
+          </div>
         </div>
 
         {/* Action Buttons */}
