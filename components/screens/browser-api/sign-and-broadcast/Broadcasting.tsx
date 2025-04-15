@@ -5,7 +5,7 @@ import Header from "@/components/GeneralHeader";
 export default function Broadcasting() {
   return (
     <div className="space-y-14">
-      <Header title="Broadcasting" showClose={false} showPrevious={false} />
+      <Header title="Sending" showClose={false} showPrevious={false} />
 
       <div className="flex h-full flex-col items-center gap-4">
         <img
@@ -14,7 +14,7 @@ export default function Broadcasting() {
           src={carriageImage}
         />
         <span className="text-xl font-semibold text-daintree-400">
-          Broadcasting...
+          Sending...
         </span>
       </div>
     </div>
