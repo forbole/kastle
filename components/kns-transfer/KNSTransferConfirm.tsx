@@ -8,6 +8,7 @@ import { useNavigate } from "react-router-dom";
 import { Fee } from "@/lib/kns.ts";
 import { formatCurrency } from "@/lib/utils.ts";
 import useKaspaPrice from "@/hooks/useKaspaPrice.ts";
+import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 
 type KNSTransferConfirmProps = {
   onNext?: () => void;

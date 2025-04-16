@@ -13,6 +13,7 @@ import { captureException } from "@sentry/react";
 import { kaspaToSompi, sompiToKaspaString } from "@/wasm/core/kaspa";
 import { twMerge } from "tailwind-merge";
 import { formatCurrency } from "@/lib/utils.ts";
+import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 
 export const ConfirmStep = ({
   onNext,

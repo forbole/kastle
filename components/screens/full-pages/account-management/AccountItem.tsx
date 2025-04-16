@@ -11,6 +11,7 @@ import useWalletManager from "@/hooks/useWalletManager.ts";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import { Tooltip } from "react-tooltip";
 import { useCopyToClipboard } from "usehooks-ts";
+import useCurrencyValue from "@/hooks/useCurrencyValue";
 
 type AccountItemProps = {
   accountIndex: number;

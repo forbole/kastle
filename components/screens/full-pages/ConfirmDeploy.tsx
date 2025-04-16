@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { useLocation } from "react-router";
 import signImage from "@/assets/images/sign.png";
 import { DeployTokenState } from "@/components/screens/full-pages/DeployToken.tsx";
+import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 
 export default function ConfirmDeploy() {
   const navigate = useNavigate();
