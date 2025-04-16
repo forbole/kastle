@@ -18,13 +18,13 @@ export default function PrivateKeyAccountItem({
 }: PrivateKeyAccountItemProps) {
   const navigate = useNavigate();
   const [settings] = useSettings();
-  const kapsaPrice = useKaspaPrice();
+  const kaspaPrice = useKaspaPrice();
   const { selectAccount, walletSettings } = useWalletManager();
   const isSelectedWalletId = walletSettings?.selectedWalletId === walletId;
   const selectedAccountIndex = walletSettings?.selectedAccountIndex;
 
   const fiatBalance =
-    parseFloat(account.balance ?? "0") * kapsaPrice.kaspaPrice;
+    parseFloat(account.balance ?? "0") * kaspaPrice.kaspaPrice;
   const { amount: totalBalanceCurrency, code: currencyCode } =
     useCurrencyValue(fiatBalance);
 

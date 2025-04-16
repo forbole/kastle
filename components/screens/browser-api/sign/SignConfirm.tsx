@@ -30,7 +30,7 @@ export default function SignConfirm({
   confirm,
   cancel,
 }: SignConfirmProps) {
-  const kapsaPrice = useKaspaPrice();
+  const kaspaPrice = useKaspaPrice();
   const { account, wallet } = useWalletManager();
   const [hideDetails, setHideDetails] = useState(true);
   const [settings, setSettings] = useSettings();
@@ -103,9 +103,9 @@ export default function SignConfirm({
     differenceInKas = -differenceInKas;
   }
 
-  const fiatDifference = differenceInKas * kapsaPrice.kaspaPrice;
-  const fiatAmount = parseFloat(sendingAmountInKas) * kapsaPrice.kaspaPrice;
-  const fiatFees = parseFloat(feesInKas) * kapsaPrice.kaspaPrice;
+  const fiatDifference = differenceInKas * kaspaPrice.kaspaPrice;
+  const fiatAmount = parseFloat(sendingAmountInKas) * kaspaPrice.kaspaPrice;
+  const fiatFees = parseFloat(feesInKas) * kaspaPrice.kaspaPrice;
 
   const { amount: differenceCurrency, code: differenceCurrencyCode } =
     useCurrencyValue(fiatDifference);

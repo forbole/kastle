@@ -6,7 +6,7 @@ import { useDomainDetails } from "@/hooks/useKns.ts";
 import { walletAddressEllipsis } from "@/lib/utils";
 import Copy from "@/components/Copy";
 import HoverShowAllCopy from "@/components/HoverShowAllCopy";
-import HoverShowAll from "@/components/HoverShowAll";
+import HoverShowAll from "@/components/HoverTooltip";
 import { Tooltip } from "react-tooltip";
 import React from "react";
 import { twMerge } from "tailwind-merge";

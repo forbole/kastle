@@ -4,7 +4,7 @@ import Header from "@/components/GeneralHeader";
 import { twMerge } from "tailwind-merge";
 import { convertIPFStoHTTP, walletAddressEllipsis } from "@/lib/utils";
 import Copy from "@/components/Copy";
-import HoverShowAll from "@/components/HoverShowAll";
+import HoverShowAll from "@/components/HoverTooltip";
 import downloadImage from "@/assets/images/download.svg";
 
 const SHOW_DESCRIPTION_LIMIT = 105;

@@ -79,7 +79,62 @@ export interface Metadata {
   isKrc20Market?: boolean;
 }
 
+export interface TokenPriceCandles {
+  candles: Candle[];
+}
+
+export interface Candle {
+  ticker: string;
+  close: number;
+}
+
 const baseUrl = "https://api-v2-do.kas.fyi";
+
+const fetchUrls = async (urlString: string) => {
+  // Split the string back into an array of URLs
+  const urlArray = urlString.split(",");
+  return Promise.all(urlArray.map((url) => fetcher(url)));
+};
+
+export function useTokenPrices(tickers?: string[]) {
+  // Create an array of URLs instead of a comma-separated string
+  const urls =
+    tickers?.map(
+      (ticker) =>
+        `${baseUrl}/token/krc20/${ticker}/charts?type=candles&interval=1d`,
+    ) ?? [];
+
+  // Call useSWR with a string key (comma-joined URLs)
+  const { data: responses } = useSWR<TokenPriceCandles[], Error>(
+    urls.length > 0 ? urls.join(",") : null,
+    urls.length > 0 ? fetchUrls : null,
+    { suspense: false },
+  );
+
+  // Process the results to map tickers to their prices
+  const tokenPrices = tickers?.reduce(
+    (acc, ticker, index) => {
+      const response = responses?.[index];
+      if (!response) {
+        acc[ticker] = { lastDayPrice: 0, price: 0 };
+        return acc;
+      }
+
+      const lastDayPrice = response.candles?.[0]?.close ?? 0;
+      const candles = response.candles || [];
+      const price =
+        candles.length > 0 ? (candles[candles.length - 1]?.close ?? 0) : 0;
+
+      acc[ticker] = { lastDayPrice, price };
+      return acc;
+    },
+    {} as Record<string, { lastDayPrice: number; price: number }>,
+  );
+
+  return {
+    tokenPrices,
+  };
+}
 
 export function useTokenMetadata(ticker?: string) {
   const swrResponse = useSWR<TokenMetadata, Error>(

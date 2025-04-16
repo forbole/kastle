@@ -12,16 +12,16 @@ import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 
 export default function Assets() {
   const navigate = useNavigate();
-  const kapsaPrice = useKaspaPrice();
+  const kaspaPrice = useKaspaPrice();
 
   const [settings] = useSettings();
   const { account } = useWalletManager();
 
   const address = account?.address;
   const balance = account?.balance;
-  const fiatBalance = parseFloat(balance ?? "0") * kapsaPrice.kaspaPrice;
+  const fiatBalance = parseFloat(balance ?? "0") * kaspaPrice.kaspaPrice;
   const showBalance = !settings?.hideBalances;
-  const fiatKaspaPrice = kapsaPrice.kaspaPrice;
+  const fiatKaspaPrice = kaspaPrice.kaspaPrice;
 
   const { amount: totalBalanceCurrency, code: currencyCode } =
     useCurrencyValue(fiatBalance);
