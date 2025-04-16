@@ -34,6 +34,7 @@ export class ApiUtils {
         networkId: NetworkType.Mainnet,
         lockTimeout: 5, // Save 5 minutes as default value
         walletConnections: undefined,
+        currency: "USD",
         hideBalances: true,
         preview: false,
       },
