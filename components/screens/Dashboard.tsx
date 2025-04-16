@@ -189,14 +189,16 @@ export default function Dashboard() {
                     performance < 0 ? "text-[#EF4444]" : "text-[#14B8A6]",
                   )}
                 >
-                  <span>
+                  <span className="min-w-[60px] text-right">
                     {performance >= 0 ? "+" : "-"}{" "}
                     {formatCurrency(Math.abs(performance), currencyCode)}{" "}
                   </span>
                   <span
                     className={twMerge(
-                      "rounded-md px-1.5 py-1",
-                      performance < 0 ? "bg-[#EF4444]/30" : "bg-[#14B8A6]/30",
+                      "min-w-[60px] rounded-md px-1.5 py-1",
+                      performance < 0
+                        ? "bg-[#991B1B4D]/30"
+                        : "bg-[#115E594D]/30",
                     )}
                   >
                     {performance >= 0 && "+"}

@@ -54,7 +54,9 @@ export default function usePortfolioPerformance() {
 
   const performance = totalBalance - totalLastDayBalance;
   const performanceInPercent =
-    totalBalance === 0 ? 0 : ((performance / totalBalance) * 100).toFixed(2);
+    totalBalance === 0
+      ? "0.00"
+      : ((performance / totalBalance) * 100).toFixed(2);
 
   return {
     performance,
