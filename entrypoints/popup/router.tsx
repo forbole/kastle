@@ -63,6 +63,8 @@ import Unlocked from "@/components/screens/browser-api/Unlocked";
 import SignMessageConfirm from "@/components/screens/browser-api/SignMessageConfirm";
 import KNSTransfer from "@/components/screens/KNSTransfer.tsx";
 import { KNSRecentTransferProvider } from "@/contexts/KNSRecentTransfer.tsx";
+import { KRC721RecentTransferProvider } from "@/contexts/KRC721RecentTransfer.tsx";
+import KRC721Transfer from "@/components/screens/KRC721Transfer.tsx";
 
 const loadKaspaWasm = async () => {
   await init({ module_or_path: kaspaModule });
@@ -192,6 +194,14 @@ export const router = createHashRouter([
                       </KNSRecentTransferProvider>
                     ),
                   },
+                  {
+                    path: "/krc721-transfer/:tick/:tokenId",
+                    element: (
+                      <KRC721RecentTransferProvider>
+                        <KRC721Transfer />
+                      </KRC721RecentTransferProvider>
+                    ),
+                  },
                   { path: "receive", element: <Receive /> },
                   { path: "settings", element: <Settings /> },
                   {
@@ -234,7 +244,11 @@ export const router = createHashRouter([
                   },
                   {
                     path: "krc721/:tick/:tokenId",
-                    element: <KRC721 />,
+                    element: (
+                      <KRC721RecentTransferProvider>
+                        <KRC721 />
+                      </KRC721RecentTransferProvider>
+                    ),
                   },
                   {
                     path: "kas-asset",
