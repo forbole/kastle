@@ -7,6 +7,7 @@ import signImage from "@/assets/images/sign.png";
 import { applyDecimal, computeOperationFees } from "@/lib/krc20.ts";
 import { Tooltip } from "react-tooltip";
 import { formatCurrency } from "@/lib/utils.ts";
+import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 
 export default function ConfirmMint() {
   const navigate = useNavigate();

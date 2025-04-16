@@ -9,6 +9,7 @@ import { useTokenInfo } from "@/hooks/useTokenInfo.ts";
 import { formatCurrency } from "@/lib/utils.ts";
 import useKaspaPrice from "@/hooks/useKaspaPrice.ts";
 import { Tooltip } from "react-tooltip";
+import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 
 export const ConfirmTokenOperationStep = ({
   onNext,

@@ -24,6 +24,7 @@ import useMassCalculation from "@/hooks/useMassCalculation.ts";
 import usePriorityFeeEstimate from "@/hooks/usePriorityFeeEstimate.ts";
 import useMempoolStatus from "@/hooks/useMempoolStatus.ts";
 import "/node_modules/flag-icons/css/flag-icons.min.css";
+import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 
 export const DetailsStep = ({
   onNext,
