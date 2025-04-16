@@ -61,6 +61,8 @@ import EthereumSendTransactionConfirm from "@/components/screens/browser-api/eth
 import BrowserAPILayout from "@/components/layouts/BrowserAPILayout";
 import Unlocked from "@/components/screens/browser-api/Unlocked";
 import SignMessageConfirm from "@/components/screens/browser-api/SignMessageConfirm";
+import KNSTransfer from "@/components/screens/KNSTransfer.tsx";
+import { KNSRecentTransferProvider } from "@/contexts/KNSRecentTransfer.tsx";
 
 const loadKaspaWasm = async () => {
   await init({ module_or_path: kaspaModule });
@@ -182,6 +184,14 @@ export const router = createHashRouter([
                 children: [
                   { path: "send", element: <Send /> },
                   { path: "token-transfer", element: <TokenTransfer /> },
+                  {
+                    path: "kns-transfer/:assetId",
+                    element: (
+                      <KNSRecentTransferProvider>
+                        <KNSTransfer />
+                      </KNSRecentTransferProvider>
+                    ),
+                  },
                   { path: "receive", element: <Receive /> },
                   { path: "settings", element: <Settings /> },
                   {
@@ -216,7 +226,11 @@ export const router = createHashRouter([
                   },
                   {
                     path: "kns/:assetId",
-                    element: <KNSAsset />,
+                    element: (
+                      <KNSRecentTransferProvider>
+                        <KNSAsset />
+                      </KNSRecentTransferProvider>
+                    ),
                   },
                   {
                     path: "krc721/:tick/:tokenId",

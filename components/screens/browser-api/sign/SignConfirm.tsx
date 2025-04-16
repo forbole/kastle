@@ -17,6 +17,7 @@ import { useSettings } from "@/hooks/useSettings";
 import { useBoolean } from "usehooks-ts";
 import ledgerSignImage from "@/assets/images/ledger-on-sign.svg";
 import { formatCurrency } from "@/lib/utils.ts";
+import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 
 type SignConfirmProps = {
   payload: SignTxPayload;
