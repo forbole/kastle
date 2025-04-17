@@ -9,22 +9,15 @@ import { ApiUtils } from "@/api/background/utils";
 
 export default function ConnectConfirm() {
   const [settings, setSettings] = useSettings();
-  const { walletSettings } = useWalletManager();
-
-  // Get account info
-  const selectedWalletId = walletSettings?.selectedWalletId ?? "";
-  const selectedAccountIndex = walletSettings?.selectedAccountIndex ?? 0;
-  const account = walletSettings?.wallets
-    ?.find((w) => w.id === selectedWalletId)
-    ?.accounts.find((a) => a.index === selectedAccountIndex);
+  const { wallet, account } = useWalletManager();
 
   // Get payload from URL
   const urlSearchParams = new URLSearchParams(window.location.search);
   const requestId = urlSearchParams.get("requestId") ?? "";
   const host = urlSearchParams.get("host") ?? "";
-  const network = urlSearchParams.get("network") ?? settings?.networkId;
   const tabName = urlSearchParams.get("name") ?? "Unknown";
   const icon = urlSearchParams.get("icon") ?? undefined;
+  const network = settings?.networkId ?? NetworkType.Mainnet;
 
   // Create confirm and deny messages
   const confirmMessage = ApiUtils.createApiResponse(requestId, true);
@@ -35,22 +28,18 @@ export default function ConnectConfirm() {
   );
 
   const handleConnectConfirm = async () => {
-    if (!settings) {
+    if (!settings || !wallet || !account) {
       return;
     }
 
-    const selectedWalletId = walletSettings?.selectedWalletId;
+    const selectedWalletId = wallet.id;
+    const selectedAccountIndex = account.index;
     try {
-      if (!selectedWalletId) {
-        throw new Error("No selected wallet id found");
-      }
-
       const walletConnections = settings.walletConnections ?? {};
-      const targetNetwork = (network ?? settings.networkId) as NetworkType;
 
       const connections =
         walletConnections[selectedWalletId]?.[selectedAccountIndex]?.[
-          targetNetwork
+          network
         ] ?? [];
 
       // Add connection to wallet connections and save if not exists
@@ -60,14 +49,13 @@ export default function ConnectConfirm() {
           ...walletConnections[selectedWalletId],
           [selectedAccountIndex]: {
             ...walletConnections[selectedWalletId]?.[selectedAccountIndex],
-            [targetNetwork]: connections,
+            [network]: connections,
           },
         };
 
         await setSettings({
           ...settings,
           walletConnections: walletConnections,
-          networkId: targetNetwork,
         });
       }
 
@@ -111,9 +99,7 @@ export default function ConnectConfirm() {
     },
   ];
 
-  const selectedNetwork = networks.find(
-    (n) => n.id === (network ?? settings?.networkId),
-  );
+  const selectedNetwork = networks.find((n) => n.id === network);
 
   return (
     <div className="flex h-full w-full flex-col justify-between rounded-xl p-4">

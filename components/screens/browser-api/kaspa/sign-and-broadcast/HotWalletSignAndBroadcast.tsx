@@ -1,5 +1,5 @@
 import { SignTxPayload } from "@/api/background/handlers/kaspa/utils";
-import SignTx from "@/components/screens/browser-api/sign-tx/SignTx";
+import SignAndBroadcast from "@/components/screens/browser-api/kaspa/sign-and-broadcast/SignAndBroadcast";
 import { IWallet } from "@/lib/wallet/wallet-interface.ts";
 import { AccountFactory } from "@/lib/wallet/wallet-factory";
 import useWalletManager from "@/hooks/useWalletManager.ts";
@@ -11,25 +11,25 @@ type HotWalletSignAndBroadcastProps = {
   payload: SignTxPayload;
 };
 
-export default function HotWalletSignTx({
+export default function HotWalletSignAndBroadcast({
   requestId,
   payload,
 }: HotWalletSignAndBroadcastProps) {
   const { getWalletSecret } = useKeyring();
   const { wallet: walletInfo, account } = useWalletManager();
-  const { rpcClient, networkId: rpcNetworkId } = useRpcClientStateful();
+  const { rpcClient, networkId } = useRpcClientStateful();
   const [wallet, setWallet] = useState<IWallet>();
   const loading =
-    !rpcClient || !wallet || !walletInfo || !account || !rpcNetworkId;
+    !rpcClient || !wallet || !walletInfo || !account || !networkId;
 
   useEffect(() => {
-    if (!rpcClient || !walletInfo || !rpcNetworkId || !account) return;
+    if (!rpcClient || !walletInfo || !networkId || !account) return;
     if (walletInfo.type !== "mnemonic" && walletInfo.type !== "privateKey") {
       throw new Error("Unsupported wallet type");
     }
 
     getWalletSecret({ walletId: walletInfo.id }).then(({ walletSecret }) => {
-      const factory = new AccountFactory(rpcClient, rpcNetworkId);
+      const factory = new AccountFactory(rpcClient, networkId);
 
       switch (walletInfo.type) {
         case "mnemonic":
@@ -48,7 +48,11 @@ export default function HotWalletSignTx({
     <>
       {loading && <Splash />}
       {!loading && (
-        <SignTx wallet={wallet} requestId={requestId} payload={payload} />
+        <SignAndBroadcast
+          wallet={wallet}
+          requestId={requestId}
+          payload={payload}
+        />
       )}
     </>
   );

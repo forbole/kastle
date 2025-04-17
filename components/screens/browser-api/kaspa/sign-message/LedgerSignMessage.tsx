@@ -4,7 +4,7 @@ import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import { NetworkType } from "@/contexts/SettingsContext";
 import Splash from "@/components/screens/Splash";
 import LedgerConnectForSign from "@/components/screens/ledger-connect/LedgerConnectForSign";
-import SignMessage from "@/components/screens/browser-api/sign-message/SignMessage";
+import SignMessage from "@/components/screens/browser-api/kaspa/sign-message/SignMessage";
 
 type LedgerSignTxProps = {
   requestId: string;

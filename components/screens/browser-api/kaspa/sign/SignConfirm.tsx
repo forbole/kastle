@@ -11,7 +11,7 @@ import { useState } from "react";
 import Header from "@/components/GeneralHeader";
 import signImage from "@/assets/images/sign.png";
 import useKaspaPrice from "@/hooks/useKaspaPrice.ts";
-import DetailsSelector from "@/components/screens/browser-api/sign/DetailsSelector";
+import DetailsSelector from "@/components/screens/browser-api/kaspa/sign/DetailsSelector";
 import { twMerge } from "tailwind-merge";
 import { useSettings } from "@/hooks/useSettings";
 import { useBoolean } from "usehooks-ts";

@@ -1,10 +1,8 @@
 import { ApiRequestWithHost } from "@/api/message";
 import { ApiUtils, Handler } from "@/api/background/utils";
-import { NetworkType } from "@/contexts/SettingsContext";
 import { z } from "zod";
 
 export const ConnectPayloadSchema = z.object({
-  networkId: z.nativeEnum(NetworkType),
   name: z.string(),
   icon: z.string().optional(),
 });
@@ -51,12 +49,11 @@ export const connectHandler: Handler = async (
   url.hash = `/connect`;
   url.searchParams.set("host", message.host);
   url.searchParams.set("requestId", message.id);
-  url.searchParams.set("network", parsedPayload.networkId);
   url.searchParams.set("name", parsedPayload.name);
   url.searchParams.set("icon", parsedPayload.icon ?? "");
 
   ApiUtils.openPopup(tabId, url.toString());
 
-  await ApiUtils.receiveExtensionMessage(message.id);
-  sendResponse(ApiUtils.createApiResponse(message.id, true));
+  const response = await ApiUtils.receiveExtensionMessage(message.id);
+  sendResponse(response);
 };

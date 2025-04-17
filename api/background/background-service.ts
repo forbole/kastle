@@ -7,9 +7,10 @@ import {
   ApiRequestWithHostSchema,
   ApiResponseSchema,
 } from "@/api/message";
-import { getNetwork } from "@/api/background/handlers/get-network.ts";
+import { getNetwork } from "@/api/background/handlers/kaspa/get-network";
 import { ethereumRequestHandler } from "@/api/background/handlers/ethereum/request";
 import { signMessageHandler } from "@/api/background/handlers/kaspa/signMessage";
+import { switchNetworkHandler } from "@/api/background/handlers/kaspa/switchNetwork";
 
 export class BackgroundService {
   public listen(): void {
@@ -61,6 +62,7 @@ export class BackgroundService {
       [Action.GET_NETWORK]: getNetwork,
       [Action.ETHEREUM_REQUEST]: ethereumRequestHandler,
       [Action.SIGN_MESSAGE]: signMessageHandler,
+      [Action.SWITCH_NETWORK]: switchNetworkHandler,
     };
 
     return handlers[action];

@@ -1,23 +1,23 @@
 import { SignTxPayload } from "@/api/background/handlers/kaspa/utils";
-import LedgerNotSupported from "@/components/screens/browser-api/sign/LedgerNotSupported";
-import SignAndBroadcast from "@/components/screens/browser-api/sign-and-broadcast/SignAndBroadcast";
+import LedgerNotSupported from "@/components/screens/browser-api/kaspa/sign/LedgerNotSupported";
+import SignTx from "@/components/screens/browser-api/kaspa/sign-tx/SignTx";
 import { AccountFactory } from "@/lib/wallet/wallet-factory";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import { NetworkType } from "@/contexts/SettingsContext";
 import Splash from "@/components/screens/Splash";
 import { ApiExtensionUtils } from "@/api/extension";
-import { ApiUtils } from "@/api/background/utils";
 import LedgerConnectForSign from "@/components/screens/ledger-connect/LedgerConnectForSign";
+import { ApiUtils } from "@/api/background/utils";
 
-type LedgerSignAndBroadcastProps = {
+type LedgerSignTxProps = {
   requestId: string;
   payload: SignTxPayload;
 };
 
-export default function LedgerSignAndBroadcast({
+export default function LedgerSignTx({
   requestId,
   payload,
-}: LedgerSignAndBroadcastProps) {
+}: LedgerSignTxProps) {
   const { transport, isAppOpen } = useLedgerTransport();
   const { rpcClient } = useRpcClientStateful();
 
@@ -48,11 +48,7 @@ export default function LedgerSignAndBroadcast({
       )}
       {transport && isAppOpen && !wallet && <Splash />}
       {wallet && isAppOpen && (
-        <SignAndBroadcast
-          wallet={wallet}
-          requestId={requestId}
-          payload={payload}
-        />
+        <SignTx wallet={wallet} requestId={requestId} payload={payload} />
       )}
     </>
   );

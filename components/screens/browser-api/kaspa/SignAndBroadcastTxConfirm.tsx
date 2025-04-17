@@ -1,17 +1,13 @@
 import { SignTxPayloadSchema } from "@/api/background/handlers/kaspa/utils";
-import HotWalletSignTx from "@/components/screens/browser-api/sign-tx/HotWalletSignTx";
-import LedgerSignTx from "@/components/screens/browser-api/sign-tx/LedgerSignTx";
+import HotWalletSignAndBroadcast from "@/components/screens/browser-api/kaspa/sign-and-broadcast/HotWalletSignAndBroadcast";
+import LedgerSignAndBroadcast from "@/components/screens/browser-api/kaspa/sign-and-broadcast/LedgerSignAndBroadcast";
 import useWalletManager from "@/hooks/useWalletManager.ts";
 import Splash from "@/components/screens/Splash";
 
-export default function SignTxConfirm() {
+export default function SignAndBroadcastTxConfirm() {
   const { wallet } = useWalletManager();
   const requestId =
     new URLSearchParams(window.location.search).get("requestId") ?? "";
-  if (!requestId) {
-    throw new Error("No request id found");
-  }
-
   const encodedPayload = new URLSearchParams(window.location.search).get(
     "payload",
   );
@@ -20,17 +16,21 @@ export default function SignTxConfirm() {
     ? JSON.parse(decodeURIComponent(encodedPayload))
     : null;
 
-  const parsedPayload = SignTxPayloadSchema.parse(payload);
-  const loading = !wallet || !requestId || !payload;
+  const parsedPayload = payload ? SignTxPayloadSchema.parse(payload) : null;
+
+  const loading = !wallet || !requestId || !parsedPayload;
 
   return (
     <div className="no-scrollbar h-screen overflow-y-scroll p-4">
       {loading && <Splash />}
       {!loading && wallet.type !== "ledger" && (
-        <HotWalletSignTx requestId={requestId} payload={parsedPayload} />
+        <HotWalletSignAndBroadcast
+          requestId={requestId}
+          payload={parsedPayload}
+        />
       )}
       {!loading && wallet.type === "ledger" && (
-        <LedgerSignTx requestId={requestId} payload={parsedPayload} />
+        <LedgerSignAndBroadcast requestId={requestId} payload={parsedPayload} />
       )}
     </div>
   );

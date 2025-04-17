@@ -4,12 +4,12 @@ import { IWallet } from "@/lib/wallet/wallet-interface.ts";
 import useWalletManager from "@/hooks/useWalletManager";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import { Transaction } from "@/wasm/core/kaspa";
-import SignConfirm from "@/components/screens/browser-api/sign/SignConfirm";
+import SignConfirm from "@/components/screens/browser-api/kaspa/sign/SignConfirm";
 import { useState } from "react";
-import Broadcasting from "@/components/screens/browser-api/sign-and-broadcast/Broadcasting";
+import Broadcasting from "@/components/screens/browser-api/kaspa/sign-and-broadcast/Broadcasting";
 import { sleep } from "@/lib/utils";
-import Success from "@/components/screens/browser-api/sign-and-broadcast/Success";
-import Error from "@/components/screens/browser-api/sign-and-broadcast/Error";
+import Success from "@/components/screens/browser-api/kaspa/sign-and-broadcast/Success";
+import Error from "@/components/screens/browser-api/kaspa/sign-and-broadcast/Error";
 import { ApiUtils } from "@/api/background/utils";
 
 type SignAndBroadcastProps = {

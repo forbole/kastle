@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { SignTxPayload } from "@/api/background/handlers/kaspa/utils";
-import TransactionDetailsBox from "@/components/screens/browser-api/sign/TransactionBox";
-import ScriptItem from "@/components/screens/browser-api/sign/ScriptItem";
+import TransactionDetailsBox from "@/components/screens/browser-api/kaspa/sign/TransactionBox";
+import ScriptItem from "@/components/screens/browser-api/kaspa/sign/ScriptItem";
 import { twMerge } from "tailwind-merge";
 
 export default function DetailsSelector({

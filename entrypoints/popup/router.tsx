@@ -8,7 +8,7 @@ import {
 import PopupLayout from "@/components/layouts/PopupLayout.tsx";
 import Send from "@/components/screens/Send.tsx";
 import ConnectConfirm from "@/components/screens/browser-api/ConnectConfirm";
-import SignAndBroadcastTxConfirm from "@/components/screens/browser-api/SignAndBroadcastTxConfirm";
+import SignAndBroadcastTxConfirm from "@/components/screens/browser-api/kaspa/SignAndBroadcastTxConfirm";
 import Dashboard from "@/components/screens/Dashboard";
 import Settings from "@/components/screens/Settings.tsx";
 import Receive from "@/components/screens/Receive.tsx";
@@ -44,7 +44,7 @@ import TokenTransfer from "@/components/screens/TokenTransfer.tsx";
 import MintToken from "@/components/screens/full-pages/MintToken.tsx";
 import TokenAsset from "@/components/screens/TokenAsset.tsx";
 import KasAsset from "@/components/screens/KasAsset.tsx";
-import SignTxConfirm from "@/components/screens/browser-api/SignTxConfirm";
+import SignTxConfirm from "@/components/screens/browser-api/kaspa/SignTxConfirm";
 import ConfirmMint from "@/components/screens/full-pages/ConfirmMint.tsx";
 import MintingToken from "@/components/screens/full-pages/MintingToken.tsx";
 import { TokenOperationFailed } from "@/components/screens/full-pages/TokenOperationFailed.tsx";
@@ -60,11 +60,12 @@ import EthereumSignMessageConfirm from "@/components/screens/browser-api/ethereu
 import EthereumSendTransactionConfirm from "@/components/screens/browser-api/ethereum/EthereumSendTransactionConfirm";
 import BrowserAPILayout from "@/components/layouts/BrowserAPILayout";
 import Unlocked from "@/components/screens/browser-api/Unlocked";
-import SignMessageConfirm from "@/components/screens/browser-api/SignMessageConfirm";
+import SignMessageConfirm from "@/components/screens/browser-api/kaspa/SignMessageConfirm";
 import KNSTransfer from "@/components/screens/KNSTransfer.tsx";
 import { KNSRecentTransferProvider } from "@/contexts/KNSRecentTransfer.tsx";
 import { KRC721RecentTransferProvider } from "@/contexts/KRC721RecentTransfer.tsx";
 import KRC721Transfer from "@/components/screens/KRC721Transfer.tsx";
+import SwitchKaspaNetwork from "@/components/screens/browser-api/kaspa/SwitchKaspaNetwork";
 
 const loadKaspaWasm = async () => {
   await init({ module_or_path: kaspaModule });
@@ -286,6 +287,10 @@ export const router = createHashRouter([
                       {
                         path: "sign-message",
                         element: <SignMessageConfirm />,
+                      },
+                      {
+                        path: "/kaspa/switch-network",
+                        element: <SwitchKaspaNetwork />,
                       },
 
                       // Ethereum BrowserAPI routes
