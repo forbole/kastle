@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.13.0](https://github.com/forbole/kastle/compare/v2.12.0...v2.13.0) (2025-04-17)
+
+
+### Features
+
+* krc721-transfer ([#101](https://github.com/forbole/kastle/issues/101)) ([5c55802](https://github.com/forbole/kastle/commit/5c558029c6d4090eb9b4f48d249bde7836a5146a))
+
+
+### Bug Fixes
+
+* misc bugs ([#102](https://github.com/forbole/kastle/issues/102)) ([6a0a6d1](https://github.com/forbole/kastle/commit/6a0a6d1f34c20f9bc9e7faa7e5bbeaac35008a3a))
+
 ## [2.12.0](https://github.com/forbole/kastle/compare/v2.11.0...v2.12.0) (2025-04-16)
 
 
