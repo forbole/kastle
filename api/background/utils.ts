@@ -36,6 +36,7 @@ export class ApiUtils {
         walletConnections: undefined,
         hideBalances: true,
         preview: false,
+        currency: "USD",
       },
     });
   }

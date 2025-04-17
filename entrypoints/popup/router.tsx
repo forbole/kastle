@@ -61,10 +61,14 @@ import EthereumSendTransactionConfirm from "@/components/screens/browser-api/eth
 import BrowserAPILayout from "@/components/layouts/BrowserAPILayout";
 import Unlocked from "@/components/screens/browser-api/Unlocked";
 import SignMessageConfirm from "@/components/screens/browser-api/kaspa/SignMessageConfirm";
+import KNSTransfer from "@/components/screens/KNSTransfer.tsx";
+import { KNSRecentTransferProvider } from "@/contexts/KNSRecentTransfer.tsx";
+import { KRC721RecentTransferProvider } from "@/contexts/KRC721RecentTransfer.tsx";
+import KRC721Transfer from "@/components/screens/KRC721Transfer.tsx";
 import SwitchKaspaNetwork from "@/components/screens/browser-api/kaspa/SwitchKaspaNetwork";
 
 const loadKaspaWasm = async () => {
-  await init(kaspaModule);
+  await init({ module_or_path: kaspaModule });
   return null;
 };
 
@@ -183,6 +187,22 @@ export const router = createHashRouter([
                 children: [
                   { path: "send", element: <Send /> },
                   { path: "token-transfer", element: <TokenTransfer /> },
+                  {
+                    path: "kns-transfer/:assetId",
+                    element: (
+                      <KNSRecentTransferProvider>
+                        <KNSTransfer />
+                      </KNSRecentTransferProvider>
+                    ),
+                  },
+                  {
+                    path: "/krc721-transfer/:tick/:tokenId",
+                    element: (
+                      <KRC721RecentTransferProvider>
+                        <KRC721Transfer />
+                      </KRC721RecentTransferProvider>
+                    ),
+                  },
                   { path: "receive", element: <Receive /> },
                   { path: "settings", element: <Settings /> },
                   {
@@ -217,11 +237,19 @@ export const router = createHashRouter([
                   },
                   {
                     path: "kns/:assetId",
-                    element: <KNSAsset />,
+                    element: (
+                      <KNSRecentTransferProvider>
+                        <KNSAsset />
+                      </KNSRecentTransferProvider>
+                    ),
                   },
                   {
                     path: "krc721/:tick/:tokenId",
-                    element: <KRC721 />,
+                    element: (
+                      <KRC721RecentTransferProvider>
+                        <KRC721 />
+                      </KRC721RecentTransferProvider>
+                    ),
                   },
                   {
                     path: "kas-asset",

@@ -1,12 +1,17 @@
 import { useFormContext } from "react-hook-form";
 import { AccountsFormValues } from "@/components/screens/full-pages/account-management/ManageAccounts";
 import React, { useState } from "react";
-import { formatToken, formatUSD, walletAddressEllipsis } from "@/lib/utils.ts";
+import {
+  formatCurrency,
+  formatToken,
+  walletAddressEllipsis,
+} from "@/lib/utils.ts";
 import { PublicKey } from "@/wasm/core/kaspa";
 import useWalletManager from "@/hooks/useWalletManager.ts";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import { Tooltip } from "react-tooltip";
 import { useCopyToClipboard } from "usehooks-ts";
+import useCurrencyValue from "@/hooks/useCurrencyValue";
 
 type AccountItemProps = {
   accountIndex: number;
@@ -25,6 +30,10 @@ export function AccountItem({ accountIndex, publicKeys }: AccountItemProps) {
   const { register, getValues } = useFormContext<AccountsFormValues>();
   const [accountBalance, setAccountBalance] = useState<number>();
   const kaspaPrice = useKaspaPrice();
+
+  const fiatBalance = (accountBalance ?? 0) * kaspaPrice.kaspaPrice;
+  const { amount: totalBalanceCurrency, code: currencyCode } =
+    useCurrencyValue(fiatBalance);
 
   const address = addresses[0];
 
@@ -119,7 +128,9 @@ export function AccountItem({ accountIndex, publicKeys }: AccountItemProps) {
             {accountBalance !== undefined ? (
               <div className="flex flex-grow flex-col items-end">
                 <span>{formatToken(accountBalance)}</span>
-                <span>{formatUSD(accountBalance * kaspaPrice.kaspaPrice)}</span>
+                <span>
+                  {formatCurrency(totalBalanceCurrency, currencyCode)}
+                </span>
               </div>
             ) : (
               <div className="h-[40px] w-[100px] animate-pulse self-center rounded-xl bg-daintree-700" />

@@ -6,9 +6,10 @@ import Header from "@/components/GeneralHeader.tsx";
 import { TokenOperationFormData } from "@/components/screens/TokenTransfer.tsx";
 import { applyDecimal, computeOperationFees, Operation } from "@/lib/krc20.ts";
 import { useTokenInfo } from "@/hooks/useTokenInfo.ts";
-import { formatUSD } from "@/lib/utils.ts";
+import { formatCurrency } from "@/lib/utils.ts";
 import useKaspaPrice from "@/hooks/useKaspaPrice.ts";
 import { Tooltip } from "react-tooltip";
+import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 
 export const ConfirmTokenOperationStep = ({
   onNext,
@@ -35,6 +36,12 @@ export const ConfirmTokenOperationStep = ({
     tokenInfoResponse?.result?.[0]?.dec,
   );
   const amount = toFloatForExisting(parseInt(opData.amt, 10));
+  const fiatAmount = amount * toPriceInUsd();
+  const fiatFees = totalFees * kaspaPrice.kaspaPrice;
+  const { amount: amountCurrency, code: amountCurrencyCode } =
+    useCurrencyValue(fiatAmount);
+  const { amount: feesCurrency, code: feesCurrencyCode } =
+    useCurrencyValue(fiatFees);
 
   const onClose = () => {
     navigate("/dashboard");
@@ -79,7 +86,7 @@ export const ConfirmTokenOperationStep = ({
               <div className="flex flex-col text-right">
                 <span className="font-medium">{amount}</span>
                 <span className="text-xs text-daintree-400">
-                  {formatUSD(amount * toPriceInUsd())} USD
+                  {formatCurrency(amountCurrency, amountCurrencyCode)}
                 </span>
               </div>
             </div>
@@ -111,7 +118,7 @@ export const ConfirmTokenOperationStep = ({
               <div className="flex flex-col text-right">
                 <span className="font-medium">{totalFees} KAS</span>
                 <span className="text-xs text-daintree-400">
-                  {formatUSD(totalFees * kaspaPrice.kaspaPrice)} USD
+                  {formatCurrency(feesCurrency, feesCurrencyCode)}
                 </span>
               </div>
             </div>

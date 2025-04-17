@@ -6,7 +6,7 @@ import { twMerge } from "tailwind-merge";
 import { useTokenMetadata } from "@/hooks/useTokenMetadata.ts";
 
 interface TickerSelectItemProps {
-  token: TokenListResponse["result"][number];
+  token: NonNullable<TokenListResponse["result"]>[number];
   selectTicker: (ticker: string) => void;
   supported?: boolean;
 }

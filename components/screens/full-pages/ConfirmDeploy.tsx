@@ -1,12 +1,13 @@
 import Header from "@/components/GeneralHeader.tsx";
 import { Tooltip } from "react-tooltip";
 import React from "react";
-import { formatUSD } from "@/lib/utils.ts";
+import { formatCurrency } from "@/lib/utils.ts";
 import { applyDecimal, computeOperationFees } from "@/lib/krc20.ts";
 import { useNavigate } from "react-router-dom";
 import { useLocation } from "react-router";
 import signImage from "@/assets/images/sign.png";
 import { DeployTokenState } from "@/components/screens/full-pages/DeployToken.tsx";
+import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 
 export default function ConfirmDeploy() {
   const navigate = useNavigate();
@@ -17,6 +18,10 @@ export default function ConfirmDeploy() {
   const { toFloat } = applyDecimal(decimalPlaces.toString());
   const { krc20Fee, kaspaFee, forboleFee, totalFees } =
     computeOperationFees("deploy");
+
+  const fiatFees = totalFees * kaspaPrice.kaspaPrice;
+  const { amount: feesCurrency, code: feesCurrencyCode } =
+    useCurrencyValue(fiatFees);
 
   const onBack = () =>
     navigate(
@@ -97,7 +102,7 @@ export default function ConfirmDeploy() {
                 <div className="flex flex-col text-right">
                   <span className="font-medium">{totalFees} KAS</span>
                   <span className="text-xs text-daintree-400">
-                    {formatUSD(totalFees * kaspaPrice.kaspaPrice)} USD
+                    {formatCurrency(feesCurrency, feesCurrencyCode)}
                   </span>
                 </div>
               </div>

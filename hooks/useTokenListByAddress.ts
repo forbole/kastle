@@ -15,7 +15,7 @@ export type TokenListResponse = {
   message: string;
   prev: string;
   next: string;
-  result: TokenListItem[];
+  result: TokenListItem[] | undefined;
 };
 
 export function useTokenListByAddress(

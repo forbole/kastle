@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { SideMenu } from "@/components/side-menu/SideMenu.tsx";
 import gavelIcon from "@/assets/images/gavel.svg";
-import { formatUSD } from "@/lib/utils.ts";
+import { formatCurrency, symbolForCurrencyCode } from "@/lib/utils.ts";
 import ClipboardCopy from "@/components/dashboard/ClipboardCopy";
 import { twMerge } from "tailwind-merge";
 import useBackupWarning from "@/hooks/useBackupWarning.ts";
@@ -14,6 +14,9 @@ import Assets from "@/components/dashboard/Assets";
 import KNS from "@/components/dashboard/KNS";
 import KRC721List from "@/components/dashboard/KRC721List";
 import useTotalBalance from "@/hooks/useTotalBalance.ts";
+import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
+import usePortfolioPerformance from "@/hooks/usePortfolioPerformance";
+import HoverTooltip from "../HoverTooltip";
 
 export default function Dashboard() {
   const { keyringLock } = useKeyring();
@@ -21,6 +24,8 @@ export default function Dashboard() {
   const { networkId, isConnected } = useRpcClientStateful();
   const [settings, setSettings] = useSettings();
   const totalBalance = useTotalBalance();
+  const { amount: totalBalanceCurrency, code: currencyCode } =
+    useCurrencyValue(totalBalance);
   const { showWarning } = useBackupWarning();
   const { account, wallet } = useWalletManager();
   const [dismissWarning, setDismissWarning] = useState(false);
@@ -34,7 +39,12 @@ export default function Dashboard() {
 
   const address = account?.address;
   const showBalance = !settings?.hideBalances;
-  const totalBalanceFormatted = formatUSD(totalBalance);
+  const totalBalanceFormatted = formatCurrency(
+    totalBalanceCurrency,
+    currencyCode,
+  );
+
+  const { performance, performanceInPercent } = usePortfolioPerformance();
 
   const toggleBalance = () =>
     setSettings((prevSettings) => ({
@@ -54,7 +64,7 @@ export default function Dashboard() {
       {/* Warning popup */}
       {showWarning && !dismissWarning && (
         <div
-          className="absolute bottom-0 left-0 m-3 flex flex-col gap-2 rounded-xl border border-[#713F12] bg-[#281704] p-4 text-base"
+          className="absolute bottom-0 left-0 z-10 m-3 flex flex-col gap-2 rounded-xl border border-[#713F12] bg-[#281704] p-4 text-base"
           role="alert"
         >
           <div className="flex items-center justify-between">
@@ -135,24 +145,69 @@ export default function Dashboard() {
       {/* Content */}
       <div className="flex flex-col items-center gap-3">
         {/* Balance Display */}
-        <div className="py-3">
+        <div className="flex flex-col items-center py-3">
+          <button onClick={() => toggleBalance()} className="mx-auto p-4">
+            <i
+              className={twMerge(
+                "hn text-[16px]",
+                showBalance ? "hn-eye-cross" : "hn-eye",
+              )}
+            ></i>
+          </button>
+
           {totalBalanceFormatted === undefined ? (
-            <div className="h-[54px] w-[160px] animate-pulse self-center rounded-xl bg-daintree-700" />
+            <div className="mx-auto h-[54px] w-[160px] animate-pulse self-center rounded-xl bg-daintree-700" />
           ) : (
             <div className="relative flex items-center">
               <span className="text-center text-4xl font-semibold text-white">
-                {showBalance ? totalBalanceFormatted : "$*****"}
+                {showBalance
+                  ? totalBalanceFormatted
+                  : `${symbolForCurrencyCode(currencyCode)}*****`}
               </span>
-              <button onClick={() => toggleBalance()} className="p-4">
-                <i
-                  className={twMerge(
-                    "hn text-[16px]",
-                    showBalance ? "hn-eye-cross" : "hn-eye",
-                  )}
-                ></i>
-              </button>
             </div>
           )}
+
+          {/* Performance */}
+          <div className="min-h-[44px] pt-2">
+            {showBalance && (
+              <HoverTooltip
+                id="performance"
+                text={
+                  "Your wallet’s total value change over the past 24 hours."
+                }
+                tooltipWidth="292px"
+                place="bottom"
+                style={{
+                  fontSize: "14px",
+                  lineBreak: "normal",
+                  textAlign: "center",
+                }}
+              >
+                <div
+                  className={twMerge(
+                    "flex items-center gap-2 text-sm font-medium",
+                    performance < 0 ? "text-[#EF4444]" : "text-[#14B8A6]",
+                  )}
+                >
+                  <span className="min-w-[60px] text-right">
+                    {performance >= 0 ? "+" : "-"}{" "}
+                    {formatCurrency(Math.abs(performance), currencyCode)}{" "}
+                  </span>
+                  <span
+                    className={twMerge(
+                      "min-w-[60px] rounded-md px-1.5 py-1",
+                      performance < 0
+                        ? "bg-[#991B1B4D]/30"
+                        : "bg-[#115E594D]/30",
+                    )}
+                  >
+                    {performance >= 0 && "+"}
+                    {performanceInPercent}%
+                  </span>
+                </div>
+              </HoverTooltip>
+            )}
+          </div>
         </div>
 
         {/* Action Buttons */}

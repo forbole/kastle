@@ -1,7 +1,6 @@
-import React from "react";
+import React, { useEffect } from "react";
 import carriageImage from "@/assets/images/carriage.png";
 import Header from "@/components/GeneralHeader";
-import { useEffect } from "react";
 
 export const Broadcasting = ({ onSuccess }: { onSuccess: () => void }) => {
   useEffect(() => {
@@ -16,7 +15,7 @@ export const Broadcasting = ({ onSuccess }: { onSuccess: () => void }) => {
 
   return (
     <>
-      <Header title="Broadcasting" showPrevious={false} showClose={false} />
+      <Header title="Sending" showPrevious={false} showClose={false} />
 
       <div className="mt-10 flex h-full flex-col items-center gap-4">
         <img
@@ -25,7 +24,7 @@ export const Broadcasting = ({ onSuccess }: { onSuccess: () => void }) => {
           src={carriageImage}
         />
         <span className="text-xl font-semibold text-daintree-400">
-          Broadcasting...
+          Sending...
         </span>
       </div>
     </>

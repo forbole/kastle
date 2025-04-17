@@ -1,5 +1,27 @@
 # Changelog
 
+## [2.13.0](https://github.com/forbole/kastle/compare/v2.12.0...v2.13.0) (2025-04-17)
+
+
+### Features
+
+* krc721-transfer ([#101](https://github.com/forbole/kastle/issues/101)) ([5c55802](https://github.com/forbole/kastle/commit/5c558029c6d4090eb9b4f48d249bde7836a5146a))
+
+
+### Bug Fixes
+
+* misc bugs ([#102](https://github.com/forbole/kastle/issues/102)) ([6a0a6d1](https://github.com/forbole/kastle/commit/6a0a6d1f34c20f9bc9e7faa7e5bbeaac35008a3a))
+
+## [2.12.0](https://github.com/forbole/kastle/compare/v2.11.0...v2.12.0) (2025-04-16)
+
+
+### Features
+
+* **broswer-api:** sign message ([#76](https://github.com/forbole/kastle/issues/76)) ([067baae](https://github.com/forbole/kastle/commit/067baae5fe33034404ff8bf558b3ba0edb18c367))
+* currency-selection ([#89](https://github.com/forbole/kastle/issues/89)) ([b969c8f](https://github.com/forbole/kastle/commit/b969c8f8f1319e781dc2b6546ed4f8b117bc2039))
+* implement-kip-12 ([#93](https://github.com/forbole/kastle/issues/93)) ([55fd07d](https://github.com/forbole/kastle/commit/55fd07dd2830cc44d6e365e9e1d8f677603b9208))
+* kns-transfer ([#96](https://github.com/forbole/kastle/issues/96)) ([0ab6fa6](https://github.com/forbole/kastle/commit/0ab6fa6f1160e9147b5d677d4162b0fb78202a54))
+
 ## [2.11.0](https://github.com/forbole/kastle/compare/v2.10.2...v2.11.0) (2025-04-11)
 
 

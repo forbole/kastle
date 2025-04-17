@@ -5,7 +5,6 @@ import useKaspaPrice from "@/hooks/useKaspaPrice.ts";
 import { useNavigate } from "react-router-dom";
 import { formatToken } from "@/lib/utils.ts";
 import kasIcon from "@/assets/images/kas-icon.svg";
-import usdIcon from "@/assets/images/usd-icon.svg";
 import Header from "@/components/GeneralHeader.tsx";
 import useWalletManager from "@/hooks/useWalletManager.ts";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
@@ -24,6 +23,8 @@ import PriorityFeeSelection from "@/components/send/PriorityFeeSelection.tsx";
 import useMassCalculation from "@/hooks/useMassCalculation.ts";
 import usePriorityFeeEstimate from "@/hooks/usePriorityFeeEstimate.ts";
 import useMempoolStatus from "@/hooks/useMempoolStatus.ts";
+import "/node_modules/flag-icons/css/flag-icons.min.css";
+import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 
 export const DetailsStep = ({
   onNext,
@@ -33,6 +34,7 @@ export const DetailsStep = ({
   onBack?: () => void;
 }) => {
   const navigate = useNavigate();
+  const [settings] = useSettings();
   const { account, addresses } = useWalletManager();
   const { rpcClient, getMinimumFee } = useRpcClientStateful();
   const { mempoolCongestionLevel } = useMempoolStatus();
@@ -83,6 +85,8 @@ export const DetailsStep = ({
   const [imageUrl, setImageUrl] = useState(kasIcon);
   const { kaspaPrice } = useKaspaPrice();
   const tokenPrice = isKasTransfer ? kaspaPrice : toPriceInUsd();
+  const { amount: tokenCurrency, code: tokenCurrencyCode } =
+    useCurrencyValue(tokenPrice);
   const { data: tokenBalanceResponse } = useTokenBalance(
     account?.address && !isKasTransfer
       ? {
@@ -238,9 +242,9 @@ export const DetailsStep = ({
     const amountNumber = parseFloat(amount ?? "0");
 
     if (!Number.isNaN(amountNumber)) {
-      setValue("amountUSD", formatToken(amountNumber * tokenPrice, 3));
+      setValue("amountFiat", formatToken(amountNumber * tokenCurrency, 3));
     } else {
-      setValue("amountUSD", undefined);
+      setValue("amountFiat", undefined);
     }
   }, [amount, tokenPrice]);
 
@@ -433,20 +437,24 @@ export const DetailsStep = ({
                     : "border-daintree-700",
                 )}
               >
-                <img alt="kas" className="h-[18px] w-[18px]" src={usdIcon} />
-                USD
+                <span
+                  className={twMerge(
+                    `fi fi-${settings?.currency.slice(0, 2).toLocaleLowerCase()} fis rounded-full`,
+                  )}
+                ></span>
+                {settings?.currency}
               </span>
               <input
-                {...register("amountUSD", {
+                {...register("amountFiat", {
                   onChange: async (event) => {
                     const amountUsdNumber = parseFloat(
                       event.target.value ?? "0",
                     );
 
-                    if (!Number.isNaN(amountUsdNumber) && tokenPrice !== 0) {
+                    if (!Number.isNaN(amountUsdNumber) && tokenCurrency !== 0) {
                       setValue(
                         "amount",
-                        (amountUsdNumber / tokenPrice).toFixed(8),
+                        (amountUsdNumber / tokenCurrency).toFixed(8),
                       );
 
                       await trigger("amount");

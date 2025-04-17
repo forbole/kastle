@@ -1,10 +1,11 @@
 import React, { useState } from "react";
 import { Tooltip } from "react-tooltip";
 
-type HoverShowAllProps = {
+type HoverTooltipProps = {
   id?: string;
   text: string;
   tooltipWidth?: string;
+  style?: React.CSSProperties;
   place?:
     | "top"
     | "bottom"
@@ -20,13 +21,14 @@ type HoverShowAllProps = {
     | "left-end";
 } & React.HTMLAttributes<HTMLDivElement>;
 
-export default function HoverShowAll({
+export default function HoverTooltip({
   id = "hover",
   text,
   tooltipWidth = "auto",
+  style,
   place = "bottom",
   children,
-}: HoverShowAllProps) {
+}: HoverTooltipProps) {
   const [isHovered, setIsHovered] = useState(false);
 
   return (
@@ -38,11 +40,10 @@ export default function HoverShowAll({
         id={id}
         style={{
           backgroundColor: "#203C49",
-          fontSize: "12px",
           fontWeight: 600,
           padding: "8px",
           width: tooltipWidth,
-          lineBreak: "anywhere",
+          ...style,
         }}
         opacity={1}
         isOpen={isHovered}

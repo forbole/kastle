@@ -3,9 +3,9 @@ import { applyDecimal } from "@/lib/krc20.ts";
 
 export default function useTotalBalance() {
   const { account } = useWalletManager();
-  const kapsaPrice = useKaspaPrice();
+  const kaspaPrice = useKaspaPrice();
   const balance = account?.balance;
-  const kaspaUsd = balance ? parseFloat(balance) * kapsaPrice.kaspaPrice : 0;
+  const kaspaUsd = balance ? parseFloat(balance) * kaspaPrice.kaspaPrice : 0;
 
   const { data: tokenListResponse } = useTokenListByAddress(
     account?.address,
