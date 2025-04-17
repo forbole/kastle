@@ -292,7 +292,7 @@ export const DetailsStep = ({
 
   return (
     <>
-      <Header title="Send KAS" onClose={onClose} onBack={onBack} />
+      <Header title="Send" onClose={onClose} onBack={onBack} />
 
       <TickerSelect
         isShown={isTickerSelectShown}
