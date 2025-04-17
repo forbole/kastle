@@ -550,7 +550,7 @@ export const DetailsStep = ({
 
         <div className="mt-auto">
           <button
-            disabled={!isValid || !!errors.amount}
+            disabled={!isValid || !!errors.amount || !address}
             onClick={navigateToNextStep}
             className="mt-auto w-full rounded-full bg-icy-blue-400 py-4 text-base font-medium text-white transition-colors hover:bg-icy-blue-600 disabled:bg-daintree-800 disabled:text-[#4B5563]"
           >

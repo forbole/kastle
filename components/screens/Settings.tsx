@@ -64,7 +64,7 @@ export default function Settings() {
   };
 
   return (
-    <div className="relative flex h-full flex-col p-6">
+    <div className="relative flex h-full flex-col p-4">
       {/* Header */}
       <Header
         title="Settings"
@@ -202,7 +202,7 @@ export default function Settings() {
           onClick={() => navigate("/dev-mode")}
         />
       </div>
-      <div className="mt-auto flex flex-col items-center gap-6">
+      <div className="mt-auto flex flex-col items-center gap-3 pt-2">
         <div className="flex gap-3">
           <a href="http://t.me/kastlewallet" target="_blank" rel="noreferrer">
             <img alt="telegram" className="h-4 w-4" src={telegram} />
@@ -215,7 +215,7 @@ export default function Settings() {
             target="_blank"
             rel="noreferrer"
           >
-            <img alt="githug" className="h-4 w-4" src={github} />
+            <img alt="github" className="h-4 w-4" src={github} />
           </a>
         </div>
 

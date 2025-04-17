@@ -12,7 +12,7 @@ export default function KRC721List() {
   const firstLoading = !data && isLoading;
   return (
     <>
-      <div className="grid grid-cols-3 items-end gap-3">
+      <div className="grid grid-cols-3 items-end gap-3 pb-4">
         {firstLoading &&
           Array.from({ length: 6 }).map((_, index) => (
             <div
