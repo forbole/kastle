@@ -12,7 +12,9 @@ import { applyDecimal } from "@/lib/krc20.ts";
 import { TokenListResponse } from "@/hooks/useTokenListByAddress.ts";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 
-type TokenListItemProps = { token: TokenListResponse["result"][number] };
+type TokenListItemProps = {
+  token: NonNullable<TokenListResponse["result"]>[number];
+};
 
 export default function TokenListItem({ token }: TokenListItemProps) {
   const navigate = useNavigate();

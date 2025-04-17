@@ -28,7 +28,7 @@ export default function TickerSelect({
     address ? address : undefined,
   );
 
-  const tokenListItems = tokenListResponse ? tokenListResponse.result : [];
+  const tokenListItems = tokenListResponse?.result ?? [];
   const tokens = tokenListItems
     .filter((token) =>
       hasSearchQuery
