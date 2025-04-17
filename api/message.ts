@@ -8,6 +8,7 @@ export enum Action {
   GET_NETWORK,
   ETHEREUM_REQUEST,
   SIGN_MESSAGE,
+  SWITCH_NETWORK,
 }
 
 // ================================================================================================

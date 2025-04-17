@@ -3,7 +3,7 @@ import { ApiExtensionUtils } from "@/api/extension";
 import { IWallet } from "@/lib/wallet/wallet-interface.ts";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import { Transaction } from "@/wasm/core/kaspa";
-import SignConfirm from "@/components/screens/browser-api/sign/SignConfirm";
+import SignConfirm from "@/components/screens/browser-api/kaspa/sign/SignConfirm";
 import { ApiUtils } from "@/api/background/utils";
 
 type SignTxProps = {

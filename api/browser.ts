@@ -63,6 +63,7 @@ export class KastleBrowserAPI {
       "kas:get_network": Action.GET_NETWORK,
       "kas:sign_tx": Action.SIGN_TX,
       "kas:sign_and_broadcast_tx": Action.SIGN_AND_BROADCAST_TX,
+      "kas:switch_network": Action.SWITCH_NETWORK,
     }[method];
 
     if (!action) {
@@ -131,6 +132,18 @@ export class KastleBrowserAPI {
       SignMessagePayloadSchema.parse({
         message,
       }),
+    );
+    window.postMessage(request, "*");
+
+    return await this.receiveMessageWithTimeout(requestId);
+  }
+
+  async switchNetwork(networkId: "mainnet" | "testnet-10"): Promise<string> {
+    const requestId = uuid();
+    const request = createApiRequest(
+      Action.SWITCH_NETWORK,
+      requestId,
+      networkId,
     );
     window.postMessage(request, "*");
 
