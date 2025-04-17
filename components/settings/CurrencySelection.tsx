@@ -34,7 +34,7 @@ export default function CurrencySelection({
       <div
         className={twMerge(
           "no-scrollbar absolute bottom-0 left-0 z-50 h-[65vh] w-full transform rounded-t-2xl border border-daintree-700 bg-daintree-800 transition-transform duration-300 ease-out",
-          isShown ? "translate-y-0" : "hidden translate-y-[65vh]",
+          isShown ? "translate-y-0" : " translate-y-[65vh]",
         )}
       >
         <div className="relative m-4 max-w-sm space-y-3">
