@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.14.0](https://github.com/forbole/kastle/compare/v2.13.0...v2.14.0) (2025-04-17)
+
+
+### Features
+
+* **api:** add switch network and enhance connect flow ([#97](https://github.com/forbole/kastle/issues/97)) ([c1f02d8](https://github.com/forbole/kastle/commit/c1f02d8195594757fe1f0c6d80230ed5facea268))
+
 ## [2.13.0](https://github.com/forbole/kastle/compare/v2.12.0...v2.13.0) (2025-04-17)
 
 
