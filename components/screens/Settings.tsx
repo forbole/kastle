@@ -64,7 +64,7 @@ export default function Settings() {
   };
 
   return (
-    <div className="relative flex h-full flex-col p-6">
+    <div className="no-scrollbar relative flex h-full flex-col overflow-y-scroll p-4">
       {/* Header */}
       <Header
         title="Settings"
@@ -95,7 +95,9 @@ export default function Settings() {
           <div
             className={twMerge(
               "no-scrollbar absolute bottom-0 left-0 z-50 h-[35vh] w-full transform rounded-t-2xl border border-daintree-700 bg-daintree-800 p-3 transition-transform duration-300 ease-out",
-              lockAfterDropdownOpen ? "translate-y-0" : "translate-y-[35vh]",
+              lockAfterDropdownOpen
+                ? "translate-y-0"
+                : "hidden translate-y-[35vh]",
             )}
           >
             {lockAfterOptions.map((option) => (
@@ -153,7 +155,9 @@ export default function Settings() {
           <div
             className={twMerge(
               "no-scrollbar absolute bottom-0 left-0 z-50 h-[25vh] w-full transform rounded-t-2xl border border-daintree-700 bg-daintree-800 p-3 transition-transform duration-300 ease-out",
-              networkDropdownOpen ? "translate-y-0" : "translate-y-[25vh]",
+              networkDropdownOpen
+                ? "translate-y-0"
+                : "hidden translate-y-[25vh]",
             )}
           >
             {networks.map((network) => (
@@ -202,7 +206,7 @@ export default function Settings() {
           onClick={() => navigate("/dev-mode")}
         />
       </div>
-      <div className="mt-auto flex flex-col items-center gap-6">
+      <div className="mt-auto flex flex-col items-center gap-6 pt-2">
         <div className="flex gap-3">
           <a href="http://t.me/kastlewallet" target="_blank" rel="noreferrer">
             <img alt="telegram" className="h-4 w-4" src={telegram} />
@@ -215,7 +219,7 @@ export default function Settings() {
             target="_blank"
             rel="noreferrer"
           >
-            <img alt="githug" className="h-4 w-4" src={github} />
+            <img alt="github" className="h-4 w-4" src={github} />
           </a>
         </div>
 
