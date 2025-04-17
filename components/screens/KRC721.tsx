@@ -1,4 +1,4 @@
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useKRC721Details } from "@/hooks/useKRC721";
 import Header from "@/components/GeneralHeader";
 import { twMerge } from "tailwind-merge";
@@ -6,6 +6,10 @@ import { convertIPFStoHTTP, walletAddressEllipsis } from "@/lib/utils";
 import Copy from "@/components/Copy";
 import HoverShowAll from "@/components/HoverTooltip";
 import downloadImage from "@/assets/images/download.svg";
+import useKRC721RecentTransfer from "@/hooks/useKRC721RecentTransfer.ts";
+import useWalletManager from "@/hooks/useWalletManager.ts";
+import { Tooltip } from "react-tooltip";
+import React from "react";
 
 const SHOW_DESCRIPTION_LIMIT = 105;
 const SHOW_ATTRIBUTES_LIMIT = 4;
@@ -16,14 +20,20 @@ function toSentenceCase(sentence: string) {
 }
 
 export default function KRC721() {
+  const navigate = useNavigate();
   const { tick, tokenId } = useParams();
   const { data } = useKRC721Details(tick, tokenId);
+  const { wallet } = useWalletManager();
   const [seeMoreDescription, setSeeMoreDescription] = useState(false);
   const [showMoreAttributes, setShowMoreAttributes] = useState(false);
   const { account } = useWalletManager();
+  const { isRecentKRC721Transfer } = useKRC721RecentTransfer();
 
   const isLoading = !data;
   const name = `${tick} #${tokenId}`;
+
+  const isLedger = wallet?.type === "ledger";
+  const isTransferDisabled = isLedger || isRecentKRC721Transfer(tokenId ?? "");
 
   // Description
   const description =
@@ -178,15 +188,46 @@ export default function KRC721() {
         )}
 
         <div className="pb-4 pt-6 text-base font-semibold text-[#083344]">
-          <button
-            className="inline-flex w-full rounded-full border border-[#093446] py-3"
-            disabled
-          >
-            <span className="ml-[123px]">Transfer NFT</span>
-            <div className="ml-2 rounded-full bg-[#164E63] bg-opacity-30 px-2 text-[10px] text-[#0E7490]">
-              Coming soon
-            </div>
-          </button>
+          <>
+            {isTransferDisabled && (
+              <Tooltip
+                id="transer-disabled"
+                style={{
+                  backgroundColor: "#203C49",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  padding: "8px",
+                  width: "60%",
+                }}
+                opacity={1}
+                place="top"
+              />
+            )}
+            <button
+              type="button"
+              data-tooltip-id="transer-disabled"
+              data-tooltip-content={
+                isLedger
+                  ? "Ledger doesn’t support deploy function currently."
+                  : "Your NFT is in pending confirmation. Please wait for the operation to be completed."
+              }
+              className="inline-flex w-full rounded-full border border-white py-3 text-white disabled:border-[#093446] disabled:text-[#083344]"
+              disabled={isTransferDisabled}
+              onClick={() => navigate(`/krc721-transfer/${tick}/${tokenId}`)}
+            >
+              <span className="ml-[120px]">Transfer</span>
+              <div
+                className={twMerge(
+                  "ml-2 rounded-full px-2 text-[10px]",
+                  !isTransferDisabled
+                    ? "bg-icy-blue-400 text-white"
+                    : "bg-[#164E63] bg-opacity-30 text-[#0E7490]",
+                )}
+              >
+                New
+              </div>
+            </button>
+          </>
         </div>
       </div>
     </div>
