@@ -62,7 +62,7 @@ export default function KRC721TransferBroadcast({
 
       for await (const result of transfer(account, {
         tick,
-        id: tokenId,
+        tokenId,
         to: address,
       })) {
         if (result.status === "completed") {

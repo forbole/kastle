@@ -7,7 +7,7 @@ export enum Fee {
 
 export const transfer = (
   wallet: IWallet,
-  payload: { tick: string; id: string; to: string },
+  payload: { tick: string; tokenId: string; to: string },
   extraOutputs: PaymentOutput[] = [],
 ) => {
   const data = {
