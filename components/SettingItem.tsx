@@ -15,13 +15,13 @@ export const SettingItem = ({
 }: SettingItemProps) => (
   <button
     type="button"
-    className="flex w-full items-center justify-between rounded-xl border border-daintree-700 bg-[#1E343D] p-5 hover:border-white"
+    className="flex w-full items-center justify-between rounded-xl border border-daintree-700 bg-[#1E343D] p-4 hover:border-white"
     onClick={onClick}
   >
-    <div className="flex items-center justify-start gap-4 text-base font-semibold">
+    <div className="flex items-center justify-start gap-4 text-sm font-semibold">
       <span className="font-semibold">{title}</span>
     </div>
-    <div className="flex items-center text-base">
+    <div className="flex items-center text-sm">
       {children}
       {showChevron && <i className="hn hn-angle-right text-[1.25rem]" />}
     </div>
