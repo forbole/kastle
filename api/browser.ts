@@ -25,9 +25,7 @@ export class KastleBrowserAPI {
 
   constructor() {}
 
-  async connect(
-    networkId: "mainnet" | "testnet-10" = "mainnet",
-  ): Promise<boolean> {
+  async connect(): Promise<boolean> {
     const requestId = uuid();
 
     const iconElement =
@@ -43,7 +41,6 @@ export class KastleBrowserAPI {
       Action.CONNECT,
       requestId,
       ConnectPayloadSchema.parse({
-        networkId,
         name: document.title,
         icon: iconUrl,
       }),
