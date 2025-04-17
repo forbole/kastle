@@ -104,7 +104,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         fallback: initialSettings,
       });
 
-      setLocalSettings(settings);
+      const mergedSetting = Object.assign(initialSettings, settings);
+
+      setLocalSettings(mergedSetting);
       setIsSettingsLoading(false);
     };
 

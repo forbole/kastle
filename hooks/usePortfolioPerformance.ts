@@ -19,7 +19,7 @@ export default function usePortfolioPerformance() {
   );
 
   const { tokenPrices } = useTokenPrices(
-    tokenListResponse?.result.map((token) => token.tick),
+    tokenListResponse?.result?.map((token) => token.tick),
   );
 
   // Get the balance per KRC20 token
