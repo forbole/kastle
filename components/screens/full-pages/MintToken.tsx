@@ -314,7 +314,7 @@ export default function MintToken() {
               </div>
             </div>
 
-            {/* Total Mint amount */}
+            {/* Total Mint Amount */}
             <div className="flex flex-col gap-4">
               <div className="flex items-center gap-2">
                 <i
@@ -331,7 +331,7 @@ export default function MintToken() {
                     padding: "2px 8px",
                   }}
                 />
-                <span className="text-base">Total Mint amount</span>
+                <span className="text-base">Total Mint Amount</span>
                 <span className="ml-auto text-base font-semibold">
                   {`${(mintTimes * mintAmount).toLocaleString()} ${tickerInput}`}
                 </span>
