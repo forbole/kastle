@@ -9,12 +9,12 @@ type SwitchNetworkProps = {
     background: string;
     iconColor: string;
   };
-  OnConfirm: () => void;
+  onConfirm: () => void;
 };
 
 export default function SwitchNetwork({
   selectedNetwork,
-  OnConfirm,
+  onConfirm: onConfirm,
 }: SwitchNetworkProps) {
   return (
     <div className="flex h-full flex-col">
@@ -41,7 +41,7 @@ export default function SwitchNetwork({
             {"You're on a different network than the one required."}
           </h3>
           <button
-            onClick={OnConfirm}
+            onClick={onConfirm}
             className="rounded-full bg-icy-blue-400 p-5 text-base font-semibold hover:bg-icy-blue-600"
           >
             Switch to {selectedNetwork.name}

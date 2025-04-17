@@ -64,7 +64,7 @@ export default function SwitchKaspaNetwork() {
       {!loading && (
         <SwitchNetwork
           selectedNetwork={selectedNetwork!}
-          OnConfirm={onConfirm}
+          onConfirm={onConfirm}
         />
       )}
     </div>
