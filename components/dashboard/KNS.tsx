@@ -10,7 +10,7 @@ export default function KNS() {
   );
 
   return (
-    <>
+    <div className="space-y-2 pb-4">
       {isLoading &&
         Array.from({ length: 2 }).map((_, index) => (
           <div
@@ -22,6 +22,6 @@ export default function KNS() {
         response?.data.assets.map((asset) => (
           <KNSItem key={asset.assetId} asset={asset} />
         ))}
-    </>
+    </div>
   );
 }
