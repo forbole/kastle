@@ -46,6 +46,10 @@ export const RPC_ERRORS = {
     code: RpcErrorCode.UNAUTHORIZED,
     message: "Unauthorized",
   }),
+  UNSUPPORTED_CHAIN: RpcErrorSchema.parse({
+    code: RpcErrorCode.UNAUTHORIZED,
+    message: "Unsupported chain",
+  }),
   METHOD_NOT_SUPPORTED: RpcErrorSchema.parse({
     code: RpcErrorCode.METHOD_NOT_SUPPORTED,
     message: "Method not supported",
@@ -63,16 +67,6 @@ export const RPC_ERRORS = {
     message: "Invalid params",
   }),
 };
-
-export enum ETHEREUM_METHODS {
-  REQUEST_ACCOUNTS = "eth_requestAccounts",
-  CHAIN_ID = "eth_chainId",
-  ACCOUNTS = "eth_accounts",
-  SEND_TRANSACTION = "eth_sendTransaction",
-  SIGN_MESSAGE = "personal_sign",
-  SIGN_TYPED_DATA_V4 = "eth_signTypedData_v4",
-  WALLET_SWITCH_ETHEREUM_NETWORK = "wallet_switchEthereumChain",
-}
 
 // ================================================================================================
 

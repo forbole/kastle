@@ -16,6 +16,7 @@ import {
 import { kairos } from "viem/chains";
 import { estimateFeesPerGas } from "viem/actions";
 import { ethereumTransactionRequestSchema } from "@/api/background/handlers/ethereum/sendTransaction";
+import { SUPPORTED_ETHEREUM_CHAINS } from "@/api/background/handlers/ethereum/utils";
 
 type SignTransactionProps = {
   walletSigner: IWallet;
@@ -24,6 +25,7 @@ type SignTransactionProps = {
 export default function SendTransaction({
   walletSigner,
 }: SignTransactionProps) {
+  const [settings] = useSettings();
   const { wallet } = useWalletManager();
   const { value: isSigning, toggle: toggleIsSigning } = useBoolean(false);
 
@@ -38,7 +40,7 @@ export default function SendTransaction({
     : null;
 
   const onConfirm = async () => {
-    if (isSigning) {
+    if (isSigning || !settings) {
       return;
     }
 
@@ -53,11 +55,23 @@ export default function SendTransaction({
     }
     const parsedRequest = result.data;
 
+    const network = SUPPORTED_ETHEREUM_CHAINS.find(
+      (chain) => chain.id === settings.ethereumNetworkId,
+    );
+    if (!network) {
+      await ApiExtensionUtils.sendMessage(
+        requestId,
+        ApiUtils.createApiResponse(requestId, null, RPC_ERRORS.INTERNAL_ERROR),
+      );
+      window.close();
+      return;
+    }
+
     toggleIsSigning();
     try {
       const ethClient = createPublicClient({
-        chain: kairos,
-        transport: http("https://kaia-kairos.blockpi.network/v1/rpc/public"),
+        chain: network,
+        transport: http(network.rpcUrls.default.http[0]),
       });
 
       const nonce = await ethClient.getTransactionCount({

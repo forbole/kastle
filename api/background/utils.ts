@@ -15,6 +15,7 @@ import {
   WalletSettings,
 } from "@/contexts/WalletManagerContext";
 import { POPUP_WINDOW_HEIGHT, POPUP_WINDOW_WIDTH } from "@/lib/utils";
+import { kairos } from "viem/chains";
 
 export class ApiUtils {
   static openPopup(tabId: number, url: string) {
@@ -37,6 +38,8 @@ export class ApiUtils {
         hideBalances: true,
         preview: false,
         currency: "USD",
+
+        ethereumNetworkId: kairos.id,
       },
     });
   }
