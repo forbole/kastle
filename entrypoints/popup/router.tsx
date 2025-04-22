@@ -309,7 +309,7 @@ export const router = createHashRouter([
                       {
                         path: "ethereum/switch-network",
                         element: <SwitchEthereumNetwork />,
-                      }
+                      },
                     ],
                   },
                 ],
