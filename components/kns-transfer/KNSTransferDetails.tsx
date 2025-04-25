@@ -6,12 +6,12 @@ import useWalletManager from "@/hooks/useWalletManager.ts";
 import { Address } from "@/wasm/core/kaspa";
 import { twMerge } from "tailwind-merge";
 import { useBoolean } from "usehooks-ts";
-import RecentAddresses from "@/components/send/RecentAddresses.tsx";
 import spinner from "@/assets/images/spinner.svg";
 import { useDomainDetails, useKns } from "@/hooks/useKns.ts";
 import { Tooltip } from "react-tooltip";
 import { KNSTransferFormData } from "@/components/screens/KNSTransfer.tsx";
 import { Fee } from "@/lib/kns.ts";
+import RecentAddresses from "@/components/send/RecentAddresses.tsx";
 
 type KNSTransferDetailsProps = {
   onNext: () => void;
@@ -157,7 +157,7 @@ export const KNSTransferDetails = ({
         </div>
 
         {/* Address input group */}
-        <div>
+        <div className="relative">
           <textarea
             onFocus={() => setAddressFieldFocused(true)}
             {...register("userInput", {
@@ -191,12 +191,11 @@ export const KNSTransferDetails = ({
               {errors.userInput.message}
             </span>
           )}
+          <RecentAddresses
+            isShown={isRecentAddressShown}
+            hideAddressSelect={hideRecentAddress}
+          />
         </div>
-
-        <RecentAddresses
-          isShown={isRecentAddressShown}
-          hideAddressSelect={hideRecentAddress}
-        />
 
         {/* Fee segment */}
         <div className="flex items-center justify-between gap-2 text-sm">
