@@ -327,7 +327,7 @@ export const DetailsStep = ({
           </Tooltip>
         </div>
         {/* Address input group */}
-        <div>
+        <div className="relative">
           <textarea
             onFocus={() => setAddressFieldFocused(true)}
             {...register("userInput", {
@@ -361,12 +361,11 @@ export const DetailsStep = ({
               {errors.userInput.message}
             </span>
           )}
+          <RecentAddresses
+            isShown={isRecentAddressShown}
+            hideAddressSelect={hideRecentAddress}
+          />
         </div>
-
-        <RecentAddresses
-          isShown={isRecentAddressShown}
-          hideAddressSelect={hideRecentAddress}
-        />
 
         {/* Amount panel */}
         <div className="bg-white/1 relative flex flex-col gap-4 rounded-xl border border-daintree-700 p-4">
