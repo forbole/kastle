@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.14.1](https://github.com/forbole/kastle/compare/v2.14.0...v2.14.1) (2025-04-25)
+
+
+### Miscellaneous Chores
+
+* release 2.14.1 ([e637820](https://github.com/forbole/kastle/commit/e63782036356fab1bd130d7bd4acd3d133d858a5))
+
 ## [2.14.0](https://github.com/forbole/kastle/compare/v2.13.0...v2.14.0) (2025-04-17)
 
 
