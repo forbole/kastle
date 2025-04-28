@@ -1,6 +1,7 @@
 import { useKRC721Details } from "@/hooks/useKRC721";
 import { convertIPFStoHTTP } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
+import NFTPlaceholderImage from "@/components/NFTPlaceholderImage.tsx";
 
 const NAME_LIMIT = 14;
 
@@ -30,7 +31,7 @@ export default function KRC721Item({
           className="relative cursor-pointer rounded-xl border border-[#203C49] bg-[#072735]"
           onClick={onClick}
         >
-          <img
+          <NFTPlaceholderImage
             src={convertIPFStoHTTP(data.image)}
             alt={data.name}
             className="m-auto max-h-28 rounded-xl"
