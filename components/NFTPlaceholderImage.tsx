@@ -1,6 +1,5 @@
 import { twMerge } from "tailwind-merge";
 import { DetailedHTMLProps, ImgHTMLAttributes } from "react";
-import placeholderImage from "@/assets/images/nft-placeholder.png";
 
 export default function NFTPlaceholderImage({
   className,
@@ -15,10 +14,11 @@ export default function NFTPlaceholderImage({
   return (
     <>
       {!isLoaded && (
-        <img
-          src={placeholderImage}
-          alt="Placeholder"
-          className={placeholder?.className}
+        <div
+          className={twMerge(
+            "animate-pulse bg-daintree-700",
+            placeholder?.className,
+          )}
         />
       )}
       <img

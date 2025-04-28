@@ -81,6 +81,7 @@ export default function KRC721() {
             src={convertIPFStoHTTP(data.image)}
             alt="KRC721"
             className="m-auto max-h-48 max-w-48 rounded-xl"
+            placeholder={{ className: "min-h-48 min-w-48 rounded-xl" }}
             onLoad={setShowDownload}
           />
           {showDownload && (
