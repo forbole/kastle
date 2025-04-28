@@ -59,7 +59,7 @@ export default function KNSTransferConfirm({
         <div className="flex flex-col gap-2 rounded-lg border border-daintree-700 bg-daintree-800 p-4">
           <span className="text-base font-medium">
             To
-            {!!domain && ` - ${domain}`}
+            {!!domain && ` ${domain}`}
           </span>
           <span className="break-all text-xs text-daintree-400">{address}</span>
         </div>
