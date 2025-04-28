@@ -85,8 +85,7 @@ export const DetailsStep = ({
   const [imageUrl, setImageUrl] = useState(kasIcon);
   const { kaspaPrice } = useKaspaPrice();
   const tokenPrice = isKasTransfer ? kaspaPrice : toPriceInUsd();
-  const { amount: tokenCurrency, code: tokenCurrencyCode } =
-    useCurrencyValue(tokenPrice);
+  const { amount: tokenCurrency } = useCurrencyValue(tokenPrice);
   const { data: tokenBalanceResponse } = useTokenBalance(
     account?.address && !isKasTransfer
       ? {
@@ -252,6 +251,8 @@ export const DetailsStep = ({
   useEffect(() => {
     if (userInput === "" && isAddressFieldFocused) {
       showRecentAddress();
+    } else {
+      hideRecentAddress();
     }
   }, [userInput, isAddressFieldFocused]);
 
