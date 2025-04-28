@@ -30,7 +30,7 @@ export default function KNSAsset() {
   return (
     <div className="flex h-full flex-col p-4">
       <Header
-        title={asset.asset}
+        title={asset?.asset ?? ""}
         showClose={false}
         onBack={() => navigate("/dashboard")}
       />
