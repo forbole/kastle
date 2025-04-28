@@ -68,6 +68,10 @@ export const KNSTransferDetails = ({
       : undefined;
     const resolvedAddress = domainInfo?.data?.owner;
 
+    if (value === resolvedAddress) {
+      return "You cannot send KNS to yourself";
+    }
+
     const isValidKnsRecord = () => {
       const outcome = !!resolvedAddress && Address.validate(resolvedAddress);
 
