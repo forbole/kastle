@@ -30,7 +30,7 @@ export default function KNSAsset() {
   return (
     <div className="flex h-full flex-col p-4">
       <Header
-        title="KNS Asset"
+        title={asset.asset}
         showClose={false}
         onBack={() => navigate("/dashboard")}
       />
@@ -172,7 +172,7 @@ export default function KNSAsset() {
                 data-tooltip-id="transer-disabled"
                 data-tooltip-content={
                   isLedger
-                    ? "Ledger doesn’t support deploy function currently."
+                    ? "Ledger doesn’t support KNS Transfer function currently."
                     : "This domain is listed for sale and must be unlisted before transferring."
                 }
                 className="inline-flex w-full rounded-full border border-white py-3 text-white disabled:border-[#093446] disabled:text-[#083344]"
