@@ -22,10 +22,21 @@ export default function KNSAsset() {
 
   const asset = response?.data;
   const isLedger = wallet?.type === "ledger";
+  const isKnsRecentlyTransfered = isRecentKNSTransfer(assetId ?? "");
   const isTransferDisabled =
-    asset?.status !== "default" ||
-    isLedger ||
-    isRecentKNSTransfer(assetId ?? "");
+    asset?.status !== "default" || isLedger || isKnsRecentlyTransfered;
+
+  const transferTooltipContent = (() => {
+    if (isLedger) {
+      return "Ledger doesn’t support KNS Transfer function currently.";
+    }
+
+    if (isKnsRecentlyTransfered) {
+      return "This domain is currently being transferred";
+    }
+    
+    return "This domain is listed for sale and must be unlisted before transferring.";
+  })();
 
   return (
     <div className="flex h-full flex-col p-4">
@@ -170,11 +181,7 @@ export default function KNSAsset() {
               <button
                 type="button"
                 data-tooltip-id="transer-disabled"
-                data-tooltip-content={
-                  isLedger
-                    ? "Ledger doesn’t support KNS Transfer function currently."
-                    : "This domain is listed for sale and must be unlisted before transferring."
-                }
+                data-tooltip-content={transferTooltipContent}
                 className="inline-flex w-full rounded-full border border-white py-3 text-white disabled:border-[#093446] disabled:text-[#083344]"
                 disabled={isTransferDisabled}
                 onClick={() => navigate(`/kns-transfer/${assetId}`)}
