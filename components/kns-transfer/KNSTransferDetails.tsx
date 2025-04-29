@@ -68,7 +68,7 @@ export const KNSTransferDetails = ({
       : undefined;
     const resolvedAddress = domainInfo?.data?.owner;
 
-    if (value === resolvedAddress) {
+    if (value === domainInfo?.data?.asset) {
       return "You cannot send KNS to yourself";
     }
 
