@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.14.2](https://github.com/forbole/kastle/compare/v2.14.1...v2.14.2) (2025-04-30)
+
+
+### Bug Fixes
+
+* visual improvements ([#111](https://github.com/forbole/kastle/issues/111)) ([7541933](https://github.com/forbole/kastle/commit/75419338cd9346358263fcbd7b732cfc0998546b))
+
 ## [2.14.1](https://github.com/forbole/kastle/compare/v2.14.0...v2.14.1) (2025-04-25)
 
 
