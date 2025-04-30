@@ -103,6 +103,8 @@ export const KNSTransferDetails = ({
   useEffect(() => {
     if (userInput === "" && isAddressFieldFocused) {
       showRecentAddress();
+    } else {
+      hideRecentAddress();
     }
   }, [userInput, isAddressFieldFocused]);
 

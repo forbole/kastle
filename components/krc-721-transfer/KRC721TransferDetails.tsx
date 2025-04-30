@@ -104,6 +104,8 @@ export const KRC721TransferDetails = ({
   useEffect(() => {
     if (userInput === "" && isAddressFieldFocused) {
       showRecentAddress();
+    } else {
+      hideRecentAddress();
     }
   }, [userInput, isAddressFieldFocused]);
 

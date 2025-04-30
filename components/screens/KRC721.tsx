@@ -10,6 +10,8 @@ import useKRC721RecentTransfer from "@/hooks/useKRC721RecentTransfer.ts";
 import useWalletManager from "@/hooks/useWalletManager.ts";
 import { Tooltip } from "react-tooltip";
 import React from "react";
+import NFTPlaceholderImage from "@/components/NFTPlaceholderImage.tsx";
+import { useBoolean } from "usehooks-ts";
 
 const SHOW_DESCRIPTION_LIMIT = 105;
 const SHOW_ATTRIBUTES_LIMIT = 4;
@@ -21,6 +23,7 @@ function toSentenceCase(sentence: string) {
 
 export default function KRC721() {
   const navigate = useNavigate();
+  const { value: showDownload, setTrue: setShowDownload } = useBoolean(false);
   const { tick, tokenId } = useParams();
   const { data } = useKRC721Details(tick, tokenId);
   const { wallet } = useWalletManager();
@@ -74,17 +77,20 @@ export default function KRC721() {
         <div className="mx-auto h-48 w-48 animate-pulse rounded-xl bg-[#102832]"></div>
       ) : (
         <div className="relative mx-auto h-48 w-48 rounded-xl bg-[#102832]">
-          <img
+          <NFTPlaceholderImage
             src={convertIPFStoHTTP(data.image)}
             alt="KRC721"
             className="m-auto max-h-48 max-w-48 rounded-xl"
+            onLoad={setShowDownload}
           />
-          <div
-            className="absolute bottom-0 right-0 m-2 cursor-pointer rounded-full bg-[#3B6273]"
-            onClick={() => handleDownload(convertIPFStoHTTP(data.image))}
-          >
-            <img src={downloadImage} alt="expand" />
-          </div>
+          {showDownload && (
+            <div
+              className="absolute bottom-0 right-0 m-2 cursor-pointer rounded-full bg-[#3B6273]"
+              onClick={() => handleDownload(convertIPFStoHTTP(data.image))}
+            >
+              <img src={downloadImage} alt="expand" />
+            </div>
+          )}
         </div>
       )}
 
