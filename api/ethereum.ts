@@ -22,7 +22,7 @@ function createApiRequest(
 }
 
 export class EthereumBrowserAPI {
-  private listerMap = new Map<
+  private listenerMap = new Map<
     (...args: unknown[]) => void,
     (event: MessageEvent<unknown>) => void
   >();
@@ -48,17 +48,17 @@ export class EthereumBrowserAPI {
         return;
     }
 
-    this.listerMap.set(listener, onMessage);
+    this.listenerMap.set(listener, onMessage);
   }
 
   removeListener(listener: (...args: unknown[]) => void) {
-    const callback = this.listerMap.get(listener);
+    const callback = this.listenerMap.get(listener);
     if (!callback) {
       return;
     }
 
     window.removeEventListener("message", callback);
-    this.listerMap.delete(listener);
+    this.listenerMap.delete(listener);
   }
 
   private onAccountsChanged(listener: (...args: unknown[]) => void) {
