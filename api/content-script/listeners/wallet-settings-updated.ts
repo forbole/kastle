@@ -19,6 +19,11 @@ export const watchWalletSettingsUpdated = () => {
         : null;
 
       window.postMessage(
+        ApiUtils.createApiResponse("kas:host_connected", isHostConnected),
+        window.location.origin,
+      );
+
+      window.postMessage(
         ApiUtils.createApiResponse(
           "kas:account_changed",
           account?.address ?? null,
