@@ -76,14 +76,22 @@ export class ApiUtils {
 
   static async isHostConnected(host: string): Promise<boolean> {
     const settings = await this.getSettings();
-    return this.isHostConnectedWithNetworkId(host, settings.networkId);
+    return this.isHostConnectedWithSettings(host, settings);
+  }
+
+  static async isHostConnectedWithSettings(host: string, settings: Settings) {
+    return this.isHostConnectedWithNetworkId(
+      host,
+      settings,
+      settings.networkId,
+    );
   }
 
   static async isHostConnectedWithNetworkId(
     host: string,
+    settings: Settings,
     networkId: NetworkType,
   ): Promise<boolean> {
-    const settings = await this.getSettings();
     const walletSettings = await this.getWalletSettings();
     if (!walletSettings?.selectedWalletId) return false;
     if (walletSettings.selectedAccountIndex === undefined) return false;
