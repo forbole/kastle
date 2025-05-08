@@ -21,6 +21,7 @@ export default function SwitchKaspaNetwork() {
 
   const network = payload ? z.string().parse(payload) : null;
 
+  // Must check rpcClient connection state before switching network, otherwise the address would not be updated to have the proper prefix
   const loading =
     !requestId || !network || !settings || !rpcClient?.isConnected;
 
