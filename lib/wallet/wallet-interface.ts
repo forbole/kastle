@@ -8,7 +8,7 @@ export type PaymentOutput = {
 
 export type ScriptOption = {
   inputIndex: number;
-  scriptHex: string;
+  scriptHex?: string;
   signType?: SignType;
 };
 
