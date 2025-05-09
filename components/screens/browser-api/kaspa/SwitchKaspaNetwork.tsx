@@ -5,9 +5,11 @@ import { useSettings } from "@/hooks/useSettings";
 import { ApiExtensionUtils } from "@/api/extension";
 import { ApiUtils } from "@/api/background/utils";
 import { z } from "zod";
+import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 
 export default function SwitchKaspaNetwork() {
   const [settings, setSettings] = useSettings();
+  const { rpcClient } = useRpcClientStateful();
 
   const requestId =
     new URLSearchParams(window.location.search).get("requestId") ?? "";
@@ -19,7 +21,9 @@ export default function SwitchKaspaNetwork() {
 
   const network = payload ? z.string().parse(payload) : null;
 
-  const loading = !requestId || !network;
+  // Must check rpcClient connection state before switching network, otherwise the address would not be updated to have the proper prefix
+  const loading =
+    !requestId || !network || !settings || !rpcClient?.isConnected;
 
   const networks = [
     {

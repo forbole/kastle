@@ -182,6 +182,11 @@ export class HotWalletAccount implements IWallet {
         scripts.map((script) => this.signTxInputWithScript(tx, script)),
       );
     }
+
+    const isFullySigned = tx.inputs.every((input) => !!input.signatureScript);
+    if (isFullySigned) {
+      return tx;
+    }
     return signTransaction(tx, [this.getPrivateKeyString()], false);
   }
 
@@ -203,9 +208,13 @@ export class HotWalletAccount implements IWallet {
       toSignType(script.signType ?? "All"),
     );
 
-    const scriptBuilder = ScriptBuilder.fromScript(script.scriptHex);
-    tx.inputs[script.inputIndex].signatureScript =
-      scriptBuilder.encodePayToScriptHashSignatureScript(signature);
+    if (script.scriptHex) {
+      const scriptBuilder = ScriptBuilder.fromScript(script.scriptHex);
+      tx.inputs[script.inputIndex].signatureScript =
+        scriptBuilder.encodePayToScriptHashSignatureScript(signature);
+    } else {
+      tx.inputs[script.inputIndex].signatureScript = signature;
+    }
   }
 
   getPublicKey(): PublicKey {

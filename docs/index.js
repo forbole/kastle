@@ -113,7 +113,7 @@ function createKRC20ScriptBuilder(data) {
     .addOp(Opcodes.OpFalse)
     .addOp(Opcodes.OpIf)
     .addData(new TextEncoder().encode("kasplex")) // Instead of Buffer.from
-    .addI64(kaspaWasm.kaspaToSompi("0.1"))
+    .addI64(0n)
     .addData(new TextEncoder().encode(JSON.stringify(data, null, 0)))
     .addOp(Opcodes.OpEndIf);
 }
@@ -685,7 +685,7 @@ document.getElementById("krcBuyReveal").addEventListener("click", async () => {
     const newInputs = entries.map((entry) => {
       return {
         previousOutpoint: entry.outpoint,
-        sequence: kaspaWasm.kaspaToSompi("0.1"),
+        sequence: 0,
         sigOpCount: 1,
         utxo: entry,
       };
