@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.15.0](https://github.com/forbole/kastle/compare/v2.14.2...v2.15.0) (2025-05-09)
+
+
+### Features
+
+* **browser-api:** add host connected event ([#114](https://github.com/forbole/kastle/issues/114)) ([431bbf8](https://github.com/forbole/kastle/commit/431bbf871a2b50c97118d02c6071f6ebdc03121e))
+
+
+### Bug Fixes
+
+* **api:** return address for account changed event ([#108](https://github.com/forbole/kastle/issues/108)) ([f3a6802](https://github.com/forbole/kastle/commit/f3a680203e24e541d2174e876fe015b8c3db0394))
+
 ## [2.14.2](https://github.com/forbole/kastle/compare/v2.14.1...v2.14.2) (2025-04-30)
 
 
