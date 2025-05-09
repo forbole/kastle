@@ -18,7 +18,6 @@ export default defineContentScript({
       window.location.origin,
     );
 
-    // TODO: implement tabs connections manager and authentication for listeners
     new EthereumAccountsChangedListener().start();
 
     watchSettingsUpdated();

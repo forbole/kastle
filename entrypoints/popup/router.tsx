@@ -66,6 +66,7 @@ import { KNSRecentTransferProvider } from "@/contexts/KNSRecentTransfer.tsx";
 import { KRC721RecentTransferProvider } from "@/contexts/KRC721RecentTransfer.tsx";
 import KRC721Transfer from "@/components/screens/KRC721Transfer.tsx";
 import SwitchKaspaNetwork from "@/components/screens/browser-api/kaspa/SwitchKaspaNetwork";
+import SwitchEthereumNetwork from "@/components/screens/browser-api/ethereum/SwitchEthereumNetwork";
 
 const loadKaspaWasm = async () => {
   await init({ module_or_path: kaspaModule });
@@ -304,6 +305,10 @@ export const router = createHashRouter([
                       {
                         path: "ethereum/send-transaction",
                         element: <EthereumSendTransactionConfirm />,
+                      },
+                      {
+                        path: "ethereum/switch-network",
+                        element: <SwitchEthereumNetwork />,
                       },
                     ],
                   },
