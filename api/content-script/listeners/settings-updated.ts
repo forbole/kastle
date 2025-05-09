@@ -36,11 +36,6 @@ export const watchSettingsUpdated = () => {
         window.location.host,
       );
 
-      window.postMessage(
-        ApiUtils.createApiResponse("kas:host_connected", isHostConnected),
-        window.location.origin,
-      );
-
       const account = isHostConnected
         ? await ApiUtils.getCurrentAccount()
         : null;
