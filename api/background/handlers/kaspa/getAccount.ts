@@ -27,14 +27,6 @@ export const getAccountHandler: Handler = async (
     return;
   }
 
-  // Check if wallet is unlocked
-  if (!ApiUtils.isUnlocked()) {
-    sendResponse(
-      ApiUtils.createApiResponse(message.id, false, "Wallet is locked"),
-    );
-    return;
-  }
-
   try {
     const account = await ApiUtils.getCurrentAccount();
     if (!account) {
