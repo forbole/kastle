@@ -251,7 +251,7 @@ export const DetailsStep = ({
   useEffect(() => {
     if (userInput === "" && isAddressFieldFocused) {
       showRecentAddress();
-    } else {
+    } else if (userInput !== "") {
       hideRecentAddress();
     }
   }, [userInput, isAddressFieldFocused]);
