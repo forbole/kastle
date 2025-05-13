@@ -6,7 +6,7 @@ import useKeyring from "@/hooks/useKeyring";
 import { AccountFactory } from "@/lib/ethereum/wallet/account-factory";
 import Splash from "@/components/screens/Splash";
 
-type SignMessageProps = {
+type SignTypedDataV4Props = {
   requestId: string;
   payload: string;
 };
@@ -14,7 +14,7 @@ type SignMessageProps = {
 export default function HotWalletSignMessage({
   requestId,
   payload,
-}: SignMessageProps) {
+}: SignTypedDataV4Props) {
   const { getWalletSecret } = useKeyring();
   const { wallet: walletInfo, account } = useWalletManager();
   const [walletSigner, setWalletSigner] = useState<IWallet | null>(null);
