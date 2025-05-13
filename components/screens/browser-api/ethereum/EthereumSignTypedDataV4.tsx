@@ -1,6 +1,6 @@
-import HotWalletSignMessage from "@/components/screens/browser-api/ethereum/sign-message/HotWalletSignMessage";
 import useWalletManager from "@/hooks/useWalletManager.ts";
 import Splash from "@/components/screens/Splash";
+import HotWalletSignTypedDataV4 from "@/components/screens/browser-api/ethereum/sign-typed-data/HotWalletTypedDataV4";
 
 export default function EthereumSignMessageConfirm() {
   const { wallet } = useWalletManager();
@@ -18,7 +18,7 @@ export default function EthereumSignMessageConfirm() {
     <div className="no-scrollbar h-screen overflow-y-scroll p-4">
       {loading && <Splash />}
       {!loading && wallet.type !== "ledger" && (
-        <HotWalletSignMessage requestId={requestId} payload={payload} />
+        <HotWalletSignTypedDataV4 requestId={requestId} payload={payload} />
       )}
       {!loading && wallet.type === "ledger" && <>Not Supported</>}
     </div>
