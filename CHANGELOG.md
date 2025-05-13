@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.16.0](https://github.com/forbole/kastle/compare/v2.15.0...v2.16.0) (2025-05-13)
+
+
+### Features
+
+* **api:** add eth sign typed data v4 method ([#117](https://github.com/forbole/kastle/issues/117)) ([2170e69](https://github.com/forbole/kastle/commit/2170e696f246eb26893912081da4ceb3135d900a))
+* **api:** make `getAccount` api convinience ([#116](https://github.com/forbole/kastle/issues/116)) ([5fa1641](https://github.com/forbole/kastle/commit/5fa1641310d18e0a99029170aa337acc2f936791))
+
+
+### Bug Fixes
+
+* fix non selectable items ([#119](https://github.com/forbole/kastle/issues/119)) ([0a738b1](https://github.com/forbole/kastle/commit/0a738b1a46485c8b4736bdd2903c4da16745e3b5))
+
 ## [2.15.0](https://github.com/forbole/kastle/compare/v2.14.2...v2.15.0) (2025-05-09)
 
 
