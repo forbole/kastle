@@ -66,7 +66,7 @@ export const signTypedDataV4Handler = async (
   await ApiUtils.openPopup(tabId, url.toString());
 
   // Wait for the response from the popup
-  const response = ApiUtils.receiveExtensionMessage(message.id);
+  const response = await ApiUtils.receiveExtensionMessage(message.id);
   if (isUserDeniedResponse(response)) {
     sendResponse(
       ApiUtils.createApiResponse(
