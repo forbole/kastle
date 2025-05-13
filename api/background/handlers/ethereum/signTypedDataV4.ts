@@ -7,7 +7,7 @@ import {
 } from "@/api/message";
 import { ApiUtils } from "@/api/background/utils";
 import { z } from "zod";
-import { isMatchCurrentAddress } from "./utils";
+import { isMatchCurrentAddress, isUserDeniedResponse } from "./utils";
 
 export const signTypedDataV4Handler = async (
   tabId: number,
@@ -56,18 +56,27 @@ export const signTypedDataV4Handler = async (
 
   const transaction = result.data;
   const url = new URL(browser.runtime.getURL("/popup.html"));
-  url.hash = `/ethereum/sign-transaction`;
+  url.hash = `/ethereum/sign-typed-data-v4`;
   url.searchParams.set("requestId", message.id);
   url.searchParams.set(
     "payload",
     encodeURIComponent(JSON.stringify(transaction)),
   );
 
-  ApiUtils.openPopup(tabId, url.toString());
+  await ApiUtils.openPopup(tabId, url.toString());
 
   // Wait for the response from the popup
-  const ApiExtensionResponse = await ApiUtils.receiveExtensionMessage(
-    message.id,
-  );
-  sendResponse(ApiExtensionResponse);
+  const response = await ApiUtils.receiveExtensionMessage(message.id);
+  if (isUserDeniedResponse(response)) {
+    sendResponse(
+      ApiUtils.createApiResponse(
+        message.id,
+        null,
+        RPC_ERRORS.USER_REJECTED_REQUEST,
+      ),
+    );
+    return;
+  }
+
+  sendResponse(response);
 };
