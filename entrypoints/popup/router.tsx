@@ -66,6 +66,7 @@ import { KRC721RecentTransferProvider } from "@/contexts/KRC721RecentTransfer.ts
 import KRC721Transfer from "@/components/screens/KRC721Transfer.tsx";
 import SwitchKaspaNetwork from "@/components/screens/browser-api/kaspa/SwitchKaspaNetwork";
 import EthereumSignTypedDataV4 from "@/components/screens/browser-api/ethereum/EthereumSignTypedDataV4";
+import KNSTextAsset from "@/components/screens/KNSTextAsset.tsx";
 
 const loadKaspaWasm = async () => {
   await init({ module_or_path: kaspaModule });
@@ -240,6 +241,14 @@ export const router = createHashRouter([
                     element: (
                       <KNSRecentTransferProvider>
                         <KNSAsset />
+                      </KNSRecentTransferProvider>
+                    ),
+                  },
+                  {
+                    path: "kns-text/:assetId",
+                    element: (
+                      <KNSRecentTransferProvider>
+                        <KNSTextAsset />
                       </KNSRecentTransferProvider>
                     ),
                   },

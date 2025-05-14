@@ -116,6 +116,11 @@ export const KNSTransferDetails = ({
     }
   }, [userInput]);
 
+  // Check if asset is domain
+  useEffect(() => {
+    setValue("isDomain", response?.data?.isDomain ?? true);
+  }, [response]);
+
   return (
     <>
       <Header title="Transfer" onClose={onClose} onBack={onBack} />
