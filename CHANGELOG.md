@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.17.0](https://github.com/forbole/kastle/compare/v2.16.0...v2.17.0) (2025-05-14)
+
+
+### Features
+
+* support for KNS text inscription ([#120](https://github.com/forbole/kastle/issues/120)) ([86452dd](https://github.com/forbole/kastle/commit/86452dd6b6c831e4d4f6256f65c80bbd90c6d1b5))
+
 ## [2.16.0](https://github.com/forbole/kastle/compare/v2.15.0...v2.16.0) (2025-05-13)
 
 
