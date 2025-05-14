@@ -1,6 +1,6 @@
 import { useFormContext } from "react-hook-form";
 import { KNSTransferFormData } from "@/components/screens/KNSTransfer.tsx";
-import { useDomainDetails } from "@/hooks/useKns.ts";
+import { useAssetDetails } from "@/hooks/useKns.ts";
 import Header from "@/components/GeneralHeader.tsx";
 import signImage from "@/assets/images/sign.png";
 import React from "react";
@@ -22,7 +22,7 @@ export default function KNSTransferConfirm({
   const navigate = useNavigate();
   const { watch } = useFormContext<KNSTransferFormData>();
   const { assetId, address, domain } = watch();
-  const { data: response } = useDomainDetails(assetId);
+  const { data: response } = useAssetDetails(assetId);
   const kaspaPrice = useKaspaPrice();
   const { amount: feesCurrency, code: feesCurrencyCode } = useCurrencyValue(
     Fee.Base * kaspaPrice.kaspaPrice,

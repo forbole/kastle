@@ -2,7 +2,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import Header from "@/components/GeneralHeader";
 import badgeCheck from "@/assets/images/badge-check.svg";
 import avatarIcon from "@/assets/images/avatar.png";
-import { useDomainDetails } from "@/hooks/useKns.ts";
+import { useAssetDetails } from "@/hooks/useKns.ts";
 import { walletAddressEllipsis } from "@/lib/utils";
 import Copy from "@/components/Copy";
 import HoverShowAllCopy from "@/components/HoverShowAllCopy";
@@ -17,7 +17,7 @@ export default function KNSAsset() {
   const navigate = useNavigate();
   const { wallet } = useWalletManager();
   const { assetId } = useParams();
-  const { data: response } = useDomainDetails(assetId ?? "");
+  const { data: response } = useAssetDetails(assetId ?? "");
   const { isRecentKNSTransfer } = useKNSRecentTransfer();
 
   const asset = response?.data;

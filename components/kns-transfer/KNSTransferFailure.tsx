@@ -6,7 +6,7 @@ import Header from "@/components/GeneralHeader";
 import { useFormContext } from "react-hook-form";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import { KNSTransferFormData } from "@/components/screens/KNSTransfer.tsx";
-import { useDomainDetails } from "@/hooks/useKns.ts"; // Types for props
+import { useAssetDetails } from "@/hooks/useKns.ts"; // Types for props
 
 interface KNSTransferFailureProps {
   transactionIds?: string[] | undefined;
@@ -19,7 +19,7 @@ export default function KNSTransferFailure({
   const { watch } = useFormContext<KNSTransferFormData>();
   const { networkId } = useRpcClientStateful();
   const assetId = watch("assetId");
-  const { data: response } = useDomainDetails(assetId);
+  const { data: response } = useAssetDetails(assetId);
   const asset = response?.data;
 
   const explorerTxLink = explorerTxLinks[networkId ?? NetworkType.Mainnet];

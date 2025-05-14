@@ -1,11 +1,12 @@
 import React from "react";
 import useWalletManager from "@/hooks/useWalletManager.ts";
-import { useDomainsByAddress } from "@/hooks/useKns.ts";
+import { useAssetsByAddress } from "@/hooks/useKns.ts";
 import KNSItem from "@/components/dashboard/KNSItem.tsx";
 
 export default function KNS() {
   const { account } = useWalletManager();
-  const { data: response, isLoading } = useDomainsByAddress(
+  const { data: response, isLoading } = useAssetsByAddress(
+    "domain",
     account?.address ?? "",
   );
 
