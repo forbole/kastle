@@ -49,7 +49,8 @@ export interface AssetData {
   creationBlockTime: string;
 }
 
-export function useDomainsByAddress(
+export function useAssetsByAddress(
+  assetType: "domain" | "text",
   address?: string,
   refreshInterval?: number,
 ) {
@@ -58,7 +59,7 @@ export function useDomainsByAddress(
   const knsApiUrl = KNS_API_URLS[networkId ?? NetworkType.Mainnet];
 
   return useSWR<AssetsResponse, Error>(
-    `${knsApiUrl}/api/v1/assets?owner=${address}&type=domain`,
+    `${knsApiUrl}/api/v1/assets?owner=${address}&type=${assetType}`,
     address
       ? fetcher
       : () => {
@@ -68,7 +69,7 @@ export function useDomainsByAddress(
   );
 }
 
-export function useDomainDetails(id?: string, refreshInterval?: number) {
+export function useAssetDetails(id?: string, refreshInterval?: number) {
   const { networkId } = useRpcClientStateful();
 
   const knsApiUrl = KNS_API_URLS[networkId ?? NetworkType.Mainnet];

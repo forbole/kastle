@@ -13,7 +13,7 @@ import { twMerge } from "tailwind-merge";
 import useWalletManager from "@/hooks/useWalletManager.ts";
 import useKNSRecentTransfer from "@/hooks/useKNSRecentTransfer.ts";
 
-export default function KNSAsset() {
+export default function KNSTextAsset() {
   const navigate = useNavigate();
   const { wallet } = useWalletManager();
   const { assetId } = useParams();
@@ -30,7 +30,7 @@ export default function KNSAsset() {
   return (
     <div className="flex h-full flex-col p-4">
       <Header
-        title="KNS Asset"
+        title="KNS Text"
         showClose={false}
         onBack={() => navigate("/dashboard")}
       />

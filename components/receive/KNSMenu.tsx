@@ -1,31 +1,20 @@
-import { useCopyToClipboard } from "usehooks-ts";
-import { Tooltip } from "react-tooltip";
-import { useDomainsByAddress } from "@/hooks/useKns.ts";
+import { useAssetsByAddress } from "@/hooks/useKns.ts";
 import useWalletManager from "@/hooks/useWalletManager.ts";
 import { useEffect } from "react";
 import Copy from "@/components/Copy";
 
 export default function KNSMenu() {
   const [showMenu, setShowMenu] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [, copy] = useCopyToClipboard();
   const [selectedDomain, setSelectedDomain] = useState<string>();
   const callOnce = useRef(false);
 
   const { account } = useWalletManager();
-  const { data: response } = useDomainsByAddress(account?.address ?? "");
+  const { data: response } = useAssetsByAddress(
+    "domain",
+    account?.address ?? "",
+  );
 
   const domains = response?.data.assets.map((asset) => asset.asset) ?? [];
-
-  const copyDomain = () => {
-    if (!selectedDomain) {
-      return;
-    }
-
-    copy(selectedDomain);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 500);
-  };
 
   useEffect(() => {
     if (callOnce.current) {

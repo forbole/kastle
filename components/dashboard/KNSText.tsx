@@ -1,12 +1,12 @@
 import React from "react";
 import useWalletManager from "@/hooks/useWalletManager.ts";
 import { useAssetsByAddress } from "@/hooks/useKns.ts";
-import KNSItem from "@/components/dashboard/KNSItem.tsx";
+import KNSTextItem from "@/components/dashboard/KNSTextItem.tsx";
 
-export default function KNS() {
+export default function KNSText() {
   const { account } = useWalletManager();
   const { data: response, isLoading } = useAssetsByAddress(
-    "domain",
+    "text",
     account?.address ?? "",
   );
 
@@ -21,7 +21,7 @@ export default function KNS() {
         ))}
       {!isLoading &&
         response?.data.assets.map((asset) => (
-          <KNSItem key={asset.assetId} asset={asset} />
+          <KNSTextItem key={asset.assetId} asset={asset} />
         ))}
     </div>
   );

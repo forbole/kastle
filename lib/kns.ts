@@ -7,12 +7,11 @@ export enum Fee {
 
 export const transfer = (
   wallet: IWallet,
-  payload: { id: string; to: string },
+  payload: { p?: string; id: string; to: string },
   extraOutputs: PaymentOutput[] = [],
 ) => {
   const data = {
     op: "transfer",
-    p: "domain",
     ...payload,
   };
   const script = new ScriptBuilder()

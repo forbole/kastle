@@ -17,6 +17,7 @@ import useTotalBalance from "@/hooks/useTotalBalance.ts";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 import usePortfolioPerformance from "@/hooks/usePortfolioPerformance";
 import HoverTooltip from "../HoverTooltip";
+import KNSText from "@/components/dashboard/KNSText.tsx";
 
 export default function Dashboard() {
   const { keyringLock } = useKeyring();
@@ -31,7 +32,7 @@ export default function Dashboard() {
   const [dismissWarning, setDismissWarning] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  const tabs = ["Assets", "NFT", "KNS"] as const;
+  const tabs = ["Assets", "NFT", "KNS", "Text"] as const;
   const [activeTab, setActiveTab] = useState<(typeof tabs)[number]>("Assets");
   const segmenter = new Intl.Segmenter("en", { granularity: "grapheme" });
   const segments = Array.from(segmenter.segment(account?.name ?? ""));
@@ -393,6 +394,7 @@ export default function Dashboard() {
           {activeTab === "Assets" && <Assets />}
           {activeTab === "NFT" && <KRC721List />}
           {activeTab === "KNS" && <KNS />}
+          {activeTab === "Text" && <KNSText />}
         </div>
       </div>
     </div>

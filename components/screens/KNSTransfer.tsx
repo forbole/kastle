@@ -16,6 +16,7 @@ export interface KNSTransferFormData {
   userInput: string | undefined;
   address: string | undefined;
   domain: string | undefined;
+  isDomain: boolean;
 }
 
 export default function KNSTransfer() {
@@ -24,7 +25,7 @@ export default function KNSTransfer() {
   const [step, setStep] = useState<Step>("details");
 
   const form = useForm<KNSTransferFormData>({
-    defaultValues: { assetId },
+    defaultValues: { assetId, isDomain: true },
     mode: "onChange",
   });
   const [outTxs, setOutTxs] = useState<string[]>();

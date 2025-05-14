@@ -7,7 +7,7 @@ import { Address } from "@/wasm/core/kaspa";
 import { twMerge } from "tailwind-merge";
 import { useBoolean } from "usehooks-ts";
 import spinner from "@/assets/images/spinner.svg";
-import { useDomainDetails, useKns } from "@/hooks/useKns.ts";
+import { useAssetDetails, useKns } from "@/hooks/useKns.ts";
 import { Tooltip } from "react-tooltip";
 import { KNSTransferFormData } from "@/components/screens/KNSTransfer.tsx";
 import { Fee } from "@/lib/kns.ts";
@@ -40,7 +40,7 @@ export const KNSTransferDetails = ({
     setTrue: showRecentAddress,
   } = useBoolean(false);
 
-  const { data: response } = useDomainDetails(assetId);
+  const { data: response } = useAssetDetails(assetId);
 
   const asset = response?.data;
 
@@ -115,6 +115,11 @@ export const KNSTransferDetails = ({
       setValue("address", undefined, { shouldValidate: true });
     }
   }, [userInput]);
+
+  // Check if asset is domain
+  useEffect(() => {
+    setValue("isDomain", response?.data?.isDomain ?? true);
+  }, [response]);
 
   return (
     <>

@@ -29,7 +29,7 @@ export default function KNSTransferBroadcast({
   const { getWalletSecret } = useKeyring();
   const { rpcClient, networkId } = useRpcClientStateful();
   const { watch } = useFormContext<KNSTransferFormData>();
-  const { assetId, address, domain } = watch();
+  const { assetId, address, domain, isDomain } = watch();
 
   const broadcastOperation = async () => {
     try {
@@ -61,6 +61,7 @@ export default function KNSTransferBroadcast({
           : accountFactory.createFromPrivateKey(walletSecret.value);
 
       for await (const result of transfer(account, {
+        ...(isDomain && { p: "domain" }),
         id: assetId,
         to: address,
       })) {
