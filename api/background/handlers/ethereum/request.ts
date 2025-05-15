@@ -12,6 +12,7 @@ import { chainIdHandler } from "./chainId";
 import { signMessageHandler } from "./signMessage";
 import { sendTransactionHandler } from "./sendTransaction";
 import { signTypedDataV4Handler } from "./signTypedDataV4";
+import { publicClientHandler, PUBLIC_CLIENT_METHODS } from "./publicClient";
 
 /** ethereumRequestHandler to serve BrowserMessageType.ETHEREUM_REQUEST message */
 export const ethereumRequestHandler: Handler = async (
@@ -62,6 +63,11 @@ export const ethereumRequestHandler: Handler = async (
         await signTypedDataV4Handler(tabId, message, sendResponse);
         break;
       default:
+        if (PUBLIC_CLIENT_METHODS.has(parsedPayload.method)) {
+          await publicClientHandler(tabId, message, sendResponse);
+          return;
+        }
+
         sendResponse(
           ApiUtils.createApiResponse(message.id, null, "Method not supported"),
         );
