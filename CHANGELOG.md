@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.18.0](https://github.com/forbole/kastle/compare/v2.17.0...v2.18.0) (2025-05-16)
+
+
+### Features
+
+* **api:** support ethereum public client methods ([#122](https://github.com/forbole/kastle/issues/122)) ([c80f2ad](https://github.com/forbole/kastle/commit/c80f2ad5c81d6d3284f049c627a37a349c40e101))
+
 ## [2.17.0](https://github.com/forbole/kastle/compare/v2.16.0...v2.17.0) (2025-05-14)
 
 
