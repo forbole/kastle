@@ -22,7 +22,6 @@ export type TokenListResponse = {
 
 export type TokenItem = {
   id: string;
-  name?: string;
   dec: string;
   balance: string;
 };
