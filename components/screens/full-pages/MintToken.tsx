@@ -72,7 +72,7 @@ export default function MintToken() {
 
   const tokens = tokenListItems
     ?.filter((token) =>
-      token.name?.toLowerCase()?.startsWith(tickerInput?.toLowerCase()),
+      token.id?.toLowerCase()?.startsWith(tickerInput?.toLowerCase()),
     )
     .sort((a, b) => {
       const { toFloat: aToFloat } = applyDecimal(a.dec);
