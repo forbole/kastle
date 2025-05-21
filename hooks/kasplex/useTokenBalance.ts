@@ -3,35 +3,30 @@ import { fetcher } from "@/lib/utils.ts";
 import { useSettings } from "@/hooks/useSettings.ts";
 import { KASPLEX_API_URLS, NetworkType } from "@/contexts/SettingsContext.tsx";
 
-export type TokenListItem = {
-  tick: string;
+export type TokenBalanceResponse = {
+  message: string;
+  result: Result[];
+};
+
+export type Result = {
   balance: string;
   locked: string;
   dec: string;
   opScoreMod: string;
 };
 
-export type TokenListResponse = {
-  message: string;
-  prev: string;
-  next: string;
-  result: TokenListItem[] | undefined;
-};
-
-export function useTokenListByAddress(
-  address?: string,
-  refreshInterval?: number,
+export function useTokenBalance(
+  params: { address: string; tokenId: string } | undefined,
 ) {
   const [settings] = useSettings();
 
   const kasplexUrl =
     KASPLEX_API_URLS[settings?.networkId ?? NetworkType.Mainnet];
 
-  return useSWR<TokenListResponse, Error>(
-    kasplexUrl && address
-      ? `${kasplexUrl}/krc20/address/${address}/tokenlist`
+  return useSWR<TokenBalanceResponse, Error>(
+    kasplexUrl && params
+      ? `${kasplexUrl}/krc20/address/${params.address}/token/${params.tokenId}`
       : null,
     fetcher,
-    { refreshInterval },
   );
 }

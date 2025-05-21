@@ -1,7 +1,7 @@
-import { useTokenPrices } from "@/hooks/useTokenMetadata.ts";
+import { useTokenPrices } from "@/hooks/kasplex/useTokenMetadata";
 import { applyDecimal } from "@/lib/krc20.ts";
 import useKaspaPrice from "@/hooks/useKaspaPrice.ts";
-import { useTokenListByAddress } from "@/hooks/useTokenListByAddress.ts";
+import { useTokenListByAddress } from "@/hooks/kasplex/useTokenListByAddress";
 import useWalletManager from "@/hooks/useWalletManager.ts";
 
 export default function usePortfolioPerformance() {
@@ -13,23 +13,19 @@ export default function usePortfolioPerformance() {
     ? parseFloat(balance) * kaspaPrice.lastDayKaspaPrice
     : 0;
 
-  const { data: tokenListResponse } = useTokenListByAddress(
-    account?.address,
-    5000,
-  );
+  const tokenList = useTokenListByAddress(account?.address, 5000);
 
-  const { tokenPrices } = useTokenPrices(
-    tokenListResponse?.result?.map((token) => token.tick),
-  );
+  const { tokenPrices } = useTokenPrices(tokenList?.map((token) => token.id));
 
   // Get the balance per KRC20 token
-  const balancePerTicker = tokenListResponse?.result?.reduce<
-    Record<string, number>
-  >((acc, token) => {
-    const { toFloat } = applyDecimal(token.dec);
-    acc[token.tick] = toFloat(parseInt(token.balance, 10));
-    return acc;
-  }, {});
+  const balancePerTicker = tokenList?.reduce<Record<string, number>>(
+    (acc, token) => {
+      const { toFloat } = applyDecimal(token.dec);
+      acc[token.id] = toFloat(parseInt(token.balance, 10));
+      return acc;
+    },
+    {},
+  );
 
   // Calculate the total balance in USD for KRC20 tokens
   const krc20TotalBalanceInUsd = Object.entries(

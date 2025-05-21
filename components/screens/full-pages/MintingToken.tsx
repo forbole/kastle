@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import React, { useEffect, useState } from "react";
-import { useTokenInfo } from "@/hooks/useTokenInfo.ts";
+import { useTokenInfo } from "@/hooks/kasplex/useTokenInfo";
 import { useLocation } from "react-router";
 import Header from "@/components/GeneralHeader.tsx";
 import {
@@ -15,7 +15,6 @@ import { WalletSecret } from "@/types/WalletSecret.ts";
 import { AccountFactory } from "@/lib/wallet/wallet-factory.ts";
 import { Tooltip } from "react-tooltip";
 import { FORBOLE_PAYOUT_ADDRESSES } from "@/lib/forbole.ts";
-import { kaspaToSompi } from "@/wasm/core/kaspa";
 
 export default function MintingToken() {
   const MIN_MINT_TIMES = 10;

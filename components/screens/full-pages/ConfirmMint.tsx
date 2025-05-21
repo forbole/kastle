@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import React from "react";
-import { useTokenInfo } from "@/hooks/useTokenInfo.ts";
+import { useTokenInfo } from "@/hooks/kasplex/useTokenInfo";
 import { useLocation } from "react-router";
 import Header from "@/components/GeneralHeader.tsx";
 import signImage from "@/assets/images/sign.png";

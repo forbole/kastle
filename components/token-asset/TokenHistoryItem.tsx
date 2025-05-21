@@ -2,18 +2,19 @@ import kasIcon from "@/assets/images/kas-icon.svg";
 import { formatCurrency } from "@/lib/utils.ts";
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { useTokenMetadata } from "@/hooks/useTokenMetadata.ts";
+import { useTokenMetadata } from "@/hooks/kasplex/useTokenMetadata";
 import { twMerge } from "tailwind-merge";
 import { applyDecimal } from "@/lib/krc20.ts";
 import { Op } from "@/hooks/useOpListByAddressAndTicker.ts";
 import { explorerTxLinks } from "@/components/screens/Settings.tsx";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
+import { TokenInfo } from "@/hooks/kasplex/useKasplex";
 
-type TokenHistoryItemProps = { op: Op; tickerInfo?: TickerInfo | undefined };
+type TokenHistoryItemProps = { op: Op; tokenInfo?: TokenInfo | undefined };
 
 export default function TokenHistoryItem({
   op,
-  tickerInfo,
+  tokenInfo,
 }: TokenHistoryItemProps) {
   useResetPreline();
   const { networkId } = useRpcClientStateful();
@@ -21,7 +22,7 @@ export default function TokenHistoryItem({
   const { data: tokenMetadata, toPriceInUsd } = useTokenMetadata(ticker);
   const { account } = useWalletManager();
   const [imageUrl, setImageUrl] = useState(kasIcon);
-  const { toFloat } = applyDecimal(tickerInfo?.dec);
+  const { toFloat } = applyDecimal(tokenInfo?.dec);
 
   const firstAddress = account?.address;
 
@@ -94,7 +95,7 @@ export default function TokenHistoryItem({
             >
               <span>TX Hash</span>
               <span className="text-xs font-semibold text-daintree-400">
-                {tickerInfo?.mtsAdd &&
+                {tokenInfo?.mtsAdd &&
                   new Intl.DateTimeFormat("en-US", {
                     dateStyle: "medium",
                     timeStyle: "short",

@@ -452,7 +452,7 @@ document
       }
 
       const krc20Tokens = data.result.map((token) => {
-        return `<li>${token.tick} - ${token.balance}</li>`;
+        return `<li>${token.tick ?? token.ca} - ${token.balance}</li>`;
       });
 
       document.getElementById("krc20Tokens").innerHTML = krc20Tokens.join("");
@@ -712,3 +712,170 @@ document.getElementById("krcBuyReveal").addEventListener("click", async () => {
     rpc.disconnect();
   }
 });
+
+document
+  .getElementById("krcDeployIssueCommit")
+  .addEventListener("click", async () => {
+    try {
+      const name = document.getElementById("issueName").value;
+      const issuePayload = {
+        p: "krc-20",
+        op: "deploy",
+        name: name,
+        mod: "issue",
+        max: "100000000",
+      };
+      const scriptBuilder = createKRC20ScriptBuilder(issuePayload);
+
+      const scriptPublicKey = scriptBuilder.createPayToScriptHashScript();
+      const P2SHAddress = kaspaWasm.addressFromScriptPublicKey(
+        scriptPublicKey,
+        network,
+      );
+
+      const commitTxId = await commitTransaction(P2SHAddress.toString());
+      document.getElementById("P2SHDeployIssueAddress").innerText =
+        P2SHAddress.toString();
+      document.getElementById("deployIssueCommitTxId").innerText = commitTxId;
+      document.getElementById("deployIssueScript").innerText =
+        scriptBuilder.toString();
+
+      document.getElementById("deployIssueErrorKRC20").innerText = "";
+    } catch (error) {
+      document.getElementById("deployIssueErrorKRC20").innerText =
+        error.message;
+    }
+  });
+
+document
+  .getElementById("krcDeployIssueReveal")
+  .addEventListener("click", async () => {
+    const rpc = new kaspaWasm.RpcClient({
+      url: "wss://ws.tn10.kaspa.forbole.com/borsh",
+      networkId: network,
+    });
+    await rpc.connect();
+
+    try {
+      const P2SHAddress = document.getElementById(
+        "P2SHDeployIssueAddress",
+      ).innerText;
+      const scriptBuilder = kaspaWasm.ScriptBuilder.fromScript(
+        document.getElementById("deployIssueScript").innerText,
+      );
+
+      let P2SHEntries = [];
+      while (P2SHEntries.length === 0) {
+        const P2SHUTXOs = await rpc.getUtxosByAddresses([
+          P2SHAddress.toString(),
+        ]);
+        P2SHEntries = P2SHUTXOs.entries;
+
+        if (P2SHEntries.length === 0) {
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
+      }
+
+      const entry = P2SHEntries[0];
+      const revealTxId = await revealTransaction(
+        entry,
+        [],
+        [
+          {
+            scriptHex: scriptBuilder.toString(),
+            inputIndex: 0,
+          },
+        ],
+        "1000",
+      );
+      document.getElementById("deployIssueRevealTxId").innerText = revealTxId;
+      document.getElementById("deployIssueErrorKRC20").innerText = "";
+    } catch (error) {
+      document.getElementById("deployIssueErrorKRC20").innerText =
+        error.message;
+    } finally {
+      rpc.disconnect();
+    }
+  });
+
+document
+  .getElementById("krcIssueCommit")
+  .addEventListener("click", async () => {
+    try {
+      const contractAddress = document.getElementById(
+        "issueContractAddress",
+      ).value;
+      const issuePayload = {
+        p: "krc-20",
+        op: "issue",
+        ca: contractAddress,
+        amt: document.getElementById("issueAmount").value,
+      };
+      const scriptBuilder = createKRC20ScriptBuilder(issuePayload);
+
+      const scriptPublicKey = scriptBuilder.createPayToScriptHashScript();
+      const P2SHAddress = kaspaWasm.addressFromScriptPublicKey(
+        scriptPublicKey,
+        network,
+      );
+
+      const commitTxId = await commitTransaction(P2SHAddress.toString());
+      document.getElementById("P2SHIssueAddress").innerText =
+        P2SHAddress.toString();
+      document.getElementById("issueCommitTxId").innerText = commitTxId;
+      document.getElementById("issueScript").innerText =
+        scriptBuilder.toString();
+
+      document.getElementById("issueErrorKRC20").innerText = "";
+    } catch (error) {
+      document.getElementById("issueErrorKRC20").innerText = error.message;
+    }
+  });
+
+document
+  .getElementById("krcIssueReveal")
+  .addEventListener("click", async () => {
+    const rpc = new kaspaWasm.RpcClient({
+      url: "wss://ws.tn10.kaspa.forbole.com/borsh",
+      networkId: network,
+    });
+    await rpc.connect();
+
+    try {
+      const p2SHAddress = document.getElementById("P2SHIssueAddress").innerText;
+      const scriptBuilder = kaspaWasm.ScriptBuilder.fromScript(
+        document.getElementById("issueScript").innerText,
+      );
+
+      let p2SHEntries = [];
+      while (p2SHEntries.length === 0) {
+        const p2SHUTXOs = await rpc.getUtxosByAddresses([
+          p2SHAddress.toString(),
+        ]);
+        p2SHEntries = p2SHUTXOs.entries;
+
+        if (p2SHEntries.length === 0) {
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
+      }
+
+      const entry = p2SHEntries[0];
+      const revealTxId = await revealTransaction(
+        entry,
+        [],
+        [
+          {
+            scriptHex: scriptBuilder.toString(),
+            inputIndex: 0,
+          },
+        ],
+        "1",
+      );
+      document.getElementById("issueRevealTxId").innerText = revealTxId;
+      document.getElementById("issueErrorKRC20").innerText = "";
+    } catch (error) {
+      document.getElementById("issueErrorKRC20").innerText = error.message;
+    } finally {
+      rpc.disconnect();
+    }
+  });

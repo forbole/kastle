@@ -3,6 +3,7 @@ import { useFormContext } from "react-hook-form";
 import { DeployFormData } from "@/components/screens/full-pages/MintToken.tsx";
 import kasIcon from "@/assets/images/kas-icon.svg";
 import { applyDecimal } from "@/lib/krc20.ts";
+import { useTokenMetadata } from "@/hooks/kasplex/useTokenMetadata.ts";
 
 interface MintTokenItemProps {
   token?: any;

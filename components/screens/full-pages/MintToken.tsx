@@ -6,12 +6,14 @@ import spinner from "@/assets/images/spinner.svg";
 import React, { useEffect, useState } from "react";
 import useWalletManager from "@/hooks/useWalletManager.ts";
 import { applyDecimal, computeOperationFees } from "@/lib/krc20.ts";
-import { TickerInfoResponse } from "@/hooks/useKasplex.ts";
-import { useTokenListByAddress } from "@/hooks/useTokenListByAddress.ts";
+import { TokenInfoResponse } from "@/hooks/kasplex/useKasplex.ts";
+import { useTokenListByAddress } from "@/hooks/kasplex/useTokenListByAddress";
 import MintTokenItem from "@/components/mint-token/MintTokenItem.tsx";
 import { useNavigate } from "react-router-dom";
 import { useLocation } from "react-router";
 import kasIcon from "@/assets/images/kas-icon.svg";
+import { useTokenMetadata } from "@/hooks/kasplex/useTokenMetadata.ts";
+import { useKasplex } from "@/hooks/kasplex/useKasplex.ts";
 
 export type DeployFormData = {
   ticker: string;
@@ -36,9 +38,9 @@ export default function MintToken() {
     },
   });
   const { account } = useWalletManager();
-  const { data: tokenListResponse } = useTokenListByAddress(account?.address);
+  const tokenListItems = useTokenListByAddress(account?.address);
   const balance = account?.balance ? parseFloat(account.balance) : 0;
-  const [tickerInfo, setTickerInfo] = useState<TickerInfoResponse>();
+  const [tokenInfo, setTokenInfo] = useState<TokenInfoResponse>();
   const [mintableAmount, setMintableAmount] = useState("-");
   const [showList, setShowList] = useState(false);
   const {
@@ -68,12 +70,9 @@ export default function MintToken() {
     }
   }, [tokenMetadata?.iconUrl]);
 
-  const tokenListItems = tokenListResponse?.result
-    ? tokenListResponse.result
-    : [];
   const tokens = tokenListItems
-    .filter((token) =>
-      token.tick?.toLowerCase()?.startsWith(tickerInput?.toLowerCase()),
+    ?.filter((token) =>
+      token.name?.toLowerCase()?.startsWith(tickerInput?.toLowerCase()),
     )
     .sort((a, b) => {
       const { toFloat: aToFloat } = applyDecimal(a.dec);
@@ -96,12 +95,12 @@ export default function MintToken() {
     );
   });
 
-  const validateTicker = async (ticker: string) => {
-    const tickerInfo = await fetchTokenInfo(ticker);
+  const validateToken = async (tokenId: string) => {
+    const tokenInfo = await fetchTokenInfo(tokenId);
 
-    setTickerInfo(tickerInfo);
+    setTokenInfo(tokenInfo);
 
-    switch (tickerInfo?.result?.[0]?.state) {
+    switch (tokenInfo?.result?.[0]?.state) {
       case "unused":
       case "ignored":
       case "reserved":
@@ -114,17 +113,17 @@ export default function MintToken() {
   };
 
   useEffect(() => {
-    const tickerDetails = tickerInfo?.result?.[0];
-    if (!tickerDetails) {
+    const tokenDetails = tokenInfo?.result?.[0];
+    if (!tokenDetails) {
       form.setValue("mintAmount", 0);
       setMintableAmount("-");
       return;
     }
-    const { toFloat } = applyDecimal(tickerDetails.dec);
-    const max = parseInt(tickerDetails.max, 10);
-    const minted = parseInt(tickerDetails.minted, 10);
+    const { toFloat } = applyDecimal(tokenDetails.dec);
+    const max = parseInt(tokenDetails.max, 10);
+    const minted = parseInt(tokenDetails.minted, 10);
     const mintable = max - minted;
-    const mintAmount = toFloat(parseInt(tickerDetails.lim, 10));
+    const mintAmount = toFloat(parseInt(tokenDetails.lim, 10));
 
     form.setValue(
       "maxMintTimes",
@@ -136,7 +135,7 @@ export default function MintToken() {
     setMintableAmount(
       `${percentage.toFixed(0)}% (${toFloat(mintable).toLocaleString()}/${toFloat(max).toLocaleString()})`,
     );
-  }, [tickerInfo]);
+  }, [tokenInfo]);
 
   useEffect(() => {
     if (balance < totalFees) {
@@ -213,17 +212,17 @@ export default function MintToken() {
                       value: 6,
                       message: "Oh, ticker must be at most 6 characters long",
                     },
-                    validate: validateTicker,
+                    validate: validateToken,
                   })}
                 />
                 <div
                   className={twMerge(
                     "no-scrollbar absolute top-16 z-50 max-h-[26rem] w-full flex-col gap-4 overflow-y-scroll rounded-2xl border border-daintree-700 bg-daintree-800 p-4",
-                    showList && tokens.length !== 0 ? "flex" : "hidden",
+                    showList && tokens?.length !== 0 ? "flex" : "hidden",
                   )}
                 >
-                  {tokens.map((token) => (
-                    <MintTokenItem key={token.tick} token={token} />
+                  {tokens?.map((token) => (
+                    <MintTokenItem key={token.id} token={token} />
                   ))}
                 </div>
                 <div className="pointer-events-none absolute end-0 top-2.5 flex items-center pe-3">

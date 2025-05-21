@@ -1,6 +1,6 @@
 import React from "react";
 import { useParams } from "react-router-dom";
-import { useTokenInfo } from "@/hooks/useTokenInfo.ts";
+import { useTokenInfo } from "@/hooks/kasplex/useTokenInfo";
 import TokenHistoryItem from "@/components/token-asset/TokenHistoryItem.tsx";
 import { useOpListByAddressAndTicker } from "@/hooks/useOpListByAddressAndTicker.ts";
 import { useIntersectionObserver } from "usehooks-ts";
@@ -35,7 +35,7 @@ export default function TokenHistory() {
   return (
     <div className="mt-8 flex flex-col items-stretch gap-2">
       {filteredOpList?.map((op, index) => (
-        <TokenHistoryItem key={index} tickerInfo={tickerInfo} op={op} />
+        <TokenHistoryItem key={index} tokenInfo={tickerInfo} op={op} />
       ))}
       {!finished && (
         <div

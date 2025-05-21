@@ -12,7 +12,7 @@ import { Address, kaspaToSompi, sompiToKaspaString } from "@/wasm/core/kaspa";
 import { twMerge } from "tailwind-merge";
 import { useBoolean } from "usehooks-ts";
 import TickerSelect from "@/components/send/TickerSelect.tsx";
-import { useTokenBalance } from "@/hooks/useTokenBalance.ts";
+import { useTokenBalance } from "@/hooks/kasplex/useTokenBalance";
 import { applyDecimal, computeOperationFees, Fee } from "@/lib/krc20.ts";
 import { MIN_KAS_AMOUNT } from "@/lib/kaspa.ts";
 import RecentAddresses from "@/components/send/RecentAddresses.tsx";
@@ -25,6 +25,8 @@ import usePriorityFeeEstimate from "@/hooks/usePriorityFeeEstimate.ts";
 import useMempoolStatus from "@/hooks/useMempoolStatus.ts";
 import "/node_modules/flag-icons/css/flag-icons.min.css";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
+import { useTokenMetadata } from "@/hooks/kasplex/useTokenMetadata.ts";
+import { useTokenInfo } from "@/hooks/kasplex/useTokenInfo";
 
 export const DetailsStep = ({
   onNext,
@@ -45,7 +47,7 @@ export const DetailsStep = ({
     setFalse: hideRecentAddress,
     setTrue: showRecentAddress,
   } = useBoolean(false);
-  const { value: isTickerSelectShown, toggle: toggleTickerSelect } =
+  const { value: isTokenSelectShown, toggle: toggleTokenSelect } =
     useBoolean(false);
   const [accountMinimumFees, setAccountMinimumFees] = useState<number>(0.0);
   const {
@@ -89,11 +91,15 @@ export const DetailsStep = ({
   const { data: tokenBalanceResponse } = useTokenBalance(
     account?.address && !isKasTransfer
       ? {
-          ticker,
+          tokenId: ticker,
           address: account.address,
         }
       : undefined,
   );
+  const { data: tokenInfoResponse } = useTokenInfo(
+    isKasTransfer ? undefined : ticker,
+  );
+  const tokenName = tokenInfoResponse?.result?.[0]?.name ?? ticker;
 
   const tokenBalance = tokenBalanceResponse?.result?.[0];
   const { toFloat } = applyDecimal(tokenBalance?.dec);
@@ -296,8 +302,8 @@ export const DetailsStep = ({
       <Header title="Send" onClose={onClose} onBack={onBack} />
 
       <TickerSelect
-        isShown={isTickerSelectShown}
-        toggleShow={toggleTickerSelect}
+        isShown={isTokenSelectShown}
+        toggleShow={toggleTokenSelect}
       />
 
       <PriorityFeeSelection
@@ -373,7 +379,7 @@ export const DetailsStep = ({
           <div className="flex items-center gap-3 text-sm">
             <span className="font-semibold">Balance</span>
             <span className="flex-grow">
-              {formatToken(currentBalance)} {ticker.toUpperCase()}
+              {formatToken(currentBalance)} {tokenName.toUpperCase()}
             </span>
             <button
               className="inline-flex items-center gap-x-2 rounded border border-transparent bg-icy-blue-400 px-3 py-2 text-sm text-white disabled:pointer-events-none disabled:opacity-50"
@@ -387,7 +393,7 @@ export const DetailsStep = ({
             <div className="flex rounded-lg bg-[#102831] text-daintree-400 shadow-sm">
               <button
                 type="button"
-                onClick={toggleTickerSelect}
+                onClick={toggleTokenSelect}
                 className={twMerge(
                   "inline-flex min-w-fit items-center gap-2 rounded-s-md border border-e-0 border-daintree-700 px-4 text-sm",
                   errors.amount
@@ -401,7 +407,7 @@ export const DetailsStep = ({
                   src={imageUrl}
                   onError={onImageError}
                 />
-                {ticker.toUpperCase()}
+                {tokenName.toUpperCase()}
                 <i className="hn hn-chevron-down h-[16px] w-[16px]"></i>
               </button>
               <input

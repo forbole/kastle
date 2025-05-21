@@ -5,11 +5,17 @@ import React, { useState } from "react";
 import TokenHistory from "@/components/token-asset/TokenHistory.tsx";
 import TokenInfo from "@/components/token-asset/TokenInfo.tsx";
 import { setPopupPath } from "@/lib/utils.ts";
+import { useTokenInfo } from "@/hooks/kasplex/useTokenInfo";
 
 export default function TokenAsset() {
   const navigate = useNavigate();
   const { ticker } = useParams();
   const [activeTab, setActiveTab] = useState<"history" | "info">("history");
+
+  const { data: tokenInfoResponse } = useTokenInfo(ticker);
+  const tokenInfo = tokenInfoResponse?.result?.[0];
+  const tokenName =
+    tokenInfo?.mod === "mint" ? tokenInfo?.tick : tokenInfo?.name;
 
   useEffect(() => {
     setPopupPath();
@@ -18,7 +24,7 @@ export default function TokenAsset() {
   return (
     <div className="no-scrollbar flex h-full flex-col overflow-y-scroll px-4 py-6">
       <Header
-        title={ticker ?? ""}
+        title={tokenName ?? ""}
         onBack={() => navigate("/dashboard")}
         onClose={() => navigate("/dashboard")}
       />

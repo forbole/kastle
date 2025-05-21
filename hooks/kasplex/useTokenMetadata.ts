@@ -96,12 +96,11 @@ const fetchUrls = async (urlString: string) => {
   return Promise.all(urlArray.map((url) => fetcher(url)));
 };
 
-export function useTokenPrices(tickers?: string[]) {
+export function useTokenPrices(tokenIds?: string[]) {
   // Create an array of URLs instead of a comma-separated string
   const urls =
-    tickers?.map(
-      (ticker) =>
-        `${baseUrl}/token/krc20/${ticker}/charts?type=candles&interval=1d`,
+    tokenIds?.map(
+      (id) => `${baseUrl}/token/krc20/${id}/charts?type=candles&interval=1d`,
     ) ?? [];
 
   // Call useSWR with a string key (comma-joined URLs)
@@ -112,11 +111,11 @@ export function useTokenPrices(tickers?: string[]) {
   );
 
   // Process the results to map tickers to their prices
-  const tokenPrices = tickers?.reduce(
-    (acc, ticker, index) => {
+  const tokenPrices = tokenIds?.reduce(
+    (acc, id, index) => {
       const response = responses?.[index];
       if (!response) {
-        acc[ticker] = { lastDayPrice: 0, price: 0 };
+        acc[id] = { lastDayPrice: 0, price: 0 };
         return acc;
       }
 
@@ -125,7 +124,7 @@ export function useTokenPrices(tickers?: string[]) {
       const price =
         candles.length > 0 ? (candles[candles.length - 1]?.close ?? 0) : 0;
 
-      acc[ticker] = { lastDayPrice, price };
+      acc[id] = { lastDayPrice, price };
       return acc;
     },
     {} as Record<string, { lastDayPrice: number; price: number }>,
@@ -136,9 +135,9 @@ export function useTokenPrices(tickers?: string[]) {
   };
 }
 
-export function useTokenMetadata(ticker?: string) {
+export function useTokenMetadata(tokenId?: string) {
   const swrResponse = useSWR<TokenMetadata, Error>(
-    ticker ? `${baseUrl}/token/krc20/${ticker}/info` : null,
+    tokenId ? `${baseUrl}/token/krc20/${tokenId}/info` : null,
     fetcher,
   );
 
