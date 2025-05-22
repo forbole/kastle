@@ -5,11 +5,14 @@ import { useNavigate } from "react-router-dom";
 import Header from "@/components/GeneralHeader.tsx";
 import { TokenOperationFormData } from "@/components/screens/TokenTransfer.tsx";
 import { applyDecimal, computeOperationFees, Operation } from "@/lib/krc20.ts";
-import { useTokenInfo } from "@/hooks/useTokenInfo.ts";
+import { useTokenInfo } from "@/hooks/kasplex/useTokenInfo";
 import { formatCurrency } from "@/lib/utils.ts";
 import useKaspaPrice from "@/hooks/useKaspaPrice.ts";
 import { Tooltip } from "react-tooltip";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
+import { useTokenMetadata } from "@/hooks/kasplex/useTokenMetadata.ts";
+import { walletAddressEllipsis } from "@/lib/utils.ts";
+import HoverShowAllCopy from "../HoverShowAllCopy";
 
 export const ConfirmTokenOperationStep = ({
   onNext,
@@ -32,9 +35,15 @@ export const ConfirmTokenOperationStep = ({
   const { data: tokenInfoResponse } = useTokenInfo(
     opData.op !== "deploy" ? opData.tick : undefined,
   );
-  const { toFloat: toFloatForExisting } = applyDecimal(
-    tokenInfoResponse?.result?.[0]?.dec,
-  );
+
+  const tokenInfo = tokenInfoResponse?.result?.[0];
+
+  const { toFloat: toFloatForExisting } = applyDecimal(tokenInfo?.dec);
+
+  const tokenId = tokenInfo?.mod === "mint" ? tokenInfo?.tick : tokenInfo?.ca;
+  const tokenName =
+    tokenInfo?.mod === "mint" ? tokenInfo?.tick : tokenInfo?.name;
+
   const amount = toFloatForExisting(parseInt(opData.amt, 10));
   const fiatAmount = amount * toPriceInUsd();
   const fiatFees = totalFees * kaspaPrice.kaspaPrice;
@@ -77,7 +86,14 @@ export const ConfirmTokenOperationStep = ({
           <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
             <div className="flex w-full items-start justify-between">
               <span className="font-medium">Ticker</span>
-              <span className="font-medium">{opData.tick}</span>
+              <div className="flex flex-col items-end">
+                <span className="font-medium">{tokenName}</span>
+                <HoverShowAllCopy text={tokenId ?? ""} tooltipWidth="22rem">
+                  <span className="cursor-pointer text-xs text-daintree-400">
+                    {walletAddressEllipsis(tokenId ?? "")}
+                  </span>
+                </HoverShowAllCopy>
+              </div>
             </div>
           </li>
           <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">

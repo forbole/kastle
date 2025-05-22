@@ -58,7 +58,7 @@
     </div>
 
     <div>
-      <h4>Deploy KRC20</h4>
+      <h4>Deploy Mint Mode KRC20</h4>
       <div>
         Tick:
         <input type="text" id="deployTick" placeholder="TTTT" maxlength="6" />
@@ -85,6 +85,40 @@
       <div>Commit Tx Id: <span id="mintCommitTxId"></span></div>
       <div>Reveal Tx Id: <span id="mintRevealTxId"></span></div>
       <div>Error: <span id="mintErrorKRC20">None</span></div>
+
+      <hr />
+
+      <h4>Deploy Issue Mode KRC20</h4>
+      <div>
+        Name:
+        <input type="text" id="issueName" placeholder="IIII" maxlength="6" />
+      </div>
+      <button id="krcDeployIssueCommit">Deploy KRC20 Issue Commit</button>
+      <button id="krcDeployIssueReveal">Deploy KRC20 Issue Reveal</button>
+      <div>P2SH address: <span id="P2SHDeployIssueAddress"></span></div>
+      <div>Script: <span id="deployIssueScript"></span></div>
+      <div>Commit Tx Id: <span id="deployIssueCommitTxId"></span></div>
+      <div>Reveal Tx Id: <span id="deployIssueRevealTxId"></span></div>
+      <div>Error: <span id="deployIssueErrorKRC20">None</span></div>
+
+      <hr />
+
+      <h4>Issue KRC20</h4>
+      <div>
+        Contract address:
+        <input type="text" id="issueContractAddress" />
+      </div>
+      <div>
+        Amount:
+        <input type="number" id="issueAmount" placeholder="1000" value="1000" />
+      </div>
+      <button id="krcIssueCommit">Issue KRC Commit</button>
+      <button id="krcIssueReveal">Issue KRC Reveal</button>
+      <div>P2SH address: <span id="P2SHIssueAddress"></span></div>
+      <div>Script: <span id="issueScript"></span></div>
+      <div>Commit Tx Id: <span id="issueCommitTxId"></span></div>
+      <div>Reveal Tx Id: <span id="issueRevealTxId"></span></div>
+      <div>Error: <span id="issueErrorKRC20">None</span></div>
 
       <hr />
 

@@ -3,7 +3,7 @@ import React from "react";
 import warningImage from "@/assets/images/warning.png";
 import Header from "@/components/GeneralHeader";
 import { useLocation } from "react-router";
-import { useTokenInfo } from "@/hooks/useTokenInfo.ts";
+import { useTokenInfo } from "@/hooks/kasplex/useTokenInfo";
 import { applyDecimal } from "@/lib/krc20.ts";
 import { setPopupPath } from "@/lib/utils.ts";
 import useExtensionUtils from "@/hooks/useExtensionUtils.ts";

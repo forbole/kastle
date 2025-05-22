@@ -6,7 +6,7 @@ import React from "react";
 import { ConfirmTokenOperationStep } from "@/components/token-operation/ConfirmTokenOperationStep.tsx";
 import BroadcastTokenOperationStep from "@/components/token-operation/BroadcastTokenOperationStep.tsx";
 import { setPopupPath } from "@/lib/utils.ts";
-import { useTokenInfo } from "@/hooks/useTokenInfo.ts";
+import { useTokenInfo } from "@/hooks/kasplex/useTokenInfo";
 import { applyDecimal } from "@/lib/krc20.ts";
 import { useLocation } from "react-router";
 
@@ -59,7 +59,7 @@ export default function TokenTransfer() {
   const onBack = () => navigate({ pathname: "/send" }, { state });
 
   return (
-    <div className="flex h-full flex-col gap-6 p-4 text-white">
+    <div className="flex h-full flex-col p-4 text-white">
       <FormProvider {...form}>
         {step === "confirm" && (
           <ConfirmTokenOperationStep

@@ -1,7 +1,12 @@
 import { useSettings } from "@/hooks/useSettings.ts";
 import { KASPLEX_API_URLS, NetworkType } from "@/contexts/SettingsContext.tsx";
 
-export type TickerInfo = {
+export type TokenInfo = {
+  ca?: string;
+  name?: string;
+  tick?: string;
+
+  mod: "mint" | "issue";
   state: string;
   lim: string;
   dec: string;
@@ -15,8 +20,8 @@ export type TickerInfo = {
   mtsAdd: string;
 };
 
-export type TickerInfoResponse = {
-  result: TickerInfo[];
+export type TokenInfoResponse = {
+  result: TokenInfo[];
 };
 
 export function useKasplex() {
@@ -25,9 +30,9 @@ export function useKasplex() {
   const kasplexUrl =
     KASPLEX_API_URLS[settings?.networkId ?? NetworkType.Mainnet];
 
-  const fetchTokenInfo = async (ticker: string) => {
-    const response = await fetch(`${kasplexUrl}/krc20/token/${ticker}`);
-    return (await response.json()) as TickerInfoResponse | undefined;
+  const fetchTokenInfo = async (id: string) => {
+    const response = await fetch(`${kasplexUrl}/krc20/token/${id}`);
+    return (await response.json()) as TokenInfoResponse | undefined;
   };
 
   return { fetchTokenInfo };

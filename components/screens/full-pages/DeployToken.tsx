@@ -8,6 +8,7 @@ import useWalletManager from "@/hooks/useWalletManager.ts";
 import { applyDecimal, computeOperationFees } from "@/lib/krc20.ts";
 import { useNavigate } from "react-router-dom";
 import { useLocation } from "react-router";
+import { useKasplex } from "@/hooks/kasplex/useKasplex.ts";
 
 type DeployFormData = {
   ticker: string;
@@ -78,8 +79,8 @@ export default function DeployToken() {
     );
   });
 
-  const validateTicker = async (ticker: string) => {
-    const tickerInfo = await fetchTokenInfo(ticker);
+  const validateToken = async (tokenId: string) => {
+    const tickerInfo = await fetchTokenInfo(tokenId);
 
     return tickerInfo?.result?.[0]?.state !== "unused"
       ? "Oh, this ticker has already been used"
@@ -159,7 +160,7 @@ export default function DeployToken() {
                     value: 6,
                     message: "Oh, ticker must be at most 6 characters long",
                   },
-                  validate: validateTicker,
+                  validate: validateToken,
                 })}
               />
               <div className="pointer-events-none absolute end-0 top-2.5 flex items-center pe-3">

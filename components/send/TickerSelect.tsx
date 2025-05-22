@@ -1,6 +1,6 @@
 import { twMerge } from "tailwind-merge";
 import React from "react";
-import { useTokenListByAddress } from "@/hooks/useTokenListByAddress.ts";
+import { useTokenListByAddress } from "@/hooks/kasplex/useTokenListByAddress";
 import { applyDecimal } from "@/lib/krc20.ts";
 import TickerSelectItem from "@/components/send/TickerSelectItem.tsx";
 import kasIcon from "@/assets/images/kas-icon.svg";
@@ -24,16 +24,13 @@ export default function TickerSelect({
   const isKasShown =
     hasSearchQuery || "kas".startsWith(searchQuery.toLowerCase());
 
-  const { data: tokenListResponse } = useTokenListByAddress(
-    address ? address : undefined,
-  );
+  const tokenListItems = useTokenListByAddress(address ?? undefined);
 
-  const tokenListItems = tokenListResponse?.result ?? [];
   const tokens = tokenListItems
-    .filter((token) =>
+    ?.filter((token) =>
       hasSearchQuery
         ? true
-        : token.tick.toLowerCase().startsWith(searchQuery.toLowerCase()),
+        : token.id.toLowerCase().startsWith(searchQuery.toLowerCase()),
     )
     .sort((a, b) => {
       const { toFloat: aToFloat } = applyDecimal(a.dec);
@@ -44,8 +41,8 @@ export default function TickerSelect({
       );
     });
 
-  const selectTicker = async (ticker: string) => {
-    setValue("ticker", ticker, { shouldValidate: true });
+  const selectToken = async (tokenId: string) => {
+    setValue("ticker", tokenId, { shouldValidate: true });
     toggleShow();
   };
 
@@ -87,7 +84,7 @@ export default function TickerSelect({
             <button
               type="button"
               className="flex items-center justify-between rounded-lg px-4 py-2 text-base font-medium text-daintree-200 hover:bg-daintree-700"
-              onClick={() => selectTicker("kas")}
+              onClick={() => selectToken("kas")}
             >
               <div className="flex items-center gap-2">
                 <img
@@ -101,16 +98,16 @@ export default function TickerSelect({
             </button>
           )}
 
-          {tokens.map((token) => (
+          {tokens?.map((token) => (
             <TickerSelectItem
-              key={token.tick}
+              key={token.id}
               token={token}
-              selectTicker={selectTicker}
+              selectToken={selectToken}
               supported={!isLedger}
             />
           ))}
 
-          {!isKasShown && tokens.length === 0 && (
+          {!isKasShown && tokens?.length === 0 && (
             <span className="text-center text-base font-medium text-daintree-400">
               No result found
             </span>

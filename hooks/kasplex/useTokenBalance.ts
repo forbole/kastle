@@ -9,7 +9,6 @@ export type TokenBalanceResponse = {
 };
 
 export type Result = {
-  tick: string;
   balance: string;
   locked: string;
   dec: string;
@@ -17,7 +16,7 @@ export type Result = {
 };
 
 export function useTokenBalance(
-  params: { address: string; ticker: string } | undefined,
+  params: { address: string; tokenId: string } | undefined,
 ) {
   const [settings] = useSettings();
 
@@ -26,7 +25,7 @@ export function useTokenBalance(
 
   return useSWR<TokenBalanceResponse, Error>(
     kasplexUrl && params
-      ? `${kasplexUrl}/krc20/address/${params.address}/token/${params.ticker}`
+      ? `${kasplexUrl}/krc20/address/${params.address}/token/${params.tokenId}`
       : null,
     fetcher,
   );

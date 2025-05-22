@@ -9,6 +9,7 @@ import {
 import TokenListItem from "@/components/dashboard/TokenListItem.tsx";
 import { applyDecimal } from "@/lib/krc20.ts";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
+import { useTokenListByAddress } from "@/hooks/kasplex/useTokenListByAddress";
 
 export default function Assets() {
   const navigate = useNavigate();
@@ -28,11 +29,8 @@ export default function Assets() {
   const { amount: kaspaPriceCurrency, code: kaspaPriceCurrencyCode } =
     useCurrencyValue(fiatKaspaPrice);
 
-  const { data: tokenListResponse } = useTokenListByAddress(address, 5000);
-  const tokenListItems = tokenListResponse?.result
-    ? tokenListResponse.result
-    : [];
-  const tokens = tokenListItems.sort((a, b) => {
+  const tokenListItems = useTokenListByAddress(address, 5000);
+  const tokens = tokenListItems?.sort((a, b) => {
     const { toFloat: aToFloat } = applyDecimal(a.dec);
     const { toFloat: bToFloat } = applyDecimal(b.dec);
 
@@ -78,9 +76,7 @@ export default function Assets() {
       </div>
 
       {/*KRC20 tokens*/}
-      {tokens.map((token) => (
-        <TokenListItem key={token.tick} token={token} />
-      ))}
+      {tokens?.map((token) => <TokenListItem key={token.id} token={token} />)}
     </div>
   );
 }

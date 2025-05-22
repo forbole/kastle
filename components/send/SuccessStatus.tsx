@@ -7,6 +7,7 @@ import { useFormContext } from "react-hook-form";
 import { TokenOperationFormData } from "@/components/screens/TokenTransfer.tsx";
 import { SendFormData } from "@/components/screens/Send.tsx";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
+import { useTokenInfo } from "@/hooks/kasplex/useTokenInfo";
 
 interface SuccessProps {
   transactionIds?: string[] | undefined;
@@ -26,16 +27,23 @@ export const SuccessStatus = ({ transactionIds }: SuccessProps) => {
 
   const isKrc20Operation = "opData" in formFields;
   const ticker = isKrc20Operation ? formFields.opData.tick : "KAS";
+  const { data: tokenInfoResponse } = useTokenInfo(
+    ticker === "KAS" ? undefined : ticker,
+  );
+  const tokenName = isKrc20Operation
+    ? (tokenInfoResponse?.result?.[0]?.name ?? ticker)
+    : "KAS";
+
   const op = isKrc20Operation ? formFields?.opData?.op : "";
   const opTitle: Record<string, string> = {
-    transfer: `${ticker.toUpperCase()} Dispatched`,
-    deploy: `${ticker.toUpperCase()} Deployed`,
-    mint: `${ticker.toUpperCase()} Minted`,
+    transfer: `${tokenName.toUpperCase()} Dispatched`,
+    deploy: `${tokenName.toUpperCase()} Deployed`,
+    mint: `${tokenName.toUpperCase()} Minted`,
   };
   const opDescription: Record<string, string> = {
-    transfer: `Your ${ticker.toUpperCase()} has been sent to the recipient's address`,
+    transfer: `Your ${tokenName.toUpperCase()} has been sent to the recipient's address`,
     deploy: "A new token has been forged",
-    mint: `${ticker.toUpperCase()} has been forged!`,
+    mint: `${tokenName.toUpperCase()} has been forged!`,
   };
 
   const title = isKrc20Operation ? opTitle[op] : "KAS Dispatched!";

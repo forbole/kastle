@@ -4,7 +4,9 @@ import { useSettings } from "@/hooks/useSettings.ts";
 import { KASPLEX_API_URLS, NetworkType } from "@/contexts/SettingsContext.tsx";
 
 export type TokenListItem = {
-  tick: string;
+  ca?: string;
+  tick?: string;
+
   balance: string;
   locked: string;
   dec: string;
@@ -18,6 +20,12 @@ export type TokenListResponse = {
   result: TokenListItem[] | undefined;
 };
 
+export type TokenItem = {
+  id: string;
+  dec: string;
+  balance: string;
+};
+
 export function useTokenListByAddress(
   address?: string,
   refreshInterval?: number,
@@ -27,11 +35,22 @@ export function useTokenListByAddress(
   const kasplexUrl =
     KASPLEX_API_URLS[settings?.networkId ?? NetworkType.Mainnet];
 
-  return useSWR<TokenListResponse, Error>(
+  const { data } = useSWR<TokenListResponse, Error>(
     kasplexUrl && address
       ? `${kasplexUrl}/krc20/address/${address}/tokenlist`
       : null,
     fetcher,
     { refreshInterval },
   );
+
+  const tokenList = data?.result?.map((item) => {
+    const { ca, tick, dec, balance } = item;
+    return {
+      id: tick ?? ca,
+      dec,
+      balance,
+    } as TokenItem;
+  });
+
+  return tokenList;
 }

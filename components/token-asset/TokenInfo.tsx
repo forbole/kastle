@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { useTokenInfo } from "@/hooks/useTokenInfo.ts";
-import { useTokenMetadata } from "@/hooks/useTokenMetadata.ts";
+import { useTokenInfo } from "@/hooks/kasplex/useTokenInfo";
+import { useTokenMetadata } from "@/hooks/kasplex/useTokenMetadata";
 import { formatCurrency } from "@/lib/utils.ts";
 import kasIcon from "@/assets/images/kas-icon.svg";
 import { twMerge } from "tailwind-merge";
 import LabelLoading from "@/components/LabelLoading.tsx";
 import { applyDecimal } from "@/lib/krc20.ts";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
+import { walletAddressEllipsis } from "@/lib/utils.ts";
+import HoverShowAllCopy from "../HoverShowAllCopy";
 
 export default function TokenInfo() {
   const { ticker } = useParams();
@@ -40,6 +42,10 @@ export default function TokenInfo() {
     }
   }, [tokenMetadata?.iconUrl]);
 
+  const tokenName =
+    tokenInfo?.mod === "mint" ? tokenInfo?.tick : tokenInfo?.name;
+  const tokenAddress = tokenInfo?.ca;
+
   return (
     <div className="mt-8 flex flex-col items-stretch gap-2">
       {/* Header card */}
@@ -53,7 +59,22 @@ export default function TokenInfo() {
           />
           <div className="flex flex-grow flex-col gap-1">
             <div className="flex items-center justify-between text-base text-white">
-              <span className="capitalize">{ticker}</span>
+              <span className="capitalize">{tokenName}</span>
+              {tokenAddress && (
+                <HoverShowAllCopy
+                  text={tokenAddress}
+                  tooltipWidth="22rem"
+                  style={{
+                    fontSize: "14px",
+                    lineBreak: "normal",
+                    textAlign: "center",
+                  }}
+                >
+                  <span className="cursor-pointer text-sm text-daintree-400">
+                    {walletAddressEllipsis(tokenAddress)}
+                  </span>
+                </HoverShowAllCopy>
+              )}
             </div>
             <div className="flex items-center justify-start text-sm text-daintree-400">
               <span>
@@ -66,6 +87,18 @@ export default function TokenInfo() {
 
       {/*Details*/}
       <ul className="mt-3 flex flex-col rounded-lg bg-daintree-800">
+        <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
+          <div className="flex w-full items-start justify-between">
+            <span className="font-medium">Mode</span>
+            {isLoading ? (
+              <LabelLoading />
+            ) : (
+              <span className="font-medium">
+                {tokenInfo?.mod === "mint" ? "Mint" : "Issue"}
+              </span>
+            )}
+          </div>
+        </li>
         <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
           <div className="flex w-full items-start justify-between">
             <span className="font-medium">Max supply</span>
