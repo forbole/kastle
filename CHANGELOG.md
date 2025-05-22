@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.19.0](https://github.com/forbole/kastle/compare/v2.18.0...v2.19.0) (2025-05-22)
+
+
+### Features
+
+* add issue mode krc20 support ([#124](https://github.com/forbole/kastle/issues/124)) ([0ecd8c9](https://github.com/forbole/kastle/commit/0ecd8c9535b4248232120fc1333663725d30afda))
+
+
+### Bug Fixes
+
+* **ethereum-api:** fix wallet account methods ([#125](https://github.com/forbole/kastle/issues/125)) ([7620c96](https://github.com/forbole/kastle/commit/7620c960d2081cf5a0faf79b165d5ccccb1ac2a5))
+
 ## [2.18.0](https://github.com/forbole/kastle/compare/v2.17.0...v2.18.0) (2025-05-16)
 
 
