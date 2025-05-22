@@ -6,6 +6,7 @@ import {
 import { SETTINGS_KEY, Settings } from "@/contexts/SettingsContext";
 import { publicKeyToAddress } from "viem/accounts";
 import { ApiUtils } from "@/api/background/utils";
+import { uncompressPublicKey } from "@/api/background/handlers/ethereum/utils";
 
 export class EthereumAccountsChangedListener {
   constructor() {}
@@ -36,23 +37,19 @@ export class EthereumAccountsChangedListener {
           }
 
           const selectedPublicKey = account.publicKeys[0];
-          const selectedAddress = publicKeyToAddress(
-            `0x${selectedPublicKey}` as `0x${string}`,
-          );
+          const uncompressedHex = uncompressPublicKey(selectedPublicKey);
+          const selectedAddress = publicKeyToAddress(uncompressedHex);
 
-          let oldAddress = "";
+          let oldPublicKey = "";
           if (oldSettings) {
             const oldAccount =
               await ApiUtils.getSelectedAccountFromSettings(oldSettings);
             if (oldAccount?.publicKeys && oldAccount.publicKeys.length > 0) {
-              const oldPublicKey = oldAccount.publicKeys[0];
-              oldAddress = publicKeyToAddress(
-                `0x${oldPublicKey}` as `0x${string}`,
-              );
+              oldPublicKey = oldAccount.publicKeys[0];
             }
           }
 
-          if (oldAddress !== selectedAddress) {
+          if (oldPublicKey !== selectedPublicKey) {
             window.postMessage(
               ApiUtils.createApiResponse("accountsChanged", [selectedAddress]),
               window.location.origin,
