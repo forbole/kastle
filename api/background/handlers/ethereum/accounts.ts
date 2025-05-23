@@ -14,8 +14,7 @@ export const accountsHandler = async (
   };
 
   const isConnected = await ApiUtils.isHostConnected(message.host);
-  const isUnlocked = ApiUtils.isUnlocked();
-  if (!isConnected || !isUnlocked) {
+  if (!isConnected) {
     sendResponse(ApiUtils.createApiResponse(message.id, []));
     return;
   }

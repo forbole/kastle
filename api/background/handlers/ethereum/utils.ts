@@ -13,7 +13,7 @@ export const isMatchCurrentAddress = async (address: string) => {
   const publicKeyHex = account.publicKeys[0];
   const uncompressedHex = uncompressPublicKey(publicKeyHex);
   const ethAddress = publicKeyToAddress(uncompressedHex);
-  return address === ethAddress;
+  return address.toLowerCase() === ethAddress.toLocaleLowerCase();
 };
 
 export const uncompressPublicKey = (publicKey: string) => {
