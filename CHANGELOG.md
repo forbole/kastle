@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.19.1](https://github.com/forbole/kastle/compare/v2.19.0...v2.19.1) (2025-05-23)
+
+
+### Bug Fixes
+
+* **api:** ensure address comparison is case-insensitive and remove unlock check for eth_accounts ([#127](https://github.com/forbole/kastle/issues/127)) ([2011852](https://github.com/forbole/kastle/commit/20118522bc20e2bc035edd406fbd6e0e4a22d682))
+
 ## [2.19.0](https://github.com/forbole/kastle/compare/v2.18.0...v2.19.0) (2025-05-22)
 
 
