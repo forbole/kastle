@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.19.2](https://github.com/forbole/kastle/compare/v2.19.1...v2.19.2) (2025-05-26)
+
+
+### Bug Fixes
+
+* **api:** update message handling to check for undefined response ([#129](https://github.com/forbole/kastle/issues/129)) ([5af106f](https://github.com/forbole/kastle/commit/5af106fa40e992c850d5e0a1a5bd40646ef52cc8))
+
 ## [2.19.1](https://github.com/forbole/kastle/compare/v2.19.0...v2.19.1) (2025-05-23)
 
 
