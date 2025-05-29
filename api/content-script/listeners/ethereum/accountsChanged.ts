@@ -4,9 +4,8 @@ import {
   WalletSettings,
 } from "@/contexts/WalletManagerContext";
 import { SETTINGS_KEY, Settings } from "@/contexts/SettingsContext";
-import { publicKeyToAddress } from "viem/accounts";
 import { ApiUtils } from "@/api/background/utils";
-import { uncompressPublicKey } from "@/api/background/handlers/ethereum/utils";
+import { toEvmAddress } from "@/lib/utils";
 
 export class EthereumAccountsChangedListener {
   constructor() {}
@@ -37,8 +36,7 @@ export class EthereumAccountsChangedListener {
           }
 
           const selectedPublicKey = account.publicKeys[0];
-          const uncompressedHex = uncompressPublicKey(selectedPublicKey);
-          const selectedAddress = publicKeyToAddress(uncompressedHex);
+          const selectedAddress = toEvmAddress(selectedPublicKey);
 
           let oldPublicKey = "";
           if (oldSettings) {
