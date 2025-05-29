@@ -10,6 +10,8 @@ import TokenListItem from "@/components/dashboard/TokenListItem.tsx";
 import { applyDecimal } from "@/lib/krc20.ts";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 import { useTokenListByAddress } from "@/hooks/kasplex/useTokenListByAddress";
+import Erc20Assets from "@/components/dashboard/Erc20Assets";
+import { EVMAssetsProvider } from "@/contexts/EvmAssets";
 
 export default function Assets() {
   const navigate = useNavigate();
@@ -77,6 +79,11 @@ export default function Assets() {
 
       {/*KRC20 tokens*/}
       {tokens?.map((token) => <TokenListItem key={token.id} token={token} />)}
+
+      {/* ERC20 tokens */}
+      <EVMAssetsProvider>
+        <Erc20Assets />
+      </EVMAssetsProvider>
     </div>
   );
 }

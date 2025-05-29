@@ -72,6 +72,7 @@ export enum ETHEREUM_METHODS {
   SIGN_MESSAGE = "personal_sign",
   SIGN_TYPED_DATA_V4 = "eth_signTypedData_v4",
   WALLET_SWITCH_ETHEREUM_NETWORK = "wallet_switchEthereumChain",
+  WALLET_WATCH_ASSET = "wallet_watchAsset",
 }
 
 // ================================================================================================
