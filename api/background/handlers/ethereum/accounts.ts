@@ -1,7 +1,6 @@
 import { RpcError, ApiRequestWithHost } from "@/api/message";
 import { ApiUtils } from "@/api/background/utils";
-import { publicKeyToAddress } from "viem/accounts";
-import { uncompressPublicKey } from "./utils";
+import { toEvmAddress } from "@/lib/utils";
 
 export const accountsHandler = async (
   tabId: number,
@@ -26,7 +25,6 @@ export const accountsHandler = async (
   }
 
   const publicKey = account.publicKeys[0];
-  const uncompressedHex = uncompressPublicKey(publicKey);
-  const ethAddress = publicKeyToAddress(uncompressedHex);
+  const ethAddress = toEvmAddress(publicKey);
   sendResponse(ApiUtils.createApiResponse(message.id, [ethAddress]));
 };
