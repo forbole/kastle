@@ -1,7 +1,7 @@
 import { Erc20Asset } from "@/contexts/EvmAssets";
 import kasIcon from "@/assets/images/kas-icon.svg";
 import { walletAddressEllipsis } from "@/lib/utils.ts";
-import useERC20Balance from "@/hooks/evm/useERC20Balance";
+import useERC20Balance from "@/hooks/evm/useErc20Balance";
 
 export default function Erc20Asset({ asset }: { asset: Erc20Asset }) {
   const [settings] = useSettings();
