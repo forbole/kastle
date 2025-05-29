@@ -1,9 +1,18 @@
 import { Erc20Asset } from "@/contexts/EvmAssets";
 import kasIcon from "@/assets/images/kas-icon.svg";
 import { walletAddressEllipsis } from "@/lib/utils.ts";
+import useERC20Balance from "@/hooks/evm/useERC20Balance";
 
 export default function Erc20Asset({ asset }: { asset: Erc20Asset }) {
   const [settings] = useSettings();
+  const { data } = useERC20Balance(
+    asset.address,
+    asset.decimals,
+    asset.chainId,
+  );
+
+  const showBalance = !settings?.hideBalances;
+  const balance = data?.balance ?? "0";
 
   return (
     <div className="flex cursor-pointer items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3 hover:border-white">
@@ -23,7 +32,7 @@ export default function Erc20Asset({ asset }: { asset: Erc20Asset }) {
               Layer 2 ID: {asset.chainId}
             </span>
           </div>
-          {/*<span>{showBalance ? formatToken(balanceNumber) : "*****"}</span> */}
+          <span>{showBalance ? balance : "*****"}</span>
         </div>
         <div className="flex items-center justify-between text-sm text-daintree-400">
           <span>
