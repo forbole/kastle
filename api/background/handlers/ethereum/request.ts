@@ -13,6 +13,7 @@ import { signMessageHandler } from "./signMessage";
 import { sendTransactionHandler } from "./sendTransaction";
 import { signTypedDataV4Handler } from "./signTypedDataV4";
 import { publicClientHandler, PUBLIC_CLIENT_METHODS } from "./publicClient";
+import { watchAssetHandler } from "./watchAsset";
 
 /** ethereumRequestHandler to serve BrowserMessageType.ETHEREUM_REQUEST message */
 export const ethereumRequestHandler: Handler = async (
@@ -61,6 +62,9 @@ export const ethereumRequestHandler: Handler = async (
         break;
       case ETHEREUM_METHODS.SIGN_TYPED_DATA_V4:
         await signTypedDataV4Handler(tabId, message, sendResponse);
+        break;
+      case ETHEREUM_METHODS.WALLET_WATCH_ASSET:
+        await watchAssetHandler(tabId, message, sendResponse);
         break;
       default:
         if (PUBLIC_CLIENT_METHODS.has(parsedPayload.method)) {
