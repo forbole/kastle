@@ -137,7 +137,6 @@ export default function WatchAsset() {
 
           {/* Confirm Content */}
           <div className="text-center">
-            <h2 className="mt-4 text-2xl font-semibold">Add Asset</h2>
             <p className="mt-2 text-base text-daintree-400">
               Please confirm the asset you are adding
             </p>
@@ -148,20 +147,20 @@ export default function WatchAsset() {
             </div>
           </div>
         </div>
+      </div>
 
-        <div className="flex gap-2 text-base font-semibold">
-          <button className="rounded-full p-5 text-[#7B9AAA]" onClick={cancel}>
-            Cancel
-          </button>
+      <div className="flex gap-2 text-base font-semibold">
+        <button className="rounded-full p-5 text-[#7B9AAA]" onClick={cancel}>
+          Cancel
+        </button>
 
-          <button
-            className="flex flex-auto items-center justify-center rounded-full bg-icy-blue-400 py-5 font-semibold hover:bg-icy-blue-600"
-            onClick={onConfirm}
-            disabled={isLoading}
-          >
-            Confirm
-          </button>
-        </div>
+        <button
+          className="flex flex-auto items-center justify-center rounded-full bg-icy-blue-400 py-5 font-semibold hover:bg-icy-blue-600"
+          onClick={onConfirm}
+          disabled={isLoading}
+        >
+          Confirm
+        </button>
       </div>
     </div>
   );
