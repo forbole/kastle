@@ -56,9 +56,8 @@ type AccountConnection = {
 };
 
 export const RPC_URLS = {
-  [NetworkType.Mainnet]:
-    "wss://ws-borsh-mainnet-kaspa-fullnode-direct.forbole.com/borsh",
-  [NetworkType.TestnetT10]: "wss://ws.tn10.kaspa.forbole.com/borsh",
+  [NetworkType.Mainnet]: "wss://kaspa-mainnet.forbole.com/borsh",
+  [NetworkType.TestnetT10]: "wss://kaspa-testnet.forbole.com/borsh",
 };
 export const KASPLEX_API_URLS = {
   [NetworkType.Mainnet]: "https://api.kasplex.org/v1",
