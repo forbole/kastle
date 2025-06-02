@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 
 export default function useErc20Assets() {
   const { account } = useWalletManager();
-  const { walletsAssets } = useEvmAssets();
+  const { evmAssets: walletsAssets } = useEvmAssets();
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {

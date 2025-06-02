@@ -1,4 +1,4 @@
-import { ReactNode, createContext } from "react";
+import { ReactNode, createContext, SetStateAction } from "react";
 
 export const EVM_ASSETS_KEY = "local:evmAssets";
 
@@ -17,13 +17,17 @@ export type Erc20Asset = {
 };
 
 type EvmAssetsContextType = {
-  walletsAssets?: WalletsEvmAssets;
+  evmAssets?: WalletsEvmAssets;
   isEvmAssetsLoading: boolean;
+  saveEvmAssets: (
+    newAsset: WalletsEvmAssets | ((prev: WalletsEvmAssets) => WalletsEvmAssets),
+  ) => Promise<void>;
 };
 
 export const EvmAssetsContext = createContext<EvmAssetsContextType>({
-  walletsAssets: undefined,
+  evmAssets: undefined,
   isEvmAssetsLoading: true,
+  saveEvmAssets: () => Promise.resolve(),
 });
 
 export function EVMAssetsProvider({ children }: { children: ReactNode }) {
@@ -55,11 +59,29 @@ export function EVMAssetsProvider({ children }: { children: ReactNode }) {
     return () => unwatch();
   }, []);
 
+  const saveEvmAssets = async (
+    newAssets:
+      | WalletsEvmAssets
+      | ((prev: WalletsEvmAssets) => WalletsEvmAssets),
+  ) => {
+    const currentAssets =
+      await storage.getItem<WalletsEvmAssets>(EVM_ASSETS_KEY);
+
+    const updatedAssets =
+      typeof newAssets === "function"
+        ? newAssets(currentAssets || {})
+        : newAssets;
+
+    await storage.setItem(EVM_ASSETS_KEY, updatedAssets);
+    setEvmAssets(updatedAssets);
+  };
+
   return (
     <EvmAssetsContext.Provider
       value={{
-        walletsAssets: evmAssets,
+        evmAssets,
         isEvmAssetsLoading: isLoading,
+        saveEvmAssets,
       }}
     >
       {children}

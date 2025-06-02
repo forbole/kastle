@@ -879,3 +879,34 @@ document
       rpc.disconnect();
     }
   });
+
+document
+  .getElementById("erc20WatchAsset")
+  .addEventListener("click", async () => {
+    try {
+      const address = document.getElementById("erc20Address").value;
+      const symbol = document.getElementById("erc20Symbol").value;
+      const decimals = parseInt(
+        document.getElementById("erc20Decimals").value,
+        10,
+      );
+      const chainId = document.getElementById("erc20ChainId").value;
+      await kastle.ethereum.request({
+        method: "wallet_watchAsset",
+        params: [
+          {
+            type: "ERC20",
+            options: {
+              address,
+              symbol,
+              decimals,
+              chainId,
+            },
+          },
+        ],
+      });
+      document.getElementById("watchAssetError").innerText = "None";
+    } catch (error) {
+      document.getElementById("watchAssetError").innerText = error.message;
+    }
+  });

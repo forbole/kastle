@@ -1,6 +1,6 @@
 import { Erc20Asset } from "@/contexts/EvmAssets";
 import kasIcon from "@/assets/images/kas-icon.svg";
-import { walletAddressEllipsis } from "@/lib/utils.ts";
+import { walletAddressEllipsis, toEvmChainName } from "@/lib/utils.ts";
 import useERC20Balance from "@/hooks/evm/useErc20Balance";
 
 export default function Erc20Asset({ asset }: { asset: Erc20Asset }) {
@@ -29,7 +29,7 @@ export default function Erc20Asset({ asset }: { asset: Erc20Asset }) {
               {walletAddressEllipsis(asset.address)}
             </span>
             <span className="text-xs text-daintree-400">
-              Layer 2 ID: {asset.chainId}
+              {toEvmChainName(asset.chainId)}
             </span>
           </div>
           <span>{showBalance ? balance : "*****"}</span>
