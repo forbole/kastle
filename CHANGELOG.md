@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.19.3](https://github.com/forbole/kastle/compare/v2.19.2...v2.19.3) (2025-06-03)
+
+
+### Bug Fixes
+
+* fix ledger manage account process ([#134](https://github.com/forbole/kastle/issues/134)) ([e2e54b8](https://github.com/forbole/kastle/commit/e2e54b8c95a5d8a7c2ec242bb598b2a63c734688))
+
+
+### Miscellaneous Chores
+
+* release 2.19.2 ([ca0232e](https://github.com/forbole/kastle/commit/ca0232e3a409ed2dadf8f3764ee9b05f963f7455))
+* release 2.19.3 ([a495a0a](https://github.com/forbole/kastle/commit/a495a0a3adbed3401c5606d69edb5972b042103d))
+
 ## [2.19.2](https://github.com/forbole/kastle/compare/v2.19.1...v2.19.2) (2025-05-26)
 
 
