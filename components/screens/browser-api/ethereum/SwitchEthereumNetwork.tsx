@@ -41,10 +41,14 @@ export default function SwitchKaspaNetwork() {
 
     setSettings({
       ...settings,
-      evmL2ChainId: {
-        ...settings.evmL2ChainId,
-        [settings.networkId]: selectedNetwork.id,
-      },
+      evmL2ChainId: Object.fromEntries(
+        Object.values(NetworkType).map((nt) => [
+          nt,
+          nt === settings.networkId
+            ? selectedNetwork.id
+            : settings.evmL2ChainId?.[nt],
+        ]),
+      ) as Record<NetworkType, number | undefined>,
     });
 
     await ApiExtensionUtils.sendMessage(

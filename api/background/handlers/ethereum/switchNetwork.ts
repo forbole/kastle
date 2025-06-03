@@ -52,7 +52,7 @@ export const switchNetworkHandler = async (
     return;
   }
 
-  if (settings.evmL2ChainId === network) {
+  if (settings.evmL2ChainId?.[settings.networkId] === network) {
     sendResponse(ApiUtils.createApiResponse(message.id, settings.networkId));
     return;
   }

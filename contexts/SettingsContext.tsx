@@ -37,7 +37,7 @@ export type Settings = {
   hideBalances: boolean;
   preview: boolean;
 
-  evmL2ChainId: Record<NetworkType, number | undefined>;
+  evmL2ChainId?: Record<NetworkType, number | undefined>;
 };
 
 type WalletConnections = {
@@ -90,8 +90,8 @@ const initialSettings = {
   preview: false,
 
   evmL2ChainId: {
-    [NetworkType.Mainnet]: undefined,
-    [NetworkType.TestnetT10]: undefined,
+    [NetworkType.Mainnet]: kairos.id,
+    [NetworkType.TestnetT10]: kairos.id,
   },
 } satisfies Settings;
 

@@ -60,7 +60,7 @@ export default function SendTransaction({
 
     const txChainId = parsedRequest.chainId
       ? hexToNumber(parsedRequest.chainId)
-      : settings.evmL2ChainId[settings.networkId];
+      : settings.evmL2ChainId?.[settings.networkId];
 
     if (!txChainId) {
       await ApiExtensionUtils.sendMessage(

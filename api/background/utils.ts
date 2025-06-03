@@ -39,7 +39,10 @@ export class ApiUtils {
         preview: false,
         currency: "USD",
 
-        evmL2ChainId: kairos.id,
+        evmL2ChainId: {
+          [NetworkType.Mainnet]: undefined,
+          [NetworkType.TestnetT10]: undefined,
+        },
       },
     });
   }

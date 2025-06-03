@@ -8,7 +8,9 @@ export const chainIdHandler = async (
   sendResponse: (response?: any) => void,
 ) => {
   const settings = await ApiUtils.getSettings();
+  const chainId = settings.evmL2ChainId?.[settings.networkId];
+
   sendResponse(
-    ApiUtils.createApiResponse(message.id, numberToHex(settings.evmL2ChainId)),
+    ApiUtils.createApiResponse(message.id, numberToHex(chainId ?? 0)),
   );
 };
