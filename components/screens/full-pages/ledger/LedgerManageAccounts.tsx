@@ -6,10 +6,11 @@ import ManageAccounts, {
 import useLedgerTransport from "@/hooks/useLedgerTransport";
 import { useNavigate } from "react-router-dom";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
+import LedgerConnectForImport from "@/components/screens/full-pages/ledger/LedgerConnectForImport";
 
 export default function LedgerManageAccounts() {
   const navigate = useNavigate();
-  const { transport } = useLedgerTransport();
+  const { transport, isAppOpen } = useLedgerTransport();
   const { rpcClient, networkId } = useRpcClientStateful();
   const { getWalletSecret } = useKeyring();
   const calledOnce = useRef(false);
@@ -53,12 +54,14 @@ export default function LedgerManageAccounts() {
         }
       : undefined;
 
-  useEffect(() => {
-    if (!transport && !calledOnce.current) {
-      const currentUrl = window.location.hash.replace("#", "");
-      navigate("/ledger-connect-for-import?redirect=" + currentUrl);
-    }
-  }, [transport]);
-
-  return <ManageAccounts walletType="ledger" listAccounts={listAccounts} />;
+  return (
+    <>
+      {(!transport || !isAppOpen) && (
+        <LedgerConnectForImport onBack={() => {}} />
+      )}
+      {transport && isAppOpen && (
+        <ManageAccounts walletType="ledger" listAccounts={listAccounts} />
+      )}
+    </>
+  );
 }
