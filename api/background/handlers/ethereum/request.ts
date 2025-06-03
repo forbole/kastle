@@ -1,7 +1,6 @@
 import { Handler } from "@/api/background/utils";
 import {
   RpcRequestSchema,
-  ETHEREUM_METHODS,
   RPC_ERRORS,
   ApiRequestWithHost,
 } from "@/api/message";
@@ -13,6 +12,17 @@ import { signMessageHandler } from "./signMessage";
 import { sendTransactionHandler } from "./sendTransaction";
 import { signTypedDataV4Handler } from "./signTypedDataV4";
 import { publicClientHandler, PUBLIC_CLIENT_METHODS } from "./publicClient";
+import { switchNetworkHandler } from "./switchNetwork";
+
+enum ETHEREUM_METHODS {
+  REQUEST_ACCOUNTS = "eth_requestAccounts",
+  CHAIN_ID = "eth_chainId",
+  ACCOUNTS = "eth_accounts",
+  SEND_TRANSACTION = "eth_sendTransaction",
+  SIGN_MESSAGE = "personal_sign",
+  SIGN_TYPED_DATA_V4 = "eth_signTypedData_v4",
+  WALLET_SWITCH_ETHEREUM_NETWORK = "wallet_switchEthereumChain",
+}
 
 /** ethereumRequestHandler to serve BrowserMessageType.ETHEREUM_REQUEST message */
 export const ethereumRequestHandler: Handler = async (
@@ -61,6 +71,9 @@ export const ethereumRequestHandler: Handler = async (
         break;
       case ETHEREUM_METHODS.SIGN_TYPED_DATA_V4:
         await signTypedDataV4Handler(tabId, message, sendResponse);
+        break;
+      case ETHEREUM_METHODS.WALLET_SWITCH_ETHEREUM_NETWORK:
+        await switchNetworkHandler(tabId, message, sendResponse);
         break;
       default:
         if (PUBLIC_CLIENT_METHODS.has(parsedPayload.method)) {

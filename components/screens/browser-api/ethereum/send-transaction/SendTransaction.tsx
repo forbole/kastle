@@ -12,10 +12,11 @@ import {
   hexToBigInt,
   createPublicClient,
   http,
+  hexToNumber,
 } from "viem";
-import { kairos } from "viem/chains";
 import { estimateFeesPerGas } from "viem/actions";
 import { ethereumTransactionRequestSchema } from "@/api/background/handlers/ethereum/sendTransaction";
+import { TESTNET_SUPPORTED_EVM_L2_CHAINS } from "@/api/background/handlers/ethereum/utils";
 
 type SignTransactionProps = {
   walletSigner: IWallet;
@@ -24,6 +25,7 @@ type SignTransactionProps = {
 export default function SendTransaction({
   walletSigner,
 }: SignTransactionProps) {
+  const [settings] = useSettings();
   const { wallet } = useWalletManager();
   const { value: isSigning, toggle: toggleIsSigning } = useBoolean(false);
 
@@ -38,7 +40,7 @@ export default function SendTransaction({
     : null;
 
   const onConfirm = async () => {
-    if (isSigning) {
+    if (isSigning || !settings) {
       return;
     }
 
@@ -53,11 +55,41 @@ export default function SendTransaction({
     }
     const parsedRequest = result.data;
 
+    const supportedChains =
+      settings.networkId === "mainnet" ? [] : TESTNET_SUPPORTED_EVM_L2_CHAINS;
+
+    const txChainId = parsedRequest.chainId
+      ? hexToNumber(parsedRequest.chainId)
+      : settings.evmL2ChainId?.[settings.networkId];
+
+    if (!txChainId) {
+      await ApiExtensionUtils.sendMessage(
+        requestId,
+        ApiUtils.createApiResponse(requestId, null, RPC_ERRORS.INVALID_PARAMS),
+      );
+      window.close();
+      return;
+    }
+
+    const network = supportedChains.find((chain) => chain.id === txChainId);
+    if (!network) {
+      await ApiExtensionUtils.sendMessage(
+        requestId,
+        ApiUtils.createApiResponse(
+          requestId,
+          null,
+          RPC_ERRORS.UNSUPPORTED_CHAIN,
+        ),
+      );
+      window.close();
+      return;
+    }
+
     toggleIsSigning();
     try {
       const ethClient = createPublicClient({
-        chain: kairos,
-        transport: http("https://kaia-kairos.blockpi.network/v1/rpc/public"),
+        chain: network,
+        transport: http(),
       });
 
       const nonce = await ethClient.getTransactionCount({
@@ -85,7 +117,7 @@ export default function SendTransaction({
         maxPriorityFeePerGas: parsedRequest.maxPriorityFeePerGas
           ? hexToBigInt(parsedRequest.maxPriorityFeePerGas)
           : estimatedGas.maxPriorityFeePerGas,
-        chainId: kairos.id,
+        chainId: txChainId,
         type: "eip1559",
         nonce,
       };

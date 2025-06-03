@@ -22,6 +22,7 @@ export const ethereumTransactionRequestSchema = z.object({
     .string()
     .refine(isHex, "Max priority fee must be a hex string")
     .optional(),
+  chainId: z.string().refine(isHex, "Chain ID must be a hex string").optional(),
 });
 
 // ================================================================================
