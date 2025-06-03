@@ -41,7 +41,10 @@ export default function SwitchKaspaNetwork() {
 
     setSettings({
       ...settings,
-      evmL2ChainId: selectedNetwork.id,
+      evmL2ChainId: {
+        ...settings.evmL2ChainId,
+        [settings.networkId]: selectedNetwork.id,
+      },
     });
 
     await ApiExtensionUtils.sendMessage(

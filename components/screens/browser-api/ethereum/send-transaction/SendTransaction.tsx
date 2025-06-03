@@ -60,7 +60,17 @@ export default function SendTransaction({
 
     const txChainId = parsedRequest.chainId
       ? hexToNumber(parsedRequest.chainId)
-      : settings.evmL2ChainId;
+      : settings.evmL2ChainId[settings.networkId];
+
+    if (!txChainId) {
+      await ApiExtensionUtils.sendMessage(
+        requestId,
+        ApiUtils.createApiResponse(requestId, null, RPC_ERRORS.INVALID_PARAMS),
+      );
+      window.close();
+      return;
+    }
+
     const network = supportedChains.find((chain) => chain.id === txChainId);
     if (!network) {
       await ApiExtensionUtils.sendMessage(
