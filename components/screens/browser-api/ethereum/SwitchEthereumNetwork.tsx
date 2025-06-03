@@ -5,7 +5,7 @@ import { useSettings } from "@/hooks/useSettings";
 import { ApiExtensionUtils } from "@/api/extension";
 import { ApiUtils } from "@/api/background/utils";
 import { z } from "zod";
-import { SUPPORTED_ETHEREUM_CHAINS } from "@/api/background/handlers/ethereum/utils";
+import { TESTNET_SUPPORTED_EVM_L2_CHAINS } from "@/api/background/handlers/ethereum/utils";
 import { numberToHex } from "viem";
 
 export default function SwitchKaspaNetwork() {
@@ -23,7 +23,7 @@ export default function SwitchKaspaNetwork() {
 
   const loading = !requestId || !network;
 
-  const networks = SUPPORTED_ETHEREUM_CHAINS.map((chain) => ({
+  const networks = TESTNET_SUPPORTED_EVM_L2_CHAINS.map((chain) => ({
     id: chain.id,
     name: chain.name,
     text: "text-teal-500",
@@ -41,7 +41,7 @@ export default function SwitchKaspaNetwork() {
 
     setSettings({
       ...settings,
-      ethereumNetworkId: selectedNetwork.id,
+      evmL2ChainId: selectedNetwork.id,
     });
 
     await ApiExtensionUtils.sendMessage(

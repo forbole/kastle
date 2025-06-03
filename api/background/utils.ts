@@ -39,7 +39,7 @@ export class ApiUtils {
         preview: false,
         currency: "USD",
 
-        ethereumNetworkId: kairos.id,
+        evmL2ChainId: kairos.id,
       },
     });
   }

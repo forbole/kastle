@@ -37,7 +37,7 @@ export type Settings = {
   hideBalances: boolean;
   preview: boolean;
 
-  ethereumNetworkId: number;
+  evmL2ChainId: number;
 };
 
 type WalletConnections = {
@@ -89,7 +89,7 @@ const initialSettings = {
   hideBalances: true,
   preview: false,
 
-  ethereumNetworkId: kairos.id,
+  evmL2ChainId: kairos.id,
 } satisfies Settings;
 
 export const SettingsContext = createContext<SettingsContextType>({

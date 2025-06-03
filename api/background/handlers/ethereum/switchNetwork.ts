@@ -5,7 +5,7 @@ import {
   RpcRequestSchema,
 } from "@/api/message";
 import { ApiUtils } from "../../utils";
-import { SUPPORTED_ETHEREUM_CHAINS } from "./utils";
+import { TESTNET_SUPPORTED_EVM_L2_CHAINS } from "./utils";
 import { isHex, hexToNumber } from "viem";
 
 export const switchNetworkPayloadSchema = z.object({
@@ -18,25 +18,29 @@ export const switchNetworkHandler = async (
   sendResponse: (response?: any) => void,
 ) => {
   const request = RpcRequestSchema.parse(message.payload);
-  const result = z.array(switchNetworkPayloadSchema).safeParse(request.params);
+  if (!request.params || request.params.length < 1) {
+    sendResponse(
+      ApiUtils.createApiResponse(message.id, null, RPC_ERRORS.INVALID_PARAMS),
+    );
+    return;
+  }
+
+  const payload = request.params[0];
+  const result = switchNetworkPayloadSchema.safeParse(payload);
   if (!result.success) {
     sendResponse(
-      ApiUtils.createApiResponse(message.id, null, "Invalid Inputs"),
+      ApiUtils.createApiResponse(message.id, null, RPC_ERRORS.INVALID_PARAMS),
     );
     return;
   }
 
-  if (result.data.length < 1) {
-    sendResponse(
-      ApiUtils.createApiResponse(message.id, null, "Invalid Inputs"),
-    );
-    return;
-  }
-  const network = hexToNumber(result.data[0].chainId);
+  const network = hexToNumber(result.data.chainId);
 
-  const isSupported = SUPPORTED_ETHEREUM_CHAINS.some(
-    (chain) => chain.id === network,
-  );
+  const settings = await ApiUtils.getSettings();
+  const supported =
+    settings.networkId === "mainnet" ? [] : TESTNET_SUPPORTED_EVM_L2_CHAINS;
+
+  const isSupported = supported.some((chain) => chain.id === network);
   if (!isSupported) {
     sendResponse(
       ApiUtils.createApiResponse(
@@ -48,20 +52,7 @@ export const switchNetworkHandler = async (
     return;
   }
 
-  // Check if extension is initialized
-  if (!(await ApiUtils.isInitialized())) {
-    sendResponse(
-      ApiUtils.createApiResponse(
-        message.id,
-        null,
-        "Extension is not initialized",
-      ),
-    );
-    return;
-  }
-
-  const settings = await ApiUtils.getSettings();
-  if (settings.ethereumNetworkId === network) {
+  if (settings.evmL2ChainId === network) {
     sendResponse(ApiUtils.createApiResponse(message.id, settings.networkId));
     return;
   }
