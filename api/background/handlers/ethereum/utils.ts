@@ -27,29 +27,3 @@ export const isUserDeniedResponse = (response: unknown) => {
   const result = ApiResponseSchema.safeParse(response);
   return result.success && result.data.error === "User Denied";
 };
-
-export const TESTNET_SUPPORTED_EVM_L2_CHAINS = [
-  kairos,
-
-  // Kasplex Testnet
-  {
-    id: 167_012,
-    name: "Kasplex Network Testnet",
-    network: "kasplex-testnet",
-    nativeCurrency: {
-      decimals: 18,
-      name: "Bridged KAS",
-      symbol: "WKAS",
-    },
-    rpcUrls: {
-      default: { http: ["https://rpc.kasplextest.xyz"] },
-    },
-    blockExplorers: {
-      default: {
-        name: "Kasplex Testnet Explorer",
-        url: "https:/frontend.kasplextest.xyz",
-      },
-    },
-    testnet: true,
-  },
-];
