@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.20.0](https://github.com/forbole/kastle/compare/v2.19.3...v2.20.0) (2025-06-04)
+
+
+### Features
+
+* **browser-api:** add switch ethereum network ([#107](https://github.com/forbole/kastle/issues/107)) ([46a4c45](https://github.com/forbole/kastle/commit/46a4c45d12d5b8e276a1696b3df5087f57540c2b))
+* support kasplex l2 ([#137](https://github.com/forbole/kastle/issues/137)) ([020951e](https://github.com/forbole/kastle/commit/020951eeaf8fef20a206533418095f651c60e8ef))
+
 ## [2.19.3](https://github.com/forbole/kastle/compare/v2.19.2...v2.19.3) (2025-06-03)
 
 
