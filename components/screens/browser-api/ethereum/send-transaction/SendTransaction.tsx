@@ -16,8 +16,7 @@ import {
 } from "viem";
 import { estimateFeesPerGas } from "viem/actions";
 import { ethereumTransactionRequestSchema } from "@/api/background/handlers/ethereum/sendTransaction";
-import { TESTNET_SUPPORTED_EVM_L2_CHAINS } from "@/api/background/handlers/ethereum/utils";
-
+import { TESTNET_SUPPORTED_EVM_L2_CHAINS } from "@/lib/layer2";
 type SignTransactionProps = {
   walletSigner: IWallet;
 };
