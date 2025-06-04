@@ -76,6 +76,7 @@ export const ethereumRequestHandler: Handler = async (
         break;
       case ETHEREUM_METHODS.WALLET_SWITCH_ETHEREUM_NETWORK:
         await switchNetworkHandler(tabId, message, sendResponse);
+        break;
       case ETHEREUM_METHODS.WALLET_WATCH_ASSET:
         await watchAssetHandler(tabId, message, sendResponse);
         break;
