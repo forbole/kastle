@@ -7,6 +7,8 @@ import {
 import { ApiUtils } from "@/api/background/utils";
 import { z } from "zod";
 import { isUserDeniedResponse } from "./utils";
+import { TESTNET_SUPPORTED_EVM_L2_CHAINS } from "./utils";
+import { numberToHex } from "viem";
 
 export const erc20OptionsSchema = z.object({
   address: z.string().refine((val) => /^0x[a-fA-F0-9]{40}$/.test(val), {
@@ -62,6 +64,26 @@ export const watchAssetHandler = async (
   // TODO: Add support for ERC721 and ERC1155 in the future
   if (parsedPayload.type !== "ERC20") {
     sendError(RPC_ERRORS.INVALID_PARAMS);
+    return;
+  }
+
+  const settings = await ApiUtils.getSettings();
+  const supportedChains =
+    settings?.networkId === "mainnet" ? [] : TESTNET_SUPPORTED_EVM_L2_CHAINS;
+
+  const erc20OptionsResult = erc20OptionsSchema.safeParse(
+    parsedPayload.options,
+  );
+  if (!erc20OptionsResult.success) {
+    sendError(RPC_ERRORS.UNSUPPORTED_CHAIN);
+    return;
+  }
+
+  const isSupported = supportedChains.some((chain) => {
+    return numberToHex(chain.id) === erc20OptionsResult.data.chainId;
+  });
+  if (!isSupported) {
+    sendError(RPC_ERRORS.UNSUPPORTED_CHAIN);
     return;
   }
 

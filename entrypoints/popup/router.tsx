@@ -69,6 +69,8 @@ import EthereumSignTypedDataV4 from "@/components/screens/browser-api/ethereum/E
 import KNSTextAsset from "@/components/screens/KNSTextAsset.tsx";
 import SwitchEthereumNetwork from "@/components/screens/browser-api/ethereum/SwitchEthereumNetwork";
 import EvmWatchAssetConfirm from "@/components/screens/browser-api/ethereum/EvmWatchAssetConfirm";
+import Erc20Asset from "@/components/screens/Erc20Asset";
+import { EVMAssetsProvider } from "@/contexts/EvmAssets";
 
 const loadKaspaWasm = async () => {
   await init({ module_or_path: kaspaModule });
@@ -154,7 +156,9 @@ export const router = createHashRouter([
               <RecentAddressesProvider>
                 <RpcClientProvider>
                   <WalletManagerProvider>
-                    <Outlet />
+                    <EVMAssetsProvider>
+                      <Outlet />
+                    </EVMAssetsProvider>
                   </WalletManagerProvider>
                 </RpcClientProvider>
               </RecentAddressesProvider>
@@ -265,6 +269,11 @@ export const router = createHashRouter([
                   {
                     path: "kas-asset",
                     element: <KasAsset />,
+                  },
+
+                  {
+                    path: "erc20-asset/:chainId/:address",
+                    element: <Erc20Asset />,
                   },
                 ],
               },

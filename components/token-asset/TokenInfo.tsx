@@ -60,21 +60,6 @@ export default function TokenInfo() {
           <div className="flex flex-grow flex-col gap-1">
             <div className="flex items-center justify-between text-base text-white">
               <span className="capitalize">{tokenName}</span>
-              {tokenAddress && (
-                <HoverShowAllCopy
-                  text={tokenAddress}
-                  tooltipWidth="22rem"
-                  style={{
-                    fontSize: "14px",
-                    lineBreak: "normal",
-                    textAlign: "center",
-                  }}
-                >
-                  <span className="cursor-pointer text-sm text-daintree-400">
-                    {walletAddressEllipsis(tokenAddress)}
-                  </span>
-                </HoverShowAllCopy>
-              )}
             </div>
             <div className="flex items-center justify-start text-sm text-daintree-400">
               <span>
@@ -99,6 +84,26 @@ export default function TokenInfo() {
             )}
           </div>
         </li>
+        {tokenAddress && (
+          <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
+            <div className="flex w-full items-start justify-between">
+              <span className="font-medium">Contract Address</span>
+              <HoverShowAllCopy
+                text={tokenAddress}
+                tooltipWidth="22rem"
+                style={{
+                  fontSize: "14px",
+                  lineBreak: "normal",
+                  textAlign: "center",
+                }}
+              >
+                <span className="cursor-pointer text-sm text-daintree-400">
+                  {walletAddressEllipsis(tokenAddress)}
+                </span>
+              </HoverShowAllCopy>
+            </div>
+          </li>
+        )}
         <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
           <div className="flex w-full items-start justify-between">
             <span className="font-medium">Max supply</span>
