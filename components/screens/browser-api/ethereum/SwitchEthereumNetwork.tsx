@@ -23,29 +23,33 @@ export default function SwitchKaspaNetwork() {
 
   const network = payload ? z.number().parse(parseInt(payload, 10)) : null;
 
-  const l2Networks = TESTNET_SUPPORTED_EVM_L2_CHAINS.map((chain) => ({
+  const testnetL2Networks = TESTNET_SUPPORTED_EVM_L2_CHAINS.map((chain) => ({
     id: chain.id,
     name: chain.name,
     text: "text-teal-500",
     iconColor: "bg-teal-500",
     background: "bg-teal-800",
   }));
-  const selectedL2Network = l2Networks.find(
+  const selectedTestnetL2Network = testnetL2Networks.find(
     (n) => n.id === (network ?? NetworkType.Mainnet),
   );
 
+  // TODO: add mainnet L2 networks when supported
+
   const onConfirm = async () => {
-    if (!selectedL2Network || !settings) {
+    if (!selectedTestnetL2Network || !settings) {
       return;
     }
 
     setSettings({
       ...settings,
+      // TODO: set to mainnet when mainnet L2 networks are supported
+      networkId: NetworkType.TestnetT10,
       evmL2ChainId: Object.fromEntries(
         Object.values(NetworkType).map((nt) => [
           nt,
           nt === settings.networkId
-            ? selectedL2Network.id
+            ? selectedTestnetL2Network.id
             : settings.evmL2ChainId?.[nt],
         ]),
       ) as Record<NetworkType, number | undefined>,
@@ -53,7 +57,10 @@ export default function SwitchKaspaNetwork() {
 
     await ApiExtensionUtils.sendMessage(
       requestId,
-      ApiUtils.createApiResponse(requestId, numberToHex(selectedL2Network.id)),
+      ApiUtils.createApiResponse(
+        requestId,
+        numberToHex(selectedTestnetL2Network.id),
+      ),
     );
     window.close();
   };
@@ -74,12 +81,12 @@ export default function SwitchKaspaNetwork() {
       background: "bg-yellow-800",
     },
   ];
-  const selectedNetwork = networks.find(
-    (n) => n.id === (settings?.networkId ?? NetworkType.Mainnet),
-  );
+
+  // TODO: Allow to select mainnet when mainnet L2 networks are supported
+  const selectedNetwork = networks.find((n) => n.id === NetworkType.TestnetT10);
 
   const loading =
-    !requestId || !network || !selectedNetwork || !selectedL2Network;
+    !requestId || !network || !selectedNetwork || !selectedTestnetL2Network;
   return (
     <div className="no-scrollbar h-screen overflow-y-scroll p-4">
       {loading && <Splash />}
@@ -114,7 +121,7 @@ export default function SwitchKaspaNetwork() {
                 onClick={onConfirm}
                 className="rounded-full bg-icy-blue-400 p-5 text-base font-semibold hover:bg-icy-blue-600"
               >
-                Switch to {selectedL2Network.name}
+                Switch to {selectedTestnetL2Network.name}
               </button>
             </div>
           </div>
