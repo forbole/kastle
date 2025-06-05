@@ -52,6 +52,7 @@ export class LedgerAccount implements IWallet {
   public async send(
     amount: bigint,
     receiverAddress: string,
+    payload?: string,
     priorityFee?: bigint,
   ): Promise<string[]> {
     if (!Address.validate(receiverAddress)) {
@@ -71,6 +72,7 @@ export class LedgerAccount implements IWallet {
       priorityFee: priorityFee ?? 0n,
       changeAddress: await this.getAddress(),
       networkId: this.networkId,
+      payload,
     });
 
     const txIds = [];

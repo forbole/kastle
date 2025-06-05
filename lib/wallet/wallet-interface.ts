@@ -31,6 +31,7 @@ export interface IWallet {
   send(
     amount: bigint,
     receiverAddress: string,
+    payload?: string,
     priorityFee?: bigint,
   ): Promise<string[]>;
 

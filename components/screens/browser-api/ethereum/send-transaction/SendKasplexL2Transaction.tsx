@@ -1,4 +1,4 @@
-import { IWallet } from "@/lib/ethereum/wallet/wallet-interface";
+import { IWallet as EthSigner } from "@/lib/ethereum/wallet/wallet-interface";
 import useWalletManager from "@/hooks/useWalletManager";
 import ledgerSignImage from "@/assets/images/ledger-on-sign.svg";
 import signImage from "@/assets/images/sign.png";
@@ -17,16 +17,21 @@ import {
 import { estimateFeesPerGas } from "viem/actions";
 import { ethereumTransactionRequestSchema } from "@/api/background/handlers/ethereum/sendTransaction";
 import { TESTNET_SUPPORTED_EVM_L2_CHAINS } from "@/lib/layer2";
+import { IWallet as KasWallet } from "@/lib/wallet/wallet-interface";
+import { sendKasplexTransaction } from "@/lib/kasplex";
 
 type SendTransactionProps = {
-  signer: IWallet;
+  ethSigner: EthSigner;
+  kasSigner: KasWallet;
 };
 
-export default function SendTransaction({
-  signer: walletSigner,
+export default function SendKasplexL2Transaction({
+  ethSigner,
+  kasSigner,
 }: SendTransactionProps) {
   const [settings] = useSettings();
   const { wallet } = useWalletManager();
+
   const { value: isSigning, toggle: toggleIsSigning } = useBoolean(false);
 
   const requestId =
@@ -40,7 +45,7 @@ export default function SendTransaction({
     : null;
 
   const onConfirm = async () => {
-    if (isSigning || !settings) {
+    if (isSigning || !settings || !kasSigner) {
       return;
     }
 
@@ -93,7 +98,7 @@ export default function SendTransaction({
       });
 
       const nonce = await ethClient.getTransactionCount({
-        address: (await walletSigner.getAddress()) as `0x${string}`,
+        address: (await ethSigner.getAddress()) as `0x${string}`,
       });
 
       const estimatedGas = await estimateFeesPerGas(ethClient);
@@ -123,14 +128,14 @@ export default function SendTransaction({
       };
 
       // Sign the message
-      const signed = await walletSigner.signTransaction(transaction);
-
-      const txHash = await ethClient.sendRawTransaction({
-        serializedTransaction: signed as `0x${string}`,
-      });
+      const [ethTxId] = await sendKasplexTransaction(
+        transaction,
+        ethSigner,
+        kasSigner,
+      );
       await ApiExtensionUtils.sendMessage(
         requestId,
-        ApiUtils.createApiResponse(requestId, txHash),
+        ApiUtils.createApiResponse(requestId, ethTxId),
       );
       toggleIsSigning();
     } catch (err) {
@@ -139,7 +144,6 @@ export default function SendTransaction({
         ApiUtils.createApiResponse(requestId, null, RPC_ERRORS.INTERNAL_ERROR),
       );
     } finally {
-      window.close();
     }
   };
 

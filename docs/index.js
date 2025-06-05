@@ -73,6 +73,8 @@ document
         priorityFee: kaspaWasm.kaspaToSompi("0.1"),
         changeAddress: address,
         networkId: network,
+        payload:
+          "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
       });
 
       const transaction = pending.transactions[0];

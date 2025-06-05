@@ -123,6 +123,7 @@ export class HotWalletPrivateKey implements IWallet {
   async send(
     amount: bigint,
     receiverAddress: string,
+    payload?: string,
     priorityFee?: bigint,
   ): Promise<string[]> {
     if (!Address.validate(receiverAddress)) {
@@ -139,6 +140,7 @@ export class HotWalletPrivateKey implements IWallet {
       ],
       priorityFee: priorityFee ?? 0n,
       changeAddress: this.getAddress(),
+      payload,
       networkId: this.networkId,
     });
 
