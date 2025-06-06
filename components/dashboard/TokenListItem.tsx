@@ -12,7 +12,7 @@ import { applyDecimal } from "@/lib/krc20.ts";
 import { TokenItem } from "@/hooks/kasplex/useTokenListByAddress";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 import { useTokenInfo } from "@/hooks/kasplex/useTokenInfo";
-import { walletAddressEllipsis } from "@/lib/utils.ts";
+import Layer2AssetImage from "../Layer2AssetImage";
 
 type TokenListItemProps = {
   token: TokenItem;
@@ -38,10 +38,6 @@ export default function TokenListItem({ token }: TokenListItemProps) {
   const { amount: totalBalanceCurrency, code: currencyCode } =
     useCurrencyValue(fiatBalance);
 
-  const onImageError = () => {
-    setImageUrl(kasIcon);
-  };
-
   useEffect(() => {
     if (tokenMetadata?.iconUrl) {
       setImageUrl(tokenMetadata.iconUrl);
@@ -51,28 +47,17 @@ export default function TokenListItem({ token }: TokenListItemProps) {
   const tokenInfo = tokenInfoResponse?.result?.[0];
   const tokenName =
     tokenInfo?.mod === "mint" ? tokenInfo?.tick : tokenInfo?.name;
-  const tokenAddress = tokenInfo?.ca;
 
   return (
     <div
       className="flex cursor-pointer items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3 hover:border-white"
       onClick={() => navigate(`/token-asset/${token.id}`)}
     >
-      <img
-        alt="castle"
-        className="h-[40px] w-[40px] rounded-full"
-        src={imageUrl}
-        onError={onImageError}
-      />
+      <Layer2AssetImage tokenImage={imageUrl} chainImage={kasIcon} />
       <div className="flex flex-grow flex-col gap-1">
         <div className="flex items-start justify-between text-base text-white">
           <div className="flex flex-col gap-1">
             <span>{tokenName}</span>
-            {tokenAddress && (
-              <span className="text-xs text-daintree-400">
-                {walletAddressEllipsis(tokenAddress)}
-              </span>
-            )}
           </div>
           <span>{showBalance ? formatToken(balanceNumber) : "*****"}</span>
         </div>
