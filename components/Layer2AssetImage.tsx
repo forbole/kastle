@@ -1,5 +1,5 @@
 import kasIcon from "@/assets/images/kas-icon.svg";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 export default function Layer2AssetImage({
   tokenImage,

@@ -1,4 +1,5 @@
-import { ReactNode, createContext, SetStateAction } from "react";
+import { ReactNode, createContext } from "react";
+import { useEffect, useState } from "react";
 
 export const EVM_ASSETS_KEY = "local:evmAssets";
 
