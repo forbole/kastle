@@ -39,7 +39,7 @@ export default function EvmKasAsset({ chainId }: { chainId: `0x${string}` }) {
       <div className="flex flex-grow flex-col gap-1">
         <div className="flex items-start justify-between text-base text-white">
           <div className="flex flex-col gap-1">
-            <span>Kas</span>
+            <span>KAS</span>
           </div>
           <span>{showBalance ? balance : "*****"}</span>
         </div>
