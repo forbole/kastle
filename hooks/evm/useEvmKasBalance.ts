@@ -1,14 +1,11 @@
-import useSWR from "swr";
-import { createPublicClient, http, erc20Abi } from "viem";
-import useWalletManager from "../useWalletManager";
 import { toEvmAddress } from "@/lib/utils";
-import { numberToHex, formatUnits } from "viem";
 import { ALL_SUPPORTED_EVM_L2_CHAINS } from "@/lib/layer2";
+import { http, createPublicClient, numberToHex, formatUnits } from "viem";
+import useSWR from "swr";
 
-export default function useERC20Balance(
-  tokenAddress: string,
-  decimals: number,
-  chainId: string,
+export default function useEvmKasBalance(
+  chainId: `0x${string}`,
+  decimals = 18,
 ) {
   const { account } = useWalletManager();
   const publicKey = account?.publicKeys?.[0];
@@ -31,11 +28,8 @@ export default function useERC20Balance(
       transport: http(),
     });
 
-    const rawBalance = await client.readContract({
-      address: tokenAddress as `0x${string}`,
-      abi: erc20Abi,
-      functionName: "balanceOf",
-      args: [evmAddress],
+    const rawBalance = await client.getBalance({
+      address: evmAddress as `0x${string}`,
     });
     return {
       rawBalance,
@@ -44,7 +38,7 @@ export default function useERC20Balance(
   };
 
   return useSWR(
-    evmAddress ? `erc20Balance:${tokenAddress}:${evmAddress}-${chainId}` : null,
+    evmAddress ? `kasBalance:${chainId}-${evmAddress}` : null,
     evmAddress ? fetcher : null,
     {
       refreshInterval: 10000, // Refresh every 10 seconds

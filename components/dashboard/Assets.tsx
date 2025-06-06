@@ -11,6 +11,10 @@ import { applyDecimal } from "@/lib/krc20.ts";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 import { useTokenListByAddress } from "@/hooks/kasplex/useTokenListByAddress";
 import Erc20Assets from "@/components/dashboard/Erc20Assets";
+import EvmKasAsset from "./EvmKasAsset";
+import { NetworkType } from "@/contexts/SettingsContext";
+import { TESTNET_SUPPORTED_EVM_L2_CHAINS } from "@/lib/layer2";
+import { numberToHex } from "viem";
 
 export default function Assets() {
   const navigate = useNavigate();
@@ -75,6 +79,12 @@ export default function Assets() {
           </div>
         </div>
       </div>
+
+      {/*EVM KAS*/}
+      {settings?.networkId === NetworkType.TestnetT10 &&
+        TESTNET_SUPPORTED_EVM_L2_CHAINS.map((chain) => (
+          <EvmKasAsset key={chain.id} chainId={numberToHex(chain.id)} />
+        ))}
 
       {/*KRC20 tokens*/}
       {tokens?.map((token) => <TokenListItem key={token.id} token={token} />)}

@@ -27,6 +27,8 @@ export const kasplexTestnet = {
 
 export const TESTNET_SUPPORTED_EVM_L2_CHAINS = [kairos, kasplexTestnet];
 
+export const ALL_SUPPORTED_EVM_L2_CHAINS = [...TESTNET_SUPPORTED_EVM_L2_CHAINS];
+
 export const getChainImage = (chainId: `0x${string}`) => {
   if (hexToNumber(chainId) === kairos.id) {
     return kairosIcon;
