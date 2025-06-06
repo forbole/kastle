@@ -67,17 +67,17 @@ export const watchAssetHandler = async (
     return;
   }
 
-  const settings = await ApiUtils.getSettings();
-  const supportedChains =
-    settings?.networkId === "mainnet" ? [] : TESTNET_SUPPORTED_EVM_L2_CHAINS;
-
   const erc20OptionsResult = erc20OptionsSchema.safeParse(
     parsedPayload.options,
   );
   if (!erc20OptionsResult.success) {
-    sendError(RPC_ERRORS.UNSUPPORTED_CHAIN);
+    sendError(RPC_ERRORS.INVALID_PARAMS);
     return;
   }
+
+  const settings = await ApiUtils.getSettings();
+  const supportedChains =
+    settings?.networkId === "mainnet" ? [] : TESTNET_SUPPORTED_EVM_L2_CHAINS;
 
   const isSupported = supportedChains.some((chain) => {
     return numberToHex(chain.id) === erc20OptionsResult.data.chainId;
