@@ -1,10 +1,8 @@
-import React from "react";
-import { NetworkType } from "@/contexts/SettingsContext.tsx";
-import { explorerAddressLinks } from "@/components/screens/Settings.tsx";
 import kasIcon from "@/assets/images/kas-icon.svg";
-import { ALL_SUPPORTED_EVM_L2_CHAINS } from "@/lib/layer2";
+import { ALL_SUPPORTED_EVM_L2_CHAINS, getChainImage } from "@/lib/layer2";
 import { numberToHex } from "viem";
 import { toEvmAddress } from "@/lib/utils";
+import Layer2AssetImage from "../Layer2AssetImage";
 
 export default function EvmKasHistory({ chainId }: { chainId: `0x${string}` }) {
   const { account } = useWalletManager();
@@ -29,10 +27,9 @@ export default function EvmKasHistory({ chainId }: { chainId: `0x${string}` }) {
         className="flex cursor-pointer items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3 hover:border-white"
         onClick={() => openTransaction()}
       >
-        <img
-          alt="castle"
-          className="h-[40px] w-[40px] rounded-full"
-          src={kasIcon}
+        <Layer2AssetImage
+          tokenImage={kasIcon}
+          chainImage={getChainImage(chainId)}
         />
         <span className="text-base font-medium">
           See activity history in explorer
