@@ -2,8 +2,8 @@ import Header from "@/components/GeneralHeader.tsx";
 import { useNavigate, useParams } from "react-router-dom";
 import { twMerge } from "tailwind-merge";
 import React, { useState } from "react";
-import TokenHistory from "@/components/token-asset/TokenHistory.tsx";
-import TokenInfo from "@/components/token-asset/TokenInfo.tsx";
+import TokenHistory from "@/components/krc20-asset/TokenHistory";
+import TokenInfo from "@/components/krc20-asset/TokenInfo";
 import { setPopupPath } from "@/lib/utils.ts";
 import { useTokenInfo } from "@/hooks/kasplex/useTokenInfo";
 

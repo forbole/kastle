@@ -1,9 +1,9 @@
 import { formatCurrency } from "@/lib/utils.ts";
 import { walletAddressEllipsis } from "@/lib/utils.ts";
-import HoverShowAllCopy from "../../HoverShowAllCopy";
+import HoverShowAllCopy from "@/components/HoverShowAllCopy";
 import { Erc20Asset } from "@/contexts/EvmAssets";
 import { getChainName, getChainImage } from "@/lib/layer2";
-import Layer2AssetImage from "../../Layer2AssetImage";
+import Layer2AssetImage from "@/components/Layer2AssetImage";
 import useCurrencyValue from "@/hooks/useCurrencyValue";
 
 export default function Erc20Info({ asset }: { asset: Erc20Asset }) {

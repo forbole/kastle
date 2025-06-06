@@ -42,7 +42,7 @@ import DevMode from "@/components/screens/DevMode.tsx";
 import DeployToken from "@/components/screens/full-pages/DeployToken.tsx";
 import TokenTransfer from "@/components/screens/TokenTransfer.tsx";
 import MintToken from "@/components/screens/full-pages/MintToken.tsx";
-import TokenAsset from "@/components/screens/TokenAsset.tsx";
+import TokenAsset from "@/components/screens/KRC20Asset";
 import KasAsset from "@/components/screens/KasAsset.tsx";
 import SignTxConfirm from "@/components/screens/browser-api/kaspa/SignTxConfirm";
 import ConfirmMint from "@/components/screens/full-pages/ConfirmMint.tsx";
@@ -71,6 +71,7 @@ import SwitchEthereumNetwork from "@/components/screens/browser-api/ethereum/Swi
 import EvmWatchAssetConfirm from "@/components/screens/browser-api/ethereum/EvmWatchAssetConfirm";
 import Erc20Asset from "@/components/screens/Erc20Asset";
 import { EVMAssetsProvider } from "@/contexts/EvmAssets";
+import EvmKasAsset from "@/components/screens/EvmKasAsset";
 
 const loadKaspaWasm = async () => {
   await init({ module_or_path: kaspaModule });
@@ -274,6 +275,10 @@ export const router = createHashRouter([
                   {
                     path: "erc20-asset/:chainId/:address",
                     element: <Erc20Asset />,
+                  },
+                  {
+                    path: "evm-asset/:chainId",
+                    element: <EvmKasAsset />,
                   },
                 ],
               },
