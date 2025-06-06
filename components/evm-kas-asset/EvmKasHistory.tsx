@@ -11,8 +11,8 @@ export default function EvmKasHistory({ chainId }: { chainId: `0x${string}` }) {
     (c) => numberToHex(c.id) === chainId,
   );
 
-  const address = account?.publicKeys?.[0]!;
-  const evmAddress = toEvmAddress(address);
+  const address = account?.publicKeys?.[0];
+  const evmAddress = address ? toEvmAddress(address) : "";
 
   const openTransaction = () => {
     browser.tabs.create({
