@@ -6,7 +6,7 @@ import Header from "@/components/GeneralHeader";
 import { useBoolean } from "usehooks-ts";
 import { ApiExtensionUtils } from "@/api/extension";
 import { ApiUtils } from "@/api/background/utils";
-import { RPC_ERRORS } from "@/api/message";
+import { RPC_ERRORS, RpcErrorSchema } from "@/api/message";
 import {
   TransactionSerializable,
   hexToBigInt,
@@ -20,6 +20,7 @@ import { TESTNET_SUPPORTED_EVM_L2_CHAINS } from "@/lib/layer2";
 type SignTransactionProps = {
   walletSigner: IWallet;
 };
+import { handleViemError } from "@/lib/errors";
 
 export default function SendTransaction({
   walletSigner,
@@ -96,20 +97,21 @@ export default function SendTransaction({
       });
 
       const estimatedGas = await estimateFeesPerGas(ethClient);
-      const gasLimit = await ethClient.estimateGas({
-        account: parsedRequest.from,
-        to: parsedRequest.to,
-        value: parsedRequest.value && hexToBigInt(parsedRequest.value),
-        data: parsedRequest.data,
-      });
+      const gas = parsedRequest.gas
+        ? hexToBigInt(parsedRequest.gas)
+        : await ethClient.estimateGas({
+            account: parsedRequest.from,
+            to: parsedRequest.to,
+            value: parsedRequest.value && hexToBigInt(parsedRequest.value),
+            data: parsedRequest.data,
+          });
 
       // Build eip1559 transaction
       const transaction: TransactionSerializable = {
         to: parsedRequest.to,
         value: parsedRequest.value && hexToBigInt(parsedRequest.value),
         data: parsedRequest.data,
-
-        gas: gasLimit,
+        gas,
         maxFeePerGas: parsedRequest.maxFeePerGas
           ? hexToBigInt(parsedRequest.maxFeePerGas)
           : estimatedGas.maxFeePerGas,
@@ -135,10 +137,10 @@ export default function SendTransaction({
     } catch (err) {
       await ApiExtensionUtils.sendMessage(
         requestId,
-        ApiUtils.createApiResponse(requestId, null, RPC_ERRORS.INTERNAL_ERROR),
+        ApiUtils.createApiResponse(requestId, null, handleViemError(err)),
       );
     } finally {
-      window.close();
+      //window.close();
     }
   };
 
