@@ -34,6 +34,5 @@ export function handleViemError(error: unknown) {
     });
   }
 
-  console.error("Unexpected error:", error);
   return RPC_ERRORS.INTERNAL_ERROR;
 }
