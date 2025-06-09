@@ -2,7 +2,8 @@ import { ApiRequestWithHost } from "@/api/message";
 import { ApiUtils } from "@/api/background/utils";
 import { kairos } from "viem/chains";
 import { createPublicClient, http } from "viem";
-import { RpcRequestSchema, RPC_ERRORS } from "@/api/message";
+import { RpcRequestSchema, RPC_ERRORS, RpcErrorSchema } from "@/api/message";
+import { handleViemError } from "@/lib/errors";
 
 export const PUBLIC_CLIENT_METHODS = new Set([
   "eth_blockNumber",
@@ -76,7 +77,7 @@ export const publicClientHandler = async (
       );
     } else {
       sendResponse(
-        ApiUtils.createApiResponse(message.id, null, RPC_ERRORS.INTERNAL_ERROR),
+        ApiUtils.createApiResponse(message.id, null, handleViemError(error)),
       );
     }
   }
