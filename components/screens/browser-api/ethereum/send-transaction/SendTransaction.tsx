@@ -140,7 +140,7 @@ export default function SendTransaction({
         ApiUtils.createApiResponse(requestId, null, handleViemError(err)),
       );
     } finally {
-      //window.close();
+      window.close();
     }
   };
 
