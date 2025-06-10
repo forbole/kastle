@@ -15,7 +15,7 @@ import {
   WalletSettings,
 } from "@/contexts/WalletManagerContext";
 import { POPUP_WINDOW_HEIGHT, POPUP_WINDOW_WIDTH } from "@/lib/utils";
-import { kairos } from "viem/chains";
+import * as conn from "@/lib/settings/connection";
 
 export class ApiUtils {
   static openPopup(tabId: number, url: string) {
@@ -101,19 +101,16 @@ export class ApiUtils {
     const walletSettings = await this.getWalletSettings();
     if (!walletSettings?.selectedWalletId) return false;
     if (walletSettings.selectedAccountIndex === undefined) return false;
+    if (!settings?.walletConnections) return false;
 
-    const walletConnections =
-      settings?.walletConnections?.[walletSettings.selectedWalletId];
+    const connections = conn.getAccountConnections(
+      settings.walletConnections,
+      walletSettings.selectedWalletId,
+      walletSettings.selectedAccountIndex,
+      networkId,
+    );
 
-    if (!walletConnections) return false;
-
-    const accountConnections =
-      walletConnections[walletSettings.selectedAccountIndex];
-    if (!accountConnections) return false;
-
-    const connections = accountConnections[networkId] ?? [];
-
-    return connections.map((connection) => connection.host).includes(host);
+    return conn.isConnected(connections, host);
   }
 
   static isUnlocked(): boolean {
