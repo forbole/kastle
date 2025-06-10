@@ -1,7 +1,7 @@
 import React from "react";
 import { useParams } from "react-router-dom";
 import { useTokenInfo } from "@/hooks/kasplex/useTokenInfo";
-import TokenHistoryItem from "@/components/token-asset/TokenHistoryItem.tsx";
+import TokenHistoryItem from "@/components/krc20-asset/TokenHistoryItem";
 import { useOpListByAddressAndTicker } from "@/hooks/useOpListByAddressAndTicker.ts";
 import { useIntersectionObserver } from "usehooks-ts";
 
