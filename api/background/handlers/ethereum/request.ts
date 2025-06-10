@@ -14,6 +14,7 @@ import { signTypedDataV4Handler } from "./signTypedDataV4";
 import { publicClientHandler, PUBLIC_CLIENT_METHODS } from "./publicClient";
 import { switchNetworkHandler } from "./switchNetwork";
 import { watchAssetHandler } from "./watchAsset";
+import { RpcErrorSchema } from "@/api/message";
 
 enum ETHEREUM_METHODS {
   REQUEST_ACCOUNTS = "eth_requestAccounts",
@@ -38,7 +39,10 @@ export const ethereumRequestHandler: Handler = async (
       ApiUtils.createApiResponse(
         message.id,
         null,
-        "Extension is not initialized",
+        RpcErrorSchema.parse({
+          code: -32000,
+          message: "Extension is not initialized",
+        }),
       ),
     );
     return;

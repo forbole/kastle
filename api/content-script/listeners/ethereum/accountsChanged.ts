@@ -69,6 +69,17 @@ export class EthereumAccountsChangedListener {
           );
           return;
         }
+
+        const account = await ApiUtils.getCurrentAccount();
+        if (!account?.publicKeys) {
+          return;
+        }
+        const selectedPublicKey = account.publicKeys[0];
+        const selectedAddress = toEvmAddress(selectedPublicKey);
+        window.postMessage(
+          ApiUtils.createApiResponse("accountsChanged", [selectedAddress]),
+          window.location.origin,
+        );
       }
     });
   }

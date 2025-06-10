@@ -73,8 +73,8 @@ const initialSettings = {
   preview: false,
 
   evmL2ChainId: {
-    [NetworkType.Mainnet]: kairos.id,
-    [NetworkType.TestnetT10]: kairos.id,
+    [NetworkType.Mainnet]: undefined,
+    [NetworkType.TestnetT10]: undefined,
   },
 } satisfies Settings;
 

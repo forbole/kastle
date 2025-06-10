@@ -21,24 +21,21 @@ export default function SwitchKaspaNetwork() {
 
   const payload = encodedPayload ? decodeURIComponent(encodedPayload) : null;
 
-  const network = payload ? z.number().parse(parseInt(payload, 10)) : null;
+  const evmChainId = payload ? z.number().parse(parseInt(payload, 10)) : null;
 
   const l2Networks = TESTNET_SUPPORTED_EVM_L2_CHAINS.map((chain) => ({
     id: chain.id,
     name: chain.name,
-    text: "text-teal-500",
-    iconColor: "bg-teal-500",
-    background: "bg-teal-800",
   }));
-  const selectedL2Network = l2Networks.find(
-    (n) => n.id === (network ?? NetworkType.Mainnet),
-  );
+  const selectedL2Network = l2Networks.find((n) => n.id === evmChainId);
 
   const onConfirm = async () => {
     if (!selectedL2Network || !settings) {
       return;
     }
 
+    // TODO: Add support for mainnet
+    settings.networkId = NetworkType.TestnetT10;
     setSettings({
       ...settings,
       evmL2ChainId: Object.fromEntries(
@@ -74,12 +71,12 @@ export default function SwitchKaspaNetwork() {
       background: "bg-yellow-800",
     },
   ];
-  const selectedNetwork = networks.find(
-    (n) => n.id === (settings?.networkId ?? NetworkType.Mainnet),
-  );
+
+  // TODO: Add support for mainnet
+  const selectedNetwork = networks.find((n) => n.id === NetworkType.TestnetT10);
 
   const loading =
-    !requestId || !network || !selectedNetwork || !selectedL2Network;
+    !requestId || !evmChainId || !selectedNetwork || !selectedL2Network;
   return (
     <div className="no-scrollbar h-screen overflow-y-scroll p-4">
       {loading && <Splash />}

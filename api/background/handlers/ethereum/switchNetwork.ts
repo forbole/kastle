@@ -37,9 +37,8 @@ export const switchNetworkHandler = async (
   const network = hexToNumber(result.data.chainId);
 
   const settings = await ApiUtils.getSettings();
-  const supported =
-    settings.networkId === "mainnet" ? [] : TESTNET_SUPPORTED_EVM_L2_CHAINS;
-
+  //TODO: add support for mainnet in the future
+  const supported = [...TESTNET_SUPPORTED_EVM_L2_CHAINS];
   const isSupported = supported.some((chain) => chain.id === network);
   if (!isSupported) {
     sendResponse(
