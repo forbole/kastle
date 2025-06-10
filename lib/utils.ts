@@ -1,5 +1,9 @@
 import { Method } from "@/lib/service/extension-service.ts";
 import { CURRENCIES } from "@/contexts/SettingsContext.tsx";
+import * as secp from "@noble/secp256k1";
+import { bytesToHex, hexToNumber } from "viem";
+import { publicKeyToAddress } from "viem/accounts";
+import { kairos } from "viem/chains";
 
 export const isProduction = process.env.NODE_ENV === "production";
 
@@ -88,4 +92,20 @@ export function setPopupPath(path?: `/${string}`, cb: () => void = () => {}) {
 
 export function convertIPFStoHTTP(url: string) {
   return url.replace("ipfs://", "https://ipfs.io/ipfs/");
+}
+
+export function toEvmAddress(publicKey: string) {
+  const uncompressed =
+    secp.ProjectivePoint.fromHex(publicKey).toRawBytes(false);
+  const uncompressedHex = bytesToHex(uncompressed);
+  return publicKeyToAddress(uncompressedHex);
+}
+
+export function toEvmChainName(chainId: string) {
+  switch (hexToNumber(chainId as `0x${string}`)) {
+    case kairos.id:
+      return "Kairos";
+    default:
+      return `Chain ID ${chainId}`;
+  }
 }

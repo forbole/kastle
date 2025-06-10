@@ -13,6 +13,7 @@ import { sendTransactionHandler } from "./sendTransaction";
 import { signTypedDataV4Handler } from "./signTypedDataV4";
 import { publicClientHandler, PUBLIC_CLIENT_METHODS } from "./publicClient";
 import { switchNetworkHandler } from "./switchNetwork";
+import { watchAssetHandler } from "./watchAsset";
 
 enum ETHEREUM_METHODS {
   REQUEST_ACCOUNTS = "eth_requestAccounts",
@@ -22,6 +23,7 @@ enum ETHEREUM_METHODS {
   SIGN_MESSAGE = "personal_sign",
   SIGN_TYPED_DATA_V4 = "eth_signTypedData_v4",
   WALLET_SWITCH_ETHEREUM_NETWORK = "wallet_switchEthereumChain",
+  WALLET_WATCH_ASSET = "wallet_watchAsset",
 }
 
 /** ethereumRequestHandler to serve BrowserMessageType.ETHEREUM_REQUEST message */
@@ -74,6 +76,9 @@ export const ethereumRequestHandler: Handler = async (
         break;
       case ETHEREUM_METHODS.WALLET_SWITCH_ETHEREUM_NETWORK:
         await switchNetworkHandler(tabId, message, sendResponse);
+        break;
+      case ETHEREUM_METHODS.WALLET_WATCH_ASSET:
+        await watchAssetHandler(tabId, message, sendResponse);
         break;
       default:
         if (PUBLIC_CLIENT_METHODS.has(parsedPayload.method)) {
