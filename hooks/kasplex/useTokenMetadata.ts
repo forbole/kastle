@@ -88,7 +88,7 @@ export interface Candle {
   close: number;
 }
 
-const baseUrl = "https://api-v2-do.kas.fyi";
+const baseUrl = "https://api-v2-private.kas.fyi";
 
 const fetchUrls = async (urlString: string) => {
   // Split the string back into an array of URLs
