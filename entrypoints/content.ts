@@ -1,17 +1,12 @@
 import { ApiRequestSchema, ApiRequestWithHostSchema } from "@/api/message";
 import { EthereumAccountsChangedListener } from "@/api/content-script/listeners/ethereum/accountsChanged";
-import { watchSettingsUpdated } from "@/api/content-script/listeners/settings-updated.ts";
-import { watchWalletSettingsUpdated } from "@/api/content-script/listeners/wallet-settings-updated.ts";
+import { watchSettingsUpdated } from "@/api/content-script/listeners/kaspa/settings-updated";
+import { watchWalletSettingsUpdated } from "@/api/content-script/listeners/kaspa/wallet-settings-updated";
 import { ApiUtils } from "@/api/background/utils";
 
 export default defineContentScript({
   matches: ["*://*/*"],
-  async main() {
-    // Inject the script that will add the window.kastle object
-    await injectScript("/injected.js", {
-      keepInDom: true,
-    });
-
+  main() {
     // Emit the kastle_installed event to the page to notify that the extension is installed
     window.postMessage(
       ApiUtils.createApiResponse("kastle_installed", []),
@@ -45,6 +40,11 @@ export default defineContentScript({
 
       // Send the response back to the source
       window.postMessage(response, window.location.origin);
+    });
+
+    // Inject the script that will add the window.kastle object
+    injectScript("/injected.js", {
+      keepInDom: true,
     });
   },
 });

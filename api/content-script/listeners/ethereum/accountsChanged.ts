@@ -59,8 +59,9 @@ export class EthereumAccountsChangedListener {
 
     storage.watch(SETTINGS_KEY, async (settings: Settings | null) => {
       if (settings) {
-        const isHostConnected = await ApiUtils.isHostConnected(
+        const isHostConnected = await ApiUtils.isHostConnectedWithSettings(
           window.location.host,
+          settings,
         );
         if (!isHostConnected) {
           window.postMessage(
