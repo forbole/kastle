@@ -62,6 +62,7 @@ export const ConfirmStep = ({
         txIds: await signer.send(
           kaspaToSompi(amount) ?? BigInt(0),
           address,
+          "",
           priorityFee,
         ),
       };

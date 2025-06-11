@@ -136,7 +136,11 @@ export class HotWalletAccount implements IWallet {
     return entries.reduce((acc, curr) => acc + curr.balance, 0n);
   }
 
-  async send(amount: bigint, receiverAddress: string): Promise<string[]> {
+  async send(
+    amount: bigint,
+    receiverAddress: string,
+    payload?: string,
+  ): Promise<string[]> {
     if (!Address.validate(receiverAddress)) {
       throw new Error("Invalid receiver address " + receiverAddress);
     }
@@ -154,6 +158,7 @@ export class HotWalletAccount implements IWallet {
       priorityFee: 0n,
       changeAddress: this.getAddress(),
       networkId: this.networkId,
+      payload,
     });
 
     const txIds = [];
