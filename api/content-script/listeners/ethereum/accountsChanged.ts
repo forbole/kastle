@@ -8,8 +8,6 @@ import { ApiUtils } from "@/api/background/utils";
 import { toEvmAddress } from "@/lib/utils";
 
 export class EthereumAccountsChangedListener {
-  constructor() {}
-
   start() {
     storage.watch(
       WALLET_SETTINGS,

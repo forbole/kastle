@@ -1,5 +1,6 @@
 import { ApiRequestSchema, ApiRequestWithHostSchema } from "@/api/message";
 import { EthereumAccountsChangedListener } from "@/api/content-script/listeners/ethereum/accountsChanged";
+import { EthereumChainChangedListener } from "@/api/content-script/listeners/ethereum/chainChanged";
 import { watchSettingsUpdated } from "@/api/content-script/listeners/kaspa/settings-updated";
 import { watchWalletSettingsUpdated } from "@/api/content-script/listeners/kaspa/wallet-settings-updated";
 import { ApiUtils } from "@/api/background/utils";
@@ -14,6 +15,7 @@ export default defineContentScript({
     );
 
     new EthereumAccountsChangedListener().start();
+    new EthereumChainChangedListener().start();
 
     watchSettingsUpdated();
     watchWalletSettingsUpdated();
