@@ -46,6 +46,7 @@ export class EthereumBrowserAPI {
         break;
       case "chainChanged":
         onMessage = this.onChainChanged(listener);
+        break;
       default:
         return;
     }
@@ -98,6 +99,9 @@ export class EthereumBrowserAPI {
         throw error;
       }
     };
+
+    window.addEventListener("message", onMessage);
+    return onMessage;
   }
 
   private async postAndReceive<T>(request: ApiRequest) {
