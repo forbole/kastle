@@ -16,6 +16,7 @@ import {
 } from "@/contexts/WalletManagerContext";
 import { POPUP_WINDOW_HEIGHT, POPUP_WINDOW_WIDTH } from "@/lib/utils";
 import * as conn from "@/lib/settings/connection";
+import { kasplexTestnet } from "@/lib/layer2";
 
 export class ApiUtils {
   static openPopup(tabId: number, url: string) {
@@ -41,7 +42,7 @@ export class ApiUtils {
 
         evmL2ChainId: {
           [NetworkType.Mainnet]: undefined,
-          [NetworkType.TestnetT10]: undefined,
+          [NetworkType.TestnetT10]: kasplexTestnet.id,
         },
       },
     });

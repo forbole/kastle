@@ -8,7 +8,7 @@ export const chainIdHandler = async (
   sendResponse: (response?: any) => void,
 ) => {
   const settings = await ApiUtils.getSettings();
-  const chainId = settings.evmL2ChainId?.[settings.networkId] ?? 0;
+  const chainId = settings.evmL2ChainId?.[settings.networkId] ?? 1; // Default to the mainnet if not set
 
   sendResponse(ApiUtils.createApiResponse(message.id, numberToHex(chainId)));
 };
