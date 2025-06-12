@@ -24,7 +24,6 @@ export const requestAccountsHandler = async (
     url.searchParams.set("host", message.host);
     url.searchParams.set("requestId", message.id);
     url.searchParams.set("name", message.host);
-    url.searchParams.set("icon", "");
 
     ApiUtils.openPopup(tabId, url.toString());
 

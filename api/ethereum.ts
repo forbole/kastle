@@ -44,6 +44,9 @@ export class EthereumBrowserAPI {
       case "accountsChanged":
         onMessage = this.onAccountsChanged(listener);
         break;
+      case "chainChanged":
+        onMessage = this.onChainChanged(listener);
+        break;
       default:
         return;
     }
@@ -63,6 +66,26 @@ export class EthereumBrowserAPI {
 
   private onAccountsChanged(listener: (...args: unknown[]) => void) {
     const callback = this.createReceiveCallback<string[]>("accountsChanged");
+    const onMessage = async (event: MessageEvent<unknown>) => {
+      try {
+        const result = callback(event);
+        if (result === undefined) {
+          return; // Skip if the result is empty, which means the message is not for this channel
+        }
+
+        listener(result);
+      } catch (error) {
+        window.removeEventListener("message", onMessage);
+        throw error;
+      }
+    };
+
+    window.addEventListener("message", onMessage);
+    return onMessage;
+  }
+
+  private onChainChanged(listener: (...args: unknown[]) => void) {
+    const callback = this.createReceiveCallback<string>("chainChanged");
     const onMessage = async (event: MessageEvent<unknown>) => {
       try {
         const result = callback(event);

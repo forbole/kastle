@@ -35,23 +35,7 @@ export const switchNetworkHandler = async (
   }
 
   const network = hexToNumber(result.data.chainId);
-
   const settings = await ApiUtils.getSettings();
-  const supported =
-    settings.networkId === "mainnet" ? [] : TESTNET_SUPPORTED_EVM_L2_CHAINS;
-
-  const isSupported = supported.some((chain) => chain.id === network);
-  if (!isSupported) {
-    sendResponse(
-      ApiUtils.createApiResponse(
-        message.id,
-        null,
-        RPC_ERRORS.UNSUPPORTED_CHAIN,
-      ),
-    );
-    return;
-  }
-
   if (settings.evmL2ChainId?.[settings.networkId] === network) {
     sendResponse(ApiUtils.createApiResponse(message.id, settings.networkId));
     return;

@@ -13,10 +13,11 @@ import {
   createPublicClient,
   http,
   hexToNumber,
+  numberToHex,
 } from "viem";
 import { estimateFeesPerGas } from "viem/actions";
 import { ethereumTransactionRequestSchema } from "@/api/background/handlers/ethereum/sendTransaction";
-import { TESTNET_SUPPORTED_EVM_L2_CHAINS } from "@/lib/layer2";
+import { getChainName, TESTNET_SUPPORTED_EVM_L2_CHAINS } from "@/lib/layer2";
 type SignTransactionProps = {
   walletSigner: IWallet;
 };
@@ -39,28 +40,19 @@ export default function SendTransaction({
     ? JSON.parse(decodeURIComponent(encodedPayload))
     : null;
 
+  const parsedRequest = ethereumTransactionRequestSchema.parse(payload);
+
+  const txChainId = parsedRequest.chainId
+    ? hexToNumber(parsedRequest.chainId)
+    : settings?.evmL2ChainId?.[settings.networkId];
+
   const onConfirm = async () => {
     if (isSigning || !settings) {
       return;
     }
 
-    const result = ethereumTransactionRequestSchema.safeParse(payload);
-    if (!result.success) {
-      await ApiExtensionUtils.sendMessage(
-        requestId,
-        ApiUtils.createApiResponse(requestId, null, RPC_ERRORS.INVALID_PARAMS),
-      );
-      window.close();
-      return;
-    }
-    const parsedRequest = result.data;
-
     const supportedChains =
       settings.networkId === "mainnet" ? [] : TESTNET_SUPPORTED_EVM_L2_CHAINS;
-
-    const txChainId = parsedRequest.chainId
-      ? hexToNumber(parsedRequest.chainId)
-      : settings.evmL2ChainId?.[settings.networkId];
 
     if (!txChainId) {
       await ApiExtensionUtils.sendMessage(
@@ -156,10 +148,18 @@ export default function SendTransaction({
     window.close();
   };
 
+  const targetChainName = txChainId
+    ? getChainName(numberToHex(txChainId))
+    : null;
+
   return (
     <div className="flex h-full flex-col justify-between">
       <div>
-        <Header showPrevious={false} showClose={false} title="Confirm" />
+        <Header
+          showPrevious={false}
+          showClose={false}
+          title="Send Transaction"
+        />
         <div className="relative">
           {wallet?.type !== "ledger" && (
             <img src={signImage} alt="Sign" className="mx-auto" />
@@ -171,7 +171,7 @@ export default function SendTransaction({
 
         {/* Confirm Content */}
         <div className="text-center">
-          <h2 className="mt-4 text-2xl font-semibold">Send Transaction</h2>
+          <h2 className="mt-4 text-2xl font-semibold">{targetChainName}</h2>
           <p className="mt-2 text-base text-daintree-400">
             Please confirm the transaction you are signing
           </p>
@@ -191,6 +191,7 @@ export default function SendTransaction({
         <button
           className="flex flex-auto items-center justify-center rounded-full bg-icy-blue-400 py-5 font-semibold hover:bg-icy-blue-600"
           onClick={onConfirm}
+          disabled={isSigning && !targetChainName}
         >
           {isSigning ? (
             <div className="flex gap-2">

@@ -3,6 +3,7 @@ import Header from "@/components/GeneralHeader";
 import { useSettings } from "@/hooks/useSettings";
 import emptyImage from "@/assets/images/empty.png";
 import { useNavigate } from "react-router-dom";
+import * as conn from "@/lib/settings/connection";
 
 export default function ConnectedApps() {
   const navigate = useNavigate();
@@ -11,10 +12,12 @@ export default function ConnectedApps() {
   const selectedWalletId = walletSettings?.selectedWalletId;
   const selectedAccountIndex = walletSettings?.selectedAccountIndex;
 
-  const walletConnections =
-    settings?.walletConnections?.[selectedWalletId ?? ""];
-  const accountConnections = walletConnections?.[selectedAccountIndex ?? 0];
-  const connections = settings ? accountConnections?.[settings.networkId] : [];
+  const connections = conn.getAccountConnections(
+    settings?.walletConnections ?? {},
+    selectedWalletId ?? "",
+    selectedAccountIndex ?? 0,
+    settings?.networkId ?? "mainnet",
+  );
 
   const handleUnlink = (host: string) => {
     if (!selectedWalletId) return;
@@ -22,25 +25,17 @@ export default function ConnectedApps() {
     if (selectedAccountIndex === undefined || selectedAccountIndex === null)
       return;
 
-    const updatedConnections =
-      connections?.filter((connection) => connection.host !== host) ?? [];
-
-    const updatedNetworkConnections = {
-      ...settings.walletConnections[selectedWalletId][selectedAccountIndex],
-      [settings.networkId]: updatedConnections,
-    };
-
-    const updatedWalletConnections = {
-      ...settings.walletConnections[selectedWalletId],
-      [selectedAccountIndex]: updatedNetworkConnections,
-    };
+    const updated = conn.removeConnection(
+      settings.walletConnections,
+      selectedWalletId,
+      selectedAccountIndex,
+      settings.networkId,
+      host,
+    );
 
     setSettings({
       ...settings,
-      walletConnections: {
-        ...settings.walletConnections,
-        [selectedWalletId]: updatedWalletConnections,
-      },
+      walletConnections: updated,
     });
   };
 

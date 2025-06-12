@@ -8,8 +8,6 @@ import { ApiUtils } from "@/api/background/utils";
 import { toEvmAddress } from "@/lib/utils";
 
 export class EthereumAccountsChangedListener {
-  constructor() {}
-
   start() {
     storage.watch(
       WALLET_SETTINGS,
@@ -59,8 +57,9 @@ export class EthereumAccountsChangedListener {
 
     storage.watch(SETTINGS_KEY, async (settings: Settings | null) => {
       if (settings) {
-        const isHostConnected = await ApiUtils.isHostConnected(
+        const isHostConnected = await ApiUtils.isHostConnectedWithSettings(
           window.location.host,
+          settings,
         );
         if (!isHostConnected) {
           window.postMessage(
@@ -69,6 +68,17 @@ export class EthereumAccountsChangedListener {
           );
           return;
         }
+
+        const account = await ApiUtils.getCurrentAccount();
+        if (!account?.publicKeys) {
+          return;
+        }
+        const selectedPublicKey = account.publicKeys[0];
+        const selectedAddress = toEvmAddress(selectedPublicKey);
+        window.postMessage(
+          ApiUtils.createApiResponse("accountsChanged", [selectedAddress]),
+          window.location.origin,
+        );
       }
     });
   }

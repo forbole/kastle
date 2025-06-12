@@ -1,6 +1,7 @@
 import { createContext, ReactNode, useEffect, useState } from "react";
 import { captureException } from "@sentry/react";
 import { kairos } from "viem/chains";
+import * as conn from "@/lib/settings/connection";
 
 export const SETTINGS_KEY = "local:settings";
 
@@ -33,29 +34,11 @@ export type Settings = {
   networkId: NetworkType;
   currency: CurrencyCode;
   lockTimeout: number;
-  walletConnections: WalletConnections | undefined; // WalletId -> Account Index -> NetworkId -> WalletConnection[]
+  walletConnections: conn.WalletConnections | undefined; // WalletId -> Account Index -> NetworkId -> WalletConnection[]
   hideBalances: boolean;
   preview: boolean;
 
   evmL2ChainId?: Record<NetworkType, number | undefined>;
-};
-
-type WalletConnections = {
-  [walletId: string]: AccountConnectionsByNetwork;
-};
-
-type AccountConnectionsByNetwork = {
-  [accountIndex: number]: NetworkConnections;
-};
-
-type NetworkConnections = {
-  [networkId: string]: AccountConnection[];
-};
-
-type AccountConnection = {
-  host: string;
-  name?: string;
-  icon?: string;
 };
 
 export const RPC_URLS = {
@@ -90,8 +73,8 @@ const initialSettings = {
   preview: false,
 
   evmL2ChainId: {
-    [NetworkType.Mainnet]: kairos.id,
-    [NetworkType.TestnetT10]: kairos.id,
+    [NetworkType.Mainnet]: undefined,
+    [NetworkType.TestnetT10]: undefined,
   },
 } satisfies Settings;
 

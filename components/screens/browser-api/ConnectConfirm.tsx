@@ -6,6 +6,7 @@ import Link from "@/assets/images/link.svg";
 import CheckCircle from "@/assets/images/check-circle.svg";
 import { twMerge } from "tailwind-merge";
 import { ApiUtils } from "@/api/background/utils";
+import * as conn from "@/lib/settings/connection";
 
 export default function ConnectConfirm() {
   const [settings, setSettings] = useSettings();
@@ -37,27 +38,22 @@ export default function ConnectConfirm() {
     try {
       const walletConnections = settings.walletConnections ?? {};
 
-      const connections =
-        walletConnections[selectedWalletId]?.[selectedAccountIndex]?.[
-          network
-        ] ?? [];
+      const updated = conn.addConnection(
+        walletConnections,
+        selectedWalletId,
+        selectedAccountIndex,
+        network,
+        {
+          host,
+          name: tabName,
+          icon,
+        },
+      );
 
-      // Add connection to wallet connections and save if not exists
-      if (!connections.map((connection) => connection.host).includes(host)) {
-        connections.push({ host, name: tabName, icon });
-        walletConnections[selectedWalletId] = {
-          ...walletConnections[selectedWalletId],
-          [selectedAccountIndex]: {
-            ...walletConnections[selectedWalletId]?.[selectedAccountIndex],
-            [network]: connections,
-          },
-        };
-
-        await setSettings({
-          ...settings,
-          walletConnections: walletConnections,
-        });
-      }
+      await setSettings({
+        ...settings,
+        walletConnections: updated,
+      });
 
       // Send confirmation to background
       await ApiExtensionUtils.sendMessage(requestId, confirmMessage);
