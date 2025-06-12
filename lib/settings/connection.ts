@@ -45,7 +45,9 @@ export function addConnection(
     networkId,
   );
 
-  const updatedConnections = connections.map((c) => c.host).includes(connection.host)
+  const updatedConnections = connections
+    .map((c) => c.host)
+    .includes(connection.host)
     ? connections
     : [...connections, connection];
 
@@ -55,7 +57,7 @@ export function addConnection(
       ...walletConnections[walletId],
       [accountIndex]: {
         ...walletConnections[walletId]?.[accountIndex],
-        [networkId]: connections,
+        [networkId]: updatedConnections,
       },
     },
   };
