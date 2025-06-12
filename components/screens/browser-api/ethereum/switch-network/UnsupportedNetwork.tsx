@@ -31,7 +31,7 @@ export default function UnsupportedNetwork({
         </h3>
         <button
           onClick={onConfirm}
-          className="rounded-full bg-icy-blue-400 p-5 text-base px-8 font-semibold hover:bg-icy-blue-600"
+          className="rounded-full bg-icy-blue-400 p-5 px-8 text-base font-semibold hover:bg-icy-blue-600"
         >
           Close
         </button>
