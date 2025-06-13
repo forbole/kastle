@@ -23,7 +23,7 @@ export default function ChangePassword() {
     register,
     handleSubmit,
     watch,
-    formState: { isValid, errors },
+    formState: { isSubmitting, isValid, errors },
   } = useForm<PasswordFormData>({
     mode: "onChange",
   });
@@ -196,7 +196,15 @@ export default function ChangePassword() {
           )}
           disabled={isDisabled}
         >
-          Save
+          {isSubmitting ? (
+            <div
+              className="inline-block size-4 animate-spin self-center rounded-full border-[4px] border-current border-t-[#A2F5FF] text-icy-blue-600"
+              role="status"
+              aria-label="loading"
+            />
+          ) : (
+            "Save"
+          )}
         </button>
       </form>
     </div>
