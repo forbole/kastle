@@ -28,8 +28,8 @@ const PBKDF2_ITERATIONS = 100000;
 const PBKDF2_SALT_LENGTH = 16;
 
 // Argon2id configuration
-const ARGON2ID_MEMORY_COST = 256 * 1024; // 256 MiB in KB
-const ARGON2ID_TIME_COST = 5;
+const ARGON2ID_MEMORY_COST = 64 * 1024; // 64 MiB in KB
+const ARGON2ID_TIME_COST = 3;
 const ARGON2ID_OUTPUT_LENGTH = 32; // bytes
 const ARGON2ID_SALT_LENGTH = 32; // bytes
 
