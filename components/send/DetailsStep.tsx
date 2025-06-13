@@ -300,18 +300,17 @@ export const DetailsStep = ({
   return (
     <>
       <Header title="Send" onClose={onClose} onBack={onBack} />
-
-      <TickerSelect
-        isShown={isTokenSelectShown}
-        toggleShow={toggleTokenSelect}
-      />
-
-      <PriorityFeeSelection
-        isPriorityFeeSelectionOpen={isPriorityFeeSelectionOpen}
-        closePriorityFeeSelection={closePriorityFeeSelection}
-      />
-
       <div className="relative flex h-full flex-col gap-4">
+        <TickerSelect
+          isShown={isTokenSelectShown}
+          toggleShow={toggleTokenSelect}
+        />
+
+        <PriorityFeeSelection
+          isPriorityFeeSelectionOpen={isPriorityFeeSelectionOpen}
+          closePriorityFeeSelection={closePriorityFeeSelection}
+        />
+
         <div className="flex items-center justify-between">
           <label className="text-base font-medium">Send to ...</label>
           <i
