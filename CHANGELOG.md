@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.21.0](https://github.com/forbole/kastle/compare/v2.20.0...v2.21.0) (2025-06-13)
+
+
+### Features
+
+* improve switch layer2 network ([#142](https://github.com/forbole/kastle/issues/142)) ([f38a5fd](https://github.com/forbole/kastle/commit/f38a5fdc06611f458066d99bbb4c3052701a9c1b))
+* improve viem error response ([#140](https://github.com/forbole/kastle/issues/140)) ([8bdc960](https://github.com/forbole/kastle/commit/8bdc96039cc6bb7b992f57362e4c030590500337))
+* layer 2 evm kas, erc20 tokens display ([#131](https://github.com/forbole/kastle/issues/131)) ([fe8a804](https://github.com/forbole/kastle/commit/fe8a80481db595ee675020becfac4d788ecdc900))
+* support eip-6963 ([#144](https://github.com/forbole/kastle/issues/144)) ([42743ec](https://github.com/forbole/kastle/commit/42743ecc02f009c6f66c4935b10189730b706f90))
+
+
+### Bug Fixes
+
+* put selections into relative div ([#146](https://github.com/forbole/kastle/issues/146)) ([a107a92](https://github.com/forbole/kastle/commit/a107a92923e8a79da43bcdc00646d4169691985c))
+* update base URL in useTokenMetadata handler ([#143](https://github.com/forbole/kastle/issues/143)) ([d3d3a12](https://github.com/forbole/kastle/commit/d3d3a12387de96b3c8a647f3c09d6c8f9587f4c4))
+
 ## [2.20.0](https://github.com/forbole/kastle/compare/v2.19.3...v2.20.0) (2025-06-04)
 
 
