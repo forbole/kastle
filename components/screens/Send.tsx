@@ -59,7 +59,7 @@ export default function Send() {
   };
 
   return (
-    <div className="flex h-full flex-col p-4 text-white">
+    <div className="relative flex h-full flex-col p-4 text-white">
       <FormProvider {...form}>
         {step === "details" && (
           <DetailsStep onNext={() => setStep("confirm")} onBack={onBack} />
