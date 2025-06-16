@@ -9,6 +9,7 @@ import { z } from "zod";
 import { isUserDeniedResponse } from "./utils";
 import { TESTNET_SUPPORTED_EVM_L2_CHAINS } from "./utils";
 import { numberToHex, isHex, isAddress } from "viem";
+import { NetworkType } from "@/contexts/SettingsContext";
 
 export const erc20OptionsSchema = z.object({
   address: z.string().refine(isAddress),
@@ -88,14 +89,13 @@ export const watchAssetHandler = async (
       return;
     }
   } else {
-    if (!settings.evmL2ChainId?.[settings.networkId]) {
+    const evmChainId = settings.evmL2ChainId?.[settings.networkId];
+    if (!evmChainId) {
       sendError(RPC_ERRORS.UNSUPPORTED_CHAIN);
       return;
     }
 
-    erc20Options.chainId = numberToHex(
-      settings.evmL2ChainId?.[settings.networkId] ?? 1,
-    );
+    erc20Options.chainId = numberToHex(evmChainId);
   }
 
   const url = new URL(browser.runtime.getURL("/popup.html"));
