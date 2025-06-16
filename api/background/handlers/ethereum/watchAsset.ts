@@ -8,12 +8,11 @@ import { ApiUtils } from "@/api/background/utils";
 import { z } from "zod";
 import { isUserDeniedResponse } from "./utils";
 import { TESTNET_SUPPORTED_EVM_L2_CHAINS } from "./utils";
-import { numberToHex } from "viem";
+import { numberToHex, isHex, isAddress } from "viem";
+import { NetworkType } from "@/contexts/SettingsContext";
 
 export const erc20OptionsSchema = z.object({
-  address: z.string().refine((val) => /^0x[a-fA-F0-9]{40}$/.test(val), {
-    message: "Invalid ERC20 address",
-  }),
+  address: z.string().refine(isAddress),
   symbol: z.string().min(1, "Symbol is required"),
   decimals: z
     .number()
@@ -21,7 +20,7 @@ export const erc20OptionsSchema = z.object({
     .min(0)
     .max(255, "Decimals must be between 0 and 255"),
   image: z.string().optional(),
-  chainId: z.string(),
+  chainId: z.string().refine(isHex).optional(),
 });
 
 export const watchAssetSchema = z.object({
@@ -44,14 +43,14 @@ export const watchAssetHandler = async (
     return;
   }
 
+  let payload: unknown;
   const request = RpcRequestSchema.parse(message.payload);
   const { params } = request;
-  if (!params || params.length < 1) {
-    sendError(RPC_ERRORS.INVALID_PARAMS);
-    return;
+  if (Array.isArray(params) && params.length > 0) {
+    payload = params[0];
+  } else {
+    payload = request.params;
   }
-
-  const payload = params[0];
 
   const result = watchAssetSchema.safeParse(payload);
   if (!result.success) {
@@ -75,16 +74,29 @@ export const watchAssetHandler = async (
     return;
   }
 
-  const settings = await ApiUtils.getSettings();
-  const supportedChains =
-    settings?.networkId === "mainnet" ? [] : TESTNET_SUPPORTED_EVM_L2_CHAINS;
+  const erc20Options = erc20OptionsResult.data;
 
-  const isSupported = supportedChains.some((chain) => {
-    return numberToHex(chain.id) === erc20OptionsResult.data.chainId;
-  });
-  if (!isSupported) {
-    sendError(RPC_ERRORS.UNSUPPORTED_CHAIN);
-    return;
+  const settings = await ApiUtils.getSettings();
+  if (erc20Options.chainId) {
+    const supportedChains =
+      settings?.networkId === "mainnet" ? [] : TESTNET_SUPPORTED_EVM_L2_CHAINS;
+
+    const isSupported = supportedChains.some((chain) => {
+      return numberToHex(chain.id) === erc20Options.chainId;
+    });
+    if (!isSupported) {
+      sendError(RPC_ERRORS.UNSUPPORTED_CHAIN);
+      return;
+    }
+  } else {
+    const evmChainId = settings.evmL2ChainId?.[settings.networkId];
+    if (!evmChainId) {
+      sendError(RPC_ERRORS.UNSUPPORTED_CHAIN);
+      return;
+    }
+
+    erc20Options.chainId = numberToHex(evmChainId);
+    parsedPayload.options = erc20Options;
   }
 
   const url = new URL(browser.runtime.getURL("/popup.html"));

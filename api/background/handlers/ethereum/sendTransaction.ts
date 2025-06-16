@@ -44,12 +44,12 @@ export const sendTransactionHandler = async (
   }
 
   const request = RpcRequestSchema.parse(message.payload);
-  const { params } = request;
-  if (!params || params.length < 1) {
+  if (!Array.isArray(request.params) || request.params.length < 1) {
     sendError(RPC_ERRORS.INVALID_PARAMS);
     return;
   }
 
+  const { params } = request;
   const payload = params[0];
   const result = ethereumTransactionRequestSchema.safeParse(payload);
   if (!result.success) {
