@@ -26,12 +26,12 @@ export const signMessageHandler = async (
   }
 
   const request = RpcRequestSchema.parse(message.payload);
-  const { params } = request;
-  if (!params || params.length < 2) {
+  if (!Array.isArray(request.params) || request.params.length < 2) {
     sendError(RPC_ERRORS.INVALID_PARAMS);
     return;
   }
 
+  const { params } = request;
   const fromAddress = params[1];
   const addressResult = z
     .string()
