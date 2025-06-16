@@ -15,7 +15,7 @@ export enum Action {
 
 export const RpcRequestSchema = z.object({
   method: z.string(),
-  params: z.array(z.unknown()).optional(),
+  params: z.array(z.unknown()).or(z.unknown()).optional(),
 });
 
 export type RpcRequest = z.infer<typeof RpcRequestSchema>;

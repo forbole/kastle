@@ -18,7 +18,7 @@ export const switchNetworkHandler = async (
   sendResponse: (response?: any) => void,
 ) => {
   const request = RpcRequestSchema.parse(message.payload);
-  if (!request.params || request.params.length < 1) {
+  if (!Array.isArray(request.params) || request.params.length < 1) {
     sendResponse(
       ApiUtils.createApiResponse(message.id, null, RPC_ERRORS.INVALID_PARAMS),
     );
