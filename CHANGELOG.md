@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.22.0](https://github.com/forbole/kastle/compare/v2.21.0...v2.22.0) (2025-06-16)
+
+
+### Features
+
+* **api:** support object parameters for evm `wallet_watchAsset` api ([#147](https://github.com/forbole/kastle/issues/147)) ([1f696f3](https://github.com/forbole/kastle/commit/1f696f39042d1adb73373eb68ad5a1e479118b82))
+
 ## [2.21.0](https://github.com/forbole/kastle/compare/v2.20.0...v2.21.0) (2025-06-13)
 
 
