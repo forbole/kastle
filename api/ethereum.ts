@@ -28,9 +28,6 @@ export class EthereumBrowserAPI {
   >();
 
   request(request: RpcRequest) {
-    console.log(
-      `EthereumBrowserAPI.request: ${request.method} with params: ${JSON.stringify(request.params)}`,
-    );
     const requestId = uuid();
     const apiRequest = createApiRequest(
       Action.ETHEREUM_REQUEST,
