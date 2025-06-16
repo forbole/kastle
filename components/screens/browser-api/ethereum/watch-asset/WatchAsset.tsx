@@ -86,8 +86,18 @@ export default function WatchAsset() {
               break;
             }
 
+            if (!erc20Options.chainId) {
+              throw new Error("Chain ID is required for ERC20 assets");
+            }
+
             // Add the new ERC20 asset
-            walletEvmAssets.erc20.push(erc20Options);
+            walletEvmAssets.erc20.push({
+              address: erc20Options.address,
+              symbol: erc20Options.symbol,
+              decimals: erc20Options.decimals,
+              image: erc20Options.image,
+              chainId: erc20Options.chainId,
+            });
             break;
           }
         }
