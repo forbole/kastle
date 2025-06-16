@@ -96,6 +96,7 @@ export const watchAssetHandler = async (
     }
 
     erc20Options.chainId = numberToHex(evmChainId);
+    parsedPayload.options = erc20Options;
   }
 
   const url = new URL(browser.runtime.getURL("/popup.html"));
@@ -103,12 +104,7 @@ export const watchAssetHandler = async (
   url.searchParams.set("requestId", message.id);
   url.searchParams.set(
     "payload",
-    encodeURIComponent(
-      JSON.stringify({
-        type: parsedPayload.type,
-        options: erc20Options,
-      }),
-    ),
+    encodeURIComponent(JSON.stringify(parsedPayload)),
   );
 
   ApiUtils.openPopup(tabId, url.toString());
