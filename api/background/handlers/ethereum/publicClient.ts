@@ -81,7 +81,6 @@ export const publicClientHandler = async (
 
     sendResponse(ApiUtils.createApiResponse(message.id, response));
   } catch (error) {
-    console.error("Error in publicClientHandler:", error);
     if (
       error instanceof Error &&
       error.message.includes(
