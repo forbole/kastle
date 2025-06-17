@@ -25,6 +25,7 @@ export function Krc20Send() {
       priority: "medium",
       priorityFee: 0n,
     },
+    mode: "onChange",
   });
   return (
     <div className="relative h-screen p-4 flex flex-col">

@@ -32,6 +32,8 @@ export const Krc20SendDetails = () => {
   const { account } = useWalletManager();
   const { mempoolCongestionLevel } = useMempoolStatus();
   const { fetchDomainInfo } = useKns();
+  const { value: isAddressFieldFocused, setValue: setAddressFieldFocused } =
+    useBoolean(false);
 
   const {
     value: isRecentAddressShown,
@@ -49,6 +51,7 @@ export const Krc20SendDetails = () => {
     trigger,
     formState: { isValid, errors, validatingFields },
   } = useFormContext<KRC20SendForm>();
+
   const { userInput, address, amount, domain, priority, priorityFee } = watch();
   const priorityFeeEstimate = usePriorityFeeEstimate();
   const estimatedMass = useMassCalculation(
@@ -62,8 +65,6 @@ export const Krc20SendDetails = () => {
       : [],
   );
 
-  const { value: isAddressFieldFocused, setValue: setAddressFieldFocused } =
-    useBoolean(false);
   const { data: tokenMetadata, toPriceInUsd } = useTokenMetadata(ticker);
   const [imageUrl, setImageUrl] = useState(kasIcon);
   const tokenPrice = toPriceInUsd();
@@ -155,7 +156,6 @@ export const Krc20SendDetails = () => {
     }
 
     const maxAmount = currentBalance;
-
     setValue("amount", maxAmount > 0 ? maxAmount.toFixed(8) : "0", {
       shouldValidate: true,
     });
