@@ -1,6 +1,6 @@
 import { twMerge } from "tailwind-merge";
 import React from "react";
-import { SendFormData } from "@/components/screens/Send.tsx";
+import { SendFormData } from "@/components/send/kas-send/KasSend";
 import { useFormContext } from "react-hook-form";
 import useMempoolStatus from "@/hooks/useMempoolStatus.ts";
 import usePriorityFeeEstimate from "@/hooks/usePriorityFeeEstimate.ts";

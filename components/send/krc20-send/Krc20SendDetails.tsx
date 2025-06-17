@@ -1,20 +1,16 @@
 import { useFormContext } from "react-hook-form";
-import { SendFormData } from "@/components/screens/Send.tsx";
 import React, { useEffect, useState } from "react";
-import useKaspaPrice from "@/hooks/useKaspaPrice.ts";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { formatToken } from "@/lib/utils.ts";
 import kasIcon from "@/assets/images/kas-icon.svg";
 import Header from "@/components/GeneralHeader.tsx";
 import useWalletManager from "@/hooks/useWalletManager.ts";
-import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import { Address, kaspaToSompi, sompiToKaspaString } from "@/wasm/core/kaspa";
 import { twMerge } from "tailwind-merge";
 import { useBoolean } from "usehooks-ts";
-import TickerSelect from "@/components/send/TickerSelect.tsx";
+import TokenSelect from "@/components/send/token-selector/TokenSelect";
 import { useTokenBalance } from "@/hooks/kasplex/useTokenBalance";
 import { applyDecimal, computeOperationFees, Fee } from "@/lib/krc20.ts";
-import { MIN_KAS_AMOUNT } from "@/lib/kaspa.ts";
 import RecentAddresses from "@/components/send/RecentAddresses.tsx";
 import spinner from "@/assets/images/spinner.svg";
 import { useKns } from "@/hooks/useKns.ts";
@@ -27,18 +23,13 @@ import "/node_modules/flag-icons/css/flag-icons.min.css";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 import { useTokenMetadata } from "@/hooks/kasplex/useTokenMetadata.ts";
 import { useTokenInfo } from "@/hooks/kasplex/useTokenInfo";
+import { KRC20SendForm } from "./Krc20Send";
 
-export const DetailsStep = ({
-  onNext,
-  onBack,
-}: {
-  onNext: () => void;
-  onBack?: () => void;
-}) => {
+export const Krc20SendDetails = () => {
+  const { tick: ticker } = useParams<{ tick: string }>();
   const navigate = useNavigate();
   const [settings] = useSettings();
-  const { account, addresses } = useWalletManager();
-  const { rpcClient, getMinimumFee } = useRpcClientStateful();
+  const { account } = useWalletManager();
   const { mempoolCongestionLevel } = useMempoolStatus();
   const { fetchDomainInfo } = useKns();
 
@@ -49,12 +40,6 @@ export const DetailsStep = ({
   } = useBoolean(false);
   const { value: isTokenSelectShown, toggle: toggleTokenSelect } =
     useBoolean(false);
-  const [accountMinimumFees, setAccountMinimumFees] = useState<number>(0.0);
-  const {
-    value: isPriorityFeeSelectionOpen,
-    setTrue: openPriorityFeeSelection,
-    setFalse: closePriorityFeeSelection,
-  } = useBoolean(false);
 
   const {
     register,
@@ -63,10 +48,8 @@ export const DetailsStep = ({
     setError,
     trigger,
     formState: { isValid, errors, validatingFields },
-  } = useFormContext<SendFormData>();
-  const { ticker, userInput, address, amount, domain, priority, priorityFee } =
-    watch();
-  const isKasTransfer = ticker === "kas";
+  } = useFormContext<KRC20SendForm>();
+  const { userInput, address, amount, domain, priority, priorityFee } = watch();
   const priorityFeeEstimate = usePriorityFeeEstimate();
   const estimatedMass = useMassCalculation(
     address
@@ -81,25 +64,20 @@ export const DetailsStep = ({
 
   const { value: isAddressFieldFocused, setValue: setAddressFieldFocused } =
     useBoolean(false);
-  const { data: tokenMetadata, toPriceInUsd } = useTokenMetadata(
-    isKasTransfer ? undefined : ticker,
-  );
+  const { data: tokenMetadata, toPriceInUsd } = useTokenMetadata(ticker);
   const [imageUrl, setImageUrl] = useState(kasIcon);
-  const { kaspaPrice } = useKaspaPrice();
-  const tokenPrice = isKasTransfer ? kaspaPrice : toPriceInUsd();
+  const tokenPrice = toPriceInUsd();
   const { amount: tokenCurrency } = useCurrencyValue(tokenPrice);
   const { data: tokenBalanceResponse } = useTokenBalance(
-    account?.address && !isKasTransfer
+    account?.address && ticker
       ? {
           tokenId: ticker,
           address: account.address,
         }
       : undefined,
   );
-  const { data: tokenInfoResponse } = useTokenInfo(
-    isKasTransfer ? undefined : ticker,
-  );
-  const tokenName = tokenInfoResponse?.result?.[0]?.name ?? ticker;
+  const { data: tokenInfoResponse } = useTokenInfo(ticker);
+  const tokenName = tokenInfoResponse?.result?.[0]?.name ?? "Unknown";
 
   const tokenBalance = tokenBalanceResponse?.result?.[0];
   const { toFloat } = applyDecimal(tokenBalance?.dec);
@@ -107,25 +85,7 @@ export const DetailsStep = ({
     tokenBalance?.balance ? parseInt(tokenBalance.balance, 10) : 0,
   );
   const kasBalance = account?.balance ? parseFloat(account.balance) : 0;
-  const currentBalance = isKasTransfer ? kasBalance : tokenBalanceFloat;
-
-  const amountValidator = async (value: string | undefined) => {
-    const amountNumber = parseFloat(value ?? "0");
-
-    if (amountNumber < 0 || amountNumber > currentBalance) {
-      return "Oh, you don’t have enough funds";
-    }
-
-    if (amountNumber < MIN_KAS_AMOUNT) {
-      return "Oh, the minimum sending amount has to be greater than 0.2 KAS";
-    }
-
-    if (amountNumber + accountMinimumFees > currentBalance) {
-      return "Oh, you don't have enough funds to cover the estimated fees";
-    }
-
-    return true;
-  };
+  const currentBalance = tokenBalanceFloat;
 
   const tokenAmountValidator = async (value: string | undefined) => {
     const amountNumber = parseFloat(value ?? "0");
@@ -149,7 +109,7 @@ export const DetailsStep = ({
     const genericErrorMessage = "Invalid address or KNS domain";
     if (!value) return undefined;
 
-    if (!isKasTransfer && value === account?.address) {
+    if (value === account?.address) {
       return "You cannot send KRC20 to yourself";
     }
 
@@ -194,9 +154,7 @@ export const DetailsStep = ({
       return;
     }
 
-    const maxAmount = isKasTransfer
-      ? currentBalance - accountMinimumFees
-      : currentBalance;
+    const maxAmount = currentBalance;
 
     setValue("amount", maxAmount > 0 ? maxAmount.toFixed(8) : "0", {
       shouldValidate: true,
@@ -204,43 +162,28 @@ export const DetailsStep = ({
   };
 
   const navigateToNextStep = () =>
-    isKasTransfer
-      ? onNext()
-      : navigate(
-          {
-            pathname: "/token-transfer",
-          },
-          {
-            state: {
-              ticker,
-              amount,
-              to: address,
-              domain,
-            },
-          },
-        );
+    navigate(
+      {
+        pathname: "/token-transfer",
+      },
+      {
+        state: {
+          amount,
+          to: address,
+          domain,
+        },
+      },
+    );
 
   const onImageError = () => {
     setImageUrl(kasIcon);
   };
 
   useEffect(() => {
-    if (isKasTransfer) {
-      setImageUrl(kasIcon);
-      return;
-    }
-
     if (tokenMetadata?.iconUrl) {
       setImageUrl(tokenMetadata.iconUrl);
     }
   }, [tokenMetadata?.iconUrl]);
-
-  // Fetch account minimum fees
-  useEffect(() => {
-    if (rpcClient && account) {
-      getMinimumFee(addresses).then(setAccountMinimumFees);
-    }
-  }, [rpcClient, account]);
 
   // Update USD amount
   useEffect(() => {
@@ -271,10 +214,6 @@ export const DetailsStep = ({
   }, [userInput]);
 
   useEffect(() => {
-    trigger("userInput");
-  }, [ticker]);
-
-  useEffect(() => {
     const selectedPriorityFee = (() => {
       if (priority === "low") {
         return (
@@ -299,7 +238,7 @@ export const DetailsStep = ({
 
   return (
     <>
-      <Header title="Send" onClose={onClose} onBack={onBack} />
+      <Header title="Send" onClose={onClose} onBack={onClose} />
       <div className="flex h-full flex-col gap-4">
         <div className="flex items-center justify-between">
           <label className="text-base font-medium">Send to ...</label>
@@ -402,9 +341,7 @@ export const DetailsStep = ({
               <input
                 {...register("amount", {
                   required: true,
-                  validate: isKasTransfer
-                    ? amountValidator
-                    : tokenAmountValidator,
+                  validate: tokenAmountValidator,
                   onChange: (event) => {
                     const [int, dec] = event.target.value.split(".");
 
@@ -477,13 +414,7 @@ export const DetailsStep = ({
 
         {/* Fee segment */}
         <div className="flex items-center justify-between gap-2 text-sm">
-          <button
-            className={twMerge(
-              "relative flex items-center gap-2",
-              !isKasTransfer && "cursor-default",
-            )}
-            onClick={isKasTransfer ? openPriorityFeeSelection : undefined}
-          >
+          <button className="relative flex cursor-default items-center gap-2">
             {mempoolCongestionLevel === "medium" && (
               <span className="absolute -end-1 top-0 -me-1.5 -mt-1.5 flex size-2">
                 <span className="absolute inline-flex size-full animate-ping rounded-full bg-[#E9B306] opacity-75"></span>
@@ -498,24 +429,19 @@ export const DetailsStep = ({
             )}
             <span>Fee</span>
             <i
-              className={twMerge(
-                "hn hn-cog text-[16px]",
-                !isKasTransfer && "text-[#4B5563]",
-              )}
+              className="hn hn-cog text-[16px] text-[#4B5563]"
               data-tooltip-id="fee-tooltip"
               data-tooltip-content="KRC20 fees are handled automatically by Kastle."
             ></i>
-            {!isKasTransfer && (
-              <Tooltip
-                id="fee-tooltip"
-                style={{
-                  backgroundColor: "#374151",
-                  fontSize: "12px",
-                  fontWeight: 600,
-                  padding: "2px 8px",
-                }}
-              />
-            )}
+            <Tooltip
+              id="fee-tooltip"
+              style={{
+                backgroundColor: "#374151",
+                fontSize: "12px",
+                fontWeight: 600,
+                padding: "2px 8px",
+              }}
+            />
           </button>
           <div className="flex items-center gap-2">
             <Tooltip
@@ -534,12 +460,7 @@ export const DetailsStep = ({
             ></i>
 
             <span>Estimated</span>
-            <span>
-              {isKasTransfer
-                ? sompiToKaspaString(priorityFee)
-                : computeOperationFees("transfer").totalFees}{" "}
-              KAS
-            </span>
+            <span>{computeOperationFees("transfer").totalFees} KAS</span>
           </div>
         </div>
 
@@ -554,14 +475,14 @@ export const DetailsStep = ({
         </div>
       </div>
 
-      <TickerSelect
+      <TokenSelect
         isShown={isTokenSelectShown}
         toggleShow={toggleTokenSelect}
       />
 
       <PriorityFeeSelection
-        isPriorityFeeSelectionOpen={isPriorityFeeSelectionOpen}
-        closePriorityFeeSelection={closePriorityFeeSelection}
+        isPriorityFeeSelectionOpen={false}
+        closePriorityFeeSelection={() => {}}
       />
     </>
   );

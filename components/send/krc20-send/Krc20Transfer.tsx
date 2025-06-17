@@ -3,21 +3,22 @@ import { FormProvider, useForm } from "react-hook-form";
 import { SuccessStatus } from "@/components/send/SuccessStatus.tsx";
 import { FailStatus } from "@/components/send/FailStatus.tsx";
 import React from "react";
-import { ConfirmTokenOperationStep } from "@/components/token-operation/ConfirmTokenOperationStep.tsx";
-import BroadcastTokenOperationStep from "@/components/token-operation/BroadcastTokenOperationStep.tsx";
+import { ConfirmTokenOperationStep } from "@/components/send/krc20-send/ConfirmTokenOperationStep";
+import BroadcastTokenOperationStep from "@/components/send/krc20-send/BroadcastTokenOperationStep";
 import { setPopupPath } from "@/lib/utils.ts";
 import { useTokenInfo } from "@/hooks/kasplex/useTokenInfo";
 import { applyDecimal } from "@/lib/krc20.ts";
 import { useLocation } from "react-router";
 
-type Step = "confirm" | "broadcast" | "success" | "fail";
+const steps = ["confirm", "broadcast", "success", "fail"] as const;
+type Step = (typeof steps)[number];
 
 export interface TokenOperationFormData {
   opData: { op: string; tick: string; amt: string; to: string };
   domain: string;
 }
 
-export default function TokenTransfer() {
+export default function Krc20Transfer() {
   const navigate = useNavigate();
   const { state } = useLocation();
   const { ticker, amount, to, domain } = state as {
@@ -56,7 +57,8 @@ export default function TokenTransfer() {
     });
   }, [isLoading]);
 
-  const onBack = () => navigate({ pathname: "/send" }, { state });
+  const onBack = () =>
+    navigate({ pathname: `/krc-20/send/${ticker}` }, { state });
 
   return (
     <div className="flex h-full flex-col p-4 text-white">

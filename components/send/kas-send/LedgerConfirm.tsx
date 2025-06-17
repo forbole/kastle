@@ -1,32 +1,42 @@
 import { useEffect, useState } from "react";
 import { AccountFactory } from "@/lib/wallet/wallet-factory";
-import { ConfirmStep } from "@/components/send/ConfirmStep";
+import { ConfirmStep } from "@/components/send/kas-send/ConfirmStep";
 import { IWallet } from "@/lib/wallet/wallet-interface";
 import useWalletManager from "@/hooks/useWalletManager.ts";
-import useKeyring from "@/hooks/useKeyring";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
+import useLedgerTransport from "@/hooks/useLedgerTransport";
+import LedgerConnectForSign from "@/components/screens/ledger-connect/LedgerConnectForSign";
+import { useNavigate } from "react-router-dom";
 
-type HotWalletConfirmProps = {
+type LedgerConfirmProps = {
   onNext: () => void;
   onBack: () => void;
   setOutTxs: (value: string[] | undefined) => void;
   onFail: () => void;
 };
 
-export default function HotWalletConfirm({
+export default function LedgerConfirm({
   onNext,
   onBack,
   setOutTxs,
   onFail,
-}: HotWalletConfirmProps) {
+}: LedgerConfirmProps) {
+  const navigate = useNavigate();
+
   const { rpcClient, networkId } = useRpcClientStateful();
   const [walletSigner, setWalletSigner] = useState<IWallet>();
-  const { getWalletSecret } = useKeyring();
   const { walletSettings } = useWalletManager();
+  const { transport, isAppOpen } = useLedgerTransport();
 
   // Build wallet signer
   useEffect(() => {
-    if (!walletSettings || !rpcClient || !networkId) {
+    if (
+      !walletSettings ||
+      !rpcClient ||
+      !networkId ||
+      !transport ||
+      !isAppOpen
+    ) {
       return;
     }
 
@@ -36,33 +46,40 @@ export default function HotWalletConfirm({
         return;
       }
 
-      const { walletSecret: secret } = await getWalletSecret({
-        walletId: walletSettings.selectedWalletId,
-      });
       const accountFactory = new AccountFactory(rpcClient, networkId);
       const accountIndex = walletSettings?.selectedAccountIndex;
       if (accountIndex === null || accountIndex === undefined) {
         throw new Error("No account selected");
       }
 
-      const signer =
-        secret.type === "mnemonic"
-          ? accountFactory.createFromMnemonic(secret.value, accountIndex)
-          : accountFactory.createFromPrivateKey(secret.value);
+      const signer = accountFactory.createFromLedger(transport, accountIndex);
 
       setWalletSigner(signer);
     };
 
     buildWallet();
-  }, [walletSettings, rpcClient, networkId]);
+  }, [walletSettings, rpcClient, networkId, transport, isAppOpen]);
 
   return (
-    <ConfirmStep
-      onNext={onNext}
-      setOutTxs={setOutTxs}
-      onFail={onFail}
-      onBack={onBack}
-      walletSigner={walletSigner}
-    />
+    <>
+      {(!transport || !isAppOpen) && (
+        <LedgerConnectForSign
+          onBack={onBack}
+          onClose={() => {
+            navigate("/dashboard");
+          }}
+        />
+      )}
+
+      {transport && isAppOpen && (
+        <ConfirmStep
+          onNext={onNext}
+          setOutTxs={setOutTxs}
+          onFail={onFail}
+          onBack={onBack}
+          walletSigner={walletSigner}
+        />
+      )}
+    </>
   );
 }

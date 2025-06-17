@@ -1,5 +1,5 @@
 import { useFormContext } from "react-hook-form";
-import { SendFormData } from "@/components/screens/Send.tsx";
+import { KasSendForm } from "@/components/send/kas-send/KasSend";
 import React, { useState } from "react";
 import signImage from "@/assets/images/sign.png";
 import ledgerSignImage from "@/assets/images/ledger-on-sign.svg";
@@ -35,7 +35,7 @@ export const ConfirmStep = ({
   const [isSigning, setIsSigning] = useState(false);
 
   const { wallet } = useWalletManager();
-  const { watch } = useFormContext<SendFormData>();
+  const { watch } = useFormContext<KasSendForm>();
   const { address, amount, domain, priorityFee } = watch();
   const kaspaPrice = useKaspaPrice();
   const amountNumber = parseFloat(amount ?? "0");

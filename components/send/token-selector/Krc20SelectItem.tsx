@@ -7,17 +7,17 @@ import { useTokenMetadata } from "@/hooks/kasplex/useTokenMetadata";
 import { useTokenInfo } from "@/hooks/kasplex/useTokenInfo";
 import { walletAddressEllipsis } from "@/lib/utils";
 
-interface TokenSelectItemProps {
+interface KRC20SelectItemProps {
   token: TokenItem;
   selectToken: (tokenId: string) => void;
   supported?: boolean;
 }
 
-export default function TickerSelectItem({
+export default function KRC20SelectItem({
   token,
   selectToken,
   supported = true,
-}: TokenSelectItemProps) {
+}: KRC20SelectItemProps) {
   const { data: tokenMetadata } = useTokenMetadata(token.id);
   const [imageUrl, setImageUrl] = useState(kasIcon);
   const { toFloat } = applyDecimal(token.dec);

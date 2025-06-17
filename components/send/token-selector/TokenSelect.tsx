@@ -2,19 +2,15 @@ import { twMerge } from "tailwind-merge";
 import React from "react";
 import { useTokenListByAddress } from "@/hooks/kasplex/useTokenListByAddress";
 import { applyDecimal } from "@/lib/krc20.ts";
-import TickerSelectItem from "@/components/send/TickerSelectItem.tsx";
+import Krc20SelectItem from "@/components/send/token-selector/Krc20SelectItem";
 import kasIcon from "@/assets/images/kas-icon.svg";
 import { formatToken } from "@/lib/utils.ts";
-import { useFormContext } from "react-hook-form";
-import { SendFormData } from "@/components/screens/Send.tsx";
+import { useNavigate } from "react-router-dom";
 
-type TickerSelectProps = { isShown: boolean; toggleShow: () => void };
+type TokenSelectProps = { isShown: boolean; toggleShow: () => void };
 
-export default function TickerSelect({
-  isShown,
-  toggleShow,
-}: TickerSelectProps) {
-  const { setValue } = useFormContext<SendFormData>();
+export default function TokenSelect({ isShown, toggleShow }: TokenSelectProps) {
+  const navigate = useNavigate();
   const { wallet, account } = useWalletManager();
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -41,8 +37,12 @@ export default function TickerSelect({
       );
     });
 
-  const selectToken = async (tokenId: string) => {
-    setValue("ticker", tokenId, { shouldValidate: true });
+  const selectToken = async (type: string, tokenId?: string) => {
+    if (type === "kas") {
+      navigate("/send/kas");
+    } else {
+      navigate(`/krc-20/send/${tokenId}`);
+    }
     toggleShow();
   };
 
@@ -99,10 +99,10 @@ export default function TickerSelect({
           )}
 
           {tokens?.map((token) => (
-            <TickerSelectItem
+            <Krc20SelectItem
               key={token.id}
               token={token}
-              selectToken={selectToken}
+              selectToken={(tokenId) => selectToken("krc20", tokenId)}
               supported={!isLedger}
             />
           ))}

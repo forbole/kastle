@@ -4,8 +4,8 @@ import React from "react";
 import warningImage from "@/assets/images/warning.png";
 import Header from "@/components/GeneralHeader";
 import { useFormContext } from "react-hook-form";
-import { SendFormData } from "@/components/screens/Send.tsx";
-import { TokenOperationFormData } from "@/components/screens/TokenTransfer.tsx";
+import { KasSendForm } from "@/components/send/kas-send/KasSend";
+import { TokenOperationFormData } from "@/components/send/krc20-send/Krc20Transfer";
 import { NetworkType } from "@/contexts/SettingsContext.tsx"; // Types for props
 
 // Types for props
@@ -15,7 +15,7 @@ interface FailProps {
 
 export const FailStatus = ({ transactionIds }: FailProps) => {
   const navigate = useNavigate();
-  const { watch } = useFormContext<SendFormData | TokenOperationFormData>();
+  const { watch } = useFormContext<KasSendForm | TokenOperationFormData>();
   const { networkId } = useRpcClientStateful();
   const formFields = watch();
 
