@@ -77,7 +77,7 @@ export const Krc20SendDetails = () => {
       : undefined,
   );
   const { data: tokenInfoResponse } = useTokenInfo(ticker);
-  const tokenName = tokenInfoResponse?.result?.[0]?.name ?? "Unknown";
+  const tokenName = tokenInfoResponse?.result?.[0]?.name ?? ticker;
 
   const tokenBalance = tokenBalanceResponse?.result?.[0];
   const { toFloat } = applyDecimal(tokenBalance?.dec);
@@ -168,6 +168,7 @@ export const Krc20SendDetails = () => {
       },
       {
         state: {
+          ticker,
           amount,
           to: address,
           domain,
@@ -307,7 +308,7 @@ export const Krc20SendDetails = () => {
           <div className="flex items-center gap-3 text-sm">
             <span className="font-semibold">Balance</span>
             <span className="flex-grow">
-              {formatToken(currentBalance)} {tokenName.toUpperCase()}
+              {formatToken(currentBalance)} {tokenName?.toUpperCase()}
             </span>
             <button
               className="inline-flex items-center gap-x-2 rounded border border-transparent bg-icy-blue-400 px-3 py-2 text-sm text-white disabled:pointer-events-none disabled:opacity-50"
@@ -335,7 +336,7 @@ export const Krc20SendDetails = () => {
                   src={imageUrl}
                   onError={onImageError}
                 />
-                {tokenName.toUpperCase()}
+                {tokenName?.toUpperCase()}
                 <i className="hn hn-chevron-down h-[16px] w-[16px]"></i>
               </button>
               <input

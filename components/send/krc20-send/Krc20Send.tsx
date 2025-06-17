@@ -15,10 +15,22 @@ export const krc20SendFormSchema = z.object({
 export type KRC20SendForm = z.infer<typeof krc20SendFormSchema>;
 
 export function Krc20Send() {
-  const form = useForm<KRC20SendForm>({});
+  const form = useForm<KRC20SendForm>({
+    defaultValues: {
+      userInput: "",
+      address: "",
+      amount: "",
+      amountFiat: "",
+      domain: "",
+      priority: "medium",
+      priorityFee: 0n,
+    },
+  });
   return (
-    <FormProvider {...form}>
-      <Krc20SendDetails />
-    </FormProvider>
+    <div className="relative h-screen p-4 flex flex-col">
+      <FormProvider {...form}>
+        <Krc20SendDetails />
+      </FormProvider>
+    </div>
   );
 }
