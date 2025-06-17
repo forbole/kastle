@@ -2,8 +2,9 @@ import { ApiRequestWithHost } from "@/api/message";
 import { ApiUtils } from "@/api/background/utils";
 import { kairos } from "viem/chains";
 import { createPublicClient, http } from "viem";
-import { RpcRequestSchema, RPC_ERRORS, RpcErrorSchema } from "@/api/message";
+import { RpcRequestSchema, RPC_ERRORS } from "@/api/message";
 import { handleViemError } from "@/lib/errors";
+import { ALL_SUPPORTED_EVM_L2_CHAINS } from "@/lib/layer2";
 
 export const PUBLIC_CLIENT_METHODS = new Set([
   "eth_blockNumber",
@@ -48,9 +49,23 @@ export const publicClientHandler = async (
   const { payload } = message;
   const request = RpcRequestSchema.parse(payload);
 
-  // TODO: provide chain selecting in the future
+  const settings = await ApiUtils.getSettings();
+  const evmChainId = settings.evmL2ChainId?.[settings.networkId];
+
+  const chain = ALL_SUPPORTED_EVM_L2_CHAINS.find((c) => c.id === evmChainId);
+  if (!chain) {
+    sendResponse(
+      ApiUtils.createApiResponse(
+        message.id,
+        null,
+        RPC_ERRORS.UNSUPPORTED_CHAIN,
+      ),
+    );
+    return;
+  }
+
   const publicClient = createPublicClient({
-    chain: kairos,
+    chain,
     transport: http(),
   });
 
