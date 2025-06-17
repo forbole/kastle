@@ -39,7 +39,7 @@ export default function TokenSelect({ isShown, toggleShow }: TokenSelectProps) {
 
   const selectToken = async (type: string, tokenId?: string) => {
     if (type === "kas") {
-      navigate("/send/kas");
+      navigate("/kas/send");
     } else {
       navigate(`/krc-20/send/${tokenId}`);
     }

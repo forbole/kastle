@@ -194,7 +194,6 @@ export const router = createHashRouter([
                 element: <Outlet />,
                 loader: keyringGuard,
                 children: [
-                  { path: "send", element: <KasSend /> },
                   { path: "token-transfer", element: <Krc20Transfer /> },
                   { path: "kas/send", element: <KasSend /> },
                   { path: "krc-20/send/:tick", element: <Krc20Send /> },
