@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.23.0](https://github.com/forbole/kastle/compare/v2.22.0...v2.23.0) (2025-06-18)
+
+
+### Features
+
+* **evm-api:** implement chain selection for public client ([#150](https://github.com/forbole/kastle/issues/150)) ([d85749e](https://github.com/forbole/kastle/commit/d85749e4551326cb23e191bdafc80b9182882675))
+* improve content script ([#154](https://github.com/forbole/kastle/issues/154)) ([9281639](https://github.com/forbole/kastle/commit/9281639dbc9d1b5e8eab80cc55174e8475f1feca))
+* improve content script injection performance for injected script ([#156](https://github.com/forbole/kastle/issues/156)) ([a7cb73c](https://github.com/forbole/kastle/commit/a7cb73ca0ad03537d3b61f6e93ba5040cc41baf1))
+* migrate key derivation to Argon2id for improved security and performance ([#145](https://github.com/forbole/kastle/issues/145)) ([d96f808](https://github.com/forbole/kastle/commit/d96f8087720f307859d6e730dc5b1e60f3cf4164))
+
+
+### Bug Fixes
+
+* **api:** ensure sending user denied message when close the popup window ([#155](https://github.com/forbole/kastle/issues/155)) ([187c4bf](https://github.com/forbole/kastle/commit/187c4bf78f7cb265863d769ba6f4a7be5a7d98a8))
+
 ## [2.22.0](https://github.com/forbole/kastle/compare/v2.21.0...v2.22.0) (2025-06-16)
 
 
