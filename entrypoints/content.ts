@@ -45,8 +45,6 @@ export default defineContentScript({
     });
 
     // Inject the script that will add the window.kastle object
-    injectScript("/injected.js", {
-      keepInDom: true,
-    });
+    injectScript("/injected.js");
   },
 });
