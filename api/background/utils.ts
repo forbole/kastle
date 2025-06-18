@@ -175,18 +175,19 @@ export class ApiUtils {
       browser.runtime.onMessage.addListener(receiveListener);
     });
 
-    const result = await Promise.race([onClosePromise, onMessagePromise]);
+    try {
+      const result = await Promise.race([onClosePromise, onMessagePromise]);
+      return result;
+    } finally {
+      // Ensure the listeners and timeout are cleaned up
+      if (onRemovedListener)
+        browser.windows.onRemoved.removeListener(onRemovedListener);
 
-    // Ensure the listeners and timeout are cleaned up
-    if (onRemovedListener)
-      browser.windows.onRemoved.removeListener(onRemovedListener);
+      if (receiveListener)
+        browser.runtime.onMessage.removeListener(receiveListener);
 
-    if (receiveListener)
-      browser.runtime.onMessage.removeListener(receiveListener);
-
-    if (receiveTimeout) clearTimeout(receiveTimeout);
-
-    return result;
+      if (receiveTimeout) clearTimeout(receiveTimeout);
+    }
   }
 }
 
