@@ -20,6 +20,7 @@ export default defineConfig({
     externally_connectable: {
       matches: ["*://*/*"],
     },
+    run_at: "document_start",
   },
   runner: {
     startUrls: ["https://forbole.github.io/kastle/"],
