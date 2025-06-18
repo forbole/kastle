@@ -8,18 +8,6 @@ import { ApiUtils } from "@/api/background/utils";
 export default defineContentScript({
   matches: ["*://*/*"],
   main() {
-    // Emit the kastle_installed event to the page to notify that the extension is installed
-    window.postMessage(
-      ApiUtils.createApiResponse("kastle_installed", []),
-      window.location.origin,
-    );
-
-    new EthereumAccountsChangedListener().start();
-    new EthereumChainChangedListener().start();
-
-    watchSettingsUpdated();
-    watchWalletSettingsUpdated();
-
     // Listen for messages from the browser
     window.addEventListener("message", async (event: MessageEvent<unknown>) => {
       const message = event.data;
@@ -45,8 +33,18 @@ export default defineContentScript({
     });
 
     // Inject the script that will add the window.kastle object
-    injectScript("/injected.js", {
-      keepInDom: true,
-    });
+    injectScript("/injected.js");
+
+    // Emit the kastle_installed event to the page to notify that the extension is installed
+    window.postMessage(
+      ApiUtils.createApiResponse("kastle_installed", []),
+      window.location.origin,
+    );
+
+    new EthereumAccountsChangedListener().start();
+    new EthereumChainChangedListener().start();
+
+    watchSettingsUpdated();
+    watchWalletSettingsUpdated();
   },
 });
