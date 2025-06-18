@@ -1,5 +1,4 @@
 import { Buffer } from "buffer";
-import { argon2id } from "hash-wasm";
 
 const ALLOWED_KEYS = ["wallets"] as const;
 
@@ -11,27 +10,12 @@ interface EncryptedData {
   data: string;
 }
 
-interface KeyDerivationInfo {
-  method: "pbkdf2" | "argon2id";
-  salt: string;
-}
-
 // Crypto configuration
 const ALGORITHM = "AES-GCM";
 const KEY_LENGTH = 256;
 const VERIFICATION_KEY = "verification";
 export const KEYRING_CHANGE_TIME = "KEYRING_CHANGE_TIME";
 const VERIFICATION_VALUE = "keyring-verification-value";
-
-// PBKDF2 configuration
-const PBKDF2_ITERATIONS = 100000;
-const PBKDF2_SALT_LENGTH = 16;
-
-// Argon2id configuration
-const ARGON2ID_MEMORY_COST = 64 * 1024; // 64 MiB in KB
-const ARGON2ID_TIME_COST = 3;
-const ARGON2ID_OUTPUT_LENGTH = 32; // bytes
-const ARGON2ID_SALT_LENGTH = 32; // bytes
 
 export class Keyring {
   private masterKey: CryptoKey | null = null;
@@ -61,22 +45,13 @@ export class Keyring {
       throw new Error("Keyring is already initialized");
     }
 
-    // Use Argon2id for new users
-    const method = "argon2id";
-    const salt = this.generateSalt(method);
-
-    // Store key derivation info
-    const keyDerivationInfo: KeyDerivationInfo = {
-      method,
-      salt: Buffer.from(salt).toString("base64"),
-    };
-
+    const salt = this.generateSalt();
     await storage.setItem(
-      `local:${this.namespace}:keyDerivationInfo`,
-      keyDerivationInfo,
+      `local:${this.namespace}:salt`,
+      Buffer.from(salt).toString("base64"),
     );
 
-    const key = await this.deriveKey(password, salt, method);
+    const key = await this.deriveKey(password, salt);
     await this.storeVerificationValue(key);
 
     this.masterKey = key;
@@ -84,32 +59,15 @@ export class Keyring {
   }
 
   async unlock(password: string): Promise<boolean> {
-    // Try to get key derivation info first (for new users)
-    const keyDerivationInfo = await storage.getItem<KeyDerivationInfo>(
-      `local:${this.namespace}:keyDerivationInfo`,
+    const saltBase64 = await storage.getItem<string>(
+      `local:${this.namespace}:salt`,
     );
-
-    let method: "pbkdf2" | "argon2id";
-    let salt: Uint8Array;
-
-    if (keyDerivationInfo) {
-      // New user with Argon2id
-      method = keyDerivationInfo.method;
-      salt = Buffer.from(keyDerivationInfo.salt, "base64");
-    } else {
-      // Legacy user with PBKDF2
-      const saltBase64 = await storage.getItem<string>(
-        `local:${this.namespace}:salt`,
-      );
-      if (!saltBase64) {
-        throw new Error("Keyring is not initialized");
-      }
-
-      method = "pbkdf2";
-      salt = Buffer.from(saltBase64, "base64");
+    if (!saltBase64) {
+      throw new Error("Keyring is not initialized");
     }
 
-    const key = await this.deriveKey(password, salt, method);
+    const salt = Buffer.from(saltBase64, "base64");
+    const key = await this.deriveKey(password, salt);
 
     const isValid = await this.verifyKey(key);
     if (!isValid) {
@@ -119,12 +77,6 @@ export class Keyring {
 
     this.masterKey = key;
     await this.updateWalletChangeTime();
-
-    // If using legacy PBKDF2, migrate to Argon2id
-    if (method === "pbkdf2") {
-      await this.migrateToArgon2id(password);
-    }
-
     return true;
   }
 
@@ -194,32 +146,16 @@ export class Keyring {
   }
 
   async checkPassword(currentPassword: string) {
-    // Try to get key derivation info first (for new users)
-    const keyDerivationInfo = await storage.getItem<KeyDerivationInfo>(
-      `local:${this.namespace}:keyDerivationInfo`,
+    const saltBase64 = await storage.getItem<string>(
+      `local:${this.namespace}:salt`,
     );
-
-    let method: "pbkdf2" | "argon2id";
-    let salt: Uint8Array;
-
-    if (keyDerivationInfo) {
-      // New user with Argon2id
-      method = keyDerivationInfo.method;
-      salt = Buffer.from(keyDerivationInfo.salt, "base64");
-    } else {
-      // Legacy user with PBKDF2
-      const saltBase64 = await storage.getItem<string>(
-        `local:${this.namespace}:salt`,
-      );
-      if (!saltBase64) {
-        throw new Error("Keyring is not initialized");
-      }
-
-      method = "pbkdf2";
-      salt = Buffer.from(saltBase64, "base64");
+    if (!saltBase64) {
+      throw new Error("Keyring is not initialized");
     }
 
-    const key = await this.deriveKey(currentPassword, salt, method);
+    const salt = Buffer.from(saltBase64, "base64");
+    const key = await this.deriveKey(currentPassword, salt);
+
     return await this.verifyKey(key);
   }
 
@@ -227,32 +163,15 @@ export class Keyring {
     currentPassword: string,
     newPassword: string,
   ): Promise<boolean> {
-    // Try to get key derivation info first (for new users)
-    const keyDerivationInfo = await storage.getItem<KeyDerivationInfo>(
-      `local:${this.namespace}:keyDerivationInfo`,
+    const saltBase64 = await storage.getItem<string>(
+      `local:${this.namespace}:salt`,
     );
-
-    let method: "pbkdf2" | "argon2id";
-    let oldSalt: Uint8Array;
-
-    if (keyDerivationInfo) {
-      // New user with Argon2id
-      method = keyDerivationInfo.method;
-      oldSalt = Buffer.from(keyDerivationInfo.salt, "base64");
-    } else {
-      // Legacy user with PBKDF2
-      const saltBase64 = await storage.getItem<string>(
-        `local:${this.namespace}:salt`,
-      );
-      if (!saltBase64) {
-        throw new Error("Keyring is not initialized");
-      }
-
-      method = "pbkdf2";
-      oldSalt = Buffer.from(saltBase64, "base64");
+    if (!saltBase64) {
+      throw new Error("Keyring is not initialized");
     }
 
-    const oldKey = await this.deriveKey(currentPassword, oldSalt, method);
+    const oldSalt = Buffer.from(saltBase64, "base64");
+    const oldKey = await this.deriveKey(currentPassword, oldSalt);
 
     // Verify the old password
     const isValid = await this.verifyKey(oldKey);
@@ -260,10 +179,9 @@ export class Keyring {
       return false;
     }
 
-    // Generate new salt and key with Argon2id
-    const newMethod = "argon2id";
-    const newSalt = this.generateSalt(newMethod);
-    const newKey = await this.deriveKey(newPassword, newSalt, newMethod);
+    // Generate new salt and key
+    const newSalt = this.generateSalt();
+    const newKey = await this.deriveKey(newPassword, newSalt);
 
     // Get all current data
     const keys = this.listKeys();
@@ -274,15 +192,10 @@ export class Keyring {
       }),
     );
 
-    // Store new key derivation info
-    const newKeyDerivationInfo: KeyDerivationInfo = {
-      method: newMethod,
-      salt: Buffer.from(newSalt).toString("base64"),
-    };
-
+    // Store new salt
     await storage.setItem(
-      `local:${this.namespace}:keyDerivationInfo`,
-      newKeyDerivationInfo,
+      `local:${this.namespace}:salt`,
+      Buffer.from(newSalt).toString("base64"),
     );
 
     // Update master key and re-encrypt all data
@@ -298,11 +211,6 @@ export class Keyring {
     // Update verification value
     await this.storeVerificationValue(newKey);
 
-    // Remove old salt if it exists (for legacy users)
-    if (method === "pbkdf2") {
-      await storage.removeItem(`local:${this.namespace}:salt`);
-    }
-
     return true;
   }
 
@@ -311,7 +219,6 @@ export class Keyring {
     await Promise.all([
       ...keys.map((key) => this.removeValue(key)),
       storage.removeItem(`local:${this.namespace}:salt`),
-      storage.removeItem(`local:${this.namespace}:keyDerivationInfo`),
       storage.removeItem(`local:${this.namespace}:${VERIFICATION_KEY}`),
     ]);
 
@@ -319,61 +226,15 @@ export class Keyring {
     await this.updateWalletChangeTime();
   }
 
-  private async migrateToArgon2id(password: string): Promise<void> {
-    // Get all current data
-    const keys = this.listKeys();
-    const dataToMigrate = await Promise.all(
-      keys.map(async (key) => {
-        const data = await this.getValue(key);
-        return data ? { key, value: data } : null;
-      }),
-    );
-
-    // Generate new salt and key with Argon2id
-    const newMethod = "argon2id";
-    const newSalt = this.generateSalt(newMethod);
-    const newKey = await this.deriveKey(password, newSalt, newMethod);
-
-    // Store new key derivation info
-    const keyDerivationInfo: KeyDerivationInfo = {
-      method: newMethod,
-      salt: Buffer.from(newSalt).toString("base64"),
-    };
-
-    await storage.setItem(
-      `local:${this.namespace}:keyDerivationInfo`,
-      keyDerivationInfo,
-    );
-
-    // Update master key
-    this.masterKey = newKey;
-
-    // Re-encrypt all data with the new key
-    await Promise.all(
-      dataToMigrate.map(async (item) => {
-        if (!item) return;
-        await this.setValue(item.key, item.value);
-      }),
-    );
-
-    // Update verification value
-    await this.storeVerificationValue(newKey);
-
-    // Remove old salt
-    await storage.removeItem(`local:${this.namespace}:salt`);
-  }
-
   private generateIV(): Uint8Array {
     return crypto.getRandomValues(new Uint8Array(12));
   }
 
-  private generateSalt(method: "pbkdf2" | "argon2id" = "argon2id"): Uint8Array {
-    const length =
-      method === "pbkdf2" ? PBKDF2_SALT_LENGTH : ARGON2ID_SALT_LENGTH;
-    return crypto.getRandomValues(new Uint8Array(length));
+  private generateSalt(): Uint8Array {
+    return crypto.getRandomValues(new Uint8Array(16));
   }
 
-  private async deriveKeyPBKDF2(
+  private async deriveKey(
     password: string,
     salt: Uint8Array,
   ): Promise<CryptoKey> {
@@ -392,7 +253,7 @@ export class Keyring {
       {
         name: "PBKDF2",
         salt,
-        iterations: PBKDF2_ITERATIONS,
+        iterations: 100000,
         hash: "SHA-256",
       },
       keyMaterial,
@@ -403,46 +264,6 @@ export class Keyring {
       false,
       ["encrypt", "decrypt"],
     );
-  }
-
-  private async deriveKeyArgon2id(
-    password: string,
-    salt: Uint8Array,
-  ): Promise<CryptoKey> {
-    // Use argon2id to derive a key
-    const keyBytes = await argon2id({
-      password,
-      salt: Buffer.from(salt).toString("hex"),
-      parallelism: 1,
-      iterations: ARGON2ID_TIME_COST,
-      memorySize: ARGON2ID_MEMORY_COST,
-      hashLength: ARGON2ID_OUTPUT_LENGTH,
-      outputType: "binary",
-    });
-
-    // Import the derived key for use with AES-GCM
-    return crypto.subtle.importKey(
-      "raw",
-      keyBytes,
-      {
-        name: ALGORITHM,
-        length: KEY_LENGTH,
-      },
-      false,
-      ["encrypt", "decrypt"],
-    );
-  }
-
-  private async deriveKey(
-    password: string,
-    salt: Uint8Array,
-    method: "pbkdf2" | "argon2id" = "pbkdf2",
-  ): Promise<CryptoKey> {
-    if (method === "argon2id") {
-      return this.deriveKeyArgon2id(password, salt);
-    } else {
-      return this.deriveKeyPBKDF2(password, salt);
-    }
   }
 
   private async storeVerificationValue(key: CryptoKey): Promise<void> {
