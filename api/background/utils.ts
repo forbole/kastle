@@ -20,7 +20,7 @@ import { kasplexTestnet } from "@/lib/layer2";
 
 export class ApiUtils {
   static openPopup(tabId: number, url: string) {
-    browser.windows.create({
+    return browser.windows.create({
       tabId,
       type: "popup",
       url,
@@ -128,19 +128,35 @@ export class ApiUtils {
     });
   }
 
-  static async receiveExtensionMessage(
-    id: string,
+  static async openPopupAndListenForResponse(
+    requestId: string,
+    url: string,
+    tabId: number,
     timeout = 60_000, // 1 minute
-  ): Promise<unknown> {
-    return new Promise<unknown>((resolve, reject) => {
-      const listener = (message: unknown) => {
+  ) {
+    const popup = await this.openPopup(tabId, url);
+    let onRemovedListener: ((windowId: number) => void) | null = null;
+    let receiveListener: ((message: unknown) => void) | null = null;
+    let receiveTimeout: NodeJS.Timeout | null = null;
+
+    const onClosePromise = new Promise((resolve, _) => {
+      onRemovedListener = (windowId: number) => {
+        if (windowId === popup.id) {
+          resolve(this.createApiResponse(requestId, null, "User denied"));
+        }
+      };
+      browser.windows.onRemoved.addListener(onRemovedListener);
+    });
+
+    const onMessagePromise = new Promise((resolve, reject) => {
+      receiveListener = (message: unknown) => {
         const result = ApiExtensionResponseSchema.safeParse(message);
         if (!result.success) {
           return;
         }
 
         const parsedMessage = result.data;
-        if (parsedMessage.id !== id) {
+        if (parsedMessage.id !== requestId) {
           return;
         }
 
@@ -149,17 +165,29 @@ export class ApiUtils {
           return;
         }
 
-        browser.runtime.onMessage.removeListener(listener);
         resolve(parsedMessage.response);
       };
 
-      browser.runtime.onMessage.addListener(listener);
-
-      setTimeout(() => {
-        browser.runtime.onMessage.removeListener(listener);
+      receiveTimeout = setTimeout(() => {
         reject(RPC_ERRORS.TIMEOUT);
       }, timeout);
+
+      browser.runtime.onMessage.addListener(receiveListener);
     });
+
+    try {
+      const result = await Promise.race([onClosePromise, onMessagePromise]);
+      return result;
+    } finally {
+      // Ensure the listeners and timeout are cleaned up
+      if (onRemovedListener)
+        browser.windows.onRemoved.removeListener(onRemovedListener);
+
+      if (receiveListener)
+        browser.runtime.onMessage.removeListener(receiveListener);
+
+      if (receiveTimeout) clearTimeout(receiveTimeout);
+    }
   }
 }
 

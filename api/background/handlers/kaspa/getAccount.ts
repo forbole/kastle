@@ -1,5 +1,5 @@
 import { ApiUtils, Handler } from "@/api/background/utils";
-import { ApiRequest, ApiRequestWithHost } from "@/api/message";
+import { ApiRequestWithHost } from "@/api/message";
 
 /** getAccount handler to serve BrowserMessageType.GET_ADDRESS message */
 export const getAccountHandler: Handler = async (

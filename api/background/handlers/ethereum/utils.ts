@@ -16,7 +16,7 @@ export const isMatchCurrentAddress = async (address: string) => {
 
 export const isUserDeniedResponse = (response: unknown) => {
   const result = ApiResponseSchema.safeParse(response);
-  return result.success && result.data.error === "User Denied";
+  return result.success && result.data.error === "User denied";
 };
 
 export const TESTNET_SUPPORTED_EVM_L2_CHAINS = [

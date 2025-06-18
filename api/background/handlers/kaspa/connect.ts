@@ -52,8 +52,11 @@ export const connectHandler: Handler = async (
   url.searchParams.set("name", parsedPayload.name);
   url.searchParams.set("icon", parsedPayload.icon ?? "");
 
-  ApiUtils.openPopup(tabId, url.toString());
-
-  const response = await ApiUtils.receiveExtensionMessage(message.id);
+  // Open the popup and wait for the response
+  const response = await ApiUtils.openPopupAndListenForResponse(
+    message.id,
+    url.toString(),
+    tabId,
+  );
   sendResponse(response);
 };

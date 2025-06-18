@@ -63,10 +63,12 @@ export const signMessageHandler = async (
   url.searchParams.set("requestId", message.id);
   url.searchParams.set("payload", encodeURIComponent(parsedPayload));
 
-  ApiUtils.openPopup(tabId, url.toString());
-
-  // Wait for the response from the popup
-  const response = await ApiUtils.receiveExtensionMessage(message.id);
+  // Open the popup and wait for the response
+  const response = await ApiUtils.openPopupAndListenForResponse(
+    message.id,
+    url.toString(),
+    tabId,
+  );
   if (isUserDeniedResponse(response)) {
     sendResponse(
       ApiUtils.createApiResponse(

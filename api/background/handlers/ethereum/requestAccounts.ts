@@ -6,6 +6,7 @@ import {
 } from "@/api/message";
 import { ApiUtils } from "@/api/background/utils";
 import { toEvmAddress } from "@/lib/utils";
+import { isUserDeniedResponse } from "./utils";
 
 export const requestAccountsHandler = async (
   tabId: number,
@@ -25,13 +26,25 @@ export const requestAccountsHandler = async (
     url.searchParams.set("requestId", message.id);
     url.searchParams.set("name", message.host);
 
-    ApiUtils.openPopup(tabId, url.toString());
-
-    const extensionResponse = await ApiUtils.receiveExtensionMessage(
+    // Open the popup and wait for the response
+    const response = await ApiUtils.openPopupAndListenForResponse(
       message.id,
+      url.toString(),
+      tabId,
     );
 
-    const result = ApiResponseSchema.safeParse(extensionResponse);
+    if (isUserDeniedResponse(response)) {
+      sendResponse(
+        ApiUtils.createApiResponse(
+          message.id,
+          null,
+          RPC_ERRORS.USER_REJECTED_REQUEST,
+        ),
+      );
+      return;
+    }
+
+    const result = ApiResponseSchema.safeParse(response);
     if (!result.success) {
       sendError(RPC_ERRORS.INTERNAL_ERROR);
       return;

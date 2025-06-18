@@ -46,7 +46,11 @@ export const switchNetworkHandler = async (
   url.searchParams.set("requestId", message.id);
   url.searchParams.set("network", network.toString());
 
-  ApiUtils.openPopup(tabId, url.toString());
-  const response = await ApiUtils.receiveExtensionMessage(message.id);
+  // Open the popup and wait for the response
+  const response = await ApiUtils.openPopupAndListenForResponse(
+    message.id,
+    url.toString(),
+    tabId,
+  );
   sendResponse(response);
 };
