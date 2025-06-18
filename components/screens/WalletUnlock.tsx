@@ -96,7 +96,15 @@ export default function WalletUnlock() {
                 disabled={isSubmitting}
                 className="rounded-full bg-icy-blue-400 py-5 text-center text-base font-semibold hover:bg-icy-blue-600"
               >
-                Unlock
+                {isSubmitting ? (
+                  <div
+                    className="inline-block size-4 animate-spin self-center rounded-full border-[4px] border-current border-t-[#A2F5FF] text-icy-blue-600"
+                    role="status"
+                    aria-label="loading"
+                  />
+                ) : (
+                  "Unlock"
+                )}
               </button>
             </div>
           </form>
