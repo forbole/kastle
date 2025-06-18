@@ -32,9 +32,6 @@ export default defineContentScript({
       window.postMessage(response, window.location.origin);
     });
 
-    // Inject the script that will add the window.kastle object
-    injectScript("/injected.js");
-
     // Emit the kastle_installed event to the page to notify that the extension is installed
     window.postMessage(
       ApiUtils.createApiResponse("kastle_installed", []),
@@ -47,4 +44,5 @@ export default defineContentScript({
     watchSettingsUpdated();
     watchWalletSettingsUpdated();
   },
+  runAt: "document_end",
 });
