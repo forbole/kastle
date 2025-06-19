@@ -6,6 +6,7 @@ import Krc20SelectItem from "@/components/send/token-selector/Krc20SelectItem";
 import kasIcon from "@/assets/images/kas-icon.svg";
 import { formatToken } from "@/lib/utils.ts";
 import { useNavigate } from "react-router-dom";
+import EvmKasSelectItems from "./EvmKasSelectItems";
 
 type TokenSelectProps = { isShown: boolean; toggleShow: () => void };
 
@@ -14,13 +15,13 @@ export default function TokenSelect({ isShown, toggleShow }: TokenSelectProps) {
   const { wallet, account } = useWalletManager();
   const [searchQuery, setSearchQuery] = useState("");
 
-  const address = account?.address;
-  const balance = account?.balance;
+  const kasAddress = account?.address;
+  const kasBalance = account?.balance;
   const hasSearchQuery = searchQuery === "";
   const isKasShown =
     hasSearchQuery || "kas".startsWith(searchQuery.toLowerCase());
 
-  const tokenListItems = useTokenListByAddress(address ?? undefined);
+  const tokenListItems = useTokenListByAddress(kasAddress ?? undefined);
 
   const tokens = tokenListItems
     ?.filter((token) =>
@@ -94,18 +95,23 @@ export default function TokenSelect({ isShown, toggleShow }: TokenSelectProps) {
                 />
                 <span>KAS</span>
               </div>
-              <span>{formatToken(parseFloat(balance ?? "0"))}</span>
+              <span>{formatToken(parseFloat(kasBalance ?? "0"))}</span>
             </button>
           )}
 
-          {tokens?.map((token) => (
-            <Krc20SelectItem
-              key={token.id}
-              token={token}
-              selectToken={(tokenId) => selectToken("krc20", tokenId)}
-              supported={!isLedger}
-            />
-          ))}
+          {/* EVM KAS */}
+          {isKasShown && <EvmKasSelectItems />}
+
+          {tokens
+            ?.filter((token) => parseFloat(token.balance) > 0)
+            .map((token) => (
+              <Krc20SelectItem
+                key={token.id}
+                token={token}
+                selectToken={(tokenId) => selectToken("krc20", tokenId)}
+                supported={!isLedger}
+              />
+            ))}
 
           {!isKasShown && tokens?.length === 0 && (
             <span className="text-center text-base font-medium text-daintree-400">

@@ -4,7 +4,7 @@ import { http, createPublicClient, numberToHex, formatUnits } from "viem";
 import useSWR from "swr";
 
 export default function useEvmKasBalance(
-  chainId: `0x${string}`,
+  chainId?: `0x${string}`,
   decimals = 18,
 ) {
   const { account } = useWalletManager();

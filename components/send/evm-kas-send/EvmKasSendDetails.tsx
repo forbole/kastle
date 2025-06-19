@@ -1,81 +1,95 @@
-import { useNavigate } from "react-router-dom";
-import { useSettings } from "@/hooks/useSettings";
-import useWalletManager from "@/hooks/useWalletManager";
-import useRpcClientStateful from "@/hooks/useRpcClientStateful";
-import useMempoolStatus from "@/hooks/useMempoolStatus";
-import { useKns } from "@/hooks/useKns";
-import { useState } from "react";
-import { useBoolean } from "usehooks-ts";
 import Header from "@/components/GeneralHeader";
 import { Tooltip } from "react-tooltip";
-import { Address, sompiToKaspaString, kaspaToSompi } from "@/wasm/core/kaspa";
-import { MIN_KAS_AMOUNT } from "@/lib/kaspa.ts";
+import { useNavigate, useParams } from "react-router-dom";
+import { useBoolean } from "usehooks-ts";
 import { useFormContext } from "react-hook-form";
+import { EvmKasSendForm } from "./EvmKasSend";
 import { twMerge } from "tailwind-merge";
 import spinner from "@/assets/images/spinner.svg";
-import RecentAddresses from "@/components/send/RecentAddresses.tsx";
+import { useSettings } from "@/hooks/useSettings";
 import TokenSelect from "@/components/send/token-selector/TokenSelect";
-import PriorityFeeSelection from "@/components/send//PriorityFeeSelection";
+import { isAddress, isHex, formatEther } from "viem";
 import kasIcon from "@/assets/images/kas-icon.svg";
-import { formatToken } from "@/lib/utils.ts";
-import { KasSendForm } from "@/components/send/kas-send/KasSend";
+import useEvmKasBalance from "@/hooks/evm/useEvmKasBalance";
+import useFeeEstimate from "@/hooks/evm/useFeeEstimate";
+import { formatToken } from "@/lib/utils";
+import useKaspaPrice from "@/hooks/useKaspaPrice";
+import useCurrencyValue from "@/hooks/useCurrencyValue";
+import Layer2AssetImage from "@/components/Layer2AssetImage";
+import { getChainImage } from "@/lib/layer2";
 
-export function KasSendDetails({
+export default function EvmKasSendDetails({
   onNext,
   onBack,
 }: {
   onNext: () => void;
   onBack: () => void;
 }) {
-  const navigate = useNavigate();
+  const { chainId } = useParams<{ chainId: string }>();
   const [settings] = useSettings();
-  const { account, addresses } = useWalletManager();
-  const { rpcClient, getMinimumFee } = useRpcClientStateful();
-  const { mempoolCongestionLevel } = useMempoolStatus();
-  const { fetchDomainInfo } = useKns();
-  const { value: isAddressFieldFocused, setValue: setAddressFieldFocused } =
-    useBoolean(false);
-
-  const {
-    value: isRecentAddressShown,
-    setFalse: hideRecentAddress,
-    setTrue: showRecentAddress,
-  } = useBoolean(false);
-  const { value: isTokenSelectShown, toggle: toggleTokenSelect } =
-    useBoolean(false);
-  const [accountMinimumFees, setAccountMinimumFees] = useState<number>(0.0);
-  const {
-    value: isPriorityFeeSelectionOpen,
-    setTrue: openPriorityFeeSelection,
-    setFalse: closePriorityFeeSelection,
-  } = useBoolean(false);
-
+  const navigate = useNavigate();
   const {
     register,
     watch,
     setValue,
-    setError,
     trigger,
     formState: { isValid, errors, validatingFields },
-  } = useFormContext<KasSendForm>();
-
-  const { userInput, address, amount, domain, priority, priorityFee } = watch();
-  const priorityFeeEstimate = usePriorityFeeEstimate();
-  const estimatedMass = useMassCalculation(
-    address
-      ? [
-          {
-            address: address,
-            amount: kaspaToSompi(amount ?? "0") ?? 0n,
-          },
-        ]
-      : [],
+  } = useFormContext<EvmKasSendForm>();
+  const { data: balanceInfo } = useEvmKasBalance(
+    isHex(chainId) ? chainId : undefined,
   );
+
+  const { rawBalance, balance } = balanceInfo ?? {};
+  const currentBalance = Number(rawBalance ?? 0n);
+
+  const { userInput, address, amount } = watch();
+
+  const { data: estimatedFee } = useFeeEstimate(
+    isHex(chainId) ? chainId : undefined,
+    isAddress(address ?? "")
+      ? {
+          to: address as `0x${string}`,
+          value: rawBalance,
+        }
+      : undefined,
+  );
+
+  // TODO: Add recent address history logic for it
+  const { value: isAddressFieldFocused, setValue: setAddressFieldFocused } =
+    useBoolean(false);
+
+  const { value: isTokenSelectShown, toggle: toggleTokenSelect } =
+    useBoolean(false);
+
+  const onClose = () => {
+    navigate("/dashboard");
+  };
 
   const { kaspaPrice: tokenPrice } = useKaspaPrice();
   const { amount: tokenCurrency } = useCurrencyValue(tokenPrice);
-  const kasBalance = account?.balance ? parseFloat(account.balance) : 0;
-  const currentBalance = kasBalance;
+
+  const addressValidator = async (value: string | undefined) => {
+    const genericErrorMessage = "Invalid address";
+    if (!value) return undefined;
+
+    const isValidEvmAddress = () => {
+      const isValid = isAddress(value);
+
+      return isValid;
+    };
+
+    try {
+      if (!isValidEvmAddress()) {
+        return genericErrorMessage;
+      }
+
+      setValue("address", value);
+      return true;
+    } catch (error) {
+      console.error(error);
+      return genericErrorMessage;
+    }
+  };
 
   const amountValidator = async (value: string | undefined) => {
     const amountNumber = parseFloat(value ?? "0");
@@ -84,80 +98,30 @@ export function KasSendDetails({
       return "Oh, you don’t have enough funds";
     }
 
-    if (amountNumber < MIN_KAS_AMOUNT) {
-      return "Oh, the minimum sending amount has to be greater than 0.2 KAS";
-    }
-
-    if (amountNumber + accountMinimumFees > currentBalance) {
+    if (amountNumber + Number(estimatedFee) > currentBalance) {
       return "Oh, you don't have enough funds to cover the estimated fees";
     }
 
     return true;
   };
 
-  const onClose = () => {
-    navigate("/dashboard");
-  };
-
-  const addressValidator = async (value: string | undefined) => {
-    const genericErrorMessage = "Invalid address or KNS domain";
-    if (!value) return undefined;
-
-    const domainInfo = value.endsWith(".kas")
-      ? await fetchDomainInfo(value)
-      : undefined;
-    const resolvedAddress = domainInfo?.data?.owner;
-
-    const isValidKnsRecord = () => {
-      const outcome = !!resolvedAddress && Address.validate(resolvedAddress);
-
-      if (outcome) {
-        setValue("address", resolvedAddress);
-        setValue("domain", value);
-        setError("userInput", { message: undefined });
-      } else {
-        setValue("address", undefined);
-        setValue("domain", undefined);
-      }
-
-      return outcome;
-    };
-
-    const isValidKaspaAddress = () => {
-      const isValid = Address.validate(value);
-
-      setValue("address", isValid ? value : undefined);
-
-      return isValid;
-    };
-
-    try {
-      return isValidKnsRecord() || isValidKaspaAddress() || genericErrorMessage;
-    } catch (error) {
-      console.error(error);
-      return genericErrorMessage;
+  // Handle empty user input logic
+  useEffect(() => {
+    if (userInput === "") {
+      setValue("address", undefined, { shouldValidate: true });
     }
-  };
+  }, [userInput]);
 
   const selectMaxAmount = async () => {
     if (!currentBalance) {
       return;
     }
 
-    const maxAmount = currentBalance - accountMinimumFees;
+    const maxAmount = currentBalance - Number(estimatedFee ?? 0n);
     setValue("amount", maxAmount > 0 ? maxAmount.toFixed(8) : "0", {
       shouldValidate: true,
     });
   };
-
-  const navigateToNextStep = () => onNext();
-
-  // Fetch account minimum fees
-  useEffect(() => {
-    if (rpcClient && account) {
-      getMinimumFee(addresses).then(setAccountMinimumFees);
-    }
-  }, [rpcClient, account]);
 
   // Update USD amount
   useEffect(() => {
@@ -168,47 +132,7 @@ export function KasSendDetails({
     } else {
       setValue("amountFiat", undefined);
     }
-  }, [amount, tokenPrice]);
-
-  // Handle recent address list visibility
-  useEffect(() => {
-    if (userInput === "" && isAddressFieldFocused) {
-      showRecentAddress();
-    } else if (userInput !== "") {
-      hideRecentAddress();
-    }
-  }, [userInput, isAddressFieldFocused]);
-
-  // Handle empty user input logic
-  useEffect(() => {
-    if (userInput === "") {
-      setValue("domain", undefined, { shouldValidate: true });
-      setValue("address", undefined, { shouldValidate: true });
-    }
-  }, [userInput]);
-
-  useEffect(() => {
-    const selectedPriorityFee = (() => {
-      if (priority === "low") {
-        return (
-          (priorityFeeEstimate?.estimate?.lowBuckets?.[0]?.feerate ?? 0) *
-          Number(estimatedMass)
-        );
-      }
-      if (priority === "medium") {
-        return (
-          (priorityFeeEstimate?.estimate?.normalBuckets?.[0]?.feerate ?? 0) *
-          Number(estimatedMass)
-        );
-      }
-      return (
-        (priorityFeeEstimate?.estimate?.priorityBucket?.feerate ?? 0) *
-        Number(estimatedMass)
-      );
-    })();
-
-    setValue("priorityFee", BigInt(Math.round(selectedPriorityFee)));
-  }, [estimatedMass, priorityFeeEstimate, priority]);
+  }, [amount, estimatedFee]);
 
   return (
     <>
@@ -260,27 +184,18 @@ export function KasSendDetails({
               />
             )}
           </div>
-          {domain && (
-            <span className="inline-block break-all text-sm text-daintree-400">
-              {address}
-            </span>
-          )}
           {errors.userInput && (
             <span className="inline-block text-sm text-red-500">
               {errors.userInput.message}
             </span>
           )}
-          <RecentAddresses
-            isShown={isRecentAddressShown}
-            hideAddressSelect={hideRecentAddress}
-          />
         </div>
 
         {/* Amount panel */}
         <div className="bg-white/1 relative flex flex-col gap-4 rounded-xl border border-daintree-700 p-4">
           <div className="flex items-center gap-3 text-sm">
             <span className="font-semibold">Balance</span>
-            <span className="flex-grow">{formatToken(currentBalance)} KAS</span>
+            <span className="flex-grow">{balance} KAS</span>
             <button
               className="inline-flex items-center gap-x-2 rounded border border-transparent bg-icy-blue-400 px-3 py-2 text-sm text-white disabled:pointer-events-none disabled:opacity-50"
               onClick={selectMaxAmount}
@@ -301,10 +216,15 @@ export function KasSendDetails({
                     : "border-daintree-700",
                 )}
               >
-                <img
-                  alt="kas"
-                  className="h-[18px] w-[18px] rounded-full"
-                  src={kasIcon}
+                <Layer2AssetImage
+                  tokenImage={kasIcon}
+                  tokenImageSize={18}
+                  chainImageSize={16}
+                  chainImage={
+                    chainId
+                      ? getChainImage(chainId as `0x${string}`)
+                      : undefined
+                  }
                 />
                 KAS
                 <i className="hn hn-chevron-down h-[16px] w-[16px]"></i>
@@ -385,24 +305,11 @@ export function KasSendDetails({
 
         {/* Fee segment */}
         <div className="flex items-center justify-between gap-2 text-sm">
-          <button
-            className="relative flex items-center gap-2"
-            onClick={openPriorityFeeSelection}
-          >
-            {mempoolCongestionLevel === "medium" && (
-              <span className="absolute -end-1 top-0 -me-1.5 -mt-1.5 flex size-2">
-                <span className="absolute inline-flex size-full animate-ping rounded-full bg-[#E9B306] opacity-75"></span>
-                <span className="relative inline-flex size-2 rounded-full bg-[#E9B306]"></span>
-              </span>
-            )}
-            {mempoolCongestionLevel === "high" && (
-              <span className="absolute -end-1 top-0 -me-1.5 -mt-1.5 flex size-2">
-                <span className="absolute inline-flex size-full animate-ping rounded-full bg-[#EF4444] opacity-75"></span>
-                <span className="relative inline-flex size-2 rounded-full bg-[#EF4444]"></span>
-              </span>
-            )}
+          <button className="relative flex items-center gap-2">
             <span>Fee</span>
-            <i className="hn hn-cog text-[16px]" />
+            <i
+              className="hn hn-cog text-[16px] text-[#4B5563]"
+            />
           </button>
           <div className="flex items-center gap-2">
             <Tooltip
@@ -417,18 +324,18 @@ export function KasSendDetails({
             <i
               className="hn hn-info-circle text-[16px]"
               data-tooltip-id="fee-estimation-tooltip"
-              data-tooltip-content={`${sompiToKaspaString(priorityFee)} KAS for miner fees.`}
+              data-tooltip-content={`${formatEther(estimatedFee ?? 0n)} KAS for evm miner fees.`}
             ></i>
 
             <span>Estimated</span>
-            <span>{sompiToKaspaString(priorityFee)} KAS</span>
+            <span>{formatEther(estimatedFee ?? 0n)} KAS</span>
           </div>
         </div>
 
         <div className="mt-auto">
           <button
             disabled={!isValid || !!errors.amount || !address}
-            onClick={navigateToNextStep}
+            onClick={onNext}
             className="mt-auto w-full rounded-full bg-icy-blue-400 py-4 text-base font-medium text-white transition-colors hover:bg-icy-blue-600 disabled:bg-daintree-800 disabled:text-[#4B5563]"
           >
             Next
@@ -439,11 +346,6 @@ export function KasSendDetails({
       <TokenSelect
         isShown={isTokenSelectShown}
         toggleShow={toggleTokenSelect}
-      />
-
-      <PriorityFeeSelection
-        isPriorityFeeSelectionOpen={isPriorityFeeSelectionOpen}
-        closePriorityFeeSelection={closePriorityFeeSelection}
       />
     </>
   );
