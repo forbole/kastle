@@ -32,7 +32,7 @@ export default function Erc20SelectItem({
   const isLedger = wallet?.type === "ledger";
   const onClick = () => {
     if (isLedger) return;
-    navigate(`/erc-20/send/${asset.chainId}/${asset.address}`, {
+    navigate(`/erc20/send/${asset.chainId}/${asset.address}`, {
       state: {
         step: "details",
         form: {

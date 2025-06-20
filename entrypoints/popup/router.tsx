@@ -199,10 +199,10 @@ export const router = createHashRouter([
                   // Sending
                   { path: "token-transfer", element: <Krc20Transfer /> },
                   { path: "kas/send", element: <KasSend /> },
-                  { path: "krc-20/send/:tick", element: <Krc20Send /> },
+                  { path: "krc20/send/:tick", element: <Krc20Send /> },
                   { path: "evm-kas/send/:chainId", element: <EvmKasSend /> },
                   {
-                    path: "erc-20/send/:chainId/:tokenId",
+                    path: "erc20/send/:chainId/:tokenId",
                     element: <Erc20Send />,
                   },
 

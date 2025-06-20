@@ -57,7 +57,7 @@ export default function TokenSelect({ isShown, toggleShow }: TokenSelectProps) {
         },
       });
     } else {
-      navigate(`/krc-20/send/${tokenId}`, {
+      navigate(`/krc20/send/${tokenId}`, {
         state: {
           step: "details",
           form: {
