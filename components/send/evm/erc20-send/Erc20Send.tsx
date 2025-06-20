@@ -84,7 +84,7 @@ export default function Erc20Send() {
             onFail={() => setStep("fail")}
           />
         )}
-        {step == "broadcast"  && (
+        {step == "broadcast" && (
           <Broadcasting onSuccess={() => setStep("success")} />
         )}
         {step === "success" && asset && (

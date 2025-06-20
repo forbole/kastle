@@ -8,7 +8,13 @@ import { twMerge } from "tailwind-merge";
 import spinner from "@/assets/images/spinner.svg";
 import { useSettings } from "@/hooks/useSettings";
 import TokenSelect from "@/components/send/token-selector/TokenSelect";
-import { isAddress, formatEther, erc20Abi, encodeFunctionData, parseEther } from "viem";
+import {
+  isAddress,
+  formatEther,
+  erc20Abi,
+  encodeFunctionData,
+  parseEther,
+} from "viem";
 import kasIcon from "@/assets/images/kas-icon.svg";
 import useFeeEstimate from "@/hooks/evm/useFeeEstimate";
 import { formatToken } from "@/lib/utils";
@@ -61,7 +67,10 @@ export default function DetailsStep({
           data: encodeFunctionData({
             abi: erc20Abi,
             functionName: "transfer",
-            args: [address as `0x${string}`, amount ? parseEther(amount) : (balanceInfo?.rawBalance ?? 0n)],
+            args: [
+              address as `0x${string}`,
+              amount ? parseEther(amount) : (balanceInfo?.rawBalance ?? 0n),
+            ],
           }),
         }
       : undefined;
