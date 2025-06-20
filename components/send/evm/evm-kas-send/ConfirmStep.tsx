@@ -18,6 +18,7 @@ import useAnalytics from "@/hooks/useAnalytics.ts";
 import { formatEther, parseEther, TransactionSerializable } from "viem";
 import { ALL_SUPPORTED_EVM_L2_CHAINS } from "@/lib/layer2";
 import { createPublicClient, http, hexToNumber } from "viem";
+import { formatToken } from "@/lib/utils.ts";
 
 export const ConfirmStep = ({
   chainId,
@@ -175,7 +176,10 @@ export const ConfirmStep = ({
             <div className="flex w-full items-start justify-between">
               <span className="font-medium">Fee</span>
               <div className="flex flex-col text-right">
-                <span className="font-medium">{fiatFees} KAS</span>
+                <span className="font-medium">
+                  {formatToken(fiatFees)}{" "}
+                  KAS
+                </span>
                 <span className="text-xs text-daintree-400">
                   {formatCurrency(feesCurrency, feesCurrencyCode)}
                 </span>

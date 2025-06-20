@@ -6,6 +6,7 @@ import { getChainImage } from "@/lib/layer2";
 import useWalletManager from "@/hooks/useWalletManager";
 import { twMerge } from "tailwind-merge";
 import { useFormContext } from "react-hook-form";
+import { formatToken } from "@/lib/utils.ts";
 
 export default function EvmKasSelectItem({
   chainId,
@@ -61,7 +62,7 @@ export default function EvmKasSelectItem({
             />
             <span>KAS</span>
           </div>
-          {!isLedger && <span>{kasBalance.toLocaleString()}</span>}
+          {!isLedger && <span>{formatToken(parseFloat(kasBalance))}</span>}
           {isLedger && (
             <span className="rounded-full bg-[#1C333C] p-2 px-4 text-xs text-white">
               Not supported with Ledger

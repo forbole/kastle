@@ -3,7 +3,6 @@ import { Erc20SendForm } from "./Erc20Send";
 import React, { useState } from "react";
 import signImage from "@/assets/images/sign.png";
 import ledgerSignImage from "@/assets/images/ledger-on-sign.svg";
-import useKaspaPrice from "@/hooks/useKaspaPrice.ts";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/GeneralHeader.tsx";
 import useWalletManager from "@/hooks/useWalletManager.ts";
@@ -26,6 +25,7 @@ import {
   parseUnits,
 } from "viem";
 import { Erc20Asset } from "@/contexts/EvmAssets";
+import { formatToken } from "@/lib/utils.ts";
 
 export const ConfirmStep = ({
   asset,
@@ -191,7 +191,7 @@ export const ConfirmStep = ({
             <div className="flex w-full items-start justify-between">
               <span className="font-medium">Fee</span>
               <div className="flex flex-col text-right">
-                <span className="font-medium">{fiatFees} KAS</span>
+                <span className="font-medium">{formatToken(fiatFees)} KAS</span>
                 <span className="text-xs text-daintree-400">
                   {formatCurrency(feesCurrency, feesCurrencyCode)}
                 </span>

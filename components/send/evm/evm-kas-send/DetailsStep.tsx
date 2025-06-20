@@ -197,7 +197,9 @@ export default function DetailsStep({
         <div className="bg-white/1 relative flex flex-col gap-4 rounded-xl border border-daintree-700 p-4">
           <div className="flex items-center gap-3 text-sm">
             <span className="font-semibold">Balance</span>
-            <span className="flex-grow">{balance} KAS</span>
+            <span className="flex-grow">
+              {formatToken(parseFloat(balance ?? "0"))} KAS
+            </span>
             <button
               className="inline-flex items-center gap-x-2 rounded border border-transparent bg-icy-blue-400 px-3 py-2 text-sm text-white disabled:pointer-events-none disabled:opacity-50"
               onClick={selectMaxAmount}
@@ -320,11 +322,13 @@ export default function DetailsStep({
             <i
               className="hn hn-info-circle text-[16px]"
               data-tooltip-id="fee-estimation-tooltip"
-              data-tooltip-content={`${formatEther(estimatedFee ?? 0n)} KAS for evm miner fees.`}
+              data-tooltip-content={`${formatToken(parseFloat(formatEther(estimatedFee ?? 0n)))} KAS for evm miner fees.`}
             ></i>
 
             <span>Estimated</span>
-            <span>{formatEther(estimatedFee ?? 0n)} KAS</span>
+            <span>
+              {formatToken(parseFloat(formatEther(estimatedFee ?? 0n)))} KAS
+            </span>
           </div>
         </div>
 

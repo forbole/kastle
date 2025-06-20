@@ -1,6 +1,5 @@
 import Layer2AssetImage from "@/components/Layer2AssetImage";
 import kasIcon from "@/assets/images/kas-icon.svg";
-import useEvmKasBalance from "@/hooks/evm/useEvmKasBalance";
 import { useNavigate } from "react-router-dom";
 import { getChainImage } from "@/lib/layer2";
 import useWalletManager from "@/hooks/useWalletManager";
@@ -8,6 +7,7 @@ import { twMerge } from "tailwind-merge";
 import { useFormContext } from "react-hook-form";
 import useErc20Balance from "@/hooks/evm/useErc20Balance";
 import { Erc20Asset } from "@/contexts/EvmAssets";
+import { formatToken } from "@/lib/utils.ts";
 
 export default function Erc20SelectItem({
   asset,
@@ -66,7 +66,7 @@ export default function Erc20SelectItem({
             />
             <span>{asset.symbol}</span>
           </div>
-          {!isLedger && <span>{balance.toLocaleString()}</span>}
+          {!isLedger && <span>{formatToken(parseFloat(balance))}</span>}
           {isLedger && (
             <span className="rounded-full bg-[#1C333C] p-2 px-4 text-xs text-white">
               Not supported with Ledger

@@ -140,7 +140,7 @@ export default function DetailsStep({
     }
 
     const maxAmount = currentBalance;
-    setValue("amount", maxAmount > 0 ? maxAmount.toFixed(8) : "0", {
+    setValue("amount", maxAmount > 0 ? formatToken(maxAmount) : "0", {
       shouldValidate: true,
     });
   };
@@ -222,7 +222,7 @@ export default function DetailsStep({
           <div className="flex items-center gap-3 text-sm">
             <span className="font-semibold">Balance</span>
             <span className="flex-grow">
-              {balance} {asset.symbol}
+              {formatToken(parseFloat(balance ?? "0"))} {asset.symbol}
             </span>
             <button
               className="inline-flex items-center gap-x-2 rounded border border-transparent bg-icy-blue-400 px-3 py-2 text-sm text-white disabled:pointer-events-none disabled:opacity-50"
@@ -301,7 +301,7 @@ export default function DetailsStep({
                     if (!Number.isNaN(amountUsdNumber) && tokenCurrency !== 0) {
                       setValue(
                         "amount",
-                        (amountUsdNumber / tokenCurrency).toFixed(8),
+                        formatToken(amountUsdNumber / tokenCurrency),
                       );
 
                       await trigger("amount");
@@ -346,11 +346,13 @@ export default function DetailsStep({
             <i
               className="hn hn-info-circle text-[16px]"
               data-tooltip-id="fee-estimation-tooltip"
-              data-tooltip-content={`${formatEther(estimatedFee ?? 0n)} KAS for evm miner fees.`}
+              data-tooltip-content={`${formatToken(parseFloat(formatEther(estimatedFee ?? 0n)))} KAS for evm miner fees.`}
             ></i>
 
             <span>Estimated</span>
-            <span>{formatEther(estimatedFee ?? 0n)} KAS</span>
+            <span>
+              {formatToken(parseFloat(formatEther(estimatedFee ?? 0n)))} KAS
+            </span>
           </div>
         </div>
 
