@@ -8,7 +8,7 @@ import { twMerge } from "tailwind-merge";
 import spinner from "@/assets/images/spinner.svg";
 import { useSettings } from "@/hooks/useSettings";
 import TokenSelect from "@/components/send/token-selector/TokenSelect";
-import { isAddress, isHex, formatEther } from "viem";
+import { isAddress, formatEther } from "viem";
 import kasIcon from "@/assets/images/kas-icon.svg";
 import useEvmKasBalance from "@/hooks/evm/useEvmKasBalance";
 import useFeeEstimate from "@/hooks/evm/useFeeEstimate";
@@ -17,15 +17,17 @@ import useKaspaPrice from "@/hooks/useKaspaPrice";
 import useCurrencyValue from "@/hooks/useCurrencyValue";
 import Layer2AssetImage from "@/components/Layer2AssetImage";
 import { getChainImage } from "@/lib/layer2";
+import useEvmAddress from "@/hooks/evm/useEvmAddress";
 
-export default function EvmKasSendDetails({
+export default function DetailsStep({
+  chainId,
   onNext,
   onBack,
 }: {
+  chainId: `0x${string}`;
   onNext: () => void;
   onBack: () => void;
 }) {
-  const { chainId } = useParams<{ chainId: string }>();
   const [settings] = useSettings();
   const navigate = useNavigate();
   const {
@@ -35,19 +37,19 @@ export default function EvmKasSendDetails({
     trigger,
     formState: { isValid, errors, validatingFields },
   } = useFormContext<EvmKasSendForm>();
-  const { data: balanceInfo } = useEvmKasBalance(
-    isHex(chainId) ? chainId : undefined,
-  );
+  const { data: balanceInfo } = useEvmKasBalance(chainId);
 
   const { rawBalance, balance } = balanceInfo ?? {};
   const currentBalance = Number(rawBalance ?? 0n);
+  const evmAddress = useEvmAddress();
 
   const { userInput, address, amount } = watch();
 
   const { data: estimatedFee } = useFeeEstimate(
-    isHex(chainId) ? chainId : undefined,
-    isAddress(address ?? "")
+    chainId,
+    isAddress(address ?? "") && evmAddress
       ? {
+          account: evmAddress,
           to: address as `0x${string}`,
           value: rawBalance,
         }
@@ -220,11 +222,7 @@ export default function EvmKasSendDetails({
                   tokenImage={kasIcon}
                   tokenImageSize={18}
                   chainImageSize={16}
-                  chainImage={
-                    chainId
-                      ? getChainImage(chainId as `0x${string}`)
-                      : undefined
-                  }
+                  chainImage={getChainImage(chainId)}
                 />
                 KAS
                 <i className="hn hn-chevron-down h-[16px] w-[16px]"></i>
@@ -307,9 +305,7 @@ export default function EvmKasSendDetails({
         <div className="flex items-center justify-between gap-2 text-sm">
           <button className="relative flex items-center gap-2">
             <span>Fee</span>
-            <i
-              className="hn hn-cog text-[16px] text-[#4B5563]"
-            />
+            <i className="hn hn-cog text-[16px] text-[#4B5563]" />
           </button>
           <div className="flex items-center gap-2">
             <Tooltip

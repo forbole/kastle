@@ -1,19 +1,15 @@
 import useSWR from "swr";
 import { createPublicClient, http, erc20Abi } from "viem";
-import useWalletManager from "../useWalletManager";
-import { toEvmAddress } from "@/lib/utils";
 import { numberToHex, formatUnits } from "viem";
 import { ALL_SUPPORTED_EVM_L2_CHAINS } from "@/lib/layer2";
+import useEvmAddress from "./useEvmAddress";
 
 export default function useERC20Balance(
   tokenAddress: string,
   decimals: number,
   chainId: string,
 ) {
-  const { account } = useWalletManager();
-  const publicKey = account?.publicKeys?.[0];
-  const evmAddress = publicKey ? toEvmAddress(publicKey) : undefined;
-
+  const evmAddress = useEvmAddress();
   const fetcher = async () => {
     if (!evmAddress) {
       return {};

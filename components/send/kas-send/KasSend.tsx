@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { FormProvider, useForm } from "react-hook-form";
-import { KasSendDetails } from "@/components/send/kas-send/KasSendDetails";
+import { DetailsStep } from "@/components/send/kas-send/DetailsStep";
 import { SuccessStatus } from "@/components/send/SuccessStatus.tsx";
 import { FailStatus } from "@/components/send/FailStatus.tsx";
 import { useLocation } from "react-router";
@@ -63,7 +63,7 @@ export default function KasSend() {
     <div className="relative flex h-full flex-col p-4 text-white">
       <FormProvider {...form}>
         {step === "details" && (
-          <KasSendDetails onNext={() => setStep("confirm")} onBack={onBack} />
+          <DetailsStep onNext={() => setStep("confirm")} onBack={onBack} />
         )}
         {step === "confirm" && wallet?.type !== "ledger" && (
           <HotWalletConfirm

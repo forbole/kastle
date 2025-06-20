@@ -1,16 +1,13 @@
-import { toEvmAddress } from "@/lib/utils";
 import { ALL_SUPPORTED_EVM_L2_CHAINS } from "@/lib/layer2";
 import { http, createPublicClient, numberToHex, formatUnits } from "viem";
+import useEvmAddress from "./useEvmAddress";
 import useSWR from "swr";
 
 export default function useEvmKasBalance(
   chainId?: `0x${string}`,
   decimals = 18,
 ) {
-  const { account } = useWalletManager();
-  const publicKey = account?.publicKeys?.[0];
-  const evmAddress = publicKey ? toEvmAddress(publicKey) : undefined;
-
+  const evmAddress = useEvmAddress();
   const fetcher = async () => {
     if (!evmAddress) {
       return {};

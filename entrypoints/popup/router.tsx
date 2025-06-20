@@ -73,7 +73,7 @@ import Erc20Asset from "@/components/screens/Erc20Asset";
 import { EVMAssetsProvider } from "@/contexts/EvmAssets";
 import EvmKasAsset from "@/components/screens/EvmKasAsset";
 import { Krc20Send } from "@/components/send/krc20-send/Krc20Send";
-import EvmKasSend from "@/components/send/evm-kas-send/EvmKasSend";
+import EvmKasSend from "@/components/send/evm/evm-kas-send/EvmKasSend";
 
 const loadKaspaWasm = async () => {
   await init({ module_or_path: kaspaModule });

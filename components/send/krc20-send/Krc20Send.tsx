@@ -1,5 +1,5 @@
 import { FormProvider, useForm } from "react-hook-form";
-import { Krc20SendDetails } from "./Krc20SendDetails";
+import { DetailsStep } from "./DetailsStep";
 import z from "zod";
 
 export const krc20SendFormSchema = z.object({
@@ -28,9 +28,9 @@ export function Krc20Send() {
     mode: "onChange",
   });
   return (
-    <div className="relative h-screen p-4 flex flex-col">
+    <div className="relative flex h-screen flex-col p-4">
       <FormProvider {...form}>
-        <Krc20SendDetails />
+        <DetailsStep />
       </FormProvider>
     </div>
   );

@@ -5,6 +5,7 @@ import { http, createPublicClient, numberToHex } from "viem";
 import useSWR from "swr";
 
 type estimatePayload = {
+  account: `0x${string}`;
   to: `0x${string}`;
   value?: bigint;
   data?: `0x${string}`;
@@ -25,12 +26,12 @@ const fetcher = (chainId: `0x${string}`, payload: estimatePayload) => {
     });
 
     const gasFees = await client.estimateFeesPerGas();
-    const { maxPriorityFeePerGas } = gasFees;
+    const { maxFeePerGas } = gasFees;
 
     // Replace with actual fee estimation logic
     const gasEstimated = await client.estimateGas(payload);
 
-    return maxPriorityFeePerGas * gasEstimated;
+    return maxFeePerGas * gasEstimated;
   };
 };
 
@@ -46,7 +47,7 @@ export default function useFeeEstimate(
   return useSWR(
     isLoading
       ? null
-      : `feeEstimate:${chainId}-${evmAddress}-${JSON.stringify(payload)}`,
+      : `feeEstimate:${chainId}-${evmAddress}-${payload.to}-${payload.value ?? ""}-${payload.data ?? ""}`,
     isLoading ? null : fetcher(chainId, payload),
     {
       refreshInterval: 10000, // Refresh every 10 seconds
