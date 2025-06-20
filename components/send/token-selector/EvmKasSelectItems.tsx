@@ -4,7 +4,11 @@ import { NetworkType } from "@/contexts/SettingsContext";
 import EvmKasSelectItem from "./EvmKasSelectItem";
 import { numberToHex } from "viem";
 
-export default function EvmKasSelectItems() {
+export default function EvmKasSelectItems({
+  toggleShow,
+}: {
+  toggleShow: () => void;
+}) {
   const [settings] = useSettings();
   const network = settings?.networkId ?? NetworkType.Mainnet;
   const supportedChains =
@@ -16,6 +20,7 @@ export default function EvmKasSelectItems() {
         <EvmKasSelectItem
           key={numberToHex(chain.id)}
           chainId={numberToHex(chain.id)}
+          toggleShow={toggleShow}
         />
       ))}
     </>

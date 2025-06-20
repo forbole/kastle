@@ -123,9 +123,9 @@ export default function TokenSelect({ isShown, toggleShow }: TokenSelectProps) {
           )}
 
           {/* EVM KAS */}
-          {isKasShown && <EvmKasSelectItems />}
+          {isKasShown && <EvmKasSelectItems toggleShow={toggleShow} />}
 
-          <Erc20SelectItems searchQuery={searchQuery} />
+          <Erc20SelectItems searchQuery={searchQuery} toggleShow={toggleShow} />
 
           {tokens
             ?.filter((token) => parseFloat(token.balance) > 0)

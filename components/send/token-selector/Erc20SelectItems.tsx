@@ -4,8 +4,10 @@ import Erc20SelectItem from "./Erc20SelectItem";
 
 export default function Erc20SelectItems({
   searchQuery,
+  toggleShow,
 }: {
   searchQuery?: string;
+  toggleShow: () => void;
 }) {
   const { assets } = useErc20Assets();
 
@@ -17,6 +19,7 @@ export default function Erc20SelectItems({
           <Erc20SelectItem
             key={`${asset.chainId}-${asset.address}`}
             asset={asset}
+            toggleShow={toggleShow}
           />
         ))}
     </>

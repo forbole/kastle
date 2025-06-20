@@ -4,7 +4,7 @@ import { numberToHex, formatUnits } from "viem";
 import { ALL_SUPPORTED_EVM_L2_CHAINS } from "@/lib/layer2";
 import useEvmAddress from "./useEvmAddress";
 
-export default function useERC20Balance(
+export default function useErc20Balance(
   tokenAddress: string,
   decimals: number,
   chainId: string,

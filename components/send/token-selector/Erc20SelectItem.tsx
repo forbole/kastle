@@ -6,13 +6,19 @@ import { getChainImage } from "@/lib/layer2";
 import useWalletManager from "@/hooks/useWalletManager";
 import { twMerge } from "tailwind-merge";
 import { useFormContext } from "react-hook-form";
-import useERC20Balance from "@/hooks/evm/useErc20Balance";
+import useErc20Balance from "@/hooks/evm/useErc20Balance";
 import { Erc20Asset } from "@/contexts/EvmAssets";
 
-export default function Erc20SelectItem({ asset }: { asset: Erc20Asset }) {
+export default function Erc20SelectItem({
+  asset,
+  toggleShow,
+}: {
+  asset: Erc20Asset;
+  toggleShow: () => void;
+}) {
   const { wallet } = useWalletManager();
   const navigate = useNavigate();
-  const { data } = useERC20Balance(
+  const { data } = useErc20Balance(
     asset.address,
     asset.decimals,
     asset.chainId,
@@ -35,6 +41,7 @@ export default function Erc20SelectItem({ asset }: { asset: Erc20Asset }) {
         },
       },
     });
+    toggleShow();
   };
 
   return (

@@ -8,7 +8,7 @@ import { twMerge } from "tailwind-merge";
 import spinner from "@/assets/images/spinner.svg";
 import { useSettings } from "@/hooks/useSettings";
 import TokenSelect from "@/components/send/token-selector/TokenSelect";
-import { isAddress, formatEther, erc20Abi, encodeFunctionData } from "viem";
+import { isAddress, formatEther, erc20Abi, encodeFunctionData, parseEther } from "viem";
 import kasIcon from "@/assets/images/kas-icon.svg";
 import useFeeEstimate from "@/hooks/evm/useFeeEstimate";
 import { formatToken } from "@/lib/utils";
@@ -16,8 +16,9 @@ import useCurrencyValue from "@/hooks/useCurrencyValue";
 import Layer2AssetImage from "@/components/Layer2AssetImage";
 import { getChainImage } from "@/lib/layer2";
 import useEvmAddress from "@/hooks/evm/useEvmAddress";
-import useERC20Balance from "@/hooks/evm/useErc20Balance";
+import useErc20Balance from "@/hooks/evm/useErc20Balance";
 import { Erc20Asset } from "@/contexts/EvmAssets";
+import useEvmKasBalance from "@/hooks/evm/useEvmKasBalance";
 
 export default function DetailsStep({
   asset,
@@ -38,14 +39,16 @@ export default function DetailsStep({
     formState: { isValid, errors, validatingFields },
   } = useFormContext<Erc20SendForm>();
 
-  const { data: balanceInfo } = useERC20Balance(
+  const { data: balanceInfo } = useErc20Balance(
     asset.address,
     asset?.decimals,
     asset.chainId,
   );
 
-  const { rawBalance, balance } = balanceInfo ?? {};
-  const currentBalance = Number(rawBalance ?? 0n);
+  const { data: kasBalanceInfo } = useEvmKasBalance(asset.chainId);
+
+  const { balance } = balanceInfo ?? {};
+  const currentBalance = parseFloat(balance ?? "0");
   const evmAddress = useEvmAddress();
 
   const { userInput, address, amount } = watch();
@@ -58,7 +61,7 @@ export default function DetailsStep({
           data: encodeFunctionData({
             abi: erc20Abi,
             functionName: "transfer",
-            args: [address as `0x${string}`, balanceInfo?.rawBalance ?? 0n],
+            args: [address as `0x${string}`, amount ? parseEther(amount) : (balanceInfo?.rawBalance ?? 0n)],
           }),
         }
       : undefined;
@@ -103,8 +106,13 @@ export default function DetailsStep({
       return "Oh, you don’t have enough funds";
     }
 
-    if (amountNumber + Number(estimatedFee) > currentBalance) {
+    if (amountNumber > currentBalance) {
       return "Oh, you don't have enough funds to cover the estimated fees";
+    }
+
+    const kasBalance = kasBalanceInfo?.rawBalance ?? 0n;
+    if (!kasBalance || kasBalance < (estimatedFee ?? 0n)) {
+      return "You don't have enough KAS to cover the estimated fees";
     }
 
     return true;
@@ -122,7 +130,7 @@ export default function DetailsStep({
       return;
     }
 
-    const maxAmount = currentBalance - Number(estimatedFee ?? 0n);
+    const maxAmount = currentBalance;
     setValue("amount", maxAmount > 0 ? maxAmount.toFixed(8) : "0", {
       shouldValidate: true,
     });
@@ -233,7 +241,7 @@ export default function DetailsStep({
                   chainImageSize={16}
                   chainImage={getChainImage(asset.chainId)}
                 />
-                KAS
+                {asset.symbol}
                 <i className="hn hn-chevron-down h-[16px] w-[16px]"></i>
               </button>
               <input

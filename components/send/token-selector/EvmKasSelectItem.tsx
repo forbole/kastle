@@ -9,8 +9,10 @@ import { useFormContext } from "react-hook-form";
 
 export default function EvmKasSelectItem({
   chainId,
+  toggleShow,
 }: {
   chainId: `0x${string}`;
+  toggleShow: () => void;
 }) {
   const { wallet } = useWalletManager();
   const navigate = useNavigate();
@@ -34,6 +36,7 @@ export default function EvmKasSelectItem({
         },
       },
     });
+    toggleShow();
   };
 
   return (

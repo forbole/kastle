@@ -8,7 +8,7 @@ import { twMerge } from "tailwind-merge";
 import spinner from "@/assets/images/spinner.svg";
 import { useSettings } from "@/hooks/useSettings";
 import TokenSelect from "@/components/send/token-selector/TokenSelect";
-import { isAddress, formatEther } from "viem";
+import { isAddress, formatEther, parseEther } from "viem";
 import kasIcon from "@/assets/images/kas-icon.svg";
 import useEvmKasBalance from "@/hooks/evm/useEvmKasBalance";
 import useFeeEstimate from "@/hooks/evm/useFeeEstimate";
@@ -40,7 +40,7 @@ export default function DetailsStep({
   const { data: balanceInfo } = useEvmKasBalance(chainId);
 
   const { rawBalance, balance } = balanceInfo ?? {};
-  const currentBalance = Number(rawBalance ?? 0n);
+  const currentBalance = rawBalance ?? 0n;
   const evmAddress = useEvmAddress();
 
   const { userInput, address, amount } = watch();
@@ -51,7 +51,7 @@ export default function DetailsStep({
       ? {
           account: evmAddress,
           to: address as `0x${string}`,
-          value: rawBalance,
+          value: amount ? parseEther(amount) : (rawBalance ?? 0n),
         }
       : undefined,
   );
@@ -88,13 +88,13 @@ export default function DetailsStep({
   };
 
   const amountValidator = async (value: string | undefined) => {
-    const amountNumber = parseFloat(value ?? "0");
+    const amountNumber = parseEther(value ?? "0");
 
     if (amountNumber < 0 || amountNumber > currentBalance) {
       return "Oh, you don’t have enough funds";
     }
 
-    if (amountNumber + Number(estimatedFee) > currentBalance) {
+    if (amountNumber + (estimatedFee ?? 0n) > currentBalance) {
       return "Oh, you don't have enough funds to cover the estimated fees";
     }
 
@@ -113,7 +113,9 @@ export default function DetailsStep({
       return;
     }
 
-    const maxAmount = currentBalance - Number(estimatedFee ?? 0n);
+    const maxAmount = parseFloat(
+      formatEther(currentBalance - (estimatedFee ?? 0n)),
+    );
     setValue("amount", maxAmount > 0 ? maxAmount.toFixed(8) : "0", {
       shouldValidate: true,
     });

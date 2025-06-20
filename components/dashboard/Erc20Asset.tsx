@@ -1,5 +1,5 @@
 import { Erc20Asset } from "@/contexts/EvmAssets";
-import useERC20Balance from "@/hooks/evm/useErc20Balance";
+import useErc20Balance from "@/hooks/evm/useErc20Balance";
 import Layer2AssetImage from "../Layer2AssetImage";
 import { getChainImage } from "@/lib/layer2";
 import { useNavigate } from "react-router-dom";
@@ -12,7 +12,7 @@ import {
 export default function Erc20Asset({ asset }: { asset: Erc20Asset }) {
   const navigate = useNavigate();
   const [settings] = useSettings();
-  const { data } = useERC20Balance(
+  const { data } = useErc20Balance(
     asset.address,
     asset.decimals,
     asset.chainId,
