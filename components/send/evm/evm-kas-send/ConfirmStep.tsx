@@ -176,10 +176,7 @@ export const ConfirmStep = ({
             <div className="flex w-full items-start justify-between">
               <span className="font-medium">Fee</span>
               <div className="flex flex-col text-right">
-                <span className="font-medium">
-                  {formatToken(fiatFees)}{" "}
-                  KAS
-                </span>
+                <span className="font-medium">{formatToken(fiatFees)} KAS</span>
                 <span className="text-xs text-daintree-400">
                   {formatCurrency(feesCurrency, feesCurrencyCode)}
                 </span>
