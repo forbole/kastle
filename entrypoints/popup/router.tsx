@@ -74,6 +74,7 @@ import { EVMAssetsProvider } from "@/contexts/EvmAssets";
 import EvmKasAsset from "@/components/screens/EvmKasAsset";
 import { Krc20Send } from "@/components/send/krc20-send/Krc20Send";
 import EvmKasSend from "@/components/send/evm/evm-kas-send/EvmKasSend";
+import Erc20Send from "@/components/send/evm/erc20-send/Erc20Send";
 
 const loadKaspaWasm = async () => {
   await init({ module_or_path: kaspaModule });
@@ -200,6 +201,10 @@ export const router = createHashRouter([
                   { path: "kas/send", element: <KasSend /> },
                   { path: "krc-20/send/:tick", element: <Krc20Send /> },
                   { path: "evm-kas/send/:chainId", element: <EvmKasSend /> },
+                  {
+                    path: "erc-20/send/:chainId/:tokenId",
+                    element: <Erc20Send />,
+                  },
 
                   {
                     path: "kns-transfer/:assetId",

@@ -6,26 +6,27 @@ import { getChainImage } from "@/lib/layer2";
 import useWalletManager from "@/hooks/useWalletManager";
 import { twMerge } from "tailwind-merge";
 import { useFormContext } from "react-hook-form";
+import useERC20Balance from "@/hooks/evm/useErc20Balance";
+import { Erc20Asset } from "@/contexts/EvmAssets";
 
-export default function EvmKasSelectItem({
-  chainId,
-}: {
-  chainId: `0x${string}`;
-}) {
+export default function Erc20SelectItem({ asset }: { asset: Erc20Asset }) {
   const { wallet } = useWalletManager();
   const navigate = useNavigate();
-  const { data } = useEvmKasBalance(chainId);
-  const kasBalance = data?.balance ?? "0";
+  const { data } = useERC20Balance(
+    asset.address,
+    asset.decimals,
+    asset.chainId,
+  );
+  const balance = data?.balance ?? "0";
   const { watch } = useFormContext<{
     userInput?: string;
-    address?: string;
     amount?: string;
   }>();
 
   const isLedger = wallet?.type === "ledger";
   const onClick = () => {
     if (isLedger) return;
-    navigate(`/evm-kas/send/${chainId}`, {
+    navigate(`/erc-20/send/${asset.chainId}/${asset.address}`, {
       state: {
         step: "details",
         form: {
@@ -38,7 +39,7 @@ export default function EvmKasSelectItem({
 
   return (
     <>
-      {kasBalance !== "0" && (
+      {balance !== "0" && (
         <button
           type="button"
           className="flex items-center justify-between rounded-lg px-4 py-2 text-base font-medium text-daintree-200 hover:bg-daintree-700"
@@ -51,14 +52,14 @@ export default function EvmKasSelectItem({
             )}
           >
             <Layer2AssetImage
-              tokenImage={kasIcon}
+              tokenImage={asset.image ?? kasIcon}
               tokenImageSize={24}
               chainImageSize={20}
-              chainImage={getChainImage(chainId)}
+              chainImage={getChainImage(asset.chainId)}
             />
-            <span>KAS</span>
+            <span>{asset.symbol}</span>
           </div>
-          {!isLedger && <span>{kasBalance.toLocaleString()}</span>}
+          {!isLedger && <span>{balance.toLocaleString()}</span>}
           {isLedger && (
             <span className="rounded-full bg-[#1C333C] p-2 px-4 text-xs text-white">
               Not supported with Ledger

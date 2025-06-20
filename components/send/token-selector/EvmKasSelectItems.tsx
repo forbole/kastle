@@ -14,8 +14,8 @@ export default function EvmKasSelectItems() {
     <>
       {supportedChains.map((chain) => (
         <EvmKasSelectItem
-          key={chain.id}
-          chainId={numberToHex(chain.id) as `0x${string}`}
+          key={numberToHex(chain.id)}
+          chainId={numberToHex(chain.id)}
         />
       ))}
     </>

@@ -17,7 +17,7 @@ export default function useAnalytics() {
     emitFirstTransaction: async (properties: {
       direction: "send" | "receive";
       amount: string;
-      coin: "KAS";
+      coin: string;
     }) => {
       const analytics = cachedAnalytics
         ? cachedAnalytics

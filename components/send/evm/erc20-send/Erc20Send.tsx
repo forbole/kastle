@@ -6,23 +6,23 @@ import HotWalletConfirm from "./HotWalletConfirm";
 import { Broadcasting } from "../../Broadcasting";
 import SuccessStatus from "../SuccessStatus";
 import FailStatus from "../FailStatus";
-
 import z from "zod";
+import useErc20Assets from "@/hooks/evm/useErc20Assets";
 
-export const EvmKasSendFormSchema = z.object({
+export const Erc20SendFormSchema = z.object({
   userInput: z.string().optional(),
   address: z.string().optional(),
   amount: z.string().optional(),
   amountFiat: z.string().optional(),
 });
 
-export type EvmKasSendForm = z.infer<typeof EvmKasSendFormSchema>;
+export type Erc20SendForm = z.infer<typeof Erc20SendFormSchema>;
 
 const steps = ["details", "confirm", "broadcast", "success", "fail"] as const;
 
 type Step = (typeof steps)[number];
 
-export default function EvmKasSend() {
+export default function Erc20Send() {
   const { wallet } = useWalletManager();
   const navigate = useNavigate();
   const { state } = useLocation() as {
@@ -35,10 +35,18 @@ export default function EvmKasSend() {
     };
   };
   const [step, setStep] = useState<Step>(state?.step ?? "details");
-  const { chainId } = useParams<{ chainId: `0x${string}` }>();
+  const { chainId, tokenId } = useParams<{
+    chainId: `0x${string}`;
+    tokenId: `0x${string}`;
+  }>();
   const [outTxs, setOutTxs] = useState<string[]>();
 
-  const form = useForm<EvmKasSendForm>({
+  const { assets } = useErc20Assets();
+  const asset = assets.find(
+    (asset) => asset.address === tokenId && asset.chainId === chainId,
+  );
+
+  const form = useForm<Erc20SendForm>({
     defaultValues: {
       userInput: state?.form?.userInput ?? "",
       amount: state?.form?.amount ?? "",
@@ -60,30 +68,38 @@ export default function EvmKasSend() {
   return (
     <div className="relative flex h-full flex-col p-4 text-white">
       <FormProvider {...form}>
-        {step === "details" && (
+        {step === "details" && asset && (
           <DetailsStep
-            chainId={chainId!}
+            asset={asset}
             onNext={() => setStep("confirm")}
             onBack={onBack}
           />
         )}
-        {step === "confirm" && wallet?.type !== "ledger" && (
+        {step === "confirm" && asset && wallet?.type !== "ledger" && (
           <HotWalletConfirm
-            chainId={chainId!}
+            asset={asset}
             onNext={() => setStep("broadcast")}
             onBack={onBack}
             setOutTxs={setOutTxs}
             onFail={() => setStep("fail")}
           />
         )}
-        {step == "broadcast" && (
+        {step == "broadcast"  && (
           <Broadcasting onSuccess={() => setStep("success")} />
         )}
-        {step === "success" && (
-          <SuccessStatus chainId={chainId!} transactionIds={outTxs} />
+        {step === "success" && asset && (
+          <SuccessStatus
+            chainId={asset.chainId}
+            transactionIds={outTxs}
+            tokenName={asset.symbol}
+          />
         )}
-        {step === "fail" && (
-          <FailStatus chainId={chainId!} transactionIds={outTxs} />
+        {step === "fail" && asset && (
+          <FailStatus
+            chainId={asset.chainId}
+            transactionIds={outTxs}
+            tokenName={asset.symbol}
+          />
         )}
       </FormProvider>
     </div>

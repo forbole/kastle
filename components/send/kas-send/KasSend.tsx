@@ -38,7 +38,6 @@ export default function KasSend() {
       step: Step;
       form: {
         userInput?: string;
-        address?: string;
         amount?: string;
       };
     };
@@ -51,7 +50,6 @@ export default function KasSend() {
       userInput: state?.form?.userInput ?? "",
       priorityFee: 0n,
       priority: "medium",
-      address: state?.form?.address,
       amount: state?.form?.amount ?? "",
     },
     mode: "onChange",

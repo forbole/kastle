@@ -7,6 +7,7 @@ import kasIcon from "@/assets/images/kas-icon.svg";
 import { formatToken } from "@/lib/utils.ts";
 import { useNavigate } from "react-router-dom";
 import EvmKasSelectItems from "./EvmKasSelectItems";
+import Erc20SelectItems from "./Erc20SelectItems";
 import { useFormContext } from "react-hook-form";
 
 type TokenSelectProps = { isShown: boolean; toggleShow: () => void };
@@ -17,10 +18,9 @@ export default function TokenSelect({ isShown, toggleShow }: TokenSelectProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const { watch } = useFormContext<{
     userInput?: string;
-    address?: string;
     amount?: string;
   }>();
-  const { userInput, address, amount } = watch();
+  const { userInput, amount } = watch();
 
   const kasAddress = account?.address;
   const kasBalance = account?.balance;
@@ -52,7 +52,6 @@ export default function TokenSelect({ isShown, toggleShow }: TokenSelectProps) {
           step: "details",
           form: {
             userInput,
-            address,
             amount,
           },
         },
@@ -63,7 +62,6 @@ export default function TokenSelect({ isShown, toggleShow }: TokenSelectProps) {
           step: "details",
           form: {
             userInput,
-            address,
             amount,
           },
         },
@@ -126,6 +124,8 @@ export default function TokenSelect({ isShown, toggleShow }: TokenSelectProps) {
 
           {/* EVM KAS */}
           {isKasShown && <EvmKasSelectItems />}
+
+          <Erc20SelectItems searchQuery={searchQuery} />
 
           {tokens
             ?.filter((token) => parseFloat(token.balance) > 0)

@@ -41,8 +41,6 @@ export function Krc20Send() {
     mode: "onChange",
   });
 
-  console.log(state);
-
   return (
     <div className="relative flex h-screen flex-col p-4">
       <FormProvider {...form}>

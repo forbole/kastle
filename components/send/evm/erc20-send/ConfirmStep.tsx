@@ -1,5 +1,5 @@
 import { useFormContext } from "react-hook-form";
-import { EvmKasSendForm } from "./EvmKasSend";
+import { Erc20SendForm } from "./Erc20Send";
 import React, { useState } from "react";
 import signImage from "@/assets/images/sign.png";
 import ledgerSignImage from "@/assets/images/ledger-on-sign.svg";
@@ -15,19 +15,27 @@ import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 import useEvmAddress from "@/hooks/evm/useEvmAddress";
 import useFeeEstimate from "@/hooks/evm/useFeeEstimate";
 import useAnalytics from "@/hooks/useAnalytics.ts";
-import { formatEther, parseEther, TransactionSerializable } from "viem";
+import { formatEther, TransactionSerializable } from "viem";
 import { ALL_SUPPORTED_EVM_L2_CHAINS } from "@/lib/layer2";
-import { createPublicClient, http, hexToNumber } from "viem";
+import {
+  createPublicClient,
+  http,
+  hexToNumber,
+  encodeFunctionData,
+  erc20Abi,
+  parseUnits,
+} from "viem";
+import { Erc20Asset } from "@/contexts/EvmAssets";
 
 export const ConfirmStep = ({
-  chainId,
+  asset,
   onNext,
   onBack,
   onFail,
   setOutTxs,
   walletSigner: signer,
 }: {
-  chainId: `0x${string}`;
+  asset: Erc20Asset;
   onNext: () => void;
   onBack: () => void;
   onFail: () => void;
@@ -41,22 +49,31 @@ export const ConfirmStep = ({
   const [isSigning, setIsSigning] = useState(false);
 
   const { wallet } = useWalletManager();
-  const { watch } = useFormContext<EvmKasSendForm>();
+  const { watch } = useFormContext<Erc20SendForm>();
   const { address: toAddress, amount } = watch();
 
   const payload =
     evmAddress && toAddress && amount
       ? {
           account: evmAddress,
-          to: toAddress as `0x${string}`,
-          value: parseEther(amount),
+          to: asset.address,
+          data: encodeFunctionData({
+            abi: erc20Abi,
+            functionName: "transfer",
+            args: [
+              toAddress as `0x${string}`,
+              parseUnits(amount, asset.decimals),
+            ],
+          }),
         }
       : undefined;
-  const { data: estimatedFee } = useFeeEstimate(chainId, payload);
 
-  const kaspaPrice = useKaspaPrice();
+  const { data: estimatedFee } = useFeeEstimate(asset.chainId, payload);
+
+  // TODO: Add price when it is available
+  const tokenPrice = 0;
   const amountNumber = parseFloat(amount ?? "0");
-  const fiatAmount = amountNumber * kaspaPrice.kaspaPrice;
+  const fiatAmount = amountNumber * tokenPrice;
   const fiatFees = parseFloat(formatEther(estimatedFee ?? BigInt(0)));
   const { amount: amountCurrency, code: amountCurrencyCode } =
     useCurrencyValue(fiatAmount);
@@ -64,7 +81,7 @@ export const ConfirmStep = ({
     useCurrencyValue(fiatFees);
 
   const selectedChain = ALL_SUPPORTED_EVM_L2_CHAINS.find(
-    (chain) => chain.id === hexToNumber(chainId),
+    (chain) => chain.id === hexToNumber(asset.chainId),
   );
 
   const ethClient = createPublicClient({
@@ -89,20 +106,19 @@ export const ConfirmStep = ({
       const gas = await ethClient.estimateGas({
         account: fromAddress,
         to: payload.to,
-        value: payload.value,
+        data: payload.data,
       });
 
       const nonce = await ethClient.getTransactionCount({
         address: fromAddress,
       });
-
       const transaction: TransactionSerializable = {
         to: payload.to,
-        value: payload.value,
+        data: payload.data,
         gas,
         maxFeePerGas: estimatedGas.maxFeePerGas,
         maxPriorityFeePerGas: estimatedGas.maxPriorityFeePerGas,
-        chainId: hexToNumber(chainId),
+        chainId: hexToNumber(asset.chainId),
         type: "eip1559",
         nonce,
       };
@@ -115,7 +131,7 @@ export const ConfirmStep = ({
       // Don't await, analytics should not crash the app
       emitFirstTransaction({
         amount,
-        coin: "KAS",
+        coin: asset.symbol,
         direction: "send",
       });
 
@@ -163,7 +179,7 @@ export const ConfirmStep = ({
               <span className="font-medium">Sending amount</span>
               <div className="flex flex-col text-right">
                 <span className="font-medium">
-                  {amountNumber.toFixed(3)} KAS
+                  {amountNumber.toFixed(3)} {asset.symbol}
                 </span>
                 <span className="text-xs text-daintree-400">
                   {formatCurrency(amountCurrency, amountCurrencyCode)}
