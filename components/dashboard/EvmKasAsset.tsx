@@ -5,6 +5,7 @@ import {
   formatCurrency,
   formatTokenPrice,
   symbolForCurrencyCode,
+  formatToken,
 } from "@/lib/utils.ts";
 import { useSettings } from "@/hooks/useSettings";
 import kasIcon from "@/assets/images/kas-icon.svg";
@@ -15,7 +16,7 @@ export default function EvmKasAsset({ chainId }: { chainId: `0x${string}` }) {
   const navigate = useNavigate();
   const kaspaPrice = useKaspaPrice();
   const { data } = useEvmKasBalance(chainId);
-  const balance = data?.balance ?? "0";
+  const balance = formatToken(parseFloat(data?.balance ?? "0"));
 
   const fiatKaspaPrice = kaspaPrice.kaspaPrice;
   const fiatBalance = parseFloat(balance ?? "0") * kaspaPrice.kaspaPrice;

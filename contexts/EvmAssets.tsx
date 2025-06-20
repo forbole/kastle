@@ -10,11 +10,11 @@ type EvmAssets = {
 };
 
 export type Erc20Asset = {
-  address: string;
+  address: `0x${string}`; // Token contract address
   symbol: string;
   decimals: number;
   image?: string; // Optional image URL
-  chainId: string; // Chain ID to which this asset belongs
+  chainId: `0x${string}`; // Chain ID to which this asset belongs
 };
 
 type EvmAssetsContextType = {

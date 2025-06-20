@@ -4,8 +4,8 @@ import { useNavigate } from "react-router-dom";
 import successImage from "@/assets/images/success.png";
 import Header from "@/components/GeneralHeader";
 import { useFormContext } from "react-hook-form";
-import { TokenOperationFormData } from "@/components/screens/TokenTransfer.tsx";
-import { SendFormData } from "@/components/screens/Send.tsx";
+import { TokenOperationFormData } from "@/components/send/krc20-send/Krc20Transfer";
+import { KasSendForm } from "@/components/send/kas-send/KasSend";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import { useTokenInfo } from "@/hooks/kasplex/useTokenInfo";
 
@@ -15,7 +15,7 @@ interface SuccessProps {
 
 export const SuccessStatus = ({ transactionIds }: SuccessProps) => {
   const navigate = useNavigate();
-  const { watch } = useFormContext<SendFormData | TokenOperationFormData>();
+  const { watch } = useFormContext<KasSendForm | TokenOperationFormData>();
   const { networkId } = useRpcClientStateful();
   const formFields = watch();
 

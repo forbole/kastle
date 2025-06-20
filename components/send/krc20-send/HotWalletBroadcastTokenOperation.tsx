@@ -2,7 +2,7 @@ import { Broadcasting } from "@/components/send/Broadcasting";
 import { WalletSecret } from "@/types/WalletSecret";
 import { AccountFactory } from "@/lib/wallet/wallet-factory";
 import { useFormContext } from "react-hook-form";
-import { TokenOperationFormData } from "@/components/screens/TokenTransfer.tsx";
+import { TokenOperationFormData } from "@/components/send/krc20-send/Krc20Transfer";
 import { useEffect } from "react";
 import { captureException } from "@sentry/react";
 import useRecentAddresses from "@/hooks/useRecentAddresses.ts";

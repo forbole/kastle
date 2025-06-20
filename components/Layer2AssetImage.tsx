@@ -4,9 +4,13 @@ import React, { useState, useEffect } from "react";
 export default function Layer2AssetImage({
   tokenImage,
   chainImage,
+  tokenImageSize = 40,
+  chainImageSize = 24,
 }: {
   tokenImage?: string;
   chainImage?: string;
+  tokenImageSize?: number;
+  chainImageSize?: number;
 }) {
   const [imageUrl, setImageUrl] = useState(kasIcon);
 
@@ -26,7 +30,7 @@ export default function Layer2AssetImage({
         <img
           src={imageUrl}
           alt="Token"
-          className="h-10 w-10 rounded-full object-cover shadow-lg"
+          className={`rounded-full object-cover shadow-lg h-[${tokenImageSize}px] w-[${tokenImageSize}px]`}
           onError={onImageError}
         />
       </div>
@@ -35,7 +39,7 @@ export default function Layer2AssetImage({
         <img
           src={chainImage ?? kasIcon}
           alt="Chain"
-          className="h-6 w-6 rounded-full border-2 border-[#102832] bg-[#102832] object-cover shadow-md"
+          className={`rounded-full border-2 border-[#102832] bg-[#102832] object-cover shadow-md h-[${chainImageSize}px] w-[${chainImageSize}px]`}
         />
       </div>
     </div>
