@@ -33,12 +33,22 @@ export interface SendState {
 
 export default function KasSend() {
   const navigate = useNavigate();
-  const { state } = useLocation() as { state?: SendState };
+  const { state } = useLocation() as {
+    state?: {
+      step: Step;
+      form: {
+        userInput?: string;
+        address?: string;
+        amount?: string;
+      };
+    };
+  };
   const [step, setStep] = useState<Step>(state?.step ?? "details");
   const { wallet } = useWalletManager();
 
   const form = useForm<KasSendForm>({
     defaultValues: {
+      userInput: state?.form?.userInput ?? "",
       priorityFee: 0n,
       priority: "medium",
       address: state?.form?.address,

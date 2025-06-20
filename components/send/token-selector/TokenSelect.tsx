@@ -7,6 +7,7 @@ import kasIcon from "@/assets/images/kas-icon.svg";
 import { formatToken } from "@/lib/utils.ts";
 import { useNavigate } from "react-router-dom";
 import EvmKasSelectItems from "./EvmKasSelectItems";
+import { useFormContext } from "react-hook-form";
 
 type TokenSelectProps = { isShown: boolean; toggleShow: () => void };
 
@@ -14,6 +15,12 @@ export default function TokenSelect({ isShown, toggleShow }: TokenSelectProps) {
   const navigate = useNavigate();
   const { wallet, account } = useWalletManager();
   const [searchQuery, setSearchQuery] = useState("");
+  const { watch } = useFormContext<{
+    userInput?: string;
+    address?: string;
+    amount?: string;
+  }>();
+  const { userInput, address, amount } = watch();
 
   const kasAddress = account?.address;
   const kasBalance = account?.balance;
@@ -40,9 +47,27 @@ export default function TokenSelect({ isShown, toggleShow }: TokenSelectProps) {
 
   const selectToken = async (type: string, tokenId?: string) => {
     if (type === "kas") {
-      navigate("/kas/send");
+      navigate("/kas/send", {
+        state: {
+          step: "details",
+          form: {
+            userInput,
+            address,
+            amount,
+          },
+        },
+      });
     } else {
-      navigate(`/krc-20/send/${tokenId}`);
+      navigate(`/krc-20/send/${tokenId}`, {
+        state: {
+          step: "details",
+          form: {
+            userInput,
+            address,
+            amount,
+          },
+        },
+      });
     }
     toggleShow();
   };

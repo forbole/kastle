@@ -74,14 +74,8 @@ export default function DetailsStep({
     const genericErrorMessage = "Invalid address";
     if (!value) return undefined;
 
-    const isValidEvmAddress = () => {
-      const isValid = isAddress(value);
-
-      return isValid;
-    };
-
     try {
-      if (!isValidEvmAddress()) {
+      if (!isAddress(value)) {
         return genericErrorMessage;
       }
 
@@ -136,6 +130,10 @@ export default function DetailsStep({
     }
   }, [amount, estimatedFee]);
 
+  useEffect(() => {
+    trigger("userInput");
+  }, []);
+
   return (
     <>
       <Header title="Send" onClose={onClose} onBack={onBack} />
@@ -174,7 +172,7 @@ export default function DetailsStep({
               errors.userInput &&
                 "ring ring-red-500/25 focus:ring focus:ring-red-500/25",
             )}
-            placeholder="Enter wallet address or KNS"
+            placeholder="Enter EVM wallet address"
           />
 
           <div className="pointer-events-none absolute end-0 top-10 flex h-16 items-center pe-3">

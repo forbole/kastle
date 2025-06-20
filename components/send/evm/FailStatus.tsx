@@ -9,9 +9,14 @@ import { hexToNumber } from "viem";
 interface FailProps {
   chainId: `0x${string}`;
   transactionIds?: string[] | undefined;
+  tokenName?: string;
 }
 
-export default function FailStatus({ chainId, transactionIds }: FailProps) {
+export default function FailStatus({
+  chainId,
+  transactionIds,
+  tokenName = "KAS",
+}: FailProps) {
   const navigate = useNavigate();
   const selectChain = ALL_SUPPORTED_EVM_L2_CHAINS.find(
     (chain) => chain.id === hexToNumber(chainId),
@@ -45,7 +50,7 @@ export default function FailStatus({ chainId, transactionIds }: FailProps) {
             </span>
 
             <span className="px-2 text-sm text-gray-500">
-              {"The carriage couldn't deliver your KAS this time."}
+              {`The carriage couldn't deliver your ${tokenName} this time.`}
               <br />
               {"Please check the recipient's address or try again later."}
             </span>

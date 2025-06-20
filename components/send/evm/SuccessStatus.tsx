@@ -7,11 +7,13 @@ import { hexToNumber } from "viem";
 interface SuccessProps {
   chainId: `0x${string}`;
   transactionIds?: string[] | undefined;
+  tokenName?: string;
 }
 
 export default function SuccessStatus({
   chainId,
   transactionIds,
+  tokenName = "KAS",
 }: SuccessProps) {
   const navigate = useNavigate();
   const selectChain = ALL_SUPPORTED_EVM_L2_CHAINS.find(
@@ -25,8 +27,8 @@ export default function SuccessStatus({
     navigate("/dashboard");
   };
 
-  const title = "KAS Dispatched!";
-  const description = "Your KAS has been sent to the recipient's address";
+  const title = `${tokenName} Dispatched!`;
+  const description = `Your ${tokenName} has been sent to the recipient's address`;
 
   const openTransactions = () => {
     for (const transactionId of transactionIds ?? []) {

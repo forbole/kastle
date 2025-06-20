@@ -18,11 +18,6 @@ export const EvmKasSendFormSchema = z.object({
 
 export type EvmKasSendForm = z.infer<typeof EvmKasSendFormSchema>;
 
-export interface SendState {
-  form?: EvmKasSendForm;
-  step?: Step;
-}
-
 const steps = ["details", "confirm", "broadcast", "success", "fail"] as const;
 
 type Step = (typeof steps)[number];
@@ -30,13 +25,23 @@ type Step = (typeof steps)[number];
 export default function EvmKasSend() {
   const { wallet } = useWalletManager();
   const navigate = useNavigate();
-  const { state } = useLocation() as { state?: SendState };
+  const { state } = useLocation() as {
+    state?: {
+      step: Step;
+      form: {
+        userInput?: string;
+        address?: string;
+        amount?: string;
+      };
+    };
+  };
   const [step, setStep] = useState<Step>(state?.step ?? "details");
   const { chainId } = useParams<{ chainId: `0x${string}` }>();
   const [outTxs, setOutTxs] = useState<string[]>();
 
   const form = useForm<EvmKasSendForm>({
     defaultValues: {
+      userInput: state?.form?.userInput ?? "",
       address: state?.form?.address,
       amount: state?.form?.amount ?? "",
     },

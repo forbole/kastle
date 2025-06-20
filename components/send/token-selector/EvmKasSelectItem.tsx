@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { getChainImage } from "@/lib/layer2";
 import useWalletManager from "@/hooks/useWalletManager";
 import { twMerge } from "tailwind-merge";
+import { useFormContext } from "react-hook-form";
 
 export default function EvmKasSelectItem({
   chainId,
@@ -15,11 +16,25 @@ export default function EvmKasSelectItem({
   const navigate = useNavigate();
   const { data } = useEvmKasBalance(chainId);
   const kasBalance = data?.balance ?? "0";
+  const { watch } = useFormContext<{
+    userInput?: string;
+    address?: string;
+    amount?: string;
+  }>();
 
   const isLedger = wallet?.type === "ledger";
   const onClick = () => {
     if (isLedger) return;
-    navigate(`/evm-kas/send/${chainId}`);
+    navigate(`/evm-kas/send/${chainId}`, {
+      state: {
+        step: "details",
+        form: {
+          userInput: watch("userInput"),
+          address: watch("address"),
+          amount: watch("amount"),
+        },
+      },
+    });
   };
 
   return (

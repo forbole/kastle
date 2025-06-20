@@ -210,6 +210,10 @@ export function DetailsStep({
     setValue("priorityFee", BigInt(Math.round(selectedPriorityFee)));
   }, [estimatedMass, priorityFeeEstimate, priority]);
 
+  useEffect(() => {
+    trigger("userInput");
+  }, []);
+
   return (
     <>
       <Header title="Send" onClose={onClose} onBack={onBack} />
