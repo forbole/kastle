@@ -7,6 +7,7 @@ import {
   formatCurrency,
   formatTokenPrice,
   symbolForCurrencyCode,
+  formatToken,
 } from "@/lib/utils.ts";
 
 export default function Erc20Asset({ asset }: { asset: Erc20Asset }) {
@@ -25,7 +26,7 @@ export default function Erc20Asset({ asset }: { asset: Erc20Asset }) {
     useCurrencyValue(0);
 
   const showBalance = !settings?.hideBalances;
-  const balance = data?.balance ?? "0";
+  const balance = formatToken(parseFloat(data?.balance ?? "0"));
 
   return (
     <div
