@@ -1,11 +1,11 @@
 import { TokenItem } from "@/hooks/kasplex/useTokenListByAddress";
 import { applyDecimal } from "@/lib/krc20.ts";
 import kasIcon from "@/assets/images/kas-icon.svg";
-import React, { useEffect } from "react";
 import { twMerge } from "tailwind-merge";
 import { useTokenMetadata } from "@/hooks/kasplex/useTokenMetadata";
 import { useTokenInfo } from "@/hooks/kasplex/useTokenInfo";
 import { walletAddressEllipsis } from "@/lib/utils";
+import Layer2AssetImage from "@/components/Layer2AssetImage";
 
 interface KRC20SelectItemProps {
   token: TokenItem;
@@ -19,23 +19,12 @@ export default function KRC20SelectItem({
   supported = true,
 }: KRC20SelectItemProps) {
   const { data: tokenMetadata } = useTokenMetadata(token.id);
-  const [imageUrl, setImageUrl] = useState(kasIcon);
   const { toFloat } = applyDecimal(token.dec);
   const balance = parseInt(token.balance, 10);
   const { data: tokenInfoResponse } = useTokenInfo(token.id);
   const tokenInfo = tokenInfoResponse?.result?.[0];
   const tokenName =
     tokenInfo?.mod === "mint" ? tokenInfo?.tick : tokenInfo?.name;
-
-  const onImageError = () => {
-    setImageUrl(kasIcon);
-  };
-
-  useEffect(() => {
-    if (tokenMetadata?.iconUrl) {
-      setImageUrl(tokenMetadata.iconUrl);
-    }
-  }, [tokenMetadata?.iconUrl]);
 
   return (
     <button
@@ -51,11 +40,11 @@ export default function KRC20SelectItem({
           !supported && "opacity-40",
         )}
       >
-        <img
-          alt="castle"
-          className="h-[24px] w-[24px] rounded-full"
-          src={imageUrl}
-          onError={onImageError}
+        <Layer2AssetImage
+          tokenImage={tokenMetadata?.iconUrl}
+          tokenImageSize={24}
+          chainImageSize={20}
+          chainImage={kasIcon}
         />
         <div className="flex flex-col items-start">
           <span>{tokenName}</span>
