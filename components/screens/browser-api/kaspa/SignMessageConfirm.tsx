@@ -21,7 +21,7 @@ export default function SignMessageConfirm() {
   const loading = !wallet || !requestId || !parsedPayload;
 
   return (
-    <div className="h-screen p-4">
+    <div className="no-scrollbar h-screen overflow-y-scroll p-4">
       {loading && <Splash />}
       {!loading && wallet.type !== "ledger" && (
         <HotWalletSignMessage
