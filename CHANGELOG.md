@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.23.2](https://github.com/forbole/kastle/compare/v2.23.1...v2.23.2) (2025-06-25)
+
+
+### Bug Fixes
+
+* **ui:** make sign message ui scrollable ([#160](https://github.com/forbole/kastle/issues/160)) ([62b2488](https://github.com/forbole/kastle/commit/62b24883dc4e1a0ba2829b262e807a53206ee20e))
+
 ## [2.23.1](https://github.com/forbole/kastle/compare/v2.23.0...v2.23.1) (2025-06-25)
 
 
