@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.23.1](https://github.com/forbole/kastle/compare/v2.23.0...v2.23.1) (2025-06-25)
+
+
+### Bug Fixes
+
+* **api:** fix sign message api ([#158](https://github.com/forbole/kastle/issues/158)) ([4da50e7](https://github.com/forbole/kastle/commit/4da50e76b3f06b720a2bd828734c985b0a75cac5))
+
 ## [2.23.0](https://github.com/forbole/kastle/compare/v2.22.0...v2.23.0) (2025-06-18)
 
 
