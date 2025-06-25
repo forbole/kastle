@@ -58,7 +58,7 @@ export default function SignMessage({
   };
 
   return (
-    <div className="flex h-full flex-col justify-between">
+    <div className="flex h-full flex-col justify-between gap-4">
       <div>
         <Header showPrevious={false} showClose={false} title="Confirm" />
         <div className="relative">
