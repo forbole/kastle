@@ -61,6 +61,7 @@ export class KastleBrowserAPI {
       "kas:sign_tx": Action.SIGN_TX,
       "kas:sign_and_broadcast_tx": Action.SIGN_AND_BROADCAST_TX,
       "kas:switch_network": Action.SWITCH_NETWORK,
+      "kas:sign_message": Action.SIGN_MESSAGE,
     }[method];
 
     if (!action) {
@@ -126,9 +127,7 @@ export class KastleBrowserAPI {
     const request = createApiRequest(
       Action.SIGN_MESSAGE,
       requestId,
-      SignMessagePayloadSchema.parse({
-        message,
-      }),
+      SignMessagePayloadSchema.parse(message),
     );
     window.postMessage(request, "*");
 

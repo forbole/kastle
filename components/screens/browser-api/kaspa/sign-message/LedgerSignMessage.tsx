@@ -36,7 +36,7 @@ export default function LedgerSignMessage({
         <SignMessage
           walletSigner={wallet}
           requestId={requestId}
-          message={payload.message}
+          message={payload}
         />
       )}
     </>

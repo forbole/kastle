@@ -3,9 +3,9 @@ import { ApiRequestWithHost, ApiResponse } from "@/api/message";
 import { ApiUtils } from "@/api/background/utils";
 import { z } from "zod";
 
-export const SignMessagePayloadSchema = z.object({
-  message: z.string(),
-});
+export const SignMessagePayloadSchema = z
+  .string()
+  .min(1, "Message cannot be empty");
 
 export type SignMessagePayload = z.infer<typeof SignMessagePayloadSchema>;
 
@@ -47,7 +47,7 @@ export const signMessageHandler: Handler = async (
   const result = SignMessagePayloadSchema.safeParse(message.payload);
   if (!result.success) {
     sendResponse(
-      ApiUtils.createApiResponse(message.id, null, "Invalid transaction data"),
+      ApiUtils.createApiResponse(message.id, null, "Invalid message data"),
     );
     return;
   }
@@ -55,7 +55,7 @@ export const signMessageHandler: Handler = async (
   const url = new URL(browser.runtime.getURL("/popup.html"));
   url.hash = "/sign-message";
   url.searchParams.set("requestId", message.id);
-  url.searchParams.set("payload", JSON.stringify(result.data));
+  url.searchParams.set("payload", result.data);
 
   // Open the popup and wait for the response
   const response = await ApiUtils.openPopupAndListenForResponse(

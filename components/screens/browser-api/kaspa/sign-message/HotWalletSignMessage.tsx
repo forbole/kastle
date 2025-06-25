@@ -51,7 +51,7 @@ export default function HotWalletSignMessage({
         <SignMessage
           walletSigner={wallet}
           requestId={requestId}
-          message={payload.message}
+          message={payload}
         />
       )}
     </>

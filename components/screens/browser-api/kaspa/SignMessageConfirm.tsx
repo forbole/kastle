@@ -12,9 +12,7 @@ export default function SignMessageConfirm() {
     "payload",
   );
 
-  const payload = encodedPayload
-    ? JSON.parse(decodeURIComponent(encodedPayload))
-    : null;
+  const payload = encodedPayload ? decodeURIComponent(encodedPayload) : null;
 
   const parsedPayload = payload
     ? SignMessagePayloadSchema.parse(payload)
