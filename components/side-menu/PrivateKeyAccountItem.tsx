@@ -1,5 +1,5 @@
 import { twMerge } from "tailwind-merge";
-import { formatCurrency, walletAddressEllipsis } from "@/lib/utils.ts";
+import { formatCurrency, textEllipsis } from "@/lib/utils.ts";
 import { Link, useNavigate } from "react-router-dom";
 import React from "react";
 import { Account } from "@/contexts/WalletManagerContext.tsx";
@@ -62,7 +62,7 @@ export default function PrivateKeyAccountItem({
               </span>
             </div>
             <span className="text-left text-xs text-daintree-400">
-              {walletAddressEllipsis(account.address)}
+              {textEllipsis(account.address)}
             </span>
           </div>
         </button>
