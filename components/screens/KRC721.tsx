@@ -2,7 +2,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useKRC721Details } from "@/hooks/useKRC721";
 import Header from "@/components/GeneralHeader";
 import { twMerge } from "tailwind-merge";
-import { convertIPFStoHTTP, walletAddressEllipsis } from "@/lib/utils";
+import { convertIPFStoHTTP, textEllipsis } from "@/lib/utils";
 import Copy from "@/components/Copy";
 import HoverShowAll from "@/components/HoverTooltip";
 import downloadImage from "@/assets/images/download.svg";
@@ -115,7 +115,7 @@ export default function KRC721() {
                   text={account?.address ?? ""}
                   tooltipWidth="22rem"
                 >
-                  {account && walletAddressEllipsis(account.address)}
+                  {account && textEllipsis(account.address)}
                 </HoverShowAll>
                 <Copy
                   textToCopy={account?.address ?? ""}

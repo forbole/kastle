@@ -1,5 +1,5 @@
 import avatarIcon from "@/assets/images/avatar.png";
-import { walletAddressEllipsis } from "@/lib/utils.ts";
+import { textEllipsis } from "@/lib/utils.ts";
 import React, { useState } from "react";
 import { RecentAddress } from "@/contexts/RecentAddressesContext.tsx";
 import { Tooltip } from "react-tooltip";
@@ -59,12 +59,12 @@ export default function RecentAddressItem({
               )}
             </>
           ) : (
-            <span>{walletAddressEllipsis(recentAddress.kaspaAddress)}</span>
+            <span>{textEllipsis(recentAddress.kaspaAddress)}</span>
           )}
         </span>
         {hasDomain && (
           <span className="flex items-center justify-between text-sm text-daintree-400">
-            {walletAddressEllipsis(resolvedAddress ?? "")}
+            {textEllipsis(resolvedAddress ?? "")}
           </span>
         )}
       </div>

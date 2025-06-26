@@ -8,7 +8,7 @@ import { twMerge } from "tailwind-merge";
 import LabelLoading from "@/components/LabelLoading.tsx";
 import { applyDecimal } from "@/lib/krc20.ts";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
-import { walletAddressEllipsis } from "@/lib/utils.ts";
+import { textEllipsis } from "@/lib/utils.ts";
 import HoverShowAllCopy from "../HoverShowAllCopy";
 
 export default function TokenInfo() {
@@ -98,7 +98,7 @@ export default function TokenInfo() {
                 }}
               >
                 <span className="cursor-pointer text-sm text-daintree-400">
-                  {walletAddressEllipsis(tokenAddress)}
+                  {textEllipsis(tokenAddress)}
                 </span>
               </HoverShowAllCopy>
             </div>
