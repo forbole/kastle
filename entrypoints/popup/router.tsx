@@ -75,6 +75,7 @@ import EvmKasAsset from "@/components/screens/EvmKasAsset";
 import { Krc20Send } from "@/components/send/krc20-send/Krc20Send";
 import EvmKasSend from "@/components/send/evm/evm-kas-send/EvmKasSend";
 import Erc20Send from "@/components/send/evm/erc20-send/Erc20Send";
+import SelectAddress from "@/components/screens/receive-addresses/SelectAddress";
 
 const loadKaspaWasm = async () => {
   await init({ module_or_path: kaspaModule });
@@ -222,7 +223,7 @@ export const router = createHashRouter([
                       </KRC721RecentTransferProvider>
                     ),
                   },
-                  { path: "receive", element: <Receive /> },
+                  { path: "receive", element: <SelectAddress /> },
                   { path: "settings", element: <Settings /> },
                   {
                     path: "connected-apps",
