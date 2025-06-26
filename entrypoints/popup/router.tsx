@@ -72,6 +72,7 @@ import EvmWatchAssetConfirm from "@/components/screens/browser-api/ethereum/EvmW
 import Erc20Asset from "@/components/screens/Erc20Asset";
 import { EVMAssetsProvider } from "@/contexts/EvmAssets";
 import EvmKasAsset from "@/components/screens/EvmKasAsset";
+import SelectAddress from "@/components/screens/receive-addresses/SelectAddress";
 
 const loadKaspaWasm = async () => {
   await init({ module_or_path: kaspaModule });
@@ -211,7 +212,7 @@ export const router = createHashRouter([
                       </KRC721RecentTransferProvider>
                     ),
                   },
-                  { path: "receive", element: <Receive /> },
+                  { path: "receive", element: <SelectAddress /> },
                   { path: "settings", element: <Settings /> },
                   {
                     path: "connected-apps",
