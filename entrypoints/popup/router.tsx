@@ -11,7 +11,6 @@ import ConnectConfirm from "@/components/screens/browser-api/ConnectConfirm";
 import SignAndBroadcastTxConfirm from "@/components/screens/browser-api/kaspa/SignAndBroadcastTxConfirm";
 import Dashboard from "@/components/screens/Dashboard";
 import Settings from "@/components/screens/Settings.tsx";
-import Receive from "@/components/screens/Receive.tsx";
 import Onboarding from "@/components/screens/Onboarding.tsx";
 import AddWallet from "@/components/screens/AddWallet.tsx";
 import ImportRecoveryPhrase from "@/components/screens/full-pages/ImportRecoveryPhrase";
@@ -76,6 +75,8 @@ import { Krc20Send } from "@/components/send/krc20-send/Krc20Send";
 import EvmKasSend from "@/components/send/evm/evm-kas-send/EvmKasSend";
 import Erc20Send from "@/components/send/evm/erc20-send/Erc20Send";
 import SelectAddress from "@/components/screens/receive-addresses/SelectAddress";
+import KaspaReceiveAddress from "@/components/screens/receive-addresses/KaspaReceiveAddress";
+import EvmReceiveAddress from "@/components/screens/receive-addresses/EvmReceiveAddress";
 
 const loadKaspaWasm = async () => {
   await init({ module_or_path: kaspaModule });
@@ -223,7 +224,15 @@ export const router = createHashRouter([
                       </KRC721RecentTransferProvider>
                     ),
                   },
-                  { path: "receive", element: <SelectAddress /> },
+                  {
+                    path: "receive/select-address",
+                    element: <SelectAddress />,
+                  },
+                  { path: "receive/kaspa", element: <KaspaReceiveAddress /> },
+                  {
+                    path: "receive/evm/:chainId",
+                    element: <EvmReceiveAddress />,
+                  },
                   { path: "settings", element: <Settings /> },
                   {
                     path: "connected-apps",
