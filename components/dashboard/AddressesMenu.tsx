@@ -24,7 +24,9 @@ export default function AddressesMenu() {
     <div className="absolute left-0 top-12 z-20 cursor-default rounded-2xl border border-daintree-700 bg-daintree-800">
       <AddressItem
         address={kasAddress}
-        chainName="Kaspa"
+        chainName={
+          settings?.networkId === "mainnet" ? "Kaspa" : "Kaspa Testnet"
+        }
         imageUrl={kasIcon}
         redirect={() => navigate("/receive/kaspa")}
       />
