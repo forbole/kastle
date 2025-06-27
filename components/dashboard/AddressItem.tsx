@@ -6,10 +6,12 @@ export default function AddressItem({
   imageUrl,
   chainName,
   address,
+  redirect,
 }: {
   imageUrl: string;
   chainName: string;
   address: string;
+  redirect: () => void;
 }) {
   return (
     <div className="flex w-[15.75rem] justify-between p-2 pl-3">
@@ -28,6 +30,7 @@ export default function AddressItem({
           className="h-4 w-4 cursor-pointer"
           src={qrCodeIcon}
           alt="QR Code"
+          onClick={redirect}
         />
       </div>
     </div>
