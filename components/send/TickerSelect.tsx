@@ -3,7 +3,7 @@ import React from "react";
 import { useTokenListByAddress } from "@/hooks/kasplex/useTokenListByAddress";
 import { applyDecimal } from "@/lib/krc20.ts";
 import TickerSelectItem from "@/components/send/TickerSelectItem.tsx";
-import kasIcon from "@/assets/images/kas-icon.svg";
+import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import { formatToken } from "@/lib/utils.ts";
 import { useFormContext } from "react-hook-form";
 import { SendFormData } from "@/components/screens/Send.tsx";

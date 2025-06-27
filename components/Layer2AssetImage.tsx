@@ -1,4 +1,4 @@
-import kasIcon from "@/assets/images/kas-icon.svg";
+import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import React, { useState, useEffect } from "react";
 
 export default function Layer2AssetImage({

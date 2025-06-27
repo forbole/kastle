@@ -1,11 +1,7 @@
 import { useFormContext } from "react-hook-form";
 import { AccountsFormValues } from "@/components/screens/full-pages/account-management/ManageAccounts";
 import React, { useState } from "react";
-import {
-  formatCurrency,
-  formatToken,
-  walletAddressEllipsis,
-} from "@/lib/utils.ts";
+import { formatCurrency, formatToken, textEllipsis } from "@/lib/utils.ts";
 import { PublicKey } from "@/wasm/core/kaspa";
 import useWalletManager from "@/hooks/useWalletManager.ts";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
@@ -67,7 +63,7 @@ export function AccountItem({ accountIndex, publicKeys }: AccountItemProps) {
     refreshAccountBalance();
   }, [addresses, rpcClient]);
 
-  const shrinkAddress = address ? walletAddressEllipsis(address) : "";
+  const shrinkAddress = address ? textEllipsis(address) : "";
 
   const handleCopy = async () => {
     if (!address) {

@@ -1,5 +1,5 @@
 import { formatCurrency } from "@/lib/utils.ts";
-import { walletAddressEllipsis } from "@/lib/utils.ts";
+import { textEllipsis } from "@/lib/utils.ts";
 import HoverShowAllCopy from "@/components/HoverShowAllCopy";
 import { Erc20Asset } from "@/contexts/EvmAssets";
 import { getChainName, getChainImage } from "@/lib/layer2";
@@ -48,7 +48,7 @@ export default function Erc20Info({ asset }: { asset: Erc20Asset }) {
                 }}
               >
                 <span className="cursor-pointer text-sm text-daintree-400">
-                  {walletAddressEllipsis(asset?.address)}
+                  {textEllipsis(asset?.address)}
                 </span>
               </HoverShowAllCopy>
             )}

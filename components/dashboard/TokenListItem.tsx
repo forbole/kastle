@@ -1,4 +1,4 @@
-import kasIcon from "@/assets/images/kas-icon.svg";
+import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import {
   formatCurrency,
   formatToken,

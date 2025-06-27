@@ -41,7 +41,9 @@ export default function ClipboardCopy({
           fontWeight: 600,
           padding: "8px",
         }}
+        opacity={1}
         isOpen={copied}
+        place="bottom"
       />
       <a
         data-tooltip-id="clipboard"

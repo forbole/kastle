@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import useKaspaPrice from "@/hooks/useKaspaPrice.ts";
 import { useNavigate } from "react-router-dom";
 import { formatToken } from "@/lib/utils.ts";
-import kasIcon from "@/assets/images/kas-icon.svg";
+import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import Header from "@/components/GeneralHeader.tsx";
 import useWalletManager from "@/hooks/useWalletManager.ts";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";

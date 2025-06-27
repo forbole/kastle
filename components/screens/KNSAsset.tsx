@@ -3,7 +3,7 @@ import Header from "@/components/GeneralHeader";
 import badgeCheck from "@/assets/images/badge-check.svg";
 import avatarIcon from "@/assets/images/avatar.png";
 import { useAssetDetails } from "@/hooks/useKns.ts";
-import { walletAddressEllipsis } from "@/lib/utils";
+import { textEllipsis } from "@/lib/utils";
 import Copy from "@/components/Copy";
 import HoverShowAllCopy from "@/components/HoverShowAllCopy";
 import HoverShowAll from "@/components/HoverTooltip";
@@ -66,7 +66,7 @@ export default function KNSAsset() {
                     id="hover-show-all-asset-owner"
                     tooltipWidth="22rem"
                   >
-                    <span>{walletAddressEllipsis(asset.owner)}</span>
+                    <span>{textEllipsis(asset.owner)}</span>
                   </HoverShowAll>
                   <Copy textToCopy={asset.owner} id="copy-asset-owner">
                     <i className="hn hn-copy cursor-pointer text-[#7B9AAA]" />
@@ -95,7 +95,7 @@ export default function KNSAsset() {
                       tooltipWidth="20rem"
                       place="bottom-end"
                     >
-                      {walletAddressEllipsis(asset.assetId)}
+                      {textEllipsis(asset.assetId)}
                     </HoverShowAllCopy>
                   </span>
                 </div>
@@ -110,7 +110,7 @@ export default function KNSAsset() {
                       tooltipWidth="20rem"
                       place="bottom-end"
                     >
-                      {walletAddressEllipsis(asset.owner)}
+                      {textEllipsis(asset.owner)}
                     </HoverShowAllCopy>
                   </span>
                 </div>
