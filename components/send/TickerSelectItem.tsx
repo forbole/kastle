@@ -1,6 +1,6 @@
 import { TokenItem } from "@/hooks/kasplex/useTokenListByAddress";
 import { applyDecimal } from "@/lib/krc20.ts";
-import kasIcon from "@/assets/images/kas-icon.svg";
+import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import React, { useEffect } from "react";
 import { twMerge } from "tailwind-merge";
 import { useTokenMetadata } from "@/hooks/kasplex/useTokenMetadata";

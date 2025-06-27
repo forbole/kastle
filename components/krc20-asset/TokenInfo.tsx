@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom";
 import { useTokenInfo } from "@/hooks/kasplex/useTokenInfo";
 import { useTokenMetadata } from "@/hooks/kasplex/useTokenMetadata";
 import { formatCurrency } from "@/lib/utils.ts";
-import kasIcon from "@/assets/images/kas-icon.svg";
+import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import { twMerge } from "tailwind-merge";
 import LabelLoading from "@/components/LabelLoading.tsx";
 import { applyDecimal } from "@/lib/krc20.ts";

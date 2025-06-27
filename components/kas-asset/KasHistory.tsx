@@ -1,7 +1,7 @@
 import React from "react";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import { explorerAddressLinks } from "@/components/screens/Settings.tsx";
-import kasIcon from "@/assets/images/kas-icon.svg";
+import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 
 export default function KasHistory() {
   const { account } = useWalletManager();

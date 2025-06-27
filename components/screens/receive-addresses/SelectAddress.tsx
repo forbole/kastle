@@ -2,7 +2,7 @@ import Header from "@/components/GeneralHeader";
 import useWalletManager from "@/hooks/useWalletManager";
 import { toEvmAddress } from "@/lib/utils";
 import AddressItem from "@/components/screens/receive-addresses/AddressItem";
-import kasIcon from "@/assets/images/kas-icon.svg";
+import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import { useNavigate } from "react-router-dom";
 import { useSettings } from "@/hooks/useSettings";
 import { TESTNET_SUPPORTED_EVM_L2_CHAINS } from "@/lib/layer2";
