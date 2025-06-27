@@ -1,6 +1,6 @@
 import ReceiveAddress from "@/components/screens/receive-addresses/ReceiveAddress.tsx";
 import useWalletManager from "@/hooks/useWalletManager";
-import kasIcon from "@/assets/images/kas-icon.svg";
+import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import { useSettings } from "@/hooks/useSettings";
 
 export default function KaspaReceiveAddress() {

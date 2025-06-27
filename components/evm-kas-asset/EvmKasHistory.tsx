@@ -1,4 +1,4 @@
-import kasIcon from "@/assets/images/kas-icon.svg";
+import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import { ALL_SUPPORTED_EVM_L2_CHAINS, getChainImage } from "@/lib/layer2";
 import { numberToHex } from "viem";
 import { toEvmAddress } from "@/lib/utils";

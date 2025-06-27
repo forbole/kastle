@@ -1,8 +1,8 @@
-import kasIcon from "@/assets/images/kas-icon.svg";
+import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import AddressItem from "./AddressItem";
 import useWalletManager from "@/hooks/useWalletManager";
 import { toEvmAddress } from "@/lib/utils";
-import kasplexIcon from "@/assets/images/kasplex-icon.png";
+import kasplexIcon from "@/assets/images/network-logos/kasplex.svg";
 import { useNavigate } from "react-router-dom";
 import { TESTNET_SUPPORTED_EVM_L2_CHAINS } from "@/lib/layer2";
 import { useSettings } from "@/hooks/useSettings";

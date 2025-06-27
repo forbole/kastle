@@ -1,7 +1,7 @@
 import { kairos } from "viem/chains";
-import kairosIcon from "@/assets/images/kairos-icon.svg";
-import kasIcon from "@/assets/images/kas-icon.svg";
-import kasplexIcon from "@/assets/images/kasplex-icon.png";
+import kairosIcon from "@/assets/images/network-logos/kairos.svg";
+import kasIcon from "@/assets/images/network-logos/kaspa.svg";
+import kasplexIcon from "@/assets/images/network-logos/kasplex.svg";
 import { hexToNumber } from "viem";
 
 export const kasplexTestnet = {

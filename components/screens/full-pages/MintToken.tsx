@@ -11,7 +11,7 @@ import { useTokenListByAddress } from "@/hooks/kasplex/useTokenListByAddress";
 import MintTokenItem from "@/components/mint-token/MintTokenItem.tsx";
 import { useNavigate } from "react-router-dom";
 import { useLocation } from "react-router";
-import kasIcon from "@/assets/images/kas-icon.svg";
+import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import { useTokenMetadata } from "@/hooks/kasplex/useTokenMetadata.ts";
 import { useKasplex } from "@/hooks/kasplex/useKasplex.ts";
 

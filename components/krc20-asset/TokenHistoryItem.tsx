@@ -1,4 +1,4 @@
-import kasIcon from "@/assets/images/kas-icon.svg";
+import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import { formatCurrency } from "@/lib/utils.ts";
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
