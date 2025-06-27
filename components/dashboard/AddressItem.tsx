@@ -14,12 +14,12 @@ export default function AddressItem({
   redirect: () => void;
 }) {
   return (
-    <div className="flex w-[15.75rem] justify-between p-2 pl-3">
+    <div className="flex w-[15.75rem] justify-between py-3.5 pl-3 pr-2">
       <div className="flex gap-2">
         <img className="h-7 w-7 rounded-full" src={imageUrl} />
         <div>
           <h3 className="text-sm font-semibold">{chainName}</h3>
-          <p className="text-xs leading-none text-daintree-400">
+          <p className="text-xs font-normal leading-none text-daintree-400">
             {textEllipsis(address)}
           </p>
         </div>
