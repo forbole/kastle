@@ -55,7 +55,7 @@ export const signMessageHandler: Handler = async (
   const url = new URL(browser.runtime.getURL("/popup.html"));
   url.hash = "/sign-message";
   url.searchParams.set("requestId", message.id);
-  url.searchParams.set("payload", result.data);
+  url.searchParams.set("payload", encodeURIComponent(result.data));
 
   // Open the popup and wait for the response
   const response = await ApiUtils.openPopupAndListenForResponse(
