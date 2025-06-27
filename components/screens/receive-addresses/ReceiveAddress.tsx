@@ -97,7 +97,7 @@ const Receive = ({
 
           {/* Address Info */}
           <div className="flex flex-col pt-4 text-center">
-            <div className="w-full break-all rounded-lg border border-daintree-700 bg-icy-blue-950 px-3 py-1 text-start text-sm text-daintree-400">
+            <div className="w-full break-all rounded-lg border border-daintree-700 bg-icy-blue-950 px-3 py-2 text-start text-sm text-daintree-400">
               {address}
             </div>
           </div>
