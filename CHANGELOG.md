@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.23.3](https://github.com/forbole/kastle/compare/v2.23.2...v2.23.3) (2025-06-27)
+
+
+### Bug Fixes
+
+* **api:** encode signed message to a valid URI ([#162](https://github.com/forbole/kastle/issues/162)) ([efe4254](https://github.com/forbole/kastle/commit/efe42542ff6106a43c74cdab675cfee1bbcedc03))
+
 ## [2.23.2](https://github.com/forbole/kastle/compare/v2.23.1...v2.23.2) (2025-06-25)
 
 
