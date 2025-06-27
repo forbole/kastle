@@ -26,7 +26,9 @@ export default function SelectAddress() {
       <div className="flex flex-col gap-2">
         <AddressItem
           address={kasAddress}
-          chainName={settings?.networkId === "mainnet" ? "Kaspa" : "Kaspa Testnet"}
+          chainName={
+            settings?.networkId === "mainnet" ? "Kaspa" : "Kaspa Testnet"
+          }
           imageUrl={kasIcon}
           redirect={() => navigate("/receive/kaspa")}
         />
