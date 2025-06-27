@@ -3,7 +3,7 @@ import React from "react";
 import signImage from "@/assets/images/sign.png";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/GeneralHeader.tsx";
-import { TokenOperationFormData } from "@/components/screens/TokenTransfer.tsx";
+import { TokenOperationFormData } from "@/components/send/krc20-send/Krc20Transfer";
 import { applyDecimal, computeOperationFees, Operation } from "@/lib/krc20.ts";
 import { useTokenInfo } from "@/hooks/kasplex/useTokenInfo";
 import { formatCurrency } from "@/lib/utils.ts";
@@ -12,7 +12,7 @@ import { Tooltip } from "react-tooltip";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 import { useTokenMetadata } from "@/hooks/kasplex/useTokenMetadata.ts";
 import { walletAddressEllipsis } from "@/lib/utils.ts";
-import HoverShowAllCopy from "../HoverShowAllCopy";
+import HoverShowAllCopy from "../../HoverShowAllCopy";
 
 export const ConfirmTokenOperationStep = ({
   onNext,

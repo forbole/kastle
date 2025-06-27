@@ -216,7 +216,7 @@ export default function Dashboard() {
           <button
             type="button"
             className="flex flex-col items-center gap-2"
-            onClick={() => navigate("/send")}
+            onClick={() => navigate("/kas/send")}
             disabled={!isConnected}
           >
             <div

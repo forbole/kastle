@@ -1,7 +1,6 @@
 import { twMerge } from "tailwind-merge";
 import React from "react";
 import { useFormContext } from "react-hook-form";
-import { SendFormData } from "@/components/screens/Send.tsx";
 import useRecentAddresses from "@/hooks/useRecentAddresses.ts";
 import { useOnClickOutside } from "usehooks-ts";
 import { RecentAddress } from "@/contexts/RecentAddressesContext.tsx";
@@ -12,12 +11,16 @@ type TickerSelectAddressProps = {
   hideAddressSelect: () => void;
 };
 
+interface RecentAddressForm {
+  userInput?: string;
+}
+
 export default function RecentAddresses({
   isShown,
   hideAddressSelect,
 }: TickerSelectAddressProps) {
   const { recentAddresses } = useRecentAddresses();
-  const { setValue } = useFormContext<SendFormData>();
+  const { setValue } = useFormContext<RecentAddressForm>();
 
   const ref = useRef(null);
   const handleClickOutside = () => hideAddressSelect();
