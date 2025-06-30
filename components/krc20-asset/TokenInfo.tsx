@@ -48,8 +48,6 @@ export default function TokenInfo() {
     tokenInfo?.mod === "mint" ? tokenInfo?.tick : tokenInfo?.name;
   const tokenAddress = tokenInfo?.ca;
 
-  const network = settings?.networkId ?? "mainnet";
-
   return (
     <div className="mt-8 flex flex-col items-stretch gap-2">
       {/* Header card */}
@@ -78,7 +76,7 @@ export default function TokenInfo() {
       {/*Details*/}
       <ul className="mt-3 flex flex-col rounded-lg bg-daintree-800">
         <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
-          <div className="flex items-start justify-between">
+          <div className="flex w-full items-start justify-between">
             <span className="font-medium">Network</span>
             <span className="font-medium">
               {settings?.networkId === "mainnet"
@@ -88,7 +86,7 @@ export default function TokenInfo() {
           </div>
         </li>
         <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
-          <div className="flex items-start justify-between">
+          <div className="flex w-full items-start justify-between">
             <span className="font-medium">Mode</span>
             {isLoading ? (
               <LabelLoading />
