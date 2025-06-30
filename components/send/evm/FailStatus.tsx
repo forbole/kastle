@@ -1,31 +1,33 @@
-import { explorerTxLinks } from "@/components/screens/Settings.tsx";
 import { useNavigate } from "react-router-dom";
 import React from "react";
 import warningImage from "@/assets/images/warning.png";
 import Header from "@/components/GeneralHeader";
-import { useFormContext } from "react-hook-form";
-import { KasSendForm } from "@/components/send/kas-send/KasSend";
-import { TokenOperationFormData } from "@/components/send/krc20-send/Krc20Transfer";
-import { NetworkType } from "@/contexts/SettingsContext.tsx"; // Types for props
+import { ALL_SUPPORTED_EVM_L2_CHAINS } from "@/lib/layer2";
+import { hexToNumber } from "viem";
 
 // Types for props
 interface FailProps {
+  chainId: `0x${string}`;
   transactionIds?: string[] | undefined;
+  tokenName?: string;
 }
 
-export const FailStatus = ({ transactionIds }: FailProps) => {
+export default function FailStatus({
+  chainId,
+  transactionIds,
+  tokenName = "KAS",
+}: FailProps) {
   const navigate = useNavigate();
-  const { watch } = useFormContext<KasSendForm | TokenOperationFormData>();
-  const { networkId } = useRpcClientStateful();
-  const formFields = watch();
+  const selectChain = ALL_SUPPORTED_EVM_L2_CHAINS.find(
+    (chain) => chain.id === hexToNumber(chainId),
+  );
 
-  const explorerTxLink = explorerTxLinks[networkId ?? NetworkType.Mainnet];
+  const explorerLink = selectChain?.blockExplorers?.default?.url ?? "";
+  const explorerTxLink = `${explorerLink}/tx/`;
 
   const onClose = () => {
     navigate("/dashboard");
   };
-
-  const isKrc20Operation = "opData" in formFields;
 
   const openTransactions = () => {
     for (const transactionId of transactionIds ?? []) {
@@ -46,21 +48,12 @@ export const FailStatus = ({ transactionIds }: FailProps) => {
             <span className="text-xl font-semibold text-red-500">
               Sorry, Your Majesty.
             </span>
-            {isKrc20Operation ? (
-              <span className="px-2 text-sm text-gray-500">
-                {
-                  "It seems the alchemists have faltered in their craft, and your token could not be forged."
-                }
-                <br />
-                {"Please try again later."}
-              </span>
-            ) : (
-              <span className="px-2 text-sm text-gray-500">
-                {"The carriage couldn't deliver your KAS this time."}
-                <br />
-                {"Please check the recipient's address or try again later."}
-              </span>
-            )}
+
+            <span className="px-2 text-sm text-gray-500">
+              {`The carriage couldn't deliver your ${tokenName} this time.`}
+              <br />
+              {"Please check the recipient's address or try again later."}
+            </span>
           </div>
           {transactionIds?.length !== 0 && (
             <button
@@ -90,4 +83,4 @@ export const FailStatus = ({ transactionIds }: FailProps) => {
       </div>
     </div>
   );
-};
+}

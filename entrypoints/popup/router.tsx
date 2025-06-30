@@ -6,7 +6,7 @@ import {
   redirect,
 } from "react-router-dom";
 import PopupLayout from "@/components/layouts/PopupLayout.tsx";
-import Send from "@/components/screens/Send.tsx";
+import KasSend from "@/components/send/kas-send/KasSend";
 import ConnectConfirm from "@/components/screens/browser-api/ConnectConfirm";
 import SignAndBroadcastTxConfirm from "@/components/screens/browser-api/kaspa/SignAndBroadcastTxConfirm";
 import Dashboard from "@/components/screens/Dashboard";
@@ -40,7 +40,7 @@ import RootLayout from "@/components/layouts/RootLayout.tsx";
 import WalletUnlock from "@/components/screens/WalletUnlock.tsx";
 import DevMode from "@/components/screens/DevMode.tsx";
 import DeployToken from "@/components/screens/full-pages/DeployToken.tsx";
-import TokenTransfer from "@/components/screens/TokenTransfer.tsx";
+import Krc20Transfer from "@/components/send/krc20-send/Krc20Transfer";
 import MintToken from "@/components/screens/full-pages/MintToken.tsx";
 import TokenAsset from "@/components/screens/KRC20Asset";
 import KasAsset from "@/components/screens/KasAsset.tsx";
@@ -72,6 +72,9 @@ import EvmWatchAssetConfirm from "@/components/screens/browser-api/ethereum/EvmW
 import Erc20Asset from "@/components/screens/Erc20Asset";
 import { EVMAssetsProvider } from "@/contexts/EvmAssets";
 import EvmKasAsset from "@/components/screens/EvmKasAsset";
+import { Krc20Send } from "@/components/send/krc20-send/Krc20Send";
+import EvmKasSend from "@/components/send/evm/evm-kas-send/EvmKasSend";
+import Erc20Send from "@/components/send/evm/erc20-send/Erc20Send";
 
 const loadKaspaWasm = async () => {
   await init({ module_or_path: kaspaModule });
@@ -193,8 +196,16 @@ export const router = createHashRouter([
                 element: <Outlet />,
                 loader: keyringGuard,
                 children: [
-                  { path: "send", element: <Send /> },
-                  { path: "token-transfer", element: <TokenTransfer /> },
+                  // Sending
+                  { path: "token-transfer", element: <Krc20Transfer /> },
+                  { path: "kas/send", element: <KasSend /> },
+                  { path: "krc20/send/:tick", element: <Krc20Send /> },
+                  { path: "evm-kas/send/:chainId", element: <EvmKasSend /> },
+                  {
+                    path: "erc20/send/:chainId/:tokenId",
+                    element: <Erc20Send />,
+                  },
+
                   {
                     path: "kns-transfer/:assetId",
                     element: (

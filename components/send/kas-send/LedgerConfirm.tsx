@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { AccountFactory } from "@/lib/wallet/wallet-factory";
-import { ConfirmStep } from "@/components/send/ConfirmStep";
+import { ConfirmStep } from "@/components/send/kas-send/ConfirmStep";
 import { IWallet } from "@/lib/wallet/wallet-interface";
 import useWalletManager from "@/hooks/useWalletManager.ts";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";

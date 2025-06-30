@@ -59,10 +59,7 @@ export function symbolForCurrencyCode(currencyCode: string): string {
   return CURRENCIES.find((value) => value[0] === currencyCode)?.[2] ?? "$";
 }
 
-export function formatToken(
-  number: number,
-  maximumFractionDigits: number = 20,
-) {
+export function formatToken(number: number, maximumFractionDigits: number = 8) {
   const formatter = new Intl.NumberFormat("en-US", {
     style: "decimal",
     notation: "standard",

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { WalletSecret } from "@/types/WalletSecret";
 import { AccountFactory } from "@/lib/wallet/wallet-factory";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
-import HotWalletBroadcastTokenOperation from "@/components/token-operation/HotWalletBroadcastTokenOperation.tsx";
+import HotWalletBroadcastTokenOperation from "@/components/send/krc20-send/HotWalletBroadcastTokenOperation";
 
 interface SendingProps {
   setOutTxs: (value: string[] | undefined) => void;

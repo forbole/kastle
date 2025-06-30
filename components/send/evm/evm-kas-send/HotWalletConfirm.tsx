@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
-import { AccountFactory } from "@/lib/wallet/wallet-factory";
-import { ConfirmStep } from "@/components/send/ConfirmStep";
-import { IWallet } from "@/lib/wallet/wallet-interface";
+import { ConfirmStep } from "@/components/send/evm/evm-kas-send/ConfirmStep";
+import { IWallet } from "@/lib/ethereum/wallet/wallet-interface";
 import useWalletManager from "@/hooks/useWalletManager.ts";
 import useKeyring from "@/hooks/useKeyring";
-import useRpcClientStateful from "@/hooks/useRpcClientStateful";
+import { AccountFactory } from "@/lib/ethereum/wallet/account-factory";
 
 type HotWalletConfirmProps = {
+  chainId: `0x${string}`;
   onNext: () => void;
   onBack: () => void;
   setOutTxs: (value: string[] | undefined) => void;
@@ -14,19 +14,19 @@ type HotWalletConfirmProps = {
 };
 
 export default function HotWalletConfirm({
+  chainId,
   onNext,
   onBack,
   setOutTxs,
   onFail,
 }: HotWalletConfirmProps) {
-  const { rpcClient, networkId } = useRpcClientStateful();
   const [walletSigner, setWalletSigner] = useState<IWallet>();
   const { getWalletSecret } = useKeyring();
   const { walletSettings } = useWalletManager();
 
   // Build wallet signer
   useEffect(() => {
-    if (!walletSettings || !rpcClient || !networkId) {
+    if (!walletSettings) {
       return;
     }
 
@@ -39,7 +39,6 @@ export default function HotWalletConfirm({
       const { walletSecret: secret } = await getWalletSecret({
         walletId: walletSettings.selectedWalletId,
       });
-      const accountFactory = new AccountFactory(rpcClient, networkId);
       const accountIndex = walletSettings?.selectedAccountIndex;
       if (accountIndex === null || accountIndex === undefined) {
         throw new Error("No account selected");
@@ -47,17 +46,18 @@ export default function HotWalletConfirm({
 
       const signer =
         secret.type === "mnemonic"
-          ? accountFactory.createFromMnemonic(secret.value, accountIndex)
-          : accountFactory.createFromPrivateKey(secret.value);
+          ? AccountFactory.createFromMnemonic(secret.value, accountIndex)
+          : AccountFactory.createFromPrivateKey(secret.value);
 
       setWalletSigner(signer);
     };
 
     buildWallet();
-  }, [walletSettings, rpcClient, networkId]);
+  }, [walletSettings]);
 
   return (
     <ConfirmStep
+      chainId={chainId}
       onNext={onNext}
       setOutTxs={setOutTxs}
       onFail={onFail}

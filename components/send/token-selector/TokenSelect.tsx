@@ -2,29 +2,33 @@ import { twMerge } from "tailwind-merge";
 import React from "react";
 import { useTokenListByAddress } from "@/hooks/kasplex/useTokenListByAddress";
 import { applyDecimal } from "@/lib/krc20.ts";
-import TickerSelectItem from "@/components/send/TickerSelectItem.tsx";
+import Krc20SelectItem from "@/components/send/token-selector/Krc20SelectItem";
 import kasIcon from "@/assets/images/kas-icon.svg";
 import { formatToken } from "@/lib/utils.ts";
+import { useNavigate } from "react-router-dom";
+import EvmKasSelectItems from "./EvmKasSelectItems";
+import Erc20SelectItems from "./Erc20SelectItems";
 import { useFormContext } from "react-hook-form";
-import { SendFormData } from "@/components/screens/Send.tsx";
 
-type TickerSelectProps = { isShown: boolean; toggleShow: () => void };
+type TokenSelectProps = { isShown: boolean; toggleShow: () => void };
 
-export default function TickerSelect({
-  isShown,
-  toggleShow,
-}: TickerSelectProps) {
-  const { setValue } = useFormContext<SendFormData>();
+export default function TokenSelect({ isShown, toggleShow }: TokenSelectProps) {
+  const navigate = useNavigate();
   const { wallet, account } = useWalletManager();
   const [searchQuery, setSearchQuery] = useState("");
+  const { watch } = useFormContext<{
+    userInput?: string;
+    amount?: string;
+  }>();
+  const { userInput, amount } = watch();
 
-  const address = account?.address;
-  const balance = account?.balance;
+  const kasAddress = account?.address;
+  const kasBalance = account?.balance;
   const hasSearchQuery = searchQuery === "";
   const isKasShown =
     hasSearchQuery || "kas".startsWith(searchQuery.toLowerCase());
 
-  const tokenListItems = useTokenListByAddress(address ?? undefined);
+  const tokenListItems = useTokenListByAddress(kasAddress ?? undefined);
 
   const tokens = tokenListItems
     ?.filter((token) =>
@@ -41,8 +45,28 @@ export default function TickerSelect({
       );
     });
 
-  const selectToken = async (tokenId: string) => {
-    setValue("ticker", tokenId, { shouldValidate: true });
+  const selectToken = async (type: string, tokenId?: string) => {
+    if (type === "kas") {
+      navigate("/kas/send", {
+        state: {
+          step: "details",
+          form: {
+            userInput,
+            amount,
+          },
+        },
+      });
+    } else {
+      navigate(`/krc20/send/${tokenId}`, {
+        state: {
+          step: "details",
+          form: {
+            userInput,
+            amount,
+          },
+        },
+      });
+    }
     toggleShow();
   };
 
@@ -94,18 +118,25 @@ export default function TickerSelect({
                 />
                 <span>KAS</span>
               </div>
-              <span>{formatToken(parseFloat(balance ?? "0"))}</span>
+              <span>{formatToken(parseFloat(kasBalance ?? "0"))}</span>
             </button>
           )}
 
-          {tokens?.map((token) => (
-            <TickerSelectItem
-              key={token.id}
-              token={token}
-              selectToken={selectToken}
-              supported={!isLedger}
-            />
-          ))}
+          {/* EVM KAS */}
+          {isKasShown && <EvmKasSelectItems toggleShow={toggleShow} />}
+
+          <Erc20SelectItems searchQuery={searchQuery} toggleShow={toggleShow} />
+
+          {tokens
+            ?.filter((token) => parseFloat(token.balance) > 0)
+            .map((token) => (
+              <Krc20SelectItem
+                key={token.id}
+                token={token}
+                selectToken={(tokenId) => selectToken("krc20", tokenId)}
+                supported={!isLedger}
+              />
+            ))}
 
           {!isKasShown && tokens?.length === 0 && (
             <span className="text-center text-base font-medium text-daintree-400">

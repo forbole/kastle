@@ -1,6 +1,5 @@
 import { twMerge } from "tailwind-merge";
 import React from "react";
-import { SendFormData } from "@/components/screens/Send.tsx";
 import { useFormContext } from "react-hook-form";
 import useMempoolStatus from "@/hooks/useMempoolStatus.ts";
 import usePriorityFeeEstimate from "@/hooks/usePriorityFeeEstimate.ts";
@@ -11,11 +10,15 @@ type PriorityFeeSelectionProps = {
   closePriorityFeeSelection: () => void;
 };
 
+interface PriorityFeeEstimateForm {
+  priority: "low" | "medium" | "high";
+}
+
 export default function PriorityFeeSelection({
   isPriorityFeeSelectionOpen,
   closePriorityFeeSelection,
 }: PriorityFeeSelectionProps) {
-  const { setValue, watch } = useFormContext<SendFormData>();
+  const { setValue, watch } = useFormContext<PriorityFeeEstimateForm>();
   const selectedPriority = watch("priority");
   const { mempoolCongestionLevel } = useMempoolStatus();
   const feeEstimate = usePriorityFeeEstimate();
