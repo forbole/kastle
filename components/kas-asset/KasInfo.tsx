@@ -2,14 +2,11 @@ import React from "react";
 import { formatCurrency } from "@/lib/utils.ts";
 import kasIcon from "@/assets/images/kas-icon.svg";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
-import { useSettings } from "@/hooks/useSettings";
 
 export default function KasInfo() {
   const { kaspaPrice } = useKaspaPrice();
   const { amount: kaspaCurrency, code: kaspaCurrencyCode } =
     useCurrencyValue(kaspaPrice);
-  const [settings] = useSettings();
-  const network = settings?.networkId ?? "mainnet";
 
   return (
     <div className="mb-4 mt-8 flex flex-col items-stretch gap-2">
@@ -29,7 +26,7 @@ export default function KasInfo() {
           </div>
         </div>
         <div className="rounded-full border border-icy-blue-400 px-1 text-[0.625rem] text-icy-blue-400">
-          {network === "mainnet" ? "Kaspa Mainnet" : "Kaspa Testnet"}
+          Kaspa
         </div>
       </div>
     </div>

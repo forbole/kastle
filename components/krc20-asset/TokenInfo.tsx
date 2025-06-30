@@ -67,9 +67,7 @@ export default function TokenInfo() {
           </div>
         </div>
         <div className="rounded-full border border-icy-blue-400 px-1 text-[0.625rem] text-icy-blue-400">
-          {settings?.networkId === "mainnet"
-            ? "KRC20 Mainnet"
-            : "KRC20 Testnet"}
+          KRC20
         </div>
       </div>
 

@@ -28,7 +28,7 @@ export default function Erc20Info({ asset }: { asset: Erc20Asset }) {
           </div>
         </div>
         <div className="rounded-full border border-icy-blue-400 px-1 text-[0.625rem] text-icy-blue-400">
-          {getChainName(asset.chainId)}
+          {getChainName(asset.chainId).replace(" Testnet", "")}
         </div>
       </div>
 

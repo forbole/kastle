@@ -27,7 +27,7 @@ export default function EvmKasInfo({ chainId }: { chainId: `0x${string}` }) {
           </div>
         </div>
         <div className="rounded-full border border-icy-blue-400 px-1 text-[0.625rem] text-icy-blue-400">
-          {getChainName(chainId)}
+          {getChainName(chainId).replace(" Testnet", "")}
         </div>
       </div>
 
