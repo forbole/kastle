@@ -10,7 +10,7 @@ type EvmAssets = {
 };
 
 export type Erc20Asset = {
-  address: `0x${string}`; // Token contract address
+  address: `0x${string}`; // Contract address in EVM format
   symbol: string;
   decimals: number;
   image?: string; // Optional image URL
