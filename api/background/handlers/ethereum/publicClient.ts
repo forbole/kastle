@@ -1,6 +1,5 @@
 import { ApiRequestWithHost } from "@/api/message";
 import { ApiUtils } from "@/api/background/utils";
-import { kairos } from "viem/chains";
 import { createPublicClient, http } from "viem";
 import { RpcRequestSchema, RPC_ERRORS } from "@/api/message";
 import { handleViemError } from "@/lib/errors";
