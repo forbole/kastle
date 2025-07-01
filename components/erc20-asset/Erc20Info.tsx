@@ -14,27 +14,33 @@ export default function Erc20Info({ asset }: { asset: Erc20Asset }) {
   return (
     <div className="mt-8 flex flex-col items-stretch gap-2">
       {/* Header card */}
-      <div className="flex flex-col items-stretch gap-2">
-        <div className="flex items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3">
-          <Layer2AssetImage
-            tokenImage={asset.image}
-            chainImage={getChainImage(asset.chainId as `0x${string}`)}
-          />
-          <div className="flex flex-grow flex-col gap-1">
-            <div className="flex items-center justify-between text-base text-white">
-              <span className="capitalize">{asset.symbol}</span>
-            </div>
-            <div className="flex items-center justify-start text-sm text-daintree-400">
-              <span>
-                ≈ {formatCurrency(amountCurrency, amountCurrencyCode)}
-              </span>
-            </div>
+      <div className="flex items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3">
+        <Layer2AssetImage
+          tokenImage={asset.image}
+          chainImage={getChainImage(asset.chainId)}
+        />
+        <div className="flex flex-grow flex-col gap-1">
+          <div className="flex items-center justify-between text-base text-white">
+            <span className="capitalize">{asset.symbol}</span>
           </div>
+          <div className="flex items-center justify-start text-sm text-daintree-400">
+            <span>≈ {formatCurrency(amountCurrency, amountCurrencyCode)}</span>
+          </div>
+        </div>
+        <div className="rounded-full border border-icy-blue-400 px-1 text-[0.625rem] text-icy-blue-400">
+          {getChainName(asset.chainId).replace(" Testnet", "")}
         </div>
       </div>
 
       {/*Details*/}
       <ul className="mt-3 flex flex-col rounded-lg bg-daintree-800">
+        <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
+          <div className="flex w-full items-start justify-between">
+            <span className="font-medium">Network</span>
+            {getChainName(asset.chainId)}
+          </div>
+        </li>
+
         <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
           <div className="flex w-full items-start justify-between">
             <span className="font-medium">Contract Address</span>
@@ -52,13 +58,6 @@ export default function Erc20Info({ asset }: { asset: Erc20Asset }) {
                 </span>
               </HoverShowAllCopy>
             )}
-          </div>
-        </li>
-
-        <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
-          <div className="flex w-full items-start justify-between">
-            <span className="font-medium">Chain</span>
-            {getChainName(asset.chainId as `0x${string}`)}
           </div>
         </li>
       </ul>

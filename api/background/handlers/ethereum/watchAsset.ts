@@ -9,7 +9,6 @@ import { z } from "zod";
 import { isUserDeniedResponse } from "./utils";
 import { TESTNET_SUPPORTED_EVM_L2_CHAINS } from "./utils";
 import { numberToHex, isHex, isAddress } from "viem";
-import { NetworkType } from "@/contexts/SettingsContext";
 
 export const erc20OptionsSchema = z.object({
   address: z.string().refine(isAddress),

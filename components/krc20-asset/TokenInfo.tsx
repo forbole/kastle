@@ -10,6 +10,7 @@ import { applyDecimal } from "@/lib/krc20.ts";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 import { walletAddressEllipsis } from "@/lib/utils.ts";
 import HoverShowAllCopy from "../HoverShowAllCopy";
+import { useSettings } from "@/hooks/useSettings";
 
 export default function TokenInfo() {
   const { ticker } = useParams();
@@ -21,6 +22,7 @@ export default function TokenInfo() {
     toPriceInUsd,
   } = useTokenMetadata(ticker);
   const [imageUrl, setImageUrl] = useState(kasIcon);
+  const [settings] = useSettings();
   const isLoading = isTokenInfoLoading || isMetadataLoading;
   const tokenInfo = tokenInfoResponse?.result?.[0];
 
@@ -49,29 +51,38 @@ export default function TokenInfo() {
   return (
     <div className="mt-8 flex flex-col items-stretch gap-2">
       {/* Header card */}
-      <div className="flex flex-col items-stretch gap-2">
-        <div className="flex items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3">
-          <img
-            alt="castle"
-            className="h-[40px] w-[40px]"
-            src={imageUrl}
-            onError={onImageError}
-          />
-          <div className="flex flex-grow flex-col gap-1">
-            <div className="flex items-center justify-between text-base text-white">
-              <span className="capitalize">{tokenName}</span>
-            </div>
-            <div className="flex items-center justify-start text-sm text-daintree-400">
-              <span>
-                ≈ {formatCurrency(amountCurrency, amountCurrencyCode)}
-              </span>
-            </div>
+      <div className="flex w-full items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3">
+        <img
+          alt="castle"
+          className="h-[40px] w-[40px]"
+          src={imageUrl}
+          onError={onImageError}
+        />
+        <div className="flex flex-grow flex-col gap-1">
+          <div className="flex items-center justify-between text-base text-white">
+            <span className="capitalize">{tokenName}</span>
           </div>
+          <div className="flex items-center justify-start text-sm text-daintree-400">
+            <span>≈ {formatCurrency(amountCurrency, amountCurrencyCode)}</span>
+          </div>
+        </div>
+        <div className="rounded-full border border-icy-blue-400 px-1 text-[0.625rem] text-icy-blue-400">
+          KRC20
         </div>
       </div>
 
       {/*Details*/}
       <ul className="mt-3 flex flex-col rounded-lg bg-daintree-800">
+        <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
+          <div className="flex w-full items-start justify-between">
+            <span className="font-medium">Network</span>
+            <span className="font-medium">
+              {settings?.networkId === "mainnet"
+                ? "KRC20 Mainnet"
+                : "KRC20 Testnet"}
+            </span>
+          </div>
+        </li>
         <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
           <div className="flex w-full items-start justify-between">
             <span className="font-medium">Mode</span>
