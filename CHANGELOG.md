@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.24.0](https://github.com/forbole/kastle/compare/v2.23.3...v2.24.0) (2025-07-02)
+
+
+### Features
+
+* add network information for assets ([#166](https://github.com/forbole/kastle/issues/166)) ([46a9c3a](https://github.com/forbole/kastle/commit/46a9c3a21ff5e50776d29bea71f2052def0682bd))
+* evm L2 tokens sending ([#151](https://github.com/forbole/kastle/issues/151)) ([988558c](https://github.com/forbole/kastle/commit/988558cf3529b6c9b457e5fc950be0c5d5e9f0d1))
+* **ui:** add empty content for nft without attributes ([#168](https://github.com/forbole/kastle/issues/168)) ([ef5759c](https://github.com/forbole/kastle/commit/ef5759c44eb9575621a24677525d1a8a8fd7e1cd))
+* **ui:** evm receive address ([#164](https://github.com/forbole/kastle/issues/164)) ([bdfc681](https://github.com/forbole/kastle/commit/bdfc681567e7a65c23afab6fa79e6be4b2f2a3b2))
+* **ui:** improve UI for sign message and connect api ([#169](https://github.com/forbole/kastle/issues/169)) ([024eaa6](https://github.com/forbole/kastle/commit/024eaa6e33eb14f08f6481190d8aca7c82e1b03a))
+
 ## [2.23.3](https://github.com/forbole/kastle/compare/v2.23.2...v2.23.3) (2025-06-27)
 
 
