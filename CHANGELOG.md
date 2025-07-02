@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.25.0](https://github.com/forbole/kastle/compare/v2.24.0...v2.25.0) (2025-07-02)
+
+
+### Features
+
+* remove kairos testnet ([#167](https://github.com/forbole/kastle/issues/167)) ([24d07be](https://github.com/forbole/kastle/commit/24d07be2fa98d8bf9ead55c43eea197136cfb024))
+
 ## [2.24.0](https://github.com/forbole/kastle/compare/v2.23.3...v2.24.0) (2025-07-02)
 
 
