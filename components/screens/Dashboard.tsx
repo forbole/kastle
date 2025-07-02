@@ -13,7 +13,7 @@ import { Tooltip } from "react-tooltip";
 import Assets from "@/components/dashboard/Assets";
 import KNS from "@/components/dashboard/KNS";
 import KRC721List from "@/components/dashboard/KRC721List";
-import useTotalBalance from "@/hooks/kasplex/useTotalBalance";
+import useTotalBalance from "@/hooks/useTotalBalance";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 import usePortfolioPerformance from "@/hooks/usePortfolioPerformance";
 import HoverTooltip from "../HoverTooltip";

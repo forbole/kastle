@@ -1,12 +1,16 @@
 import { useTokensMetadata } from "@/hooks/kasplex/useTokenMetadata";
 import { applyDecimal } from "@/lib/krc20.ts";
 import { useTokenListByAddress } from "@/hooks/kasplex/useTokenListByAddress";
+import useEvmKasBalances from "./evm/useEvmKasBalances";
 
 export default function useTotalBalance() {
   const { account } = useWalletManager();
   const kaspaPrice = useKaspaPrice();
-  const balance = account?.balance;
-  const kaspaUsd = balance ? parseFloat(balance) * kaspaPrice.kaspaPrice : 0;
+  const evmKasBalanceResult = useEvmKasBalances();
+  const evmKasBalance = evmKasBalanceResult?.data?.balance ?? "0";
+  const balance =
+    parseFloat(evmKasBalance ?? "0") + parseFloat(account?.balance ?? "0");
+  const kaspaUsd = balance * kaspaPrice.kaspaPrice;
 
   const tokenList = useTokenListByAddress(account?.address, 5000);
 
