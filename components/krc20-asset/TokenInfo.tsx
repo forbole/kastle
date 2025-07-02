@@ -78,8 +78,8 @@ export default function TokenInfo() {
             <span className="font-medium">Network</span>
             <span className="font-medium">
               {settings?.networkId === "mainnet"
-                ? "KRC20 Mainnet"
-                : "KRC20 Testnet"}
+                ? "Kaspa Mainnet"
+                : "Kaspa Testnet"}
             </span>
           </div>
         </li>
