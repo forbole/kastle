@@ -1,5 +1,5 @@
-import kasIcon from "@/assets/images/kas-icon.svg";
-import kasplexIcon from "@/assets/images/kasplex-icon.png";
+import kasIcon from "@/assets/images/network-logos/kaspa.svg";
+import kasplexIcon from "@/assets/images/network-logos/kasplex.svg";
 import { hexToNumber } from "viem";
 
 export const kasplexTestnet = {
