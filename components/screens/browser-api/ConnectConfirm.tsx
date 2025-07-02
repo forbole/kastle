@@ -129,11 +129,9 @@ export default function ConnectConfirm() {
           {/* App info */}
           <div className="flex flex-col items-center gap-3">
             {icon ? (
-              <img
-                alt={tabName}
-                className="h-12 w-12 rounded-full"
-                src={icon}
-              />
+              <div className="flex items-center justify-center rounded-full p-3">
+                <img alt={tabName} className="h-12 w-12" src={icon} />
+              </div>
             ) : (
               <div className="h-16 w-16 rounded-full bg-white" />
             )}
