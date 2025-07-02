@@ -18,6 +18,7 @@ import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 import usePortfolioPerformance from "@/hooks/usePortfolioPerformance";
 import HoverTooltip from "../HoverTooltip";
 import KNSText from "@/components/dashboard/KNSText.tsx";
+import AddressesMenu from "../dashboard/AddressesMenu";
 
 export default function Dashboard() {
   const { keyringLock } = useKeyring();
@@ -31,6 +32,7 @@ export default function Dashboard() {
   const { account, wallet } = useWalletManager();
   const [dismissWarning, setDismissWarning] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isAddressesMenuOpen, setIsAddressesMenuOpen] = useState(false);
 
   const tabs = ["Assets", "NFT", "KNS", "Text"] as const;
   const [activeTab, setActiveTab] = useState<(typeof tabs)[number]>("Assets");
@@ -38,7 +40,6 @@ export default function Dashboard() {
   const segments = Array.from(segmenter.segment(account?.name ?? ""));
   const shortAccountName = `${segments[0]?.segment}${segments[segments.length - 1]?.segment}`;
 
-  const address = account?.address;
   const showBalance = !settings?.hideBalances;
   const totalBalanceFormatted = formatCurrency(
     totalBalanceCurrency,
@@ -102,21 +103,25 @@ export default function Dashboard() {
 
       {/* Header */}
       <div className="flex w-full items-center justify-between gap-4 py-4">
-        <div className="flex cursor-pointer rounded-lg font-semibold">
+        <div className="relative flex cursor-pointer rounded-lg font-semibold">
           <div
             className="flex flex-1 items-center space-x-2 rounded-l-lg border border-gray-500 p-2 hover:border-white"
             onClick={() => setIsMenuOpen(true)}
           >
-            <span className="flex size-6 items-center justify-center rounded-lg bg-[#9CA3AF] text-white">
+            <span className="flex size-6 items-center justify-center rounded-lg bg-daintree-400 text-white">
               {shortAccountName}
             </span>
             <span className="text-base text-white">{account?.name}</span>
-            <i className="hn hn-angle-right text-[16px] text-white" />
           </div>
-          <ClipboardCopy
-            className="flex cursor-pointer items-stretch rounded-r-lg border border-gray-500 hover:border-white"
-            textToCopy={address}
-          />
+          <div
+            className="flex cursor-pointer items-center rounded-r-lg border border-gray-500 hover:border-white"
+            onClick={() => setIsAddressesMenuOpen(!isAddressesMenuOpen)}
+          >
+            <i className="hn hn-copy px-2 text-[16px] text-white" />
+            <i className="hn hn-angle-down pr-2 text-daintree-400" />
+          </div>
+
+          {isAddressesMenuOpen && <AddressesMenu />}
         </div>
 
         <div className="flex">
@@ -238,7 +243,7 @@ export default function Dashboard() {
           <button
             type="button"
             className="flex flex-col items-center gap-2"
-            onClick={() => navigate("/receive")}
+            onClick={() => navigate("/receive/select-address")}
             disabled={!isConnected}
           >
             <div

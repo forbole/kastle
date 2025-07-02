@@ -2,7 +2,7 @@ import { useFormContext } from "react-hook-form";
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { formatToken } from "@/lib/utils.ts";
-import kasIcon from "@/assets/images/kas-icon.svg";
+import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import Header from "@/components/GeneralHeader.tsx";
 import useWalletManager from "@/hooks/useWalletManager.ts";
 import { Address, kaspaToSompi, sompiToKaspaString } from "@/wasm/core/kaspa";

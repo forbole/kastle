@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import kasIcon from "@/assets/images/kas-icon.svg";
+import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import {
   formatCurrency,
   formatToken,

@@ -1,11 +1,12 @@
 import { TokenItem } from "@/hooks/kasplex/useTokenListByAddress";
 import { applyDecimal } from "@/lib/krc20.ts";
-import kasIcon from "@/assets/images/kas-icon.svg";
+import kasIcon from "@/assets/images/network-logos/kaspa.svg";
+import React, { useEffect } from "react";
 import { twMerge } from "tailwind-merge";
 import { useTokenMetadata } from "@/hooks/kasplex/useTokenMetadata";
 import { useTokenInfo } from "@/hooks/kasplex/useTokenInfo";
-import { walletAddressEllipsis } from "@/lib/utils";
 import Layer2AssetImage from "@/components/Layer2AssetImage";
+import { textEllipsis } from "@/lib/utils";
 
 interface KRC20SelectItemProps {
   token: TokenItem;
@@ -50,7 +51,7 @@ export default function KRC20SelectItem({
           <span>{tokenName}</span>
           {tokenInfo?.mod === "issue" && (
             <span className="text-xs text-daintree-400">
-              {walletAddressEllipsis(token.id)}
+              {textEllipsis(token.id)}
             </span>
           )}
         </div>

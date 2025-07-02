@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import { useFormContext } from "react-hook-form";
 import { DeployFormData } from "@/components/screens/full-pages/MintToken.tsx";
-import kasIcon from "@/assets/images/kas-icon.svg";
+import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import { applyDecimal } from "@/lib/krc20.ts";
 import { useTokenMetadata } from "@/hooks/kasplex/useTokenMetadata.ts";
 

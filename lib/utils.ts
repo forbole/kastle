@@ -69,9 +69,9 @@ export function formatToken(number: number, maximumFractionDigits: number = 8) {
   return formatter.format(number);
 }
 
-export function walletAddressEllipsis(address: string) {
-  const start = address.substring(0, 8);
-  const end = address.substring(address.length - 5, address.length);
+export function textEllipsis(text: string, startPos = 8, endPos = 5) {
+  const start = text.substring(0, startPos);
+  const end = text.substring(text.length - endPos, text.length);
 
   return `${start}...${end}`;
 }

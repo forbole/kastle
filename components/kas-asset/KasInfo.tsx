@@ -1,6 +1,6 @@
 import React from "react";
 import { formatCurrency } from "@/lib/utils.ts";
-import kasIcon from "@/assets/images/kas-icon.svg";
+import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 
 export default function KasInfo() {

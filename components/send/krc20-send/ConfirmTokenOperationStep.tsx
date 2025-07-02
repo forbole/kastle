@@ -11,8 +11,8 @@ import useKaspaPrice from "@/hooks/useKaspaPrice.ts";
 import { Tooltip } from "react-tooltip";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 import { useTokenMetadata } from "@/hooks/kasplex/useTokenMetadata.ts";
-import { walletAddressEllipsis } from "@/lib/utils.ts";
-import HoverShowAllCopy from "../../HoverShowAllCopy";
+import { textEllipsis } from "@/lib/utils.ts";
+import HoverShowAllCopy from "@/components/HoverShowAllCopy.tsx";
 
 export const ConfirmTokenOperationStep = ({
   onNext,
@@ -90,7 +90,7 @@ export const ConfirmTokenOperationStep = ({
                 <span className="font-medium">{tokenName}</span>
                 <HoverShowAllCopy text={tokenId ?? ""} tooltipWidth="22rem">
                   <span className="cursor-pointer text-xs text-daintree-400">
-                    {walletAddressEllipsis(tokenId ?? "")}
+                    {textEllipsis(tokenId ?? "")}
                   </span>
                 </HoverShowAllCopy>
               </div>

@@ -8,7 +8,7 @@ import {
   formatToken,
 } from "@/lib/utils.ts";
 import { useSettings } from "@/hooks/useSettings";
-import kasIcon from "@/assets/images/kas-icon.svg";
+import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import useEvmKasBalance from "@/hooks/evm/useEvmKasBalance";
 
 export default function EvmKasAsset({ chainId }: { chainId: `0x${string}` }) {

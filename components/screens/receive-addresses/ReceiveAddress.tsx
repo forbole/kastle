@@ -3,22 +3,25 @@ import QRCode from "qrcode";
 import { createCanvas, loadImage } from "canvas";
 import { useCopyToClipboard } from "usehooks-ts";
 import { Tooltip } from "react-tooltip";
-import kasIcon from "@/assets/images/kas-icon.svg";
 import Header from "@/components/GeneralHeader";
 import { useNavigate } from "react-router-dom";
-import useWalletManager from "@/hooks/useWalletManager.ts";
 import { captureException } from "@sentry/react";
-import KNSMenu from "@/components/receive/KNSMenu.tsx";
 
-const Receive = () => {
+const Receive = ({
+  address,
+  chainName,
+  iconUrl,
+}: {
+  address: string;
+  chainName: string;
+  iconUrl: string;
+}) => {
   const navigate = useNavigate();
   const [, copy] = useCopyToClipboard();
-  const { account } = useWalletManager();
-  const address = account?.address;
   const [copied, setCopied] = useState(false);
   const [qrCodeUrl, setQrCodeUrl] = useState("");
 
-  const logoSize = 70;
+  const logoSize = 44;
   const generateQR = useCallback(async () => {
     if (!address) {
       return;
@@ -33,7 +36,7 @@ const Receive = () => {
         errorCorrectionLevel: "Q",
       });
       const ctx = canvas.getContext("2d");
-      const img = await loadImage(kasIcon);
+      const img = await loadImage(iconUrl);
       const center = canvas.width / 2;
       const logoStartPositionX = center - logoSize / 2;
       const logoStartPositionY = center - logoSize / 2;
@@ -73,17 +76,10 @@ const Receive = () => {
     <div className="flex h-full flex-col justify-between p-6">
       {/* Header */}
       <div>
-        <Header
-          title="Receive"
-          onClose={() => navigate("/dashboard")}
-          showPrevious={false}
-        />
+        <Header title="Receive" onClose={() => navigate("/dashboard")} />
 
         {/* QR Code Card */}
-        <div className="flex flex-col items-center gap-6 rounded-2xl border border-daintree-700 bg-icy-blue-900 px-4 py-6">
-          {/* KNS */}
-          <KNSMenu />
-
+        <div className="flex flex-col items-center rounded-2xl border border-daintree-700 bg-icy-blue-900 px-4 py-6">
           {/* QR Code */}
           <img
             src={qrCodeUrl}
@@ -91,9 +87,17 @@ const Receive = () => {
             className="h-48 w-48 rounded-2xl"
           />
 
-          {/* Token Info */}
-          <div className="flex flex-col gap-2 text-center">
-            <div className="w-full break-all rounded-lg border border-daintree-700 bg-icy-blue-950 p-3 text-start text-sm">
+          <div className="flex flex-col items-center gap-2 pt-6 text-center">
+            <h3 className="text-base font-semibold">My {chainName} Address</h3>
+            <p className="text-sm text-daintree-400">
+              Use it to receive tokens on{" "}
+              <span className="text-white">{chainName}</span>
+            </p>
+          </div>
+
+          {/* Address Info */}
+          <div className="flex flex-col pt-4 text-center">
+            <div className="w-full break-all rounded-lg border border-daintree-700 bg-icy-blue-950 px-3 py-2 text-start text-sm text-daintree-400">
               {address}
             </div>
           </div>

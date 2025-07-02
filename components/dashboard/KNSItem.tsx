@@ -1,7 +1,7 @@
 import { AssetData } from "@/hooks/useKns.ts";
 import avatarIcon from "@/assets/images/avatar.png";
 import { useNavigate } from "react-router-dom";
-import { walletAddressEllipsis } from "@/lib/utils.ts";
+import { textEllipsis } from "@/lib/utils.ts";
 import badgeCheckFill from "@/assets/images/badge-check.svg";
 
 type KNSItemProps = {
@@ -31,7 +31,7 @@ export default function KNSItem({ asset }: KNSItemProps) {
           <span>{asset.asset}</span>
         </div>
         <div className="flex items-center justify-between text-sm text-daintree-400">
-          <span>{walletAddressEllipsis(asset.owner)}</span>
+          <span>{textEllipsis(asset.owner)}</span>
         </div>
       </div>
     </div>

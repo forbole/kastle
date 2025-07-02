@@ -3,7 +3,7 @@ import React from "react";
 import { useTokenListByAddress } from "@/hooks/kasplex/useTokenListByAddress";
 import { applyDecimal } from "@/lib/krc20.ts";
 import Krc20SelectItem from "@/components/send/token-selector/Krc20SelectItem";
-import kasIcon from "@/assets/images/kas-icon.svg";
+import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import { formatToken } from "@/lib/utils.ts";
 import { useNavigate } from "react-router-dom";
 import EvmKasSelectItems from "./EvmKasSelectItems";
