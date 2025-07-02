@@ -1,5 +1,3 @@
-import { kairos } from "viem/chains";
-import kairosIcon from "@/assets/images/network-logos/kairos.svg";
 import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import kasplexIcon from "@/assets/images/network-logos/kasplex.svg";
 import { hexToNumber } from "viem";
@@ -25,15 +23,11 @@ export const kasplexTestnet = {
   testnet: true,
 };
 
-export const TESTNET_SUPPORTED_EVM_L2_CHAINS = [kairos, kasplexTestnet];
+export const TESTNET_SUPPORTED_EVM_L2_CHAINS = [kasplexTestnet];
 
 export const ALL_SUPPORTED_EVM_L2_CHAINS = [...TESTNET_SUPPORTED_EVM_L2_CHAINS];
 
 export const getChainImage = (chainId: `0x${string}`) => {
-  if (hexToNumber(chainId) === kairos.id) {
-    return kairosIcon;
-  }
-
   if (hexToNumber(chainId) === kasplexTestnet.id) {
     return kasplexIcon;
   }
@@ -43,8 +37,6 @@ export const getChainImage = (chainId: `0x${string}`) => {
 
 export const getChainName = (chainId: `0x${string}`) => {
   switch (hexToNumber(chainId)) {
-    case kairos.id:
-      return kairos.name;
     case kasplexTestnet.id:
       return kasplexTestnet.name;
     default:

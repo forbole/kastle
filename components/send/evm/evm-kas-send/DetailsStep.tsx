@@ -9,7 +9,7 @@ import spinner from "@/assets/images/spinner.svg";
 import { useSettings } from "@/hooks/useSettings";
 import TokenSelect from "@/components/send/token-selector/TokenSelect";
 import { isAddress, formatEther, parseEther } from "viem";
-import kasIcon from "@/assets/images/kas-icon.svg";
+import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import useEvmKasBalance from "@/hooks/evm/useEvmKasBalance";
 import useFeeEstimate from "@/hooks/evm/useFeeEstimate";
 import { formatToken } from "@/lib/utils";

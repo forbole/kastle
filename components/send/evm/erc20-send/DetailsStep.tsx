@@ -15,7 +15,7 @@ import {
   encodeFunctionData,
   parseEther,
 } from "viem";
-import kasIcon from "@/assets/images/kas-icon.svg";
+import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import useFeeEstimate from "@/hooks/evm/useFeeEstimate";
 import { formatToken } from "@/lib/utils";
 import useCurrencyValue from "@/hooks/useCurrencyValue";

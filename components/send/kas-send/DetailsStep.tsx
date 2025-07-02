@@ -16,7 +16,7 @@ import spinner from "@/assets/images/spinner.svg";
 import RecentAddresses from "@/components/send/RecentAddresses.tsx";
 import TokenSelect from "@/components/send/token-selector/TokenSelect";
 import PriorityFeeSelection from "@/components/send//PriorityFeeSelection";
-import kasIcon from "@/assets/images/kas-icon.svg";
+import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import { formatToken } from "@/lib/utils.ts";
 import { KasSendForm } from "@/components/send/kas-send/KasSend";
 

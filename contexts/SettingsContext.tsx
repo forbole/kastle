@@ -1,6 +1,5 @@
 import { createContext, ReactNode, useEffect, useState } from "react";
 import { captureException } from "@sentry/react";
-import { kairos } from "viem/chains";
 import * as conn from "@/lib/settings/connection";
 
 export const SETTINGS_KEY = "local:settings";

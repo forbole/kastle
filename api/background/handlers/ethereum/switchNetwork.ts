@@ -5,7 +5,6 @@ import {
   RpcRequestSchema,
 } from "@/api/message";
 import { ApiUtils } from "../../utils";
-import { TESTNET_SUPPORTED_EVM_L2_CHAINS } from "@/lib/layer2";
 import { isHex, hexToNumber } from "viem";
 
 export const switchNetworkPayloadSchema = z.object({
