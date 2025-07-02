@@ -131,7 +131,7 @@ export default function ConnectConfirm() {
             {icon ? (
               <img
                 alt={tabName}
-                className="h-16 w-16 rounded-full"
+                className="h-12 w-12 rounded-full"
                 src={icon}
               />
             ) : (

@@ -76,7 +76,7 @@ export default function SignMessage({
           <p className="mt-2 text-base text-daintree-400">
             Please confirm the message you are signing
           </p>
-          <div className="mt-4 break-words rounded-md bg-daintree-700 p-4">
+          <div className="mt-4 h-40 overflow-auto break-words rounded-md bg-daintree-700 p-4">
             <p className="text-start text-sm">{message}</p>
           </div>
         </div>
