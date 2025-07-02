@@ -1,5 +1,5 @@
 import Layer2AssetImage from "@/components/Layer2AssetImage";
-import kasIcon from "@/assets/images/kas-icon.svg";
+import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import { useNavigate } from "react-router-dom";
 import { getChainImage } from "@/lib/layer2";
 import useWalletManager from "@/hooks/useWalletManager";
