@@ -6,6 +6,7 @@ import { getChainImage, getChainName } from "@/lib/layer2";
 import useWalletManager from "@/hooks/useWalletManager";
 import { twMerge } from "tailwind-merge";
 import { formatToken } from "@/lib/utils.ts";
+import HoverTooltip from "@/components/HoverTooltip";
 
 export default function EvmKasSelectItem({
   chainId,
