@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.25.1](https://github.com/forbole/kastle/compare/v2.25.0...v2.25.1) (2025-07-04)
+
+
+### Bug Fixes
+
+* **ui:** fix mint krc20 ui ([#175](https://github.com/forbole/kastle/issues/175)) ([03d2309](https://github.com/forbole/kastle/commit/03d230943efac19507672a2490356272d99c69f1))
+
 ## [2.25.0](https://github.com/forbole/kastle/compare/v2.24.0...v2.25.0) (2025-07-02)
 
 
