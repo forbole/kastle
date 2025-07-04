@@ -13,9 +13,7 @@ interface KRC20SelectItemProps {
   token: TokenItem;
 }
 
-export default function KRC20SelectItem({
-  token,
-}: KRC20SelectItemProps) {
+export default function KRC20SelectItem({ token }: KRC20SelectItemProps) {
   const navigate = useNavigate();
   const { wallet } = useWalletManager();
 
@@ -32,7 +30,7 @@ export default function KRC20SelectItem({
     <>
       <button
         type="button"
-        className="flex items-center justify-between rounded-lg px-3 py-2 text-base font-medium text-daintree-200 hover:bg-daintree-700"
+        className="flex items-center justify-between rounded-lg px-3 py-2 text-base font-medium text-daintree-200 hover:bg-daintree-600"
         onClick={() => {
           if (!isLedger) navigate(`/krc20/send/${token.id}`);
         }}
@@ -43,10 +41,12 @@ export default function KRC20SelectItem({
             isLedger && "opacity-40",
           )}
         >
-          <Layer2AssetImage
-            tokenImage={tokenMetadata?.iconUrl}
-            chainImage={kasIcon}
-          />
+          <HoverTooltip text="KRC20" place="right">
+            <Layer2AssetImage
+              tokenImage={tokenMetadata?.iconUrl}
+              chainImage={kasIcon}
+            />
+          </HoverTooltip>
           <div className="flex flex-col items-start">
             <span>{tokenName}</span>
             {tokenInfo?.mod === "issue" && (

@@ -2,7 +2,7 @@ import Layer2AssetImage from "@/components/Layer2AssetImage";
 import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import useEvmKasBalance from "@/hooks/evm/useEvmKasBalance";
 import { useNavigate } from "react-router-dom";
-import { getChainImage } from "@/lib/layer2";
+import { getChainImage, getChainName } from "@/lib/layer2";
 import useWalletManager from "@/hooks/useWalletManager";
 import { twMerge } from "tailwind-merge";
 import { formatToken } from "@/lib/utils.ts";
@@ -28,7 +28,7 @@ export default function EvmKasSelectItem({
       {kasBalance !== "0" && (
         <button
           type="button"
-          className="flex items-center justify-between rounded-lg px-3 py-2 text-base font-medium text-daintree-200 hover:bg-daintree-700"
+          className="flex items-center justify-between rounded-lg px-3 py-2 text-base font-medium text-daintree-200 hover:bg-daintree-600"
           onClick={onClick}
         >
           <div
@@ -37,10 +37,12 @@ export default function EvmKasSelectItem({
               isLedger && "opacity-40",
             )}
           >
-            <Layer2AssetImage
-              tokenImage={kasIcon}
-              chainImage={getChainImage(chainId)}
-            />
+            <HoverTooltip text={getChainName(chainId)} place="right">
+              <Layer2AssetImage
+                tokenImage={kasIcon}
+                chainImage={getChainImage(chainId)}
+              />
+            </HoverTooltip>
             <span>KAS</span>
           </div>
           {!isLedger && <span>{formatToken(parseFloat(kasBalance))}</span>}

@@ -1,12 +1,13 @@
 import Layer2AssetImage from "@/components/Layer2AssetImage";
 import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import { useNavigate } from "react-router-dom";
-import { getChainImage } from "@/lib/layer2";
+import { getChainImage, getChainName } from "@/lib/layer2";
 import useWalletManager from "@/hooks/useWalletManager";
 import { twMerge } from "tailwind-merge";
 import useErc20Balance from "@/hooks/evm/useErc20Balance";
 import { Erc20Asset } from "@/contexts/EvmAssets";
 import { formatToken, textEllipsis } from "@/lib/utils.ts";
+import HoverTooltip from "@/components/HoverTooltip";
 
 export default function Erc20SelectItem({ asset }: { asset: Erc20Asset }) {
   const { wallet } = useWalletManager();
@@ -29,7 +30,7 @@ export default function Erc20SelectItem({ asset }: { asset: Erc20Asset }) {
       {balance !== "0" && (
         <button
           type="button"
-          className="flex items-center justify-between rounded-lg px-3 py-2 text-base font-medium text-daintree-200 hover:bg-daintree-700"
+          className="flex items-center justify-between rounded-lg px-3 py-2 text-base font-medium text-daintree-200 hover:bg-daintree-600"
           onClick={onClick}
         >
           <div
@@ -38,10 +39,12 @@ export default function Erc20SelectItem({ asset }: { asset: Erc20Asset }) {
               isLedger && "opacity-40",
             )}
           >
-            <Layer2AssetImage
-              tokenImage={asset.image ?? kasIcon}
-              chainImage={getChainImage(asset.chainId)}
-            />
+            <HoverTooltip text={getChainName(asset.chainId)} place="right">
+              <Layer2AssetImage
+                tokenImage={asset.image ?? kasIcon}
+                chainImage={getChainImage(asset.chainId)}
+              />
+            </HoverTooltip>
             <div className="flex flex-col items-start">
               <span>{asset.symbol}</span>
               <span className="text-xs text-daintree-400">
