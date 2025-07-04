@@ -314,7 +314,7 @@ export const DetailsStep = () => {
               <button
                 type="button"
                 className={twMerge(
-                  "inline-flex min-w-fit items-center gap-2 rounded-s-md border border-e-0 border-daintree-700 px-4 text-sm",
+                  "inline-flex min-w-fit items-center gap-3 rounded-s-md border border-e-0 border-daintree-700 p-4 text-sm",
                   errors.amount
                     ? "border-e-0 border-[#EF4444] ring-[#EF4444] focus:border-[#EF4444] focus:ring-[#EF4444]"
                     : "border-daintree-700",
@@ -325,6 +325,8 @@ export const DetailsStep = () => {
                   tokenImageSize={24}
                   chainImageSize={16}
                   chainImage={kasIcon}
+                  chainImageBottomPosition={-4}
+                  chainImageRightPosition={-12}
                 />
                 {tokenName?.toUpperCase()}
               </button>
