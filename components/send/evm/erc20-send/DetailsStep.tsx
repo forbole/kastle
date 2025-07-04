@@ -1,6 +1,6 @@
 import Header from "@/components/GeneralHeader";
 import { Tooltip } from "react-tooltip";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useBoolean } from "usehooks-ts";
 import { useFormContext } from "react-hook-form";
 import { Erc20SendForm } from "./Erc20Send";
@@ -12,7 +12,7 @@ import {
   formatEther,
   erc20Abi,
   encodeFunctionData,
-  parseEther,
+  parseUnits,
 } from "viem";
 import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import useFeeEstimate from "@/hooks/evm/useFeeEstimate";
@@ -68,7 +68,9 @@ export default function DetailsStep({
             functionName: "transfer",
             args: [
               address as `0x${string}`,
-              amount ? parseEther(amount) : (balanceInfo?.rawBalance ?? 0n),
+              amount
+                ? parseUnits(amount, asset.decimals)
+                : (balanceInfo?.rawBalance ?? 0n),
             ],
           }),
         }
@@ -261,13 +263,14 @@ export default function DetailsStep({
                     }
                   },
                 })}
-                type="text"
+                type="number"
                 className={twMerge(
-                  "block w-full rounded-e-lg bg-[#102831] px-4 py-3 pe-11 text-sm shadow-sm focus:z-10 disabled:pointer-events-none disabled:opacity-50 sm:p-5",
+                  "block w-full rounded-e-lg bg-[#102831] px-4 py-3 pe-11 text-sm shadow-sm focus:z-10 disabled:pointer-events-none disabled:opacity-50 sm:p-5 [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
                   errors.amount
                     ? "border-[#EF4444] border-l-daintree-700 ring-0 ring-[#EF4444] focus:border-[#EF4444] focus:border-l-daintree-700 focus:ring-0 focus:ring-[#EF4444]"
                     : "border-daintree-700",
                 )}
+                style={{ MozAppearance: "textfield" }}
               />
             </div>
 
