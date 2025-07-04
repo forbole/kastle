@@ -7,7 +7,6 @@ import { EvmKasSendForm } from "./EvmKasSend";
 import { twMerge } from "tailwind-merge";
 import spinner from "@/assets/images/spinner.svg";
 import { useSettings } from "@/hooks/useSettings";
-import TokenSelect from "@/components/send/token-selector/TokenSelect";
 import { isAddress, formatEther, parseEther } from "viem";
 import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import useEvmKasBalance from "@/hooks/evm/useEvmKasBalance";
@@ -44,7 +43,6 @@ export default function DetailsStep({
   const evmAddress = useEvmAddress();
 
   const { userInput, address, amount } = watch();
-
   const { data: estimatedFee } = useFeeEstimate(
     chainId,
     isAddress(address ?? "") && evmAddress
@@ -58,9 +56,6 @@ export default function DetailsStep({
 
   // TODO: Add recent address history logic for it
   const { value: isAddressFieldFocused, setValue: setAddressFieldFocused } =
-    useBoolean(false);
-
-  const { value: isTokenSelectShown, toggle: toggleTokenSelect } =
     useBoolean(false);
 
   const onClose = () => {
@@ -212,9 +207,8 @@ export default function DetailsStep({
             <div className="flex rounded-lg bg-[#102831] text-daintree-400 shadow-sm">
               <button
                 type="button"
-                onClick={toggleTokenSelect}
                 className={twMerge(
-                  "inline-flex min-w-fit items-center gap-2 rounded-s-md border border-e-0 border-daintree-700 px-4 text-sm",
+                  "inline-flex min-w-fit items-center gap-3 rounded-s-md border border-e-0 border-daintree-700 p-4 text-sm",
                   errors.amount
                     ? "border-e-0 border-[#EF4444] ring-[#EF4444] focus:border-[#EF4444] focus:ring-[#EF4444]"
                     : "border-daintree-700",
@@ -222,12 +216,13 @@ export default function DetailsStep({
               >
                 <Layer2AssetImage
                   tokenImage={kasIcon}
-                  tokenImageSize={18}
+                  tokenImageSize={24}
                   chainImageSize={16}
                   chainImage={getChainImage(chainId)}
+                  chainImageBottomPosition={-4}
+                  chainImageRightPosition={-12}
                 />
                 KAS
-                <i className="hn hn-chevron-down h-[16px] w-[16px]"></i>
               </button>
               <input
                 {...register("amount", {
@@ -241,13 +236,14 @@ export default function DetailsStep({
                     }
                   },
                 })}
-                type="text"
+                type="number"
                 className={twMerge(
-                  "block w-full rounded-e-lg bg-[#102831] px-4 py-3 pe-11 text-sm shadow-sm focus:z-10 disabled:pointer-events-none disabled:opacity-50 sm:p-5",
+                  "block w-full rounded-e-lg bg-[#102831] px-4 py-3 pe-11 text-sm shadow-sm focus:z-10 disabled:pointer-events-none disabled:opacity-50 sm:p-5 [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
                   errors.amount
                     ? "border-[#EF4444] border-l-daintree-700 ring-0 ring-[#EF4444] focus:border-[#EF4444] focus:border-l-daintree-700 focus:ring-0 focus:ring-[#EF4444]"
                     : "border-daintree-700",
                 )}
+                style={{ MozAppearance: "textfield" }}
               />
             </div>
 
@@ -342,11 +338,6 @@ export default function DetailsStep({
           </button>
         </div>
       </div>
-
-      <TokenSelect
-        isShown={isTokenSelectShown}
-        toggleShow={toggleTokenSelect}
-      />
     </>
   );
 }

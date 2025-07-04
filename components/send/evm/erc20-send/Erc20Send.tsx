@@ -57,7 +57,7 @@ export default function Erc20Send() {
   const onBack = () => {
     setStep((prevState) => {
       if (steps.indexOf(prevState) === 0) {
-        navigate("/dashboard");
+        navigate(-1);
       }
 
       const stepIdx = steps.indexOf(prevState);
