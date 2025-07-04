@@ -8,7 +8,6 @@ import useWalletManager from "@/hooks/useWalletManager.ts";
 import { Address, kaspaToSompi, sompiToKaspaString } from "@/wasm/core/kaspa";
 import { twMerge } from "tailwind-merge";
 import { useBoolean } from "usehooks-ts";
-import TokenSelect from "@/components/send/token-selector/TokenSelect";
 import { useTokenBalance } from "@/hooks/kasplex/useTokenBalance";
 import { applyDecimal, computeOperationFees, Fee } from "@/lib/krc20.ts";
 import RecentAddresses from "@/components/send/RecentAddresses.tsx";
@@ -24,6 +23,7 @@ import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 import { useTokenMetadata } from "@/hooks/kasplex/useTokenMetadata.ts";
 import { useTokenInfo } from "@/hooks/kasplex/useTokenInfo";
 import { KRC20SendForm } from "./Krc20Send";
+import Layer2AssetImage from "@/components/Layer2AssetImage";
 
 export const DetailsStep = () => {
   const { tick: ticker } = useParams<{ tick: string }>();
@@ -40,8 +40,6 @@ export const DetailsStep = () => {
     setFalse: hideRecentAddress,
     setTrue: showRecentAddress,
   } = useBoolean(false);
-  const { value: isTokenSelectShown, toggle: toggleTokenSelect } =
-    useBoolean(false);
 
   const {
     register,
@@ -66,7 +64,6 @@ export const DetailsStep = () => {
   );
 
   const { data: tokenMetadata, toPriceInUsd } = useTokenMetadata(ticker);
-  const [imageUrl, setImageUrl] = useState(kasIcon);
   const tokenPrice = toPriceInUsd();
   const { amount: tokenCurrency } = useCurrencyValue(tokenPrice);
   const { data: tokenBalanceResponse } = useTokenBalance(
@@ -100,10 +97,6 @@ export const DetailsStep = () => {
     }
 
     return true;
-  };
-
-  const onClose = () => {
-    navigate("/dashboard");
   };
 
   const addressValidator = async (value: string | undefined) => {
@@ -176,16 +169,6 @@ export const DetailsStep = () => {
       },
     );
 
-  const onImageError = () => {
-    setImageUrl(kasIcon);
-  };
-
-  useEffect(() => {
-    if (tokenMetadata?.iconUrl) {
-      setImageUrl(tokenMetadata.iconUrl);
-    }
-  }, [tokenMetadata?.iconUrl]);
-
   // Update USD amount
   useEffect(() => {
     const amountNumber = parseFloat(amount ?? "0");
@@ -241,9 +224,13 @@ export const DetailsStep = () => {
     trigger("userInput");
   }, []);
 
+  const onClose = () => {
+    navigate("/dashboard");
+  };
+
   return (
     <>
-      <Header title="Send" onClose={onClose} onBack={onClose} />
+      <Header title="Send" onClose={onClose} />
       <div className="flex h-full flex-col gap-4">
         <div className="flex items-center justify-between">
           <label className="text-base font-medium">Send to ...</label>
@@ -326,7 +313,6 @@ export const DetailsStep = () => {
             <div className="flex rounded-lg bg-[#102831] text-daintree-400 shadow-sm">
               <button
                 type="button"
-                onClick={toggleTokenSelect}
                 className={twMerge(
                   "inline-flex min-w-fit items-center gap-2 rounded-s-md border border-e-0 border-daintree-700 px-4 text-sm",
                   errors.amount
@@ -334,14 +320,13 @@ export const DetailsStep = () => {
                     : "border-daintree-700",
                 )}
               >
-                <img
-                  alt="kas"
-                  className="h-[18px] w-[18px] rounded-full"
-                  src={imageUrl}
-                  onError={onImageError}
+                <Layer2AssetImage
+                  tokenImage={tokenMetadata?.iconUrl ?? kasIcon}
+                  tokenImageSize={24}
+                  chainImageSize={16}
+                  chainImage={kasIcon}
                 />
                 {tokenName?.toUpperCase()}
-                <i className="hn hn-chevron-down h-[16px] w-[16px]"></i>
               </button>
               <input
                 {...register("amount", {
@@ -479,11 +464,6 @@ export const DetailsStep = () => {
           </button>
         </div>
       </div>
-
-      <TokenSelect
-        isShown={isTokenSelectShown}
-        toggleShow={toggleTokenSelect}
-      />
 
       <PriorityFeeSelection
         isPriorityFeeSelectionOpen={false}

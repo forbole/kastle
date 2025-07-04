@@ -7,7 +7,6 @@ import { Erc20SendForm } from "./Erc20Send";
 import { twMerge } from "tailwind-merge";
 import spinner from "@/assets/images/spinner.svg";
 import { useSettings } from "@/hooks/useSettings";
-import TokenSelect from "@/components/send/token-selector/TokenSelect";
 import {
   isAddress,
   formatEther,
@@ -79,9 +78,6 @@ export default function DetailsStep({
 
   // TODO: Add recent address history logic for it
   const { value: isAddressFieldFocused, setValue: setAddressFieldFocused } =
-    useBoolean(false);
-
-  const { value: isTokenSelectShown, toggle: toggleTokenSelect } =
     useBoolean(false);
 
   const onClose = () => {
@@ -236,7 +232,6 @@ export default function DetailsStep({
             <div className="flex rounded-lg bg-[#102831] text-daintree-400 shadow-sm">
               <button
                 type="button"
-                onClick={toggleTokenSelect}
                 className={twMerge(
                   "inline-flex min-w-fit items-center gap-2 rounded-s-md border border-e-0 border-daintree-700 px-4 text-sm",
                   errors.amount
@@ -246,12 +241,11 @@ export default function DetailsStep({
               >
                 <Layer2AssetImage
                   tokenImage={asset.image ?? kasIcon}
-                  tokenImageSize={18}
+                  tokenImageSize={24}
                   chainImageSize={16}
                   chainImage={getChainImage(asset.chainId)}
                 />
                 {asset.symbol}
-                <i className="hn hn-chevron-down h-[16px] w-[16px]"></i>
               </button>
               <input
                 {...register("amount", {
@@ -366,11 +360,6 @@ export default function DetailsStep({
           </button>
         </div>
       </div>
-
-      <TokenSelect
-        isShown={isTokenSelectShown}
-        toggleShow={toggleTokenSelect}
-      />
     </>
   );
 }

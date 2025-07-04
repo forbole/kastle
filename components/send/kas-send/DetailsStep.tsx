@@ -14,7 +14,6 @@ import { useFormContext } from "react-hook-form";
 import { twMerge } from "tailwind-merge";
 import spinner from "@/assets/images/spinner.svg";
 import RecentAddresses from "@/components/send/RecentAddresses.tsx";
-import TokenSelect from "@/components/send/token-selector/TokenSelect";
 import PriorityFeeSelection from "@/components/send//PriorityFeeSelection";
 import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import { formatToken } from "@/lib/utils.ts";
@@ -41,8 +40,6 @@ export function DetailsStep({
     setFalse: hideRecentAddress,
     setTrue: showRecentAddress,
   } = useBoolean(false);
-  const { value: isTokenSelectShown, toggle: toggleTokenSelect } =
-    useBoolean(false);
   const [accountMinimumFees, setAccountMinimumFees] = useState<number>(0.0);
   const {
     value: isPriorityFeeSelectionOpen,
@@ -297,7 +294,6 @@ export function DetailsStep({
             <div className="flex rounded-lg bg-[#102831] text-daintree-400 shadow-sm">
               <button
                 type="button"
-                onClick={toggleTokenSelect}
                 className={twMerge(
                   "inline-flex min-w-fit items-center gap-2 rounded-s-md border border-e-0 border-daintree-700 px-4 text-sm",
                   errors.amount
@@ -307,11 +303,10 @@ export function DetailsStep({
               >
                 <img
                   alt="kas"
-                  className="h-[18px] w-[18px] rounded-full"
+                  className="h-6 w-6 rounded-full"
                   src={kasIcon}
                 />
                 KAS
-                <i className="hn hn-chevron-down h-[16px] w-[16px]"></i>
               </button>
               <input
                 {...register("amount", {
@@ -439,11 +434,6 @@ export function DetailsStep({
           </button>
         </div>
       </div>
-
-      <TokenSelect
-        isShown={isTokenSelectShown}
-        toggleShow={toggleTokenSelect}
-      />
 
       <PriorityFeeSelection
         isPriorityFeeSelectionOpen={isPriorityFeeSelectionOpen}
