@@ -1,6 +1,6 @@
 import { useTokenListByAddress } from "@/hooks/kasplex/useTokenListByAddress";
 import { applyDecimal } from "@/lib/krc20.ts";
-import Krc20SelectItem from "@/components/send/asset-selector/Krc20SelectItem";
+import Krc20SelectItem from "./Krc20SelectItem";
 import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import { formatToken } from "@/lib/utils.ts";
 import { useNavigate } from "react-router-dom";

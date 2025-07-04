@@ -77,7 +77,7 @@ import Erc20Send from "@/components/send/evm/erc20-send/Erc20Send";
 import SelectAddress from "@/components/screens/receive-addresses/SelectAddress";
 import KaspaReceiveAddress from "@/components/screens/receive-addresses/KaspaReceiveAddress";
 import EvmReceiveAddress from "@/components/screens/receive-addresses/EvmReceiveAddress";
-import AssetSelect from "@/components/send/asset-selector/AssetSelect";
+import AssetSelect from "@/components/screens/asset-selector/AssetSelect";
 
 const loadKaspaWasm = async () => {
   await init({ module_or_path: kaspaModule });
