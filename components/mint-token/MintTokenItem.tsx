@@ -32,25 +32,23 @@ export default function MintTokenItem({ token }: MintTokenItemProps) {
   const isMintMode = tokenInfo?.result?.[0]?.mod === "mint";
 
   return (
-    <>
-      {isMintMode && (
-        <button
-          type="button"
-          className="flex items-center justify-between rounded-lg px-4 py-2 text-base font-medium text-daintree-200 hover:bg-daintree-700"
-          onClick={() => setValue("ticker", token.id, { shouldValidate: true })}
-        >
-          <div className="flex items-center gap-2">
-            <img
-              alt="castle"
-              className="h-[24px] w-[24px] rounded-full"
-              src={imageUrl}
-              onError={onImageError}
-            />
-            <span>{token.id}</span>
-          </div>
-          <span>{toFloat(balance).toLocaleString()}</span>
-        </button>
-      )}
-    </>
+    isMintMode && (
+      <button
+        type="button"
+        className="flex items-center justify-between rounded-lg px-4 py-2 text-base font-medium text-daintree-200 hover:bg-daintree-700"
+        onClick={() => setValue("ticker", token.id, { shouldValidate: true })}
+      >
+        <div className="flex items-center gap-2">
+          <img
+            alt="castle"
+            className="h-[24px] w-[24px] rounded-full"
+            src={imageUrl}
+            onError={onImageError}
+          />
+          <span>{token.id}</span>
+        </div>
+        <span>{toFloat(balance).toLocaleString()}</span>
+      </button>
+    )
   );
 }
