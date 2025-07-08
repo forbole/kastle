@@ -31,14 +31,14 @@ export default function KRC20SelectItem({ token }: KRC20SelectItemProps) {
     <>
       <button
         type="button"
-        className="flex items-center justify-between rounded-lg px-3 py-2 text-base font-medium text-daintree-200 hover:bg-daintree-600"
+        className="flex items-center justify-between rounded-lg px-3 py-2 text-base font-medium text-daintree-200 hover:bg-daintree-800"
         onClick={() => {
           if (!isLedger) navigate(`/krc20/send/${token.id}`);
         }}
       >
         <div
           className={twMerge(
-            "flex items-start gap-3",
+            "flex items-center gap-3",
             isLedger && "opacity-40",
           )}
         >
@@ -48,7 +48,7 @@ export default function KRC20SelectItem({ token }: KRC20SelectItemProps) {
               chainImage={kasIcon}
             />
           </HoverTooltip>
-          <div className="flex flex-col items-start">
+          <div className="flex flex-col items-center">
             <span>{tokenName}</span>
             {tokenInfo?.mod === "issue" && (
               <span className="text-xs text-daintree-400">

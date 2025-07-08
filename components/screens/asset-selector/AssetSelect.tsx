@@ -65,18 +65,17 @@ export default function AssetSelect() {
         {isKasShown && (
           <button
             type="button"
-            className="flex items-center justify-between rounded-lg px-3 py-2 text-base font-medium text-daintree-200 hover:bg-daintree-700"
+            className="flex items-center justify-between rounded-lg px-3 py-2 text-base font-medium text-daintree-200 hover:bg-daintree-800"
             onClick={() => navigate("/kas/send")}
           >
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <img
                 alt="castle"
                 className="h-10 w-10 rounded-full"
                 src={kasIcon}
               />
-              <div className="flex flex-col items-start">
+              <div className="flex flex-col items-center">
                 <span>KAS</span>
-                <span></span>
               </div>
             </div>
             <span>{formatToken(parseFloat(kasBalance ?? "0"))}</span>

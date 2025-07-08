@@ -30,7 +30,7 @@ export default function Erc20SelectItem({ asset }: { asset: Erc20Asset }) {
       {balance !== "0" && (
         <button
           type="button"
-          className="flex items-center justify-between rounded-lg px-3 py-2 text-base font-medium text-daintree-200 hover:bg-daintree-600"
+          className="flex items-center justify-between rounded-lg px-3 py-2 text-base font-medium text-daintree-200 hover:bg-daintree-800"
           onClick={onClick}
         >
           <div
