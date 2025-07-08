@@ -48,7 +48,7 @@ export default function KRC20SelectItem({ token }: KRC20SelectItemProps) {
               chainImage={kasIcon}
             />
           </HoverTooltip>
-          <div className="flex flex-col items-center">
+          <div className="flex flex-col items-start">
             <span>{tokenName}</span>
             {tokenInfo?.mod === "issue" && (
               <span className="text-xs text-daintree-400">

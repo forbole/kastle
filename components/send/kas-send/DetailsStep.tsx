@@ -300,6 +300,7 @@ export function DetailsStep({
                     ? "border-e-0 border-[#EF4444] ring-[#EF4444] focus:border-[#EF4444] focus:ring-[#EF4444]"
                     : "border-daintree-700",
                 )}
+                onClick={() => navigate("/asset-select")}
               >
                 <img alt="kas" className="h-6 w-6 rounded-full" src={kasIcon} />
                 KAS

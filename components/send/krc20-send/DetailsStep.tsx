@@ -228,9 +228,13 @@ export const DetailsStep = () => {
     navigate("/dashboard");
   };
 
+  const toAssetSelectPage = () => {
+    navigate("/asset-select");
+  };
+
   return (
     <>
-      <Header title="Send" onClose={onClose} />
+      <Header title="Send" onClose={onClose} onBack={toAssetSelectPage} />
       <div className="flex h-full flex-col gap-4">
         <div className="flex items-center justify-between">
           <label className="text-base font-medium">Send to ...</label>
@@ -319,6 +323,7 @@ export const DetailsStep = () => {
                     ? "border-e-0 border-[#EF4444] ring-[#EF4444] focus:border-[#EF4444] focus:ring-[#EF4444]"
                     : "border-daintree-700",
                 )}
+                onClick={toAssetSelectPage}
               >
                 <Layer2AssetImage
                   tokenImage={tokenMetadata?.iconUrl ?? kasIcon}

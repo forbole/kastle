@@ -81,7 +81,7 @@ export const ConfirmTokenOperationStep = ({
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Send from</span>
                 <span className="border-1 rounded-full border border-icy-blue-400 px-1 text-[0.625rem] font-medium text-icy-blue-400">
-                  KRC20
+                  Kaspa
                 </span>
               </div>
               <span className="break-all text-xs text-daintree-400">
@@ -101,7 +101,7 @@ export const ConfirmTokenOperationStep = ({
                   </a>
                 </span>
                 <span className="border-1 rounded-full border border-icy-blue-400 px-1 text-[0.625rem] font-medium text-icy-blue-400">
-                  KRC20
+                  Kaspa
                 </span>
               </div>
               <span className="break-all text-xs text-daintree-400">
@@ -116,11 +116,13 @@ export const ConfirmTokenOperationStep = ({
                 <span className="font-medium">Ticker</span>
                 <div className="flex flex-col items-end">
                   <span className="font-medium">{tokenName}</span>
-                  <HoverShowAllCopy text={tokenId ?? ""} tooltipWidth="22rem">
-                    <span className="cursor-pointer text-xs text-daintree-400">
-                      {textEllipsis(tokenId ?? "")}
-                    </span>
-                  </HoverShowAllCopy>
+                  {tokenInfo?.mod === "issue" && (
+                    <HoverShowAllCopy text={tokenId ?? ""} tooltipWidth="22rem">
+                      <span className="cursor-pointer text-xs text-daintree-400">
+                        {textEllipsis(tokenId ?? "")}
+                      </span>
+                    </HoverShowAllCopy>
+                  )}
                 </div>
               </div>
             </li>

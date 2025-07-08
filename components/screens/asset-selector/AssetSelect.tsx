@@ -45,7 +45,11 @@ export default function AssetSelect() {
   return (
     <div className="flex h-full w-full flex-col">
       <div className="px-4 pt-4">
-        <Header title="Select Asset" onClose={() => navigate("/dashboard")} />
+        <Header
+          title="Select Asset"
+          onClose={() => navigate("/dashboard")}
+          onBack={() => navigate("/dashboard")}
+        />
         <div className="relative flex items-center pb-4">
           <div className="pointer-events-none absolute start-0 flex items-center ps-4 leading-none text-daintree-400 peer-disabled:pointer-events-none peer-disabled:opacity-50">
             <i className="hn hn-search text-base font-medium"></i>
@@ -74,7 +78,7 @@ export default function AssetSelect() {
                 className="h-10 w-10 rounded-full"
                 src={kasIcon}
               />
-              <div className="flex flex-col items-center">
+              <div className="flex flex-col items-start">
                 <span>KAS</span>
               </div>
             </div>

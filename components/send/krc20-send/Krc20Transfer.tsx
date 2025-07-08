@@ -58,7 +58,18 @@ export default function Krc20Transfer() {
   }, [isLoading]);
 
   const onBack = () =>
-    navigate({ pathname: `/krc-20/send/${ticker}` }, { state });
+    navigate(
+      { pathname: `/krc20/send/${ticker}` },
+      {
+        state: {
+          form: {
+            userInput: domain ?? to,
+            amount,
+            domain,
+          },
+        },
+      },
+    );
 
   return (
     <div className="flex h-full flex-col p-4 text-white">

@@ -240,6 +240,7 @@ export default function DetailsStep({
                     ? "border-e-0 border-[#EF4444] ring-[#EF4444] focus:border-[#EF4444] focus:ring-[#EF4444]"
                     : "border-daintree-700",
                 )}
+                onClick={() => navigate("/asset-select")}
               >
                 <Layer2AssetImage
                   tokenImage={asset.image ?? kasIcon}
@@ -345,7 +346,7 @@ export default function DetailsStep({
             <i
               className="hn hn-info-circle text-[16px]"
               data-tooltip-id="fee-estimation-tooltip"
-              data-tooltip-content={`${formatToken(parseFloat(formatEther(estimatedFee ?? 0n)))} KAS for evm miner fees.`}
+              data-tooltip-content={`${formatToken(parseFloat(formatEther(estimatedFee ?? 0n)))} KAS for EVM miner fees.`}
             ></i>
 
             <span>Estimated</span>
