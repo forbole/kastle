@@ -46,6 +46,8 @@ export default function KRC20SelectItem({ token }: KRC20SelectItemProps) {
             <Layer2AssetImage
               tokenImage={tokenMetadata?.iconUrl}
               chainImage={kasIcon}
+              chainImageSize={16}
+              chainImageBottomPosition={-2}
             />
           </HoverTooltip>
           <div className="flex flex-col items-start">

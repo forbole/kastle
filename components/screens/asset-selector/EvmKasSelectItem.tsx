@@ -42,6 +42,8 @@ export default function EvmKasSelectItem({
               <Layer2AssetImage
                 tokenImage={kasIcon}
                 chainImage={getChainImage(chainId)}
+                chainImageSize={16}
+                chainImageBottomPosition={-2}
               />
             </HoverTooltip>
             <span>KAS</span>
