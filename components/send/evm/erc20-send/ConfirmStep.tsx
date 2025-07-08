@@ -15,7 +15,7 @@ import useEvmAddress from "@/hooks/evm/useEvmAddress";
 import useFeeEstimate from "@/hooks/evm/useFeeEstimate";
 import useAnalytics from "@/hooks/useAnalytics.ts";
 import { formatEther, TransactionSerializable } from "viem";
-import { ALL_SUPPORTED_EVM_L2_CHAINS } from "@/lib/layer2";
+import { ALL_SUPPORTED_EVM_L2_CHAINS, getChainName } from "@/lib/layer2";
 import {
   createPublicClient,
   http,
@@ -165,9 +165,27 @@ export const ConfirmStep = ({
           />
         )}
 
+        {/* Sender */}
+        <div className="flex flex-col gap-2 rounded-lg border border-daintree-700 bg-daintree-800 p-4">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium">Send from</span>
+            <span className="border-1 rounded-full border border-icy-blue-400 px-1 text-[0.625rem] font-medium text-icy-blue-400">
+              {getChainName(asset.chainId).replace(" Testnet", "")}
+            </span>
+          </div>
+          <span className="break-all text-xs text-daintree-400">
+            {evmAddress}
+          </span>
+        </div>
+
         {/* Recipient */}
         <div className="flex flex-col gap-2 rounded-lg border border-daintree-700 bg-daintree-800 p-4">
-          <span className="text-base font-medium">Recipient</span>
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium">Send to</span>
+            <span className="border-1 rounded-full border border-icy-blue-400 px-1 text-[0.625rem] font-medium text-icy-blue-400">
+              {getChainName(asset.chainId).replace(" Testnet", "")}
+            </span>
+          </div>
           <span className="break-all text-xs text-daintree-400">
             {toAddress}
           </span>

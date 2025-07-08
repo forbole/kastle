@@ -34,7 +34,7 @@ export const ConfirmStep = ({
   const { addRecentAddress } = useRecentAddresses();
   const [isSigning, setIsSigning] = useState(false);
 
-  const { wallet } = useWalletManager();
+  const { wallet, account } = useWalletManager();
   const { watch } = useFormContext<KasSendForm>();
   const { address, amount, domain, priorityFee } = watch();
   const kaspaPrice = useKaspaPrice();
@@ -99,7 +99,7 @@ export const ConfirmStep = ({
     <>
       <Header title="Confirm" onClose={onClose} onBack={onBack} />
 
-      <div className="flex h-full flex-col gap-2">
+      <div className="flex min-h-0 flex-col gap-2">
         {wallet?.type === "ledger" && (
           <img
             alt="ledger-on-confirm"
@@ -115,43 +115,65 @@ export const ConfirmStep = ({
           />
         )}
 
-        {/* Recipient */}
-        <div className="flex flex-col gap-2 rounded-lg border border-daintree-700 bg-daintree-800 p-4">
-          <span className="text-base font-medium">
-            Recipient
-            {!!domain && ` - ${domain}`}
-          </span>
-          <span className="break-all text-xs text-daintree-400">{address}</span>
+        <div className="thin-scrollbar flex min-h-0 flex-1 flex-col gap-2 overflow-y-scroll pr-1">
+          {/* Sender */}
+          <div className="flex flex-col gap-2 rounded-lg border border-daintree-700 bg-daintree-800 p-4">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">Send from</span>
+              <span className="border-1 rounded-full border border-icy-blue-400 px-1 text-[0.625rem] font-medium text-icy-blue-400">
+                Kaspa
+              </span>
+            </div>
+            <span className="break-all text-xs text-daintree-400">
+              {account?.address}
+            </span>
+          </div>
+
+          {/* Recipient */}
+          <div className="flex flex-col gap-2 rounded-lg border border-daintree-700 bg-daintree-800 p-4">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">
+                Send to
+                <a className="text-icy-blue-400">{!!domain && ` ${domain}`}</a>
+              </span>
+              <span className="border-1 rounded-full border border-icy-blue-400 px-1 text-[0.625rem] font-medium text-icy-blue-400">
+                Kaspa
+              </span>
+            </div>
+            <span className="break-all text-xs text-daintree-400">
+              {address}
+            </span>
+          </div>
+
+          <ul className="flex flex-col rounded-lg bg-daintree-800">
+            <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
+              <div className="flex w-full items-start justify-between">
+                <span className="font-medium">Sending amount</span>
+                <div className="flex flex-col text-right">
+                  <span className="font-medium">
+                    {amountNumber.toFixed(3)} KAS
+                  </span>
+                  <span className="text-xs text-daintree-400">
+                    {formatCurrency(amountCurrency, amountCurrencyCode)}
+                  </span>
+                </div>
+              </div>
+            </li>
+            <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
+              <div className="flex w-full items-start justify-between">
+                <span className="font-medium">Fee</span>
+                <div className="flex flex-col text-right">
+                  <span className="font-medium">{priorityFeeKas} KAS</span>
+                  <span className="text-xs text-daintree-400">
+                    {formatCurrency(feesCurrency, feesCurrencyCode)}
+                  </span>
+                </div>
+              </div>
+            </li>
+          </ul>
         </div>
 
-        <ul className="flex flex-col rounded-lg bg-daintree-800">
-          <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
-            <div className="flex w-full items-start justify-between">
-              <span className="font-medium">Sending amount</span>
-              <div className="flex flex-col text-right">
-                <span className="font-medium">
-                  {amountNumber.toFixed(3)} KAS
-                </span>
-                <span className="text-xs text-daintree-400">
-                  {formatCurrency(amountCurrency, amountCurrencyCode)}
-                </span>
-              </div>
-            </div>
-          </li>
-          <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
-            <div className="flex w-full items-start justify-between">
-              <span className="font-medium">Fee</span>
-              <div className="flex flex-col text-right">
-                <span className="font-medium">{priorityFeeKas} KAS</span>
-                <span className="text-xs text-daintree-400">
-                  {formatCurrency(feesCurrency, feesCurrencyCode)}
-                </span>
-              </div>
-            </div>
-          </li>
-        </ul>
-
-        <div className="mt-auto">
+        <div className="mt-4">
           <button
             onClick={onConfirm}
             className={twMerge(

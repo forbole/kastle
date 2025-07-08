@@ -8,7 +8,6 @@ import useWalletManager from "@/hooks/useWalletManager.ts";
 import { Address, kaspaToSompi, sompiToKaspaString } from "@/wasm/core/kaspa";
 import { twMerge } from "tailwind-merge";
 import { useBoolean } from "usehooks-ts";
-import TokenSelect from "@/components/send/token-selector/TokenSelect";
 import { useTokenBalance } from "@/hooks/kasplex/useTokenBalance";
 import { applyDecimal, computeOperationFees, Fee } from "@/lib/krc20.ts";
 import RecentAddresses from "@/components/send/RecentAddresses.tsx";
@@ -24,6 +23,7 @@ import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 import { useTokenMetadata } from "@/hooks/kasplex/useTokenMetadata.ts";
 import { useTokenInfo } from "@/hooks/kasplex/useTokenInfo";
 import { KRC20SendForm } from "./Krc20Send";
+import Layer2AssetImage from "@/components/Layer2AssetImage";
 
 export const DetailsStep = () => {
   const { tick: ticker } = useParams<{ tick: string }>();
@@ -40,8 +40,6 @@ export const DetailsStep = () => {
     setFalse: hideRecentAddress,
     setTrue: showRecentAddress,
   } = useBoolean(false);
-  const { value: isTokenSelectShown, toggle: toggleTokenSelect } =
-    useBoolean(false);
 
   const {
     register,
@@ -66,7 +64,6 @@ export const DetailsStep = () => {
   );
 
   const { data: tokenMetadata, toPriceInUsd } = useTokenMetadata(ticker);
-  const [imageUrl, setImageUrl] = useState(kasIcon);
   const tokenPrice = toPriceInUsd();
   const { amount: tokenCurrency } = useCurrencyValue(tokenPrice);
   const { data: tokenBalanceResponse } = useTokenBalance(
@@ -100,10 +97,6 @@ export const DetailsStep = () => {
     }
 
     return true;
-  };
-
-  const onClose = () => {
-    navigate("/dashboard");
   };
 
   const addressValidator = async (value: string | undefined) => {
@@ -176,16 +169,6 @@ export const DetailsStep = () => {
       },
     );
 
-  const onImageError = () => {
-    setImageUrl(kasIcon);
-  };
-
-  useEffect(() => {
-    if (tokenMetadata?.iconUrl) {
-      setImageUrl(tokenMetadata.iconUrl);
-    }
-  }, [tokenMetadata?.iconUrl]);
-
   // Update USD amount
   useEffect(() => {
     const amountNumber = parseFloat(amount ?? "0");
@@ -241,9 +224,17 @@ export const DetailsStep = () => {
     trigger("userInput");
   }, []);
 
+  const onClose = () => {
+    navigate("/dashboard");
+  };
+
+  const toAssetSelectPage = () => {
+    navigate("/asset-select");
+  };
+
   return (
     <>
-      <Header title="Send" onClose={onClose} onBack={onClose} />
+      <Header title="Send" onClose={onClose} onBack={toAssetSelectPage} />
       <div className="flex h-full flex-col gap-4">
         <div className="flex items-center justify-between">
           <label className="text-base font-medium">Send to ...</label>
@@ -326,22 +317,23 @@ export const DetailsStep = () => {
             <div className="flex rounded-lg bg-[#102831] text-daintree-400 shadow-sm">
               <button
                 type="button"
-                onClick={toggleTokenSelect}
                 className={twMerge(
-                  "inline-flex min-w-fit items-center gap-2 rounded-s-md border border-e-0 border-daintree-700 px-4 text-sm",
+                  "inline-flex min-w-fit items-center gap-3 rounded-s-md border border-e-0 border-daintree-700 p-4 text-sm",
                   errors.amount
                     ? "border-e-0 border-[#EF4444] ring-[#EF4444] focus:border-[#EF4444] focus:ring-[#EF4444]"
                     : "border-daintree-700",
                 )}
+                onClick={toAssetSelectPage}
               >
-                <img
-                  alt="kas"
-                  className="h-[18px] w-[18px] rounded-full"
-                  src={imageUrl}
-                  onError={onImageError}
+                <Layer2AssetImage
+                  tokenImage={tokenMetadata?.iconUrl ?? kasIcon}
+                  tokenImageSize={24}
+                  chainImageSize={14}
+                  chainImage={kasIcon}
+                  chainImageBottomPosition={-2}
+                  chainImageRightPosition={-12}
                 />
                 {tokenName?.toUpperCase()}
-                <i className="hn hn-chevron-down h-[16px] w-[16px]"></i>
               </button>
               <input
                 {...register("amount", {
@@ -355,13 +347,14 @@ export const DetailsStep = () => {
                     }
                   },
                 })}
-                type="text"
+                type="number"
                 className={twMerge(
-                  "block w-full rounded-e-lg bg-[#102831] px-4 py-3 pe-11 text-sm shadow-sm focus:z-10 disabled:pointer-events-none disabled:opacity-50 sm:p-5",
+                  "block w-full rounded-e-lg bg-[#102831] px-4 py-3 pe-11 text-sm shadow-sm focus:z-10 disabled:pointer-events-none disabled:opacity-50 sm:p-5 [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
                   errors.amount
                     ? "border-[#EF4444] border-l-daintree-700 ring-0 ring-[#EF4444] focus:border-[#EF4444] focus:border-l-daintree-700 focus:ring-0 focus:ring-[#EF4444]"
                     : "border-daintree-700",
                 )}
+                style={{ MozAppearance: "textfield" }}
               />
             </div>
 
@@ -479,11 +472,6 @@ export const DetailsStep = () => {
           </button>
         </div>
       </div>
-
-      <TokenSelect
-        isShown={isTokenSelectShown}
-        toggleShow={toggleTokenSelect}
-      />
 
       <PriorityFeeSelection
         isPriorityFeeSelectionOpen={false}
