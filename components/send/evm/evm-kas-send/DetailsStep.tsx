@@ -1,6 +1,6 @@
 import Header from "@/components/GeneralHeader";
 import { Tooltip } from "react-tooltip";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useBoolean } from "usehooks-ts";
 import { useFormContext } from "react-hook-form";
 import { EvmKasSendForm } from "./EvmKasSend";
@@ -11,7 +11,7 @@ import { isAddress, formatEther, parseEther } from "viem";
 import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import useEvmKasBalance from "@/hooks/evm/useEvmKasBalance";
 import useFeeEstimate from "@/hooks/evm/useFeeEstimate";
-import { formatToken } from "@/lib/utils";
+import { formatToken, truncToDecimals } from "@/lib/utils";
 import useKaspaPrice from "@/hooks/useKaspaPrice";
 import useCurrencyValue from "@/hooks/useCurrencyValue";
 import Layer2AssetImage from "@/components/Layer2AssetImage";
@@ -45,10 +45,13 @@ export default function DetailsStep({
   const { userInput, address, amount } = watch();
   const { data: estimatedFee } = useFeeEstimate(
     chainId,
-    isAddress(address ?? "") && evmAddress
+    evmAddress
       ? {
           account: evmAddress,
-          to: address as `0x${string}`,
+          to:
+            address && isAddress(address ?? "")
+              ? (address as `0x${string}`)
+              : evmAddress,
           value: amount ? parseEther(amount) : (rawBalance ?? 0n),
         }
       : undefined,
@@ -111,9 +114,14 @@ export default function DetailsStep({
     const maxAmount = parseFloat(
       formatEther(currentBalance - (estimatedFee ?? 0n)),
     );
-    setValue("amount", maxAmount > 0 ? maxAmount.toFixed(8) : "0", {
-      shouldValidate: true,
-    });
+
+    setValue(
+      "amount",
+      maxAmount > 0 ? truncToDecimals(maxAmount, 8).toString() : "0",
+      {
+        shouldValidate: true,
+      },
+    );
   };
 
   // Update USD amount

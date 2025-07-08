@@ -68,6 +68,11 @@ export function formatToken(number: number, maximumFractionDigits: number = 8) {
   return formatter.format(number);
 }
 
+export function truncToDecimals(number: number, decimals: number) {
+  const factor = Math.pow(10, decimals);
+  return Math.floor(number * factor) / factor;
+}
+
 export function textEllipsis(text: string, startPos = 8, endPos = 5) {
   const start = text.substring(0, startPos);
   const end = text.substring(text.length - endPos, text.length);
