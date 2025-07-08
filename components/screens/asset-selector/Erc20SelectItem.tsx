@@ -43,6 +43,8 @@ export default function Erc20SelectItem({ asset }: { asset: Erc20Asset }) {
               <Layer2AssetImage
                 tokenImage={asset.image ?? kasIcon}
                 chainImage={getChainImage(asset.chainId)}
+                chainImageBottomPosition={-2}
+                chainImageSize={16}
               />
             </HoverTooltip>
             <div className="flex flex-col items-start">
