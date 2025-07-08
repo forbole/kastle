@@ -323,9 +323,9 @@ export const DetailsStep = () => {
                 <Layer2AssetImage
                   tokenImage={tokenMetadata?.iconUrl ?? kasIcon}
                   tokenImageSize={24}
-                  chainImageSize={16}
+                  chainImageSize={14}
                   chainImage={kasIcon}
-                  chainImageBottomPosition={-4}
+                  chainImageBottomPosition={-2}
                   chainImageRightPosition={-12}
                 />
                 {tokenName?.toUpperCase()}

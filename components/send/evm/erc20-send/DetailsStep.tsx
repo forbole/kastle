@@ -244,9 +244,9 @@ export default function DetailsStep({
                 <Layer2AssetImage
                   tokenImage={asset.image ?? kasIcon}
                   tokenImageSize={24}
-                  chainImageSize={16}
+                  chainImageSize={14}
                   chainImage={getChainImage(asset.chainId)}
-                  chainImageBottomPosition={-4}
+                  chainImageBottomPosition={-2}
                   chainImageRightPosition={-12}
                 />
                 {asset.symbol}
