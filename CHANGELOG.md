@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.26.0](https://github.com/forbole/kastle/compare/v2.25.1...v2.26.0) (2025-07-08)
+
+
+### Features
+
+* improve send ux ([#174](https://github.com/forbole/kastle/issues/174)) ([9e24f76](https://github.com/forbole/kastle/commit/9e24f76a1f8ed69611156fe0a869721f5bb9632e))
+
 ## [2.25.1](https://github.com/forbole/kastle/compare/v2.25.0...v2.25.1) (2025-07-04)
 
 
