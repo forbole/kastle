@@ -121,7 +121,9 @@ export default function Dashboard() {
             <i className="hn hn-angle-down pr-2 text-daintree-400" />
           </div>
 
-          {isAddressesMenuOpen && <AddressesMenu />}
+          {isAddressesMenuOpen && (
+            <AddressesMenu onClose={() => setIsAddressesMenuOpen(false)} />
+          )}
         </div>
 
         <div className="flex">
