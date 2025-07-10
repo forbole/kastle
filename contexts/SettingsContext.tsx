@@ -39,7 +39,7 @@ export type Settings = {
   preview: boolean;
 
   evmL2ChainId?: Record<NetworkType, number | undefined>;
-  isLegacyEvmAddress?: boolean;
+  isLegacyEvmAddressEnabled?: boolean;
 };
 
 export const RPC_URLS = {
@@ -77,7 +77,7 @@ const initialSettings = {
     [NetworkType.Mainnet]: undefined,
     [NetworkType.TestnetT10]: kasplexTestnet.id,
   },
-  isLegacyEvmAddress: false,
+  isLegacyEvmAddressEnabled: false,
 } satisfies Settings;
 
 export const SettingsContext = createContext<SettingsContextType>({

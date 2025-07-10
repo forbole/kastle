@@ -25,7 +25,7 @@ export default function useWalletSigner() {
       });
       switch (walletInfo.type) {
         case "mnemonic":
-          if (settings.isLegacyEvmAddress) {
+          if (settings.isLegacyEvmAddressEnabled) {
             setWalletSigner(
               LegacyAccountFactory.createFromMnemonic(
                 walletSecret.value,

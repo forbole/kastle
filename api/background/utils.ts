@@ -49,7 +49,7 @@ export class ApiUtils {
           [NetworkType.Mainnet]: undefined,
           [NetworkType.TestnetT10]: kasplexTestnet.id,
         },
-        isLegacyEvmAddress: false,
+        isLegacyEvmAddressEnabled: false,
       },
     });
   }
@@ -64,11 +64,9 @@ export class ApiUtils {
   }
 
   static async getSelectedAccountFromSettings(settings: WalletSettings | null) {
-    if (!settings?.selectedWalletId) return null;
-    if (settings.selectedAccountIndex === undefined) return null;
-    const selectedWallet = settings.wallets.find(
-      (wallet) => wallet.id === settings.selectedWalletId,
-    );
+    if (!settings) return null;
+
+    const selectedWallet = await ApiUtils.getCurrentWallet();
     if (!selectedWallet) return null;
     const selectedAccount = selectedWallet.accounts.find((account) => {
       return account.index === settings.selectedAccountIndex;
@@ -76,6 +74,17 @@ export class ApiUtils {
 
     if (!selectedAccount) return null;
     return selectedAccount;
+  }
+
+  static async getCurrentWallet() {
+    const walletSettings = await this.getWalletSettings();
+    if (!walletSettings?.selectedWalletId) return null;
+
+    return (
+      walletSettings.wallets.find(
+        (wallet) => wallet.id === walletSettings.selectedWalletId,
+      ) ?? null
+    );
   }
 
   static async isInitialized(): Promise<boolean> {
@@ -197,6 +206,11 @@ export class ApiUtils {
   }
 
   static async getEvmAddress() {
+    const wallet = await ApiUtils.getCurrentWallet();
+    if (!wallet || wallet.type === "ledger") {
+      return;
+    }
+
     const settings = await ApiUtils.getSettings();
     return ApiUtils.getEvmAddressFromSettings(settings);
   }
@@ -208,7 +222,7 @@ export class ApiUtils {
       return;
     }
 
-    if (settings.isLegacyEvmAddress) {
+    if (settings.isLegacyEvmAddressEnabled) {
       return toEvmAddressFromKaspaPublicKey(account.publicKeys?.[0] ?? "");
     }
 

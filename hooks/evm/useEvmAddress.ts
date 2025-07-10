@@ -14,5 +14,7 @@ export default function useEvmAddress() {
     ? publicKeyToAddress(account.evmPublicKey)
     : undefined;
 
-  return settings?.isLegacyEvmAddress ? evmAddressFromKaspa : evmAddressFromEvm;
+  return settings?.isLegacyEvmAddressEnabled
+    ? evmAddressFromKaspa
+    : evmAddressFromEvm;
 }
