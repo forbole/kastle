@@ -1,9 +1,4 @@
-import { useEffect, useState } from "react";
 import { ConfirmStep } from "@/components/send/evm/evm-kas-send/ConfirmStep";
-import { IWallet } from "@/lib/ethereum/wallet/wallet-interface";
-import useWalletManager from "@/hooks/useWalletManager.ts";
-import useKeyring from "@/hooks/useKeyring";
-import { LegacyAccountFactory } from "@/lib/ethereum/wallet/account-factory";
 import useWalletSigner from "@/hooks/evm/useWalletSigner";
 
 type HotWalletConfirmProps = {

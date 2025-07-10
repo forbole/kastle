@@ -49,7 +49,7 @@ export default function useWalletSigner() {
       }
     };
     init();
-  }, [getWalletSecret]);
+  }, [walletInfo, account, settings]);
 
   return walletSigner;
 }
