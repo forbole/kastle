@@ -3,7 +3,7 @@ import { ApiResponseSchema } from "@/api/message";
 
 export const isMatchCurrentAddress = async (address: string) => {
   const evmAddress = await ApiUtils.getEvmAddress();
-  return address.toLowerCase() === evmAddress.toLowerCase();
+  return address.toLowerCase() === evmAddress?.toLowerCase();
 };
 
 export const isUserDeniedResponse = (response: unknown) => {
