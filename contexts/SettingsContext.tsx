@@ -1,6 +1,7 @@
 import { createContext, ReactNode, useEffect, useState } from "react";
 import { captureException } from "@sentry/react";
 import * as conn from "@/lib/settings/connection";
+import { kasplexTestnet } from "@/lib/layer2";
 
 export const SETTINGS_KEY = "local:settings";
 
@@ -38,6 +39,7 @@ export type Settings = {
   preview: boolean;
 
   evmL2ChainId?: Record<NetworkType, number | undefined>;
+  isLegacyEvmAddress?: boolean;
 };
 
 export const RPC_URLS = {
@@ -73,8 +75,9 @@ const initialSettings = {
 
   evmL2ChainId: {
     [NetworkType.Mainnet]: undefined,
-    [NetworkType.TestnetT10]: undefined,
+    [NetworkType.TestnetT10]: kasplexTestnet.id,
   },
+  isLegacyEvmAddress: false,
 } satisfies Settings;
 
 export const SettingsContext = createContext<SettingsContextType>({

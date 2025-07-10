@@ -1,8 +1,7 @@
-import useWalletManager from "@/hooks/useWalletManager";
-import { toEvmAddress } from "@/lib/utils";
 import { ALL_SUPPORTED_EVM_L2_CHAINS } from "@/lib/layer2";
 import { http, createPublicClient, numberToHex } from "viem";
 import useSWR from "swr";
+import useEvmAddress from "./useEvmAddress";
 
 type estimatePayload = {
   account: `0x${string}`;
@@ -39,9 +38,7 @@ export default function useFeeEstimate(
   chainId?: `0x${string}`,
   payload?: estimatePayload,
 ) {
-  const { account } = useWalletManager();
-  const publicKey = account?.publicKeys?.[0];
-  const evmAddress = publicKey ? toEvmAddress(publicKey) : undefined;
+  const evmAddress = useEvmAddress();
 
   const isLoading = !evmAddress || !chainId || !payload;
   return useSWR(

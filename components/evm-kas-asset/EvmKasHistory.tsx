@@ -1,18 +1,15 @@
 import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import { ALL_SUPPORTED_EVM_L2_CHAINS, getChainImage } from "@/lib/layer2";
 import { numberToHex } from "viem";
-import { toEvmAddress } from "@/lib/utils";
 import Layer2AssetImage from "../Layer2AssetImage";
+import useEvmAddress from "@/hooks/evm/useEvmAddress";
 
 export default function EvmKasHistory({ chainId }: { chainId: `0x${string}` }) {
-  const { account } = useWalletManager();
-
   const chain = ALL_SUPPORTED_EVM_L2_CHAINS.find(
     (c) => numberToHex(c.id) === chainId,
   );
 
-  const address = account?.publicKeys?.[0];
-  const evmAddress = address ? toEvmAddress(address) : "";
+  const evmAddress = useEvmAddress();
 
   const openTransaction = () => {
     browser.tabs.create({

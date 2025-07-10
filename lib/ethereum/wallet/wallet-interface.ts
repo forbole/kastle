@@ -6,4 +6,6 @@ export interface IWallet {
   signTransaction(transaction: TransactionSerializable): Promise<`0x${string}`>;
 
   getAddress(): Promise<`0x${string}`>;
+
+  getPublicKey(): Promise<string>;
 }

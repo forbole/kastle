@@ -14,9 +14,14 @@ import {
   WALLET_SETTINGS,
   WalletSettings,
 } from "@/contexts/WalletManagerContext";
-import { POPUP_WINDOW_HEIGHT, POPUP_WINDOW_WIDTH } from "@/lib/utils";
+import {
+  POPUP_WINDOW_HEIGHT,
+  POPUP_WINDOW_WIDTH,
+  toEvmAddressFromKaspaPublicKey,
+} from "@/lib/utils";
 import * as conn from "@/lib/settings/connection";
 import { kasplexTestnet } from "@/lib/layer2";
+import { publicKeyToAddress } from "viem/accounts";
 
 export class ApiUtils {
   static openPopup(tabId: number, url: string) {
@@ -44,6 +49,7 @@ export class ApiUtils {
           [NetworkType.Mainnet]: undefined,
           [NetworkType.TestnetT10]: kasplexTestnet.id,
         },
+        isLegacyEvmAddress: false,
       },
     });
   }
@@ -188,6 +194,29 @@ export class ApiUtils {
 
       if (receiveTimeout) clearTimeout(receiveTimeout);
     }
+  }
+
+  static async getEvmAddress() {
+    const settings = await ApiUtils.getSettings();
+    return ApiUtils.getEvmAddressFromSettings(settings);
+  }
+
+  static async getEvmAddressFromSettings(settings: Settings) {
+    const account = await ApiUtils.getCurrentAccount();
+
+    if (!account) {
+      return;
+    }
+
+    if (settings.isLegacyEvmAddress) {
+      return toEvmAddressFromKaspaPublicKey(account.publicKeys?.[0] ?? "");
+    }
+
+    if (!account.evmPublicKey) {
+      return;
+    }
+
+    return publicKeyToAddress(account.evmPublicKey!);
   }
 }
 
