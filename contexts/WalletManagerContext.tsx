@@ -771,7 +771,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
       }
 
       if (!updated) return;
-      await setWalletSettings(walletSettings);
+      await setWalletSettings({ ...walletSettings });
     };
 
     tryUpdateEvmPublicKeys();
