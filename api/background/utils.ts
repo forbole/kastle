@@ -17,7 +17,7 @@ import {
 import {
   POPUP_WINDOW_HEIGHT,
   POPUP_WINDOW_WIDTH,
-  toEvmAddressFromKaspaPublicKey,
+  toLegacyEvmAddress,
 } from "@/lib/utils";
 import * as conn from "@/lib/settings/connection";
 import { kasplexTestnet } from "@/lib/layer2";
@@ -223,7 +223,7 @@ export class ApiUtils {
     }
 
     if (settings.isLegacyEvmAddressEnabled) {
-      return toEvmAddressFromKaspaPublicKey(account.publicKeys?.[0] ?? "");
+      return toLegacyEvmAddress(account.publicKeys?.[0] ?? "");
     }
 
     if (!account.evmPublicKey) {

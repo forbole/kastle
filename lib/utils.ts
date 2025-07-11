@@ -95,7 +95,7 @@ export function convertIPFStoHTTP(url: string) {
   return url.replace("ipfs://", "https://ipfs.io/ipfs/");
 }
 
-export function toEvmAddressFromKaspaPublicKey(publicKey: string) {
+export function toLegacyEvmAddress(publicKey: string) {
   const uncompressed =
     secp.ProjectivePoint.fromHex(publicKey).toRawBytes(false);
   const uncompressedHex = bytesToHex(uncompressed);
