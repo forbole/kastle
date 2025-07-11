@@ -734,41 +734,41 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
 
     const tryUpdateEvmPublicKeys = async () => {
       let updated = false;
-      for (const wallet of walletSettings.wallets) {
-        if (wallet.type === "ledger") continue;
-
+      const updatePromises = walletSettings.wallets.map(async (wallet) => {
+        if (wallet.type === "ledger") return;
         const isEvmPublicKeySet = wallet.accounts.every(
           (account) => account.evmPublicKey !== undefined,
         );
-        if (isEvmPublicKeySet) continue;
+        if (isEvmPublicKeySet) return;
         updated = true;
-
         const { walletSecret } = await keyring.getWalletSecret({
           walletId: wallet.id,
         });
-
-        for (const account of wallet.accounts) {
-          if (account.evmPublicKey !== undefined) continue;
-
-          switch (walletSecret.type) {
-            case "mnemonic": {
-              const evmAccount = EvmAccountFactory.createFromMnemonic(
-                walletSecret.value,
-                account.index,
-              );
-              account.evmPublicKey = await evmAccount.getPublicKey();
-              break;
+        await Promise.all(
+          wallet.accounts.map(async (account) => {
+            if (account.evmPublicKey !== undefined) return;
+            switch (walletSecret.type) {
+              case "mnemonic": {
+                const evmAccount = EvmAccountFactory.createFromMnemonic(
+                  walletSecret.value,
+                  account.index,
+                );
+                account.evmPublicKey = await evmAccount.getPublicKey();
+                break;
+              }
+              case "privateKey": {
+                const evmPrivateKeyAccount = new EthereumPrivateKeyAccount(
+                  walletSecret.value,
+                );
+                account.evmPublicKey =
+                  await evmPrivateKeyAccount.getPublicKey();
+                break;
+              }
             }
-            case "privateKey": {
-              const evmPrivateKeyAccount = new EthereumPrivateKeyAccount(
-                walletSecret.value,
-              );
-              account.evmPublicKey = await evmPrivateKeyAccount.getPublicKey();
-              break;
-            }
-          }
-        }
-      }
+          }),
+        );
+      });
+      await Promise.all(updatePromises);
 
       if (!updated) return;
       await setWalletSettings({ ...walletSettings });
