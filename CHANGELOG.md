@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.27.0](https://github.com/forbole/kastle/compare/v2.26.0...v2.27.0) (2025-07-11)
+
+
+### Features
+
+* align EVM address derivation with MetaMask ([#180](https://github.com/forbole/kastle/issues/180)) ([f3b4f3a](https://github.com/forbole/kastle/commit/f3b4f3ad962aab52bd6aa8f60e872c2f0b84fd10))
+
+
+### Bug Fixes
+
+* **ui:** fix select asset image ([#178](https://github.com/forbole/kastle/issues/178)) ([69bf525](https://github.com/forbole/kastle/commit/69bf52547d569da3c785f99282c8dc47576889cb))
+
 ## [2.26.0](https://github.com/forbole/kastle/compare/v2.25.1...v2.26.0) (2025-07-08)
 
 
