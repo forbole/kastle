@@ -733,6 +733,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
     if (!walletSettings || isWalletSettingsLoading) return;
 
     const tryUpdateEvmPublicKeys = async () => {
+      let updated = false;
       for (const wallet of walletSettings.wallets) {
         if (wallet.type === "ledger") continue;
 
@@ -740,6 +741,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
           (account) => account.evmPublicKey !== undefined,
         );
         if (isEvmPublicKeySet) continue;
+        updated = true;
 
         const { walletSecret } = await keyring.getWalletSecret({
           walletId: wallet.id,
@@ -768,6 +770,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
         }
       }
 
+      if (!updated) return;
       await setWalletSettings(walletSettings);
     };
 
