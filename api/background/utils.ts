@@ -14,9 +14,14 @@ import {
   WALLET_SETTINGS,
   WalletSettings,
 } from "@/contexts/WalletManagerContext";
-import { POPUP_WINDOW_HEIGHT, POPUP_WINDOW_WIDTH } from "@/lib/utils";
+import {
+  POPUP_WINDOW_HEIGHT,
+  POPUP_WINDOW_WIDTH,
+  toLegacyEvmAddress,
+} from "@/lib/utils";
 import * as conn from "@/lib/settings/connection";
 import { kasplexTestnet } from "@/lib/layer2";
+import { publicKeyToAddress } from "viem/accounts";
 
 export class ApiUtils {
   static openPopup(tabId: number, url: string) {
@@ -44,6 +49,7 @@ export class ApiUtils {
           [NetworkType.Mainnet]: undefined,
           [NetworkType.TestnetT10]: kasplexTestnet.id,
         },
+        isLegacyEvmAddressEnabled: false,
       },
     });
   }
@@ -58,11 +64,9 @@ export class ApiUtils {
   }
 
   static async getSelectedAccountFromSettings(settings: WalletSettings | null) {
-    if (!settings?.selectedWalletId) return null;
-    if (settings.selectedAccountIndex === undefined) return null;
-    const selectedWallet = settings.wallets.find(
-      (wallet) => wallet.id === settings.selectedWalletId,
-    );
+    if (!settings) return null;
+
+    const selectedWallet = await ApiUtils.getCurrentWallet();
     if (!selectedWallet) return null;
     const selectedAccount = selectedWallet.accounts.find((account) => {
       return account.index === settings.selectedAccountIndex;
@@ -70,6 +74,17 @@ export class ApiUtils {
 
     if (!selectedAccount) return null;
     return selectedAccount;
+  }
+
+  static async getCurrentWallet() {
+    const walletSettings = await this.getWalletSettings();
+    if (!walletSettings?.selectedWalletId) return null;
+
+    return (
+      walletSettings.wallets.find(
+        (wallet) => wallet.id === walletSettings.selectedWalletId,
+      ) ?? null
+    );
   }
 
   static async isInitialized(): Promise<boolean> {
@@ -188,6 +203,36 @@ export class ApiUtils {
 
       if (receiveTimeout) clearTimeout(receiveTimeout);
     }
+  }
+
+  static async getEvmAddress() {
+    const wallet = await ApiUtils.getCurrentWallet();
+    if (!wallet || wallet.type === "ledger") {
+      return;
+    }
+
+    const settings = await ApiUtils.getSettings();
+    return ApiUtils.getEvmAddressFromSettings(settings);
+  }
+
+  static async getEvmAddressFromSettings(settings: Settings) {
+    const account = await ApiUtils.getCurrentAccount();
+
+    if (!account) {
+      return;
+    }
+
+    if (settings.isLegacyEvmAddressEnabled) {
+      return account.publicKeys && account.publicKeys.length > 0
+        ? toLegacyEvmAddress(account.publicKeys[0])
+        : undefined;
+    }
+
+    if (!account.evmPublicKey) {
+      return;
+    }
+
+    return publicKeyToAddress(account.evmPublicKey!);
   }
 }
 

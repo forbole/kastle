@@ -31,4 +31,8 @@ export class EthereumPrivateKeyAccount {
   async getAddress() {
     return this.account.address;
   }
+
+  async getPublicKey() {
+    return this.account.publicKey;
+  }
 }

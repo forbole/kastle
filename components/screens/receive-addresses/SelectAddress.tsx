@@ -1,6 +1,5 @@
 import Header from "@/components/GeneralHeader";
 import useWalletManager from "@/hooks/useWalletManager";
-import { toEvmAddress } from "@/lib/utils";
 import AddressItem from "@/components/screens/receive-addresses/AddressItem";
 import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import { useNavigate } from "react-router-dom";
@@ -8,6 +7,7 @@ import { useSettings } from "@/hooks/useSettings";
 import { TESTNET_SUPPORTED_EVM_L2_CHAINS } from "@/lib/layer2";
 import { numberToHex } from "viem";
 import { getChainImage } from "@/lib/layer2";
+import useEvmAddress from "@/hooks/evm/useEvmAddress";
 
 export default function SelectAddress() {
   const { account } = useWalletManager();
@@ -18,7 +18,7 @@ export default function SelectAddress() {
     settings?.networkId === "mainnet" ? [] : TESTNET_SUPPORTED_EVM_L2_CHAINS;
 
   const kasAddress = account?.address ?? "";
-  const evmAddress = toEvmAddress(account?.publicKeys?.[0] ?? "");
+  const evmAddress = useEvmAddress();
 
   return (
     <div className="flex h-full flex-col p-4">
@@ -40,7 +40,7 @@ export default function SelectAddress() {
           return (
             <AddressItem
               key={chain.id}
-              address={evmAddress}
+              address={evmAddress ?? ""}
               chainName={chainName}
               imageUrl={chainIcon}
               redirect={() => navigate(`/receive/evm/${chainIdHex}`)}

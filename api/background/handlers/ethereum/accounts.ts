@@ -1,6 +1,5 @@
 import { RpcError, ApiRequestWithHost } from "@/api/message";
 import { ApiUtils } from "@/api/background/utils";
-import { toEvmAddress } from "@/lib/utils";
 
 export const accountsHandler = async (
   tabId: number,
@@ -18,13 +17,8 @@ export const accountsHandler = async (
     return;
   }
 
-  const account = await ApiUtils.getCurrentAccount();
-  if (!account?.publicKeys) {
-    sendResponse(ApiUtils.createApiResponse(message.id, []));
-    return;
-  }
-
-  const publicKey = account.publicKeys[0];
-  const ethAddress = toEvmAddress(publicKey);
-  sendResponse(ApiUtils.createApiResponse(message.id, [ethAddress]));
+  const ethAddress = await ApiUtils.getEvmAddress();
+  sendResponse(
+    ApiUtils.createApiResponse(message.id, ethAddress ? [ethAddress] : []),
+  );
 };

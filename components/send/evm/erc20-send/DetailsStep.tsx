@@ -16,7 +16,7 @@ import {
 } from "viem";
 import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import useFeeEstimate from "@/hooks/evm/useFeeEstimate";
-import { formatToken } from "@/lib/utils";
+import { formatToken, truncToDecimals } from "@/lib/utils";
 import useCurrencyValue from "@/hooks/useCurrencyValue";
 import Layer2AssetImage from "@/components/Layer2AssetImage";
 import { getChainImage } from "@/lib/layer2";
@@ -138,9 +138,13 @@ export default function DetailsStep({
     }
 
     const maxAmount = currentBalance;
-    setValue("amount", maxAmount > 0 ? formatToken(maxAmount) : "0", {
-      shouldValidate: true,
-    });
+    setValue(
+      "amount",
+      maxAmount > 0 ? truncToDecimals(maxAmount, 8).toString() : "0",
+      {
+        shouldValidate: true,
+      },
+    );
   };
 
   // Update USD amount

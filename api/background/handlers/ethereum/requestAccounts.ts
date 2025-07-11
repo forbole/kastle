@@ -5,7 +5,6 @@ import {
   ApiResponseSchema,
 } from "@/api/message";
 import { ApiUtils } from "@/api/background/utils";
-import { toEvmAddress } from "@/lib/utils";
 import { isUserDeniedResponse } from "./utils";
 
 export const requestAccountsHandler = async (
@@ -57,13 +56,8 @@ export const requestAccountsHandler = async (
     }
   }
 
-  const account = await ApiUtils.getCurrentAccount();
-  if (!account?.publicKeys || account.publicKeys.length === 0) {
-    sendError(RPC_ERRORS.INTERNAL_ERROR);
-    return;
-  }
-
-  const publicKey = account.publicKeys[0];
-  const ethAddress = toEvmAddress(publicKey);
-  sendResponse(ApiUtils.createApiResponse(message.id, [ethAddress]));
+  const ethAddress = await ApiUtils.getEvmAddress();
+  sendResponse(
+    ApiUtils.createApiResponse(message.id, ethAddress ? [ethAddress] : []),
+  );
 };

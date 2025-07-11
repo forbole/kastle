@@ -1,11 +1,20 @@
 import useWalletManager from "../useWalletManager";
-import { toEvmAddress } from "@/lib/utils";
+import { toLegacyEvmAddress } from "@/lib/utils";
+import { useSettings } from "../useSettings";
+import { publicKeyToAddress } from "viem/accounts";
 
 export default function useEvmAddress() {
   const { account } = useWalletManager();
-  const publicKey = account?.publicKeys?.[0];
+  const [settings] = useSettings();
 
-  // Convert the public key to an EVM address
-  const evmAddress = publicKey ? toEvmAddress(publicKey) : undefined;
-  return evmAddress;
+  const evmAddressFromKaspa = account?.publicKeys?.[0]
+    ? toLegacyEvmAddress(account.publicKeys[0])
+    : undefined;
+  const evmAddressFromEvm = account?.evmPublicKey
+    ? publicKeyToAddress(account.evmPublicKey)
+    : undefined;
+
+  return settings?.isLegacyEvmAddressEnabled
+    ? evmAddressFromKaspa
+    : evmAddressFromEvm;
 }
