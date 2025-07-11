@@ -138,7 +138,7 @@ export default function DetailsStep({
     }
 
     const maxAmount = currentBalance;
-    setValue("amount", maxAmount > 0 ? formatToken(maxAmount) : "0", {
+    setValue("amount", maxAmount > 0 ? maxAmount.toFixed(8) : "0", {
       shouldValidate: true,
     });
   };
