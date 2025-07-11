@@ -198,7 +198,7 @@ export default function Settings() {
         {/* EVM Settings */}
         <div className="flex w-full items-center justify-between rounded-xl border border-daintree-700 bg-[#1E343D] p-4 text-sm hover:border-white">
           <div className="flex items-center justify-start gap-4 font-semibold">
-            <span className="font-semibold">Legacy evm address</span>
+            <span className="font-semibold">Legacy EVM address</span>
           </div>
           <div className="flex items-center">
             <input
