@@ -18,7 +18,8 @@ export const requestAccountsHandler = async (
   };
 
   const isConnected = await ApiUtils.isHostConnected(message.host);
-  if (!isConnected) {
+  const isEvmPublicKeyMigrated = !!(await ApiUtils.getEvmAddress());
+  if (!isConnected || !isEvmPublicKeyMigrated) {
     const url = new URL(browser.runtime.getURL("/popup.html"));
     url.hash = `/connect`;
     url.searchParams.set("host", message.host);
