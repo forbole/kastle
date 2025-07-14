@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.27.1](https://github.com/forbole/kastle/compare/v2.27.0...v2.27.1) (2025-07-14)
+
+
+### Bug Fixes
+
+* hotfix eth_requestAccounts when the public key is not migrated ([#181](https://github.com/forbole/kastle/issues/181)) ([66030a7](https://github.com/forbole/kastle/commit/66030a79cc391859a8641fecfca2bd8b381cbfb6))
+
 ## [2.27.0](https://github.com/forbole/kastle/compare/v2.26.0...v2.27.0) (2025-07-11)
 
 
