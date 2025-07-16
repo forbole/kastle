@@ -9,6 +9,7 @@ export enum Action {
   ETHEREUM_REQUEST,
   SIGN_MESSAGE,
   SWITCH_NETWORK,
+  COMMIT_REVEAL,
 }
 
 // ================================================================================================

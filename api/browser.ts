@@ -62,6 +62,7 @@ export class KastleBrowserAPI {
       "kas:sign_and_broadcast_tx": Action.SIGN_AND_BROADCAST_TX,
       "kas:switch_network": Action.SWITCH_NETWORK,
       "kas:sign_message": Action.SIGN_MESSAGE,
+      "kas:commit_reveal": Action.COMMIT_REVEAL,
     }[method];
 
     if (!action) {

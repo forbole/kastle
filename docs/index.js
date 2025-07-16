@@ -370,7 +370,7 @@ document
       const commitTxId = await commitTransaction(P2SHAddress.toString());
       document.getElementById("P2SHTransferAddress").innerText =
         P2SHAddress.toString();
-      document.getElementById("trnasferCommitTxId").innerText = commitTxId;
+      document.getElementById("transferCommitTxId").innerText = commitTxId;
       document.getElementById("transferScript").innerText =
         scriptBuilder.toString();
 
@@ -427,6 +427,30 @@ document
       document.getElementById("transferErrorKRC20").innerText = error.message;
     } finally {
       rpc.disconnect();
+    }
+  });
+
+
+document
+  .getElementById("krcTransferCommitReveal")
+  .addEventListener("click", async () => {
+    try {
+      const tick = document.getElementById("transferTick").value;
+      const transferTo = document.getElementById("transferTo").value;
+      const transferPayload = {
+        p: "krc-20",
+        op: "transfer",
+        tick,
+        to: transferTo,
+        amt: document.getElementById("transferAmount").value,
+      };
+
+      const result = await kastle.request("kas:commit_reveal", { networkId: network, namespace: "kasplex", data: JSON.stringify(transferPayload), options: {} });
+      document.getElementById("transferCommitTxId").innerText = result.commitTxId;
+      document.getElementById("transferRevealTxId").innerText = result.revealTxId;
+      document.getElementById("transferErrorKRC20").innerText = "";
+    } catch (error) {
+      document.getElementById("transferErrorKRC20").innerText = error.message;
     }
   });
 

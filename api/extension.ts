@@ -1,6 +1,6 @@
 import { ApiExtensionResponseSchema } from "@/api/message";
 
-function createApiResponse<T>(id: string, response: unknown) {
+function createApiResponse(id: string, response: unknown) {
   return ApiExtensionResponseSchema.parse({
     source: "extension",
     target: "background",
