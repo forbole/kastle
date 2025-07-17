@@ -18,8 +18,8 @@ export default function ScriptDetailsBox({ content }: { content: string }) {
           <i className="hn hn-copy text-sm font-bold"></i>
         </div>
 
-        <div className="rounded-lg p-4 pr-12 shadow-lg">
-          <pre className="overflow-auto whitespace-pre text-xs">
+        <div className="rounded-lg py-4 pl-4 shadow-lg">
+          <pre className="thin-scrollbar mr-10 h-24 overflow-auto whitespace-pre pb-4 text-xs">
             {prettierJson}
           </pre>
         </div>

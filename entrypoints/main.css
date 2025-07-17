@@ -26,6 +26,7 @@
 
   .thin-scrollbar::-webkit-scrollbar {
     width: 6px;
+    height: 6px;
   }
   .thin-scrollbar::-webkit-scrollbar-track {
     background: transparent;
@@ -36,5 +37,8 @@
   }
   .thin-scrollbar::-webkit-scrollbar-thumb:hover {
     background: #203c49;
+  }
+  .thin-scrollbar::-webkit-scrollbar-corner {
+    background: transparent;
   }
 }

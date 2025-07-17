@@ -31,6 +31,11 @@ export default function HotWalletCommitReveal({
   const fiatFees = feesInKas * kaspaPrice.kaspaPrice;
   const { amount: feesCurrency, code: feesCurrencyCode } =
     useCurrencyValue(fiatFees);
+
+  const differenceInKas = -feesInKas;
+  const { amount: differenceCurrency, code: differenceCurrencyCode } =
+    useCurrencyValue(differenceInKas * kaspaPrice.kaspaPrice);
+
   const [isPerforming, setIsPerforming] = useState(false);
 
   const perform = async () => {
@@ -75,7 +80,7 @@ export default function HotWalletCommitReveal({
       );
     } finally {
       setIsPerforming(false);
-      window.close();
+      //window.close();
     }
   };
 
@@ -113,7 +118,11 @@ export default function HotWalletCommitReveal({
       {walletSigner && (
         <div className="flex h-full flex-col justify-between">
           <div>
-            <Header showPrevious={false} showClose={false} title="Confirm" />
+            <Header
+              showPrevious={false}
+              showClose={false}
+              title="Commit Reveal"
+            />
             <div className="relative">
               <img src={signImage} alt="Sign" className="mx-auto" />
               <div
@@ -151,6 +160,34 @@ export default function HotWalletCommitReveal({
             {/* Confirm Content */}
             {!networkMismatched && (
               <>
+                <ul className="mt-3 flex flex-col rounded-lg bg-daintree-800">
+                  <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
+                    <div className="flex w-full items-start justify-between">
+                      <span className="font-medium">
+                        Change to your balance
+                      </span>
+                      <div
+                        className={twMerge(
+                          "flex flex-col text-right",
+                          differenceInKas >= 0
+                            ? "text-teal-500"
+                            : "text-red-500",
+                        )}
+                      >
+                        <span className="font-medium">
+                          {differenceInKas >= 0 && "+"}
+                          {differenceInKas.toFixed(3)} KAS
+                        </span>
+                        <span className="text-xs text-daintree-400">
+                          {formatCurrency(
+                            differenceCurrency,
+                            differenceCurrencyCode,
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  </li>
+                </ul>
                 {/* Result */}
                 <ul className="mt-3 flex flex-col rounded-lg bg-daintree-800">
                   <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
