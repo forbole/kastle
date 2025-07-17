@@ -19,7 +19,7 @@ export default function ScriptDetailsBox({ content }: { content: string }) {
         </div>
 
         <div className="rounded-lg py-4 pl-4 shadow-lg">
-          <pre className="thin-scrollbar mr-10 h-24 overflow-auto whitespace-pre pb-4 text-xs">
+          <pre className="thin-scrollbar mr-10 h-24 overflow-auto whitespace-pre pb-2 text-xs">
             {prettierJson}
           </pre>
         </div>
