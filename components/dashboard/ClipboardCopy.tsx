@@ -49,7 +49,7 @@ export default function ClipboardCopy({
         data-tooltip-id="clipboard"
         data-tooltip-content="Copied"
         className={twMerge(
-          "hn flex items-center px-2 text-[16px] text-white",
+          "hn flex items-center text-[16px] leading-none text-white",
           copied ? "hn-check" : "hn-copy",
         )}
       />

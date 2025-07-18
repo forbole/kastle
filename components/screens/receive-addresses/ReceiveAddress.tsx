@@ -27,15 +27,19 @@ const Receive = ({
       return;
     }
     try {
-      const canvas = createCanvas(0, 0);
+      const canvas = createCanvas(192, 192);
       await QRCode.toCanvas(canvas, address, {
         color: {
           dark: "#000000", // Black dots
           light: "#FFFFFF", // White background
         },
         errorCorrectionLevel: "Q",
+        width: 192,
       });
       const ctx = canvas.getContext("2d");
+
+      ctx.imageSmoothingEnabled = true;
+
       const img = await loadImage(iconUrl);
       const center = canvas.width / 2;
       const logoStartPositionX = center - logoSize / 2;
@@ -81,14 +85,10 @@ const Receive = ({
         {/* QR Code Card */}
         <div className="flex flex-col items-center rounded-2xl border border-daintree-700 bg-icy-blue-900 px-4 py-6">
           {/* QR Code */}
-          <img
-            src={qrCodeUrl}
-            alt="QR Code"
-            className="h-48 w-48 rounded-2xl"
-          />
+          <img src={qrCodeUrl} alt="QR Code" className="rounded-2xl" />
 
           <div className="flex flex-col items-center gap-2 pt-6 text-center">
-            <h3 className="text-base font-semibold">My {chainName} Address</h3>
+            <h3 className="text-base font-semibold">{chainName} Address</h3>
             <p className="text-sm text-daintree-400">
               Use it to receive tokens on{" "}
               <span className="text-white">{chainName}</span>
