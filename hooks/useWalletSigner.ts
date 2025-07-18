@@ -3,6 +3,7 @@ import { IWallet } from "@/lib/wallet/wallet-interface";
 import { AccountFactory } from "@/lib/wallet/wallet-factory";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import useKeyring from "@/hooks/useKeyring";
+import useWalletManager from "./useWalletManager";
 
 export default function useWalletSigner() {
   const { getWalletSecret } = useKeyring();
