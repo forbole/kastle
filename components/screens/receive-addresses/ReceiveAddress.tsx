@@ -27,7 +27,7 @@ const Receive = ({
       return;
     }
     try {
-      const canvas = createCanvas(0, 0);
+      const canvas = createCanvas(192, 192);
       await QRCode.toCanvas(canvas, address, {
         color: {
           dark: "#000000", // Black dots
@@ -36,6 +36,9 @@ const Receive = ({
         errorCorrectionLevel: "Q",
       });
       const ctx = canvas.getContext("2d");
+
+      ctx.imageSmoothingEnabled = true;
+
       const img = await loadImage(iconUrl);
       const center = canvas.width / 2;
       const logoStartPositionX = center - logoSize / 2;

@@ -24,14 +24,11 @@ export default function AddressItem({
           </p>
         </div>
       </div>
-      <div className="gap flex items-center gap-4 pr-2">
-        <ClipboardCopy textToCopy={address} className="cursor-pointer" />
-        <img
-          className="h-4 w-4 cursor-pointer"
-          src={qrCodeIcon}
-          alt="QR Code"
-          onClick={redirect}
-        />
+      <div className="gap flex items-center gap-2 pr-2">
+        <ClipboardCopy textToCopy={address} className="cursor-pointer p-2" />
+        <div className="cursor-pointer p-2" onClick={redirect}>
+          <img className="h-4 w-4" src={qrCodeIcon} alt="QR Code" />
+        </div>
       </div>
     </div>
   );
