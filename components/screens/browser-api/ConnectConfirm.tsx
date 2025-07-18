@@ -7,10 +7,12 @@ import CheckCircle from "@/assets/images/check-circle.svg";
 import { twMerge } from "tailwind-merge";
 import { ApiUtils } from "@/api/background/utils";
 import * as conn from "@/lib/settings/connection";
+import useEvmAddress from "@/hooks/evm/useEvmAddress";
 
 export default function ConnectConfirm() {
   const [settings, setSettings] = useSettings();
   const { wallet, account } = useWalletManager();
+  const evmAddress = useEvmAddress();
 
   // Get payload from URL
   const urlSearchParams = new URLSearchParams(window.location.search);
@@ -74,7 +76,6 @@ export default function ConnectConfirm() {
 
   const handleConnectDeny = async () => {
     // Send deny to background
-    await ApiExtensionUtils.sendMessage(requestId, denyMessage);
     window.close();
   };
 
@@ -98,9 +99,9 @@ export default function ConnectConfirm() {
   const selectedNetwork = networks.find((n) => n.id === network);
 
   return (
-    <div className="flex h-full w-full flex-col justify-between rounded-xl p-4">
-      <div className="flex flex-col items-center">
-        {/* Header */}
+    <div className="flex h-full w-full flex-col rounded-xl p-4">
+      {/* Header - 固定在顶部 */}
+      <div className="flex-shrink-0">
         <Header
           title={
             "Connect to " +
@@ -109,6 +110,10 @@ export default function ConnectConfirm() {
           showPrevious={false}
           showClose={false}
         />
+      </div>
+
+      {/* 可滚动的内容区域 */}
+      <div className="no-scrollbar flex-1 overflow-y-auto">
         <div className="relative">
           <div
             className={twMerge(
@@ -145,19 +150,40 @@ export default function ConnectConfirm() {
 
           <div className="space-y-6">
             {/* Account info */}
-            <div className="rounded-xl border border-[#203C49] bg-[#102832] p-4">
-              <div className="flex gap-2">
-                <span className="flex h-9 w-9 min-w-9 items-center justify-center rounded-lg bg-[#1E333C] font-semibold">
-                  {account?.name?.[0]}
-                  {account?.name?.[account?.name?.length - 1]}
-                </span>
-                <div className="flex flex-col font-medium">
-                  <span className="text-sm font-semibold">{account?.name}</span>
+            <div className="flex flex-col items-center gap-2">
+              <div className="flex w-full gap-2 rounded-xl border border-[#203C49] bg-[#102832] p-4">
+                <div className="flex flex-1 flex-col gap-2 font-medium">
+                  <div className="flex justify-between">
+                    <span className="text-sm font-semibold">
+                      {account?.name}
+                    </span>
+                    <span className="rounded-full border border-icy-blue-400 px-2 text-icy-blue-400">
+                      Kaspa
+                    </span>
+                  </div>
                   <div className="break-all text-xs text-[#7B9AAA]">
                     {account?.address}
                   </div>
                 </div>
               </div>
+
+              {evmAddress && (
+                <div className="flex w-full gap-2 rounded-xl border border-[#203C49] bg-[#102832] p-4">
+                  <div className="flex flex-1 flex-col gap-2 font-medium">
+                    <div className="flex justify-between">
+                      <span className="text-sm font-semibold">
+                        {account?.name}
+                      </span>
+                      <span className="rounded-full border border-icy-blue-400 px-2 text-icy-blue-400">
+                        EVM
+                      </span>
+                    </div>
+                    <div className="break-all text-xs text-[#7B9AAA]">
+                      {evmAddress}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Permissions */}
@@ -180,16 +206,16 @@ export default function ConnectConfirm() {
         </div>
       </div>
 
-      {/* Buttons */}
-      <div className="flex gap-2 text-base font-semibold">
+      {/* 固定在底部的按钮 */}
+      <div className="mt-4 flex flex-shrink-0 gap-2 text-base font-semibold">
         <button
-          className="rounded-full p-5 text-[#7B9AAA]"
+          className="rounded-full px-6 py-3 text-[#7B9AAA]"
           onClick={handleConnectDeny}
         >
           Cancel
         </button>
         <button
-          className="flex-auto rounded-full bg-icy-blue-400 py-5 font-semibold hover:bg-icy-blue-600"
+          className="flex-1 rounded-full bg-icy-blue-400 py-3 font-semibold hover:bg-icy-blue-600"
           onClick={handleConnectConfirm}
         >
           Connect
