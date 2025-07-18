@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.28.0](https://github.com/forbole/kastle/compare/v2.27.1...v2.28.0) (2025-07-18)
+
+
+### Features
+
+* add evm address to connect ([#184](https://github.com/forbole/kastle/issues/184)) ([746ec4e](https://github.com/forbole/kastle/commit/746ec4e40a685f1cc2e0ecb0ca5e769c5475cf12))
+* **add:** add commit reveal api ([#183](https://github.com/forbole/kastle/issues/183)) ([dd0b04c](https://github.com/forbole/kastle/commit/dd0b04c3c435c1e130c460c3c49844d3e0deb88a))
+
 ## [2.27.1](https://github.com/forbole/kastle/compare/v2.27.0...v2.27.1) (2025-07-14)
 
 
