@@ -34,6 +34,7 @@ const Receive = ({
           light: "#FFFFFF", // White background
         },
         errorCorrectionLevel: "Q",
+        width: 192,
       });
       const ctx = canvas.getContext("2d");
 
@@ -87,11 +88,11 @@ const Receive = ({
           <img
             src={qrCodeUrl}
             alt="QR Code"
-            className="h-48 w-48 rounded-2xl"
+            className="rounded-2xl"
           />
 
           <div className="flex flex-col items-center gap-2 pt-6 text-center">
-            <h3 className="text-base font-semibold">My {chainName} Address</h3>
+            <h3 className="text-base font-semibold">{chainName} Address</h3>
             <p className="text-sm text-daintree-400">
               Use it to receive tokens on{" "}
               <span className="text-white">{chainName}</span>
