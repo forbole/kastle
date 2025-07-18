@@ -217,7 +217,7 @@ export default function HotWalletCommitReveal({
                     className="inline-flex cursor-pointer items-center gap-2 font-semibold text-[#00B1D0]"
                     onClick={() => setHideDetails(!hideDetails)}
                   >
-                    Show raw commit/reveal script details
+                    Show raw script details
                     {hideDetails ? (
                       <i className="hn hn-chevron-down h-[14px] w-[14px]" />
                     ) : (
