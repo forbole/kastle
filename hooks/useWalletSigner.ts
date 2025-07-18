@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { IWallet } from "@/lib/wallet/wallet-interface";
 import { AccountFactory } from "@/lib/wallet/wallet-factory";
+import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 
 export default function useWalletSigner() {
   const { getWalletSecret } = useKeyring();

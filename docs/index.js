@@ -430,7 +430,6 @@ document
     }
   });
 
-
 document
   .getElementById("krcTransferCommitReveal")
   .addEventListener("click", async () => {
@@ -445,9 +444,16 @@ document
         amt: document.getElementById("transferAmount").value,
       };
 
-      const result = await kastle.request("kas:commit_reveal", { networkId: network, namespace: "kasplex", data: JSON.stringify(transferPayload), options: {} });
-      document.getElementById("transferCommitTxId").innerText = result.commitTxId;
-      document.getElementById("transferRevealTxId").innerText = result.revealTxId;
+      const result = await kastle.request("kas:commit_reveal", {
+        networkId: network,
+        namespace: "kasplex",
+        data: JSON.stringify(transferPayload),
+        options: {},
+      });
+      document.getElementById("transferCommitTxId").innerText =
+        result.commitTxId;
+      document.getElementById("transferRevealTxId").innerText =
+        result.revealTxId;
       document.getElementById("transferErrorKRC20").innerText = "";
     } catch (error) {
       document.getElementById("transferErrorKRC20").innerText = error.message;

@@ -12,6 +12,8 @@ import { formatCurrency } from "@/lib/utils.ts";
 import { useSettings } from "@/hooks/useSettings";
 import { NetworkType } from "@/contexts/SettingsContext";
 import ScriptDetailsBox from "./ScriptDetailsBox";
+import useCurrencyValue from "@/hooks/useCurrencyValue";
+import { useState } from "react";
 
 export default function HotWalletCommitReveal({
   requestId,
