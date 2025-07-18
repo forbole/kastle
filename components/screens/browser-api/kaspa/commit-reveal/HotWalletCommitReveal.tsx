@@ -24,6 +24,7 @@ export default function HotWalletCommitReveal({
   const kaspaPrice = useKaspaPrice();
   const [settings, setSettings] = useSettings();
   const [step, setStep] = useState<string>();
+  const [hideDetails, setHideDetails] = useState(true);
 
   const feesInKas =
     parseFloat(payload.options.revealPriorityFee ?? Fee.Base.toString()) +
@@ -80,7 +81,7 @@ export default function HotWalletCommitReveal({
       );
     } finally {
       setIsPerforming(false);
-      //window.close();
+      window.close();
     }
   };
 
@@ -118,11 +119,7 @@ export default function HotWalletCommitReveal({
       {walletSigner && (
         <div className="flex h-full flex-col justify-between">
           <div>
-            <Header
-              showPrevious={false}
-              showClose={false}
-              title="Commit Reveal"
-            />
+            <Header showPrevious={false} showClose={false} title="Confirm" />
             <div className="relative">
               <img src={signImage} alt="Sign" className="mx-auto" />
               <div
@@ -188,6 +185,7 @@ export default function HotWalletCommitReveal({
                     </div>
                   </li>
                 </ul>
+
                 {/* Result */}
                 <ul className="mt-3 flex flex-col rounded-lg bg-daintree-800">
                   <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
@@ -203,9 +201,31 @@ export default function HotWalletCommitReveal({
                       </div>
                     </div>
                   </li>
+
+                  <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
+                    <div className="flex w-full items-start justify-between">
+                      <span className="font-medium">Namespace</span>
+                      <div className="flex flex-col text-right">
+                        <span className="font-medium">{payload.namespace}</span>
+                      </div>
+                    </div>
+                  </li>
                 </ul>
+
                 <div className="space-y-4 py-4">
-                  <ScriptDetailsBox content={payload.data} />
+                  <span
+                    className="inline-flex cursor-pointer items-center gap-2 font-semibold text-[#00B1D0]"
+                    onClick={() => setHideDetails(!hideDetails)}
+                  >
+                    Show raw commit/reveal script details
+                    {hideDetails ? (
+                      <i className="hn hn-chevron-down h-[14px] w-[14px]" />
+                    ) : (
+                      <i className="hn hn-chevron-up h-[14px] w-[14px]" />
+                    )}
+                  </span>
+
+                  {!hideDetails && <ScriptDetailsBox content={payload.data} />}
                 </div>
               </>
             )}
@@ -213,7 +233,12 @@ export default function HotWalletCommitReveal({
 
           {/* Buttons */}
           {!networkMismatched && (
-            <div className="flex gap-2 text-base font-semibold">
+            <div
+              className={twMerge(
+                "flex gap-2 text-base font-semibold",
+                !hideDetails && "pb-4",
+              )}
+            >
               <button
                 className="rounded-full p-5 text-[#7B9AAA]"
                 onClick={() => {
