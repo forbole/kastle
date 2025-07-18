@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { IWallet } from "@/lib/wallet/wallet-interface";
 import { AccountFactory } from "@/lib/wallet/wallet-factory";
-
+import { useKeyring } from "@/lib/keyring";
 export default function useWalletSigner() {
   const { getWalletSecret } = useKeyring();
   const { wallet: walletInfo, account } = useWalletManager();
