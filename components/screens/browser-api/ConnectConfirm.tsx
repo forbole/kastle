@@ -144,14 +144,14 @@ export default function ConnectConfirm() {
             </div>
 
             <div className="pb-3">
-              <img alt="link" className="h-6 w-6" src={Link} />
+              <img alt="link" className="h-4 w-4" src={Link} />
             </div>
           </div>
 
           <div className="space-y-6">
             {/* Account info */}
             <div className="flex flex-col items-center gap-2">
-              <div className="flex w-full gap-2 rounded-xl border border-[#203C49] bg-[#102832] p-4">
+              <div className="flex w-full gap-2 rounded-xl border border-[#203C49] bg-[#102832] p-3">
                 <div className="flex flex-1 flex-col gap-2 font-medium">
                   <div className="flex justify-between">
                     <span className="text-sm font-semibold">
@@ -168,7 +168,7 @@ export default function ConnectConfirm() {
               </div>
 
               {evmAddress && (
-                <div className="flex w-full gap-2 rounded-xl border border-[#203C49] bg-[#102832] p-4">
+                <div className="flex w-full gap-2 rounded-xl border border-[#203C49] bg-[#102832] p-3">
                   <div className="flex flex-1 flex-col gap-2 font-medium">
                     <div className="flex justify-between">
                       <span className="text-sm font-semibold">
@@ -191,7 +191,7 @@ export default function ConnectConfirm() {
               <span className="text-sm font-semibold">
                 Connect this website to:
               </span>
-              <div className="space-y-3 rounded-xl border border-[#203C49] bg-[#102832] px-4 py-3 text-xs text-[#7B9AAA]">
+              <div className="space-y-3 rounded-xl border border-[#203C49] bg-[#102832] p-3 text-xs text-[#7B9AAA]">
                 <div className="flex items-center gap-2">
                   <img alt="check" className="h-4 w-4" src={CheckCircle} />
                   <span>View your wallet balance and activity</span>
