@@ -11,6 +11,7 @@ import { getNetwork } from "@/api/background/handlers/kaspa/get-network";
 import { ethereumRequestHandler } from "@/api/background/handlers/ethereum/request";
 import { signMessageHandler } from "@/api/background/handlers/kaspa/signMessage";
 import { switchNetworkHandler } from "@/api/background/handlers/kaspa/switchNetwork";
+import { commitRevealHandler } from "./handlers/kaspa/commitReveal";
 
 export class BackgroundService {
   public listen(): void {
@@ -63,6 +64,7 @@ export class BackgroundService {
       [Action.ETHEREUM_REQUEST]: ethereumRequestHandler,
       [Action.SIGN_MESSAGE]: signMessageHandler,
       [Action.SWITCH_NETWORK]: switchNetworkHandler,
+      [Action.COMMIT_REVEAL]: commitRevealHandler,
     };
 
     return handlers[action];

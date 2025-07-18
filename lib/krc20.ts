@@ -1,4 +1,4 @@
-import { Opcodes, ScriptBuilder } from "@/wasm/core/kaspa";
+import { Opcodes, ScriptBuilder, PublicKey } from "@/wasm/core/kaspa";
 import { IWallet, PaymentOutput } from "@/lib/wallet/wallet-interface.ts";
 
 export type Operation = "deploy" | "mint" | "transfer";
@@ -51,6 +51,24 @@ export const computeOperationFees = (op: Operation, times: number = 1) => {
     forboleFee,
     totalFees: krc20Fee + kaspaFee + forboleFee,
   };
+};
+
+export const buildCommitRevealScript = (
+  publicKey: PublicKey,
+  namespace: string,
+  data: unknown,
+) => {
+  const script = new ScriptBuilder()
+    .addData(publicKey.toXOnlyPublicKey().toString())
+    .addOp(Opcodes.OpCheckSig)
+    .addOp(Opcodes.OpFalse)
+    .addOp(Opcodes.OpIf)
+    .addData(Buffer.from(namespace))
+    .addI64(0n)
+    .addData(Buffer.from(JSON.stringify(data, null, 0)))
+    .addOp(Opcodes.OpEndIf);
+
+  return script;
 };
 
 export const deploy = (

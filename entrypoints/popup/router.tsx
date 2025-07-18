@@ -78,6 +78,7 @@ import SelectAddress from "@/components/screens/receive-addresses/SelectAddress"
 import KaspaReceiveAddress from "@/components/screens/receive-addresses/KaspaReceiveAddress";
 import EvmReceiveAddress from "@/components/screens/receive-addresses/EvmReceiveAddress";
 import AssetSelect from "@/components/screens/asset-selector/AssetSelect";
+import CommitRevealConfirm from "@/components/screens/browser-api/kaspa/CommitRevealConfirm";
 
 const loadKaspaWasm = async () => {
   await init({ module_or_path: kaspaModule });
@@ -334,6 +335,10 @@ export const router = createHashRouter([
                       {
                         path: "/kaspa/switch-network",
                         element: <SwitchKaspaNetwork />,
+                      },
+                      {
+                        path: "kaspa/commit-reveal",
+                        element: <CommitRevealConfirm />,
                       },
 
                       // Ethereum BrowserAPI routes

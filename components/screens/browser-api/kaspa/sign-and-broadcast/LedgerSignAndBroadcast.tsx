@@ -1,5 +1,5 @@
 import { SignTxPayload } from "@/api/background/handlers/kaspa/utils";
-import LedgerNotSupported from "@/components/screens/browser-api/kaspa/sign/LedgerNotSupported";
+import LedgerNotSupported from "@/components/screens/browser-api/kaspa/LedgerNotSupported";
 import SignAndBroadcast from "@/components/screens/browser-api/kaspa/sign-and-broadcast/SignAndBroadcast";
 import { AccountFactory } from "@/lib/wallet/wallet-factory";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
