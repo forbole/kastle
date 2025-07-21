@@ -1,6 +1,8 @@
 import HotWalletSignMessage from "@/components/screens/browser-api/ethereum/sign-message/HotWalletSignMessage";
 import useWalletManager from "@/hooks/useWalletManager.ts";
 import Splash from "@/components/screens/Splash";
+import z from "zod";
+import { isHex } from "viem";
 
 export default function EthereumSignMessageConfirm() {
   const { wallet } = useWalletManager();
@@ -10,7 +12,9 @@ export default function EthereumSignMessageConfirm() {
     "payload",
   );
 
-  const payload = encodedPayload ? decodeURIComponent(encodedPayload) : null;
+  const payload = encodedPayload
+    ? z.string().refine(isHex).parse(decodeURIComponent(encodedPayload))
+    : null;
 
   const loading = !wallet || !requestId || !payload;
 
@@ -18,7 +22,7 @@ export default function EthereumSignMessageConfirm() {
     <div className="no-scrollbar h-screen overflow-y-scroll p-4">
       {loading && <Splash />}
       {!loading && wallet.type !== "ledger" && (
-        <HotWalletSignMessage requestId={requestId} payload={payload} />
+        <HotWalletSignMessage requestId={requestId} hexMessage={payload} />
       )}
       {!loading && wallet.type === "ledger" && <>Not Supported</>}
     </div>

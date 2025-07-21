@@ -4,12 +4,12 @@ import useWalletSigner from "@/hooks/evm/useWalletSigner";
 
 type SignMessageProps = {
   requestId: string;
-  payload: string;
+  hexMessage: `0x${string}`;
 };
 
 export default function HotWalletSignMessage({
   requestId,
-  payload,
+  hexMessage,
 }: SignMessageProps) {
   const walletSigner = useWalletSigner();
 
@@ -20,7 +20,7 @@ export default function HotWalletSignMessage({
         <SignMessage
           requestId={requestId}
           walletSigner={walletSigner}
-          message={payload}
+          hexMessage={hexMessage}
         />
       )}
     </>

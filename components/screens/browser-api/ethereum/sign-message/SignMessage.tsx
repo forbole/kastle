@@ -7,20 +7,22 @@ import { IWallet } from "@/lib/ethereum/wallet/wallet-interface";
 import { ApiExtensionUtils } from "@/api/extension";
 import { ApiUtils } from "@/api/background/utils";
 import { RPC_ERRORS } from "@/api/message";
+import { fromHex } from "viem";
 
 type SignMessageProps = {
   requestId: string;
   walletSigner: IWallet;
-  message: string;
+  hexMessage: `0x${string}`;
 };
 
 export default function SignMessage({
   requestId,
   walletSigner,
-  message,
+  hexMessage,
 }: SignMessageProps) {
   const { wallet } = useWalletManager();
   const { value: isSigning, toggle: toggleIsSigning } = useBoolean(false);
+  const message = fromHex(hexMessage, "string");
 
   const onConfirm = async () => {
     if (isSigning) {
