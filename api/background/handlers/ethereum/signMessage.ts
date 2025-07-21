@@ -7,7 +7,7 @@ import {
 import { ApiUtils } from "@/api/background/utils";
 import { z } from "zod";
 import { isMatchCurrentAddress, isUserDeniedResponse } from "./utils";
-import { isAddress } from "viem";
+import { isAddress, isHex } from "viem";
 
 export const signMessageHandler = async (
   tabId: number,
@@ -51,7 +51,7 @@ export const signMessageHandler = async (
   }
 
   const messageToSign = params[0];
-  const result = z.string().safeParse(messageToSign);
+  const result = z.string().refine(isHex).safeParse(messageToSign);
   if (!result.success) {
     sendError(RPC_ERRORS.INVALID_PARAMS);
     return;

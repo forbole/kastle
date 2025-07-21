@@ -24,8 +24,7 @@ export class EthereumPrivateKeyAccount {
   }
 
   async signMessage(message: string) {
-    const hexMessage = `0x${Buffer.from(message, "utf-8").toString("hex")}`;
-    return this.account.signMessage({ message: hexMessage });
+    return this.account.signMessage({ message });
   }
 
   async getAddress() {
