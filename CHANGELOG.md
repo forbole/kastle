@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.28.1](https://github.com/forbole/kastle/compare/v2.28.0...v2.28.1) (2025-07-21)
+
+
+### Bug Fixes
+
+* **api:** fix evm sign message api ([#187](https://github.com/forbole/kastle/issues/187)) ([650672c](https://github.com/forbole/kastle/commit/650672c667d6daf47e5191f913e094040a703fbb))
+
 ## [2.28.0](https://github.com/forbole/kastle/compare/v2.27.1...v2.28.0) (2025-07-18)
 
 
