@@ -4,7 +4,7 @@ import { twMerge } from "tailwind-merge";
 import { useNavigate } from "react-router-dom";
 import { Tooltip } from "react-tooltip";
 import { WalletInfo } from "@/contexts/WalletManagerContext.tsx";
-import RecoveryPhraseAccountItem from "@/components/side-menu/RecoveryPhraseAccountItem.tsx";
+import AccountItem from "./AccountItem";
 
 interface RecoveryPhraseWalletItemProps {
   wallet: WalletInfo;
@@ -113,10 +113,10 @@ export const RecoveryPhraseWalletItem = ({
         <div className="hs-accordion-content w-full overflow-hidden transition-[height] duration-300">
           <div className="flex flex-col items-stretch gap-3">
             {wallet.accounts.map((account) => (
-              <RecoveryPhraseAccountItem
+              <AccountItem
                 key={account.index}
-                account={account}
                 walletId={wallet.id}
+                account={account}
                 onClose={onClose}
               />
             ))}

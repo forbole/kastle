@@ -5,17 +5,19 @@ import React from "react";
 import { Account } from "@/contexts/WalletManagerContext.tsx";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 
-interface PrivateKeyAccountItemProps {
-  account: Account;
+type AccountItemProps = {
   walletId: string;
+  account: Account;
   onClose: () => void;
-}
+  children?: React.ReactNode;
+};
 
-export default function PrivateKeyAccountItem({
-  account,
+export default function AccountItem({
   walletId,
+  account,
   onClose,
-}: PrivateKeyAccountItemProps) {
+  children,
+}: AccountItemProps) {
   const navigate = useNavigate();
   const [settings] = useSettings();
   const kaspaPrice = useKaspaPrice();
@@ -88,17 +90,7 @@ export default function PrivateKeyAccountItem({
             >
               Rename this account
             </Link>
-            <button
-              type="button"
-              onClick={() =>
-                navigate(
-                  `/backup-unlock?redirect=/show-private-key/${walletId}/${account.index}`,
-                )
-              }
-              className="flex w-full items-center gap-x-3.5 rounded-lg px-3 py-2 text-sm text-daintree-200 hover:bg-daintree-700 focus:bg-daintree-700 focus:outline-none"
-            >
-              Back up with private key
-            </button>
+            {children}
           </div>
         </div>
       </div>

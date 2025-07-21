@@ -3,7 +3,7 @@ import { useBoolean } from "usehooks-ts";
 import { twMerge } from "tailwind-merge";
 import { useNavigate } from "react-router-dom";
 import { WalletInfo } from "@/contexts/WalletManagerContext.tsx";
-import LedgerAccountItem from "@/components/side-menu/LedgerAccountItem.tsx";
+import AccountItem from "./AccountItem";
 
 interface LedgerWalletItemProps {
   wallet: WalletInfo;
@@ -83,7 +83,7 @@ export const LedgerWalletItem = ({
         <div className="hs-accordion-content w-full overflow-hidden transition-[height] duration-300">
           <div className="flex flex-col items-stretch gap-3">
             {wallet.accounts.map((account) => (
-              <LedgerAccountItem
+              <AccountItem
                 key={account.index}
                 account={account}
                 walletId={wallet.id}

@@ -3,7 +3,7 @@ import { useBoolean } from "usehooks-ts";
 import { twMerge } from "tailwind-merge";
 import { useNavigate } from "react-router-dom";
 import { WalletInfo } from "@/contexts/WalletManagerContext.tsx";
-import PrivateKeyAccountItem from "@/components/side-menu/PrivateKeyAccountItem.tsx";
+import AccountItem from "./AccountItem";
 
 interface PrivateKeyWalletItemProps {
   wallet: WalletInfo;
@@ -67,12 +67,23 @@ export const PrivateKeyWalletItem = ({
         <div className="hs-accordion-content w-full overflow-hidden transition-[height] duration-300">
           <div className="flex flex-col items-stretch gap-3">
             {wallet.accounts.map((account) => (
-              <PrivateKeyAccountItem
-                key={account.address}
-                account={account}
+              <AccountItem
                 walletId={wallet.id}
+                account={account}
                 onClose={onClose}
-              />
+              >
+                <button
+                  type="button"
+                  onClick={() =>
+                    navigate(
+                      `/backup-unlock?redirect=/show-private-key/${wallet.id}/${account.index}`,
+                    )
+                  }
+                  className="flex w-full items-center gap-x-3.5 rounded-lg px-3 py-2 text-sm text-daintree-200 hover:bg-daintree-700 focus:bg-daintree-700 focus:outline-none"
+                >
+                  Back up with private key
+                </button>
+              </AccountItem>
             ))}
           </div>
         </div>
