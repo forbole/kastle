@@ -2,6 +2,7 @@ import { useBoolean } from "usehooks-ts";
 import { twMerge } from "tailwind-merge";
 import { WalletInfo } from "@/contexts/WalletManagerContext.tsx";
 import { Tooltip } from "react-tooltip";
+import EditableWalletName from "./EditableWalletName";
 
 type WalletHeaderProps = {
   wallet: WalletInfo;
@@ -12,6 +13,7 @@ type WalletHeaderProps = {
 type MenuItem = {
   label: string;
   onClick: () => void;
+  isAlert?: boolean;
 };
 
 export default function WalletHeader({
@@ -23,30 +25,31 @@ export default function WalletHeader({
 
   return (
     <div className="flex items-center justify-end">
-      <div className="mr-auto flex items-center">
-        <span className="mr-auto px-2 text-sm font-semibold">
-          {wallet.name}
-        </span>
-        {!wallet.backed && (
+      {!wallet.backed ? (
+        <>
           <a
             data-tooltip-id="backup-wallet"
             data-tooltip-content="Please back up your recovery phrase 📜."
+            className="mr-auto"
           >
-            <Tooltip
-              data-tooltip-id="backup-wallet"
-              id="backup-wallet"
-              offset={0}
-              style={{
-                backgroundColor: "#374151",
-                fontSize: "12px",
-                fontWeight: 600,
-                padding: "2px 8px",
-              }}
-            />
-            <i className="hn hn-exclamation-triangle-solid text-[#EAB308]"></i>
+            <EditableWalletName wallet={wallet} />
           </a>
-        )}
-      </div>
+          <Tooltip
+            data-tooltip-id="backup-wallet"
+            id="backup-wallet"
+            style={{
+              backgroundColor: "#374151",
+              fontSize: "12px",
+              fontWeight: 600,
+              padding: "2px 8px",
+            }}
+            place="top"
+          />
+        </>
+      ) : (
+        <EditableWalletName wallet={wallet} />
+      )}
+
       <button
         type="button"
         className="hs-accordion-toggle h-[38px] w-[38px]"
@@ -75,7 +78,10 @@ export default function WalletHeader({
                 key={index}
                 type="button"
                 onClick={item.onClick}
-                className="flex w-full items-center gap-x-3.5 rounded-lg px-3 py-2 text-sm text-daintree-200 hover:bg-daintree-700 focus:bg-daintree-700 focus:outline-none"
+                className={twMerge(
+                  "flex w-full items-center gap-x-3.5 rounded-lg px-3 py-2 text-sm text-daintree-200 hover:bg-daintree-700 focus:bg-daintree-700 focus:outline-none",
+                  item.isAlert && "text-red-500",
+                )}
               >
                 {item.label}
               </button>

@@ -1,6 +1,4 @@
-import React from "react";
 import { useBoolean } from "usehooks-ts";
-import { twMerge } from "tailwind-merge";
 import { useNavigate } from "react-router-dom";
 import { WalletInfo } from "@/contexts/WalletManagerContext.tsx";
 import AccountItem from "./AccountItem";

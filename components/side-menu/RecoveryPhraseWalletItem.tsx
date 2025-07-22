@@ -1,8 +1,6 @@
 import React from "react";
 import { useBoolean } from "usehooks-ts";
-import { twMerge } from "tailwind-merge";
 import { useNavigate } from "react-router-dom";
-import { Tooltip } from "react-tooltip";
 import { WalletInfo } from "@/contexts/WalletManagerContext.tsx";
 import AccountItem from "./AccountItem";
 import WalletHeader from "./WalletHeader";
@@ -39,6 +37,7 @@ export const RecoveryPhraseWalletItem = ({
     {
       label: "Remove this wallet",
       onClick: () => navigate(`/remove-wallet/${wallet.id}`),
+      isAlert: true,
     },
   ];
 

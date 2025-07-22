@@ -94,6 +94,7 @@ type WalletManagerContextType = {
   }) => Promise<string>;
   markWalletBacked: (walletId: string) => Promise<void>;
   getBalancesByAddresses: (addresses: string[]) => Promise<number>;
+  renameWallet: (walletId: string, newName: string) => Promise<void>;
 };
 
 const defaultValue = {
@@ -126,6 +127,7 @@ export const WalletManagerContext = createContext<WalletManagerContextType>({
   updateSelectedAccounts: defaultAsyncFunction,
   createNewWallet: defaultAsyncFunction,
   getBalancesByAddresses: defaultAsyncFunction,
+  renameWallet: defaultAsyncFunction,
 });
 
 const getCurrentWalletInfo = (walletSettings: WalletSettings) => {
@@ -605,6 +607,20 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
     await setWalletSettings(walletSettings);
   };
 
+  const renameWallet = async (walletId: string, newName: string) => {
+    const wallet = walletSettings.wallets.find((w) => w.id === walletId);
+    if (!wallet) {
+      return;
+    }
+
+    wallet.name = newName;
+
+    await setWalletSettings({
+      ...walletSettings,
+      wallets: [...walletSettings.wallets],
+    });
+  };
+
   // Refresh accounts after settings changed
   useEffect(() => {
     if (!rpcClient || isWalletSettingsLoading) {
@@ -797,6 +813,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
         getPrivateKey,
         markWalletBacked,
         getBalancesByAddresses,
+        renameWallet,
       }}
     >
       {children}

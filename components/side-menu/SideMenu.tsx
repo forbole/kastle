@@ -1,4 +1,3 @@
-import React from "react";
 import { RecoveryPhraseWalletItem } from "@/components/side-menu/RecoveryPhraseWalletItem.tsx";
 import { useNavigate } from "react-router-dom";
 import useResetPreline from "@/hooks/useResetPreline.ts";
