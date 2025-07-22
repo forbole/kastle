@@ -3,6 +3,8 @@ import { twMerge } from "tailwind-merge";
 import { WalletInfo } from "@/contexts/WalletManagerContext.tsx";
 import { Tooltip } from "react-tooltip";
 import EditableWalletName from "./EditableWalletName";
+import { useNavigate } from "react-router-dom";
+import HoverTooltip from "../HoverTooltip";
 
 type WalletHeaderProps = {
   wallet: WalletInfo;
@@ -20,31 +22,33 @@ export default function WalletHeader({
   wallet,
   items = [],
 }: WalletHeaderProps) {
+  const navigate = useNavigate();
+
   // This is a hack, preline could not handle `hs-accordion-active:` on nested tags
   const { value: collapsed, toggle } = useBoolean(false);
+
+  items.unshift({
+    label: "Rename the wallet",
+    onClick: () => navigate(`/rename-wallet/${wallet.id}`),
+  });
+
+  items.push({
+    label: "Remove this wallet",
+    onClick: () => navigate(`/remove-wallet/${wallet.id}`),
+    isAlert: true,
+  });
 
   return (
     <div className="flex items-center justify-end">
       {!wallet.backed ? (
         <>
-          <a
-            data-tooltip-id="backup-wallet"
-            data-tooltip-content="Please back up your recovery phrase 📜."
+          <HoverTooltip
+            text="Please back up your recovery phrase 📜."
+            place="top"
             className="mr-auto"
           >
             <EditableWalletName wallet={wallet} />
-          </a>
-          <Tooltip
-            data-tooltip-id="backup-wallet"
-            id="backup-wallet"
-            style={{
-              backgroundColor: "#374151",
-              fontSize: "12px",
-              fontWeight: 600,
-              padding: "2px 8px",
-            }}
-            place="top"
-          />
+          </HoverTooltip>
         </>
       ) : (
         <EditableWalletName wallet={wallet} />

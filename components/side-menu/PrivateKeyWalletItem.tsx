@@ -1,4 +1,3 @@
-import { useBoolean } from "usehooks-ts";
 import { useNavigate } from "react-router-dom";
 import { WalletInfo } from "@/contexts/WalletManagerContext.tsx";
 import AccountItem from "./AccountItem";
@@ -14,20 +13,11 @@ export const PrivateKeyWalletItem = ({
   onClose,
 }: PrivateKeyWalletItemProps) => {
   const navigate = useNavigate();
-  // This is a hack, preline could not handle `hs-accordion-active:` on nested tags
-  const { value: collapsed, toggle } = useBoolean(false);
-
-  const menuItems = [
-    {
-      label: "Remove this wallet",
-      onClick: () => navigate(`/remove-wallet/${wallet.id}`),
-    },
-  ];
 
   return (
     <div className="hs-accordion-group">
       <div className="hs-accordion active flex flex-col items-stretch gap-2">
-        <WalletHeader wallet={wallet} items={menuItems} />
+        <WalletHeader wallet={wallet} />
 
         {/* Account item */}
         <div className="hs-accordion-content w-full overflow-hidden transition-[height] duration-300">

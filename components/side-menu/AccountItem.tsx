@@ -1,6 +1,6 @@
 import { twMerge } from "tailwind-merge";
 import { formatCurrency, textEllipsis } from "@/lib/utils.ts";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import React from "react";
 import { Account } from "@/contexts/WalletManagerContext.tsx";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
@@ -18,7 +18,6 @@ export default function AccountItem({
   onClose,
   children,
 }: AccountItemProps) {
-  const navigate = useNavigate();
   const [settings] = useSettings();
   const kaspaPrice = useKaspaPrice();
   const { selectAccount, walletSettings } = useWalletManager();
@@ -78,7 +77,7 @@ export default function AccountItem({
           <i className="hn hn-ellipses-vertical z-0 text-[16px]"></i>
         </button>
         <div
-          className="hs-dropdown-menu duration z-10 mt-2 hidden divide-neutral-700 rounded-lg border border-daintree-700 bg-daintree-800 opacity-0 shadow-md transition-[opacity,margin] before:absolute before:-top-4 before:start-0 before:h-4 before:w-full after:absolute after:-bottom-4 after:start-0 after:h-4 after:w-full hs-dropdown-open:opacity-100"
+          className="hs-dropdown-menu duration z-10 hidden divide-neutral-700 rounded-lg border border-daintree-700 bg-daintree-800 opacity-0 shadow-md transition-[opacity,margin] before:absolute before:-top-4 before:start-0 before:h-4 before:w-full after:absolute after:-bottom-4 after:start-0 after:h-4 after:w-full hs-dropdown-open:opacity-100"
           role="menu"
           aria-orientation="vertical"
           aria-labelledby="hs-dropdown-default"
@@ -88,7 +87,7 @@ export default function AccountItem({
               to={`/rename-account/${walletId}/${account.index}`}
               className="flex w-full items-center gap-x-3.5 rounded-lg px-3 py-2 text-sm text-daintree-200 hover:bg-daintree-700 focus:bg-daintree-700 focus:outline-none"
             >
-              Rename this account
+              Rename this Account
             </Link>
             {children}
           </div>

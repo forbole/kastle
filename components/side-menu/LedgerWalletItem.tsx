@@ -1,4 +1,3 @@
-import { useBoolean } from "usehooks-ts";
 import { useNavigate } from "react-router-dom";
 import { WalletInfo } from "@/contexts/WalletManagerContext.tsx";
 import AccountItem from "./AccountItem";
@@ -14,8 +13,6 @@ export const LedgerWalletItem = ({
   onClose,
 }: LedgerWalletItemProps) => {
   const navigate = useNavigate();
-  // This is a hack, preline could not handle `hs-accordion-active:` on nested tags
-  const { value: collapsed, toggle } = useBoolean(false);
 
   const manageAccounts = () => {
     const url = new URL(browser.runtime.getURL("/popup.html"));
@@ -28,10 +25,6 @@ export const LedgerWalletItem = ({
     {
       label: "Manage accounts",
       onClick: manageAccounts,
-    },
-    {
-      label: "Remove this wallet",
-      onClick: () => navigate(`/remove-wallet/${wallet.id}`),
     },
   ];
 

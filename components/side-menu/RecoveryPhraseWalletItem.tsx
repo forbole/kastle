@@ -1,5 +1,3 @@
-import React from "react";
-import { useBoolean } from "usehooks-ts";
 import { useNavigate } from "react-router-dom";
 import { WalletInfo } from "@/contexts/WalletManagerContext.tsx";
 import AccountItem from "./AccountItem";
@@ -15,8 +13,6 @@ export const RecoveryPhraseWalletItem = ({
   onClose,
 }: RecoveryPhraseWalletItemProps) => {
   const navigate = useNavigate();
-  // This is a hack, preline could not handle `hs-accordion-active:` on nested tags
-  const { value: collapsed, toggle } = useBoolean(false);
   const { addAccount } = useWalletManager();
 
   const menuItems = [
@@ -33,11 +29,6 @@ export const RecoveryPhraseWalletItem = ({
         url.hash = `/manage-accounts/recovery-phrase/${wallet.id}/manage`;
         browser.tabs.create({ url: url.toString() });
       },
-    },
-    {
-      label: "Remove this wallet",
-      onClick: () => navigate(`/remove-wallet/${wallet.id}`),
-      isAlert: true,
     },
   ];
 
