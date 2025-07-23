@@ -55,8 +55,8 @@ export default function AccountItem({
               : account.name[0]}
           </span>
           <div className="flex flex-grow flex-col">
-            <div className="flex items-center justify-end gap-2 text-sm font-semibold">
-              <span className="mr-auto">{account.name}</span>
+            <div className="flex items-center justify-end gap-2 text-sm">
+              <span className="mr-auto font-semibold">{account.name}</span>
               <span>
                 {settings?.hideBalances
                   ? "*****"
