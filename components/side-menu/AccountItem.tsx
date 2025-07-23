@@ -49,8 +49,10 @@ export default function AccountItem({
             onClose();
           }}
         >
-          <span className="flex size-9 items-center justify-center rounded-lg bg-white/5 text-white">
-            {account.name[0]}
+          <span className="flex size-9 items-center justify-center rounded-lg bg-white/5 text-sm font-semibold text-white">
+            {account.name.length > 1
+              ? account.name[0] + account.name[account.name.length - 1]
+              : account.name[0]}
           </span>
           <div className="flex flex-grow flex-col">
             <div className="flex items-center justify-end gap-2 text-sm font-semibold">

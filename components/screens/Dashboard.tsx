@@ -37,7 +37,10 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<(typeof tabs)[number]>("Assets");
   const segmenter = new Intl.Segmenter("en", { granularity: "grapheme" });
   const segments = Array.from(segmenter.segment(account?.name ?? ""));
-  const shortAccountName = `${segments[0]?.segment}${segments[segments.length - 1]?.segment}`;
+  const shortAccountName =
+    segments.length > 1
+      ? `${segments[0]?.segment}${segments[segments.length - 1]?.segment}`
+      : segments[0]?.segment;
 
   const showBalance = !settings?.hideBalances;
   const totalBalanceFormatted = formatCurrency(
