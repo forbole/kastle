@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.29.0](https://github.com/forbole/kastle/compare/v2.28.1...v2.29.0) (2025-07-23)
+
+
+### Features
+
+* add rename wallet name feature ([#189](https://github.com/forbole/kastle/issues/189)) ([6072620](https://github.com/forbole/kastle/commit/607262000d5bf79374e7d0d46081db7ff035aafa))
+* full page side bar ([#191](https://github.com/forbole/kastle/issues/191)) ([af8030b](https://github.com/forbole/kastle/commit/af8030b6f0e924ba8ec640306badcb4d9c21d0a5))
+
 ## [2.28.1](https://github.com/forbole/kastle/compare/v2.28.0...v2.28.1) (2025-07-21)
 
 
