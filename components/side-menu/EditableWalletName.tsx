@@ -1,6 +1,7 @@
 import { WalletInfo } from "@/contexts/WalletManagerContext.tsx";
 import React, { useState, useRef, useEffect } from "react";
 import useWalletManager from "@/hooks/useWalletManager";
+import { twMerge } from "tailwind-merge";
 
 type WalletHeaderProps = {
   wallet: WalletInfo;
@@ -69,11 +70,19 @@ export default function EditableWalletName({ wallet }: WalletHeaderProps) {
           value={tempTitle}
           onChange={(e) => setTempTitle(e.target.value)}
           onKeyDown={handleKeyPress}
-          className="min-w-32 bg-transparent px-2 py-1 focus:border-0 focus:border-b-2 focus:border-cyan-400 focus:outline-none focus:ring-0"
+          className={twMerge(
+            "min-w-32 bg-transparent py-1 focus:border-0 focus:border-b-2 focus:border-cyan-400 focus:outline-none focus:ring-0",
+            wallet.backed ? "pr-2" : "px-2",
+          )}
           autoFocus
         />
       ) : (
-        <span className="mr-auto px-2 text-sm font-semibold">
+        <span
+          className={twMerge(
+            "mr-auto text-sm font-semibold",
+            wallet.backed ? "pr-2" : "px-2",
+          )}
+        >
           {wallet.name}
         </span>
       )}

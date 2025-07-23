@@ -35,13 +35,13 @@ export const SideMenu = ({ isOpen, onClose }: SideMenuProps) => {
 
       {/* Side Menu */}
       <div
-        className={`no-scrollbar fixed left-0 top-0 z-50 m-1 h-[592px] w-[324px] transform overflow-y-scroll rounded-2xl border border-daintree-700 bg-daintree-800 px-2.5 py-4 transition-transform duration-300 ease-out ${
-          isOpen ? "translate-x-0" : "-translate-x-[330px]"
+        className={`no-scrollbar fixed left-0 top-0 z-50 h-full min-h-0 w-full transform overflow-y-scroll bg-icy-blue-950 p-4 transition-transform duration-300 ease-out ${
+          isOpen ? "translate-x-0" : "-translate-x-[600px]"
         }`}
       >
         <div className="flex flex-col gap-3">
           {/* Header */}
-          <div className="flex items-stretch justify-between px-2">
+          <div className="flex items-center justify-between px-2">
             <span className="text-xl font-bold">Wallets</span>
             <button
               className="h-[38px] w-[38px] rounded-full bg-icy-blue-400 hover:bg-icy-blue-600"
