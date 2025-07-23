@@ -27,6 +27,7 @@ export default function HoverTooltip({
   tooltipWidth = "auto",
   style,
   place = "bottom",
+  className,
   children,
 }: HoverTooltipProps) {
   const [isHovered, setIsHovered] = useState(false);
@@ -35,6 +36,7 @@ export default function HoverTooltip({
     <div
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      className={className}
     >
       <Tooltip
         id={id}
