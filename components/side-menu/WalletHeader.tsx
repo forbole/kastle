@@ -27,11 +27,6 @@ export default function WalletHeader({
   // This is a hack, preline could not handle `hs-accordion-active:` on nested tags
   const { value: collapsed, toggle } = useBoolean(false);
 
-  items.unshift({
-    label: "Rename the wallet",
-    onClick: () => navigate(`/rename-wallet/${wallet.id}`),
-  });
-
   items.push({
     label: "Remove this wallet",
     onClick: () => navigate(`/remove-wallet/${wallet.id}`),
