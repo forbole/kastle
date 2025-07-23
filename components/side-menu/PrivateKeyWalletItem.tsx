@@ -24,6 +24,7 @@ export const PrivateKeyWalletItem = ({
           <div className="flex flex-col items-stretch gap-3">
             {wallet.accounts.map((account) => (
               <AccountItem
+                key={account.index}
                 walletId={wallet.id}
                 account={account}
                 onClose={onClose}
