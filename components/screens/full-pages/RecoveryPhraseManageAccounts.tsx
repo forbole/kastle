@@ -4,10 +4,16 @@ import ManageAccounts, {
   ListAccountsRequest,
 } from "@/components/screens/full-pages/account-management/ManageAccounts";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
+import { useSettings } from "@/hooks/useSettings";
+import {
+  AccountFactory as EvmAccountFactory,
+  LegacyAccountFactory as EvmLegacyAccountFactory,
+} from "@/lib/ethereum/wallet/account-factory";
 
 export default function RecoveryPhraseManageAccounts() {
   const { rpcClient, networkId } = useRpcClientStateful();
   const { getWalletSecret } = useKeyring();
+  const [settings] = useSettings();
 
   const listAccounts =
     rpcClient && networkId
@@ -29,7 +35,20 @@ export default function RecoveryPhraseManageAccounts() {
             ),
           );
 
-          return accounts.map((publicKeys) => ({ publicKeys }));
+          return await Promise.all(
+            accounts.map(async (publicKeys, index) => ({
+              publicKeys,
+              evmPublicKey: settings?.isLegacyEvmAddressEnabled
+                ? await EvmLegacyAccountFactory.createFromMnemonic(
+                    walletSecret.value,
+                    start + index,
+                  ).getAddress()
+                : await EvmAccountFactory.createFromMnemonic(
+                    walletSecret.value,
+                    start + index,
+                  ).getAddress(),
+            })),
+          );
         }
       : undefined;
 

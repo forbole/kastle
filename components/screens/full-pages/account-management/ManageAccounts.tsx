@@ -6,13 +6,13 @@ import toast from "@/components/Toast";
 import { ErrorResponse } from "@/lib/service/handlers/error-response";
 import { useBoolean } from "usehooks-ts";
 import Header from "@/components/GeneralHeader";
-import AccountsTitle from "./AccountsTitle";
 import { useLocation } from "react-router";
 
 export type AccountsFormValues = Record<
   string,
   {
     publicKeys: string[];
+    evmPublicKey?: `0x${string}`;
     active: boolean;
   }
 >;
@@ -47,17 +47,21 @@ export default function ManageAccounts({
     setTrue: setFetchingAccounts,
     setFalse: setNotFetchingAccounts,
   } = useBoolean();
-  const [accountList, setAccountList] = useState<{ publicKeys: string[] }[]>(
-    [],
-  );
+  const [accountList, setAccountList] = useState<
+    { publicKeys: string[]; evmPublicKey?: `0x${string}` }[]
+  >([]);
   const { walletSettings, updateSelectedAccounts } = useWalletManager();
 
   const wallet = walletSettings?.wallets.find(({ id }) => id === walletId);
   const selectedAccountIds = wallet?.accounts.reduce<
-    Record<string, { publicKeys: string[]; active: boolean }>
+    Record<
+      string,
+      { publicKeys: string[]; evmPublicKey?: `0x${string}`; active: boolean }
+    >
   >((acc, account) => {
     acc[account.index] = {
       publicKeys: account.publicKeys ?? [],
+      evmPublicKey: account.evmPublicKey ?? undefined,
       active: true,
     };
     return acc;
@@ -88,6 +92,7 @@ export default function ManageAccounts({
           acc[index] = {
             active: value.active,
             publicKeys,
+            evmPublicKey: accountList[accountIndex].evmPublicKey,
           };
         }
         return acc;
@@ -177,7 +182,7 @@ export default function ManageAccounts({
     <FormProvider {...form}>
       <form
         onSubmit={onSubmit}
-        className="flex h-[90vh] w-[41rem] flex-col items-stretch gap-4 rounded-3xl bg-icy-blue-950 p-8"
+        className="flex w-[41rem] flex-col items-stretch gap-4 rounded-3xl bg-icy-blue-950 p-8"
       >
         {/* Header */}
         <Header
@@ -188,7 +193,6 @@ export default function ManageAccounts({
 
         {/* List */}
         <div className="no-scrollbar flex flex-grow flex-col gap-3 overflow-y-scroll">
-          <AccountsTitle />
           {accountList.length === 0 &&
             Array.from({ length: pageSize }).map((_, index) => (
               <div
@@ -201,6 +205,7 @@ export default function ManageAccounts({
               key={accountIndex}
               accountIndex={accountIndex}
               publicKeys={publicKeys}
+              evmPublicKey={accountList[accountIndex].evmPublicKey}
             />
           ))}
 
