@@ -62,6 +62,7 @@ export default function useWalletImporter() {
       id,
       type: "mnemonic",
       name: `Recovery phrase ${++walletSettings.lastRecoveryPhraseNumber}`,
+      isLegacyWalletEnabled: false,
       accounts: [
         {
           index: 0,
@@ -102,6 +103,7 @@ export default function useWalletImporter() {
       id,
       type: "ledger",
       name: `Ledger ${++walletSettings.lastLedgerNumber}`,
+      isLegacyWalletEnabled: false,
       accounts: [
         {
           index: 0,
@@ -135,6 +137,7 @@ export default function useWalletImporter() {
       id,
       type: "privateKey",
       name: `Private key ${++walletSettings.lastPrivateKeyNumber}`,
+      isLegacyWalletEnabled: false,
       accounts: [
         {
           index: 0,

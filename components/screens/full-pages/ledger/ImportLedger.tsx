@@ -1,4 +1,4 @@
-import { LegacyAccountFactory } from "@/lib/wallet/account-factory";
+import { AccountFactory } from "@/lib/wallet/account-factory";
 import { useNavigate } from "react-router-dom";
 import useLedgerTransport from "@/hooks/useLedgerTransport";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful.ts";
@@ -29,7 +29,7 @@ export default function ImportLedger() {
         await keyringInitialize(onboardingForm.getValues("password"));
       }
 
-      const accountFactory = new LegacyAccountFactory(rpcClient, networkId);
+      const accountFactory = new AccountFactory(rpcClient, networkId);
       const account = accountFactory.createFromLedger(transport);
 
       const publicKeys = await account.getPublicKeys();

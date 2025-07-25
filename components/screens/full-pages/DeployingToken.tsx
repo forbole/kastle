@@ -6,10 +6,8 @@ import { deploy, ForboleFee } from "@/lib/krc20.ts";
 import carriageImage from "@/assets/images/carriage.png";
 import { FORBOLE_PAYOUT_ADDRESSES } from "@/lib/forbole.ts";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
-import { WalletSecret } from "@/types/WalletSecret.ts";
-import { LegacyAccountFactory } from "@/lib/wallet/account-factory";
 import { DeployTokenState } from "@/components/screens/full-pages/DeployToken.tsx";
-import useWalletManager from "@/hooks/wallet/useWalletManager";
+import useKaspaHotWalletSigner from "@/hooks/wallet/useKaspaHotWalletSigner";
 
 export default function DeployingToken() {
   const navigate = useNavigate();
@@ -20,47 +18,16 @@ export default function DeployingToken() {
     state as DeployTokenState;
 
   const { rpcClient, networkId = NetworkType.Mainnet } = useRpcClientStateful();
-  const [secret, setSecret] = useState<WalletSecret>();
-  const { getWalletSecret } = useKeyring();
-  const { walletSettings } = useWalletManager();
+  const walletSigner = useKaspaHotWalletSigner();
 
   const [step, setStep] = useState<string>();
 
   useEffect(() => {
-    if (!walletSettings?.selectedWalletId) {
-      return;
-    }
-
-    getWalletSecret({
-      walletId: walletSettings.selectedWalletId,
-    }).then(({ walletSecret }) => setSecret(walletSecret));
-  }, [walletSettings]);
-
-  const accountFactory = !rpcClient
-    ? undefined
-    : new LegacyAccountFactory(rpcClient, networkId);
-
-  useEffect(() => {
-    if (
-      !rpcClient ||
-      walletSettings?.selectedAccountIndex === undefined ||
-      walletSettings?.selectedAccountIndex === null ||
-      !secret ||
-      !accountFactory
-    )
-      return;
+    if (!rpcClient || !walletSigner) return;
 
     const broadcastOperation = async () => {
-      const account =
-        secret.type === "mnemonic"
-          ? accountFactory.createFromMnemonic(
-              secret.value,
-              walletSettings.selectedAccountIndex,
-            )
-          : accountFactory.createFromPrivateKey(secret.value);
-
       for await (const result of deploy(
-        account,
+        walletSigner,
         {
           tick: ticker,
           max: maxSupply.toString(),
@@ -95,7 +62,7 @@ export default function DeployingToken() {
           { state: { error, op: "deploy" } },
         ),
       );
-  }, [rpcClient, walletSettings, secret, accountFactory]);
+  }, [rpcClient, walletSigner]);
 
   return (
     <div className="flex w-[41rem] flex-col items-stretch gap-4 rounded-3xl bg-icy-blue-950">

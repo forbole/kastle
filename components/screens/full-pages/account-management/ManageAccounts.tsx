@@ -10,10 +10,13 @@ import AdvancedSettingsModal from "./AdvancedSettingsModal";
 import { WalletInfo } from "@/contexts/WalletManagerContext";
 import useAccountManager from "@/hooks/wallet/useAccountManager";
 import useWalletEditor from "@/hooks/wallet/useWalletEditor";
+import { PublicKey } from "@/wasm/core/kaspa";
+import { useSettings } from "@/hooks/useSettings";
 
 export type AccountsFormValues = Record<
   string,
   {
+    address: string;
     publicKeys: string[];
     evmPublicKey?: `0x${string}`;
     active: boolean;
@@ -44,6 +47,7 @@ export default function ManageAccounts({
 }: ManageAccountsProps) {
   const calledOnce = useRef(false);
 
+  const [settings] = useSettings();
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
@@ -65,10 +69,16 @@ export default function ManageAccounts({
   const selectedAccountIds = wallet?.accounts.reduce<
     Record<
       string,
-      { publicKeys: string[]; evmPublicKey?: `0x${string}`; active: boolean }
+      {
+        address: string;
+        publicKeys: string[];
+        evmPublicKey?: `0x${string}`;
+        active: boolean;
+      }
     >
   >((acc, account) => {
     acc[account.index] = {
+      address: account.address,
       publicKeys: account.publicKeys ?? [],
       evmPublicKey: account.evmPublicKey ?? undefined,
       active: true,
@@ -96,6 +106,9 @@ export default function ManageAccounts({
 
           acc[index] = {
             active: value.active,
+            address: new PublicKey(publicKeys[0])
+              .toAddress(settings?.networkId ?? "mainnet")
+              .toString(),
             publicKeys,
             evmPublicKey: accountList[accountIndex].evmPublicKey,
           };
@@ -120,8 +133,6 @@ export default function ManageAccounts({
     if (!wallet.id || !listAccounts) {
       return;
     }
-
-    console.log("Fetching accounts from", offset, "to", offset + pageSize);
 
     return await listAccounts({
       walletId: wallet.id,
@@ -215,7 +226,7 @@ export default function ManageAccounts({
         <AdvancedSettingsModal
           isOpen={showAdvancedSettings}
           onClose={() => setShowAdvancedSettings(false)}
-          isLegacyWalletEnabled={isLegacyWalletEnabled ?? true}
+          isLegacyWalletEnabled={isLegacyWalletEnabled}
           toggleLegacyWallet={() => toggleLegacyWallet()}
         />
 

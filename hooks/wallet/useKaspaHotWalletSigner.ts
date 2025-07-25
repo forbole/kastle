@@ -8,7 +8,7 @@ import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import useKeyring from "@/hooks/useKeyring";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 
-export default function useWalletSigner() {
+export default function useKaspaHotWalletSigner() {
   const { getWalletSecret } = useKeyring();
   const { wallet: walletInfo, account } = useWalletManager();
   const { rpcClient, networkId } = useRpcClientStateful();
@@ -21,7 +21,7 @@ export default function useWalletSigner() {
     }
 
     getWalletSecret({ walletId: walletInfo.id }).then(({ walletSecret }) => {
-      const isLegacyEnabled = walletInfo.isLegacyWalletEnabled ?? true;
+      const isLegacyEnabled = walletInfo.isLegacyWalletEnabled ?? true; // Default to true if not specified
       const factory = isLegacyEnabled
         ? new LegacyAccountFactory(rpcClient, networkId)
         : new AccountFactory(rpcClient, networkId);

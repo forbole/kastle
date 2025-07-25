@@ -1,4 +1,4 @@
-import useWalletSigner from "@/hooks/wallet/useWalletSigner";
+import useKaspaHotWalletSigner from "@/hooks/wallet/useKaspaHotWalletSigner";
 import Splash from "@/components/screens/Splash";
 import { CommitRevealPayload } from "@/api/background/handlers/kaspa/commitReveal";
 import { Fee, buildCommitRevealScript } from "@/lib/krc20.ts";
@@ -22,7 +22,7 @@ export default function HotWalletCommitReveal({
   requestId: string;
   payload: CommitRevealPayload;
 }) {
-  const walletSigner = useWalletSigner();
+  const walletSigner = useKaspaHotWalletSigner();
   const kaspaPrice = useKaspaPrice();
   const [settings, setSettings] = useSettings();
   const [step, setStep] = useState<string>();

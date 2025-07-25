@@ -1,5 +1,8 @@
 import React, { useState } from "react";
-import { LegacyAccountFactory } from "@/lib/wallet/account-factory";
+import {
+  LegacyAccountFactory,
+  AccountFactory,
+} from "@/lib/wallet/account-factory";
 import ManageAccounts, {
   ListAccountsRequest,
 } from "@/components/screens/full-pages/account-management/ManageAccounts";
@@ -31,7 +34,9 @@ export default function RecoveryPhraseManageAccounts() {
       ? async ({ walletId, start, end }: ListAccountsRequest) => {
           if (!rpcClient) return [];
 
-          const accountFactory = new LegacyAccountFactory(rpcClient, networkId);
+          const accountFactory = isLegacyEnabled
+            ? new LegacyAccountFactory(rpcClient, networkId)
+            : new AccountFactory(rpcClient, networkId);
           const { walletSecret } = await getWalletSecret({ walletId });
 
           if (!walletSecret || walletSecret.type !== "mnemonic") {

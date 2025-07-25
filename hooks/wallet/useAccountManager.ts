@@ -86,7 +86,15 @@ export default function useAccountManager() {
     accounts,
   }: {
     walletId: string;
-    accounts: Record<string, { publicKeys: string[]; active: boolean }>;
+    accounts: Record<
+      string,
+      {
+        address: string;
+        publicKeys: string[];
+        evmPublicKey?: `0x${string}`;
+        active: boolean;
+      }
+    >;
   }) => {
     if (!rpcClient || !networkId) {
       throw new Error("RPC client and settings not loaded");
@@ -113,6 +121,10 @@ export default function useAccountManager() {
 
         // Account already active
         if (account) {
+          account.publicKeys = value.publicKeys;
+          account.address = value.address;
+          account.evmPublicKey = value.evmPublicKey;
+          account.balance = undefined;
           return;
         }
 

@@ -1,6 +1,5 @@
 import React, { useEffect } from "react";
 import { captureException } from "@sentry/react";
-import { LegacyAccountFactory } from "@/lib/wallet/account-factory";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful.ts";
 import { transfer } from "@/lib/kns";
 import { useFormContext } from "react-hook-form";
@@ -10,6 +9,7 @@ import useKNSRecentTransfer from "@/hooks/useKNSRecentTransfer.ts";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import Header from "@/components/GeneralHeader.tsx";
 import carriageImage from "@/assets/images/carriage.png";
+import useKaspaHotWalletSigner from "@/hooks/wallet/useKaspaHotWalletSigner";
 
 interface KNSTransferBroadcastProps {
   setOutTxs: (value: string[] | undefined) => void;
@@ -26,13 +26,17 @@ export default function KNSTransferBroadcast({
   const { addRecentAddress } = useRecentAddresses();
   const { addRecentKNSTransfer } = useKNSRecentTransfer();
   const { walletSettings } = useWalletManager();
-  const { getWalletSecret } = useKeyring();
   const { rpcClient, networkId } = useRpcClientStateful();
   const { watch } = useFormContext<KNSTransferFormData>();
   const { assetId, address, domain, isDomain } = watch();
+  const walletSigner = useKaspaHotWalletSigner();
 
   const broadcastOperation = async () => {
     try {
+      if (!walletSigner) {
+        throw new Error("Wallet signer is not initialized");
+      }
+
       const selectedWalletId = walletSettings?.selectedWalletId;
       const selectedAccountIndex = walletSettings?.selectedAccountIndex;
       if (!selectedWalletId || typeof selectedAccountIndex !== "number") {
@@ -47,20 +51,7 @@ export default function KNSTransferBroadcast({
         throw new Error("Missing recipient address");
       }
 
-      const { walletSecret } = await getWalletSecret({
-        walletId: selectedWalletId,
-      });
-
-      const accountFactory = new LegacyAccountFactory(rpcClient, networkId);
-      const account =
-        walletSecret.type === "mnemonic"
-          ? accountFactory.createFromMnemonic(
-              walletSecret.value,
-              selectedAccountIndex,
-            )
-          : accountFactory.createFromPrivateKey(walletSecret.value);
-
-      for await (const result of transfer(account, {
+      for await (const result of transfer(walletSigner, {
         ...(isDomain && { p: "domain" }),
         id: assetId,
         to: address,
@@ -72,7 +63,7 @@ export default function KNSTransferBroadcast({
 
       await addRecentKNSTransfer({
         id: assetId,
-        from: await account.getAddress(),
+        from: await walletSigner.getAddress(),
         at: new Date().getTime(),
       });
 

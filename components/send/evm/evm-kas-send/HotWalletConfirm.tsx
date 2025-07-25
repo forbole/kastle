@@ -1,5 +1,5 @@
 import { ConfirmStep } from "@/components/send/evm/evm-kas-send/ConfirmStep";
-import useWalletSigner from "@/hooks/evm/useWalletSigner";
+import useEvmHotWalletSigner from "@/hooks/evm/useEvmHotWalletSigner";
 
 type HotWalletConfirmProps = {
   chainId: `0x${string}`;
@@ -16,7 +16,7 @@ export default function HotWalletConfirm({
   setOutTxs,
   onFail,
 }: HotWalletConfirmProps) {
-  const walletSigner = useWalletSigner();
+  const walletSigner = useEvmHotWalletSigner();
 
   return (
     <ConfirmStep

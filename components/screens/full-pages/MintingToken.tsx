@@ -11,13 +11,10 @@ import {
 } from "@/lib/krc20.ts";
 import carriageImage from "@/assets/images/carriage.png";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
-import { WalletSecret } from "@/types/WalletSecret.ts";
-import { LegacyAccountFactory } from "@/lib/wallet/account-factory";
 import { Tooltip } from "react-tooltip";
 import { FORBOLE_PAYOUT_ADDRESSES } from "@/lib/forbole.ts";
-import useKeyring from "@/hooks/useKeyring";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
-import useWalletManager from "@/hooks/wallet/useWalletManager";
+import useKaspaHotWalletSigner from "@/hooks/wallet/useKaspaHotWalletSigner";
 
 export default function MintingToken() {
   const MIN_MINT_TIMES = 10;
@@ -39,45 +36,14 @@ export default function MintingToken() {
   const { totalFees: paidFees } = computeOperationFees("mint", timesMinted);
 
   const { rpcClient, networkId = NetworkType.Mainnet } = useRpcClientStateful();
-  const [secret, setSecret] = useState<WalletSecret>();
-  const { getWalletSecret } = useKeyring();
-  const { walletSettings } = useWalletManager();
+  const walletSigner = useKaspaHotWalletSigner();
 
   useEffect(() => {
-    if (!walletSettings?.selectedWalletId) {
-      return;
-    }
-
-    getWalletSecret({
-      walletId: walletSettings.selectedWalletId,
-    }).then(({ walletSecret }) => setSecret(walletSecret));
-  }, [walletSettings]);
-
-  const accountFactory = !rpcClient
-    ? undefined
-    : new LegacyAccountFactory(rpcClient, networkId);
-
-  useEffect(() => {
-    if (
-      !rpcClient ||
-      walletSettings?.selectedAccountIndex === undefined ||
-      walletSettings?.selectedAccountIndex === null ||
-      !secret ||
-      !accountFactory
-    )
-      return;
+    if (!rpcClient || !walletSigner) return;
 
     const broadcastOperation = async (includeForboleFees: boolean = false) => {
-      const account =
-        secret.type === "mnemonic"
-          ? accountFactory.createFromMnemonic(
-              secret.value,
-              walletSettings.selectedAccountIndex,
-            )
-          : accountFactory.createFromPrivateKey(secret.value);
-
       for await (const result of mint(
-        account,
+        walletSigner,
         { tick: ticker },
         includeForboleFees
           ? [
@@ -127,7 +93,7 @@ export default function MintingToken() {
     calledOnce.current = true;
 
     processMinting();
-  }, [rpcClient, walletSettings, secret, accountFactory]);
+  }, [rpcClient, walletSigner]);
 
   const progressPercentage = (timesMinted / mintTimes) * 100;
   const max = parseInt(tokenInfo?.max ?? "0", 10);

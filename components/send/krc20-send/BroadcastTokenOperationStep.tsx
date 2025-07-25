@@ -1,9 +1,5 @@
-import { useEffect, useState } from "react";
-import { WalletSecret } from "@/types/WalletSecret";
-import { LegacyAccountFactory } from "@/lib/wallet/account-factory";
-import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import HotWalletBroadcastTokenOperation from "@/components/send/krc20-send/HotWalletBroadcastTokenOperation";
-import useWalletManager from "@/hooks/wallet/useWalletManager";
+import useKaspaHotWalletSigner from "@/hooks/wallet/useKaspaHotWalletSigner";
 
 interface SendingProps {
   setOutTxs: (value: string[] | undefined) => void;
@@ -16,34 +12,14 @@ export default function BroadcastTokenOperationStep({
   onFail,
   onSuccess,
 }: SendingProps) {
-  const { rpcClient } = useRpcClientStateful();
-  const [settings] = useSettings();
-  const [secret, setSecret] = useState<WalletSecret>();
-  const { getWalletSecret } = useKeyring();
-  const { walletSettings } = useWalletManager();
-
-  useEffect(() => {
-    if (!walletSettings?.selectedWalletId) {
-      return;
-    }
-
-    getWalletSecret({
-      walletId: walletSettings.selectedWalletId,
-    }).then(({ walletSecret }) => setSecret(walletSecret));
-  }, [walletSettings]);
-
-  const accountFactory =
-    !rpcClient || !settings
-      ? undefined
-      : new LegacyAccountFactory(rpcClient, settings.networkId);
+  const walletSigner = useKaspaHotWalletSigner();
 
   return (
     <>
       {/* FIXME Ledger support */}
-      {secret && accountFactory && (
+      {walletSigner && (
         <HotWalletBroadcastTokenOperation
-          accountFactory={accountFactory}
-          secret={secret}
+          walletSigner={walletSigner}
           setOutTxs={setOutTxs}
           onFail={onFail}
           onSuccess={onSuccess}
