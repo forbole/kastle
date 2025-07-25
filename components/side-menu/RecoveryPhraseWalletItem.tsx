@@ -31,6 +31,11 @@ export const RecoveryPhraseWalletItem = ({
         browser.tabs.create({ url: url.toString() });
       },
     },
+    {
+      label: "Remove this wallet",
+      onClick: () => navigate(`/remove-wallet/${wallet.id}`),
+      isAlert: true,
+    }
   ];
 
   return (

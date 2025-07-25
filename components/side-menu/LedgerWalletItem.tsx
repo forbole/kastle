@@ -1,6 +1,7 @@
 import { WalletInfo } from "@/contexts/WalletManagerContext.tsx";
 import AccountItem from "./AccountItem";
 import WalletHeader from "./WalletHeader";
+import { useNavigate } from "react-router-dom";
 
 interface LedgerWalletItemProps {
   wallet: WalletInfo;
@@ -11,6 +12,8 @@ export const LedgerWalletItem = ({
   wallet,
   onClose,
 }: LedgerWalletItemProps) => {
+  const navigate = useNavigate();
+
   const manageAccounts = () => {
     const url = new URL(browser.runtime.getURL("/popup.html"));
     url.hash = `/manage-accounts/ledger/${wallet.id}/manage`;
@@ -23,6 +26,11 @@ export const LedgerWalletItem = ({
       label: "Manage accounts",
       onClick: manageAccounts,
     },
+    {
+      label: "Remove this wallet",
+      onClick: () => navigate(`/remove-wallet/${wallet.id}`),
+      isAlert: true,
+    }
   ];
 
   return (
