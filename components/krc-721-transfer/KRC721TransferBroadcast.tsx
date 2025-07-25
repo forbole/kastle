@@ -1,10 +1,10 @@
 import React, { useEffect } from "react";
 import { captureException } from "@sentry/react";
-import { AccountFactory } from "@/lib/wallet/wallet-factory.ts";
+import { LegacyAccountFactory } from "@/lib/wallet/account-factory";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful.ts";
 import { useFormContext } from "react-hook-form";
 import useRecentAddresses from "@/hooks/useRecentAddresses.ts";
-import useWalletManager from "@/hooks/useWalletManager.ts";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 import Header from "@/components/GeneralHeader.tsx";
 import carriageImage from "@/assets/images/carriage.png";
 import { KRC721TransferFormData } from "@/components/screens/KRC721Transfer.tsx";
@@ -51,7 +51,7 @@ export default function KRC721TransferBroadcast({
         walletId: selectedWalletId,
       });
 
-      const accountFactory = new AccountFactory(rpcClient, networkId);
+      const accountFactory = new LegacyAccountFactory(rpcClient, networkId);
       const account =
         walletSecret.type === "mnemonic"
           ? accountFactory.createFromMnemonic(

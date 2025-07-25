@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { WalletInfo } from "@/contexts/WalletManagerContext.tsx";
 import AccountItem from "./AccountItem";
 import WalletHeader from "./WalletHeader";
+import useAccountManager from "@/hooks/wallet/useAccountManager";
 
 interface RecoveryPhraseWalletItemProps {
   wallet: WalletInfo;
@@ -13,7 +14,7 @@ export const RecoveryPhraseWalletItem = ({
   onClose,
 }: RecoveryPhraseWalletItemProps) => {
   const navigate = useNavigate();
-  const { addAccount } = useWalletManager();
+  const { addAccount } = useAccountManager();
 
   const menuItems = [
     {

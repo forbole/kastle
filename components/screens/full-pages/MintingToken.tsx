@@ -12,9 +12,12 @@ import {
 import carriageImage from "@/assets/images/carriage.png";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import { WalletSecret } from "@/types/WalletSecret.ts";
-import { AccountFactory } from "@/lib/wallet/wallet-factory.ts";
+import { LegacyAccountFactory } from "@/lib/wallet/account-factory";
 import { Tooltip } from "react-tooltip";
 import { FORBOLE_PAYOUT_ADDRESSES } from "@/lib/forbole.ts";
+import useKeyring from "@/hooks/useKeyring";
+import useRpcClientStateful from "@/hooks/useRpcClientStateful";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 
 export default function MintingToken() {
   const MIN_MINT_TIMES = 10;
@@ -52,7 +55,7 @@ export default function MintingToken() {
 
   const accountFactory = !rpcClient
     ? undefined
-    : new AccountFactory(rpcClient, networkId);
+    : new LegacyAccountFactory(rpcClient, networkId);
 
   useEffect(() => {
     if (

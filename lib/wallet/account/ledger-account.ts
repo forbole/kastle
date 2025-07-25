@@ -27,9 +27,9 @@ import KaspaApp, {
 
 const LEDGER_ACCOUNT_INDEX_OFFSET = 0x80000000;
 
-export class LedgerAccount implements IWallet {
+export class LegacyLedgerAccount implements IWallet {
   private readonly app: KaspaApp;
-  private readonly path: string;
+  protected path: string;
 
   constructor(
     transport: Transport,
@@ -249,5 +249,17 @@ export class LedgerAccount implements IWallet {
       payload: "",
       version: 0,
     });
+  }
+}
+
+export class LedgerAccount extends LegacyLedgerAccount {
+  constructor(
+    transport: Transport,
+    accountIndex: number,
+    rpcClient: RpcClient,
+    networkId: string,
+  ) {
+    super(transport, accountIndex, rpcClient, networkId);
+    this.path = `m/44'/111111'/0'/0/${accountIndex}`;
   }
 }

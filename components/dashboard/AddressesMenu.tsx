@@ -1,6 +1,6 @@
 import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import AddressItem from "./AddressItem";
-import useWalletManager from "@/hooks/useWalletManager";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { useNavigate } from "react-router-dom";
 import { TESTNET_SUPPORTED_EVM_L2_CHAINS } from "@/lib/layer2";
 import { useSettings } from "@/hooks/useSettings";

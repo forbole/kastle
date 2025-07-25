@@ -1,8 +1,8 @@
 import { SignTxPayload } from "@/api/background/handlers/kaspa/utils";
 import SignTx from "@/components/screens/browser-api/kaspa/sign-tx/SignTx";
 import { IWallet } from "@/lib/wallet/wallet-interface.ts";
-import { AccountFactory } from "@/lib/wallet/wallet-factory";
-import useWalletManager from "@/hooks/useWalletManager.ts";
+import { LegacyAccountFactory } from "@/lib/wallet/account-factory";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import Splash from "@/components/screens/Splash.tsx";
 
@@ -29,7 +29,7 @@ export default function HotWalletSignTx({
     }
 
     getWalletSecret({ walletId: walletInfo.id }).then(({ walletSecret }) => {
-      const factory = new AccountFactory(rpcClient, rpcNetworkId);
+      const factory = new LegacyAccountFactory(rpcClient, rpcNetworkId);
 
       switch (walletInfo.type) {
         case "mnemonic":

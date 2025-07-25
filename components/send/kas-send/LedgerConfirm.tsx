@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { AccountFactory } from "@/lib/wallet/wallet-factory";
+import { LegacyAccountFactory } from "@/lib/wallet/account-factory";
 import { ConfirmStep } from "@/components/send/kas-send/ConfirmStep";
 import { IWallet } from "@/lib/wallet/wallet-interface";
-import useWalletManager from "@/hooks/useWalletManager.ts";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import useLedgerTransport from "@/hooks/useLedgerTransport";
 import LedgerConnectForSign from "@/components/screens/ledger-connect/LedgerConnectForSign";
@@ -46,7 +46,7 @@ export default function LedgerConfirm({
         return;
       }
 
-      const accountFactory = new AccountFactory(rpcClient, networkId);
+      const accountFactory = new LegacyAccountFactory(rpcClient, networkId);
       const accountIndex = walletSettings?.selectedAccountIndex;
       if (accountIndex === null || accountIndex === undefined) {
         throw new Error("No account selected");

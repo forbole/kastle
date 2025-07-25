@@ -3,7 +3,7 @@ import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import useEvmKasBalance from "@/hooks/evm/useEvmKasBalance";
 import { useNavigate } from "react-router-dom";
 import { getChainImage, getChainName } from "@/lib/layer2";
-import useWalletManager from "@/hooks/useWalletManager";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { twMerge } from "tailwind-merge";
 import { formatToken } from "@/lib/utils.ts";
 import HoverTooltip from "@/components/HoverTooltip";

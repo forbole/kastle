@@ -3,10 +3,13 @@ import { FormProvider, useForm } from "react-hook-form";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import toast from "@/components/Toast";
-import { ErrorResponse } from "@/lib/service/handlers/error-response";
 import { useBoolean } from "usehooks-ts";
 import Header from "@/components/GeneralHeader";
 import { useLocation } from "react-router";
+import AdvancedSettingsModal from "./AdvancedSettingsModal";
+import { WalletInfo } from "@/contexts/WalletManagerContext";
+import useAccountManager from "@/hooks/wallet/useAccountManager";
+import useWalletEditor from "@/hooks/wallet/useWalletEditor";
 
 export type AccountsFormValues = Record<
   string,
@@ -24,21 +27,27 @@ export type ListAccountsRequest = {
 };
 
 type ManageAccountsProps = {
-  walletType: "ledger" | "mnemonic";
   listAccounts?: (
     params: ListAccountsRequest,
   ) => Promise<{ publicKeys: string[] }[]>;
+
+  wallet: WalletInfo;
+  isLegacyWalletEnabled: boolean;
+  toggleLegacyWallet: () => void;
 };
 
 export default function ManageAccounts({
-  walletType,
+  wallet,
   listAccounts,
+  isLegacyWalletEnabled,
+  toggleLegacyWallet,
 }: ManageAccountsProps) {
   const calledOnce = useRef(false);
 
+  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const { walletId, action } = useParams();
+  const { action } = useParams();
   const pageSize = 10;
   const [offset, setOffset] = useState(0);
 
@@ -50,9 +59,9 @@ export default function ManageAccounts({
   const [accountList, setAccountList] = useState<
     { publicKeys: string[]; evmPublicKey?: `0x${string}` }[]
   >([]);
-  const { walletSettings, updateSelectedAccounts } = useWalletManager();
+  const { setLegacyWalletEnabled } = useWalletEditor();
+  const { updateSelectedAccounts } = useAccountManager();
 
-  const wallet = walletSettings?.wallets.find(({ id }) => id === walletId);
   const selectedAccountIds = wallet?.accounts.reduce<
     Record<
       string,
@@ -73,10 +82,6 @@ export default function ManageAccounts({
 
   const onSubmit = form.handleSubmit(async (data) => {
     try {
-      if (!walletId) {
-        throw new Error("Wallet not found");
-      }
-
       // Fill the publicKeys to the accounts object, or the accounts would be missing the public keys
       const accounts = Object.entries(data).reduce((acc, [index, value]) => {
         if (value.active) {
@@ -98,14 +103,12 @@ export default function ManageAccounts({
         return acc;
       }, {} as AccountsFormValues);
 
-      const response = await updateSelectedAccounts({
-        walletId,
+      await updateSelectedAccounts({
+        walletId: wallet.id,
         accounts,
       });
 
-      if (ErrorResponse.validate(response)) {
-        throw new Error(response.error);
-      }
+      await setLegacyWalletEnabled(wallet.id, isLegacyWalletEnabled);
 
       navigate(location?.state?.redirect ?? "/accounts-imported");
     } catch (error: any) {
@@ -114,12 +117,14 @@ export default function ManageAccounts({
   });
 
   const fetchAccountListChunk = async (offset: number) => {
-    if (!walletId || !listAccounts) {
+    if (!wallet.id || !listAccounts) {
       return;
     }
 
+    console.log("Fetching accounts from", offset, "to", offset + pageSize);
+
     return await listAccounts({
-      walletId: walletId,
+      walletId: wallet.id,
       start: offset,
       end: offset + pageSize,
     });
@@ -155,40 +160,63 @@ export default function ManageAccounts({
     }
   }, [listAccounts]);
 
-  useEffect(() => {
-    if (!walletSettings || !walletId) {
-      return;
-    }
-
-    const wallet = walletSettings?.wallets.find(({ id }) => id === walletId);
-    if (!wallet) {
-      window.close();
-    }
-  }, [walletSettings, walletId]);
-
-  if (!walletId) {
-    window.close();
-    return null;
-  }
-
   const subtitle = {
     mnemonic:
-      "This page shows accounts created from your recovery phrase. Each phrase can generate multiple accounts, and here you can view and manage them.",
+      "These accounts are generated from your recovery phrase. Each one supports both Kaspa (KAS) and EVM networks, so you can add them to Kastle.",
     ledger:
-      "This page shows accounts managed by your Ledger. You can select accounts to import and manage in Kastle.",
-  }[walletType];
+      "These accounts are generated from your Ledger device. Each one supports Kaspa (KAS), so you can add them to Kastle.",
+    privateKey: "", // Not used in this context
+  }[wallet.type];
 
   return (
     <FormProvider {...form}>
       <form
         onSubmit={onSubmit}
-        className="flex w-[41rem] flex-col items-stretch gap-4 rounded-3xl bg-icy-blue-950 p-8"
+        className="relative flex w-[41rem] flex-col items-stretch gap-4 rounded-3xl bg-icy-blue-950 p-8"
       >
         {/* Header */}
         <Header
           title={action === "manage" ? "Manage Accounts" : "Import Accounts"}
           subtitle={subtitle}
           showPrevious={false}
+        />
+
+        {/* Advanced Settings Button */}
+        <div className="mb-6 flex justify-end">
+          <button
+            onClick={() => setShowAdvancedSettings(true)}
+            type="button"
+            className="flex items-center gap-2 text-sm text-slate-300 transition-colors hover:text-cyan-400"
+          >
+            <span>Advanced Settings</span>
+            <svg
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+              />
+            </svg>
+          </button>
+        </div>
+
+        {/* Advanced Settings Modal */}
+        <AdvancedSettingsModal
+          isOpen={showAdvancedSettings}
+          onClose={() => setShowAdvancedSettings(false)}
+          isLegacyWalletEnabled={isLegacyWalletEnabled ?? true}
+          toggleLegacyWallet={() => toggleLegacyWallet()}
         />
 
         {/* List */}

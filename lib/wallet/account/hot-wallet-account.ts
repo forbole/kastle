@@ -31,14 +31,14 @@ import {
   waitTxForAddress,
 } from "@/lib/kaspa.ts";
 
-export class HotWalletAccount implements IWallet {
+export class LegacyHotWalletAccount implements IWallet {
   private readonly MAX_DERIVATION_INDEXES = 50;
 
   constructor(
-    private readonly seed: string,
-    private readonly accountIndex: number,
+    protected readonly seed: string,
+    protected readonly accountIndex: number,
     private readonly rpcClient: RpcClient,
-    private readonly networkId: NetworkType,
+    protected readonly networkId: NetworkType,
   ) {}
 
   async *performCommitReveal(
@@ -104,11 +104,7 @@ export class HotWalletAccount implements IWallet {
   }
 
   public getPrivateKeyString() {
-    const xprv = new XPrv(this.seed);
-    const privateKey = xprv
-      .derivePath(`m/44'/111111'/${this.accountIndex}'/0/0`)
-      .toPrivateKey();
-
+    const privateKey = this.getPrivateKey();
     return privateKey.toKeypair().privateKey;
   }
 
@@ -167,12 +163,7 @@ export class HotWalletAccount implements IWallet {
   }
 
   getAddress(): string {
-    const xprv = new XPrv(this.seed);
-    const privateKey = xprv
-      .derivePath(`m/44'/111111'/${this.accountIndex}'/0/0`)
-      .toPrivateKey();
-
-    return privateKey.toKeypair().toAddress(this.networkId).toString();
+    return this.getPrivateKey().toAddress(this.networkId).toString();
   }
 
   // NOTE: This method does not support signing with multiple keys
@@ -301,14 +292,14 @@ export class HotWalletAccount implements IWallet {
     };
   }
 
-  private getPrivateKey() {
+  protected getPrivateKey() {
     const xprv = new XPrv(this.seed);
     return xprv
       .derivePath(`m/44'/111111'/${this.accountIndex}'/0/0`)
       .toPrivateKey();
   }
 
-  private getPrivateKeys(indexes: number[]) {
+  protected getPrivateKeys(indexes: number[]) {
     const xprv = new XPrv(this.seed);
     const privateKeys = [];
 
@@ -352,5 +343,36 @@ export class HotWalletAccount implements IWallet {
     // TODO handle amount sum < amount?
 
     return [entries, indexes] as const;
+  }
+}
+
+export class HotWalletAccount extends LegacyHotWalletAccount {
+  constructor(
+    seed: string,
+    accountIndex: number,
+    rpcClient: RpcClient,
+    networkId: NetworkType,
+  ) {
+    super(seed, accountIndex, rpcClient, networkId);
+  }
+
+  override getPublicKeys() {
+    const xprv = new XPrv(this.seed);
+    const privateKey = xprv
+      .derivePath(`m/44'/111111'/0'/0/${this.accountIndex}`)
+      .toPrivateKey();
+
+    return [privateKey.toPublicKey().toString()];
+  }
+
+  override getPrivateKey() {
+    const xprv = new XPrv(this.seed);
+    return xprv
+      .derivePath(`m/44'/111111'/0'/0/${this.accountIndex}`)
+      .toPrivateKey();
+  }
+
+  override getPrivateKeys(indexes: number[]) {
+    return [this.getPrivateKey().toKeypair().privateKey];
   }
 }

@@ -1,0 +1,218 @@
+import {
+  LegacyAccountFactory as KaspaLegacyAccountFactory,
+  AccountFactory as KaspaAccountFactory,
+} from "@/lib/wallet/account-factory";
+import { AccountFactory as EvmAccountFactory } from "@/lib/ethereum/wallet/account-factory";
+import useRpcClientStateful from "@/hooks/useRpcClientStateful";
+import { PublicKey } from "@/wasm/core/kaspa";
+import useKeyring from "@/hooks/useKeyring";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
+
+export default function useAccountManager() {
+  const { rpcClient, networkId } = useRpcClientStateful();
+  const { walletSettings, setWalletSettings } = useWalletManager();
+  const keyring = useKeyring();
+
+  // Function to add a new account to the wallet
+  const addAccount = async (
+    walletId: string,
+    select: boolean | undefined = false,
+  ) => {
+    if (!rpcClient || !networkId) {
+      throw new Error("RPC client and settings not loaded");
+    }
+    if (!walletSettings) {
+      throw new Error("Wallet manager not initialized");
+    }
+
+    const wallet = walletSettings.wallets.find((w) => walletId === w.id);
+
+    if (!wallet) {
+      throw new Error(`Wallet ${walletId} not found`);
+    }
+
+    const lastAccount = wallet.accounts[wallet.accounts.length - 1];
+    const nextIndex = lastAccount.index + 1;
+
+    const { walletSecret } = await keyring.getWalletSecret({ walletId });
+
+    const newAccount = new KaspaLegacyAccountFactory(
+      rpcClient,
+      networkId,
+    ).createFromMnemonic(walletSecret.value, nextIndex);
+
+    const newEvmAccount = EvmAccountFactory.createFromMnemonic(
+      walletSecret.value,
+      nextIndex,
+    );
+
+    wallet.accounts.push({
+      address: await newAccount.getAddress(),
+      balance: undefined,
+      name: `Account ${nextIndex}`,
+      index: nextIndex,
+      publicKeys: await newAccount.getPublicKeys(),
+      evmPublicKey: await newEvmAccount.getPublicKey(),
+    });
+
+    if (select) {
+      walletSettings.selectedAccountIndex = nextIndex;
+    }
+
+    await setWalletSettings(walletSettings);
+  };
+
+  // Function to select an account in the wallet
+  const selectAccount = async (
+    walletId: string,
+    accountIndex: number | undefined = undefined,
+  ) => {
+    if (!walletSettings) {
+      throw new Error("Wallet manager not initialized");
+    }
+
+    walletSettings.selectedWalletId = walletId;
+
+    if (accountIndex !== undefined) {
+      walletSettings.selectedAccountIndex = accountIndex;
+    }
+
+    await setWalletSettings(walletSettings);
+  };
+
+  // Function to update selected accounts in the wallet
+  const updateSelectedAccounts = async ({
+    walletId,
+    accounts,
+  }: {
+    walletId: string;
+    accounts: Record<string, { publicKeys: string[]; active: boolean }>;
+  }) => {
+    if (!rpcClient || !networkId) {
+      throw new Error("RPC client and settings not loaded");
+    }
+    if (!walletSettings) {
+      throw new Error("Wallet manager not initialized");
+    }
+
+    const wallet = walletSettings.wallets.find((w) => w.id === walletId);
+    if (!wallet) {
+      throw new Error("Wallet not found");
+    }
+
+    let updatedAccounts = wallet.accounts;
+
+    // Filtering out accounts set to false
+    updatedAccounts = updatedAccounts.filter((a) => accounts[`${a.index}`]);
+
+    // Adding selected accounts
+    Object.entries(accounts).forEach(([index, value]) => {
+      if (value.active) {
+        const indexNumber = parseInt(index, 10);
+        const account = updatedAccounts.find((a) => a.index === indexNumber);
+
+        // Account already active
+        if (account) {
+          return;
+        }
+
+        updatedAccounts.push({
+          index: indexNumber,
+          name: `Account ${indexNumber}`,
+          balance: undefined,
+          address: new PublicKey(value.publicKeys[0])
+            .toAddress(networkId)
+            .toString(),
+          publicKeys: value.publicKeys,
+        });
+      }
+    });
+
+    // Prevent no accounts in wallet
+    if (updatedAccounts.length === 0) {
+      throw new Error("Oops! Please select at least one account to proceed.");
+    }
+
+    // Sort accounts by index
+    updatedAccounts.sort((a, b) => a.index - b.index);
+
+    const isSelectedAccountRemoved =
+      wallet.id === walletSettings.selectedWalletId &&
+      !updatedAccounts.find(
+        (a) => a.index === walletSettings.selectedAccountIndex,
+      );
+
+    // Selected account is not in the list then select the first account
+    if (
+      walletSettings.selectedAccountIndex === null ||
+      isSelectedAccountRemoved
+    ) {
+      walletSettings.selectedAccountIndex = updatedAccounts[0].index;
+    }
+
+    // Update accounts
+    wallet.accounts = updatedAccounts;
+
+    await setWalletSettings(walletSettings);
+  };
+
+  // Function to rename an account in the wallet
+  const renameAccount = async ({
+    name,
+    walletId,
+    accountIndex,
+  }: {
+    name: string;
+    walletId: string;
+    accountIndex: number;
+  }) => {
+    if (!walletSettings) {
+      throw new Error("Wallet manager not initialized");
+    }
+
+    const account = walletSettings.wallets
+      .find((w) => w.id === walletId)
+      ?.accounts?.find((a) => a.index === accountIndex);
+
+    if (!account) {
+      throw new Error("Account not found");
+    }
+
+    account.name = name;
+
+    await setWalletSettings(walletSettings);
+    await selectAccount(walletId, accountIndex);
+  };
+
+  const getAccountPrivateKey = async ({
+    walletId,
+    accountIndex,
+  }: {
+    walletId: string;
+    accountIndex: number;
+  }) => {
+    if (!rpcClient || !networkId) {
+      throw new Error("RPC client and settings not loaded");
+    }
+    const { walletSecret } = await keyring.getWalletSecret({ walletId });
+
+    if (walletSecret.type === "mnemonic") {
+      const hotWallet = new KaspaLegacyAccountFactory(
+        rpcClient,
+        networkId,
+      ).createFromMnemonic(walletSecret.value, accountIndex);
+
+      return hotWallet.getPrivateKeyString();
+    } else {
+      return walletSecret.value;
+    }
+  };
+
+  return {
+    addAccount,
+    selectAccount,
+    updateSelectedAccounts,
+    renameAccount,
+    getAccountPrivateKey,
+  };
+}

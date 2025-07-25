@@ -1,13 +1,13 @@
 import React, { useEffect } from "react";
 import { captureException } from "@sentry/react";
-import { AccountFactory } from "@/lib/wallet/wallet-factory.ts";
+import { LegacyAccountFactory } from "@/lib/wallet/account-factory";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful.ts";
 import { transfer } from "@/lib/kns";
 import { useFormContext } from "react-hook-form";
 import { KNSTransferFormData } from "@/components/screens/KNSTransfer.tsx";
 import useRecentAddresses from "@/hooks/useRecentAddresses.ts";
 import useKNSRecentTransfer from "@/hooks/useKNSRecentTransfer.ts";
-import useWalletManager from "@/hooks/useWalletManager.ts";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 import Header from "@/components/GeneralHeader.tsx";
 import carriageImage from "@/assets/images/carriage.png";
 
@@ -51,7 +51,7 @@ export default function KNSTransferBroadcast({
         walletId: selectedWalletId,
       });
 
-      const accountFactory = new AccountFactory(rpcClient, networkId);
+      const accountFactory = new LegacyAccountFactory(rpcClient, networkId);
       const account =
         walletSecret.type === "mnemonic"
           ? accountFactory.createFromMnemonic(

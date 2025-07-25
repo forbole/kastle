@@ -1,4 +1,4 @@
-import useWalletSigner from "@/hooks/useWalletSigner";
+import useWalletSigner from "@/hooks/wallet/useWalletSigner";
 import Splash from "@/components/screens/Splash";
 import { CommitRevealPayload } from "@/api/background/handlers/kaspa/commitReveal";
 import { Fee, buildCommitRevealScript } from "@/lib/krc20.ts";

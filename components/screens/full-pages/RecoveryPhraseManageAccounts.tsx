@@ -1,5 +1,5 @@
-import React from "react";
-import { AccountFactory } from "@/lib/wallet/wallet-factory";
+import React, { useState } from "react";
+import { LegacyAccountFactory } from "@/lib/wallet/account-factory";
 import ManageAccounts, {
   ListAccountsRequest,
 } from "@/components/screens/full-pages/account-management/ManageAccounts";
@@ -9,18 +9,29 @@ import {
   AccountFactory as EvmAccountFactory,
   LegacyAccountFactory as EvmLegacyAccountFactory,
 } from "@/lib/ethereum/wallet/account-factory";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
+import { useParams } from "react-router-dom";
+import Splash from "../Splash";
 
 export default function RecoveryPhraseManageAccounts() {
   const { rpcClient, networkId } = useRpcClientStateful();
   const { getWalletSecret } = useKeyring();
   const [settings] = useSettings();
 
+  const { walletId } = useParams();
+  const { walletSettings } = useWalletManager();
+  const wallet = walletSettings?.wallets.find(({ id }) => id === walletId);
+
+  const [isLegacyEnabled, setIsLegacyEnabled] = useState(
+    wallet?.isLegacyWalletEnabled ?? true,
+  );
+
   const listAccounts =
     rpcClient && networkId
       ? async ({ walletId, start, end }: ListAccountsRequest) => {
           if (!rpcClient) return [];
 
-          const accountFactory = new AccountFactory(rpcClient, networkId);
+          const accountFactory = new LegacyAccountFactory(rpcClient, networkId);
           const { walletSecret } = await getWalletSecret({ walletId });
 
           if (!walletSecret || walletSecret.type !== "mnemonic") {
@@ -52,5 +63,18 @@ export default function RecoveryPhraseManageAccounts() {
         }
       : undefined;
 
-  return <ManageAccounts walletType="mnemonic" listAccounts={listAccounts} />;
+  return (
+    <>
+      {!wallet && <Splash />}
+      {wallet && (
+        <ManageAccounts
+          key={`manage-accounts-${isLegacyEnabled}`}
+          wallet={wallet}
+          listAccounts={listAccounts}
+          isLegacyWalletEnabled={isLegacyEnabled}
+          toggleLegacyWallet={() => setIsLegacyEnabled((prev) => !prev)}
+        />
+      )}
+    </>
+  );
 }

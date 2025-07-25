@@ -9,6 +9,7 @@ import { useBoolean } from "usehooks-ts";
 import { OnboardingData } from "@/components/screens/Onboarding.tsx";
 import useKeyring from "@/hooks/useKeyring.ts";
 import Header from "@/components/GeneralHeader.tsx";
+import useWalletImporter from "@/hooks/wallet/useWalletImporter";
 
 type PhraseLength = 12 | 24;
 
@@ -22,7 +23,7 @@ export default function ImportRecoveryPhrase() {
   const { emitWalletImported } = useAnalytics();
   const navigate = useNavigate();
   const { keyringInitialize } = useKeyring();
-  const { importWalletByMnemonic } = useWalletManager();
+  const { importWalletByMnemonic } = useWalletImporter();
   const onboardingForm = useFormContext<OnboardingData>();
   const {
     register,

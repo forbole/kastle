@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import useKeyring from "@/hooks/useKeyring";
-import useWalletManager from "@/hooks/useWalletManager";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 import {
   LegacyAccountFactory,
   AccountFactory,

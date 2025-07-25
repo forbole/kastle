@@ -6,7 +6,7 @@ import { ApiUtils } from "@/api/background/utils";
 import { ApiExtensionUtils } from "@/api/extension";
 import { RPC_ERRORS } from "@/api/message";
 import useEvmAssets from "@/hooks/evm/useEvmAssets";
-import useWalletManager from "@/hooks/useWalletManager";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 import {
   erc20OptionsSchema,
   watchAssetSchema,

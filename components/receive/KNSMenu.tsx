@@ -1,5 +1,5 @@
 import { useAssetsByAddress } from "@/hooks/useKns.ts";
-import useWalletManager from "@/hooks/useWalletManager.ts";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { useEffect } from "react";
 import Copy from "@/components/Copy";
 

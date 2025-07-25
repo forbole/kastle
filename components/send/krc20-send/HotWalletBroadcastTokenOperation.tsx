@@ -1,15 +1,16 @@
 import { Broadcasting } from "@/components/send/Broadcasting";
 import { WalletSecret } from "@/types/WalletSecret";
-import { AccountFactory } from "@/lib/wallet/wallet-factory";
+import { LegacyAccountFactory } from "@/lib/wallet/account-factory";
 import { useFormContext } from "react-hook-form";
 import { TokenOperationFormData } from "@/components/send/krc20-send/Krc20Transfer";
 import { useEffect } from "react";
 import { captureException } from "@sentry/react";
 import useRecentAddresses from "@/hooks/useRecentAddresses.ts";
 import { transfer } from "@/lib/krc20.ts";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 
 type HotWalletSendingProps = {
-  accountFactory: AccountFactory;
+  accountFactory: LegacyAccountFactory;
   secret: WalletSecret;
   setOutTxs: (value: string[] | undefined) => void;
   onFail: () => void;

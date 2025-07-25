@@ -8,6 +8,8 @@ import { PrivateKey } from "@/wasm/core/kaspa";
 import { useBoolean } from "usehooks-ts";
 import { OnboardingData } from "@/components/screens/Onboarding.tsx";
 import Header from "@/components/GeneralHeader.tsx";
+import useKeyring from "@/hooks/useKeyring.ts";
+import useWallteImporter from "@/hooks/wallet/useWalletImporter.ts";
 
 type PrivateKeyFormValues = { privateKey: string };
 
@@ -15,7 +17,7 @@ export default function ImportPrivateKey() {
   const { emitPrivateKeyImported } = useAnalytics();
   const navigate = useNavigate();
   const { keyringInitialize } = useKeyring();
-  const { importPrivateKey } = useWalletManager();
+  const { importWalletByPrivateKey } = useWallteImporter();
   const onboardingForm = useFormContext<OnboardingData>();
   const {
     handleSubmit,
@@ -43,7 +45,7 @@ export default function ImportPrivateKey() {
       await keyringInitialize(onboardingForm.getValues("password"));
     }
 
-    await importPrivateKey(uuid(), privateKey);
+    await importWalletByPrivateKey(uuid(), privateKey);
 
     emitPrivateKeyImported();
     navigate(

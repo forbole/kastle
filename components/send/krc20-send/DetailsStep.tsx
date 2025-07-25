@@ -4,7 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { formatToken } from "@/lib/utils.ts";
 import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import Header from "@/components/GeneralHeader.tsx";
-import useWalletManager from "@/hooks/useWalletManager.ts";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { Address, kaspaToSompi, sompiToKaspaString } from "@/wasm/core/kaspa";
 import { twMerge } from "tailwind-merge";
 import { useBoolean } from "usehooks-ts";

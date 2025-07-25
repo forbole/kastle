@@ -3,7 +3,7 @@ import { AccountsFormValues } from "@/components/screens/full-pages/account-mana
 import React, { useState } from "react";
 import { formatCurrency, formatToken, textEllipsis } from "@/lib/utils.ts";
 import { PublicKey } from "@/wasm/core/kaspa";
-import useWalletManager from "@/hooks/useWalletManager.ts";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import { Tooltip } from "react-tooltip";
 import useCurrencyValue from "@/hooks/useCurrencyValue";

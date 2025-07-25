@@ -1,5 +1,5 @@
 import HotWalletSignTransaction from "@/components/screens/browser-api/ethereum/send-transaction/HotWalletSendTransaction";
-import useWalletManager from "@/hooks/useWalletManager.ts";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 import Splash from "@/components/screens/Splash";
 
 export default function EthereumSendTransactionConfirm() {

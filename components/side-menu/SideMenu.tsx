@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import useResetPreline from "@/hooks/useResetPreline.ts";
 import { PrivateKeyWalletItem } from "@/components/side-menu/PrivateKeyWalletItem.tsx";
 import { LedgerWalletItem } from "@/components/side-menu/LedgerWalletItem";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 
 type SideMenuProps = { isOpen: boolean; onClose: () => void };
 

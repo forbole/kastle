@@ -2,7 +2,7 @@ import Layer2AssetImage from "@/components/Layer2AssetImage";
 import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import { useNavigate } from "react-router-dom";
 import { getChainImage, getChainName } from "@/lib/layer2";
-import useWalletManager from "@/hooks/useWalletManager";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { twMerge } from "tailwind-merge";
 import useErc20Balance from "@/hooks/evm/useErc20Balance";
 import { Erc20Asset } from "@/contexts/EvmAssets";

@@ -7,6 +7,7 @@ import { Fee } from "@/lib/kns.ts";
 import { formatCurrency } from "@/lib/utils.ts";
 import useKaspaPrice from "@/hooks/useKaspaPrice.ts";
 import { KRC721TransferFormData } from "@/components/screens/KRC721Transfer.tsx";
+import useWalletManager from "@/hooks/wallet/useWalletManager.ts";
 
 type KRC721TransferConfirmProps = {
   onNext?: () => void;

@@ -7,8 +7,9 @@ import carriageImage from "@/assets/images/carriage.png";
 import { FORBOLE_PAYOUT_ADDRESSES } from "@/lib/forbole.ts";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import { WalletSecret } from "@/types/WalletSecret.ts";
-import { AccountFactory } from "@/lib/wallet/wallet-factory.ts";
+import { LegacyAccountFactory } from "@/lib/wallet/account-factory";
 import { DeployTokenState } from "@/components/screens/full-pages/DeployToken.tsx";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 
 export default function DeployingToken() {
   const navigate = useNavigate();
@@ -37,7 +38,7 @@ export default function DeployingToken() {
 
   const accountFactory = !rpcClient
     ? undefined
-    : new AccountFactory(rpcClient, networkId);
+    : new LegacyAccountFactory(rpcClient, networkId);
 
   useEffect(() => {
     if (

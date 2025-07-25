@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { AccountFactory } from "@/lib/wallet/wallet-factory";
+import { LegacyAccountFactory } from "@/lib/wallet/account-factory";
 import { ConfirmStep } from "@/components/send/kas-send/ConfirmStep";
 import { IWallet } from "@/lib/wallet/wallet-interface";
-import useWalletManager from "@/hooks/useWalletManager.ts";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 import useKeyring from "@/hooks/useKeyring";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 
@@ -39,7 +39,7 @@ export default function HotWalletConfirm({
       const { walletSecret: secret } = await getWalletSecret({
         walletId: walletSettings.selectedWalletId,
       });
-      const accountFactory = new AccountFactory(rpcClient, networkId);
+      const accountFactory = new LegacyAccountFactory(rpcClient, networkId);
       const accountIndex = walletSettings?.selectedAccountIndex;
       if (accountIndex === null || accountIndex === undefined) {
         throw new Error("No account selected");

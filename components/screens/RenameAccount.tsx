@@ -1,13 +1,15 @@
 import { useNavigate, useParams } from "react-router-dom";
-import React from "react";
 import { useForm } from "react-hook-form";
 import chestImage from "@/assets/images/chest.png";
 import internalToast from "@/components/Toast.tsx";
 import Header from "@/components/GeneralHeader";
+import useAccountManager from "@/hooks/wallet/useAccountManager";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 
 export default function RenameAccount() {
   const navigate = useNavigate();
-  const { renameAccount, walletSettings } = useWalletManager();
+  const { walletSettings } = useWalletManager();
+  const { renameAccount } = useAccountManager();
   const { walletId, accountIndex } = useParams();
   const accountIndexNumber = accountIndex
     ? parseInt(accountIndex, 10)

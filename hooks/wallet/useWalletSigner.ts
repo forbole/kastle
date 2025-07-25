@@ -1,9 +1,12 @@
 import { useState, useEffect } from "react";
 import { IWallet } from "@/lib/wallet/wallet-interface";
-import { AccountFactory } from "@/lib/wallet/wallet-factory";
+import {
+  LegacyAccountFactory,
+  AccountFactory,
+} from "@/lib/wallet/account-factory";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import useKeyring from "@/hooks/useKeyring";
-import useWalletManager from "@/hooks/useWalletManager";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 
 export default function useWalletSigner() {
   const { getWalletSecret } = useKeyring();
@@ -18,7 +21,10 @@ export default function useWalletSigner() {
     }
 
     getWalletSecret({ walletId: walletInfo.id }).then(({ walletSecret }) => {
-      const factory = new AccountFactory(rpcClient, networkId);
+      const isLegacyEnabled = walletInfo.isLegacyWalletEnabled ?? true;
+      const factory = isLegacyEnabled
+        ? new LegacyAccountFactory(rpcClient, networkId)
+        : new AccountFactory(rpcClient, networkId);
 
       switch (walletInfo.type) {
         case "mnemonic":

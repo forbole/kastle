@@ -1,5 +1,5 @@
 import { SignMessagePayload } from "@/api/background/handlers/kaspa/signMessage";
-import { AccountFactory } from "@/lib/wallet/wallet-factory";
+import { LegacyAccountFactory } from "@/lib/wallet/account-factory";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import { NetworkType } from "@/contexts/SettingsContext";
 import Splash from "@/components/screens/Splash";
@@ -20,7 +20,7 @@ export default function LedgerSignMessage({
 
   const wallet =
     rpcClient && transport
-      ? new AccountFactory(
+      ? new LegacyAccountFactory(
           rpcClient,
           networkId ?? ("mainnet" as NetworkType),
         ).createFromLedger(transport)

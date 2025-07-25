@@ -1,6 +1,7 @@
 import { useTokensMetadata } from "@/hooks/kasplex/useTokenMetadata";
 import { applyDecimal } from "@/lib/krc20.ts";
 import { useTokenListByAddress } from "@/hooks/kasplex/useTokenListByAddress";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 
 export default function useTotalBalance() {
   const { account } = useWalletManager();

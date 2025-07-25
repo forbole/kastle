@@ -1,7 +1,7 @@
 import { SignTxPayload } from "@/api/background/handlers/kaspa/utils";
 import LedgerNotSupported from "@/components/screens/browser-api/kaspa/LedgerNotSupported";
 import SignAndBroadcast from "@/components/screens/browser-api/kaspa/sign-and-broadcast/SignAndBroadcast";
-import { AccountFactory } from "@/lib/wallet/wallet-factory";
+import { LegacyAccountFactory } from "@/lib/wallet/account-factory";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import { NetworkType } from "@/contexts/SettingsContext";
 import Splash from "@/components/screens/Splash";
@@ -35,7 +35,7 @@ export default function LedgerSignAndBroadcast({
 
   const wallet =
     rpcClient && transport
-      ? new AccountFactory(
+      ? new LegacyAccountFactory(
           rpcClient,
           payload.networkId as NetworkType,
         ).createFromLedger(transport)

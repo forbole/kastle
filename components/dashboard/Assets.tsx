@@ -15,6 +15,8 @@ import EvmKasAsset from "./EvmKasAsset";
 import { NetworkType } from "@/contexts/SettingsContext";
 import { TESTNET_SUPPORTED_EVM_L2_CHAINS } from "@/lib/layer2";
 import { numberToHex } from "viem";
+import useKaspaPrice from "@/hooks/useKaspaPrice";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 
 export default function Assets() {
   const navigate = useNavigate();

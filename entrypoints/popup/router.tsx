@@ -79,7 +79,6 @@ import KaspaReceiveAddress from "@/components/screens/receive-addresses/KaspaRec
 import EvmReceiveAddress from "@/components/screens/receive-addresses/EvmReceiveAddress";
 import AssetSelect from "@/components/screens/asset-selector/AssetSelect";
 import CommitRevealConfirm from "@/components/screens/browser-api/kaspa/CommitRevealConfirm";
-import RenameWallet from "@/components/screens/RenameWallet";
 
 const loadKaspaWasm = async () => {
   await init({ module_or_path: kaspaModule });
@@ -251,10 +250,6 @@ export const router = createHashRouter([
                   {
                     path: "rename-account/:walletId/:accountIndex",
                     element: <RenameAccount />,
-                  },
-                  {
-                    path: "rename-wallet/:walletId",
-                    element: <RenameWallet />,
                   },
                   {
                     path: "remove-wallet/:walletId",

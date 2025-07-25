@@ -8,6 +8,7 @@ import { twMerge } from "tailwind-merge";
 import { ApiUtils } from "@/api/background/utils";
 import * as conn from "@/lib/settings/connection";
 import useEvmAddress from "@/hooks/evm/useEvmAddress";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 
 export default function ConnectConfirm() {
   const [settings, setSettings] = useSettings();

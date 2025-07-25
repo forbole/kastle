@@ -1,4 +1,3 @@
-import { useNavigate } from "react-router-dom";
 import { WalletInfo } from "@/contexts/WalletManagerContext.tsx";
 import AccountItem from "./AccountItem";
 import WalletHeader from "./WalletHeader";
@@ -12,8 +11,6 @@ export const LedgerWalletItem = ({
   wallet,
   onClose,
 }: LedgerWalletItemProps) => {
-  const navigate = useNavigate();
-
   const manageAccounts = () => {
     const url = new URL(browser.runtime.getURL("/popup.html"));
     url.hash = `/manage-accounts/ledger/${wallet.id}/manage`;
