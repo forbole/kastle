@@ -1,6 +1,7 @@
 import { KNS_API_URLS, NetworkType } from "@/contexts/SettingsContext.tsx";
 import { fetcher } from "@/lib/utils";
 import useSWR from "swr";
+import useSWRInfinite from "swr/infinite";
 
 export interface DomainInfoResponse {
   success: boolean;
@@ -30,8 +31,8 @@ export interface AssetsResponse {
   success: boolean;
   data: {
     assets: AssetData[];
+    pagination: Pagination;
   };
-  pagination: Pagination;
 }
 
 export interface AssetDataWithId extends AssetData {
@@ -58,15 +59,24 @@ export function useAssetsByAddress(
 
   const knsApiUrl = KNS_API_URLS[networkId ?? NetworkType.Mainnet];
 
-  return useSWR<AssetsResponse, Error>(
-    `${knsApiUrl}/api/v1/assets?owner=${address}&type=${assetType}`,
-    address
-      ? fetcher
-      : () => {
-          return Promise.resolve(undefined);
-        },
-    { refreshInterval },
-  );
+  const getKey = (
+    pageIndex: number,
+    previousPageData: AssetsResponse | undefined,
+  ) => {
+    if (pageIndex === 0) {
+      return `${knsApiUrl}/api/v1/assets?owner=${address}&type=${assetType}`;
+    }
+    if (!previousPageData || !previousPageData.data.pagination) {
+      return null;
+    }
+    const nextPage = previousPageData.data.pagination.currentPage + 1;
+    return `${knsApiUrl}/api/v1/assets?owner=${address}&type=${assetType}&page=${nextPage}`;
+  };
+
+  return useSWRInfinite<AssetsResponse, Error>(getKey, {
+    fetcher: address ? fetcher : undefined,
+    refreshInterval,
+  });
 }
 
 export function useAssetDetails(id?: string, refreshInterval?: number) {
