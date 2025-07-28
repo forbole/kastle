@@ -23,30 +23,39 @@ export default function AdvancedSettingsModal({
         onClick={onClose}
       />
 
-      <div className="relative max-h-[80vh] w-[500px] overflow-hidden rounded-2xl border border-slate-700 bg-slate-800 p-6 shadow-2xl">
-        <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-white">
+      <div className="relative w-[45rem] overflow-hidden rounded-2xl bg-icy-blue-950 p-6 shadow-2xl">
+        <div className="flex">
+          <button
+            className="ml-auto rounded-lg p-3 text-white hover:bg-gray-800"
+            onClick={async () => {
+              if (onClose) {
+                await onClose();
+              } else {
+                window.close();
+              }
+            }}
+          >
+            <i className="hn hn-times flex items-center justify-center text-sm leading-none" />
+          </button>
+        </div>
+
+        {/* Modal Title */}
+        <div className="mb-4 flex">
+          <h2 className="mx-auto text-xl font-semibold text-white">
             Advanced Settings
           </h2>
-          <button
-            onClick={onClose}
-            className="p-4 text-slate-400 transition-colors"
-            type="button"
-          >
-            <i className="hn hn-x text-base" />
-          </button>
         </div>
 
         {/* Settings */}
         <div className="space-y-6">
           {/* Legacy Wallet Toggle */}
-          <div className="rounded-lg bg-slate-700 p-4">
+          <div className="rounded-lg border border-daintree-700 p-4">
             <div className="mb-3 flex items-start justify-between">
               <div className="flex-1">
-                <h3 className="mb-2 font-medium text-white">
+                <h3 className="mb-2 text-base font-medium text-white">
                   Switch to Kastle Legacy Wallet Addresses
                 </h3>
-                <p className="text-sm leading-relaxed text-slate-300">
+                <p className="text-sm leading-relaxed text-daintree-400">
                   Legacy Wallets addresses are derived using a different
                   derivation path. Enable this option if you need to recover
                   funds from wallets created in older Kastle versions.
@@ -55,21 +64,16 @@ export default function AdvancedSettingsModal({
 
               {/* Toggle Switch */}
               <div className="ml-4 flex-shrink-0">
-                <button
-                  onClick={() => toggleLegacyWallet()}
+                <input
+                  onClick={(e) => {
+                    toggleLegacyWallet();
+                  }}
                   className={twMerge(
-                    "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 focus:ring-offset-slate-800",
-                    isLegacyWalletEnabled ? "bg-cyan-400" : "bg-slate-600",
+                    "relative h-6 w-11 cursor-pointer rounded-full border-neutral-700 border-transparent bg-daintree-700 p-px text-transparent transition-colors duration-200 ease-in-out before:inline-block before:size-5 before:translate-x-0 before:transform before:rounded-full before:bg-white before:shadow before:ring-0 before:transition before:duration-200 before:ease-in-out checked:border-icy-blue-400 checked:bg-icy-blue-400 checked:bg-none checked:text-icy-blue-400 checked:before:translate-x-full checked:before:bg-white focus:ring-transparent focus:ring-offset-transparent focus:checked:border-transparent disabled:pointer-events-none disabled:opacity-50",
                   )}
-                  type="button"
-                >
-                  <span
-                    className={twMerge(
-                      "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
-                      isLegacyWalletEnabled ? "translate-x-6" : "translate-x-1",
-                    )}
-                  />
-                </button>
+                  type="checkbox"
+                  checked={isLegacyWalletEnabled}
+                ></input>
               </div>
             </div>
           </div>

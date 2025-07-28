@@ -12,6 +12,7 @@ import useAccountManager from "@/hooks/wallet/useAccountManager";
 import useWalletEditor from "@/hooks/wallet/useWalletEditor";
 import { PublicKey } from "@/wasm/core/kaspa";
 import { useSettings } from "@/hooks/useSettings";
+import { twMerge } from "tailwind-merge";
 
 export type AccountsFormValues = Record<
   string,
@@ -190,35 +191,30 @@ export default function ManageAccounts({
           title={action === "manage" ? "Manage Accounts" : "Import Accounts"}
           subtitle={subtitle}
           showPrevious={false}
+          showClose={false}
+          className={twMerge(isLegacyWalletEnabled ? "pb-0" : "pb-5")}
         />
 
+        {isLegacyWalletEnabled && (
+          <div
+            className="-mx-8 w-full bg-[#854D0E]/30 py-1 text-center text-yellow-500"
+            style={{
+              width: "calc(100% + 4rem)",
+            }}
+          >
+            Showing legacy addresses
+          </div>
+        )}
+
         {/* Advanced Settings Button */}
-        <div className="mb-6 flex justify-end">
+        <div className="flex justify-end pr-4 text-base font-semibold">
           <button
             onClick={() => setShowAdvancedSettings(true)}
             type="button"
             className="flex items-center gap-2 text-sm text-slate-300 transition-colors hover:text-cyan-400"
           >
             <span>Advanced Settings</span>
-            <svg
-              className="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-              />
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-              />
-            </svg>
+            <i className="hn hn-cog" />
           </button>
         </div>
 
