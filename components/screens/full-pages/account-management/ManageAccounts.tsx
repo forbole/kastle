@@ -174,9 +174,9 @@ export default function ManageAccounts({
 
   const subtitle = {
     mnemonic:
-      "These accounts are generated from your recovery phrase. Each one supports both Kaspa (KAS) and EVM networks, so you can add them to Kastle.",
+      "These accounts are generated from your recovery phrase. They support both Kaspa and EVM Networks (such as Kasplex and Igra).",
     ledger:
-      "These accounts are generated from your Ledger device. Each one supports Kaspa (KAS), so you can add them to Kastle.",
+      "These accounts are generated from your Ledger device. They support both Kaspa and EVM Networks (such as Kasplex and Igra).",
     privateKey: "", // Not used in this context
   }[wallet.type];
 
