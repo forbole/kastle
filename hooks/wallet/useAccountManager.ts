@@ -35,11 +35,16 @@ export default function useAccountManager() {
     const nextIndex = lastAccount.index + 1;
 
     const { walletSecret } = await keyring.getWalletSecret({ walletId });
+    const walletIsLegacy = wallet.isLegacyWalletEnabled ?? true;
 
-    const newAccount = new KaspaLegacyAccountFactory(
-      rpcClient,
-      networkId,
-    ).createFromMnemonic(walletSecret.value, nextIndex);
+    const factory = walletIsLegacy
+      ? new KaspaLegacyAccountFactory(rpcClient, networkId)
+      : new KaspaAccountFactory(rpcClient, networkId);
+
+    const newAccount = factory.createFromMnemonic(
+      walletSecret.value,
+      nextIndex,
+    );
 
     const newEvmAccount = EvmAccountFactory.createFromMnemonic(
       walletSecret.value,
@@ -206,13 +211,27 @@ export default function useAccountManager() {
     if (!rpcClient || !networkId) {
       throw new Error("RPC client and settings not loaded");
     }
+    if (!walletSettings) {
+      throw new Error("Wallet manager not initialized");
+    }
+
     const { walletSecret } = await keyring.getWalletSecret({ walletId });
 
+    const wallet = walletSettings.wallets.find((w) => w.id === walletId);
+    if (!wallet) {
+      throw new Error(`Wallet ${walletId} not found`);
+    }
+
+    const isLegacyEnabled = wallet.isLegacyWalletEnabled ?? true; // Default to true if not specified
+    const factory = isLegacyEnabled
+      ? new KaspaLegacyAccountFactory(rpcClient, networkId)
+      : new KaspaAccountFactory(rpcClient, networkId);
+
     if (walletSecret.type === "mnemonic") {
-      const hotWallet = new KaspaLegacyAccountFactory(
-        rpcClient,
-        networkId,
-      ).createFromMnemonic(walletSecret.value, accountIndex);
+      const hotWallet = factory.createFromMnemonic(
+        walletSecret.value,
+        accountIndex,
+      );
 
       return hotWallet.getPrivateKeyString();
     } else {

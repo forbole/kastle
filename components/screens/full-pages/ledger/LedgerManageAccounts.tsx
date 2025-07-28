@@ -1,4 +1,7 @@
-import { LegacyAccountFactory } from "@/lib/wallet/account-factory";
+import {
+  LegacyAccountFactory,
+  AccountFactory,
+} from "@/lib/wallet/account-factory";
 import ManageAccounts, {
   ListAccountsRequest,
 } from "@/components/screens/full-pages/account-management/ManageAccounts";
@@ -30,7 +33,9 @@ export default function LedgerManageAccounts() {
       ? async ({ walletId, start, end }: ListAccountsRequest) => {
           if (!transport) return [];
 
-          const accountFactory = new LegacyAccountFactory(rpcClient, networkId);
+          const accountFactory = isLegacyEnabled
+            ? new LegacyAccountFactory(rpcClient, networkId)
+            : new AccountFactory(rpcClient, networkId);
 
           const { walletSecret } = await getWalletSecret({ walletId });
           if (walletSecret.type !== "ledger") {
