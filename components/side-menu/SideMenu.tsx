@@ -25,14 +25,6 @@ export const SideMenu = ({ isOpen, onClose }: SideMenuProps) => {
 
   return (
     <>
-      {/* Overlay */}
-      <div
-        className={`fixed inset-0 z-40 bg-black/50 transition-opacity duration-300 ${
-          isOpen ? "opacity-100" : "pointer-events-none opacity-0"
-        }`}
-        onClick={onClose}
-      />
-
       {/* Side Menu */}
       <div
         className={`no-scrollbar fixed left-0 top-0 z-50 h-full min-h-0 w-full transform overflow-y-scroll bg-icy-blue-950 p-4 transition-transform duration-300 ease-out ${
@@ -42,6 +34,12 @@ export const SideMenu = ({ isOpen, onClose }: SideMenuProps) => {
         <div className="flex flex-col gap-3">
           {/* Header */}
           <div className="flex items-center justify-between px-2">
+            <button
+              className="rounded-lg p-3 text-white hover:bg-gray-800"
+              onClick={() => onClose()}
+            >
+              <i className="hn hn-times flex items-center justify-center text-sm leading-none" />
+            </button>
             <span className="text-xl font-bold">Wallets</span>
             <button
               className="h-[38px] w-[38px] rounded-full bg-icy-blue-400 hover:bg-icy-blue-600"
