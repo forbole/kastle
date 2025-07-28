@@ -14,7 +14,7 @@ export default function BrowserAPILayout() {
   useEffect(() => {
     const timeout = setTimeout(() => {
       window.close();
-    }, 60_000); // Close the popup after 60 seconds
+    }, 180_000); // Close the popup after 3 minutes
 
     return () => clearTimeout(timeout);
   }, []);

@@ -38,7 +38,7 @@ export const SideMenu = ({ isOpen, onClose }: SideMenuProps) => {
               className="rounded-lg p-3 text-white hover:bg-gray-800"
               onClick={() => onClose()}
             >
-              <i className="hn hn-times flex items-center justify-center text-sm leading-none" />
+              <i className="hn hn-times flex items-center justify-center text-base leading-none" />
             </button>
             <span className="text-xl font-bold">Wallets</span>
             <button
