@@ -30,6 +30,7 @@ export class BackgroundService {
           sendResponse(
             ApiResponseSchema.parse({
               id: parsedMessage.id,
+              source: "background",
               target: "browser",
               error: "Invalid action",
             }),
@@ -39,14 +40,32 @@ export class BackgroundService {
           return true;
         }
 
-        browser.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-          const tab = tabs[0];
-          if (tab?.id) {
-            handler(tab.id, parsedMessage, sendResponse).catch((error) => {
-              console.error("Unresolved error:", error);
-            });
-          }
-        });
+        const tabId = sender.tab?.id;
+        if (tabId) {
+          const handleMessage = async () => {
+            await handler(tabId, parsedMessage, sendResponse);
+          };
+
+          handleMessage().catch((error) => {
+            sendResponse(
+              ApiResponseSchema.parse({
+                id: parsedMessage.id,
+                source: "background",
+                target: "browser",
+                error: error instanceof Error ? error.message : "Unknown error",
+              }),
+            );
+          });
+        } else {
+          sendResponse(
+            ApiResponseSchema.parse({
+              id: parsedMessage.id,
+              source: "background",
+              target: "browser",
+              error: "No tab ID found",
+            }),
+          );
+        }
 
         // Set return true to enable sendResponse callback
         return true;
