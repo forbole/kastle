@@ -2,6 +2,8 @@ import useEvmKasBalanceByAddress from "@/hooks/evm/useEvmKasBalanceByAddress";
 import { getChainImage } from "@/lib/layer2";
 import { formatCurrency, formatToken, textEllipsis } from "@/lib/utils";
 import HoverShowAllCopy from "@/components/HoverShowAllCopy";
+import useKaspaPrice from "@/hooks/useKaspaPrice";
+import useCurrencyValue from "@/hooks/useCurrencyValue";
 
 type EvmAddressItemProps = {
   address: `0x${string}`;

@@ -9,7 +9,7 @@ import { useBoolean } from "usehooks-ts";
 import { OnboardingData } from "@/components/screens/Onboarding.tsx";
 import Header from "@/components/GeneralHeader.tsx";
 import useKeyring from "@/hooks/useKeyring.ts";
-import useWallteImporter from "@/hooks/wallet/useWalletImporter.ts";
+import useWalletImporter from "@/hooks/wallet/useWalletImporter.ts";
 
 type PrivateKeyFormValues = { privateKey: string };
 
@@ -17,7 +17,7 @@ export default function ImportPrivateKey() {
   const { emitPrivateKeyImported } = useAnalytics();
   const navigate = useNavigate();
   const { keyringInitialize } = useKeyring();
-  const { importWalletByPrivateKey } = useWallteImporter();
+  const { importWalletByPrivateKey } = useWalletImporter();
   const onboardingForm = useFormContext<OnboardingData>();
   const {
     handleSubmit,
