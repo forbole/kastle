@@ -19,19 +19,17 @@ export default function SignAndBroadcast({
   requestId,
   payload,
 }: SignAndBroadcastProps) {
-  const [isBroadcasting, setBroadcasting] = useState(false);
   const { rpcClient } = useRpcClientStateful();
   const { account } = useWalletManager();
 
   const transaction = Transaction.deserializeFromSafeJSON(payload.txJson);
 
   const handleConfirm = async () => {
-    if (!rpcClient || !wallet || !account || isBroadcasting) {
+    if (!rpcClient || !wallet || !account) {
       return;
     }
 
     try {
-      setBroadcasting(true);
       const signedTx = await wallet.signTx(transaction, payload.scripts);
       const { transactionId: txId } = await rpcClient.submitTransaction({
         transaction: signedTx,
@@ -52,7 +50,6 @@ export default function SignAndBroadcast({
         ),
       );
     } finally {
-      setBroadcasting(false);
       window.close();
     }
   };
