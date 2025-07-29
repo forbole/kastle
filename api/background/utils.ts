@@ -147,7 +147,7 @@ export class ApiUtils {
     requestId: string,
     url: string,
     tabId: number,
-    timeout = 60_000, // 1 minute
+    timeout = 180_000, // 3 minute
   ) {
     const popup = await this.openPopup(tabId, url);
     let onRemovedListener: ((windowId: number) => void) | null = null;

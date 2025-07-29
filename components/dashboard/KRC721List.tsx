@@ -7,7 +7,7 @@ export default function KRC721List() {
   const address = account?.address;
   const { data, size, setSize, isLoading } = useKRC721ByAddress(address);
 
-  const hasNexPage = data && data[size - 1]?.next;
+  const hasNextPage = data && data[size - 1]?.next;
 
   const firstLoading = !data && isLoading;
   return (
@@ -33,7 +33,7 @@ export default function KRC721List() {
       </div>
 
       {/* Load more button */}
-      {hasNexPage && (
+      {hasNextPage && (
         <button
           onClick={() => {
             if (isLoading) return;

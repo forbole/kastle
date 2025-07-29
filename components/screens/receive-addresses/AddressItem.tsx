@@ -14,7 +14,7 @@ export default function SelectAddressItem({
   redirect: () => void;
 }) {
   return (
-    <div className="flex items-center justify-between rounded-lg border border-daintree-700 bg-daintree-800 p-3">
+    <div className="flex items-center justify-between rounded-xl border border-daintree-700 bg-daintree-800 p-3">
       <div className="flex gap-2">
         <img className="h-10 w-10 rounded-full" src={imageUrl} />
         <div className="space-y-1">
@@ -24,9 +24,9 @@ export default function SelectAddressItem({
           </p>
         </div>
       </div>
-      <div className="gap flex items-center gap-2">
-        <ClipboardCopy textToCopy={address} className="cursor-pointer p-4" />
-        <div className="cursor-pointer p-4" onClick={redirect}>
+      <div className="gap flex items-center gap-1">
+        <ClipboardCopy textToCopy={address} className="cursor-pointer p-3" />
+        <div className="cursor-pointer p-3" onClick={redirect}>
           <img className="h-4 w-4" src={qrCodeIcon} alt="QR Code" />
         </div>
       </div>

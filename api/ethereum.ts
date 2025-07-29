@@ -142,7 +142,7 @@ export class EthereumBrowserAPI {
 
   private async receiveMessageWithTimeout<T>(
     id: string,
-    timeout = 60_000, // 1 minute
+    timeout = 180_000, // 3 minute
   ): Promise<T> {
     return new Promise<T>((resolve, reject) => {
       const callback = this.createReceiveCallback<T>(id);
