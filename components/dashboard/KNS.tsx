@@ -24,12 +24,11 @@ export default function KNS() {
           />
         ))}
 
-      {!isLoading &&
-        data?.flatMap((asset) =>
-          asset.data.assets.flatMap((asset) => (
-            <KNSItem key={asset.assetId} asset={asset} />
-          )),
-        )}
+      {data?.flatMap((asset) =>
+        asset.data.assets.flatMap((asset) => (
+          <KNSItem key={asset.assetId} asset={asset} />
+        )),
+      )}
 
       {/* Load more button */}
       {hasNextPage && (

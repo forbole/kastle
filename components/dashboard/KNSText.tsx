@@ -23,12 +23,11 @@ export default function KNSText() {
             className="min-h-[72px] animate-pulse cursor-pointer rounded-xl border border-daintree-700 bg-daintree-800 p-3"
           />
         ))}
-      {!isLoading &&
-        data?.flatMap((asset) =>
-          asset.data.assets.flatMap((asset) => (
-            <KNSTextItem key={asset.assetId} asset={asset} />
-          )),
-        )}
+      {data?.flatMap((asset) =>
+        asset.data.assets.flatMap((asset) => (
+          <KNSTextItem key={asset.assetId} asset={asset} />
+        )),
+      )}
 
       {/* Load more button */}
       {hasNextPage && (
