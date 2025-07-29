@@ -30,7 +30,7 @@ export const LedgerWalletItem = ({
       label: "Remove this wallet",
       onClick: () => navigate(`/remove-wallet/${wallet.id}`),
       isAlert: true,
-    }
+    },
   ];
 
   return (
