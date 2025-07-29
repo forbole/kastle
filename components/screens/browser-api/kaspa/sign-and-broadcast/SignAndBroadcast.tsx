@@ -6,10 +6,6 @@ import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import { Transaction } from "@/wasm/core/kaspa";
 import SignConfirm from "@/components/screens/browser-api/kaspa/sign/SignConfirm";
 import { useState } from "react";
-import Broadcasting from "@/components/screens/browser-api/kaspa/sign-and-broadcast/Broadcasting";
-import { sleep } from "@/lib/utils";
-import Success from "@/components/screens/browser-api/kaspa/sign-and-broadcast/Success";
-import Error from "@/components/screens/browser-api/kaspa/sign-and-broadcast/Error";
 import { ApiUtils } from "@/api/background/utils";
 
 type SignAndBroadcastProps = {
@@ -23,39 +19,27 @@ export default function SignAndBroadcast({
   requestId,
   payload,
 }: SignAndBroadcastProps) {
-  const [isBroadcasting, setBroadcasting] = useState(false);
-  const [state, setState] = useState<
-    "confirm" | "broadcasting" | "success" | "error"
-  >("confirm");
   const { rpcClient } = useRpcClientStateful();
   const { account } = useWalletManager();
-  const [txIds, setTxIds] = useState<string[]>([]);
 
   const transaction = Transaction.deserializeFromSafeJSON(payload.txJson);
 
   const handleConfirm = async () => {
-    if (!rpcClient || !wallet || !account || isBroadcasting) {
+    if (!rpcClient || !wallet || !account) {
       return;
     }
 
     try {
-      setBroadcasting(true);
       const signedTx = await wallet.signTx(transaction, payload.scripts);
       const { transactionId: txId } = await rpcClient.submitTransaction({
         transaction: signedTx,
       });
-      setState("broadcasting");
 
       await ApiExtensionUtils.sendMessage(
         requestId,
         ApiUtils.createApiResponse(requestId, txId),
       );
-
-      setTxIds([txId]);
-      await sleep(1000);
-      setState("success");
     } catch (err) {
-      setState("error");
       await ApiExtensionUtils.sendMessage(
         requestId,
         ApiUtils.createApiResponse(
@@ -66,7 +50,7 @@ export default function SignAndBroadcast({
         ),
       );
     } finally {
-      setBroadcasting(false);
+      window.close();
     }
   };
 
@@ -79,18 +63,10 @@ export default function SignAndBroadcast({
   };
 
   return (
-    <>
-      {state === "confirm" && (
-        <SignConfirm
-          payload={payload}
-          cancel={handleCancel}
-          confirm={handleConfirm}
-        />
-      )}
-
-      {state === "broadcasting" && <Broadcasting />}
-      {state === "success" && <Success transactionIds={txIds} />}
-      {state === "error" && <Error transactionIds={txIds} />}
-    </>
+    <SignConfirm
+      payload={payload}
+      cancel={handleCancel}
+      confirm={handleConfirm}
+    />
   );
 }
