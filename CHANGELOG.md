@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.29.1](https://github.com/forbole/kastle/compare/v2.29.0...v2.29.1) (2025-07-29)
+
+
+### Bug Fixes
+
+* close popup when the operation is successful to avoid from tab d… ([#195](https://github.com/forbole/kastle/issues/195)) ([56fe02e](https://github.com/forbole/kastle/commit/56fe02e6e12b398f360e2005026e181cac51ba6f))
+* fix uat and kns pagination issue ([#192](https://github.com/forbole/kastle/issues/192)) ([8d24191](https://github.com/forbole/kastle/commit/8d241910e523e59d4def7af7780494c5da2bdb77))
+
 ## [2.29.0](https://github.com/forbole/kastle/compare/v2.28.1...v2.29.0) (2025-07-23)
 
 
