@@ -16,7 +16,7 @@ export default function KNSText() {
   const firstLoading = !data && isLoading;
   return (
     <div className="space-y-2 pb-4">
-      {isLoading &&
+      {firstLoading &&
         Array.from({ length: 2 }).map((_, index) => (
           <div
             key={index}
