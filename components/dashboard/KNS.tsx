@@ -11,7 +11,6 @@ export default function KNS() {
   );
 
   const pagination = data && data[size - 1]?.data?.pagination;
-  console.log(size, pagination, data, data?.[size - 1]);
   const hasNextPage =
     pagination && pagination.currentPage < pagination.totalPages;
   const firstLoading = !data && isLoading;
@@ -26,8 +25,8 @@ export default function KNS() {
         ))}
 
       {!isLoading &&
-        data?.map((asset) =>
-          asset.data.assets.map((asset) => (
+        data?.flatMap((asset) =>
+          asset.data.assets.flatMap((asset) => (
             <KNSItem key={asset.assetId} asset={asset} />
           )),
         )}

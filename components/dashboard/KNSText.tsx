@@ -24,8 +24,8 @@ export default function KNSText() {
           />
         ))}
       {!isLoading &&
-        data?.map((asset) =>
-          asset.data.assets.map((asset) => (
+        data?.flatMap((asset) =>
+          asset.data.assets.flatMap((asset) => (
             <KNSTextItem key={asset.assetId} asset={asset} />
           )),
         )}
