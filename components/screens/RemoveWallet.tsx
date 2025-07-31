@@ -4,13 +4,14 @@ import { useForm } from "react-hook-form";
 import warningImage from "@/assets/images/warning.png";
 import Header from "@/components/GeneralHeader";
 import { forceOnboarding } from "@/entrypoints/popup/router.tsx";
+import useWalletEditor from "@/hooks/wallet/useWalletEditor";
 
 type RemoveWalletFormValues = { agreedRemove: boolean };
 
 export default function RemoveWallet() {
   const navigate = useNavigate();
   const { walletId } = useParams();
-  const { removeWallet } = useWalletManager();
+  const { removeWallet } = useWalletEditor();
   const {
     handleSubmit,
     register,
