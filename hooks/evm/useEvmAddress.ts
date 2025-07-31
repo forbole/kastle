@@ -1,4 +1,4 @@
-import useWalletManager from "../useWalletManager";
+import useWalletManager from "../wallet/useWalletManager";
 import { toLegacyEvmAddress } from "@/lib/utils";
 import { useSettings } from "../useSettings";
 import { publicKeyToAddress } from "viem/accounts";

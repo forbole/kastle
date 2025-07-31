@@ -6,6 +6,7 @@ import {
 } from "@/wasm/core/kaspa";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import useDeepCompareEffect from "use-deep-compare-effect";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 
 export default function useMassCalculation(outputs: IPaymentOutput[]) {
   const { account } = useWalletManager();

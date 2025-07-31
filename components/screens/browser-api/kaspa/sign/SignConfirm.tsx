@@ -1,6 +1,6 @@
 import { SignTxPayload } from "@/api/background/handlers/kaspa/utils";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
-import useWalletManager from "@/hooks/useWalletManager";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 import {
   Address,
   payToAddressScript,

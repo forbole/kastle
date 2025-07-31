@@ -4,6 +4,10 @@ import { Link } from "react-router-dom";
 import React from "react";
 import { Account } from "@/contexts/WalletManagerContext.tsx";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
+import useAccountManager from "@/hooks/wallet/useAccountManager";
+import useKaspaPrice from "@/hooks/useKaspaPrice";
+import { useSettings } from "@/hooks/useSettings.ts";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 
 type AccountItemProps = {
   walletId: string;
@@ -20,9 +24,11 @@ export default function AccountItem({
 }: AccountItemProps) {
   const [settings] = useSettings();
   const kaspaPrice = useKaspaPrice();
-  const { selectAccount, walletSettings } = useWalletManager();
+  const { walletSettings } = useWalletManager();
   const isSelectedWalletId = walletSettings?.selectedWalletId === walletId;
   const selectedAccountIndex = walletSettings?.selectedAccountIndex;
+
+  const { selectAccount } = useAccountManager();
 
   const fiatBalance =
     parseFloat(account.balance ?? "0") * kaspaPrice.kaspaPrice;

@@ -1,5 +1,5 @@
 import Header from "@/components/GeneralHeader";
-import useWalletManager from "@/hooks/useWalletManager";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 import AddressItem from "@/components/screens/receive-addresses/AddressItem";
 import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import { useNavigate } from "react-router-dom";

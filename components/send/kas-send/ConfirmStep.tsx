@@ -6,7 +6,7 @@ import ledgerSignImage from "@/assets/images/ledger-on-sign.svg";
 import useKaspaPrice from "@/hooks/useKaspaPrice.ts";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/GeneralHeader.tsx";
-import useWalletManager from "@/hooks/useWalletManager.ts";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { IWallet } from "@/lib/wallet/wallet-interface";
 import useRecentAddresses from "@/hooks/useRecentAddresses.ts";
 import { captureException } from "@sentry/react";

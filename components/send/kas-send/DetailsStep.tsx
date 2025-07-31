@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useSettings } from "@/hooks/useSettings";
-import useWalletManager from "@/hooks/useWalletManager";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import useMempoolStatus from "@/hooks/useMempoolStatus";
 import { useKns } from "@/hooks/useKns";

@@ -8,6 +8,7 @@ import SuccessStatus from "../SuccessStatus";
 import FailStatus from "../FailStatus";
 import z from "zod";
 import useErc20Assets from "@/hooks/evm/useErc20Assets";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 
 export const Erc20SendFormSchema = z.object({
   userInput: z.string().optional(),

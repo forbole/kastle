@@ -1,4 +1,4 @@
-import useWalletManager from "@/hooks/useWalletManager";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { useKRC721ByAddress } from "@/hooks/useKRC721";
 import KRC721Item from "@/components/dashboard/KRC721Item";
 

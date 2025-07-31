@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import useKeyring from "@/hooks/useKeyring";
-import useWalletManager from "@/hooks/useWalletManager";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 import {
   LegacyAccountFactory,
   AccountFactory,
@@ -8,7 +8,7 @@ import {
 import { IWallet } from "@/lib/ethereum/wallet/wallet-interface";
 import { useSettings } from "@/hooks/useSettings";
 
-export default function useWalletSigner() {
+export default function useEvmHotWalletSigner() {
   const { getWalletSecret } = useKeyring();
   const { wallet: walletInfo, account } = useWalletManager();
   const [walletSigner, setWalletSigner] = useState<IWallet>();

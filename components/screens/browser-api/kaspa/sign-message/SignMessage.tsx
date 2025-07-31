@@ -1,4 +1,4 @@
-import useWalletManager from "@/hooks/useWalletManager";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 import ledgerSignImage from "@/assets/images/ledger-on-sign.svg";
 import signImage from "@/assets/images/sign.png";
 import Header from "@/components/GeneralHeader";

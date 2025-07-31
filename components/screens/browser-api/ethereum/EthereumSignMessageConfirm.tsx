@@ -1,5 +1,5 @@
 import HotWalletSignMessage from "@/components/screens/browser-api/ethereum/sign-message/HotWalletSignMessage";
-import useWalletManager from "@/hooks/useWalletManager.ts";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 import Splash from "@/components/screens/Splash";
 import z from "zod";
 import { isHex } from "viem";

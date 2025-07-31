@@ -1,7 +1,7 @@
 import { SignTxPayloadSchema } from "@/api/background/handlers/kaspa/utils";
 import HotWalletSignAndBroadcast from "@/components/screens/browser-api/kaspa/sign-and-broadcast/HotWalletSignAndBroadcast";
 import LedgerSignAndBroadcast from "@/components/screens/browser-api/kaspa/sign-and-broadcast/LedgerSignAndBroadcast";
-import useWalletManager from "@/hooks/useWalletManager.ts";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 import Splash from "@/components/screens/Splash";
 
 export default function SignAndBroadcastTxConfirm() {

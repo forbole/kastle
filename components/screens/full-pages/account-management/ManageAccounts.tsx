@@ -3,16 +3,23 @@ import { FormProvider, useForm } from "react-hook-form";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import toast from "@/components/Toast";
-import { ErrorResponse } from "@/lib/service/handlers/error-response";
 import { useBoolean } from "usehooks-ts";
 import Header from "@/components/GeneralHeader";
-import AccountsTitle from "./AccountsTitle";
 import { useLocation } from "react-router";
+import AdvancedSettingsModal from "./AdvancedSettingsModal";
+import { WalletInfo } from "@/contexts/WalletManagerContext";
+import useAccountManager from "@/hooks/wallet/useAccountManager";
+import useWalletEditor from "@/hooks/wallet/useWalletEditor";
+import { PublicKey } from "@/wasm/core/kaspa";
+import { useSettings } from "@/hooks/useSettings";
+import { twMerge } from "tailwind-merge";
 
 export type AccountsFormValues = Record<
   string,
   {
+    address: string;
     publicKeys: string[];
+    evmPublicKey?: `0x${string}`;
     active: boolean;
   }
 >;
@@ -24,21 +31,28 @@ export type ListAccountsRequest = {
 };
 
 type ManageAccountsProps = {
-  walletType: "ledger" | "mnemonic";
   listAccounts?: (
     params: ListAccountsRequest,
   ) => Promise<{ publicKeys: string[] }[]>;
+
+  wallet: WalletInfo;
+  isLegacyWalletEnabled: boolean;
+  toggleLegacyWallet: () => void;
 };
 
 export default function ManageAccounts({
-  walletType,
+  wallet,
   listAccounts,
+  isLegacyWalletEnabled,
+  toggleLegacyWallet,
 }: ManageAccountsProps) {
   const calledOnce = useRef(false);
 
+  const [settings] = useSettings();
+  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const { walletId, action } = useParams();
+  const { action } = useParams();
   const pageSize = 10;
   const [offset, setOffset] = useState(0);
 
@@ -47,17 +61,27 @@ export default function ManageAccounts({
     setTrue: setFetchingAccounts,
     setFalse: setNotFetchingAccounts,
   } = useBoolean();
-  const [accountList, setAccountList] = useState<{ publicKeys: string[] }[]>(
-    [],
-  );
-  const { walletSettings, updateSelectedAccounts } = useWalletManager();
+  const [accountList, setAccountList] = useState<
+    { publicKeys: string[]; evmPublicKey?: `0x${string}` }[]
+  >([]);
+  const { setLegacyWalletEnabled } = useWalletEditor();
+  const { updateSelectedAccounts } = useAccountManager();
 
-  const wallet = walletSettings?.wallets.find(({ id }) => id === walletId);
   const selectedAccountIds = wallet?.accounts.reduce<
-    Record<string, { publicKeys: string[]; active: boolean }>
+    Record<
+      string,
+      {
+        address: string;
+        publicKeys: string[];
+        evmPublicKey?: `0x${string}`;
+        active: boolean;
+      }
+    >
   >((acc, account) => {
     acc[account.index] = {
+      address: account.address,
       publicKeys: account.publicKeys ?? [],
+      evmPublicKey: account.evmPublicKey ?? undefined,
       active: true,
     };
     return acc;
@@ -69,10 +93,6 @@ export default function ManageAccounts({
 
   const onSubmit = form.handleSubmit(async (data) => {
     try {
-      if (!walletId) {
-        throw new Error("Wallet not found");
-      }
-
       // Fill the publicKeys to the accounts object, or the accounts would be missing the public keys
       const accounts = Object.entries(data).reduce((acc, [index, value]) => {
         if (value.active) {
@@ -87,20 +107,22 @@ export default function ManageAccounts({
 
           acc[index] = {
             active: value.active,
+            address: new PublicKey(publicKeys[0])
+              .toAddress(settings?.networkId ?? "mainnet")
+              .toString(),
             publicKeys,
+            evmPublicKey: accountList[accountIndex].evmPublicKey,
           };
         }
         return acc;
       }, {} as AccountsFormValues);
 
-      const response = await updateSelectedAccounts({
-        walletId,
+      await updateSelectedAccounts({
+        walletId: wallet.id,
         accounts,
       });
 
-      if (ErrorResponse.validate(response)) {
-        throw new Error(response.error);
-      }
+      await setLegacyWalletEnabled(wallet.id, isLegacyWalletEnabled);
 
       navigate(location?.state?.redirect ?? "/accounts-imported");
     } catch (error: any) {
@@ -109,12 +131,12 @@ export default function ManageAccounts({
   });
 
   const fetchAccountListChunk = async (offset: number) => {
-    if (!walletId || !listAccounts) {
+    if (!wallet.id || !listAccounts) {
       return;
     }
 
     return await listAccounts({
-      walletId: walletId,
+      walletId: wallet.id,
       start: offset,
       end: offset + pageSize,
     });
@@ -150,45 +172,62 @@ export default function ManageAccounts({
     }
   }, [listAccounts]);
 
-  useEffect(() => {
-    if (!walletSettings || !walletId) {
-      return;
-    }
-
-    const wallet = walletSettings?.wallets.find(({ id }) => id === walletId);
-    if (!wallet) {
-      window.close();
-    }
-  }, [walletSettings, walletId]);
-
-  if (!walletId) {
-    window.close();
-    return null;
-  }
-
   const subtitle = {
     mnemonic:
-      "This page shows accounts created from your recovery phrase. Each phrase can generate multiple accounts, and here you can view and manage them.",
+      "These accounts are generated from your recovery phrase. They support both Kaspa and EVM Networks (such as Kasplex and Igra).",
     ledger:
-      "This page shows accounts managed by your Ledger. You can select accounts to import and manage in Kastle.",
-  }[walletType];
+      "These accounts are generated from your Ledger device. They support both Kaspa and EVM Networks (such as Kasplex and Igra).",
+    privateKey: "", // Not used in this context
+  }[wallet.type];
 
   return (
     <FormProvider {...form}>
       <form
         onSubmit={onSubmit}
-        className="flex h-[90vh] w-[41rem] flex-col items-stretch gap-4 rounded-3xl bg-icy-blue-950 p-8"
+        className="relative flex w-[41rem] flex-col items-stretch gap-4 rounded-3xl bg-icy-blue-950 p-8"
       >
         {/* Header */}
         <Header
           title={action === "manage" ? "Manage Accounts" : "Import Accounts"}
           subtitle={subtitle}
           showPrevious={false}
+          showClose={false}
+          className={twMerge(isLegacyWalletEnabled ? "pb-0" : "pb-5")}
+        />
+
+        {isLegacyWalletEnabled && (
+          <div
+            className="-mx-8 w-full bg-[#854D0E]/30 py-1 text-center text-yellow-500"
+            style={{
+              width: "calc(100% + 4rem)",
+            }}
+          >
+            Showing legacy addresses
+          </div>
+        )}
+
+        {/* Advanced Settings Button */}
+        <div className="flex justify-end pr-4 text-base font-semibold">
+          <button
+            onClick={() => setShowAdvancedSettings(true)}
+            type="button"
+            className="flex items-center gap-2 text-sm text-slate-300 transition-colors hover:text-cyan-400"
+          >
+            <span>Advanced Settings</span>
+            <i className="hn hn-cog" />
+          </button>
+        </div>
+
+        {/* Advanced Settings Modal */}
+        <AdvancedSettingsModal
+          isOpen={showAdvancedSettings}
+          onClose={() => setShowAdvancedSettings(false)}
+          isLegacyWalletEnabled={isLegacyWalletEnabled}
+          toggleLegacyWallet={() => toggleLegacyWallet()}
         />
 
         {/* List */}
         <div className="no-scrollbar flex flex-grow flex-col gap-3 overflow-y-scroll">
-          <AccountsTitle />
           {accountList.length === 0 &&
             Array.from({ length: pageSize }).map((_, index) => (
               <div
@@ -201,6 +240,7 @@ export default function ManageAccounts({
               key={accountIndex}
               accountIndex={accountIndex}
               publicKeys={publicKeys}
+              evmPublicKey={accountList[accountIndex].evmPublicKey}
             />
           ))}
 

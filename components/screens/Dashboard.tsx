@@ -6,7 +6,7 @@ import { formatCurrency, symbolForCurrencyCode } from "@/lib/utils.ts";
 import { twMerge } from "tailwind-merge";
 import useBackupWarning from "@/hooks/useBackupWarning.ts";
 import useKeyring from "@/hooks/useKeyring.ts";
-import useWalletManager from "@/hooks/useWalletManager.ts";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import { Tooltip } from "react-tooltip";
 import Assets from "@/components/dashboard/Assets";

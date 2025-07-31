@@ -5,7 +5,7 @@ import signImage from "@/assets/images/sign.png";
 import ledgerSignImage from "@/assets/images/ledger-on-sign.svg";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/GeneralHeader.tsx";
-import useWalletManager from "@/hooks/useWalletManager.ts";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { IWallet } from "@/lib/ethereum/wallet/wallet-interface.ts";
 import { captureException } from "@sentry/react";
 import { twMerge } from "tailwind-merge";

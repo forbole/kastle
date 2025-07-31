@@ -7,7 +7,7 @@ import { useTokenInfo } from "@/hooks/kasplex/useTokenInfo";
 import Layer2AssetImage from "@/components/Layer2AssetImage";
 import { textEllipsis } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
-import useWalletManager from "@/hooks/useWalletManager";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 import HoverTooltip from "@/components/HoverTooltip";
 
 interface KRC20SelectItemProps {

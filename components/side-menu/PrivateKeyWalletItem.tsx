@@ -14,10 +14,18 @@ export const PrivateKeyWalletItem = ({
 }: PrivateKeyWalletItemProps) => {
   const navigate = useNavigate();
 
+  const menuItems = [
+    {
+      label: "Remove this wallet",
+      onClick: () => navigate(`/remove-wallet/${wallet.id}`),
+      isAlert: true,
+    },
+  ];
+
   return (
     <div className="hs-accordion-group">
       <div className="hs-accordion active flex flex-col items-stretch gap-2">
-        <WalletHeader wallet={wallet} />
+        <WalletHeader wallet={wallet} items={menuItems} />
 
         {/* Account item */}
         <div className="hs-accordion-content w-full overflow-hidden transition-[height] duration-300">
