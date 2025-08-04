@@ -8,6 +8,7 @@ import useKeyring from "@/hooks/useKeyring";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import useKaspaBackgroundSigner from "./useKaspaBackgroundSigner";
 import useEvmBackgroundSigner from "./useEvmBackgroundSigner";
+import { useSettings } from "../useSettings";
 
 export default function useAccountManager() {
   const { rpcClient, networkId } = useRpcClientStateful();
