@@ -51,11 +51,16 @@ export default function KNSTransferBroadcast({
         throw new Error("Missing recipient address");
       }
 
-      for await (const result of transfer(walletSigner, {
-        ...(isDomain && { p: "domain" }),
-        id: assetId,
-        to: address,
-      })) {
+      for await (const result of await transfer(
+        walletSigner,
+        rpcClient,
+        networkId,
+        {
+          ...(isDomain && { p: "domain" }),
+          id: assetId,
+          to: address,
+        },
+      )) {
         if (result.status === "completed") {
           setOutTxs([result.commitTxId!, result.revealTxId!]);
         }

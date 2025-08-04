@@ -39,11 +39,11 @@ export const PrivateKeyWalletItem = ({
               >
                 <button
                   type="button"
-                  onClick={() =>
-                    navigate(
-                      `/backup-unlock?redirect=/show-private-key/${wallet.id}/${account.index}`,
-                    )
-                  }
+                  onClick={() => {
+                    const url = new URL(browser.runtime.getURL("/popup.html"));
+                    url.hash = `/show-wallet-secret/${wallet.id}/private-key`;
+                    browser.tabs.create({ url: url.toString() });
+                  }}
                   className="flex w-full items-center gap-x-3.5 rounded-lg px-3 py-2 text-sm text-daintree-200 hover:bg-daintree-700 focus:bg-daintree-700 focus:outline-none"
                 >
                   Back up with private key

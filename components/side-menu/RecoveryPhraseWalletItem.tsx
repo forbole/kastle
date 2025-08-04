@@ -20,7 +20,9 @@ export const RecoveryPhraseWalletItem = ({
     {
       label: "Back up recovery phrase",
       onClick: async () => {
-        navigate(`/backup-unlock?redirect=/show-recovery-phrase/${wallet.id}`);
+        const url = new URL(browser.runtime.getURL("/popup.html"));
+        url.hash = `/show-wallet-secret/${wallet.id}/mnemonic`;
+        await browser.tabs.create({ url: url.toString() });
       },
     },
     {

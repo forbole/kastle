@@ -29,7 +29,7 @@ export default function ImportLedger() {
         await keyringInitialize(onboardingForm.getValues("password"));
       }
 
-      const accountFactory = new AccountFactory(rpcClient, networkId);
+      const accountFactory = new AccountFactory();
       const account = accountFactory.createFromLedger(transport);
 
       const publicKeys = await account.getPublicKeys();

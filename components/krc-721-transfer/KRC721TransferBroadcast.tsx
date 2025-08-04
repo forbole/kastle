@@ -51,11 +51,16 @@ export default function KRC721TransferBroadcast({
         throw new Error("Missing recipient address");
       }
 
-      for await (const result of transfer(walletSigner, {
-        tick,
-        tokenId,
-        to: address,
-      })) {
+      for await (const result of await transfer(
+        walletSigner,
+        rpcClient,
+        networkId,
+        {
+          tick,
+          tokenId,
+          to: address,
+        },
+      )) {
         if (result.status === "completed") {
           setOutTxs([result.commitTxId!, result.revealTxId!]);
         }

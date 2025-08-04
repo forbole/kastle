@@ -45,12 +45,15 @@ export default function useWalletImporter() {
     if (!rpcClient || !networkId)
       throw new Error("RPC client and network ID not loaded");
 
-    const kaspaWallet = new KaspaAccountFactory(
-      rpcClient,
-      networkId,
-    ).createFromMnemonic(mnemonic, 0);
+    const kaspaWallet = new KaspaAccountFactory().createFromMnemonic(
+      mnemonic,
+      0,
+    );
 
-    const evmWallet = EvmAccountFactory.createFromMnemonic(mnemonic, 0);
+    const address = (await kaspaWallet.getPublicKey())
+      .toAddress(networkId)
+      .toString();
+    const evmWallet = new EvmAccountFactory().createFromMnemonic(mnemonic, 0);
 
     await keyring.addWalletSecret({
       id,
@@ -68,7 +71,7 @@ export default function useWalletImporter() {
           index: 0,
           name: defaultAccountName,
           balance: "0",
-          address: await kaspaWallet.getAddress(),
+          address,
           publicKeys: await kaspaWallet.getPublicKeys(),
           evmPublicKey: await evmWallet.getPublicKey(),
         },
@@ -128,10 +131,13 @@ export default function useWalletImporter() {
       value: privateKey,
     });
 
-    const kaspaWallet = new KaspaAccountFactory(
-      rpcClient,
-      networkId,
-    ).createFromPrivateKey(privateKey);
+    const kaspaWallet = new KaspaAccountFactory().createFromPrivateKey(
+      privateKey,
+    );
+
+    const address = (await kaspaWallet.getPublicKey())
+      .toAddress(networkId)
+      .toString();
 
     await addWallet({
       id,
@@ -143,7 +149,7 @@ export default function useWalletImporter() {
           index: 0,
           name: "Account 0",
           balance: undefined,
-          address: await kaspaWallet.getAddress(),
+          address,
           publicKeys: await kaspaWallet.getPublicKeys(),
           evmPublicKey: await new EthereumPrivateKeyAccount(
             privateKey,
