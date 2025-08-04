@@ -58,11 +58,11 @@ export default function RecoveryPhraseManageAccounts() {
                 ? await EvmLegacyAccountFactory.createFromMnemonic(
                     walletSecret.value,
                     start + index,
-                  ).getAddress()
+                  ).getPublicKey()
                 : await EvmAccountFactory.createFromMnemonic(
                     walletSecret.value,
                     start + index,
-                  ).getAddress(),
+                  ).getPublicKey(),
             })),
           );
         }

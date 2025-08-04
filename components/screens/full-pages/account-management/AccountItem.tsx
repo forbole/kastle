@@ -13,6 +13,7 @@ import kaspaIcon from "@/assets/images/network-logos/kaspa.svg";
 import { useSettings } from "@/hooks/useSettings";
 import EvmAddressItem from "./EvmAddressItem";
 import { numberToHex } from "viem";
+import { publicKeyToAddress } from "viem/accounts";
 
 type AccountItemProps = {
   accountIndex: number;
@@ -149,7 +150,7 @@ export function AccountItem({
         supportedEvmL2Chains.map((chain) => (
           <EvmAddressItem
             key={chain.id}
-            address={evmPublicKey}
+            address={publicKeyToAddress(evmPublicKey)}
             chainId={numberToHex(chain.id)}
           />
         ))}
