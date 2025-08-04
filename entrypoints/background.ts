@@ -5,18 +5,20 @@ import init from "@/wasm/core/kaspa";
 import kaspaModule from "@/assets/kaspa_bg.wasm?url";
 
 export default defineBackground(() => {
-  init(kaspaModule).then(() => {
-    new BackgroundService().listen();
-    ExtensionService.getInstance().startListening();
-
-    browser.runtime.onInstalled.addListener(
-      async ({ reason, previousVersion }) => {
-        if (reason !== "update") {
-          return;
-        }
-
-        await new MigrationManager().run(previousVersion ?? "0.0.0");
-      },
-    );
+  init(kaspaModule).catch((error) => {
+    console.error("Failed to initialize the Kaspa module:", error);
   });
+
+  new BackgroundService().listen();
+  ExtensionService.getInstance().startListening();
+
+  browser.runtime.onInstalled.addListener(
+    async ({ reason, previousVersion }) => {
+      if (reason !== "update") {
+        return;
+      }
+
+      await new MigrationManager().run(previousVersion ?? "0.0.0");
+    },
+  );
 });
