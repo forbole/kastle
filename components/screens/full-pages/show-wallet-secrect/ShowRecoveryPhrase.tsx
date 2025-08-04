@@ -5,15 +5,14 @@ import { useBoolean, useCopyToClipboard } from "usehooks-ts";
 import Header from "@/components/GeneralHeader";
 import { Tooltip } from "react-tooltip";
 
-export default function ShowRecoveryPhrase() {
+export default function ShowRecoveryPhrase({ secret }: { secret: string }) {
   const { walletId } = useParams();
   const { disableWarning } = useBackupWarning();
-  const { getWalletSecret } = useKeyring();
   const [hasAgreed, setHasAgreed] = useState(false);
   const [, copy] = useCopyToClipboard();
   const [copied, setCopied] = useState(false);
   const { value: isHidden, toggle: toggleHidden } = useBoolean(true);
-  const [recoveryPhrase, setRecoveryPhrase] = useState<string[]>();
+  const recoveryPhrase = secret.split(" ");
 
   const copyPhrase = async () => {
     await copy(recoveryPhrase?.join(" ") ?? "");
@@ -27,24 +26,6 @@ export default function ShowRecoveryPhrase() {
     }
     window.close();
   };
-
-  const getMnemonic = useCallback(async () => {
-    if (!walletId) {
-      throw new Error("Wallet ID is missing");
-    }
-
-    const { walletSecret } = await getWalletSecret({ walletId });
-
-    if (walletSecret.type !== "mnemonic") {
-      throw new Error("Mnemonic is missing");
-    }
-
-    setRecoveryPhrase(walletSecret.value.split(" "));
-  }, []);
-
-  useEffect(() => {
-    getMnemonic();
-  }, [getMnemonic]);
 
   return (
     <div className="flex h-[54rem] w-[41rem] flex-col items-stretch gap-4 rounded-3xl bg-icy-blue-950 px-4">

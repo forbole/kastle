@@ -3,7 +3,7 @@ import { Mnemonic } from "@/wasm/core/kaspa";
 import { XPrv } from "@/wasm/core/kaspa";
 
 export class LegacyAccountFactory {
-  static createFromMnemonic(
+  createFromMnemonic(
     mnemonic: string,
     accountIndex: number,
   ): EthereumPrivateKeyAccount {
@@ -16,13 +16,13 @@ export class LegacyAccountFactory {
     return new EthereumPrivateKeyAccount(privateKey.toString());
   }
 
-  static createFromPrivateKey(privateKey: string): EthereumPrivateKeyAccount {
+  createFromPrivateKey(privateKey: string): EthereumPrivateKeyAccount {
     return new EthereumPrivateKeyAccount(privateKey);
   }
 }
 
 export class AccountFactory extends LegacyAccountFactory {
-  static createFromMnemonic(
+  createFromMnemonic(
     mnemonic: string,
     accountIndex: number,
   ): EthereumPrivateKeyAccount {

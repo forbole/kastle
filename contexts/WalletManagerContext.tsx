@@ -1,10 +1,6 @@
 import { createContext, ReactNode, useEffect, useState } from "react";
 import { WalletSecretType } from "@/types/WalletSecret.ts";
 import useKeyring from "@/hooks/useKeyring.ts";
-import {
-  LegacyAccountFactory as KaspaLegacyAccountFactory,
-  AccountFactory as KaspaAccountFactory,
-} from "@/lib/wallet/account-factory";
 import { AccountFactory as EvmAccountFactory } from "@/lib/ethereum/wallet/account-factory.ts";
 import { EthereumPrivateKeyAccount } from "@/lib/ethereum/wallet/account/private-key-account.ts";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful.ts";
@@ -17,6 +13,8 @@ import {
 } from "@/wasm/core/kaspa";
 import internalToast from "@/components/Toast.tsx";
 import { explorerTxLinks } from "@/components/screens/Settings.tsx";
+import useKaspaBackgroundSigner from "@/hooks/wallet/useKaspaBackgroundSigner";
+import useEvmBackgroundSigner from "@/hooks/wallet/useEvmBackgroundSigner";
 
 export const WALLET_SETTINGS = "local:wallet-settings";
 
@@ -59,7 +57,7 @@ type WalletManagerContextType = {
   getBalancesByAddresses: (addresses: string[]) => Promise<number>;
 };
 
-const defaultValue = {
+export const defaultValue = {
   lastLedgerNumber: 0,
   lastPrivateKeyNumber: 0,
   lastRecoveryPhraseNumber: 0,
@@ -112,6 +110,8 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
   const [wallet, setWallet] = useState<WalletInfo>();
   const [account, setAccount] = useState<Account>();
   const [addresses, setAddresses] = useState<string[]>([]);
+  const kaspaSigner = useKaspaBackgroundSigner();
+  const evmSigner = useEvmBackgroundSigner();
 
   // TODO: Remove this after the next release
   // Refresh public keys for the account that don't have them
@@ -133,31 +133,24 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const { walletSecret } = await keyring.getWalletSecret({
-      walletId: wallet.id,
-    });
-
-    const isLegacyEnabled = wallet.isLegacyWalletEnabled ?? true;
-    const accountFactory = isLegacyEnabled
-      ? new KaspaLegacyAccountFactory(rpcClient, networkId)
-      : new KaspaAccountFactory(rpcClient, networkId);
-
     switch (wallet?.type) {
       case "mnemonic":
         if (!account.publicKeys) {
-          const hotWallet = accountFactory.createFromMnemonic(
-            walletSecret.value,
-            account.index,
-          );
-          account.publicKeys = await hotWallet.getPublicKeys();
+          const { publicKeys } = await kaspaSigner.getPublicKeys({
+            walletId: wallet.id,
+            accountIndex: account.index,
+          });
+
+          account.publicKeys = publicKeys;
         }
         break;
       case "privateKey":
         if (!account.publicKeys) {
-          const hotWallet = accountFactory.createFromPrivateKey(
-            walletSecret.value,
-          );
-          account.publicKeys = await hotWallet.getPublicKeys();
+          const { publicKeys } = await kaspaSigner.getPublicKeys({
+            walletId: wallet.id,
+            accountIndex: account.index,
+          });
+          account.publicKeys = publicKeys;
         }
         break;
     }
@@ -354,30 +347,18 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
         );
         if (isEvmPublicKeySet) return;
         updated = true;
-        const { walletSecret } = await keyring.getWalletSecret({
-          walletId: wallet.id,
-        });
+
         await Promise.all(
           wallet.accounts.map(async (account) => {
             if (account.evmPublicKey !== undefined) return;
-            switch (walletSecret.type) {
-              case "mnemonic": {
-                const evmAccount = EvmAccountFactory.createFromMnemonic(
-                  walletSecret.value,
-                  account.index,
-                );
-                account.evmPublicKey = await evmAccount.getPublicKey();
-                break;
-              }
-              case "privateKey": {
-                const evmPrivateKeyAccount = new EthereumPrivateKeyAccount(
-                  walletSecret.value,
-                );
-                account.evmPublicKey =
-                  await evmPrivateKeyAccount.getPublicKey();
-                break;
-              }
-            }
+
+            const { publicKey } = await evmSigner.getPublicKey({
+              walletId: wallet.id,
+              accountIndex: account.index,
+              isLegacy: false,
+            });
+
+            account.evmPublicKey = publicKey;
           }),
         );
       });

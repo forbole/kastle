@@ -16,6 +16,7 @@ import {
   KeyringChangePasswordRequest,
   KeyringChangePasswordResponse,
 } from "@/lib/service/handlers/keyring-change-password.ts";
+import { ErrorMessage } from "@/lib/service/handlers/message";
 
 export const getKeyringStatus = () =>
   sendMessage<KeyringStatusResponse>(Method.KEYRING_STATUS);
@@ -66,12 +67,18 @@ export default function useKeyring() {
         keyringGetWalletSecretRequest,
       ),
 
-    getWalletSecret: (
+    getWalletSecret: async (
       keyringGetWalletSecretRequest: KeyringGetWalletSecretRequest,
-    ) =>
-      sendMessage<KeyringGetWalletSecretResponse>(
-        Method.KEYRING_GET_WALLET_SECRET,
-        keyringGetWalletSecretRequest,
-      ),
+    ) => {
+      const response = await sendMessage<
+        KeyringGetWalletSecretResponse | ErrorMessage
+      >(Method.KEYRING_GET_WALLET_SECRET, keyringGetWalletSecretRequest);
+
+      if ("error" in response) {
+        throw new Error(response.error);
+      }
+
+      return response;
+    },
   };
 }

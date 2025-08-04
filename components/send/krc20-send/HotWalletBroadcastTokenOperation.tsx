@@ -7,6 +7,7 @@ import useRecentAddresses from "@/hooks/useRecentAddresses.ts";
 import { transfer } from "@/lib/krc20.ts";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { IWallet } from "@/lib/wallet/wallet-interface";
+import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 
 type HotWalletSendingProps = {
   walletSigner: IWallet;
@@ -27,21 +28,31 @@ export default function HotWalletBroadcastTokenOperation({
   const opData = watch("opData");
   const domain = watch("domain");
   const { walletSettings } = useWalletManager();
+  const { rpcClient, networkId } = useRpcClientStateful();
 
   const broadcastOperation = async () => {
+    if (!rpcClient || !networkId) {
+      return;
+    }
+
     try {
       const accountIndex = walletSettings?.selectedAccountIndex;
       if (accountIndex === null || accountIndex === undefined) {
         throw new Error("No account selected");
       }
 
-      for await (const result of transfer(walletSigner, {
-        tick: opData.tick,
-        amt: opData.amt,
-        to: opData.to,
-      })) {
+      for await (const result of await transfer(
+        walletSigner,
+        rpcClient,
+        networkId,
+        {
+          tick: opData.tick,
+          amt: opData.amt,
+          to: opData.to,
+        },
+      )) {
         if (result.status === "completed") {
-          setOutTxs([result.commitTxId!, result.revealTxId!]);
+          setOutTxs([result.commitTxId, result.revealTxId]);
         }
       }
 

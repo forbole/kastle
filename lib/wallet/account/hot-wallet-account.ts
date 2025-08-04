@@ -1,35 +1,16 @@
 import {
-  Address,
-  addressFromScriptPublicKey,
   createInputSignature,
-  createTransactions,
-  Generator,
-  IUtxoEntry,
-  kaspaToSompi,
-  PendingTransaction,
   PrivateKey,
   PublicKey,
-  RpcClient,
   ScriptBuilder,
   signTransaction,
   Transaction,
-  UtxoEntryReference,
   XPrv,
   signMessage,
 } from "@/wasm/core/kaspa";
 
-import {
-  IWallet,
-  PaymentOutput,
-  ScriptOption,
-} from "@/lib/wallet/wallet-interface.ts";
-import { NetworkType } from "@/contexts/SettingsContext.tsx";
-import { Amount, Fee } from "@/lib/krc20.ts";
-import {
-  toKaspaPaymentOutput,
-  toSignType,
-  waitTxForAddress,
-} from "@/lib/kaspa.ts";
+import { IWallet, ScriptOption } from "@/lib/wallet/wallet-interface.ts";
+import { toSignType } from "@/lib/kaspa.ts";
 
 export class LegacyHotWalletAccount implements IWallet {
   private readonly MAX_DERIVATION_INDEXES = 50;
@@ -37,71 +18,7 @@ export class LegacyHotWalletAccount implements IWallet {
   constructor(
     protected readonly seed: string,
     protected readonly accountIndex: number,
-    private readonly rpcClient: RpcClient,
-    protected readonly networkId: NetworkType,
   ) {}
-
-  async *performCommitReveal(
-    scriptBuilder: ScriptBuilder,
-    revealPriorityFee: string,
-    extraOutputs: PaymentOutput[] = [],
-  ) {
-    const p2SHAddress = addressFromScriptPublicKey(
-      scriptBuilder.createPayToScriptHashScript(),
-      this.networkId,
-    );
-
-    if (!p2SHAddress) {
-      throw new Error("Invalid P2SH address");
-    }
-
-    yield {
-      status: "committing" as const,
-    };
-
-    const { transactionId: commitTxId, confirm: commitTxIdConfirm } =
-      await this.commitScript(p2SHAddress.toString());
-
-    // Wait for the commit transaction to be added to the UTXO set of the address
-    // TODO: yield failed status and retry if timeout
-    await commitTxIdConfirm;
-
-    yield {
-      status: "revealing" as const,
-      commitTxId: commitTxId,
-    };
-
-    // Create the reveal transaction
-    const scriptUTXOs = await this.rpcClient.getUtxosByAddresses({
-      addresses: [p2SHAddress.toString()],
-    });
-
-    const scriptUtxo = scriptUTXOs.entries.find(
-      (entry) => entry.outpoint.transactionId === commitTxId,
-    );
-
-    if (!scriptUtxo) {
-      throw new Error("Could not find script UTXO");
-    }
-
-    const { transactionId: revealTxId, confirm: revealTxIdConfirm } =
-      await this.revealScript(
-        scriptBuilder,
-        scriptUtxo,
-        revealPriorityFee,
-        extraOutputs,
-      );
-
-    // Wait for the reveal transaction to be removed to the UTXO set of the P2SH address
-    // TODO: yield failed status and retry if timeout
-    await revealTxIdConfirm;
-
-    yield {
-      status: "completed" as const,
-      commitTxId: commitTxId,
-      revealTxId: revealTxId,
-    };
-  }
 
   public getPrivateKeyString() {
     const privateKey = this.getPrivateKey();
@@ -122,48 +39,6 @@ export class LegacyHotWalletAccount implements IWallet {
     }
 
     return publicKeys;
-  }
-
-  async getBalance(): Promise<bigint> {
-    const { entries } = await this.rpcClient.getBalancesByAddresses(
-      this.getAccountAddresses(),
-    );
-
-    return entries.reduce((acc, curr) => acc + curr.balance, 0n);
-  }
-
-  async send(amount: bigint, receiverAddress: string): Promise<string[]> {
-    if (!Address.validate(receiverAddress)) {
-      throw new Error("Invalid receiver address " + receiverAddress);
-    }
-
-    const [entries, indexes] = await this.getUtxos(amount);
-
-    const txGenerator = new Generator({
-      entries: entries,
-      outputs: [
-        {
-          address: receiverAddress,
-          amount,
-        },
-      ],
-      priorityFee: 0n,
-      changeAddress: this.getAddress(),
-      networkId: this.networkId,
-    });
-
-    const txIds = [];
-    let pending: PendingTransaction;
-    while ((pending = await txGenerator.next())) {
-      await pending.sign(this.getPrivateKeys(indexes));
-      const txid = await pending.submit(this.rpcClient);
-      txIds.push(txid);
-    }
-    return txIds;
-  }
-
-  getAddress(): string {
-    return this.getPrivateKey().toAddress(this.networkId).toString();
   }
 
   // NOTE: This method does not support signing with multiple keys
@@ -216,81 +91,81 @@ export class LegacyHotWalletAccount implements IWallet {
     return signMessage({ message, privateKey: this.getPrivateKey() });
   }
 
-  private async commitScript(p2SHAddress: string) {
-    const publicKey = this.getPublicKey();
-    const address = publicKey.toAddress(this.networkId);
+  // private async commitScript(p2SHAddress: string) {
+  //   const publicKey = this.getPublicKey();
+  //   const address = publicKey.toAddress(this.networkId);
 
-    // Create the commit transaction
-    const { entries } = await this.rpcClient.getUtxosByAddresses({
-      addresses: [address.toString()],
-    });
-    const { transactions: pendingTxs } = await createTransactions({
-      priorityEntries: [],
-      entries,
-      outputs: [
-        {
-          address: p2SHAddress,
-          amount: kaspaToSompi(Amount.ScriptUtxoAmount)!,
-        },
-      ],
-      priorityFee: kaspaToSompi(Fee.Base.toString())!,
-      changeAddress: address.toString(),
-      networkId: this.networkId,
-    });
+  //   // Create the commit transaction
+  //   const { entries } = await this.rpcClient.getUtxosByAddresses({
+  //     addresses: [address.toString()],
+  //   });
+  //   const { transactions: pendingTxs } = await createTransactions({
+  //     priorityEntries: [],
+  //     entries,
+  //     outputs: [
+  //       {
+  //         address: p2SHAddress,
+  //         amount: kaspaToSompi(Amount.ScriptUtxoAmount)!,
+  //       },
+  //     ],
+  //     priorityFee: kaspaToSompi(Fee.Base.toString())!,
+  //     changeAddress: address.toString(),
+  //     networkId: this.networkId,
+  //   });
 
-    const pending = pendingTxs[0];
-    const signedTx = await this.signTx(pending.transaction);
+  //   const pending = pendingTxs[0];
+  //   const signedTx = await this.signTx(pending.transaction);
 
-    const confirm = waitTxForAddress(this.rpcClient, p2SHAddress, signedTx.id);
+  //   const confirm = waitTxForAddress(this.rpcClient, p2SHAddress, signedTx.id);
 
-    const { transactionId } = await this.rpcClient.submitTransaction({
-      transaction: signedTx,
-    });
+  //   const { transactionId } = await this.rpcClient.submitTransaction({
+  //     transaction: signedTx,
+  //   });
 
-    return {
-      transactionId,
-      confirm,
-    };
-  }
+  //   return {
+  //     transactionId,
+  //     confirm,
+  //   };
+  // }
 
-  private async revealScript(
-    script: ScriptBuilder,
-    scriptUtxo: IUtxoEntry,
-    priorityFee: string,
-    extraOutputs: PaymentOutput[] = [],
-  ) {
-    const address = this.getAddress();
-    const { entries } = await this.rpcClient.getUtxosByAddresses([address]);
+  // private async revealScript(
+  //   script: ScriptBuilder,
+  //   scriptUtxo: IUtxoEntry,
+  //   priorityFee: string,
+  //   extraOutputs: PaymentOutput[] = [],
+  // ) {
+  //   const address = this.getAddress();
+  //   const { entries } = await this.rpcClient.getUtxosByAddresses([address]);
 
-    const { transactions: revealPendingTxs } = await createTransactions({
-      priorityEntries: [scriptUtxo],
-      entries,
-      outputs: extraOutputs.map((output) => toKaspaPaymentOutput(output)),
-      changeAddress: address,
-      priorityFee: kaspaToSompi(priorityFee),
-      networkId: this.networkId,
-    });
+  //   const { transactions: revealPendingTxs } = await createTransactions({
+  //     priorityEntries: [scriptUtxo],
+  //     entries,
+  //     outputs: extraOutputs.map((output) => toKaspaPaymentOutput(output)),
+  //     changeAddress: address,
+  //     priorityFee: kaspaToSompi(priorityFee),
+  //     networkId: this.networkId,
+  //   });
 
-    // Sign the transaction with the script
-    const pendingTx = revealPendingTxs[0];
-    const signedTx = await this.signTx(pendingTx.transaction, [
-      {
-        inputIndex: 0,
-        scriptHex: script.toString(),
-      },
-    ]);
+  //   // Sign the transaction with the script
+  //   const pendingTx = revealPendingTxs[0];
+  //   const signedTx = await this.signTx(pendingTx.transaction, [
+  //     {
+  //       inputIndex: 0,
+  //       scriptHex: script.toString(),
+  //     },
+  //   ]);
 
-    const confirm = waitTxForAddress(this.rpcClient, address, signedTx.id);
+  //   const confirm = waitTxForAddress(this.rpcClient, address, signedTx.id);
 
-    const { transactionId } = await this.rpcClient.submitTransaction({
-      transaction: signedTx,
-    });
+  //   const { transactionId } = await this.rpcClient.submitTransaction({
+  //     transaction: signedTx,
+  //   });
 
-    return {
-      transactionId,
-      confirm,
-    };
-  }
+  //   return {
+  //     transactionId,
+  //     confirm,
+  //   };
+  // }
 
   protected getPrivateKey() {
     const xprv = new XPrv(this.seed);
@@ -313,47 +188,11 @@ export class LegacyHotWalletAccount implements IWallet {
 
     return privateKeys;
   }
-
-  private getAccountAddresses() {
-    return this.getPublicKeys().map((publicKey) => {
-      return new PublicKey(publicKey).toAddress(this.networkId).toString();
-    });
-  }
-
-  private async getUtxos(amount?: bigint) {
-    const rpcResult = await this.rpcClient.getUtxosByAddresses(
-      this.getAccountAddresses(),
-    );
-
-    const entries: UtxoEntryReference[] = [];
-    const indexes: number[] = [];
-    let sum = 0n;
-
-    for (let i = 0; i < rpcResult.entries.length; i++) {
-      const utxoEntry = rpcResult.entries[i];
-      sum += utxoEntry.amount;
-      entries.push(utxoEntry);
-      indexes.push(i);
-
-      if (!!amount && sum > amount) {
-        break;
-      }
-    }
-
-    // TODO handle amount sum < amount?
-
-    return [entries, indexes] as const;
-  }
 }
 
 export class HotWalletAccount extends LegacyHotWalletAccount {
-  constructor(
-    seed: string,
-    accountIndex: number,
-    rpcClient: RpcClient,
-    networkId: NetworkType,
-  ) {
-    super(seed, accountIndex, rpcClient, networkId);
+  constructor(seed: string, accountIndex: number) {
+    super(seed, accountIndex);
   }
 
   override getPublicKeys() {

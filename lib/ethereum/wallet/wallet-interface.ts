@@ -1,11 +1,15 @@
-import { TransactionSerializable } from "viem";
+import { TransactionSerializable, SignTypedDataParameters, Hex } from "viem";
 
 export interface IWallet {
-  signMessage(message: string): Promise<`0x${string}`>;
+  signMessage(message: string): Promise<Hex>;
 
-  signTransaction(transaction: TransactionSerializable): Promise<`0x${string}`>;
+  signTypedData(typedData: SignTypedDataParameters): Promise<Hex>;
 
-  getAddress(): Promise<`0x${string}`>;
+  signTransaction(transaction: TransactionSerializable): Promise<Hex>;
 
   getPublicKey(): Promise<string>;
+}
+
+export interface IWalletWithGetAddress extends IWallet {
+  getAddress(): Hex | Promise<Hex>;
 }

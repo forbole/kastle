@@ -1,6 +1,6 @@
 import { ConfirmStep } from "@/components/send/evm/erc20-send/ConfirmStep";
 import { Erc20Asset } from "@/contexts/EvmAssets";
-import useEvmHotWalletSigner from "@/hooks/evm/useEvmHotWalletSigner";
+import useEvmHotWalletSigner from "@/hooks/wallet/useEvmHotWalletSigner";
 
 type HotWalletConfirmProps = {
   asset: Erc20Asset;

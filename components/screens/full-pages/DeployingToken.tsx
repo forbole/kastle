@@ -26,8 +26,10 @@ export default function DeployingToken() {
     if (!rpcClient || !walletSigner) return;
 
     const broadcastOperation = async () => {
-      for await (const result of deploy(
+      for await (const result of await deploy(
         walletSigner,
+        rpcClient,
+        networkId,
         {
           tick: ticker,
           max: maxSupply.toString(),
