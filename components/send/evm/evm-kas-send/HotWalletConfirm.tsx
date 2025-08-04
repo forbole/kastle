@@ -1,5 +1,5 @@
 import { ConfirmStep } from "@/components/send/evm/evm-kas-send/ConfirmStep";
-import useEvmHotWalletSigner from "@/hooks/evm/useEvmHotWalletSigner";
+import useEvmHotWalletSigner from "@/hooks/wallet/useEvmHotWalletSigner";
 
 type HotWalletConfirmProps = {
   chainId: `0x${string}`;

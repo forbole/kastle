@@ -6,7 +6,7 @@ import ledgerSignImage from "@/assets/images/ledger-on-sign.svg";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/GeneralHeader.tsx";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
-import { IWallet } from "@/lib/ethereum/wallet/wallet-interface.ts";
+import { IWalletWithGetAddress } from "@/lib/ethereum/wallet/wallet-interface.ts";
 import { captureException } from "@sentry/react";
 import { twMerge } from "tailwind-merge";
 import { formatCurrency } from "@/lib/utils.ts";
@@ -40,7 +40,7 @@ export const ConfirmStep = ({
   onBack: () => void;
   onFail: () => void;
   setOutTxs: (value: string[] | undefined) => void;
-  walletSigner?: IWallet;
+  walletSigner?: IWalletWithGetAddress;
 }) => {
   const navigate = useNavigate();
   const evmAddress = useEvmAddress();

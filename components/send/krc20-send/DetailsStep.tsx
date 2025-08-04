@@ -9,7 +9,7 @@ import { Address, kaspaToSompi, sompiToKaspaString } from "@/wasm/core/kaspa";
 import { twMerge } from "tailwind-merge";
 import { useBoolean } from "usehooks-ts";
 import { useTokenBalance } from "@/hooks/kasplex/useTokenBalance";
-import { applyDecimal, computeOperationFees, Fee } from "@/lib/krc20.ts";
+import { applyDecimal, computeOperationFees, Krc20Fee } from "@/lib/krc20.ts";
 import RecentAddresses from "@/components/send/RecentAddresses.tsx";
 import spinner from "@/assets/images/spinner.svg";
 import { useKns } from "@/hooks/useKns.ts";
@@ -92,7 +92,7 @@ export const DetailsStep = () => {
       return "Oh, you don’t have enough funds";
     }
 
-    if (kasBalance < Fee.Base) {
+    if (kasBalance < Krc20Fee.Base) {
       return "Oh, you don't have enough KAS to cover the operation fees";
     }
 

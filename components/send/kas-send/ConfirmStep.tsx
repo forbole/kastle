@@ -7,13 +7,15 @@ import useKaspaPrice from "@/hooks/useKaspaPrice.ts";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/GeneralHeader.tsx";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
-import { IWallet } from "@/lib/wallet/wallet-interface";
+import { IWalletWithGetAddress } from "@/lib/wallet/wallet-interface";
 import useRecentAddresses from "@/hooks/useRecentAddresses.ts";
 import { captureException } from "@sentry/react";
 import { kaspaToSompi, sompiToKaspaString } from "@/wasm/core/kaspa";
 import { twMerge } from "tailwind-merge";
 import { formatCurrency } from "@/lib/utils.ts";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
+import { createTransactions } from "@/wasm/core/kaspa";
+import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 
 export const ConfirmStep = ({
   onNext,
@@ -26,13 +28,14 @@ export const ConfirmStep = ({
   onBack: () => void;
   onFail: () => void;
   setOutTxs: (value: string[] | undefined) => void;
-  walletSigner?: IWallet;
+  walletSigner?: IWalletWithGetAddress;
 }) => {
   const navigate = useNavigate();
 
   const { emitFirstTransaction } = useAnalytics();
   const { addRecentAddress } = useRecentAddresses();
   const [isSigning, setIsSigning] = useState(false);
+  const { rpcClient, networkId } = useRpcClientStateful();
 
   const { wallet, account } = useWalletManager();
   const { watch } = useFormContext<KasSendForm>();
@@ -52,24 +55,42 @@ export const ConfirmStep = ({
   };
 
   const onConfirm = async () => {
-    if (isSigning || !amount || !address || !signer) {
+    if (
+      isSigning ||
+      !amount ||
+      !address ||
+      !signer ||
+      !rpcClient ||
+      !account ||
+      !networkId
+    ) {
       return;
     }
 
     try {
       setIsSigning(true);
-      const transactionResponse = {
-        txIds: await signer.send(
-          kaspaToSompi(amount) ?? BigInt(0),
-          address,
-          priorityFee,
-        ),
-      };
 
-      if (typeof transactionResponse === "string") {
-        onFail();
-        return;
-      }
+      const { entries } = await rpcClient.getUtxosByAddresses([
+        account.address,
+      ]);
+
+      const { transactions } = await createTransactions({
+        entries: entries,
+        outputs: [
+          {
+            address,
+            amount: kaspaToSompi(amount) ?? BigInt(0),
+          },
+        ],
+        priorityFee: 0n,
+        changeAddress: await signer.getAddress(),
+        networkId: networkId,
+      });
+      const transaction = transactions[0].transaction;
+      const signedTransaction = await signer.signTx(transaction);
+      const { transactionId } = await rpcClient.submitTransaction({
+        transaction: signedTransaction,
+      });
 
       await addRecentAddress({
         usedAt: Date.now(),
@@ -77,7 +98,7 @@ export const ConfirmStep = ({
         domain,
       });
 
-      setOutTxs(transactionResponse.txIds);
+      setOutTxs([transactionId]);
       // Don't await, analytics should not crash the app
       emitFirstTransaction({
         amount,

@@ -42,8 +42,10 @@ export default function MintingToken() {
     if (!rpcClient || !walletSigner) return;
 
     const broadcastOperation = async (includeForboleFees: boolean = false) => {
-      for await (const result of mint(
+      for await (const result of await mint(
         walletSigner,
+        rpcClient,
+        networkId,
         { tick: ticker },
         includeForboleFees
           ? [

@@ -86,11 +86,11 @@ export default function Dashboard() {
             extension 🌐
           </span>
           <button
-            onClick={() =>
-              navigate(
-                `/backup-unlock?redirect=/show-recovery-phrase/${wallet?.id}`,
-              )
-            }
+            onClick={() => {
+              const url = new URL(browser.runtime.getURL("/popup.html"));
+              url.hash = `/show-wallet-secret/${wallet?.id}/mnemonic`;
+              browser.tabs.create({ url: url.toString() });
+            }}
             type="button"
             className="inline-flex items-center gap-x-2 self-start rounded-lg border border-transparent bg-[#854D0E]/30 px-4 py-3 text-sm font-medium text-[#EAB308] hover:bg-[#854D0E]/20 focus:bg-[#854D0E4D] focus:outline-none disabled:pointer-events-none disabled:opacity-50"
           >

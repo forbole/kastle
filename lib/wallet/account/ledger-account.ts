@@ -1,17 +1,6 @@
+import { IWallet, ScriptOption } from "@/lib/wallet/wallet-interface.ts";
 import {
-  CommitRevealResult,
-  IWallet,
-  PaymentOutput,
-  ScriptOption,
-} from "@/lib/wallet/wallet-interface.ts";
-import {
-  Address,
-  Generator,
-  IUtxoEntry,
-  PendingTransaction,
   PublicKey,
-  RpcClient,
-  ScriptBuilder,
   ScriptPublicKey,
   Transaction,
   TransactionInput,
@@ -34,100 +23,22 @@ export class LegacyLedgerAccount implements IWallet {
   constructor(
     transport: Transport,
     private readonly accountIndex: number,
-    private readonly rpcClient: RpcClient,
-    private readonly networkId: string,
   ) {
     this.app = new KaspaApp(transport);
     this.path = `m/44'/111111'/${accountIndex}'/0/0`;
-  }
-
-  performCommitReveal(
-    scriptBuilder: ScriptBuilder,
-    revealPriorityFee: string,
-    extraOutputs?: PaymentOutput[],
-  ): AsyncGenerator<CommitRevealResult> {
-    throw new Error("Method not implemented.");
-  }
-
-  public async send(
-    amount: bigint,
-    receiverAddress: string,
-    priorityFee?: bigint,
-  ): Promise<string[]> {
-    if (!Address.validate(receiverAddress)) {
-      throw new Error("Invalid receiver address " + receiverAddress);
-    }
-
-    const entries = await this.getUtxos();
-
-    const txGenerator = new Generator({
-      entries: entries,
-      outputs: [
-        {
-          address: receiverAddress,
-          amount,
-        },
-      ],
-      priorityFee: priorityFee ?? 0n,
-      changeAddress: await this.getAddress(),
-      networkId: this.networkId,
-    });
-
-    const txIds = [];
-    let pending;
-    while ((pending = (await txGenerator.next()) as PendingTransaction)) {
-      const inputs = pending.transaction.inputs;
-
-      const ledgerInputs = inputs.map(
-        (input) =>
-          new LedgerTransactionInput({
-            value: Number(input.utxo?.amount),
-            prevTxId: input.utxo?.outpoint.transactionId ?? "",
-            outpointIndex: input.utxo?.outpoint.index ?? 0,
-            addressType: 0,
-            addressIndex: 0,
-          }),
-      );
-
-      const outputs = pending.transaction.outputs.map(
-        (output) =>
-          new LedgerTransactionOutput({
-            value: Number(output.value),
-            scriptPublicKey:
-              typeof output.scriptPublicKey === "string"
-                ? output.scriptPublicKey
-                : output.scriptPublicKey.script,
-          }),
-      );
-
-      const tx = new LedgerTransaction({
-        version: 0,
-        inputs: ledgerInputs,
-        outputs: outputs,
-
-        changeAddressType: 0,
-        changeAddressIndex: 0,
-        account: this.accountIndex + LEDGER_ACCOUNT_INDEX_OFFSET,
-      });
-
-      await this.app.signTransaction(tx);
-
-      const rpcTx = this.toRpcTransaction(tx);
-      const { transactionId } = await this.rpcClient.submitTransaction({
-        transaction: rpcTx,
-      });
-      txIds.push(transactionId);
-    }
-
-    return txIds;
   }
 
   public getPrivateKeyString(): string {
     throw new Error("Ledger wallet does not support getPrivateKey");
   }
 
-  getPublicKey(): PublicKey {
-    throw new Error("Ledger wallet does not support getPublicKey");
+  async getPublicKey() {
+    const response = await this.app.getPublicKey(this.path, false);
+    // Index 0 is the length of the following full public key
+    const keyLength: number = response.readUInt8(0);
+
+    const publicKeyBuffer = response.subarray(1, keyLength + 1);
+    return new PublicKey(publicKeyBuffer.toString("hex"));
   }
 
   public async getPublicKeys(): Promise<string[]> {
@@ -137,21 +48,6 @@ export class LegacyLedgerAccount implements IWallet {
 
     const publicKeyBuffer = response.subarray(1, keyLength + 1);
     return [publicKeyBuffer.toString("hex")];
-  }
-
-  public async getBalance(): Promise<bigint> {
-    const address = await this.getAddress();
-    const { entries } = await this.rpcClient.getBalancesByAddresses([address]);
-
-    return entries.reduce((acc, curr) => acc + curr.balance, 0n);
-  }
-
-  public async getAddress(): Promise<string> {
-    const publicKey = new PublicKey((await this.getPublicKeys())[0]);
-
-    return publicKey
-      .toAddress((await this.rpcClient.getCurrentNetwork()).network)
-      .toString();
   }
 
   public async signTx(
@@ -209,15 +105,6 @@ export class LegacyLedgerAccount implements IWallet {
     ).signature;
   }
 
-  private async getUtxos(): Promise<IUtxoEntry[]> {
-    const address = await this.getAddress();
-    return (
-      await this.rpcClient.getUtxosByAddresses({
-        addresses: [address],
-      })
-    ).entries;
-  }
-
   private toRpcTransaction(signedTx: LedgerTransaction): Transaction {
     const inputs = signedTx.inputs.map((currInput: LedgerTransactionInput) => {
       return new TransactionInput({
@@ -253,13 +140,8 @@ export class LegacyLedgerAccount implements IWallet {
 }
 
 export class LedgerAccount extends LegacyLedgerAccount {
-  constructor(
-    transport: Transport,
-    accountIndex: number,
-    rpcClient: RpcClient,
-    networkId: string,
-  ) {
-    super(transport, accountIndex, rpcClient, networkId);
+  constructor(transport: Transport, accountIndex: number) {
+    super(transport, accountIndex);
     this.path = `m/44'/111111'/0'/0/${accountIndex}`;
   }
 }
