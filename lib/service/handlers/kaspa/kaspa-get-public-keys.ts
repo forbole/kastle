@@ -1,4 +1,4 @@
-import { ExtensionService } from "@/lib/service/extension-service.ts";
+import { ExtensionService, Message } from "@/lib/service/extension-service.ts";
 import { getSigner, getCurrentSigner } from "./utils";
 
 export type KaspaGetPublicKeysRequest = {
@@ -12,7 +12,7 @@ export type KaspaGetPublicKeysResponse = {
 };
 
 export async function kaspaGetPublicKeysHandler(
-  { walletId, accountIndex, isLegacy }: KaspaGetPublicKeysRequest,
+  { walletId, accountIndex, isLegacy }: Message<KaspaGetPublicKeysRequest>,
   sendResponse: (response: KaspaGetPublicKeysResponse) => void,
 ) {
   const extensionService = ExtensionService.getInstance();
