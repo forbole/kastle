@@ -108,6 +108,8 @@ export class CommitRevealHelper {
     const pending = pendingTxs[0];
     const signedTx = await this.signer.signTx(pending.transaction);
 
+    // Register the waiting callback for the transaction confirmation
+    // This must be executed before submitting the transaction then awaiting for the confirmation after submitting to avoid missing the event
     const confirm = waitTxForAddress(this.rpcClient, p2SHAddress, signedTx.id);
 
     const { transactionId } = await this.rpcClient.submitTransaction({
@@ -149,6 +151,8 @@ export class CommitRevealHelper {
       },
     ]);
 
+    // Register the waiting callback for the transaction confirmation
+    // This must be executed before submitting the transaction then awaiting for the confirmation after submitting to avoid missing the event
     const confirm = waitTxForAddress(this.rpcClient, address, signedTx.id);
 
     const { transactionId } = await this.rpcClient.submitTransaction({
