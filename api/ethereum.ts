@@ -29,6 +29,10 @@ export class EthereumBrowserAPI {
 
   request(request: RpcRequest) {
     const requestId = uuid();
+    if (request.method === "eth_requestAccounts") {
+      this.appendLogoForConnect(request);
+    }
+
     const apiRequest = createApiRequest(
       Action.ETHEREUM_REQUEST,
       requestId,
@@ -36,6 +40,26 @@ export class EthereumBrowserAPI {
     );
 
     return this.postAndReceive(apiRequest);
+  }
+
+  appendLogoForConnect(request: RpcRequest) {
+    const iconElement =
+      document.querySelector('link[rel="icon"]') ||
+      document.querySelector('link[rel="shortcut icon"]');
+
+    let iconUrl: string | undefined;
+    if (iconElement instanceof HTMLLinkElement) {
+      iconUrl = iconElement.href;
+    }
+
+    request.params = [
+      {
+        name: document.title,
+        icon: iconUrl,
+      },
+    ];
+
+    return request;
   }
 
   on(eventName: string, listener: (...args: unknown[]) => void) {
