@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.30.0](https://github.com/forbole/kastle/compare/v2.29.1...v2.30.0) (2025-08-05)
+
+
+### Features
+
+* show website logo when connecting by `eth_requestAccounts` ([#198](https://github.com/forbole/kastle/issues/198)) ([756db36](https://github.com/forbole/kastle/commit/756db3658bb73fee9153ecc5c4458a7455deede5))
+
 ## [2.29.1](https://github.com/forbole/kastle/compare/v2.29.0...v2.29.1) (2025-07-29)
 
 
