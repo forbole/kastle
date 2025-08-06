@@ -1,4 +1,4 @@
-import useWalletManager from "../useWalletManager";
+import useWalletManager from "../wallet/useWalletManager";
 import useEvmAssets from "./useEvmAssets";
 import { useState, useEffect } from "react";
 

@@ -4,6 +4,7 @@ import { twMerge } from "tailwind-merge";
 import { useBoolean, useCopyToClipboard } from "usehooks-ts";
 import Header from "@/components/GeneralHeader";
 import { Tooltip } from "react-tooltip";
+import useAccountManager from "@/hooks/wallet/useAccountManager";
 
 export default function ShowPrivateKey() {
   const { walletId, accountIndex } = useParams();
@@ -12,7 +13,7 @@ export default function ShowPrivateKey() {
     : undefined;
   const [, copy] = useCopyToClipboard();
   const [copied, setCopied] = useState(false);
-  const { getPrivateKey } = useWalletManager();
+  const { getAccountPrivateKey } = useAccountManager();
   const { value: isHidden, toggle: toggleHidden } = useBoolean(true);
   const [privateKey, setPrivateKey] = useState<string>();
 
@@ -29,7 +30,7 @@ export default function ShowPrivateKey() {
       throw new Error("Wallet ID or account number is missing");
     }
 
-    const privateKey = await getPrivateKey({
+    const privateKey = await getAccountPrivateKey({
       walletId,
       accountIndex: accountIndexNumber,
     });

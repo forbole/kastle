@@ -4,6 +4,7 @@ import { useSettings } from "@/hooks/useSettings";
 import emptyImage from "@/assets/images/empty.png";
 import { useNavigate } from "react-router-dom";
 import * as conn from "@/lib/settings/connection";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 
 export default function ConnectedApps() {
   const navigate = useNavigate();

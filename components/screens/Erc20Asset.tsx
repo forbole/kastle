@@ -4,7 +4,7 @@ import { twMerge } from "tailwind-merge";
 import React, { useState } from "react";
 import Erc20Info from "@/components/erc20-asset/Erc20Info";
 import useEvmAssets from "@/hooks/evm/useEvmAssets";
-import useWalletManager from "@/hooks/useWalletManager";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 
 export default function Erc20Asset() {
   const navigate = useNavigate();

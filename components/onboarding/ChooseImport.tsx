@@ -3,15 +3,16 @@ import React from "react";
 import { useFormContext } from "react-hook-form";
 import { OnboardingData } from "@/components/screens/Onboarding.tsx";
 import useKeyring from "@/hooks/useKeyring.ts";
-import useWalletManager from "@/hooks/useWalletManager.ts";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { v4 as uuid } from "uuid";
 import { useNavigate } from "react-router-dom";
+import useWalletImporter from "@/hooks/wallet/useWalletImporter";
 
 export default function ChooseImport() {
   const form = useFormContext<OnboardingData>();
   const navigate = useNavigate();
   const { keyringInitialize } = useKeyring();
-  const { createNewWallet } = useWalletManager();
+  const { createNewWallet } = useWalletImporter();
   const password = form.watch("password");
 
   return (

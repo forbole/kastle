@@ -1,4 +1,4 @@
-import { AccountFactory } from "@/lib/wallet/wallet-factory";
+import { AccountFactory } from "@/lib/wallet/account-factory";
 import { useNavigate } from "react-router-dom";
 import useLedgerTransport from "@/hooks/useLedgerTransport";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful.ts";
@@ -9,13 +9,14 @@ import successImage from "@/assets/images/success.png";
 import { OnboardingData } from "@/components/screens/Onboarding.tsx";
 import { useFormContext } from "react-hook-form";
 import LedgerConnectForImport from "@/components/screens/full-pages/ledger/LedgerConnectForImport";
+import useWalletImporter from "@/hooks/wallet/useWalletImporter";
 
 export default function ImportLedger() {
   const { transport, isAppOpen } = useLedgerTransport();
   const navigate = useNavigate();
   const { keyringInitialize } = useKeyring();
   const { rpcClient, networkId } = useRpcClientStateful();
-  const { importWalletByLedger } = useWalletManager();
+  const { importWalletByLedger } = useWalletImporter();
   const onboardingForm = useFormContext<OnboardingData>();
 
   const importLedgerAccount = async () => {
