@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import React from "react";
 import { Account } from "@/contexts/WalletManagerContext.tsx";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
+import useTotalBalanceByAccount from "@/hooks/kasplex/useTotalBalanceByAccount";
 
 type AccountItemProps = {
   walletId: string;
@@ -19,15 +20,15 @@ export default function AccountItem({
   children,
 }: AccountItemProps) {
   const [settings] = useSettings();
-  const kaspaPrice = useKaspaPrice();
   const { selectAccount, walletSettings } = useWalletManager();
   const isSelectedWalletId = walletSettings?.selectedWalletId === walletId;
   const selectedAccountIndex = walletSettings?.selectedAccountIndex;
+  const totalBalance = useTotalBalanceByAccount(
+    account?.balance ? account : undefined,
+  );
 
-  const fiatBalance =
-    parseFloat(account.balance ?? "0") * kaspaPrice.kaspaPrice;
   const { amount: totalBalanceCurrency, code: currencyCode } =
-    useCurrencyValue(fiatBalance);
+    useCurrencyValue(totalBalance);
 
   return (
     <div
