@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.31.0](https://github.com/forbole/kastle/compare/v2.30.0...v2.31.0) (2025-08-13)
+
+
+### Features
+
+* update AccountItem to use total balance for currency value calc… ([#200](https://github.com/forbole/kastle/issues/200)) ([d05fc15](https://github.com/forbole/kastle/commit/d05fc1563a5772b8b8a957b438f056633d65d601))
+
 ## [2.30.0](https://github.com/forbole/kastle/compare/v2.29.1...v2.30.0) (2025-08-05)
 
 
