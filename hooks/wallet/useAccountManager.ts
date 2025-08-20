@@ -2,16 +2,21 @@ import {
   LegacyAccountFactory as KaspaLegacyAccountFactory,
   AccountFactory as KaspaAccountFactory,
 } from "@/lib/wallet/account-factory";
-import { AccountFactory as EvmAccountFactory } from "@/lib/ethereum/wallet/account-factory";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import { PublicKey } from "@/wasm/core/kaspa";
 import useKeyring from "@/hooks/useKeyring";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
+import useKaspaBackgroundSigner from "./useKaspaBackgroundSigner";
+import useEvmBackgroundSigner from "./useEvmBackgroundSigner";
+import { useSettings } from "../useSettings";
 
 export default function useAccountManager() {
   const { rpcClient, networkId } = useRpcClientStateful();
   const { walletSettings, setWalletSettings } = useWalletManager();
   const keyring = useKeyring();
+  const kaspaBackgroundSigner = useKaspaBackgroundSigner();
+  const evmBackgroundSigner = useEvmBackgroundSigner();
+  const [settings] = useSettings();
 
   // Function to add a new account to the wallet
   const addAccount = async (
@@ -34,30 +39,31 @@ export default function useAccountManager() {
     const lastAccount = wallet.accounts[wallet.accounts.length - 1];
     const nextIndex = lastAccount.index + 1;
 
-    const { walletSecret } = await keyring.getWalletSecret({ walletId });
     const walletIsLegacy = wallet.isLegacyWalletEnabled ?? true;
 
-    const factory = walletIsLegacy
-      ? new KaspaLegacyAccountFactory(rpcClient, networkId)
-      : new KaspaAccountFactory(rpcClient, networkId);
+    const { publicKeys: kaspaPublicKeys } =
+      await kaspaBackgroundSigner.getPublicKeys({
+        walletId,
+        accountIndex: nextIndex,
+        isLegacy: walletIsLegacy,
+      });
+    const kaspaAddress = new PublicKey(kaspaPublicKeys[0])
+      .toAddress(networkId)
+      .toString();
 
-    const newAccount = factory.createFromMnemonic(
-      walletSecret.value,
-      nextIndex,
-    );
-
-    const newEvmAccount = EvmAccountFactory.createFromMnemonic(
-      walletSecret.value,
-      nextIndex,
-    );
+    const { publicKey: evmPublicKey } = await evmBackgroundSigner.getPublicKey({
+      walletId,
+      accountIndex: nextIndex,
+      isLegacy: settings?.isLegacyEvmAddressEnabled ?? false,
+    });
 
     wallet.accounts.push({
-      address: await newAccount.getAddress(),
+      address: kaspaAddress,
       balance: undefined,
       name: `Account ${nextIndex}`,
       index: nextIndex,
-      publicKeys: await newAccount.getPublicKeys(),
-      evmPublicKey: await newEvmAccount.getPublicKey(),
+      publicKeys: kaspaPublicKeys,
+      evmPublicKey,
     });
 
     if (select) {
@@ -203,10 +209,11 @@ export default function useAccountManager() {
 
   const getAccountPrivateKey = async ({
     walletId,
-    accountIndex,
+    password,
   }: {
     walletId: string;
     accountIndex: number;
+    password: string;
   }) => {
     if (!rpcClient || !networkId) {
       throw new Error("RPC client and settings not loaded");
@@ -215,7 +222,10 @@ export default function useAccountManager() {
       throw new Error("Wallet manager not initialized");
     }
 
-    const { walletSecret } = await keyring.getWalletSecret({ walletId });
+    const { walletSecret } = await keyring.getWalletSecret({
+      walletId,
+      password,
+    });
 
     const wallet = walletSettings.wallets.find((w) => w.id === walletId);
     if (!wallet) {
@@ -224,16 +234,11 @@ export default function useAccountManager() {
 
     const isLegacyEnabled = wallet.isLegacyWalletEnabled ?? true; // Default to true if not specified
     const factory = isLegacyEnabled
-      ? new KaspaLegacyAccountFactory(rpcClient, networkId)
-      : new KaspaAccountFactory(rpcClient, networkId);
+      ? new KaspaLegacyAccountFactory()
+      : new KaspaAccountFactory();
 
-    if (walletSecret.type === "mnemonic") {
-      const hotWallet = factory.createFromMnemonic(
-        walletSecret.value,
-        accountIndex,
-      );
-
-      return hotWallet.getPrivateKeyString();
+    if (walletSecret.type !== "privateKey") {
+      throw new Error("Cannot get private key from mnemonic wallet");
     } else {
       return walletSecret.value;
     }

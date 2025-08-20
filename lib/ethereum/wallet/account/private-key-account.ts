@@ -1,18 +1,15 @@
-import {
-  privateKeyToAccount,
-  PrivateKeyAccount,
-  SignTypedDataParameters,
-} from "viem/accounts";
-import { TransactionSerializable } from "viem";
+import { privateKeyToAccount, PrivateKeyAccount } from "viem/accounts";
+import { TransactionSerializable, SignTypedDataParameters, Hex } from "viem";
+import { IWallet } from "../wallet-interface.ts";
 
-export class EthereumPrivateKeyAccount {
+export class EthereumPrivateKeyAccount implements IWallet {
   private readonly account: PrivateKeyAccount;
 
   constructor(privateKey: string) {
     if (!privateKey.startsWith("0x")) {
       privateKey = "0x" + privateKey;
     }
-    this.account = privateKeyToAccount(privateKey as `0x${string}`);
+    this.account = privateKeyToAccount(privateKey as Hex);
   }
 
   async signTransaction(transaction: TransactionSerializable) {
@@ -25,10 +22,6 @@ export class EthereumPrivateKeyAccount {
 
   async signMessage(message: string) {
     return this.account.signMessage({ message });
-  }
-
-  async getAddress() {
-    return this.account.address;
   }
 
   async getPublicKey() {

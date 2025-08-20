@@ -1,6 +1,6 @@
 import SignTypedDataV4 from "./SignTypedDataV4";
 import Splash from "@/components/screens/Splash";
-import useEvmHotWalletSigner from "@/hooks/evm/useEvmHotWalletSigner";
+import useEvmHotWalletSigner from "@/hooks/wallet/useEvmHotWalletSigner";
 
 type SignTypedDataV4Props = {
   requestId: string;

@@ -20,37 +20,16 @@ export type CommitRevealResult = {
 
 export type SignType = keyof typeof SIGN_TYPE;
 
-export type TransactionEstimate = {
-  totalFees: string; // KAS
-  numberOfTransactions: number;
-  numberOfUtxos: number;
-  finalAmount?: string; // KAS
-};
-
 export interface IWallet {
-  send(
-    amount: bigint,
-    receiverAddress: string,
-    priorityFee?: bigint,
-  ): Promise<string[]>;
-
-  getPrivateKeyString(): string;
-
-  getPublicKey(): PublicKey;
+  getPublicKey(): PublicKey | Promise<PublicKey>;
 
   getPublicKeys(): string[] | Promise<string[]>;
-
-  getBalance(): Promise<bigint>;
-
-  getAddress(): string | Promise<string>;
 
   signTx(tx: Transaction, scripts?: ScriptOption[]): Promise<Transaction>;
 
   signMessage(message: string): string | Promise<string>;
+}
 
-  performCommitReveal(
-    scriptBuilder: ScriptBuilder,
-    revealPriorityFee: string, // KAS
-    extraOutputs?: PaymentOutput[],
-  ): AsyncGenerator<CommitRevealResult>;
+export interface IWalletWithGetAddress extends IWallet {
+  getAddress(): string | Promise<string>;
 }

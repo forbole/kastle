@@ -1,6 +1,6 @@
 import SignMessage from "@/components/screens/browser-api/ethereum/sign-message/SignMessage";
 import Splash from "@/components/screens/Splash";
-import useEvmHotWalletSigner from "@/hooks/evm/useEvmHotWalletSigner";
+import useEvmHotWalletSigner from "@/hooks/wallet/useEvmHotWalletSigner";
 
 type SignMessageProps = {
   requestId: string;

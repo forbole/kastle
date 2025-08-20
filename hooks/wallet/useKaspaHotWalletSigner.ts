@@ -1,43 +1,68 @@
-import { useState, useEffect } from "react";
-import { IWallet } from "@/lib/wallet/wallet-interface";
-import {
-  LegacyAccountFactory,
-  AccountFactory,
-} from "@/lib/wallet/account-factory";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
-import useKeyring from "@/hooks/useKeyring";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
+import useKaspaBackgroundSigner from "./useKaspaBackgroundSigner";
+import { Transaction, PublicKey } from "@/wasm/core/kaspa";
+import { ScriptOption } from "@/lib/wallet/wallet-interface";
 
 export default function useKaspaHotWalletSigner() {
-  const { getWalletSecret } = useKeyring();
   const { wallet: walletInfo, account } = useWalletManager();
-  const { rpcClient, networkId } = useRpcClientStateful();
-  const [walletSigner, setWalletSigner] = useState<IWallet>();
+  const { networkId } = useRpcClientStateful();
+  const signer = useKaspaBackgroundSigner();
 
-  useEffect(() => {
-    if (!rpcClient || !walletInfo || !networkId || !account) return;
-    if (walletInfo.type !== "mnemonic" && walletInfo.type !== "privateKey") {
-      throw new Error("Unsupported wallet type");
-    }
+  if (!walletInfo || !account || !networkId) {
+    return undefined;
+  }
 
-    getWalletSecret({ walletId: walletInfo.id }).then(({ walletSecret }) => {
-      const isLegacyEnabled = walletInfo.isLegacyWalletEnabled ?? true; // Default to true if not specified
-      const factory = isLegacyEnabled
-        ? new LegacyAccountFactory(rpcClient, networkId)
-        : new AccountFactory(rpcClient, networkId);
-
-      switch (walletInfo.type) {
-        case "mnemonic":
-          setWalletSigner(
-            factory.createFromMnemonic(walletSecret.value, account.index),
-          );
-          break;
-        case "privateKey":
-          setWalletSigner(factory.createFromPrivateKey(walletSecret.value));
-          break;
-      }
+  const getPublicKeys = async () => {
+    const walletId = walletInfo.id;
+    const accountIndex = account.index;
+    const { publicKeys } = await signer.getPublicKeys({
+      walletId,
+      accountIndex,
     });
-  }, [rpcClient, walletInfo, account]);
+    return publicKeys;
+  };
 
-  return walletSigner;
+  const getPublicKey = async () => {
+    const publicKeys = await getPublicKeys();
+    return new PublicKey(publicKeys[0]);
+  };
+
+  const getAddress = async () => {
+    return (await getPublicKey()).toAddress(networkId).toString();
+  };
+
+  const signTx = async (transaction: Transaction, scripts?: ScriptOption[]) => {
+    const walletId = walletInfo.id;
+    const accountIndex = account.index;
+    const signedTransaction = await signer.signTransaction({
+      transactionJSON: transaction.serializeToSafeJSON(),
+      scripts,
+      walletId,
+      accountIndex,
+    });
+
+    const { signedTransactionJSON } = signedTransaction;
+    const tx = Transaction.deserializeFromSafeJSON(signedTransactionJSON);
+    return tx;
+  };
+
+  const signMessage = async (message: string) => {
+    const walletId = walletInfo.id;
+    const accountIndex = account.index;
+    const { signedMessage } = await signer.signMessage({
+      message,
+      walletId,
+      accountIndex,
+    });
+    return signedMessage;
+  };
+
+  return {
+    getPublicKeys,
+    getPublicKey,
+    signTx,
+    signMessage,
+    getAddress,
+  };
 }
