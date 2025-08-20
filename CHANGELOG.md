@@ -1,5 +1,27 @@
 # Changelog
 
+## [2.31.0](https://github.com/forbole/kastle/compare/v2.30.0...v2.31.0) (2025-08-13)
+
+
+### Features
+
+* update AccountItem to use total balance for currency value calc… ([#200](https://github.com/forbole/kastle/issues/200)) ([d05fc15](https://github.com/forbole/kastle/commit/d05fc1563a5772b8b8a957b438f056633d65d601))
+
+## [2.30.0](https://github.com/forbole/kastle/compare/v2.29.1...v2.30.0) (2025-08-05)
+
+
+### Features
+
+* show website logo when connecting by `eth_requestAccounts` ([#198](https://github.com/forbole/kastle/issues/198)) ([756db36](https://github.com/forbole/kastle/commit/756db3658bb73fee9153ecc5c4458a7455deede5))
+
+## [2.29.1](https://github.com/forbole/kastle/compare/v2.29.0...v2.29.1) (2025-07-29)
+
+
+### Bug Fixes
+
+* close popup when the operation is successful to avoid from tab d… ([#195](https://github.com/forbole/kastle/issues/195)) ([56fe02e](https://github.com/forbole/kastle/commit/56fe02e6e12b398f360e2005026e181cac51ba6f))
+* fix uat and kns pagination issue ([#192](https://github.com/forbole/kastle/issues/192)) ([8d24191](https://github.com/forbole/kastle/commit/8d241910e523e59d4def7af7780494c5da2bdb77))
+
 ## [2.29.0](https://github.com/forbole/kastle/compare/v2.28.1...v2.29.0) (2025-07-23)
 
 

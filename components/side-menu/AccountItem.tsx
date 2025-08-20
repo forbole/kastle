@@ -3,11 +3,8 @@ import { formatCurrency, textEllipsis } from "@/lib/utils.ts";
 import { Link } from "react-router-dom";
 import React from "react";
 import { Account } from "@/contexts/WalletManagerContext.tsx";
-import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
+import useTotalBalanceByAccount from "@/hooks/kasplex/useTotalBalanceByAccount";
 import useAccountManager from "@/hooks/wallet/useAccountManager";
-import useKaspaPrice from "@/hooks/useKaspaPrice";
-import { useSettings } from "@/hooks/useSettings.ts";
-import useWalletManager from "@/hooks/wallet/useWalletManager";
 
 type AccountItemProps = {
   walletId: string;
@@ -23,17 +20,15 @@ export default function AccountItem({
   children,
 }: AccountItemProps) {
   const [settings] = useSettings();
-  const kaspaPrice = useKaspaPrice();
   const { walletSettings } = useWalletManager();
+  const { selectAccount } = useAccountManager();
   const isSelectedWalletId = walletSettings?.selectedWalletId === walletId;
   const selectedAccountIndex = walletSettings?.selectedAccountIndex;
-
-  const { selectAccount } = useAccountManager();
-
-  const fiatBalance =
-    parseFloat(account.balance ?? "0") * kaspaPrice.kaspaPrice;
+  const totalBalance = useTotalBalanceByAccount(
+    account?.balance ? account : undefined,
+  );
   const { amount: totalBalanceCurrency, code: currencyCode } =
-    useCurrencyValue(fiatBalance);
+    useCurrencyValue(totalBalance);
 
   return (
     <div
