@@ -5,6 +5,7 @@ import React from "react";
 import { Account } from "@/contexts/WalletManagerContext.tsx";
 import useTotalBalanceByAccount from "@/hooks/kasplex/useTotalBalanceByAccount";
 import useAccountManager from "@/hooks/wallet/useAccountManager";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 
 type AccountItemProps = {
   walletId: string;
