@@ -1,8 +1,6 @@
 import { createContext, ReactNode, useEffect, useState } from "react";
 import { WalletSecretType } from "@/types/WalletSecret.ts";
 import useKeyring from "@/hooks/useKeyring.ts";
-import { AccountFactory as EvmAccountFactory } from "@/lib/ethereum/wallet/account-factory.ts";
-import { EthereumPrivateKeyAccount } from "@/lib/ethereum/wallet/account/private-key-account.ts";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful.ts";
 import useStorageState from "@/hooks/useStorageState.ts";
 import {
