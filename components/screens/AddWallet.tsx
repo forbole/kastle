@@ -2,9 +2,10 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import internalToast from "@/components/Toast.tsx";
 import { v4 as uuid } from "uuid";
+import useWalletImporter from "@/hooks/wallet/useWalletImporter";
 
 export default function AddWallet() {
-  const { createNewWallet } = useWalletManager();
+  const { createNewWallet } = useWalletImporter();
   const navigate = useNavigate();
   const onClose = () => navigate("/dashboard");
 

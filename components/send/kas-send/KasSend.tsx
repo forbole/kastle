@@ -5,7 +5,7 @@ import { SuccessStatus } from "@/components/send/SuccessStatus.tsx";
 import { FailStatus } from "@/components/send/FailStatus.tsx";
 import { useLocation } from "react-router";
 import { Broadcasting } from "@/components/send/Broadcasting.tsx";
-import useWalletManager from "@/hooks/useWalletManager.ts";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 import HotWalletConfirm from "@/components/send/kas-send/HotWalletConfirm";
 import LedgerConfirm from "@/components/send/kas-send/LedgerConfirm";
 import z from "zod";

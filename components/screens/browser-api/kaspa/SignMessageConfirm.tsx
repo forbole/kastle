@@ -1,7 +1,7 @@
 import { SignMessagePayloadSchema } from "@/api/background/handlers/kaspa/signMessage";
 import HotWalletSignMessage from "@/components/screens/browser-api/kaspa/sign-message/HotWalletSignMessage";
 import LedgerSignMessage from "@/components/screens/browser-api/kaspa/sign-message/LedgerSignMessage";
-import useWalletManager from "@/hooks/useWalletManager.ts";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 import Splash from "@/components/screens/Splash";
 
 export default function SignMessageConfirm() {

@@ -10,7 +10,7 @@ import HoverShowAll from "@/components/HoverTooltip";
 import { Tooltip } from "react-tooltip";
 import React from "react";
 import { twMerge } from "tailwind-merge";
-import useWalletManager from "@/hooks/useWalletManager.ts";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 import useKNSRecentTransfer from "@/hooks/useKNSRecentTransfer.ts";
 
 export default function KNSTextAsset() {

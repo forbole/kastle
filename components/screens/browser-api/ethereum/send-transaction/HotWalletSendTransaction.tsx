@@ -1,9 +1,9 @@
 import SendTransaction from "./SendTransaction";
 import Splash from "@/components/screens/Splash";
-import useWalletSigner from "@/hooks/evm/useWalletSigner";
+import useEvmHotWalletSigner from "@/hooks/wallet/useEvmHotWalletSigner";
 
 export default function HotWalletSendTransaction() {
-  const walletSigner = useWalletSigner();
+  const walletSigner = useEvmHotWalletSigner();
 
   return (
     <>

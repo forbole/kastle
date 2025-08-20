@@ -4,6 +4,7 @@ import { useTokenInfo } from "@/hooks/kasplex/useTokenInfo";
 import TokenHistoryItem from "@/components/krc20-asset/TokenHistoryItem";
 import { useOpListByAddressAndTicker } from "@/hooks/useOpListByAddressAndTicker.ts";
 import { useIntersectionObserver } from "usehooks-ts";
+import useWalletManager from "@/hooks/wallet/useWalletManager.ts";
 
 export default function TokenHistory() {
   const { ticker } = useParams();

@@ -1,4 +1,4 @@
-import useWalletManager from "@/hooks/useWalletManager.ts";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 
 export default function useBackupWarning() {
   const { wallet } = useWalletManager();

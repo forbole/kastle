@@ -1,5 +1,5 @@
 import { CommitRevealPayload } from "@/api/background/handlers/kaspa/commitReveal";
-import useWalletManager from "@/hooks/useWalletManager";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 import HotWalletCommitReveal from "./HotWalletCommitReveal";
 import Splash from "@/components/screens/Splash";
 import LedgerNotSupported from "../LedgerNotSupported";

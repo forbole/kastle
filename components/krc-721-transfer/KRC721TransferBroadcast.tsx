@@ -1,15 +1,15 @@
 import React, { useEffect } from "react";
 import { captureException } from "@sentry/react";
-import { AccountFactory } from "@/lib/wallet/wallet-factory.ts";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful.ts";
 import { useFormContext } from "react-hook-form";
 import useRecentAddresses from "@/hooks/useRecentAddresses.ts";
-import useWalletManager from "@/hooks/useWalletManager.ts";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 import Header from "@/components/GeneralHeader.tsx";
 import carriageImage from "@/assets/images/carriage.png";
 import { KRC721TransferFormData } from "@/components/screens/KRC721Transfer.tsx";
 import { transfer } from "@/lib/krc721.ts";
 import useKRC721RecentTransfer from "@/hooks/useKRC721RecentTransfer.ts";
+import useKaspaHotWalletSigner from "@/hooks/wallet/useKaspaHotWalletSigner";
 
 interface KRC721TransferBroadcastProps {
   setOutTxs: (value: string[] | undefined) => void;
@@ -26,13 +26,17 @@ export default function KRC721TransferBroadcast({
   const { addRecentAddress } = useRecentAddresses();
   const { addRecentKRC721Transfer } = useKRC721RecentTransfer();
   const { walletSettings } = useWalletManager();
-  const { getWalletSecret } = useKeyring();
   const { rpcClient, networkId } = useRpcClientStateful();
   const { watch } = useFormContext<KRC721TransferFormData>();
   const { tick, tokenId, address, domain } = watch();
+  const walletSigner = useKaspaHotWalletSigner();
 
   const broadcastOperation = async () => {
     try {
+      if (!walletSigner) {
+        throw new Error("Wallet signer is not initialized");
+      }
+
       const selectedWalletId = walletSettings?.selectedWalletId;
       const selectedAccountIndex = walletSettings?.selectedAccountIndex;
       if (!selectedWalletId || typeof selectedAccountIndex !== "number") {
@@ -47,24 +51,16 @@ export default function KRC721TransferBroadcast({
         throw new Error("Missing recipient address");
       }
 
-      const { walletSecret } = await getWalletSecret({
-        walletId: selectedWalletId,
-      });
-
-      const accountFactory = new AccountFactory(rpcClient, networkId);
-      const account =
-        walletSecret.type === "mnemonic"
-          ? accountFactory.createFromMnemonic(
-              walletSecret.value,
-              selectedAccountIndex,
-            )
-          : accountFactory.createFromPrivateKey(walletSecret.value);
-
-      for await (const result of transfer(account, {
-        tick,
-        tokenId,
-        to: address,
-      })) {
+      for await (const result of await transfer(
+        walletSigner,
+        rpcClient,
+        networkId,
+        {
+          tick,
+          tokenId,
+          to: address,
+        },
+      )) {
         if (result.status === "completed") {
           setOutTxs([result.commitTxId!, result.revealTxId!]);
         }
@@ -72,7 +68,7 @@ export default function KRC721TransferBroadcast({
 
       await addRecentKRC721Transfer({
         id: tokenId,
-        from: await account.getAddress(),
+        from: await walletSigner.getAddress(),
         at: new Date().getTime(),
       });
 

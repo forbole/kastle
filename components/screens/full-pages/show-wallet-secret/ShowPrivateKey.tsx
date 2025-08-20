@@ -1,20 +1,14 @@
-import { useParams } from "react-router-dom";
 import React, { useState } from "react";
 import { twMerge } from "tailwind-merge";
 import { useBoolean, useCopyToClipboard } from "usehooks-ts";
 import Header from "@/components/GeneralHeader";
 import { Tooltip } from "react-tooltip";
 
-export default function ShowPrivateKey() {
-  const { walletId, accountIndex } = useParams();
-  const accountIndexNumber = accountIndex
-    ? parseInt(accountIndex, 10)
-    : undefined;
+export default function ShowPrivateKey({ secret }: { secret: string }) {
   const [, copy] = useCopyToClipboard();
   const [copied, setCopied] = useState(false);
-  const { getPrivateKey } = useWalletManager();
   const { value: isHidden, toggle: toggleHidden } = useBoolean(true);
-  const [privateKey, setPrivateKey] = useState<string>();
+  const privateKey = secret;
 
   const copyPrivateKey = async () => {
     await copy(privateKey ?? "");
@@ -23,23 +17,6 @@ export default function ShowPrivateKey() {
   };
 
   const onClose = () => window.close();
-
-  const getPrivateKeyCallback = useCallback(async () => {
-    if (!walletId || accountIndexNumber === undefined) {
-      throw new Error("Wallet ID or account number is missing");
-    }
-
-    const privateKey = await getPrivateKey({
-      walletId,
-      accountIndex: accountIndexNumber,
-    });
-
-    setPrivateKey(privateKey);
-  }, []);
-
-  useEffect(() => {
-    getPrivateKeyCallback();
-  }, [getPrivateKeyCallback]);
 
   return (
     <div className="flex h-[35rem] w-[41rem] flex-col items-stretch gap-4 rounded-3xl bg-icy-blue-950 p-4 pb-6">

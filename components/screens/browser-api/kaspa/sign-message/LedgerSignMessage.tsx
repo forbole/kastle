@@ -1,10 +1,8 @@
 import { SignMessagePayload } from "@/api/background/handlers/kaspa/signMessage";
-import { AccountFactory } from "@/lib/wallet/wallet-factory";
-import useRpcClientStateful from "@/hooks/useRpcClientStateful";
-import { NetworkType } from "@/contexts/SettingsContext";
 import Splash from "@/components/screens/Splash";
 import LedgerConnectForSign from "@/components/screens/ledger-connect/LedgerConnectForSign";
 import SignMessage from "@/components/screens/browser-api/kaspa/sign-message/SignMessage";
+import useKaspaLedgerSigner from "@/hooks/wallet/useKaspaLedgerSigner";
 
 type LedgerSignTxProps = {
   requestId: string;
@@ -16,25 +14,17 @@ export default function LedgerSignMessage({
   payload,
 }: LedgerSignTxProps) {
   const { transport, isAppOpen } = useLedgerTransport();
-  const { rpcClient, networkId } = useRpcClientStateful();
-
-  const wallet =
-    rpcClient && transport
-      ? new AccountFactory(
-          rpcClient,
-          networkId ?? ("mainnet" as NetworkType),
-        ).createFromLedger(transport)
-      : null;
+  const walletSigner = useKaspaLedgerSigner();
 
   return (
     <>
       {(!transport || !isAppOpen) && (
         <LedgerConnectForSign showClose={false} showPrevious={false} />
       )}
-      {transport && isAppOpen && !wallet && <Splash />}
-      {wallet && isAppOpen && (
+      {transport && isAppOpen && !walletSigner && <Splash />}
+      {walletSigner && isAppOpen && (
         <SignMessage
-          walletSigner={wallet}
+          walletSigner={walletSigner}
           requestId={requestId}
           message={payload}
         />

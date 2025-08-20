@@ -18,12 +18,9 @@ import ImportPrivateKey from "@/components/screens/full-pages/ImportPrivateKey";
 import ResetWallet from "@/components/screens/ResetWallet.tsx";
 import FullscreenLayout from "@/components/layouts/FullscreenLayout.tsx";
 import RecoveryPhraseManageAccounts from "@/components/screens/full-pages/RecoveryPhraseManageAccounts";
-import ShowRecoveryPhrase from "@/components/screens/full-pages/ShowRecoveryPhrase";
 import RenameAccount from "@/components/screens/RenameAccount.tsx";
 import ConnectedApps from "@/components/screens/ConnectedApps";
-import ShowPrivateKey from "@/components/screens/full-pages/ShowPrivateKey";
 import RemoveWallet from "@/components/screens/RemoveWallet.tsx";
-import BackupUnlock from "@/components/screens/BackupUnlock";
 import AccountsImported from "@/components/screens/full-pages/AccountsImported";
 import { getKeyringStatus } from "@/hooks/useKeyring.ts";
 import ImportLedger from "@/components/screens/full-pages/ledger/ImportLedger";
@@ -79,7 +76,7 @@ import KaspaReceiveAddress from "@/components/screens/receive-addresses/KaspaRec
 import EvmReceiveAddress from "@/components/screens/receive-addresses/EvmReceiveAddress";
 import AssetSelect from "@/components/screens/asset-selector/AssetSelect";
 import CommitRevealConfirm from "@/components/screens/browser-api/kaspa/CommitRevealConfirm";
-import RenameWallet from "@/components/screens/RenameWallet";
+import ShowWalletSecret from "@/components/screens/full-pages/show-wallet-secret/ShowWalletSecret";
 
 const loadKaspaWasm = async () => {
   await init({ module_or_path: kaspaModule });
@@ -253,16 +250,8 @@ export const router = createHashRouter([
                     element: <RenameAccount />,
                   },
                   {
-                    path: "rename-wallet/:walletId",
-                    element: <RenameWallet />,
-                  },
-                  {
                     path: "remove-wallet/:walletId",
                     element: <RemoveWallet />,
-                  },
-                  {
-                    path: "backup-unlock",
-                    element: <BackupUnlock />,
                   },
                   {
                     path: "change-password",
@@ -419,12 +408,8 @@ export const router = createHashRouter([
               },
               { path: "import-private-key", element: <ImportPrivateKey /> },
               {
-                path: "show-recovery-phrase/:walletId",
-                element: <ShowRecoveryPhrase />,
-              },
-              {
-                path: "show-private-key/:walletId/:accountIndex",
-                element: <ShowPrivateKey />,
+                path: "show-wallet-secret/:walletId/:type",
+                element: <ShowWalletSecret />,
               },
               {
                 path: "accounts-imported",

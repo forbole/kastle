@@ -6,8 +6,8 @@ import ledgerSignImage from "@/assets/images/ledger-on-sign.svg";
 import useKaspaPrice from "@/hooks/useKaspaPrice.ts";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/GeneralHeader.tsx";
-import useWalletManager from "@/hooks/useWalletManager.ts";
-import { IWallet } from "@/lib/ethereum/wallet/wallet-interface.ts";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
+import { IWalletWithGetAddress } from "@/lib/ethereum/wallet/wallet-interface.ts";
 import { captureException } from "@sentry/react";
 import { twMerge } from "tailwind-merge";
 import { formatCurrency } from "@/lib/utils.ts";
@@ -33,7 +33,7 @@ export const ConfirmStep = ({
   onBack: () => void;
   onFail: () => void;
   setOutTxs: (value: string[] | undefined) => void;
-  walletSigner?: IWallet;
+  walletSigner?: IWalletWithGetAddress;
 }) => {
   const navigate = useNavigate();
   const evmAddress = useEvmAddress();

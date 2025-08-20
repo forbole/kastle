@@ -1,9 +1,7 @@
 import { useBoolean } from "usehooks-ts";
 import { twMerge } from "tailwind-merge";
 import { WalletInfo } from "@/contexts/WalletManagerContext.tsx";
-import { Tooltip } from "react-tooltip";
 import EditableWalletName from "./EditableWalletName";
-import { useNavigate } from "react-router-dom";
 import HoverTooltip from "../HoverTooltip";
 
 type WalletHeaderProps = {
@@ -22,16 +20,8 @@ export default function WalletHeader({
   wallet,
   items = [],
 }: WalletHeaderProps) {
-  const navigate = useNavigate();
-
   // This is a hack, preline could not handle `hs-accordion-active:` on nested tags
   const { value: collapsed, toggle } = useBoolean(false);
-
-  items.push({
-    label: "Remove this wallet",
-    onClick: () => navigate(`/remove-wallet/${wallet.id}`),
-    isAlert: true,
-  });
 
   return (
     <div className="flex items-center justify-end pl-2">

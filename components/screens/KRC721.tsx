@@ -7,7 +7,7 @@ import Copy from "@/components/Copy";
 import HoverShowAll from "@/components/HoverTooltip";
 import downloadImage from "@/assets/images/download.svg";
 import useKRC721RecentTransfer from "@/hooks/useKRC721RecentTransfer.ts";
-import useWalletManager from "@/hooks/useWalletManager.ts";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { Tooltip } from "react-tooltip";
 import React from "react";
 import NFTPlaceholderImage from "@/components/NFTPlaceholderImage.tsx";

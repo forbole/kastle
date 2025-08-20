@@ -1,12 +1,16 @@
 import { IWallet, PaymentOutput } from "@/lib/wallet/wallet-interface.ts";
 import { Opcodes, ScriptBuilder } from "@/wasm/core/kaspa";
+import { RpcClient } from "@/wasm/core/kaspa";
+import { CommitRevealHelper } from "./commit-reveal";
 
 export enum Fee {
   Base = 0.001,
 }
 
-export const transfer = (
+export const transfer = async (
   wallet: IWallet,
+  rpcClient: RpcClient,
+  networkId: string,
   payload: { tick: string; tokenId: string; to: string },
   extraOutputs: PaymentOutput[] = [],
 ) => {
@@ -16,7 +20,7 @@ export const transfer = (
     ...payload,
   };
   const script = new ScriptBuilder()
-    .addData(wallet.getPublicKey().toXOnlyPublicKey().toString())
+    .addData((await wallet.getPublicKey()).toXOnlyPublicKey().toString())
     .addOp(Opcodes.OpCheckSig)
     .addOp(Opcodes.OpFalse)
     .addOp(Opcodes.OpIf)
@@ -25,5 +29,8 @@ export const transfer = (
     .addData(Buffer.from(JSON.stringify(data, null, 0)))
     .addOp(Opcodes.OpEndIf);
 
-  return wallet.performCommitReveal(script, Fee.Base.toString()!, extraOutputs);
+  return new CommitRevealHelper(wallet, rpcClient, networkId, script).perform(
+    Fee.Base.toString(),
+    extraOutputs,
+  );
 };

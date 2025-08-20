@@ -1,7 +1,7 @@
-import useWalletSigner from "@/hooks/useWalletSigner";
+import useKaspaHotWalletSigner from "@/hooks/wallet/useKaspaHotWalletSigner";
 import Splash from "@/components/screens/Splash";
 import { CommitRevealPayload } from "@/api/background/handlers/kaspa/commitReveal";
-import { Fee, buildCommitRevealScript } from "@/lib/krc20.ts";
+import { Krc20Fee, buildCommitRevealScript } from "@/lib/krc20.ts";
 import { ApiUtils } from "@/api/background/utils";
 import { ApiExtensionUtils } from "@/api/extension";
 import Header from "@/components/GeneralHeader";
@@ -14,6 +14,8 @@ import { NetworkType } from "@/contexts/SettingsContext";
 import ScriptDetailsBox from "./ScriptDetailsBox";
 import useCurrencyValue from "@/hooks/useCurrencyValue";
 import { useState } from "react";
+import { CommitRevealHelper } from "@/lib/commit-reveal";
+import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 
 export default function HotWalletCommitReveal({
   requestId,
@@ -22,15 +24,16 @@ export default function HotWalletCommitReveal({
   requestId: string;
   payload: CommitRevealPayload;
 }) {
-  const walletSigner = useWalletSigner();
+  const walletSigner = useKaspaHotWalletSigner();
   const kaspaPrice = useKaspaPrice();
   const [settings, setSettings] = useSettings();
   const [step, setStep] = useState<string>();
   const [hideDetails, setHideDetails] = useState(true);
+  const { rpcClient, networkId } = useRpcClientStateful();
 
   const feesInKas =
-    parseFloat(payload.options.revealPriorityFee ?? Fee.Base.toString()) +
-    Fee.Base;
+    parseFloat(payload.options.revealPriorityFee ?? Krc20Fee.Base.toString()) +
+    Krc20Fee.Base;
   const fiatFees = feesInKas * kaspaPrice.kaspaPrice;
   const { amount: feesCurrency, code: feesCurrencyCode } =
     useCurrencyValue(fiatFees);
@@ -42,21 +45,26 @@ export default function HotWalletCommitReveal({
   const [isPerforming, setIsPerforming] = useState(false);
 
   const perform = async () => {
-    if (!walletSigner) return;
+    if (!walletSigner || !rpcClient || !networkId) return;
 
     if (isPerforming) return;
 
     setIsPerforming(true);
     try {
       const script = buildCommitRevealScript(
-        walletSigner.getPublicKey(),
+        await walletSigner.getPublicKey(),
         payload.namespace,
         JSON.parse(payload.data),
       );
 
-      const commitResultPerform = walletSigner.performCommitReveal(
+      const helper = new CommitRevealHelper(
+        walletSigner,
+        rpcClient,
+        networkId,
         script,
-        payload.options.revealPriorityFee ?? Fee.Base.toString(),
+      );
+      const commitResultPerform = helper.perform(
+        payload.options.revealPriorityFee ?? Krc20Fee.Base.toString(),
         [],
       );
 
@@ -104,8 +112,6 @@ export default function HotWalletCommitReveal({
     },
   ];
   const selectedNetwork = networks.find((n) => n.id === payload.networkId);
-
-  const networkId = settings?.networkId;
 
   const networkMismatched = networkId?.toString() !== payload.networkId;
   const switchNetwork = () => {

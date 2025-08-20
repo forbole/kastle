@@ -1,5 +1,7 @@
-import React, { useRef } from "react";
-import { AccountFactory } from "@/lib/wallet/wallet-factory";
+import {
+  LegacyAccountFactory,
+  AccountFactory,
+} from "@/lib/wallet/account-factory";
 import ManageAccounts, {
   ListAccountsRequest,
 } from "@/components/screens/full-pages/account-management/ManageAccounts";
@@ -7,33 +9,32 @@ import useLedgerTransport from "@/hooks/useLedgerTransport";
 import { useNavigate } from "react-router-dom";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import LedgerConnectForImport from "@/components/screens/full-pages/ledger/LedgerConnectForImport";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
+import { useParams } from "react-router-dom";
+import Splash from "../../Splash";
+import { useState } from "react";
 
 export default function LedgerManageAccounts() {
   const navigate = useNavigate();
   const { transport, isAppOpen } = useLedgerTransport();
   const { rpcClient, networkId } = useRpcClientStateful();
-  const { getWalletSecret } = useKeyring();
-  const calledOnce = useRef(false);
+  const { walletSettings } = useWalletManager();
+  const { walletId } = useParams();
+  const wallet = walletSettings?.wallets.find(({ id }) => id === walletId);
+
+  const [isLegacyEnabled, setIsLegacyEnabled] = useState(
+    wallet?.isLegacyWalletEnabled ?? true,
+  );
 
   const listAccounts =
     rpcClient && networkId
-      ? async ({ walletId, start, end }: ListAccountsRequest) => {
+      ? async ({ start, end }: ListAccountsRequest) => {
           if (!transport) return [];
 
-          const accountFactory = new AccountFactory(rpcClient, networkId);
+          const accountFactory = isLegacyEnabled
+            ? new LegacyAccountFactory()
+            : new AccountFactory();
 
-          const { walletSecret } = await getWalletSecret({ walletId });
-          if (walletSecret.type !== "ledger") {
-            throw new Error("Only ledger wallets are supported on this page");
-          }
-
-          // Check if the wallet is connected to the correct device
-          const deviceId = walletSecret.value;
-          const ledgerAccount = accountFactory.createFromLedger(transport);
-          const publicKeys = await ledgerAccount.getPublicKeys();
-          if (deviceId !== publicKeys[0]) {
-            throw new Error("Unmatched wallet and device");
-          }
           try {
             const accounts: { publicKeys: string[] }[] = [];
 
@@ -56,11 +57,18 @@ export default function LedgerManageAccounts() {
 
   return (
     <>
-      {(!transport || !isAppOpen) && (
+      {!wallet && <Splash />}
+      {wallet && (!transport || !isAppOpen) && (
         <LedgerConnectForImport onBack={() => {}} />
       )}
-      {transport && isAppOpen && (
-        <ManageAccounts walletType="ledger" listAccounts={listAccounts} />
+      {wallet && transport && isAppOpen && (
+        <ManageAccounts
+          key={wallet.id + wallet.isLegacyWalletEnabled}
+          wallet={wallet}
+          listAccounts={listAccounts}
+          isLegacyWalletEnabled={isLegacyEnabled}
+          toggleLegacyWallet={() => setIsLegacyEnabled((prev) => !prev)}
+        />
       )}
     </>
   );

@@ -6,10 +6,26 @@ import {
 
 export const watchWalletSettingsUpdated = () => {
   storage.watch<WalletSettings>(WALLET_SETTINGS, async (newValue, oldValue) => {
-    if (
-      newValue?.selectedWalletId !== oldValue?.selectedWalletId ||
-      newValue?.selectedAccountIndex !== oldValue?.selectedAccountIndex
-    ) {
+    // Check if the selected wallet or account has changed
+    const oldSelectedWalletId = oldValue?.selectedWalletId;
+    const oldSelectedAccountIndex = oldValue?.selectedAccountIndex;
+    const newSelectedWalletId = newValue?.selectedWalletId;
+    const newSelectedAccountIndex = newValue?.selectedAccountIndex;
+    const isSelectedAccountChanged =
+      oldSelectedWalletId !== newSelectedWalletId ||
+      oldSelectedAccountIndex !== newSelectedAccountIndex;
+
+    // Check if the selected wallet's legacy status has changed
+    const oldSelectedWalletIsLegacyEnabled = oldValue?.wallets.find(
+      (w) => w.id === oldSelectedWalletId,
+    )?.isLegacyWalletEnabled;
+    const newSelectedWalletIIsLegacyEnabled = newValue?.wallets.find(
+      (w) => w.id === newSelectedWalletId,
+    )?.isLegacyWalletEnabled;
+    const isLegacyChanged =
+      oldSelectedWalletIsLegacyEnabled !== newSelectedWalletIIsLegacyEnabled;
+
+    if (isSelectedAccountChanged || isLegacyChanged) {
       const isHostConnected = await ApiUtils.isHostConnected(
         window.location.host,
       );

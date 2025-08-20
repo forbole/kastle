@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import warningImage from "@/assets/images/warning.png";
 import Header from "@/components/GeneralHeader";
 import { forceOnboarding } from "@/entrypoints/popup/router.tsx";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 
 type ResetWalletFormValues = { agreedReset: boolean };
 
