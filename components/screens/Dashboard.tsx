@@ -366,7 +366,7 @@ export default function Dashboard() {
             </span>
             <span className="text-xs">
               {
-                "We’re the official wallet sponsor of The Kaspa Experience Berlin :de: on Sept 13 — join us "
+                "We’re the official wallet sponsor of The Kaspa Experience Berlin 🇩🇪 on Sept 13 — join us "
               }
               <a
                 href="https://experience.kaspa.events"
