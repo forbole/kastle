@@ -366,15 +366,15 @@ export default function Dashboard() {
             </span>
             <span className="text-xs">
               {
-                "Thanks for joining our soft launch 🚀, we'd love to hear about your thoughts 💭: "
+                "We’re the official wallet sponsor 🏰 of Kaspa Experience Berlin 🇩🇪 on Sept 13 — join us "
               }
               <a
-                href="https://t.me/kastlewallet"
+                href="https://experience.kaspa.events"
                 className="text-icy-blue-400 underline"
                 target="_blank"
                 rel="noreferrer"
               >
-                here
+                there
               </a>
             </span>
           </div>
