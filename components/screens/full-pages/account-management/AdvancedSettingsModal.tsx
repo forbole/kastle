@@ -53,7 +53,7 @@ export default function AdvancedSettingsModal({
             <div className="mb-3 flex items-start justify-between">
               <div className="flex-1">
                 <h3 className="mb-2 text-base font-medium text-white">
-                  Switch to Kastle Legacy Wallet Addresses
+                  Switch to Legacy Wallet Addresses
                 </h3>
                 <p className="text-sm leading-relaxed text-daintree-400">
                   Legacy Wallets addresses are derived using a different
