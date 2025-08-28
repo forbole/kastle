@@ -14,12 +14,10 @@ export interface EvmSignTransactionResponse {
   signedTransaction: Hex;
 }
 
-export async function evmSignTransactionHandler({
-  walletId,
-  accountIndex,
-  isLegacy,
-  transaction,
-}: EvmSignTransactionRequest): Promise<EvmSignTransactionResponse> {
+export async function evmSignTransactionHandler(
+  { walletId, accountIndex, isLegacy, transaction }: EvmSignTransactionRequest,
+  sendResponse: (response: EvmSignTransactionResponse) => void,
+) {
   const extensionService = ExtensionService.getInstance();
   const keyring = extensionService.getKeyring();
 
@@ -35,5 +33,6 @@ export async function evmSignTransactionHandler({
   const signedTransaction = await signer.signTransaction(
     parseTransaction(transaction),
   );
-  return { signedTransaction };
+
+  sendResponse({ signedTransaction });
 }

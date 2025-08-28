@@ -14,12 +14,10 @@ export interface EvmSignTypedDataResponse {
   signature: Hex;
 }
 
-export async function evmSignTypedDataHandler({
-  walletId,
-  accountIndex,
-  isLegacy,
-  data,
-}: EvmSignTypedDataRequest): Promise<EvmSignTypedDataResponse> {
+export async function evmSignTypedDataHandler(
+  { walletId, accountIndex, isLegacy, data }: EvmSignTypedDataRequest,
+  sendResponse: (response: EvmSignTypedDataResponse) => void,
+) {
   const extensionService = ExtensionService.getInstance();
   const keyring = extensionService.getKeyring();
 
@@ -32,5 +30,5 @@ export async function evmSignTypedDataHandler({
 
   const signer = await getSigner(walletId, accountIndex, isLegacy);
   const signature = await signer.signTypedData(data);
-  return { signature };
+  sendResponse({ signature });
 }
