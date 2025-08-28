@@ -243,7 +243,7 @@ export default function Settings() {
           <div className="flex items-center justify-between">
             <div className="flex gap-2">
               <a
-                href="https://forbole.com/en/terms-and-conditions"
+                href="https://kastle.cc/term-and-conditions"
                 target="_blank"
                 rel="noreferrer"
               >
@@ -251,7 +251,7 @@ export default function Settings() {
               </a>
               <span className="text-[#6B7280]">|</span>
               <a
-                href="https://forbole.com/en/privacy-policy"
+                href="https://kastle.cc/privacy-policy"
                 target="_blank"
                 rel="noreferrer"
               >
