@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.33.0](https://github.com/forbole/kastle/compare/v2.32.0...v2.33.0) (2025-08-29)
+
+
+### Features
+
+* new derivation path to align other wallets and move signer to background to improve security ([#193](https://github.com/forbole/kastle/issues/193)) ([d952da2](https://github.com/forbole/kastle/commit/d952da261e79a9b46ccede5a25c2728c38e0611a))
+
 ## [2.32.0](https://github.com/forbole/kastle/compare/v2.31.0...v2.32.0) (2025-08-28)
 
 
