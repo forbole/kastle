@@ -1,12 +1,12 @@
-import { IWallet } from "@/lib/ethereum/wallet/wallet-interface";
-import useWalletManager from "@/hooks/useWalletManager";
+import { IWalletWithGetAddress } from "@/lib/ethereum/wallet/wallet-interface";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 import ledgerSignImage from "@/assets/images/ledger-on-sign.svg";
 import signImage from "@/assets/images/sign.png";
 import Header from "@/components/GeneralHeader";
 import { useBoolean } from "usehooks-ts";
 import { ApiExtensionUtils } from "@/api/extension";
 import { ApiUtils } from "@/api/background/utils";
-import { RPC_ERRORS, RpcErrorSchema } from "@/api/message";
+import { RPC_ERRORS } from "@/api/message";
 import {
   TransactionSerializable,
   hexToBigInt,
@@ -14,12 +14,13 @@ import {
   http,
   hexToNumber,
   numberToHex,
+  serializeTransaction,
 } from "viem";
 import { estimateFeesPerGas } from "viem/actions";
 import { ethereumTransactionRequestSchema } from "@/api/background/handlers/ethereum/sendTransaction";
 import { getChainName, TESTNET_SUPPORTED_EVM_L2_CHAINS } from "@/lib/layer2";
 type SignTransactionProps = {
-  walletSigner: IWallet;
+  walletSigner: IWalletWithGetAddress;
 };
 import { handleViemError } from "@/lib/errors";
 

@@ -8,6 +8,7 @@ import EvmKasSelectItems from "./EvmKasSelectItems";
 import Header from "@/components/GeneralHeader";
 import useErc20Assets from "@/hooks/evm/useErc20Assets";
 import Erc20SelectItem from "./Erc20SelectItem";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 
 export default function AssetSelect() {
   const navigate = useNavigate();

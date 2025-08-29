@@ -1,14 +1,14 @@
 import { WalletInfo } from "@/contexts/WalletManagerContext.tsx";
 import React, { useState, useRef, useEffect } from "react";
-import useWalletManager from "@/hooks/useWalletManager";
 import { twMerge } from "tailwind-merge";
+import useWalletEditor from "@/hooks/wallet/useWalletEditor";
 
 type WalletHeaderProps = {
   wallet: WalletInfo;
 };
 
 export default function EditableWalletName({ wallet }: WalletHeaderProps) {
-  const { renameWallet } = useWalletManager();
+  const { renameWallet } = useWalletEditor();
 
   const [isEditing, setIsEditing] = useState(false);
   const [tempTitle, setTempTitle] = useState(wallet.name);

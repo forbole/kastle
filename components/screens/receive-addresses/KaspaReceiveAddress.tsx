@@ -1,5 +1,5 @@
 import ReceiveAddress from "@/components/screens/receive-addresses/ReceiveAddress.tsx";
-import useWalletManager from "@/hooks/useWalletManager";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import { useSettings } from "@/hooks/useSettings";
 

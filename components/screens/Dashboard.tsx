@@ -6,7 +6,7 @@ import { formatCurrency, symbolForCurrencyCode } from "@/lib/utils.ts";
 import { twMerge } from "tailwind-merge";
 import useBackupWarning from "@/hooks/useBackupWarning.ts";
 import useKeyring from "@/hooks/useKeyring.ts";
-import useWalletManager from "@/hooks/useWalletManager.ts";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import { Tooltip } from "react-tooltip";
 import Assets from "@/components/dashboard/Assets";
@@ -86,11 +86,11 @@ export default function Dashboard() {
             extension 🌐
           </span>
           <button
-            onClick={() =>
-              navigate(
-                `/backup-unlock?redirect=/show-recovery-phrase/${wallet?.id}`,
-              )
-            }
+            onClick={() => {
+              const url = new URL(browser.runtime.getURL("/popup.html"));
+              url.hash = `/show-wallet-secret/${wallet?.id}/mnemonic`;
+              browser.tabs.create({ url: url.toString() });
+            }}
             type="button"
             className="inline-flex items-center gap-x-2 self-start rounded-lg border border-transparent bg-[#854D0E]/30 px-4 py-3 text-sm font-medium text-[#EAB308] hover:bg-[#854D0E]/20 focus:bg-[#854D0E4D] focus:outline-none disabled:pointer-events-none disabled:opacity-50"
           >
@@ -366,15 +366,15 @@ export default function Dashboard() {
             </span>
             <span className="text-xs">
               {
-                "Thanks for joining our soft launch 🚀, we'd love to hear about your thoughts 💭: "
+                "We’re the official wallet sponsor of The Kaspa Experience Berlin 🇩🇪 on Sept 13 — join us "
               }
               <a
-                href="https://t.me/kastlewallet"
+                href="https://experience.kaspa.events"
                 className="text-icy-blue-400 underline"
                 target="_blank"
                 rel="noreferrer"
               >
-                here
+                there
               </a>
             </span>
           </div>

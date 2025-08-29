@@ -1,6 +1,6 @@
 import SignTypedDataV4 from "./SignTypedDataV4";
 import Splash from "@/components/screens/Splash";
-import useWalletSigner from "@/hooks/evm/useWalletSigner";
+import useEvmHotWalletSigner from "@/hooks/wallet/useEvmHotWalletSigner";
 
 type SignTypedDataV4Props = {
   requestId: string;
@@ -11,7 +11,7 @@ export default function HotWalletSignMessage({
   requestId,
   payload,
 }: SignTypedDataV4Props) {
-  const walletSigner = useWalletSigner();
+  const walletSigner = useEvmHotWalletSigner();
 
   return (
     <>

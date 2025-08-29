@@ -6,6 +6,7 @@ import HotWalletConfirm from "./HotWalletConfirm";
 import { Broadcasting } from "../../Broadcasting";
 import SuccessStatus from "../SuccessStatus";
 import FailStatus from "../FailStatus";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 
 import z from "zod";
 

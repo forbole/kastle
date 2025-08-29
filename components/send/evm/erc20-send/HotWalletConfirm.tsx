@@ -1,6 +1,6 @@
 import { ConfirmStep } from "@/components/send/evm/erc20-send/ConfirmStep";
 import { Erc20Asset } from "@/contexts/EvmAssets";
-import useWalletSigner from "@/hooks/evm/useWalletSigner";
+import useEvmHotWalletSigner from "@/hooks/wallet/useEvmHotWalletSigner";
 
 type HotWalletConfirmProps = {
   asset: Erc20Asset;
@@ -17,7 +17,7 @@ export default function HotWalletConfirm({
   setOutTxs,
   onFail,
 }: HotWalletConfirmProps) {
-  const walletSigner = useWalletSigner();
+  const walletSigner = useEvmHotWalletSigner();
 
   return (
     <ConfirmStep

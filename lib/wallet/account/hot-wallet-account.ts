@@ -1,114 +1,27 @@
 import {
-  Address,
-  addressFromScriptPublicKey,
   createInputSignature,
-  createTransactions,
-  Generator,
-  IUtxoEntry,
-  kaspaToSompi,
-  PendingTransaction,
   PrivateKey,
   PublicKey,
-  RpcClient,
   ScriptBuilder,
   signTransaction,
   Transaction,
-  UtxoEntryReference,
   XPrv,
   signMessage,
 } from "@/wasm/core/kaspa";
 
-import {
-  IWallet,
-  PaymentOutput,
-  ScriptOption,
-} from "@/lib/wallet/wallet-interface.ts";
-import { NetworkType } from "@/contexts/SettingsContext.tsx";
-import { Amount, Fee } from "@/lib/krc20.ts";
-import {
-  toKaspaPaymentOutput,
-  toSignType,
-  waitTxForAddress,
-} from "@/lib/kaspa.ts";
+import { IWallet, ScriptOption } from "@/lib/wallet/wallet-interface.ts";
+import { toSignType } from "@/lib/kaspa.ts";
 
-export class HotWalletAccount implements IWallet {
+export class LegacyHotWalletAccount implements IWallet {
   private readonly MAX_DERIVATION_INDEXES = 50;
 
   constructor(
-    private readonly seed: string,
-    private readonly accountIndex: number,
-    private readonly rpcClient: RpcClient,
-    private readonly networkId: NetworkType,
+    protected readonly seed: string,
+    protected readonly accountIndex: number,
   ) {}
 
-  async *performCommitReveal(
-    scriptBuilder: ScriptBuilder,
-    revealPriorityFee: string,
-    extraOutputs: PaymentOutput[] = [],
-  ) {
-    const p2SHAddress = addressFromScriptPublicKey(
-      scriptBuilder.createPayToScriptHashScript(),
-      this.networkId,
-    );
-
-    if (!p2SHAddress) {
-      throw new Error("Invalid P2SH address");
-    }
-
-    yield {
-      status: "committing" as const,
-    };
-
-    const { transactionId: commitTxId, confirm: commitTxIdConfirm } =
-      await this.commitScript(p2SHAddress.toString());
-
-    // Wait for the commit transaction to be added to the UTXO set of the address
-    // TODO: yield failed status and retry if timeout
-    await commitTxIdConfirm;
-
-    yield {
-      status: "revealing" as const,
-      commitTxId: commitTxId,
-    };
-
-    // Create the reveal transaction
-    const scriptUTXOs = await this.rpcClient.getUtxosByAddresses({
-      addresses: [p2SHAddress.toString()],
-    });
-
-    const scriptUtxo = scriptUTXOs.entries.find(
-      (entry) => entry.outpoint.transactionId === commitTxId,
-    );
-
-    if (!scriptUtxo) {
-      throw new Error("Could not find script UTXO");
-    }
-
-    const { transactionId: revealTxId, confirm: revealTxIdConfirm } =
-      await this.revealScript(
-        scriptBuilder,
-        scriptUtxo,
-        revealPriorityFee,
-        extraOutputs,
-      );
-
-    // Wait for the reveal transaction to be removed to the UTXO set of the P2SH address
-    // TODO: yield failed status and retry if timeout
-    await revealTxIdConfirm;
-
-    yield {
-      status: "completed" as const,
-      commitTxId: commitTxId,
-      revealTxId: revealTxId,
-    };
-  }
-
   public getPrivateKeyString() {
-    const xprv = new XPrv(this.seed);
-    const privateKey = xprv
-      .derivePath(`m/44'/111111'/${this.accountIndex}'/0/0`)
-      .toPrivateKey();
-
+    const privateKey = this.getPrivateKey();
     return privateKey.toKeypair().privateKey;
   }
 
@@ -126,53 +39,6 @@ export class HotWalletAccount implements IWallet {
     }
 
     return publicKeys;
-  }
-
-  async getBalance(): Promise<bigint> {
-    const { entries } = await this.rpcClient.getBalancesByAddresses(
-      this.getAccountAddresses(),
-    );
-
-    return entries.reduce((acc, curr) => acc + curr.balance, 0n);
-  }
-
-  async send(amount: bigint, receiverAddress: string): Promise<string[]> {
-    if (!Address.validate(receiverAddress)) {
-      throw new Error("Invalid receiver address " + receiverAddress);
-    }
-
-    const [entries, indexes] = await this.getUtxos(amount);
-
-    const txGenerator = new Generator({
-      entries: entries,
-      outputs: [
-        {
-          address: receiverAddress,
-          amount,
-        },
-      ],
-      priorityFee: 0n,
-      changeAddress: this.getAddress(),
-      networkId: this.networkId,
-    });
-
-    const txIds = [];
-    let pending: PendingTransaction;
-    while ((pending = await txGenerator.next())) {
-      await pending.sign(this.getPrivateKeys(indexes));
-      const txid = await pending.submit(this.rpcClient);
-      txIds.push(txid);
-    }
-    return txIds;
-  }
-
-  getAddress(): string {
-    const xprv = new XPrv(this.seed);
-    const privateKey = xprv
-      .derivePath(`m/44'/111111'/${this.accountIndex}'/0/0`)
-      .toPrivateKey();
-
-    return privateKey.toKeypair().toAddress(this.networkId).toString();
   }
 
   // NOTE: This method does not support signing with multiple keys
@@ -225,90 +91,14 @@ export class HotWalletAccount implements IWallet {
     return signMessage({ message, privateKey: this.getPrivateKey() });
   }
 
-  private async commitScript(p2SHAddress: string) {
-    const publicKey = this.getPublicKey();
-    const address = publicKey.toAddress(this.networkId);
-
-    // Create the commit transaction
-    const { entries } = await this.rpcClient.getUtxosByAddresses({
-      addresses: [address.toString()],
-    });
-    const { transactions: pendingTxs } = await createTransactions({
-      priorityEntries: [],
-      entries,
-      outputs: [
-        {
-          address: p2SHAddress,
-          amount: kaspaToSompi(Amount.ScriptUtxoAmount)!,
-        },
-      ],
-      priorityFee: kaspaToSompi(Fee.Base.toString())!,
-      changeAddress: address.toString(),
-      networkId: this.networkId,
-    });
-
-    const pending = pendingTxs[0];
-    const signedTx = await this.signTx(pending.transaction);
-
-    const confirm = waitTxForAddress(this.rpcClient, p2SHAddress, signedTx.id);
-
-    const { transactionId } = await this.rpcClient.submitTransaction({
-      transaction: signedTx,
-    });
-
-    return {
-      transactionId,
-      confirm,
-    };
-  }
-
-  private async revealScript(
-    script: ScriptBuilder,
-    scriptUtxo: IUtxoEntry,
-    priorityFee: string,
-    extraOutputs: PaymentOutput[] = [],
-  ) {
-    const address = this.getAddress();
-    const { entries } = await this.rpcClient.getUtxosByAddresses([address]);
-
-    const { transactions: revealPendingTxs } = await createTransactions({
-      priorityEntries: [scriptUtxo],
-      entries,
-      outputs: extraOutputs.map((output) => toKaspaPaymentOutput(output)),
-      changeAddress: address,
-      priorityFee: kaspaToSompi(priorityFee),
-      networkId: this.networkId,
-    });
-
-    // Sign the transaction with the script
-    const pendingTx = revealPendingTxs[0];
-    const signedTx = await this.signTx(pendingTx.transaction, [
-      {
-        inputIndex: 0,
-        scriptHex: script.toString(),
-      },
-    ]);
-
-    const confirm = waitTxForAddress(this.rpcClient, address, signedTx.id);
-
-    const { transactionId } = await this.rpcClient.submitTransaction({
-      transaction: signedTx,
-    });
-
-    return {
-      transactionId,
-      confirm,
-    };
-  }
-
-  private getPrivateKey() {
+  protected getPrivateKey() {
     const xprv = new XPrv(this.seed);
     return xprv
       .derivePath(`m/44'/111111'/${this.accountIndex}'/0/0`)
       .toPrivateKey();
   }
 
-  private getPrivateKeys(indexes: number[]) {
+  protected getPrivateKeys(indexes: number[]) {
     const xprv = new XPrv(this.seed);
     const privateKeys = [];
 
@@ -322,35 +112,30 @@ export class HotWalletAccount implements IWallet {
 
     return privateKeys;
   }
+}
 
-  private getAccountAddresses() {
-    return this.getPublicKeys().map((publicKey) => {
-      return new PublicKey(publicKey).toAddress(this.networkId).toString();
-    });
+export class HotWalletAccount extends LegacyHotWalletAccount {
+  constructor(seed: string, accountIndex: number) {
+    super(seed, accountIndex);
   }
 
-  private async getUtxos(amount?: bigint) {
-    const rpcResult = await this.rpcClient.getUtxosByAddresses(
-      this.getAccountAddresses(),
-    );
+  override getPublicKeys() {
+    const xprv = new XPrv(this.seed);
+    const privateKey = xprv
+      .derivePath(`m/44'/111111'/0'/0/${this.accountIndex}`)
+      .toPrivateKey();
 
-    const entries: UtxoEntryReference[] = [];
-    const indexes: number[] = [];
-    let sum = 0n;
+    return [privateKey.toPublicKey().toString()];
+  }
 
-    for (let i = 0; i < rpcResult.entries.length; i++) {
-      const utxoEntry = rpcResult.entries[i];
-      sum += utxoEntry.amount;
-      entries.push(utxoEntry);
-      indexes.push(i);
+  override getPrivateKey() {
+    const xprv = new XPrv(this.seed);
+    return xprv
+      .derivePath(`m/44'/111111'/0'/0/${this.accountIndex}`)
+      .toPrivateKey();
+  }
 
-      if (!!amount && sum > amount) {
-        break;
-      }
-    }
-
-    // TODO handle amount sum < amount?
-
-    return [entries, indexes] as const;
+  override getPrivateKeys(indexes: number[]) {
+    return [this.getPrivateKey().toKeypair().privateKey];
   }
 }

@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { WalletInfo } from "@/contexts/WalletManagerContext.tsx";
 import AccountItem from "./AccountItem";
 import WalletHeader from "./WalletHeader";
+import useAccountManager from "@/hooks/wallet/useAccountManager";
 
 interface RecoveryPhraseWalletItemProps {
   wallet: WalletInfo;
@@ -13,13 +14,15 @@ export const RecoveryPhraseWalletItem = ({
   onClose,
 }: RecoveryPhraseWalletItemProps) => {
   const navigate = useNavigate();
-  const { addAccount } = useWalletManager();
+  const { addAccount } = useAccountManager();
 
   const menuItems = [
     {
       label: "Back up recovery phrase",
       onClick: async () => {
-        navigate(`/backup-unlock?redirect=/show-recovery-phrase/${wallet.id}`);
+        const url = new URL(browser.runtime.getURL("/popup.html"));
+        url.hash = `/show-wallet-secret/${wallet.id}/mnemonic`;
+        await browser.tabs.create({ url: url.toString() });
       },
     },
     {
@@ -29,6 +32,11 @@ export const RecoveryPhraseWalletItem = ({
         url.hash = `/manage-accounts/recovery-phrase/${wallet.id}/manage`;
         browser.tabs.create({ url: url.toString() });
       },
+    },
+    {
+      label: "Remove this wallet",
+      onClick: () => navigate(`/remove-wallet/${wallet.id}`),
+      isAlert: true,
     },
   ];
 

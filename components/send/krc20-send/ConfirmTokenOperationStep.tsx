@@ -13,7 +13,7 @@ import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 import { useTokenMetadata } from "@/hooks/kasplex/useTokenMetadata.ts";
 import { textEllipsis } from "@/lib/utils.ts";
 import HoverShowAllCopy from "@/components/HoverShowAllCopy.tsx";
-import useWalletManager from "@/hooks/useWalletManager";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 
 export const ConfirmTokenOperationStep = ({
   onNext,

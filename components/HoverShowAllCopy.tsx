@@ -27,6 +27,7 @@ export default function HoverShowAllCopy({
   tooltipWidth = "auto",
   place = "bottom",
   children,
+  className,
 }: HoverShowAllProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [copied, setCopied] = React.useState(false);
@@ -53,6 +54,7 @@ export default function HoverShowAllCopy({
     <div
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      className={className}
     >
       <Tooltip
         id={copyDataId}

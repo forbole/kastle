@@ -4,7 +4,7 @@ import { twMerge } from "tailwind-merge";
 import { Tooltip } from "react-tooltip";
 import spinner from "@/assets/images/spinner.svg";
 import React from "react";
-import useWalletManager from "@/hooks/useWalletManager.ts";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { applyDecimal, computeOperationFees } from "@/lib/krc20.ts";
 import { useNavigate } from "react-router-dom";
 import { useLocation } from "react-router";

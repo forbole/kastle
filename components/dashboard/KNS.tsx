@@ -1,5 +1,5 @@
 import React from "react";
-import useWalletManager from "@/hooks/useWalletManager.ts";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { useAssetsByAddress } from "@/hooks/useKns.ts";
 import KNSItem from "@/components/dashboard/KNSItem.tsx";
 

@@ -1,10 +1,5 @@
-import { useEffect, useState } from "react";
-import { AccountFactory } from "@/lib/wallet/wallet-factory";
 import { ConfirmStep } from "@/components/send/kas-send/ConfirmStep";
-import { IWallet } from "@/lib/wallet/wallet-interface";
-import useWalletManager from "@/hooks/useWalletManager.ts";
-import useKeyring from "@/hooks/useKeyring";
-import useRpcClientStateful from "@/hooks/useRpcClientStateful";
+import useKaspaHotWalletSigner from "@/hooks/wallet/useKaspaHotWalletSigner";
 
 type HotWalletConfirmProps = {
   onNext: () => void;
@@ -19,42 +14,7 @@ export default function HotWalletConfirm({
   setOutTxs,
   onFail,
 }: HotWalletConfirmProps) {
-  const { rpcClient, networkId } = useRpcClientStateful();
-  const [walletSigner, setWalletSigner] = useState<IWallet>();
-  const { getWalletSecret } = useKeyring();
-  const { walletSettings } = useWalletManager();
-
-  // Build wallet signer
-  useEffect(() => {
-    if (!walletSettings || !rpcClient || !networkId) {
-      return;
-    }
-
-    const buildWallet = async () => {
-      if (!walletSettings?.selectedWalletId) {
-        onFail();
-        return;
-      }
-
-      const { walletSecret: secret } = await getWalletSecret({
-        walletId: walletSettings.selectedWalletId,
-      });
-      const accountFactory = new AccountFactory(rpcClient, networkId);
-      const accountIndex = walletSettings?.selectedAccountIndex;
-      if (accountIndex === null || accountIndex === undefined) {
-        throw new Error("No account selected");
-      }
-
-      const signer =
-        secret.type === "mnemonic"
-          ? accountFactory.createFromMnemonic(secret.value, accountIndex)
-          : accountFactory.createFromPrivateKey(secret.value);
-
-      setWalletSigner(signer);
-    };
-
-    buildWallet();
-  }, [walletSettings, rpcClient, networkId]);
+  const walletSigner = useKaspaHotWalletSigner();
 
   return (
     <ConfirmStep

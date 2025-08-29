@@ -1,4 +1,5 @@
 import { createContext, ReactNode } from "react";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 
 const RECENT_KRC721_TRANSFER = "session:recent-krc721-transfer";
 

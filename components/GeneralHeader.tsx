@@ -9,7 +9,7 @@ type Props = {
   showClose?: boolean;
   onBack?: () => Promise<void> | void;
   onClose?: () => Promise<void> | void;
-};
+} & React.HTMLAttributes<HTMLDivElement>;
 
 export default function GeneralHeader({
   title,
@@ -18,11 +18,12 @@ export default function GeneralHeader({
   showClose = true,
   onBack,
   onClose,
+  className,
 }: Props) {
   const navigate = useNavigate();
 
   return (
-    <div className={twMerge("w-full", !subtitle ? "pb-8" : "pb-6")}>
+    <div className={twMerge("w-full", !subtitle ? "pb-8" : "pb-6", className)}>
       <div className="flex items-center justify-between">
         {showPrevious ? (
           <button

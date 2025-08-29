@@ -3,6 +3,7 @@ import { WalletSecret } from "@/types/WalletSecret.ts";
 
 export type KeyringGetWalletSecretRequest = {
   walletId: string;
+  password: string;
 };
 
 export type KeyringGetWalletSecretResponse = {
@@ -10,7 +11,7 @@ export type KeyringGetWalletSecretResponse = {
 };
 
 export const keyringGetWalletSecret = async (
-  { walletId }: Message<KeyringGetWalletSecretRequest>,
+  { walletId, password }: Message<KeyringGetWalletSecretRequest>,
   sendResponse: (response: KeyringGetWalletSecretResponse) => void,
 ) => {
   const extensionService = ExtensionService.getInstance();
@@ -21,6 +22,11 @@ export const keyringGetWalletSecret = async (
 
   if (!isInitialized || !isUnlocked) {
     throw new Error("Keyring not initialized or locked");
+  }
+
+  const isValid = await keyring.checkPassword(password);
+  if (!isValid) {
+    throw new Error("Invalid password");
   }
 
   const wallets = (await keyring.getValue<WalletSecret[]>("wallets")) ?? [];

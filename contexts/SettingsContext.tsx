@@ -65,7 +65,7 @@ export const KRC721_CACHE_URLS = {
   [NetworkType.TestnetT10]: "https://cache.krc721.stream/krc721/testnet-10",
 };
 
-const initialSettings = {
+export const initialSettings = {
   networkId: NetworkType.Mainnet,
   currency: "USD",
   lockTimeout: 5, // Save 5 minutes as default value

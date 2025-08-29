@@ -1,13 +1,11 @@
 import { SignTxPayload } from "@/api/background/handlers/kaspa/utils";
 import LedgerNotSupported from "@/components/screens/browser-api/kaspa/LedgerNotSupported";
 import SignAndBroadcast from "@/components/screens/browser-api/kaspa/sign-and-broadcast/SignAndBroadcast";
-import { AccountFactory } from "@/lib/wallet/wallet-factory";
-import useRpcClientStateful from "@/hooks/useRpcClientStateful";
-import { NetworkType } from "@/contexts/SettingsContext";
 import Splash from "@/components/screens/Splash";
 import { ApiExtensionUtils } from "@/api/extension";
 import { ApiUtils } from "@/api/background/utils";
 import LedgerConnectForSign from "@/components/screens/ledger-connect/LedgerConnectForSign";
+import useKaspaLedgerSigner from "@/hooks/wallet/useKaspaLedgerSigner";
 
 type LedgerSignAndBroadcastProps = {
   requestId: string;
@@ -19,7 +17,7 @@ export default function LedgerSignAndBroadcast({
   payload,
 }: LedgerSignAndBroadcastProps) {
   const { transport, isAppOpen } = useLedgerTransport();
-  const { rpcClient } = useRpcClientStateful();
+  const walletSigner = useKaspaLedgerSigner();
 
   if (payload.scripts) {
     ApiExtensionUtils.sendMessage(
@@ -33,23 +31,15 @@ export default function LedgerSignAndBroadcast({
     return <LedgerNotSupported />;
   }
 
-  const wallet =
-    rpcClient && transport
-      ? new AccountFactory(
-          rpcClient,
-          payload.networkId as NetworkType,
-        ).createFromLedger(transport)
-      : null;
-
   return (
     <>
       {(!transport || !isAppOpen) && (
         <LedgerConnectForSign showClose={false} showPrevious={false} />
       )}
-      {transport && isAppOpen && !wallet && <Splash />}
-      {wallet && isAppOpen && (
+      {transport && isAppOpen && !walletSigner && <Splash />}
+      {walletSigner && isAppOpen && (
         <SignAndBroadcast
-          wallet={wallet}
+          wallet={walletSigner}
           requestId={requestId}
           payload={payload}
         />

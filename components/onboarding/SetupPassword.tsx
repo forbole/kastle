@@ -3,16 +3,16 @@ import { useFormContext } from "react-hook-form";
 import { twMerge } from "tailwind-merge";
 import Header from "@/components/GeneralHeader.tsx";
 import useKeyring from "@/hooks/useKeyring.ts";
-import useWalletManager from "@/hooks/useWalletManager.ts";
 import { v4 as uuid } from "uuid";
 import useResetPreline from "@/hooks/useResetPreline.ts";
 import { useLocation } from "react-router";
 import { OnboardingData } from "@/components/screens/Onboarding.tsx";
 import { useNavigate } from "react-router-dom";
+import useWalletImporter from "@/hooks/wallet/useWalletImporter";
 
 export default function SetupPassword() {
   const { keyringInitialize } = useKeyring();
-  const { createNewWallet } = useWalletManager();
+  const { createNewWallet } = useWalletImporter();
   const location = useLocation();
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);

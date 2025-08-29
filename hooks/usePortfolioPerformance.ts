@@ -2,7 +2,7 @@ import { useTokenPrices } from "@/hooks/kasplex/useTokenMetadata";
 import { applyDecimal } from "@/lib/krc20.ts";
 import useKaspaPrice from "@/hooks/useKaspaPrice.ts";
 import { useTokenListByAddress } from "@/hooks/kasplex/useTokenListByAddress";
-import useWalletManager from "@/hooks/useWalletManager.ts";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 
 export default function usePortfolioPerformance() {
   const { account } = useWalletManager();

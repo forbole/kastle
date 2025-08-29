@@ -1,4 +1,4 @@
-import useWalletManager from "@/hooks/useWalletManager.ts";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 import Splash from "@/components/screens/Splash";
 import HotWalletSignTypedDataV4 from "@/components/screens/browser-api/ethereum/sign-typed-data/HotWalletTypedDataV4";
 
