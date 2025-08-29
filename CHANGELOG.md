@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.32.0](https://github.com/forbole/kastle/compare/v2.31.0...v2.32.0) (2025-08-28)
+
+
+### Features
+
+* update policies urls ([4c2b1d1](https://github.com/forbole/kastle/commit/4c2b1d17a1c49fb2c325f4692d74a230454dd6b2))
+
 ## [2.31.0](https://github.com/forbole/kastle/compare/v2.30.0...v2.31.0) (2025-08-13)
 
 
