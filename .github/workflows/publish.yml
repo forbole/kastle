@@ -3,6 +3,7 @@ name: Publish Extension
 on:
   release:
     types: [created]
+  workflow_dispatch:
 
 jobs:
   submit:
