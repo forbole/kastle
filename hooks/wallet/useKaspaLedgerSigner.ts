@@ -33,6 +33,9 @@ export default function useKaspaLedgerSigner() {
 
   return {
     getAddress,
-    ...signer,
+    signTx: signer.signTx.bind(signer),
+    getPublicKey: signer.getPublicKey.bind(signer),
+    getPublicKeys: signer.getPublicKeys.bind(signer),
+    signMessage: signer.signMessage.bind(signer),
   };
 }
