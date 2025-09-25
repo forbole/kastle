@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.33.1](https://github.com/forbole/kastle/compare/v2.33.0...v2.33.1) (2025-09-25)
+
+
+### Bug Fixes
+
+* ledger api ([#207](https://github.com/forbole/kastle/issues/207)) ([2aba140](https://github.com/forbole/kastle/commit/2aba1405cf90c1bcd3fe71691b7473cf48d79da3))
+
 ## [2.33.0](https://github.com/forbole/kastle/compare/v2.32.0...v2.33.0) (2025-08-29)
 
 
