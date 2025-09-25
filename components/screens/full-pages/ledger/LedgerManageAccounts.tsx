@@ -63,7 +63,7 @@ export default function LedgerManageAccounts() {
       )}
       {wallet && transport && isAppOpen && (
         <ManageAccounts
-          key={wallet.id + wallet.isLegacyWalletEnabled}
+          key={wallet.id + isLegacyEnabled}
           wallet={wallet}
           listAccounts={listAccounts}
           isLegacyWalletEnabled={isLegacyEnabled}
