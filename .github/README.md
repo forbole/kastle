@@ -1,4 +1,4 @@
-# Kastle 🏰
+# Kastle: Kaspa Wallet Browser Extension 🏰
 
 ![Kastle cover image](/cover-image.png)
 
