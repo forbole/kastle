@@ -44,7 +44,9 @@ const fetchAllERC20TokensForChain = async (
 
     const response = await fetch(url);
     if (!response.ok) {
-      throw new Error(`Failed to fetch ERC-20 tokens: ${response.status} ${response.statusText}`);
+      throw new Error(
+        `Failed to fetch ERC-20 tokens: ${response.status} ${response.statusText}`,
+      );
     }
     const data = await response.json();
 
