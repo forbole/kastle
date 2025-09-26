@@ -14,7 +14,7 @@ Built for speed and self-custody, it puts you in control—without the headaches
 
 🔐 **Secure Storage** – Your keys, your coins. Advanced encryption, biometrics, and Ledger support keep your assets safe.
 
-⚡️ **Instant Transactions** – Send & receive $KAS with lightning speed across L1 and emerging L2 networks.
+⚡ **Instant Transactions** – Send & receive $KAS with lightning speed across L1 and emerging L2 networks.
 
 🔄 **Import with Ease** – Bring in your existing wallet using a recovery phrase or private key.
 
