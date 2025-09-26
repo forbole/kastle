@@ -17,7 +17,7 @@ export const kasplexTestnet = {
   blockExplorers: {
     default: {
       name: "Kasplex Testnet Explorer",
-      url: " https://explorer.testnet.kasplextest.xyz",
+      url: "https://explorer.testnet.kasplextest.xyz",
     },
   },
   testnet: true,
