@@ -2,20 +2,38 @@
 
 ![Kastle cover image](/cover-image.png)
 
-**Secure. Fast. Effortless.** Kastle is the **simplest** way to store, send, and manage your $KAS. Built for **speed**
-and **self-custody**, it’s the wallet that puts you in control—without the headaches.
+**The Simple and Fast Kaspa Wallet Extension** 🏰
 
-### **Why Kastle?**
+Secure. Fast. Effortless. Kastle is **the simplest Kaspa wallet extension** to store, send, and manage your **$KAS**. 
 
-🔥 **User-Friendly** – No clutter, no confusion. Just smooth crypto management.  
-🔐 **Secure Storage** – Your keys, your coins. Fortified with advanced security.  
-⚡ **Instant Transactions** – Send & receive $KAS with ease. No friction, no delays.  
-🔄 **Import with Ease** – Bring in your existing wallet seamlessly with a recovery phrase or private key.  
-🌐 **Dapp-Ready** – Connect effortlessly and expand your crypto world.  
-🚀 **Quick Setup** – Up and running in minutes. No nonsense.
+Built for speed and self-custody, it puts you in control—without the headaches.
 
-**Take control of your $KAS—** download Kastle and experience the power of a **fast, intuitive, and secure** Kaspa
-wallet. 🏰🔑
+🚀 **Why Kastle Wallet?**
+
+🔥 **User-Friendly** – No clutter, no confusion. Just smooth Kaspa wallet management.
+
+🔐 **Secure Storage** – Your keys, your coins. Advanced encryption, biometrics, and Ledger support keep your assets safe.
+
+⚡️ **Instant Transactions** – Send & receive $KAS with lightning speed across L1 and emerging L2 networks.
+
+🔄 **Import with Ease** – Bring in your existing wallet using a recovery phrase or private key.
+
+🌐 **Dapp-Ready** – Connect to Kaspa dApps directly through the Kastle wallet extension.
+
+
+✅ **Wide Token Support** – Manage KRC20 and KRC721 tokens with full functionality: deploy, mint, transfer, and showcase NFTs.
+
+✅ **KNS Integration** – Send and receive assets using simple, human-readable Kaspa Names instead of long addresses.
+
+✅ **ERC20 Support** – Seamlessly manage ERC20 tokens alongside your Kaspa assets.
+
+✅ **L2 Ready** – Built for Kaspa Layer 2s to enable scalable transactions and future dApp ecosystems.
+
+🏰 The Kaspa Wallet You’ve Been Waiting For.
+
+Take control of your $KAS — Download Kastle today and experience the power of a fast, intuitive, and secure Kaspa wallet extension.
+
+👉 [Download Kastle Wallet Extension](https://chromewebstore.google.com/detail/kastle/oambclflhjfppdmkghokjmpppmaebego)
 
 ## Table of Contents
 
