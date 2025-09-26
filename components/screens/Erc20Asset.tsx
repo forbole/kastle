@@ -1,22 +1,18 @@
 import Header from "@/components/GeneralHeader.tsx";
 import { useNavigate, useParams } from "react-router-dom";
 import { twMerge } from "tailwind-merge";
-import React, { useState } from "react";
+import { useState } from "react";
 import Erc20Info from "@/components/erc20-asset/Erc20Info";
-import useEvmAssets from "@/hooks/evm/useEvmAssets";
-import useWalletManager from "@/hooks/wallet/useWalletManager";
+import useErc20Info from "@/hooks/evm/useErc20Info";
 
 export default function Erc20Asset() {
   const navigate = useNavigate();
-  const { account } = useWalletManager();
   const { chainId, address } = useParams();
   const [activeTab, setActiveTab] = useState<"history" | "info">("info");
 
-  const { evmAssets } = useEvmAssets();
-  const asset = evmAssets?.[account?.address ?? ""]?.erc20?.find(
-    (asset) =>
-      asset.address.toLowerCase() === address?.toLowerCase() &&
-      asset.chainId === chainId,
+  const asset = useErc20Info(
+    chainId as `0x${string}`,
+    address as `0x${string}`,
   );
 
   return (
