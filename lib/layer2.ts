@@ -17,15 +17,19 @@ export const kasplexTestnet = {
   blockExplorers: {
     default: {
       name: "Kasplex Testnet Explorer",
-      url: "https:/frontend.kasplextest.xyz",
+      url: "https://explorer.testnet.kasplextest.xyz",
     },
   },
   testnet: true,
 };
 
 export const TESTNET_SUPPORTED_EVM_L2_CHAINS = [kasplexTestnet];
+export const MAINNET_SUPPORTED_EVM_L2_CHAINS = [];
 
-export const ALL_SUPPORTED_EVM_L2_CHAINS = [...TESTNET_SUPPORTED_EVM_L2_CHAINS];
+export const ALL_SUPPORTED_EVM_L2_CHAINS = [
+  ...MAINNET_SUPPORTED_EVM_L2_CHAINS,
+  ...TESTNET_SUPPORTED_EVM_L2_CHAINS,
+];
 
 export const getChainImage = (chainId: `0x${string}`) => {
   if (hexToNumber(chainId) === kasplexTestnet.id) {

@@ -7,8 +7,8 @@ import { Broadcasting } from "../../Broadcasting";
 import SuccessStatus from "../SuccessStatus";
 import FailStatus from "../FailStatus";
 import z from "zod";
-import useErc20Assets from "@/hooks/evm/useErc20Assets";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
+import useErc20Info from "@/hooks/evm/useErc20Info";
 
 export const Erc20SendFormSchema = z.object({
   userInput: z.string().optional(),
@@ -42,9 +42,9 @@ export default function Erc20Send() {
   }>();
   const [outTxs, setOutTxs] = useState<string[]>();
 
-  const { assets } = useErc20Assets();
-  const asset = assets.find(
-    (asset) => asset.address === tokenId && asset.chainId === chainId,
+  const asset = useErc20Info(
+    chainId as `0x${string}`,
+    tokenId as `0x${string}`,
   );
 
   const form = useForm<Erc20SendForm>({
