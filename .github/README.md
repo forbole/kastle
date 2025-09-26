@@ -4,7 +4,7 @@
 
 **The Simple and Fast Kaspa Wallet Extension** 🏰
 
-Secure. Fast. Effortless. Kastle is **the simplest Kaspa wallet extension** to store, send, and manage your **$KAS**. 
+Secure. Fast. Effortless. Kastle is **the simplest Kaspa wallet extension** to store, send, and manage your **$KAS**.
 
 Built for speed and self-custody, it puts you in control—without the headaches.
 
@@ -19,7 +19,6 @@ Built for speed and self-custody, it puts you in control—without the headaches
 🔄 **Import with Ease** – Bring in your existing wallet using a recovery phrase or private key.
 
 🌐 **Dapp-Ready** – Connect to Kaspa dApps directly through the Kastle wallet extension.
-
 
 ✅ **Wide Token Support** – Manage KRC20 and KRC721 tokens with full functionality: deploy, mint, transfer, and showcase NFTs.
 
