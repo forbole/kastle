@@ -35,13 +35,6 @@ Take control of your $KAS — Download Kastle today and experience the power of 
 
 👉 [Download Kastle Wallet Extension](https://chromewebstore.google.com/detail/kastle/oambclflhjfppdmkghokjmpppmaebego)
 
-## Table of Contents
-
-- [Installation](#installation)
-- [Usage](#usage)
-- [Contributing](#contributing)
-- [License](#license)
-
 ## Installation
 
 To install the dependencies, run:
