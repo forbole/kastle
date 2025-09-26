@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.34.0](https://github.com/forbole/kastle/compare/v2.33.1...v2.34.0) (2025-09-26)
+
+
+### Features
+
+* integrate explorer api for erc20 ([#211](https://github.com/forbole/kastle/issues/211)) ([6b76383](https://github.com/forbole/kastle/commit/6b7638314b231ed30f3c996f79d99ea74eaa7258))
+
 ## [2.33.1](https://github.com/forbole/kastle/compare/v2.33.0...v2.33.1) (2025-09-25)
 
 
