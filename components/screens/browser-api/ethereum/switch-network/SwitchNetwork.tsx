@@ -3,8 +3,10 @@ import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import { useSettings } from "@/hooks/useSettings";
 import { ApiExtensionUtils } from "@/api/extension";
 import { ApiUtils } from "@/api/background/utils";
-import { z } from "zod";
-import { TESTNET_SUPPORTED_EVM_L2_CHAINS } from "@/lib/layer2";
+import {
+  TESTNET_SUPPORTED_EVM_L2_CHAINS,
+  MAINNET_SUPPORTED_EVM_L2_CHAINS,
+} from "@/lib/layer2";
 import { numberToHex, hexToNumber } from "viem";
 import Header from "@/components/GeneralHeader";
 import signImage from "@/assets/images/sign.png";
@@ -18,7 +20,11 @@ export default function SwitchNetwork({
   chainId: string;
 }) {
   const [settings, setSettings] = useSettings();
-  const l2Networks = TESTNET_SUPPORTED_EVM_L2_CHAINS.map((chain) => ({
+  const supportedEvmL2s =
+    settings?.networkId === "mainnet"
+      ? MAINNET_SUPPORTED_EVM_L2_CHAINS
+      : TESTNET_SUPPORTED_EVM_L2_CHAINS;
+  const l2Networks = supportedEvmL2s.map((chain) => ({
     id: chain.id,
     name: chain.name,
   }));
@@ -31,8 +37,6 @@ export default function SwitchNetwork({
       return;
     }
 
-    // TODO: Add support for mainnet
-    settings.networkId = NetworkType.TestnetT10;
     setSettings({
       ...settings,
       evmL2ChainId: Object.fromEntries(
@@ -69,8 +73,7 @@ export default function SwitchNetwork({
     },
   ];
 
-  // TODO: Add support for mainnet
-  const selectedNetwork = networks.find((n) => n.id === NetworkType.TestnetT10);
+  const selectedNetwork = networks.find((n) => n.id === settings?.networkId);
 
   const loading = !selectedNetwork || !selectedL2Network;
   return (

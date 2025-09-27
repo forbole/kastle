@@ -1,4 +1,7 @@
-import { TESTNET_SUPPORTED_EVM_L2_CHAINS } from "@/lib/layer2";
+import {
+  TESTNET_SUPPORTED_EVM_L2_CHAINS,
+  MAINNET_SUPPORTED_EVM_L2_CHAINS,
+} from "@/lib/layer2";
 import { useSettings } from "@/hooks/useSettings";
 import { NetworkType } from "@/contexts/SettingsContext";
 import EvmKasSelectItem from "./EvmKasSelectItem";
@@ -8,7 +11,9 @@ export default function EvmKasSelectItems() {
   const [settings] = useSettings();
   const network = settings?.networkId ?? NetworkType.Mainnet;
   const supportedChains =
-    network === NetworkType.Mainnet ? [] : TESTNET_SUPPORTED_EVM_L2_CHAINS;
+    network === NetworkType.Mainnet
+      ? MAINNET_SUPPORTED_EVM_L2_CHAINS
+      : TESTNET_SUPPORTED_EVM_L2_CHAINS;
 
   return (
     <>

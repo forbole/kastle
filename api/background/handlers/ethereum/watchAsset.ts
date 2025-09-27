@@ -7,7 +7,10 @@ import {
 import { ApiUtils } from "@/api/background/utils";
 import { z } from "zod";
 import { isUserDeniedResponse } from "./utils";
-import { TESTNET_SUPPORTED_EVM_L2_CHAINS } from "@/lib/layer2";
+import {
+  TESTNET_SUPPORTED_EVM_L2_CHAINS,
+  MAINNET_SUPPORTED_EVM_L2_CHAINS,
+} from "@/lib/layer2";
 import { numberToHex, isHex, isAddress } from "viem";
 
 export const erc20OptionsSchema = z.object({
@@ -78,7 +81,9 @@ export const watchAssetHandler = async (
   const settings = await ApiUtils.getSettings();
   if (erc20Options.chainId) {
     const supportedChains =
-      settings?.networkId === "mainnet" ? [] : TESTNET_SUPPORTED_EVM_L2_CHAINS;
+      settings?.networkId === "mainnet"
+        ? MAINNET_SUPPORTED_EVM_L2_CHAINS
+        : TESTNET_SUPPORTED_EVM_L2_CHAINS;
 
     const isSupported = supportedChains.some((chain) => {
       return numberToHex(chain.id) === erc20Options.chainId;

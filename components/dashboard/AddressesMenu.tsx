@@ -2,7 +2,10 @@ import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import AddressItem from "./AddressItem";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { useNavigate } from "react-router-dom";
-import { TESTNET_SUPPORTED_EVM_L2_CHAINS } from "@/lib/layer2";
+import {
+  TESTNET_SUPPORTED_EVM_L2_CHAINS,
+  MAINNET_SUPPORTED_EVM_L2_CHAINS,
+} from "@/lib/layer2";
 import { useSettings } from "@/hooks/useSettings";
 import { numberToHex } from "viem";
 import { getChainImage } from "@/lib/layer2";
@@ -19,7 +22,9 @@ export default function AddressesMenu({ onClose }: { onClose: () => void }) {
   const evmAddress = useEvmAddress();
 
   const supportEvmL2s =
-    settings?.networkId === "mainnet" ? [] : TESTNET_SUPPORTED_EVM_L2_CHAINS;
+    settings?.networkId === "mainnet"
+      ? MAINNET_SUPPORTED_EVM_L2_CHAINS
+      : TESTNET_SUPPORTED_EVM_L2_CHAINS;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

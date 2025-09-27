@@ -8,7 +8,10 @@ import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import { Tooltip } from "react-tooltip";
 import useCurrencyValue from "@/hooks/useCurrencyValue";
 import HoverShowAllCopy from "@/components/HoverShowAllCopy";
-import { TESTNET_SUPPORTED_EVM_L2_CHAINS } from "@/lib/layer2";
+import {
+  MAINNET_SUPPORTED_EVM_L2_CHAINS,
+  TESTNET_SUPPORTED_EVM_L2_CHAINS,
+} from "@/lib/layer2";
 import kaspaIcon from "@/assets/images/network-logos/kaspa.svg";
 import { useSettings } from "@/hooks/useSettings";
 import EvmAddressItem from "./EvmAddressItem";
@@ -76,7 +79,9 @@ export function AccountItem({
   const shrinkAddress = address ? textEllipsis(address) : "";
 
   const supportedEvmL2Chains =
-    settings?.networkId == "mainnet" ? [] : TESTNET_SUPPORTED_EVM_L2_CHAINS;
+    settings?.networkId == "mainnet"
+      ? MAINNET_SUPPORTED_EVM_L2_CHAINS
+      : TESTNET_SUPPORTED_EVM_L2_CHAINS;
 
   return (
     <div className="flex flex-col rounded-xl border border-daintree-700 bg-white/5">

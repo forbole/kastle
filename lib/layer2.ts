@@ -23,8 +23,28 @@ export const kasplexTestnet = {
   testnet: true,
 };
 
+export const kasplexMainnet = {
+  id: 202_555,
+  name: "Kasplex",
+  network: "kasplex",
+  nativeCurrency: {
+    decimals: 18,
+    name: "Bridged KAS",
+    symbol: "WKAS",
+  },
+  rpcUrls: {
+    default: { http: ["https://evmrpc.kasplex.org"] },
+  },
+  blockExplorers: {
+    default: {
+      name: "Kasplex Explorer",
+      url: "https://explorer.kasplex.org",
+    },
+  },
+};
+
 export const TESTNET_SUPPORTED_EVM_L2_CHAINS = [kasplexTestnet];
-export const MAINNET_SUPPORTED_EVM_L2_CHAINS = [];
+export const MAINNET_SUPPORTED_EVM_L2_CHAINS = [kasplexMainnet];
 
 export const ALL_SUPPORTED_EVM_L2_CHAINS = [
   ...MAINNET_SUPPORTED_EVM_L2_CHAINS,
@@ -32,7 +52,11 @@ export const ALL_SUPPORTED_EVM_L2_CHAINS = [
 ];
 
 export const getChainImage = (chainId: `0x${string}`) => {
-  if (hexToNumber(chainId) === kasplexTestnet.id) {
+  const chainIdNumber = hexToNumber(chainId);
+  if (
+    hexToNumber(chainId) === kasplexTestnet.id ||
+    chainIdNumber === kasplexMainnet.id
+  ) {
     return kasplexIcon;
   }
 
@@ -43,6 +67,8 @@ export const getChainName = (chainId: `0x${string}`) => {
   switch (hexToNumber(chainId)) {
     case kasplexTestnet.id:
       return kasplexTestnet.name;
+    case kasplexMainnet.id:
+      return kasplexMainnet.name;
     default:
       return "Unknown Chain";
   }
