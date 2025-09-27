@@ -14,11 +14,14 @@ import {
   http,
   hexToNumber,
   numberToHex,
-  serializeTransaction,
 } from "viem";
 import { estimateFeesPerGas } from "viem/actions";
 import { ethereumTransactionRequestSchema } from "@/api/background/handlers/ethereum/sendTransaction";
-import { getChainName, TESTNET_SUPPORTED_EVM_L2_CHAINS } from "@/lib/layer2";
+import {
+  getChainName,
+  MAINNET_SUPPORTED_EVM_L2_CHAINS,
+  TESTNET_SUPPORTED_EVM_L2_CHAINS,
+} from "@/lib/layer2";
 type SignTransactionProps = {
   walletSigner: IWalletWithGetAddress;
 };
@@ -53,7 +56,9 @@ export default function SendTransaction({
     }
 
     const supportedChains =
-      settings.networkId === "mainnet" ? [] : TESTNET_SUPPORTED_EVM_L2_CHAINS;
+      settings.networkId === "mainnet"
+        ? MAINNET_SUPPORTED_EVM_L2_CHAINS
+        : TESTNET_SUPPORTED_EVM_L2_CHAINS;
 
     if (!txChainId) {
       await ApiExtensionUtils.sendMessage(

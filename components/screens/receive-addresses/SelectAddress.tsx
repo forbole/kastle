@@ -4,7 +4,10 @@ import AddressItem from "@/components/screens/receive-addresses/AddressItem";
 import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import { useNavigate } from "react-router-dom";
 import { useSettings } from "@/hooks/useSettings";
-import { TESTNET_SUPPORTED_EVM_L2_CHAINS } from "@/lib/layer2";
+import {
+  MAINNET_SUPPORTED_EVM_L2_CHAINS,
+  TESTNET_SUPPORTED_EVM_L2_CHAINS,
+} from "@/lib/layer2";
 import { numberToHex } from "viem";
 import { getChainImage } from "@/lib/layer2";
 import useEvmAddress from "@/hooks/evm/useEvmAddress";
@@ -15,7 +18,9 @@ export default function SelectAddress() {
   const [settings] = useSettings();
 
   const supportEvmL2s =
-    settings?.networkId === "mainnet" ? [] : TESTNET_SUPPORTED_EVM_L2_CHAINS;
+    settings?.networkId === "mainnet"
+      ? MAINNET_SUPPORTED_EVM_L2_CHAINS
+      : TESTNET_SUPPORTED_EVM_L2_CHAINS;
 
   const kasAddress = account?.address ?? "";
   const evmAddress = useEvmAddress();

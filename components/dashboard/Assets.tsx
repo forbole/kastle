@@ -13,7 +13,10 @@ import { useTokenListByAddress } from "@/hooks/kasplex/useTokenListByAddress";
 import Erc20Assets from "@/components/dashboard/Erc20Assets";
 import EvmKasAsset from "./EvmKasAsset";
 import { NetworkType } from "@/contexts/SettingsContext";
-import { TESTNET_SUPPORTED_EVM_L2_CHAINS } from "@/lib/layer2";
+import {
+  TESTNET_SUPPORTED_EVM_L2_CHAINS,
+  MAINNET_SUPPORTED_EVM_L2_CHAINS,
+} from "@/lib/layer2";
 import { numberToHex } from "viem";
 import useKaspaPrice from "@/hooks/useKaspaPrice";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
@@ -47,6 +50,11 @@ export default function Assets() {
   });
 
   const isAssetListLoading = account?.balance === undefined;
+
+  const supportEvmL2s =
+    settings?.networkId === "mainnet"
+      ? MAINNET_SUPPORTED_EVM_L2_CHAINS
+      : TESTNET_SUPPORTED_EVM_L2_CHAINS;
 
   return isAssetListLoading ? (
     <div className="flex animate-pulse items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3">
@@ -83,8 +91,8 @@ export default function Assets() {
       </div>
 
       {/*EVM KAS*/}
-      {settings?.networkId === NetworkType.TestnetT10 &&
-        TESTNET_SUPPORTED_EVM_L2_CHAINS.map((chain) => (
+      {supportEvmL2s.length > 0 &&
+        supportEvmL2s.map((chain) => (
           <EvmKasAsset key={chain.id} chainId={numberToHex(chain.id)} />
         ))}
 
