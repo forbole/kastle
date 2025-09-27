@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.35.0](https://github.com/forbole/kastle/compare/v2.34.0...v2.35.0) (2025-09-27)
+
+
+### Features
+
+* add kasplex mainnet support ([#213](https://github.com/forbole/kastle/issues/213)) ([a7b82a3](https://github.com/forbole/kastle/commit/a7b82a344f01a2ba070f2181e6b76ad7c279afec))
+
 ## [2.34.0](https://github.com/forbole/kastle/compare/v2.33.1...v2.34.0) (2025-09-26)
 
 
