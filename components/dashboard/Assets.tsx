@@ -91,7 +91,7 @@ export default function Assets() {
       </div>
 
       {/*EVM KAS*/}
-      {settings?.networkId === NetworkType.TestnetT10 &&
+      {supportEvmL2s.length > 0 &&
         supportEvmL2s.map((chain) => (
           <EvmKasAsset key={chain.id} chainId={numberToHex(chain.id)} />
         ))}
