@@ -54,7 +54,7 @@ export const ALL_SUPPORTED_EVM_L2_CHAINS = [
 export const getChainImage = (chainId: `0x${string}`) => {
   const chainIdNumber = hexToNumber(chainId);
   if (
-    hexToNumber(chainId) === kasplexTestnet.id ||
+    chainIdNumber === kasplexTestnet.id ||
     chainIdNumber === kasplexMainnet.id
   ) {
     return kasplexIcon;
