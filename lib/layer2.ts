@@ -1,11 +1,10 @@
 import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import kasplexIcon from "@/assets/images/network-logos/kasplex.svg";
-import { hexToNumber } from "viem";
+import { hexToNumber, Chain } from "viem";
 
 export const kasplexTestnet = {
   id: 167_012,
   name: "Kasplex Testnet",
-  network: "kasplex-testnet",
   nativeCurrency: {
     decimals: 18,
     name: "Bridged KAS",
@@ -21,6 +20,9 @@ export const kasplexTestnet = {
     },
   },
   testnet: true,
+
+  icon: kasplexIcon,
+  apiUrl: "https://explorer.testnet.kasplextest.xyz",
 };
 
 export const kasplexMainnet = {
@@ -41,6 +43,9 @@ export const kasplexMainnet = {
       url: "https://explorer.kasplex.org",
     },
   },
+
+  icon: kasplexIcon,
+  apiUrl: "https://api-explorer.kasplex.org",
 };
 
 export const TESTNET_SUPPORTED_EVM_L2_CHAINS = [kasplexTestnet];
@@ -53,23 +58,20 @@ export const ALL_SUPPORTED_EVM_L2_CHAINS = [
 
 export const getChainImage = (chainId: `0x${string}`) => {
   const chainIdNumber = hexToNumber(chainId);
-  if (
-    chainIdNumber === kasplexTestnet.id ||
-    chainIdNumber === kasplexMainnet.id
-  ) {
-    return kasplexIcon;
+  const chain = ALL_SUPPORTED_EVM_L2_CHAINS.find((c) => c.id === chainIdNumber);
+  if (chain?.icon) {
+    return chain.icon;
   }
 
   return kasIcon;
 };
 
 export const getChainName = (chainId: `0x${string}`) => {
-  switch (hexToNumber(chainId)) {
-    case kasplexTestnet.id:
-      return kasplexTestnet.name;
-    case kasplexMainnet.id:
-      return kasplexMainnet.name;
-    default:
-      return "Unknown Chain";
+  const chainIdNumber = hexToNumber(chainId);
+  const chain = ALL_SUPPORTED_EVM_L2_CHAINS.find((c) => c.id === chainIdNumber);
+  if (chain?.name) {
+    return chain.name;
   }
+
+  return "Unknown Chain";
 };
