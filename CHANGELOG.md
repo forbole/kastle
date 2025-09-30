@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.35.1](https://github.com/forbole/kastle/compare/v2.35.0...v2.35.1) (2025-09-30)
+
+
+### Bug Fixes
+
+* update kasplex explorer api ([#215](https://github.com/forbole/kastle/issues/215)) ([5b01b2e](https://github.com/forbole/kastle/commit/5b01b2e707873f754e2ee69653e2b73d5e4157f2))
+
 ## [2.35.0](https://github.com/forbole/kastle/compare/v2.34.0...v2.35.0) (2025-09-27)
 
 
