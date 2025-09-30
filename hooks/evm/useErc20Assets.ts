@@ -48,8 +48,6 @@ export default function useErc20Assets() {
     ...(assetsFromApiFormatted || []),
   ];
 
-  console.log(assets);
-
   return {
     assets,
     isLoading: loading || isLoading,
