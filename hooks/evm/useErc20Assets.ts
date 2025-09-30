@@ -27,7 +27,8 @@ export default function useErc20Assets() {
       (data) =>
         !assetsFromStore?.find(
           (asset) =>
-            asset.address.toLowerCase() === data.token.address.toLowerCase() &&
+            asset.address.toLowerCase() ===
+              data.token.address_hash.toLowerCase() &&
             asset.chainId === data.chainId,
         ),
     );
@@ -35,7 +36,7 @@ export default function useErc20Assets() {
   // Format assets from API to match Erc20Asset type
   const assetsFromApiFormatted: Erc20Asset[] | undefined =
     assetItemsFromApi?.map((item) => ({
-      address: item.token.address,
+      address: item.token.address_hash,
       symbol: item.token.symbol,
       decimals: parseInt(item.token.decimals, 10),
       image: item.token.icon_url,

@@ -10,7 +10,7 @@ import useEvmAddress from "@/hooks/evm/useEvmAddress";
 type ERC20TokenItem = {
   value: string;
   token: {
-    address: Address;
+    address_hash: Address;
     name: string;
     symbol: string;
     decimals: string;
@@ -78,7 +78,7 @@ export default function useErc20TokensFromApi() {
       const fetchChainERC20Tokens = async (chainId: number) => {
         try {
           const currentChain = chains.find((chain) => chain.id === chainId);
-          const explorerApi = currentChain?.blockExplorers.default.url;
+          const explorerApi = currentChain?.apiUrl;
           if (!explorerApi) {
             throw new Error(
               `No explorer API configured for chain ID ${chainId}`,

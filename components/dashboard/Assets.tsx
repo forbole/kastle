@@ -12,7 +12,6 @@ import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 import { useTokenListByAddress } from "@/hooks/kasplex/useTokenListByAddress";
 import Erc20Assets from "@/components/dashboard/Erc20Assets";
 import EvmKasAsset from "./EvmKasAsset";
-import { NetworkType } from "@/contexts/SettingsContext";
 import {
   TESTNET_SUPPORTED_EVM_L2_CHAINS,
   MAINNET_SUPPORTED_EVM_L2_CHAINS,

@@ -20,7 +20,7 @@ export default function useErc20InfoFromApi(
 
   const { data } = useSWR<Erc20InfoFromApi>(
     currentChain
-      ? `${currentChain.blockExplorers.default.url}/api/v2/tokens/${contractAddress}`
+      ? `${currentChain.apiUrl}/api/v2/tokens/${contractAddress}`
       : null,
     fetcher,
   );
