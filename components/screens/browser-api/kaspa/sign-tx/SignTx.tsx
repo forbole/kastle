@@ -44,7 +44,7 @@ export default function SignTx({ wallet, requestId, payload }: SignTxProps) {
   const handleCancel = async () => {
     await ApiExtensionUtils.sendMessage(
       requestId,
-      ApiUtils.createApiResponse(requestId, null, "User cancelled"),
+      ApiUtils.createApiResponse(requestId, null, "User denied"),
     );
     window.close();
   };

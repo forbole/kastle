@@ -9,6 +9,7 @@ import {
   NetworkType,
   Settings,
   SETTINGS_KEY,
+  RPC_URLS,
 } from "@/contexts/SettingsContext.tsx";
 import {
   WALLET_SETTINGS,
@@ -22,6 +23,7 @@ import {
 import * as conn from "@/lib/settings/connection";
 import { kasplexTestnet } from "@/lib/layer2";
 import { publicKeyToAddress } from "viem/accounts";
+import { RpcClient, Encoding, Resolver } from "@/wasm/core/kaspa";
 
 export class ApiUtils {
   static openPopup(tabId: number, url: string) {
@@ -233,6 +235,19 @@ export class ApiUtils {
     }
 
     return publicKeyToAddress(account.evmPublicKey!);
+  }
+
+  static async getKaspaRpcClient(): Promise<RpcClient> {
+    const settings = await this.getSettings();
+    const networkId = settings.networkId;
+    const rpcUrl = RPC_URLS[networkId];
+    const rpcClient = new RpcClient({
+      url: rpcUrl,
+      resolver: rpcUrl ? undefined : new Resolver(),
+      encoding: Encoding.Borsh,
+      networkId,
+    });
+    return rpcClient;
   }
 }
 

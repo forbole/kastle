@@ -5,6 +5,7 @@ import { EthereumBrowserAPI } from "./ethereum";
 import { ConnectPayloadSchema } from "@/api/background/handlers/kaspa/connect";
 import { SignTxPayloadSchema } from "@/api/background/handlers/kaspa/utils";
 import { SignMessagePayloadSchema } from "@/api/background/handlers/kaspa/signMessage";
+import { sendSompiPayloadSchema } from "./background/handlers/kaspa/sendSompi";
 
 function createApiRequest(
   action: Action,
@@ -63,6 +64,7 @@ export class KastleBrowserAPI {
       "kas:switch_network": Action.SWITCH_NETWORK,
       "kas:sign_message": Action.SIGN_MESSAGE,
       "kas:commit_reveal": Action.COMMIT_REVEAL,
+      "kas:send_sompi": Action.SEND_SOMPI,
     }[method];
 
     if (!action) {
@@ -141,6 +143,26 @@ export class KastleBrowserAPI {
       Action.SWITCH_NETWORK,
       requestId,
       networkId,
+    );
+    window.postMessage(request, "*");
+
+    return await this.receiveMessageWithTimeout(requestId);
+  }
+
+  async sendKaspa(
+    toAddress: string,
+    sompi: number,
+    options?: { priorityFee?: number; payload?: string },
+  ): Promise<string> {
+    const requestId = uuid();
+    const request = createApiRequest(
+      Action.SEND_SOMPI,
+      requestId,
+      sendSompiPayloadSchema.parse({
+        toAddress,
+        sompi,
+        options,
+      }),
     );
     window.postMessage(request, "*");
 

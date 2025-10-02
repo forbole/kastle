@@ -12,6 +12,7 @@ import { ethereumRequestHandler } from "@/api/background/handlers/ethereum/reque
 import { signMessageHandler } from "@/api/background/handlers/kaspa/signMessage";
 import { switchNetworkHandler } from "@/api/background/handlers/kaspa/switchNetwork";
 import { commitRevealHandler } from "./handlers/kaspa/commitReveal";
+import { sendSompiHandler } from "./handlers/kaspa/sendSompi";
 
 export class BackgroundService {
   public listen(): void {
@@ -84,6 +85,8 @@ export class BackgroundService {
       [Action.SIGN_MESSAGE]: signMessageHandler,
       [Action.SWITCH_NETWORK]: switchNetworkHandler,
       [Action.COMMIT_REVEAL]: commitRevealHandler,
+
+      [Action.SEND_SOMPI]: sendSompiHandler,
     };
 
     return handlers[action];
