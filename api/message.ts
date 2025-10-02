@@ -10,6 +10,8 @@ export enum Action {
   SIGN_MESSAGE,
   SWITCH_NETWORK,
   COMMIT_REVEAL,
+
+  SEND_SOMPI,
 }
 
 // ================================================================================================
