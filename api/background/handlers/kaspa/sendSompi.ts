@@ -89,7 +89,10 @@ export async function sendSompiHandler(
   const sender = await ApiUtils.getCurrentAccount();
 
   if (!sender) {
-    throw new Error("No account found");
+    sendResponse(
+      ApiUtils.createApiResponse(message.id, null, "No account found"),
+    );
+    return;
   }
 
   const rpcClient = await ApiUtils.getKaspaRpcClient();
