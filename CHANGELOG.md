@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.36.0](https://github.com/forbole/kastle/compare/v2.35.1...v2.36.0) (2025-10-02)
+
+
+### Features
+
+* add sendKaspa api ([#217](https://github.com/forbole/kastle/issues/217)) ([be230ec](https://github.com/forbole/kastle/commit/be230ecf7703459598fb7717f965d9a5f8a510c8))
+
 ## [2.35.1](https://github.com/forbole/kastle/compare/v2.35.0...v2.35.1) (2025-09-30)
 
 
