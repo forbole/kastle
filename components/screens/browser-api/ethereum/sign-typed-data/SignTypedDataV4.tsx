@@ -64,7 +64,7 @@ export default function SignTypedDataV4({
 
   return (
     <div className="flex h-full flex-col justify-between gap-4">
-      <div>
+      <div className="flex min-h-0 flex-1 flex-col">
         <Header showPrevious={false} showClose={false} title="Confirm" />
         <div className="relative">
           {wallet?.type !== "ledger" && (
@@ -76,12 +76,12 @@ export default function SignTypedDataV4({
         </div>
 
         {/* Confirm Content */}
-        <div className="text-center">
+        <div className="flex min-h-0 flex-1 flex-col text-center">
           <h2 className="mt-4 text-2xl font-semibold">Sign Typed Data</h2>
           <p className="mt-2 text-base text-daintree-400">
             Please confirm the typed data you are signing
           </p>
-          <div className="mt-4 overflow-auto break-words rounded-md bg-daintree-700 p-4">
+          <div className="mt-4 flex-1 overflow-auto break-words rounded-md bg-daintree-700 p-4">
             <p className="whitespace-pre text-start text-sm">
               {JSON.stringify(JSON.parse(typedData.toString()), null, 2)}
             </p>
@@ -90,7 +90,7 @@ export default function SignTypedDataV4({
       </div>
 
       {/* Buttons */}
-      <div className="flex gap-2 text-base font-semibold">
+      <div className="flex flex-shrink-0 gap-2 text-base font-semibold">
         <button className="rounded-full p-5 text-[#7B9AAA]" onClick={cancel}>
           Cancel
         </button>
