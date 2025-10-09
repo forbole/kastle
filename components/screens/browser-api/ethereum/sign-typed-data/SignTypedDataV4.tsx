@@ -7,6 +7,7 @@ import { IWallet } from "@/lib/ethereum/wallet/wallet-interface";
 import { ApiExtensionUtils } from "@/api/extension";
 import { ApiUtils } from "@/api/background/utils";
 import { RPC_ERRORS } from "@/api/message";
+import { signTypedDataSchema } from "@/lib/service/handlers/evm/evm-sign-typed-data";
 
 type SignTypedDataV4Props = {
   requestId: string;
@@ -22,11 +23,7 @@ export default function SignTypedDataV4({
   const { wallet } = useWalletManager();
   const { value: isSigning, toggle: toggleIsSigning } = useBoolean(false);
 
-  const typedData = JSON.parse(message);
-  const typedDataWithoutSchema = {
-    domain: typedData.domain,
-    message: typedData.message,
-  };
+  const typedData = signTypedDataSchema.parse(JSON.parse(message));
 
   const onConfirm = async () => {
     if (isSigning) {
@@ -36,7 +33,7 @@ export default function SignTypedDataV4({
     toggleIsSigning();
     try {
       // Sign the message
-      const signed = await walletSigner.signMessage(message);
+      const signed = await walletSigner.signTypedData(typedData);
       await ApiExtensionUtils.sendMessage(
         requestId,
         ApiUtils.createApiResponse(requestId, signed),
@@ -86,7 +83,7 @@ export default function SignTypedDataV4({
           </p>
           <div className="mt-4 overflow-auto break-words rounded-md bg-daintree-700 p-4">
             <p className="whitespace-pre text-start text-sm">
-              {JSON.stringify(typedDataWithoutSchema, null, 2)}
+              {JSON.stringify(JSON.parse(typedData.toString()), null, 2)}
             </p>
           </div>
         </div>

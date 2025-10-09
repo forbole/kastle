@@ -36,7 +36,7 @@ export const switchNetworkHandler = async (
   const network = hexToNumber(result.data.chainId);
   const settings = await ApiUtils.getSettings();
   if (settings.evmL2ChainId?.[settings.networkId] === network) {
-    sendResponse(ApiUtils.createApiResponse(message.id, settings.networkId));
+    sendResponse(ApiUtils.createApiResponse(message.id, network));
     return;
   }
 

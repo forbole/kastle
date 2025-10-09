@@ -21,7 +21,7 @@ import {
   toLegacyEvmAddress,
 } from "@/lib/utils";
 import * as conn from "@/lib/settings/connection";
-import { kasplexTestnet } from "@/lib/layer2";
+import { kasplexTestnet, kasplexMainnet } from "@/lib/layer2";
 import { publicKeyToAddress } from "viem/accounts";
 import { RpcClient, Encoding, Resolver } from "@/wasm/core/kaspa";
 
@@ -48,7 +48,7 @@ export class ApiUtils {
         currency: "USD",
 
         evmL2ChainId: {
-          [NetworkType.Mainnet]: undefined,
+          [NetworkType.Mainnet]: kasplexMainnet.id,
           [NetworkType.TestnetT10]: kasplexTestnet.id,
         },
         isLegacyEvmAddressEnabled: false,

@@ -1,4 +1,3 @@
-import { type SignTypedDataParameters } from "viem/accounts";
 import {
   ApiRequestWithHost,
   RpcError,
@@ -8,6 +7,7 @@ import {
 import { ApiUtils } from "@/api/background/utils";
 import { z } from "zod";
 import { isMatchCurrentAddress, isUserDeniedResponse } from "./utils";
+import { signTypedDataSchema } from "@/lib/service/handlers/evm/evm-sign-typed-data";
 
 export const signTypedDataV4Handler = async (
   tabId: number,
@@ -47,20 +47,18 @@ export const signTypedDataV4Handler = async (
   }
 
   const payload = params[1];
-  const schema = z.any() as z.ZodType<SignTypedDataParameters>;
-  const result = schema.safeParse(payload);
+  const result = signTypedDataSchema.safeParse(payload);
   if (!result.success) {
     sendError(RPC_ERRORS.INVALID_PARAMS);
     return;
   }
 
-  const transaction = result.data;
   const url = new URL(browser.runtime.getURL("/popup.html"));
   url.hash = `/ethereum/sign-typed-data-v4`;
   url.searchParams.set("requestId", message.id);
   url.searchParams.set(
     "payload",
-    encodeURIComponent(JSON.stringify(transaction)),
+    encodeURIComponent(JSON.stringify(result.data)),
   );
 
   // Open the popup and wait for the response
