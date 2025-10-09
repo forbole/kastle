@@ -7,6 +7,7 @@ import { IWallet } from "@/lib/ethereum/wallet/wallet-interface";
 import { ApiExtensionUtils } from "@/api/extension";
 import { ApiUtils } from "@/api/background/utils";
 import { RPC_ERRORS } from "@/api/message";
+import { signTypedDataSchema } from "@/lib/service/handlers/evm/evm-sign-typed-data";
 
 type SignTypedDataV4Props = {
   requestId: string;
@@ -22,11 +23,7 @@ export default function SignTypedDataV4({
   const { wallet } = useWalletManager();
   const { value: isSigning, toggle: toggleIsSigning } = useBoolean(false);
 
-  const typedData = JSON.parse(message);
-  const typedDataWithoutSchema = {
-    domain: typedData.domain,
-    message: typedData.message,
-  };
+  const typedData = signTypedDataSchema.parse(JSON.parse(message));
 
   const onConfirm = async () => {
     if (isSigning) {
@@ -36,7 +33,7 @@ export default function SignTypedDataV4({
     toggleIsSigning();
     try {
       // Sign the message
-      const signed = await walletSigner.signMessage(message);
+      const signed = await walletSigner.signTypedData(typedData);
       await ApiExtensionUtils.sendMessage(
         requestId,
         ApiUtils.createApiResponse(requestId, signed),
@@ -67,7 +64,7 @@ export default function SignTypedDataV4({
 
   return (
     <div className="flex h-full flex-col justify-between gap-4">
-      <div>
+      <div className="flex min-h-0 flex-1 flex-col">
         <Header showPrevious={false} showClose={false} title="Confirm" />
         <div className="relative">
           {wallet?.type !== "ledger" && (
@@ -79,21 +76,21 @@ export default function SignTypedDataV4({
         </div>
 
         {/* Confirm Content */}
-        <div className="text-center">
+        <div className="flex min-h-0 flex-1 flex-col text-center">
           <h2 className="mt-4 text-2xl font-semibold">Sign Typed Data</h2>
           <p className="mt-2 text-base text-daintree-400">
             Please confirm the typed data you are signing
           </p>
-          <div className="mt-4 overflow-auto break-words rounded-md bg-daintree-700 p-4">
+          <div className="mt-4 flex-1 overflow-auto break-words rounded-md bg-daintree-700 p-4">
             <p className="whitespace-pre text-start text-sm">
-              {JSON.stringify(typedDataWithoutSchema, null, 2)}
+              {JSON.stringify(JSON.parse(typedData.toString()), null, 2)}
             </p>
           </div>
         </div>
       </div>
 
       {/* Buttons */}
-      <div className="flex gap-2 text-base font-semibold">
+      <div className="flex flex-shrink-0 gap-2 text-base font-semibold">
         <button className="rounded-full p-5 text-[#7B9AAA]" onClick={cancel}>
           Cancel
         </button>

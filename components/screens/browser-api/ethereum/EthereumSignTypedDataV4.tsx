@@ -11,7 +11,6 @@ export default function EthereumSignTypedDataV4Confirm() {
   );
 
   const payload = encodedPayload ? decodeURIComponent(encodedPayload) : null;
-
   const loading = !wallet || !requestId || !payload;
 
   return (

@@ -1,7 +1,7 @@
 import { createContext, ReactNode, useEffect, useState } from "react";
 import { captureException } from "@sentry/react";
 import * as conn from "@/lib/settings/connection";
-import { kasplexTestnet } from "@/lib/layer2";
+import { kasplexMainnet, kasplexTestnet } from "@/lib/layer2";
 
 export const SETTINGS_KEY = "local:settings";
 
@@ -74,7 +74,7 @@ export const initialSettings = {
   preview: false,
 
   evmL2ChainId: {
-    [NetworkType.Mainnet]: undefined,
+    [NetworkType.Mainnet]: kasplexMainnet.id,
     [NetworkType.TestnetT10]: kasplexTestnet.id,
   },
   isLegacyEvmAddressEnabled: false,
