@@ -71,7 +71,7 @@ export default function useEvmHotWalletSigner() {
       walletId,
       accountIndex,
       isLegacy,
-      data,
+      data: data.toString(),
     });
 
     return signature;
