@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.36.1](https://github.com/forbole/kastle/compare/v2.36.0...v2.36.1) (2025-10-09)
+
+
+### Bug Fixes
+
+* fix sign typed data ([#219](https://github.com/forbole/kastle/issues/219)) ([cf75de4](https://github.com/forbole/kastle/commit/cf75de4206882657a710f082562e5499e0bf34c3))
+
 ## [2.36.0](https://github.com/forbole/kastle/compare/v2.35.1...v2.36.0) (2025-10-02)
 
 
