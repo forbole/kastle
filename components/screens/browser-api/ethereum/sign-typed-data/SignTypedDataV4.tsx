@@ -83,7 +83,7 @@ export default function SignTypedDataV4({
           </p>
           <div className="mt-4 flex-1 overflow-auto break-words rounded-md bg-daintree-700 p-4">
             <p className="whitespace-pre text-start text-sm">
-              {JSON.stringify(typedData, null, 2)}
+              {JSON.stringify(JSON.parse(typedData.toString()), null, 2)}
             </p>
           </div>
         </div>
