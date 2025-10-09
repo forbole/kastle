@@ -34,7 +34,7 @@ export async function evmSignTypedDataHandler(
   const parsed = signTypedDataSchema.safeParse(JSON.parse(data));
 
   if (!parsed.success) {
-    throw new Error("Invalid data");
+    throw new Error(`Invalid data: ${parsed.error ? parsed.error.message : "Unknown validation error"}`);
   }
 
   const signer = await getSigner(walletId, accountIndex, isLegacy);
