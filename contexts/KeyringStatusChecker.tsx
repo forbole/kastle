@@ -46,7 +46,7 @@ export function KeyringStatusCheckerProvider({
 
     const intervalId = setInterval(checkKeyringStatus, INTERVAL);
     return () => clearInterval(intervalId);
-  }, []);
+  }, [needToRedirect, keyring, navigate]);
 
   return (
     <KeyringStatusCheckerContext.Provider value={undefined}>
