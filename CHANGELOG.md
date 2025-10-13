@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.36.2](https://github.com/forbole/kastle/compare/v2.36.1...v2.36.2) (2025-10-13)
+
+
+### Bug Fixes
+
+* handle lock and keyring error ([#221](https://github.com/forbole/kastle/issues/221)) ([805d4ef](https://github.com/forbole/kastle/commit/805d4ef7292fb4ccc3f58e7db052e73b8553433b))
+
 ## [2.36.1](https://github.com/forbole/kastle/compare/v2.36.0...v2.36.1) (2025-10-09)
 
 
