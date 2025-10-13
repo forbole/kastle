@@ -25,47 +25,89 @@ export default function useKeyring() {
   return {
     getKeyringStatus,
 
-    keyringInitialize: (password: string) =>
-      sendMessage<void>(Method.KEYRING_INITIALIZE, { password }),
+    keyringInitialize: async (password: string) => {
+      const response = await sendMessage<void | ErrorMessage>(
+        Method.KEYRING_INITIALIZE,
+        { password },
+      );
+      if (response && "error" in response) {
+        throw new Error(response.error);
+      }
+    },
 
-    keyringUnlock: (password: string) =>
-      sendMessage<KeyringUnlockResponse>(Method.KEYRING_UNLOCK, { password }),
+    keyringUnlock: async (password: string) => {
+      const response = await sendMessage<KeyringUnlockResponse | ErrorMessage>(
+        Method.KEYRING_UNLOCK,
+        {
+          password,
+        },
+      );
+      if (response && "error" in response) {
+        throw new Error(response.error);
+      }
+      return response;
+    },
 
     keyringLock: () => sendMessage<void>(Method.KEYRING_LOCK),
 
-    keyringCheckPassword: (
+    keyringCheckPassword: async (
       keyringCheckPasswordRequest: KeyringCheckPasswordRequest,
-    ) =>
-      sendMessage<KeyringCheckPasswordResponse>(
-        Method.KEYRING_CHECK_PASSWORD,
-        keyringCheckPasswordRequest,
-      ),
+    ) => {
+      const response = await sendMessage<
+        KeyringCheckPasswordResponse | ErrorMessage
+      >(Method.KEYRING_CHECK_PASSWORD, keyringCheckPasswordRequest);
+      if (response && "error" in response) {
+        throw new Error(response.error);
+      }
+      return response;
+    },
 
-    keyringChangePassword: (
+    keyringChangePassword: async (
       keyringChangePasswordRequest: KeyringChangePasswordRequest,
-    ) =>
-      sendMessage<KeyringChangePasswordResponse>(
-        Method.KEYRING_CHANGE_PASSWORD,
-        keyringChangePasswordRequest,
-      ),
+    ) => {
+      const response = await sendMessage<
+        KeyringChangePasswordResponse | ErrorMessage
+      >(Method.KEYRING_CHANGE_PASSWORD, keyringChangePasswordRequest);
 
-    keyringReset: () => sendMessage<void>(Method.KEYRING_RESET),
+      if (response && "error" in response) {
+        throw new Error(response.error);
+      }
+      return response;
+    },
 
-    addWalletSecret: (
+    keyringReset: async () => {
+      const response = await sendMessage<void | ErrorMessage>(
+        Method.KEYRING_RESET,
+      );
+      if (response && "error" in response) {
+        throw new Error(response.error);
+      }
+    },
+
+    addWalletSecret: async (
       keyringAddWalletSecretRequest: KeyringAddWalletSecretRequest,
-    ) =>
-      sendMessage(
+    ) => {
+      const response = await sendMessage<void | ErrorMessage>(
         Method.KEYRING_ADD_WALLET_SECRET,
         keyringAddWalletSecretRequest,
-      ),
+      );
 
-    removeWalletSecret: (
+      if (response && "error" in response) {
+        throw new Error(response.error);
+      }
+    },
+
+    removeWalletSecret: async (
       keyringGetWalletSecretRequest: KeyringRemoveWalletSecretRequest,
-    ) =>
-      sendMessage(
+    ) => {
+      const response = await sendMessage<void | ErrorMessage>(
         Method.KEYRING_REMOVE_WALLET_SECRET,
         keyringGetWalletSecretRequest,
-      ),
+      );
+      if (response && "error" in response) {
+        throw new Error(response.error);
+      }
+    },
 
     getWalletSecret: async (
       keyringGetWalletSecretRequest: KeyringGetWalletSecretRequest,
