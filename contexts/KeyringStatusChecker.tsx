@@ -1,7 +1,6 @@
 import { ReactNode, useEffect, createContext } from "react";
 import useKeyring from "@/hooks/useKeyring";
 import { useNavigate } from "react-router-dom";
-import { PostHogWrapperProvider } from "@/contexts/PostHogWrapperProvider.tsx";
 
 const INTERVAL = 2_000;
 
