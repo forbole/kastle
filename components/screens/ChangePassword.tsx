@@ -35,13 +35,17 @@ export default function ChangePassword() {
   const isMismatchShown = !passwordMatch && !!confirmPassword;
 
   const onSubmit = handleSubmit(async (data) => {
-    await keyringChangePassword({
-      currentPassword: data.currentPassword,
-      newPassword: data.newPassword,
-    });
+    try {
+      await keyringChangePassword({
+        currentPassword: data.currentPassword,
+        newPassword: data.newPassword,
+      });
 
-    toast.success("Password has been changed successfully");
-    navigate("/settings");
+      toast.success("Password has been changed successfully");
+      navigate("/settings");
+    } catch (error) {
+      toast.error("Failed to change password");
+    }
   });
 
   const validateCurrentPassword = async (currentPassword: string) => {

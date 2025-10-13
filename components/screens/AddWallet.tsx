@@ -10,10 +10,14 @@ export default function AddWallet() {
   const onClose = () => navigate("/dashboard");
 
   const newWallet = async () => {
-    await createNewWallet(uuid());
+    try {
+      await createNewWallet(uuid());
 
-    internalToast.success("Wallet has been created successfully !");
-    navigate("/dashboard");
+      internalToast.success("Wallet has been created successfully !");
+      navigate("/dashboard");
+    } catch (error) {
+      internalToast.error("Failed to create wallet");
+    }
   };
 
   return (

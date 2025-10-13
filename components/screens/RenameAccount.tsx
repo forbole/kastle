@@ -30,23 +30,27 @@ export default function RenameAccount() {
   });
 
   const onSubmit = handleSubmit(async ({ accountName }) => {
-    if (
-      !walletId ||
-      accountIndexNumber === undefined ||
-      Number.isNaN(accountIndexNumber)
-    ) {
-      return;
+    try {
+      if (
+        !walletId ||
+        accountIndexNumber === undefined ||
+        Number.isNaN(accountIndexNumber)
+      ) {
+        return;
+      }
+
+      await renameAccount({
+        name: accountName,
+        walletId,
+        accountIndex: accountIndexNumber,
+      });
+
+      internalToast.success("Account has been updated successfully.");
+
+      navigate("/dashboard");
+    } catch (error) {
+      internalToast.error("Failed to rename account");
     }
-
-    await renameAccount({
-      name: accountName,
-      walletId,
-      accountIndex: accountIndexNumber,
-    });
-
-    internalToast.success("Account has been updated successfully.");
-
-    navigate("/dashboard");
   });
 
   return (
