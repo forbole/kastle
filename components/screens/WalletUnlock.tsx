@@ -48,7 +48,7 @@ export default function WalletUnlock() {
   };
 
   return (
-    <div className="min-h-screen">
+    <div className="h-screen min-h-screen w-screen">
       <div className="mx-auto flex h-[600px] w-[375px] flex-col items-center justify-between px-4 py-6">
         {/** Header */}
         <div className="space-y-6">

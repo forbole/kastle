@@ -7,7 +7,6 @@ import "preline/preline";
 import { useLocation } from "react-router";
 import { Toaster } from "react-hot-toast";
 import useResetPreline from "@/hooks/useResetPreline.ts";
-import { PostHogWrapperProvider } from "@/contexts/PostHogWrapperProvider.tsx";
 import { KEYRING_CHANGE_TIME } from "@/lib/keyring-manager.ts";
 
 type FullscreenLayoutProps = {
@@ -54,15 +53,9 @@ export default function FullscreenLayout({
   }, [unlockTime]);
 
   return (
-    <PostHogWrapperProvider>
-      <div className="no-scrollbar flex h-screen justify-center overflow-y-scroll bg-icy-blue-900 py-10 font-sans text-white">
-        <Toaster position="top-center" containerStyle={{ top: 35 }} />
-        {navigation.state === "loading" || !isConnected ? (
-          <Splash />
-        ) : (
-          <Outlet />
-        )}
-      </div>
-    </PostHogWrapperProvider>
+    <div className="no-scrollbar flex h-screen justify-center overflow-y-scroll bg-icy-blue-900 py-10 font-sans text-white">
+      <Toaster position="top-center" containerStyle={{ top: 35 }} />
+      {navigation.state === "loading" || !isConnected ? <Splash /> : <Outlet />}
+    </div>
   );
 }

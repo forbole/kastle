@@ -77,6 +77,8 @@ import EvmReceiveAddress from "@/components/screens/receive-addresses/EvmReceive
 import AssetSelect from "@/components/screens/asset-selector/AssetSelect";
 import CommitRevealConfirm from "@/components/screens/browser-api/kaspa/CommitRevealConfirm";
 import ShowWalletSecret from "@/components/screens/full-pages/show-wallet-secret/ShowWalletSecret";
+import { KeyringStatusCheckerProvider } from "@/contexts/KeyringStatusChecker";
+import { PostHogWrapperProvider } from "@/contexts/PostHogWrapperProvider.tsx";
 
 const loadKaspaWasm = async () => {
   await init({ module_or_path: kaspaModule });
@@ -125,7 +127,11 @@ const browserAPIKeyringGuard = async ({ request }: LoaderFunctionArgs) => {
     const urlParams = new URLSearchParams(window.location.search);
     const url = new URL(request.url);
     url.searchParams.set("redirect", url.pathname);
-    url.searchParams.set("requestId", urlParams.get("requestId") ?? "");
+
+    for (const param of urlParams.entries()) {
+      url.searchParams.set(param[0], param[1]);
+    }
+
     url.pathname = "/browser-api/unlock";
 
     return redirect(url.toString());
@@ -161,11 +167,15 @@ export const router = createHashRouter([
             <SettingsProvider>
               <RecentAddressesProvider>
                 <RpcClientProvider>
-                  <WalletManagerProvider>
-                    <EVMAssetsProvider>
-                      <Outlet />
-                    </EVMAssetsProvider>
-                  </WalletManagerProvider>
+                  <KeyringStatusCheckerProvider>
+                    <WalletManagerProvider>
+                      <EVMAssetsProvider>
+                        <PostHogWrapperProvider>
+                          <Outlet />
+                        </PostHogWrapperProvider>
+                      </EVMAssetsProvider>
+                    </WalletManagerProvider>
+                  </KeyringStatusCheckerProvider>
                 </RpcClientProvider>
               </RecentAddressesProvider>
             </SettingsProvider>
@@ -174,22 +184,22 @@ export const router = createHashRouter([
         loader: loadKaspaWasm,
         children: [
           {
+            path: "unlock",
+            element: <WalletUnlock />,
+            loader: async () => {
+              const keyringStatusResponse = await getKeyringStatus();
+
+              if (!keyringStatusResponse.isInitialized) {
+                await forceOnboarding();
+                return null;
+              }
+
+              return null;
+            },
+          },
+          {
             element: <PopupLayout />,
             children: [
-              {
-                path: "unlock",
-                element: <WalletUnlock />,
-                loader: async () => {
-                  const keyringStatusResponse = await getKeyringStatus();
-
-                  if (!keyringStatusResponse.isInitialized) {
-                    await forceOnboarding();
-                    return null;
-                  }
-
-                  return null;
-                },
-              },
               {
                 index: true,
                 element: <Navigate to="/dashboard" replace />,
