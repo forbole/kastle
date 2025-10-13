@@ -72,6 +72,7 @@ export default function useWalletEditor() {
       return { noWallet: noWallet };
     } catch (error) {
       internalToast.error("Failed to remove wallet");
+      return { noWallet: false };
     }
   };
 
