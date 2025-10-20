@@ -1,13 +1,19 @@
+import z from "zod";
+
+const AccountConnectionSchema = z.object({
+  host: z.string(),
+  name: z.string().optional(),
+  icon: z.string().optional(),
+});
+
+const AccountConnectionsSchema = z.array(AccountConnectionSchema);
+
 export type WalletConnections = {
-  [walletId: string]: AccountConnectionsByNetwork;
+  [walletId: string]: AccountConnections;
 };
 
-type AccountConnectionsByNetwork = {
-  [accountIndex: number]: NetworkConnections;
-};
-
-type NetworkConnections = {
-  [networkId: string]: AccountConnection[];
+type AccountConnections = {
+  [accountIndex: number]: AccountConnection[];
 };
 
 type AccountConnection = {
@@ -20,29 +26,32 @@ export function getAccountConnections(
   walletConnections: WalletConnections,
   walletId: string,
   accountIndex: number,
-  networkId: string,
 ): AccountConnection[] {
   const connections = walletConnections?.[walletId];
   if (!connections) {
     return [];
   }
 
-  const accountConnectionsByNetwork = connections[accountIndex] ?? {};
-  return accountConnectionsByNetwork[networkId] ?? [];
+  const accountConnections = AccountConnectionsSchema.safeParse(
+    connections[accountIndex],
+  );
+  if (!accountConnections.success) {
+    return [];
+  }
+
+  return accountConnections.data;
 }
 
 export function addConnection(
   walletConnections: WalletConnections,
   walletId: string,
   accountIndex: number,
-  networkId: string,
   connection: AccountConnection,
 ): WalletConnections {
   const connections = getAccountConnections(
     walletConnections,
     walletId,
     accountIndex,
-    networkId,
   );
 
   const updatedConnections = connections
@@ -55,10 +64,7 @@ export function addConnection(
     ...walletConnections,
     [walletId]: {
       ...walletConnections[walletId],
-      [accountIndex]: {
-        ...walletConnections[walletId]?.[accountIndex],
-        [networkId]: updatedConnections,
-      },
+      [accountIndex]: updatedConnections,
     },
   };
 }
@@ -67,14 +73,12 @@ export function removeConnection(
   walletConnections: WalletConnections,
   walletId: string,
   accountIndex: number,
-  networkId: string,
   host: string,
 ): WalletConnections {
   const connections = getAccountConnections(
     walletConnections,
     walletId,
     accountIndex,
-    networkId,
   );
 
   const updatedConnections = connections.filter(
@@ -85,10 +89,7 @@ export function removeConnection(
     ...walletConnections,
     [walletId]: {
       ...walletConnections[walletId],
-      [accountIndex]: {
-        ...walletConnections[walletId]?.[accountIndex],
-        [networkId]: updatedConnections,
-      },
+      [accountIndex]: updatedConnections,
     },
   };
 }
