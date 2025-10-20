@@ -4,8 +4,8 @@ import { useSettings } from "@/hooks/useSettings";
 import { ApiExtensionUtils } from "@/api/extension";
 import { ApiUtils } from "@/api/background/utils";
 import {
-  TESTNET_SUPPORTED_EVM_L2_CHAINS,
   MAINNET_SUPPORTED_EVM_L2_CHAINS,
+  ALL_SUPPORTED_EVM_L2_CHAINS,
 } from "@/lib/layer2";
 import { numberToHex, hexToNumber } from "viem";
 import Header from "@/components/GeneralHeader";
@@ -20,17 +20,19 @@ export default function SwitchNetwork({
   chainId: string;
 }) {
   const [settings, setSettings] = useSettings();
-  const supportedEvmL2s =
-    settings?.networkId === "mainnet"
-      ? MAINNET_SUPPORTED_EVM_L2_CHAINS
-      : TESTNET_SUPPORTED_EVM_L2_CHAINS;
-  const l2Networks = supportedEvmL2s.map((chain) => ({
+  const l2Networks = ALL_SUPPORTED_EVM_L2_CHAINS.map((chain) => ({
     id: chain.id,
     name: chain.name,
   }));
   const selectedL2Network = l2Networks.find(
     (n) => n.id === hexToNumber(chainId as `0x${string}`),
   );
+
+  const network = MAINNET_SUPPORTED_EVM_L2_CHAINS.some(
+    (chain) => chain.id === hexToNumber(chainId as `0x${string}`),
+  )
+    ? NetworkType.Mainnet
+    : NetworkType.TestnetT10;
 
   const onConfirm = async () => {
     if (!selectedL2Network || !settings) {
@@ -39,12 +41,11 @@ export default function SwitchNetwork({
 
     setSettings({
       ...settings,
+      networkId: network,
       evmL2ChainId: Object.fromEntries(
         Object.values(NetworkType).map((nt) => [
           nt,
-          nt === settings.networkId
-            ? selectedL2Network.id
-            : settings.evmL2ChainId?.[nt],
+          nt === network ? selectedL2Network.id : settings.evmL2ChainId?.[nt],
         ]),
       ) as Record<NetworkType, number | undefined>,
     });
@@ -73,7 +74,7 @@ export default function SwitchNetwork({
     },
   ];
 
-  const selectedNetwork = networks.find((n) => n.id === settings?.networkId);
+  const selectedNetwork = networks.find((n) => n.id === network);
 
   const loading = !selectedNetwork || !selectedL2Network;
   return (
