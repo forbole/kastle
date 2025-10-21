@@ -17,7 +17,6 @@ export default function ConnectedApps() {
     settings?.walletConnections ?? {},
     selectedWalletId ?? "",
     selectedAccountIndex ?? 0,
-    settings?.networkId ?? "mainnet",
   );
 
   const handleUnlink = (host: string) => {
@@ -30,7 +29,6 @@ export default function ConnectedApps() {
       settings.walletConnections,
       selectedWalletId,
       selectedAccountIndex,
-      settings.networkId,
       host,
     );
 

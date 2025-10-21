@@ -103,18 +103,9 @@ export class ApiUtils {
     return this.isHostConnectedWithSettings(host, settings);
   }
 
-  static async isHostConnectedWithSettings(host: string, settings: Settings) {
-    return this.isHostConnectedWithNetworkId(
-      host,
-      settings,
-      settings.networkId,
-    );
-  }
-
-  static async isHostConnectedWithNetworkId(
+  static async isHostConnectedWithSettings(
     host: string,
     settings: Settings,
-    networkId: NetworkType,
   ): Promise<boolean> {
     const walletSettings = await this.getWalletSettings();
     if (!walletSettings?.selectedWalletId) return false;
@@ -125,7 +116,6 @@ export class ApiUtils {
       settings.walletConnections,
       walletSettings.selectedWalletId,
       walletSettings.selectedAccountIndex,
-      networkId,
     );
 
     return conn.isConnected(connections, host);

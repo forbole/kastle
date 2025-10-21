@@ -21,7 +21,6 @@ export default function ConnectConfirm() {
   const host = urlSearchParams.get("host") ?? "";
   const tabName = urlSearchParams.get("name") ?? "Unknown";
   const icon = urlSearchParams.get("icon") ?? undefined;
-  const network = settings?.networkId ?? NetworkType.Mainnet;
 
   // Create confirm and deny messages
   const confirmMessage = ApiUtils.createApiResponse(requestId, true);
@@ -45,7 +44,6 @@ export default function ConnectConfirm() {
         walletConnections,
         selectedWalletId,
         selectedAccountIndex,
-        network,
         {
           host,
           name: tabName,
@@ -80,28 +78,8 @@ export default function ConnectConfirm() {
     window.close();
   };
 
-  const networks = [
-    {
-      id: NetworkType.Mainnet,
-      name: "Mainnet",
-      text: "text-teal-500",
-      iconColor: "bg-teal-500",
-      background: "bg-teal-800",
-    },
-    {
-      id: NetworkType.TestnetT10,
-      name: "Testnet | T10",
-      text: "text-yellow-500",
-      iconColor: "bg-yellow-500",
-      background: "bg-yellow-800",
-    },
-  ];
-
-  const selectedNetwork = networks.find((n) => n.id === network);
-
   return (
     <div className="flex h-full w-full flex-col rounded-xl p-4">
-      {/* Header - 固定在顶部 */}
       <div className="flex-shrink-0">
         <Header
           title={
@@ -113,25 +91,8 @@ export default function ConnectConfirm() {
         />
       </div>
 
-      {/* 可滚动的内容区域 */}
       <div className="no-scrollbar flex-1 overflow-y-auto">
         <div className="relative">
-          <div
-            className={twMerge(
-              "absolute right-0 top-0 flex items-center gap-2 rounded-full px-2",
-              selectedNetwork?.text,
-              selectedNetwork?.background,
-            )}
-          >
-            <i
-              className={twMerge(
-                "rounded-full p-1",
-                selectedNetwork?.iconColor,
-              )}
-            />
-            {selectedNetwork?.name}
-          </div>
-
           {/* App info */}
           <div className="flex flex-col items-center gap-3">
             {icon ? (
