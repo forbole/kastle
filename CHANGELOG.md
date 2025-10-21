@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.37.0](https://github.com/forbole/kastle/compare/v2.36.2...v2.37.0) (2025-10-21)
+
+
+### Features
+
+* new connected apps scheme ([#223](https://github.com/forbole/kastle/issues/223)) ([94973fe](https://github.com/forbole/kastle/commit/94973fe687c4026bc23f077ee43640751d9cbf50))
+
 ## [2.36.2](https://github.com/forbole/kastle/compare/v2.36.1...v2.36.2) (2025-10-13)
 
 
