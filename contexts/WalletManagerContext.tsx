@@ -211,6 +211,8 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
         account.address = new PublicKey(account.publicKeys[0])
           .toAddress(networkId)
           .toString();
+
+        isUpdated = true;
       }
     }
 
