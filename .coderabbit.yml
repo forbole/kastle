@@ -1,3 +1,5 @@
+# Labels to automatically apply to PRs for this repository
+# This helps categorize and filter PRs in the GitHub interface
 labels:
   - extension
 
@@ -19,6 +21,9 @@ exclude_paths:
   - wasm/
 
 filters:
+  # File extensions to include in review scope
+  # Note: .json, .css, and .md files are included for configuration and documentation review
+  # even though the review languages below focus on TypeScript/JavaScript code
   file_extensions: [".ts", ".tsx", ".js", ".json", ".css", ".md"]
   ignore:
     - "**/*.spec.ts"
