@@ -67,7 +67,9 @@ export default function useWalletEditor() {
           walletSettings.wallets[0]?.accounts[0]?.index;
       }
 
-      await setWalletSettings(walletSettings);
+      await setWalletSettings({
+        ...walletSettings,
+      });
 
       return { noWallet: noWallet };
     } catch (error) {

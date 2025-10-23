@@ -18,6 +18,7 @@ import PriorityFeeSelection from "@/components/send//PriorityFeeSelection";
 import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import { formatToken } from "@/lib/utils.ts";
 import { KasSendForm } from "@/components/send/kas-send/KasSend";
+import useKaspaBalance from "@/hooks/wallet/useKaspaBalance";
 
 export function DetailsStep({
   onNext,
@@ -71,7 +72,7 @@ export function DetailsStep({
 
   const { kaspaPrice: tokenPrice } = useKaspaPrice();
   const { amount: tokenCurrency } = useCurrencyValue(tokenPrice);
-  const kasBalance = account?.balance ? parseFloat(account.balance) : 0;
+  const kasBalance = useKaspaBalance(account?.address) ?? 0;
   const currentBalance = kasBalance;
 
   const amountValidator = async (value: string | undefined) => {

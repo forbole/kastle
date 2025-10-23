@@ -13,6 +13,7 @@ import { KRC721TransferFormData } from "@/components/screens/KRC721Transfer.tsx"
 import { Fee } from "@/lib/krc721";
 import { useKns } from "@/hooks/useKns.ts";
 import { convertIPFStoHTTP } from "@/lib/utils.ts";
+import useKaspaBalance from "@/hooks/wallet/useKaspaBalance";
 
 type KRC721TransferDetailsProps = {
   onNext: () => void;
@@ -45,7 +46,7 @@ export const KRC721TransferDetails = ({
 
   const { value: isAddressFieldFocused, setValue: setAddressFieldFocused } =
     useBoolean(false);
-  const kasBalance = account?.balance ? parseFloat(account.balance) : 0;
+  const kasBalance = useKaspaBalance(account?.address) ?? 0;
   const currentBalance = kasBalance;
 
   const onClose = () => navigate("/dashboard");

@@ -12,6 +12,7 @@ import { Tooltip } from "react-tooltip";
 import { KNSTransferFormData } from "@/components/screens/KNSTransfer.tsx";
 import { Fee } from "@/lib/kns.ts";
 import RecentAddresses from "@/components/send/RecentAddresses.tsx";
+import useKaspaBalance from "@/hooks/wallet/useKaspaBalance";
 
 type KNSTransferDetailsProps = {
   onNext: () => void;
@@ -46,8 +47,8 @@ export const KNSTransferDetails = ({
 
   const { value: isAddressFieldFocused, setValue: setAddressFieldFocused } =
     useBoolean(false);
-  const kasBalance = account?.balance ? parseFloat(account.balance) : 0;
-  const currentBalance = kasBalance;
+  const kasBalance = useKaspaBalance(account?.address);
+  const currentBalance = kasBalance ?? 0;
 
   const onClose = () => navigate("/dashboard");
 
