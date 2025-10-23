@@ -32,7 +32,6 @@ function useStorageState<T>(key: StorageItemKey, initialValue: T) {
         ? (newValue as (prev: T) => T)(value)
         : newValue;
     await storage.setItem(key, valueToStore);
-    setValue(valueToStore);
   };
 
   return [value, updateValue, isLoading] as const;
