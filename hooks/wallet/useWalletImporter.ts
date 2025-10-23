@@ -32,7 +32,9 @@ export default function useWalletImporter() {
       walletSettings.selectedAccountIndex = 0;
     }
 
-    await setWalletSettings(walletSettings);
+    await setWalletSettings({
+      ...walletSettings,
+    });
   };
 
   const importWalletByMnemonic = async (
@@ -70,7 +72,6 @@ export default function useWalletImporter() {
         {
           index: 0,
           name: defaultAccountName,
-          balance: "0",
           address,
           publicKeys: await kaspaWallet.getPublicKeys(),
           evmPublicKey: await evmWallet.getPublicKey(),
@@ -111,7 +112,6 @@ export default function useWalletImporter() {
         {
           index: 0,
           name: defaultAccountName,
-          balance: "0",
           address: new PublicKey(publicKeys[0]).toAddress(networkId).toString(),
           publicKeys: publicKeys,
         },
@@ -148,7 +148,6 @@ export default function useWalletImporter() {
         {
           index: 0,
           name: "Account 0",
-          balance: undefined,
           address,
           publicKeys: await kaspaWallet.getPublicKeys(),
           evmPublicKey: await new EthereumPrivateKeyAccount(
@@ -159,7 +158,9 @@ export default function useWalletImporter() {
       backed: true,
     });
 
-    await setWalletSettings(walletSettings);
+    await setWalletSettings({
+      ...walletSettings,
+    });
   };
 
   const createNewWallet = async (id: string, defaultAccountName?: string) => {
