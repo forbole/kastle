@@ -24,6 +24,7 @@ import { useTokenMetadata } from "@/hooks/kasplex/useTokenMetadata.ts";
 import { useTokenInfo } from "@/hooks/kasplex/useTokenInfo";
 import { KRC20SendForm } from "./Krc20Send";
 import Layer2AssetImage from "@/components/Layer2AssetImage";
+import useKaspaBalance from "@/hooks/wallet/useKaspaBalance";
 
 export const DetailsStep = () => {
   const { tick: ticker } = useParams<{ tick: string }>();
@@ -82,7 +83,7 @@ export const DetailsStep = () => {
   const tokenBalanceFloat = toFloat(
     tokenBalance?.balance ? parseInt(tokenBalance.balance, 10) : 0,
   );
-  const kasBalance = account?.balance ? parseFloat(account.balance) : 0;
+  const kasBalance = useKaspaBalance(account?.address) ?? 0;
   const currentBalance = tokenBalanceFloat;
 
   const tokenAmountValidator = async (value: string | undefined) => {

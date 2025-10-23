@@ -9,6 +9,7 @@ import { applyDecimal, computeOperationFees } from "@/lib/krc20.ts";
 import { useNavigate } from "react-router-dom";
 import { useLocation } from "react-router";
 import { useKasplex } from "@/hooks/kasplex/useKasplex.ts";
+import useKaspaBalance from "@/hooks/wallet/useKaspaBalance";
 
 type DeployFormData = {
   ticker: string;
@@ -56,7 +57,7 @@ export default function DeployToken() {
   const maxSupply = watch("maxSupply");
   const formattedMaxSupply = Number.isNaN(maxSupply) ? 0 : maxSupply;
   const { account } = useWalletManager();
-  const balance = account?.balance ? parseFloat(account.balance) : 0;
+  const balance = useKaspaBalance(account?.address) ?? 0;
   const maxSupplyLength = useRef(0);
   const { krc20Fee, kaspaFee, forboleFee, totalFees } =
     computeOperationFees("deploy");

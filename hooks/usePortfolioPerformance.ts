@@ -3,15 +3,14 @@ import { applyDecimal } from "@/lib/krc20.ts";
 import useKaspaPrice from "@/hooks/useKaspaPrice.ts";
 import { useTokenListByAddress } from "@/hooks/kasplex/useTokenListByAddress";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
+import useKaspaBalance from "./wallet/useKaspaBalance";
 
 export default function usePortfolioPerformance() {
   const { account } = useWalletManager();
   const kaspaPrice = useKaspaPrice();
-  const balance = account?.balance;
-  const kaspaUsd = balance ? parseFloat(balance) * kaspaPrice.kaspaPrice : 0;
-  const kaspaLastDayUsd = balance
-    ? parseFloat(balance) * kaspaPrice.lastDayKaspaPrice
-    : 0;
+  const balance = useKaspaBalance(account?.address) ?? 0;
+  const kaspaUsd = balance * kaspaPrice.kaspaPrice;
+  const kaspaLastDayUsd = balance ? balance * kaspaPrice.lastDayKaspaPrice : 0;
 
   const tokenList = useTokenListByAddress(account?.address, 5000);
 
