@@ -1,0 +1,65 @@
+# Labels to automatically apply to PRs for this repository
+# This helps categorize and filter PRs in the GitHub interface
+labels:
+  - extension
+
+include_paths:
+  - api/
+  - components/
+  - contexts/
+  - entrypoints/
+  - hooks/
+  - lib/
+  - types/
+  - wxt.config.ts
+
+exclude_paths:
+  - assets/
+  - public/
+  - docs/
+  - tests-examples/
+  - wasm/
+
+filters:
+  # File extensions to include in review scope
+  # Note: .json, .css, and .md files are included for configuration and documentation review
+  # even though the review languages below focus on TypeScript/JavaScript code
+  file_extensions: [".ts", ".tsx", ".js", ".json", ".css", ".md"]
+  ignore:
+    - "**/*.spec.ts"
+    - "**/*.test.ts"
+    - "**/kaspa_bg.wasm"
+    - "**/node_modules/**"
+
+review:
+  level: thorough
+  max_comments: 80
+  languages: [TypeScript, TSX, JavaScript]
+  focus_areas:
+    - security
+    - correctness
+    - performance
+    - readability
+    - maintainability
+
+pull_request:
+  auto_review: true
+  on_open: true
+  on_update: true
+  diff_only: true
+
+limits:
+  max_file_size_kb: 500
+  max_files: 400
+
+commands:
+  review_trigger: "/review"
+  reconfigure_trigger: "/reconfigure"
+
+messages:
+  summary_header: "Kastle Extension Review Summary"
+  guidance:
+    - "Prefer early returns and clear guard clauses"
+    - "Avoid unnecessary try/catch; handle errors meaningfully"
+    - "Use descriptive names; avoid 1–2 letter identifiers"
+    - "Mind async flows and race conditions in background/content scripts"
