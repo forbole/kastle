@@ -72,7 +72,7 @@ export default function Assets() {
         <div className="flex flex-grow flex-col gap-1">
           <div className="flex items-center justify-between text-base text-white">
             <span>KAS</span>
-            <span>{showBalance ? formatToken(balance) : "*****"}</span>
+            <span>{showBalance ? formatToken(balance ?? 0) : "*****"}</span>
           </div>
           <div className="flex items-center justify-between text-sm text-daintree-400">
             <span>
