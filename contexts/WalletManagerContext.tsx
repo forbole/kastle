@@ -301,7 +301,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
     }
 
     const fetchBalance = async () => {
-      const balance = (await getBalancesByAddresses(addresses)).toString();
+      const balance = await getBalancesByAddresses(addresses);
 
       if (!account) {
         return;
@@ -309,7 +309,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
 
       setKaspaBalances((prev) => ({
         ...prev,
-        [account.address]: parseFloat(balance),
+        [account.address]: balance,
       }));
     };
 
