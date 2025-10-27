@@ -49,7 +49,7 @@ export default function useSwitchNetwork() {
         evmL2ChainId: Object.fromEntries(
           Object.values(NetworkType).map((nt) => [
             nt,
-            nt === targetNetwork ? chainId : settings.evmL2ChainId?.[nt],
+            nt === targetNetwork ? chainId : prev.evmL2ChainId?.[nt],
           ]),
         ) as Record<NetworkType, number | undefined>,
       };

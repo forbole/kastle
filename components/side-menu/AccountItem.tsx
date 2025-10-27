@@ -62,7 +62,7 @@ export default function AccountItem({
               <span>
                 {settings?.hideBalances
                   ? "*****"
-                  : kasBalance &&
+                  : kasBalance !== undefined &&
                     formatCurrency(totalBalanceCurrency, currencyCode)}
               </span>
             </div>
