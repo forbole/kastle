@@ -31,6 +31,7 @@ function useStorageState<T>(key: StorageItemKey, initialValue: T) {
       typeof newValue === "function"
         ? (newValue as (prev: T) => T)(value)
         : newValue;
+
     await storage.setItem(key, valueToStore);
   };
 

@@ -2,6 +2,7 @@ import { createContext, ReactNode, useEffect, useState } from "react";
 import { captureException } from "@sentry/react";
 import * as conn from "@/lib/settings/connection";
 import { kasplexMainnet, kasplexTestnet } from "@/lib/layer2";
+import useStorageState from "@/hooks/useStorageState";
 
 export const SETTINGS_KEY = "local:settings";
 
@@ -87,58 +88,17 @@ export const SettingsContext = createContext<SettingsContextType>({
 });
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
-  const [isSettingsLoading, setIsSettingsLoading] = useState(true);
-  const [localSettings, setLocalSettings] = useState<Settings>();
-
-  useEffect(() => {
-    const init = async () => {
-      const settings = await storage.getItem<Settings>(SETTINGS_KEY, {
-        fallback: initialSettings,
-      });
-
-      const mergedSetting = Object.assign(initialSettings, settings);
-
-      setLocalSettings(mergedSetting);
-      setIsSettingsLoading(false);
-    };
-
-    const listenSettings = (updatedSettings: Settings | null) => {
-      if (updatedSettings) {
-        setLocalSettings(updatedSettings);
-      }
-    };
-
-    init();
-
-    const unwatch = storage.watch(SETTINGS_KEY, listenSettings);
-
-    return () => unwatch();
-  }, []);
-
-  const setSettings = async (
-    newSettings: Settings | ((prev: Settings) => Settings),
-  ) => {
-    try {
-      const valueToStore =
-        newSettings instanceof Function
-          ? newSettings(localSettings ?? ({} as Settings))
-          : newSettings;
-
-      await storage.setItem(SETTINGS_KEY, valueToStore);
-      setLocalSettings(valueToStore);
-    } catch (error) {
-      captureException(error);
-      console.error(`Error writing settings:`, error);
-      throw error;
-    }
-  };
+  const [settings, setSettings, isLoading] = useStorageState<Settings>(
+    SETTINGS_KEY,
+    initialSettings,
+  );
 
   return (
     <SettingsContext.Provider
       value={{
-        settings: localSettings,
+        settings,
         setSettings,
-        isSettingsLoading,
+        isSettingsLoading: isLoading,
       }}
     >
       {children}

@@ -1,6 +1,5 @@
 import Splash from "@/components/screens/Splash";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
-import { useSettings } from "@/hooks/useSettings";
 import { ApiExtensionUtils } from "@/api/extension";
 import { ApiUtils } from "@/api/background/utils";
 import {
@@ -11,6 +10,8 @@ import { numberToHex, hexToNumber } from "viem";
 import Header from "@/components/GeneralHeader";
 import signImage from "@/assets/images/sign.png";
 import { twMerge } from "tailwind-merge";
+import useSwitchNetwork from "@/hooks/useSwitchNetwork";
+import { RPC_ERRORS } from "@/api/message";
 
 export default function SwitchNetwork({
   requestId,
@@ -19,7 +20,7 @@ export default function SwitchNetwork({
   requestId: string;
   chainId: string;
 }) {
-  const [settings, setSettings] = useSettings();
+  const { switchEvmL2Network } = useSwitchNetwork();
   const l2Networks = ALL_SUPPORTED_EVM_L2_CHAINS.map((chain) => ({
     id: chain.id,
     name: chain.name,
@@ -35,26 +36,32 @@ export default function SwitchNetwork({
     : NetworkType.TestnetT10;
 
   const onConfirm = async () => {
-    if (!selectedL2Network || !settings) {
+    if (!selectedL2Network) {
       return;
     }
 
-    setSettings({
-      ...settings,
-      networkId: network,
-      evmL2ChainId: Object.fromEntries(
-        Object.values(NetworkType).map((nt) => [
-          nt,
-          nt === network ? selectedL2Network.id : settings.evmL2ChainId?.[nt],
-        ]),
-      ) as Record<NetworkType, number | undefined>,
-    });
+    try {
+      await switchEvmL2Network(selectedL2Network.id);
 
-    await ApiExtensionUtils.sendMessage(
-      requestId,
-      ApiUtils.createApiResponse(requestId, numberToHex(selectedL2Network.id)),
-    );
-    window.close();
+      await ApiExtensionUtils.sendMessage(
+        requestId,
+        ApiUtils.createApiResponse(
+          requestId,
+          numberToHex(selectedL2Network.id),
+        ),
+      );
+    } catch (error) {
+      await ApiExtensionUtils.sendMessage(
+        requestId,
+        ApiUtils.createApiResponse(
+          requestId,
+          null,
+          RPC_ERRORS.UNSUPPORTED_CHAIN,
+        ),
+      );
+    } finally {
+      window.close();
+    }
   };
 
   const networks = [
