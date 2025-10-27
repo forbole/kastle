@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.38.0](https://github.com/forbole/kastle/compare/v2.37.0...v2.38.0) (2025-10-27)
+
+
+### Features
+
+* split kaspa balance from wallet settings to avoid race condition ([#228](https://github.com/forbole/kastle/issues/228)) ([0f93636](https://github.com/forbole/kastle/commit/0f93636438afbc0fbcad99c5806d40dd5f9bdbe2))
+
 ## [2.37.0](https://github.com/forbole/kastle/compare/v2.36.2...v2.37.0) (2025-10-21)
 
 
