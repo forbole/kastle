@@ -14,6 +14,7 @@ import { useLocation } from "react-router";
 import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import { useTokenMetadata } from "@/hooks/kasplex/useTokenMetadata.ts";
 import { useKasplex } from "@/hooks/kasplex/useKasplex.ts";
+import useKaspaBalance from "@/hooks/wallet/useKaspaBalance";
 
 export type DeployFormData = {
   ticker: string;
@@ -39,7 +40,7 @@ export default function MintToken() {
   });
   const { account } = useWalletManager();
   const tokenListItems = useTokenListByAddress(account?.address);
-  const balance = account?.balance ? parseFloat(account.balance) : 0;
+  const balance = useKaspaBalance(account?.address) ?? 0;
   const [tokenInfo, setTokenInfo] = useState<TokenInfoResponse>();
   const [mintableAmount, setMintableAmount] = useState("-");
   const [showList, setShowList] = useState(false);

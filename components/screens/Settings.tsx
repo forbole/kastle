@@ -8,6 +8,7 @@ import { useNavigate } from "react-router-dom";
 import telegram from "@/assets/images/telegram.svg";
 import x from "@/assets/images/x.svg";
 import github from "@/assets/images/github.svg";
+import useSwitchNetwork from "@/hooks/useSwitchNetwork";
 
 import packageJson from "../../package.json";
 import CurrencySelection from "@/components/settings/CurrencySelection.tsx";
@@ -27,6 +28,7 @@ export default function Settings() {
   const [lockAfterDropdownOpen, setLockAfterDropdownOpen] = useState(false);
   const [currencyDropdownOpen, setCurrencyDropdownOpen] = useState(false);
   const [settings, setSettings] = useSettings();
+  const { switchKaspaNetwork } = useSwitchNetwork();
   const navigate = useNavigate();
 
   const lockAfterOptions = [
@@ -58,10 +60,6 @@ export default function Settings() {
     },
   ];
   const selectedNetwork = networks.find((n) => n.id === settings?.networkId);
-
-  const changeNetwork = async (networkId: NetworkType) => {
-    await setSettings((prev) => ({ ...prev, networkId }));
-  };
 
   return (
     <div className="relative flex h-full flex-col p-4">
@@ -165,7 +163,7 @@ export default function Settings() {
                   selectedNetwork?.id === network.id && "bg-daintree-700",
                 )}
                 onClick={async () => {
-                  await changeNetwork(network.id);
+                  await switchKaspaNetwork(network.id);
                   setNetworkDropdownOpen(false);
                 }}
               >

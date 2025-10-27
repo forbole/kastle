@@ -59,7 +59,6 @@ export default function useAccountManager() {
 
     wallet.accounts.push({
       address: kaspaAddress,
-      balance: undefined,
       name: `Account ${nextIndex}`,
       index: nextIndex,
       publicKeys: kaspaPublicKeys,
@@ -70,7 +69,9 @@ export default function useAccountManager() {
       walletSettings.selectedAccountIndex = nextIndex;
     }
 
-    await setWalletSettings(walletSettings);
+    await setWalletSettings({
+      ...walletSettings,
+    });
   };
 
   // Function to select an account in the wallet
@@ -88,7 +89,9 @@ export default function useAccountManager() {
       walletSettings.selectedAccountIndex = accountIndex;
     }
 
-    await setWalletSettings(walletSettings);
+    await setWalletSettings({
+      ...walletSettings,
+    });
   };
 
   // Function to update selected accounts in the wallet
@@ -135,14 +138,12 @@ export default function useAccountManager() {
           account.publicKeys = value.publicKeys;
           account.address = value.address;
           account.evmPublicKey = value.evmPublicKey;
-          account.balance = undefined;
           return;
         }
 
         updatedAccounts.push({
           index: indexNumber,
           name: `Account ${indexNumber}`,
-          balance: undefined,
           address: new PublicKey(value.publicKeys[0])
             .toAddress(networkId)
             .toString(),
@@ -176,7 +177,9 @@ export default function useAccountManager() {
     // Update accounts
     wallet.accounts = updatedAccounts;
 
-    await setWalletSettings(walletSettings);
+    await setWalletSettings({
+      ...walletSettings,
+    });
   };
 
   // Function to rename an account in the wallet
@@ -203,7 +206,9 @@ export default function useAccountManager() {
 
     account.name = name;
 
-    await setWalletSettings(walletSettings);
+    await setWalletSettings({
+      ...walletSettings,
+    });
     await selectAccount(walletId, accountIndex);
   };
 

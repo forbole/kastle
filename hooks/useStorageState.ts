@@ -22,14 +22,17 @@ function useStorageState<T>(key: StorageItemKey, initialValue: T) {
     return () => unwatch();
   }, [key]);
 
-  const updateValue = async (newValue: T) => {
+  const updateValue = async (newValue: T | ((prev: T) => T)) => {
     if (isLoading) {
       return;
     }
 
-    setValue(newValue);
+    const valueToStore =
+      typeof newValue === "function"
+        ? (newValue as (prev: T) => T)(value)
+        : newValue;
 
-    await storage.setItem(key, newValue);
+    await storage.setItem(key, valueToStore);
   };
 
   return [value, updateValue, isLoading] as const;

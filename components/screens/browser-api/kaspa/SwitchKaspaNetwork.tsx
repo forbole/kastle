@@ -6,10 +6,12 @@ import { ApiExtensionUtils } from "@/api/extension";
 import { ApiUtils } from "@/api/background/utils";
 import { z } from "zod";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
+import useSwitchNetwork from "@/hooks/useSwitchNetwork";
 
 export default function SwitchKaspaNetwork() {
-  const [settings, setSettings] = useSettings();
+  const [settings] = useSettings();
   const { rpcClient } = useRpcClientStateful();
+  const { switchKaspaNetwork } = useSwitchNetwork();
 
   const requestId =
     new URLSearchParams(window.location.search).get("requestId") ?? "";
@@ -46,20 +48,25 @@ export default function SwitchKaspaNetwork() {
   );
 
   const onConfirm = async () => {
-    if (!selectedNetwork || !settings) {
+    if (!selectedNetwork) {
       return;
     }
 
-    setSettings({
-      ...settings,
-      networkId: selectedNetwork.id,
-    });
+    try {
+      await switchKaspaNetwork(selectedNetwork.id);
 
-    await ApiExtensionUtils.sendMessage(
-      requestId,
-      ApiUtils.createApiResponse(requestId, selectedNetwork.id),
-    );
-    window.close();
+      await ApiExtensionUtils.sendMessage(
+        requestId,
+        ApiUtils.createApiResponse(requestId, selectedNetwork.id),
+      );
+    } catch (error) {
+      await ApiExtensionUtils.sendMessage(
+        requestId,
+        ApiUtils.createApiResponse(requestId, null, "Failed to switch network"),
+      );
+    } finally {
+      window.close();
+    }
   };
 
   return (

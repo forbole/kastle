@@ -19,6 +19,7 @@ import {
 import { numberToHex } from "viem";
 import useKaspaPrice from "@/hooks/useKaspaPrice";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
+import useKaspaBalance from "@/hooks/wallet/useKaspaBalance";
 
 export default function Assets() {
   const navigate = useNavigate();
@@ -28,8 +29,8 @@ export default function Assets() {
   const { account } = useWalletManager();
 
   const address = account?.address;
-  const balance = account?.balance;
-  const fiatBalance = parseFloat(balance ?? "0") * kaspaPrice.kaspaPrice;
+  const balance = useKaspaBalance(address);
+  const fiatBalance = (balance ?? 0) * kaspaPrice.kaspaPrice;
   const showBalance = !settings?.hideBalances;
   const fiatKaspaPrice = kaspaPrice.kaspaPrice;
 
@@ -48,7 +49,7 @@ export default function Assets() {
     );
   });
 
-  const isAssetListLoading = account?.balance === undefined;
+  const isAssetListLoading = balance === undefined;
 
   const supportEvmL2s =
     settings?.networkId === "mainnet"
@@ -71,9 +72,7 @@ export default function Assets() {
         <div className="flex flex-grow flex-col gap-1">
           <div className="flex items-center justify-between text-base text-white">
             <span>KAS</span>
-            <span>
-              {showBalance ? formatToken(parseFloat(balance ?? "0")) : "*****"}
-            </span>
+            <span>{showBalance ? formatToken(balance ?? 0) : "*****"}</span>
           </div>
           <div className="flex items-center justify-between text-sm text-daintree-400">
             <span>

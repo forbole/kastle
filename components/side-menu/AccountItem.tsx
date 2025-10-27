@@ -6,6 +6,7 @@ import { Account } from "@/contexts/WalletManagerContext.tsx";
 import useTotalBalanceByAccount from "@/hooks/kasplex/useTotalBalanceByAccount";
 import useAccountManager from "@/hooks/wallet/useAccountManager";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
+import useKaspaBalance from "@/hooks/wallet/useKaspaBalance";
 
 type AccountItemProps = {
   walletId: string;
@@ -25,11 +26,10 @@ export default function AccountItem({
   const { selectAccount } = useAccountManager();
   const isSelectedWalletId = walletSettings?.selectedWalletId === walletId;
   const selectedAccountIndex = walletSettings?.selectedAccountIndex;
-  const totalBalance = useTotalBalanceByAccount(
-    account?.balance ? account : undefined,
-  );
+  const totalBalance = useTotalBalanceByAccount(account);
   const { amount: totalBalanceCurrency, code: currencyCode } =
     useCurrencyValue(totalBalance);
+  const kasBalance = useKaspaBalance(account.address);
 
   return (
     <div
@@ -62,7 +62,7 @@ export default function AccountItem({
               <span>
                 {settings?.hideBalances
                   ? "*****"
-                  : account.balance &&
+                  : kasBalance !== undefined &&
                     formatCurrency(totalBalanceCurrency, currencyCode)}
               </span>
             </div>

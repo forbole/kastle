@@ -9,13 +9,14 @@ import Header from "@/components/GeneralHeader";
 import useErc20Assets from "@/hooks/evm/useErc20Assets";
 import Erc20SelectItem from "./Erc20SelectItem";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
+import useKaspaBalance from "@/hooks/wallet/useKaspaBalance";
 
 export default function AssetSelect() {
   const navigate = useNavigate();
   const { account } = useWalletManager();
   const [searchQuery, setSearchQuery] = useState("");
   const kasAddress = account?.address;
-  const kasBalance = account?.balance;
+  const kasBalance = useKaspaBalance(kasAddress) ?? 0;
   const hasSearchQuery = searchQuery === "";
   const isKasShown =
     hasSearchQuery || "kas".startsWith(searchQuery.toLowerCase());
@@ -83,7 +84,7 @@ export default function AssetSelect() {
                 <span>KAS</span>
               </div>
             </div>
-            <span>{formatToken(parseFloat(kasBalance ?? "0"))}</span>
+            <span>{formatToken(kasBalance)}</span>
           </button>
         )}
 

@@ -13,13 +13,14 @@ import internalToast from "@/components/Toast.tsx";
 import { explorerTxLinks } from "@/components/screens/Settings.tsx";
 import useKaspaBackgroundSigner from "@/hooks/wallet/useKaspaBackgroundSigner";
 import useEvmBackgroundSigner from "@/hooks/wallet/useEvmBackgroundSigner";
+import { NetworkType } from "./SettingsContext";
 
 export const WALLET_SETTINGS = "local:wallet-settings";
+const KASPA_BALANCES_KEY = "local:kaspa-balances";
 
 export type Account = {
   index: number;
   name: string;
-  balance: string | undefined;
   address: string;
   publicKeys?: string[];
   evmPublicKey?: `0x${string}`;
@@ -49,10 +50,14 @@ type WalletManagerContextType = {
   wallet: WalletInfo | undefined;
   account: Account | undefined;
   addresses: string[];
-  setWalletSettings: (settings: WalletSettings) => Promise<void>;
+  kaspaBalances: Record<string, number>;
+  setWalletSettings: (
+    settings: WalletSettings | ((prev: WalletSettings) => WalletSettings),
+  ) => Promise<void>;
   resetWallet: () => Promise<void>;
   markWalletBacked: (walletId: string) => Promise<void>;
   getBalancesByAddresses: (addresses: string[]) => Promise<number>;
+  refreshKaspaAddresses: (networkId: NetworkType) => Promise<void>;
 };
 
 export const defaultValue = {
@@ -72,10 +77,12 @@ export const WalletManagerContext = createContext<WalletManagerContextType>({
   wallet: undefined,
   account: undefined,
   addresses: [],
+  kaspaBalances: {},
   setWalletSettings: defaultAsyncFunction,
   markWalletBacked: defaultAsyncFunction,
   resetWallet: defaultAsyncFunction,
   getBalancesByAddresses: defaultAsyncFunction,
+  refreshKaspaAddresses: defaultAsyncFunction,
 });
 
 const getCurrentWalletInfo = (walletSettings: WalletSettings) => {
@@ -108,6 +115,9 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
   const [wallet, setWallet] = useState<WalletInfo>();
   const [account, setAccount] = useState<Account>();
   const [addresses, setAddresses] = useState<string[]>([]);
+  const [kaspaBalances, setKaspaBalances] = useStorageState<
+    Record<string, number>
+  >(KASPA_BALANCES_KEY, {});
   const kaspaSigner = useKaspaBackgroundSigner();
   const evmSigner = useEvmBackgroundSigner();
 
@@ -124,11 +134,11 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
 
     const account = wallet.accounts.find((a) => a.index === accountIndex);
     if (!account) {
-      return;
+      return false;
     }
 
     if (account.publicKeys?.length) {
-      return;
+      return false;
     }
 
     switch (wallet?.type) {
@@ -152,6 +162,8 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
         }
         break;
     }
+
+    return true;
   };
 
   const getBalancesByAddresses = async (
@@ -176,7 +188,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
 
     wallet.backed = true;
 
-    await setWalletSettings(walletSettings);
+    await setWalletSettings({ ...walletSettings });
   };
 
   const resetWallet = async () => {
@@ -184,16 +196,15 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
     await keyring.keyringReset();
   };
 
-  const refreshAccounts = async () => {
-    if (!networkId) {
-      throw new Error("RPC client and settings not loaded");
+  const refreshKaspaAddresses = async (networkId: NetworkType) => {
+    let isUpdated = false;
+    const wallets = walletSettings?.wallets;
+    if (!wallets) {
+      return;
     }
 
-    for (const wallet of walletSettings.wallets) {
+    for (const wallet of wallets) {
       for (const account of wallet.accounts) {
-        // TODO: Remove this after the next release
-        await generatePublicKeysForOldVersion(wallet, account.index);
-
         // hotfix for missing public keys
         if (!account.publicKeys?.length) {
           continue;
@@ -202,21 +213,51 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
         account.address = new PublicKey(account.publicKeys[0])
           .toAddress(networkId)
           .toString();
-        account.balance = undefined;
+
+        isUpdated = true;
       }
     }
 
-    await setWalletSettings(walletSettings);
+    if (!isUpdated) {
+      return;
+    }
+
+    await setWalletSettings((prev) => ({ ...prev, wallets: wallets }));
   };
 
-  // Refresh accounts after settings changed
+  // Refresh public keys for old version wallets
   useEffect(() => {
     if (!rpcClient || isWalletSettingsLoading) {
       return;
     }
 
-    refreshAccounts();
-  }, [networkId, isWalletSettingsLoading]);
+    const refreshPublicKeysForOldVersion = async () => {
+      if (!walletSettings) return;
+
+      const wallets = walletSettings?.wallets;
+      if (!wallets) {
+        return;
+      }
+
+      let updated = false;
+      for (const wallet of wallets) {
+        for (const account of wallet.accounts) {
+          const isUpdated = await generatePublicKeysForOldVersion(
+            wallet,
+            account.index,
+          );
+          if (isUpdated) {
+            updated = true;
+          }
+        }
+      }
+      if (!updated) return;
+
+      await setWalletSettings((prev) => ({ ...prev, wallets: wallets }));
+    };
+
+    refreshPublicKeysForOldVersion();
+  }, [rpcClient, isWalletSettingsLoading]);
 
   // Refresh wallet and account after settings changed
   useEffect(() => {
@@ -240,13 +281,6 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // hotfix for missing public keys
-    const missingPublicKeys = !account.publicKeys?.length;
-    if (missingPublicKeys) {
-      refreshAccounts();
-      return;
-    }
-
     const addressesToWatch = !account.publicKeys?.length
       ? [account.address]
       : account.publicKeys.map((publicKey) =>
@@ -267,15 +301,16 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
     }
 
     const fetchBalance = async () => {
-      const balance = (await getBalancesByAddresses(addresses)).toString();
-      const currentAccount = getCurrentAccount(walletSettings);
+      const balance = await getBalancesByAddresses(addresses);
 
-      if (!currentAccount) {
+      if (!account) {
         return;
       }
-      currentAccount.balance = balance;
 
-      await setWalletSettings(walletSettings);
+      setKaspaBalances((prev) => ({
+        ...prev,
+        [account.address]: balance,
+      }));
     };
 
     function checkIncomingUtxos(event: {
@@ -375,11 +410,13 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
         wallet,
         account,
         addresses,
+        kaspaBalances,
         walletSettings: isWalletSettingsLoading ? undefined : walletSettings,
         setWalletSettings,
         resetWallet,
         markWalletBacked,
         getBalancesByAddresses,
+        refreshKaspaAddresses,
       }}
     >
       {children}
