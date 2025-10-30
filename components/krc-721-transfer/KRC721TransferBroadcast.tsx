@@ -8,7 +8,7 @@ import Header from "@/components/GeneralHeader.tsx";
 import carriageImage from "@/assets/images/carriage.png";
 import { KRC721TransferFormData } from "@/components/screens/KRC721Transfer.tsx";
 import { transfer } from "@/lib/krc721.ts";
-import useKRC721RecentTransfer from "@/hooks/useKRC721RecentTransfer.ts";
+import useKRC721RecentTransfer from "@/hooks/krc721/useKRC721RecentTransfer";
 import useKaspaHotWalletSigner from "@/hooks/wallet/useKaspaHotWalletSigner";
 
 interface KRC721TransferBroadcastProps {

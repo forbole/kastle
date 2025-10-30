@@ -12,7 +12,7 @@ import { useTokenBalance } from "@/hooks/kasplex/useTokenBalance";
 import { applyDecimal, computeOperationFees, Krc20Fee } from "@/lib/krc20.ts";
 import RecentAddresses from "@/components/send/RecentAddresses.tsx";
 import spinner from "@/assets/images/spinner.svg";
-import { useKns } from "@/hooks/useKns.ts";
+import { useKns } from "@/hooks/kns/useKns";
 import { Tooltip } from "react-tooltip";
 import PriorityFeeSelection from "@/components/send/PriorityFeeSelection.tsx";
 import useMassCalculation from "@/hooks/useMassCalculation.ts";

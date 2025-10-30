@@ -2,7 +2,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import Header from "@/components/GeneralHeader";
 import badgeCheck from "@/assets/images/badge-check.svg";
 import avatarIcon from "@/assets/images/avatar.png";
-import { useAssetDetails } from "@/hooks/useKns.ts";
+import { useAssetDetails } from "@/hooks/kns/useKns";
 import { textEllipsis } from "@/lib/utils";
 import Copy from "@/components/Copy";
 import HoverShowAllCopy from "@/components/HoverShowAllCopy";
@@ -11,7 +11,7 @@ import { Tooltip } from "react-tooltip";
 import React from "react";
 import { twMerge } from "tailwind-merge";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
-import useKNSRecentTransfer from "@/hooks/useKNSRecentTransfer.ts";
+import useKNSRecentTransfer from "@/hooks/kns/useKNSRecentTransfer";
 
 export default function KNSAsset() {
   const navigate = useNavigate();

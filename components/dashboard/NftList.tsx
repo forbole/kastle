@@ -1,8 +1,8 @@
 import useWalletManager from "@/hooks/wallet/useWalletManager";
-import { useKRC721ByAddress } from "@/hooks/useKRC721";
+import { useKRC721ByAddress } from "@/hooks/krc721/useKRC721";
 import KRC721Item from "@/components/dashboard/KRC721Item";
 
-export default function KRC721List() {
+export default function NftList() {
   const { account } = useWalletManager();
   const address = account?.address;
   const { data, size, setSize, isLoading } = useKRC721ByAddress(address);

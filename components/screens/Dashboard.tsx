@@ -11,7 +11,7 @@ import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import { Tooltip } from "react-tooltip";
 import Assets from "@/components/dashboard/Assets";
 import KNS from "@/components/dashboard/KNS";
-import KRC721List from "@/components/dashboard/KRC721List";
+import NftList from "@/components/dashboard/NftList";
 import useTotalBalance from "@/hooks/kasplex/useTotalBalance";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 import usePortfolioPerformance from "@/hooks/usePortfolioPerformance";
@@ -401,7 +401,7 @@ export default function Dashboard() {
 
           {/* Tab Content */}
           {activeTab === "Assets" && <Assets />}
-          {activeTab === "NFT" && <KRC721List />}
+          {activeTab === "NFT" && <NftList />}
           {activeTab === "KNS" && <KNS />}
           {activeTab === "Text" && <KNSText />}
         </div>

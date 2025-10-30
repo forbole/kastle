@@ -1,12 +1,12 @@
 import { useNavigate, useParams } from "react-router-dom";
-import { useKRC721Details } from "@/hooks/useKRC721";
+import { useKRC721Details } from "@/hooks/krc721/useKRC721";
 import Header from "@/components/GeneralHeader";
 import { twMerge } from "tailwind-merge";
 import { convertIPFStoHTTP, textEllipsis } from "@/lib/utils";
 import Copy from "@/components/Copy";
 import HoverShowAll from "@/components/HoverTooltip";
 import downloadImage from "@/assets/images/download.svg";
-import useKRC721RecentTransfer from "@/hooks/useKRC721RecentTransfer.ts";
+import useKRC721RecentTransfer from "@/hooks/krc721/useKRC721RecentTransfer";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { Tooltip } from "react-tooltip";
 import React from "react";

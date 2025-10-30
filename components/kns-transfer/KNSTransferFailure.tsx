@@ -6,7 +6,7 @@ import Header from "@/components/GeneralHeader";
 import { useFormContext } from "react-hook-form";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import { KNSTransferFormData } from "@/components/screens/KNSTransfer.tsx";
-import { useAssetDetails } from "@/hooks/useKns.ts"; // Types for props
+import { useAssetDetails } from "@/hooks/kns/useKns"; // Types for props
 
 interface KNSTransferFailureProps {
   transactionIds?: string[] | undefined;

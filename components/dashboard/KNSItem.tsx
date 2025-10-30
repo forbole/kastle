@@ -1,4 +1,4 @@
-import { AssetData } from "@/hooks/useKns.ts";
+import { AssetData } from "@/hooks/kns/useKns";
 import avatarIcon from "@/assets/images/avatar.png";
 import { useNavigate } from "react-router-dom";
 import { textEllipsis } from "@/lib/utils.ts";

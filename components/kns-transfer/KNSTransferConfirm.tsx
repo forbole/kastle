@@ -1,6 +1,6 @@
 import { useFormContext } from "react-hook-form";
 import { KNSTransferFormData } from "@/components/screens/KNSTransfer.tsx";
-import { useAssetDetails } from "@/hooks/useKns.ts";
+import { useAssetDetails } from "@/hooks/kns/useKns";
 import Header from "@/components/GeneralHeader.tsx";
 import signImage from "@/assets/images/sign.png";
 import React from "react";

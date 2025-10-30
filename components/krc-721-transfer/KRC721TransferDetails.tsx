@@ -11,7 +11,7 @@ import spinner from "@/assets/images/spinner.svg";
 import { Tooltip } from "react-tooltip";
 import { KRC721TransferFormData } from "@/components/screens/KRC721Transfer.tsx";
 import { Fee } from "@/lib/krc721";
-import { useKns } from "@/hooks/useKns.ts";
+import { useKns } from "@/hooks/kns/useKns";
 import { convertIPFStoHTTP } from "@/lib/utils.ts";
 import useKaspaBalance from "@/hooks/wallet/useKaspaBalance";
 

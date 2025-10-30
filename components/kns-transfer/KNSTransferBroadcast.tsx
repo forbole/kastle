@@ -5,7 +5,7 @@ import { transfer } from "@/lib/kns";
 import { useFormContext } from "react-hook-form";
 import { KNSTransferFormData } from "@/components/screens/KNSTransfer.tsx";
 import useRecentAddresses from "@/hooks/useRecentAddresses.ts";
-import useKNSRecentTransfer from "@/hooks/useKNSRecentTransfer.ts";
+import useKNSRecentTransfer from "@/hooks/kns/useKNSRecentTransfer";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import Header from "@/components/GeneralHeader.tsx";
 import carriageImage from "@/assets/images/carriage.png";
