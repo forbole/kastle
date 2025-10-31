@@ -2,6 +2,10 @@ import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import kasplexIcon from "@/assets/images/network-logos/kasplex.svg";
 import { hexToNumber, Chain } from "viem";
 
+export type EvmChain = Chain & {
+  apiUrl: string;
+};
+
 export const kasplexTestnet = {
   id: 167_012,
   name: "Kasplex Testnet",

@@ -4,7 +4,7 @@ import {
   MAINNET_SUPPORTED_EVM_L2_CHAINS,
 } from "@/lib/layer2";
 import { useSettings } from "@/hooks/useSettings";
-import { Address, Hex, hexToNumber, numberToHex } from "viem";
+import { Address, numberToHex } from "viem";
 import useEvmAddress from "@/hooks/evm/useEvmAddress";
 
 type ERC20TokenItem = {
