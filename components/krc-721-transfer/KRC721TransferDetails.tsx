@@ -14,6 +14,7 @@ import { Fee } from "@/lib/krc721";
 import { useKns } from "@/hooks/kns/useKns";
 import { convertIPFStoHTTP } from "@/lib/utils.ts";
 import useKaspaBalance from "@/hooks/wallet/useKaspaBalance";
+import { useKRC721Details } from "@/hooks/krc721/useKRC721";
 
 type KRC721TransferDetailsProps = {
   onNext: () => void;

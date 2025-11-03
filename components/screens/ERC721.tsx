@@ -20,13 +20,17 @@ function toSentenceCase(sentence: string) {
   return sentence.charAt(0).toUpperCase() + sentence.slice(1).toLowerCase();
 }
 
-export default function ERC721() {
+export default function Erc721() {
   const navigate = useNavigate();
   const { value: showDownload, setTrue: setShowDownload } = useBoolean(false);
-  const { chainId, contractAddress, tokenId } = useParams();
+  const { chainId, contractAddress, tokenId } = useParams<{
+    chainId: Hex;
+    contractAddress: Address;
+    tokenId: string;
+  }>();
   const { data } = useErc721Info(
-    chainId as Hex,
-    contractAddress as Address,
+    chainId,
+    contractAddress,
     tokenId,
   );
   const { wallet } = useWalletManager();

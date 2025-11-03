@@ -79,7 +79,8 @@ import CommitRevealConfirm from "@/components/screens/browser-api/kaspa/CommitRe
 import ShowWalletSecret from "@/components/screens/full-pages/show-wallet-secret/ShowWalletSecret";
 import { KeyringStatusCheckerProvider } from "@/contexts/KeyringStatusChecker";
 import { PostHogWrapperProvider } from "@/contexts/PostHogWrapperProvider.tsx";
-import ERC721 from "@/components/screens/ERC721";
+import Erc721 from "@/components/screens/ERC721";
+import Erc721Transfer from "@/components/screens/Erc721Transfer";
 
 const loadKaspaWasm = async () => {
   await init({ module_or_path: kaspaModule });
@@ -311,7 +312,11 @@ export const router = createHashRouter([
                   },
                   {
                     path: "erc721/:chainId/:contractAddress/:tokenId",
-                    element: <ERC721 />,
+                    element: <Erc721 />,
+                  },
+                  {
+                    path: "erc721-transfer/:chainId/:contractAddress/:tokenId",
+                    element: <Erc721Transfer />,
                   },
                 ],
               },
