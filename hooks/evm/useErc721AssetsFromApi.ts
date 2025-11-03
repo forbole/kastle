@@ -1,36 +1,12 @@
-import { Address } from "viem";
 import {
   MAINNET_SUPPORTED_EVM_L2_CHAINS,
   TESTNET_SUPPORTED_EVM_L2_CHAINS,
-  EvmChain,
 } from "@/lib/layer2";
 import { useSettings } from "@/hooks/useSettings";
 import useEvmAddress from "@/hooks/evm/useEvmAddress";
 import useSWRInfinite from "swr/infinite";
-import { fetcher, emptyFetcher } from "@/lib/utils";
-
-type Attribute = {
-  trait_type: string;
-  value: string;
-};
-
-export type NftAsset = {
-  id: string;
-  image_url?: string;
-  metadata?: {
-    attributes?: Attribute[];
-    description?: string;
-    name?: string;
-  };
-  token: {
-    address_hash: Address;
-    type?: "ERC-721" | "ERC-1155" | "ERC-404";
-    name?: string;
-    symbol?: string;
-  };
-  amount: string;
-  value?: string; // For ERC-1155 (quantity) and ERC-404 (balance)
-};
+import { fetcher } from "@/lib/utils";
+import { NftAsset } from "@/lib/nft/erc721";
 
 type NftPageResponse = {
   items: NftAsset[];

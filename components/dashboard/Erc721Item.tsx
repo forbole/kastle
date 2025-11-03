@@ -1,7 +1,7 @@
 import { convertIPFStoHTTP } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import NFTPlaceholderImage from "@/components/NFTPlaceholderImage.tsx";
-import { NftAsset } from "@/hooks/evm/useErc721AssetsFromApi";
+import { NftAsset } from "@/lib/nft/erc721";
 
 const NAME_LIMIT = 14;
 
@@ -18,7 +18,7 @@ export default function ERC721Item({
     navigate(`/erc721/${chainId}/${asset.token.address_hash}/${asset.id}`);
   };
 
-  const name = `${asset.metadata?.name} #${asset.id}`;
+  const name = asset.metadata?.name ?? "Empty Name";
 
   return (
     <>
