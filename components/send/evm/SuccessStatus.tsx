@@ -32,6 +32,7 @@ export default function SuccessStatus({
 
   const openTransactions = () => {
     for (const transactionId of transactionIds ?? []) {
+      console.log("Open tx:", `${explorerTxLink}${transactionId}`);
       browser.tabs.create({
         url: `${explorerTxLink}${transactionId}`,
       });

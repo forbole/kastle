@@ -9,24 +9,42 @@ import useFeeEstimate from "@/hooks/evm/useFeeEstimate";
 import signImage from "@/assets/images/sign.png";
 import useErc721Info from "@/hooks/evm/useErc721Info";
 import { formatCurrency } from "@/lib/utils";
+import useCurrencyValue from "@/hooks/useCurrencyValue";
+import useKaspaPrice from "@/hooks/useKaspaPrice";
+import { useState } from "react";
+import { ALL_SUPPORTED_EVM_L2_CHAINS } from "@/lib/layer2";
+import {
+  createPublicClient,
+  http,
+  hexToNumber,
+  TransactionSerializable,
+} from "viem";
+import useEvmHotWalletSigner from "@/hooks/wallet/useEvmHotWalletSigner";
 
-type Erc721TransferConfirmProps = {
+type Erc721TransferHotWalletConfirmProps = {
   chainId: Hex;
   contractAddress: Address;
   tokenId: string;
-  onNext?: () => void;
-  onBack?: () => void;
+  setOutTxs: (txs: string[]) => void;
+  onNext: () => void;
+  onBack: () => void;
+  onFail: () => void;
 };
 
-export default function Erc721TransferConfirm({
+export default function Erc721TransferHotWalletConfirm({
   chainId,
   contractAddress,
   tokenId,
+  setOutTxs,
   onNext,
   onBack,
-}: Erc721TransferConfirmProps) {
+  onFail,
+}: Erc721TransferHotWalletConfirmProps) {
   const navigate = useNavigate();
   const sender = useEvmAddress();
+  const signer = useEvmHotWalletSigner();
+  const [isSigning, setIsSigning] = useState(false);
+
   const onClose = () => {
     navigate("/dashboard");
   };
@@ -51,6 +69,53 @@ export default function Erc721TransferConfirm({
   const { amount: feesCurrency, code: feesCurrencyCode } = useCurrencyValue(
     estimatedFee ? parseFloat(feeInKas) * useKaspaPrice().kaspaPrice : 0,
   );
+
+  const selectedChain = ALL_SUPPORTED_EVM_L2_CHAINS.find(
+    (chain) => chain.id === hexToNumber(chainId),
+  );
+
+  const ethClient = createPublicClient({
+    chain: selectedChain,
+    transport: http(),
+  });
+  const onConfirm = async () => {
+    if (isSigning || !payload || !sender || !signer) return;
+    setIsSigning(true);
+
+    try {
+      const estimatedGas = await ethClient.estimateFeesPerGas();
+      const gas = await ethClient.estimateGas({
+        account: sender,
+        to: payload.to,
+        data: payload.data,
+      });
+
+      const nonce = await ethClient.getTransactionCount({
+        address: sender,
+      });
+      const transaction: TransactionSerializable = {
+        to: payload.to,
+        data: payload.data,
+        gas,
+        maxFeePerGas: estimatedGas.maxFeePerGas,
+        maxPriorityFeePerGas: estimatedGas.maxPriorityFeePerGas,
+        chainId: hexToNumber(chainId),
+        type: "eip1559",
+        nonce,
+      };
+      const signed = await signer.signTransaction(transaction);
+      const txId = await ethClient.sendRawTransaction({
+        serializedTransaction: signed,
+      });
+
+      setOutTxs([txId]);
+      onNext();
+    } catch (error) {
+      onFail();
+    } finally {
+      setIsSigning(false);
+    }
+  };
 
   return (
     <>
@@ -92,7 +157,7 @@ export default function Erc721TransferConfirm({
 
         <div className="mt-auto">
           <button
-            onClick={onNext}
+            onClick={onConfirm}
             className="mt-auto flex w-full items-center justify-center gap-2 rounded-full bg-icy-blue-400 py-4 text-base font-medium text-white transition-colors hover:bg-icy-blue-600"
           >
             Confirm
