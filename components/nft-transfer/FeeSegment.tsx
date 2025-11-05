@@ -23,7 +23,7 @@ export default function FeeSegment({
         <i
           className={"hn hn-cog text-[16px] text-[#4B5563]"}
           data-tooltip-id="fee-tooltip"
-          data-tooltip-content="KRC721 fees are handled automatically by Kastle."
+          data-tooltip-content="Fees are handled automatically by Kastle."
         ></i>
         <Tooltip
           id="fee-tooltip"
