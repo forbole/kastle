@@ -39,7 +39,10 @@ export default function Attributes({ attributes }: AttributesProps) {
               >
                 <div className="flex w-full items-start justify-between">
                   <span>{attr.trait_type}</span>
-                  <Copy textToCopy={attr.value} id={`copy-attribute-${index}`}>
+                  <Copy
+                    textToCopy={toSentenceCase(attr.value)}
+                    id={`copy-attribute-${index}`}
+                  >
                     <span className="cursor-pointer font-medium">
                       {toSentenceCase(attr.value)}
                     </span>
