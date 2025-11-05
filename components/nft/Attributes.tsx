@@ -10,10 +10,6 @@ type AttributesProps = {
 
 const SHOW_ATTRIBUTES_LIMIT = 4;
 
-function toSentenceCase(sentence: string) {
-  if (!sentence) return "";
-  return sentence.charAt(0).toUpperCase() + sentence.slice(1).toLowerCase();
-}
 
 export default function Attributes({ attributes }: AttributesProps) {
   const [showMoreAttributes, setShowMoreAttributes] = useState(false);
