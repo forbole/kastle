@@ -159,7 +159,7 @@ export default function Erc721TransferDetails({
         </div>
 
         {/* Address input group */}
-        <div>
+        <div className="relative">
           <textarea
             {...register("userInput", {
               validate: addressValidator,
