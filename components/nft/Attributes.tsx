@@ -1,4 +1,5 @@
 import { useState } from "react";
+import Copy from "@/components/Copy";
 
 type AttributesProps = {
   attributes: Array<{

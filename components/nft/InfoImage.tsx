@@ -1,5 +1,6 @@
 import { useBoolean } from "usehooks-ts";
 import downloadImage from "@/assets/images/download.svg";
+import NFTPlaceholderImage from "@/components/NFTPlaceholderImage";
 
 type InfoImageProps = {
   isLoading?: boolean;

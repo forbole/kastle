@@ -8,7 +8,7 @@ import { encodeFunctionData, erc721Abi, isAddress } from "viem";
 import useFeeEstimate from "@/hooks/evm/useFeeEstimate";
 import signImage from "@/assets/images/sign.png";
 import useErc721Info from "@/hooks/evm/useErc721Info";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, textEllipsis } from "@/lib/utils";
 import useCurrencyValue from "@/hooks/useCurrencyValue";
 import useKaspaPrice from "@/hooks/useKaspaPrice";
 import { useState } from "react";
@@ -66,8 +66,9 @@ export default function Erc721TransferHotWalletConfirm({
 
   const { data: estimatedFee } = useFeeEstimate(chainId, payload);
   const feeInKas = formatEther(estimatedFee ?? 0n);
+  const kaspaPrice = useKaspaPrice().kaspaPrice;
   const { amount: feesCurrency, code: feesCurrencyCode } = useCurrencyValue(
-    estimatedFee ? parseFloat(feeInKas) * useKaspaPrice().kaspaPrice : 0,
+    estimatedFee ? parseFloat(feeInKas) * kaspaPrice : 0,
   );
 
   const selectedChain = ALL_SUPPORTED_EVM_L2_CHAINS.find(
@@ -117,6 +118,8 @@ export default function Erc721TransferHotWalletConfirm({
     }
   };
 
+  const showName = textEllipsis(data?.metadata?.name ?? "Empty Name", 15);
+
   return (
     <>
       <Header title="Confirm" onClose={onClose} onBack={onBack} />
@@ -132,9 +135,7 @@ export default function Erc721TransferHotWalletConfirm({
         <div className="flex flex-col gap-2 rounded-lg border border-daintree-700 bg-daintree-800 p-4">
           <div className="flex gap-1 text-base font-medium">
             <span>Transfer</span>
-            <span className="text-icy-blue-400">
-              {data?.metadata?.name ?? "Empty Name"}
-            </span>
+            <span className="text-icy-blue-400">{showName}</span>
             <span>from</span>
           </div>
           <span className="break-all text-xs text-daintree-400">{sender}</span>

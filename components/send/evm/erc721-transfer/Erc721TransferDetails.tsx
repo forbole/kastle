@@ -19,6 +19,7 @@ import spinner from "@/assets/images/spinner.svg";
 import { twMerge } from "tailwind-merge";
 import useFeeEstimate from "@/hooks/evm/useFeeEstimate";
 import placeholderImage from "@/assets/images/nft-placeholder.png";
+import { textEllipsis } from "@/lib/utils";
 
 type Erc721TransferDetailsProps = {
   chainId: Hex;
@@ -102,6 +103,8 @@ export default function Erc721TransferDetails({
     }
   }, [userInput]);
 
+  const showName = textEllipsis(data?.metadata?.name ?? "Empty Name", 15);
+
   return (
     <>
       <Header title="Transfer" onClose={onClose} onBack={onBack} />
@@ -119,9 +122,7 @@ export default function Erc721TransferDetails({
         <div className="flex items-center justify-between">
           <label className="flex gap-1 text-base font-medium">
             <span>Transfer</span>
-            <span className="text-icy-blue-400">
-              {data?.metadata?.name ?? "Empty Name"}
-            </span>
+            <span className="text-icy-blue-400">{showName}</span>
             <span>from</span>
           </label>
         </div>
