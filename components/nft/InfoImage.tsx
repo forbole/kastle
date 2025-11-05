@@ -19,12 +19,14 @@ export default function InfoImage({
     const result = await fetch(imageUrl);
     const blob = await result.blob();
 
+    const url = window.URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.href = window.URL.createObjectURL(blob);
+    link.href = url;
     link.download = `${downloadedName}.png`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
   };
 
   return (
