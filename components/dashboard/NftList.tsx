@@ -4,6 +4,7 @@ import KRC721Item from "@/components/dashboard/KRC721Item";
 import useErc721AssetsFromApi from "@/hooks/evm/useErc721AssetsFromApi";
 import { useState } from "react";
 import ERC721Item from "./Erc721Item";
+import { Hex } from "viem";
 
 export default function NftList() {
   const { account } = useWalletManager();
@@ -19,7 +20,7 @@ export default function NftList() {
   const [pagingErc721, setPagingErc721] = useState(false);
 
   const krc721HasNextPage = data && data[size - 1]?.next;
-  const hasNextPage = hasErc721NextPage || krc721HasNextPage;
+  const hasNextPage = hasErc721NextPage || !pagingErc721 || krc721HasNextPage;
 
   const firstLoading = !data && isLoading;
 
@@ -64,7 +65,7 @@ export default function NftList() {
             page.items.map((asset) => (
               <ERC721Item
                 key={`${page.chainId}-${asset.token.address_hash}-${asset.id}`}
-                chainId={page.chainId}
+                chainId={page.chainId as Hex}
                 asset={asset}
               />
             )),

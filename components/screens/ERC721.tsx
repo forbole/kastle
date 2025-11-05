@@ -8,6 +8,7 @@ import Description from "../nft/Description";
 import TransferButton from "../nft/TransferButton";
 import InfoImage from "../nft/InfoImage";
 import Name from "../nft/Name";
+import useEvmAddress from "@/hooks/evm/useEvmAddress";
 
 export default function Erc721() {
   const { chainId, contractAddress, tokenId } = useParams<{
@@ -17,6 +18,7 @@ export default function Erc721() {
   }>();
   const { data } = useErc721Info(chainId, contractAddress, tokenId);
   const { wallet } = useWalletManager();
+  const address = useEvmAddress();
 
   const isLoading = !data;
   const name = data?.metadata?.name ?? "Empty Name";
@@ -46,7 +48,7 @@ export default function Erc721() {
         <Name
           isLoading={isLoading}
           name={name}
-          owner={data?.owner.hash ?? ""}
+          owner={data?.owner?.hash ?? address ?? ""}
         />
 
         <Description description={description} isLoading={isLoading} />

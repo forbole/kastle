@@ -20,7 +20,7 @@ export type NftAsset = {
     symbol?: string;
   };
   value?: string; // For ERC-1155 (quantity) and ERC-404 (balance)
-  owner: {
+  owner?: {
     hash: Address;
   };
 };

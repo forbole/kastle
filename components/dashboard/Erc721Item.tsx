@@ -1,4 +1,4 @@
-import { convertIPFStoHTTP } from "@/lib/utils";
+import { Hex } from "viem";
 import { useNavigate } from "react-router-dom";
 import NFTPlaceholderImage from "@/components/NFTPlaceholderImage.tsx";
 import { NftAsset } from "@/lib/nft/erc721";
@@ -9,7 +9,7 @@ export default function ERC721Item({
   chainId,
   asset,
 }: {
-  chainId: string;
+  chainId: Hex;
   asset: NftAsset;
 }) {
   const navigate = useNavigate();

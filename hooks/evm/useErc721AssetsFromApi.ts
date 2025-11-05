@@ -7,6 +7,7 @@ import useEvmAddress from "@/hooks/evm/useEvmAddress";
 import useSWRInfinite from "swr/infinite";
 import { fetcher } from "@/lib/utils";
 import { NftAsset } from "@/lib/nft/erc721";
+import { numberToHex } from "viem";
 
 type NftPageResponse = {
   items: NftAsset[];
@@ -24,9 +25,8 @@ export default function useErc721AssetsFromApi() {
     settings?.networkId === "mainnet"
       ? MAINNET_SUPPORTED_EVM_L2_CHAINS
       : TESTNET_SUPPORTED_EVM_L2_CHAINS;
-  const address = "0x7cc0cffdA9146832f68820a47d7a97A4581B0452";
-  // TODO: Enable below line after the feature is tested
-  // const address = useEvmAddress();
+  // const address = "0x7cc0cffdA9146832f68820a47d7a97A4581B0452";
+  const address = useEvmAddress();
 
   const getKey = (
     pageIndex: number,
@@ -69,7 +69,7 @@ export default function useErc721AssetsFromApi() {
 
     return {
       url: `${baseUrl}?${params.toString()}`,
-      chainId: chain.id.toString(),
+      chainId: numberToHex(chain.id),
       chainIndex: currentChainIndex,
     };
   };

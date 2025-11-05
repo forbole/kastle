@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { Hex, Address } from "viem";
 import { FormProvider, useForm } from "react-hook-form";
-import Erc721TransferDetails from "@/components/erc721-transfer/Erc721TransferDetails.tsx";
+import Erc721TransferDetails from "@/components/send/evm/erc721-transfer/Erc721TransferDetails";
 
 const steps = ["details", "confirm", "broadcast", "success", "fail"] as const;
 type Step = (typeof steps)[number];
@@ -24,7 +24,7 @@ export default function Erc721Transfer() {
   const onBack = () => {
     setStep((prevState) => {
       if (steps.indexOf(prevState) === 0) {
-        navigate(`/erc721/${chainId}/${contractAddress}/${tokenId}`);
+        navigate("/");
       }
 
       const stepIdx = steps.indexOf(prevState);
@@ -37,11 +37,16 @@ export default function Erc721Transfer() {
     mode: "onChange",
   });
 
+  const isValidParams = chainId && contractAddress && tokenId;
+
   return (
     <div className="flex h-full flex-col p-4 text-white">
       <FormProvider {...form}>
-        {step === "details" && (
+        {isValidParams && step === "details" && (
           <Erc721TransferDetails
+            chainId={chainId}
+            contractAddress={contractAddress}
+            tokenId={tokenId}
             onNext={() => setStep("confirm")}
             onBack={onBack}
           />

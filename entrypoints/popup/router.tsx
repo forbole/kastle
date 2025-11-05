@@ -315,7 +315,7 @@ export const router = createHashRouter([
                     element: <Erc721 />,
                   },
                   {
-                    path: "erc721-transfer/:chainId/:contractAddress/:tokenId",
+                    path: "erc721/:chainId/:contractAddress/:tokenId/transfer",
                     element: <Erc721Transfer />,
                   },
                 ],
