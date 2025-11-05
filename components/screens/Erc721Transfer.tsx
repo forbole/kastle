@@ -2,6 +2,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Hex, Address } from "viem";
 import { FormProvider, useForm } from "react-hook-form";
 import Erc721TransferDetails from "@/components/send/evm/erc721-transfer/Erc721TransferDetails";
+import Erc721TransferConfirm from "@/components/send/evm/erc721-transfer/Erc721TransferConfirm";
 
 const steps = ["details", "confirm", "broadcast", "success", "fail"] as const;
 type Step = (typeof steps)[number];
@@ -48,6 +49,16 @@ export default function Erc721Transfer() {
             contractAddress={contractAddress}
             tokenId={tokenId}
             onNext={() => setStep("confirm")}
+            onBack={onBack}
+          />
+        )}
+
+        {isValidParams && step === "confirm" && (
+          <Erc721TransferConfirm
+            chainId={chainId}
+            contractAddress={contractAddress}
+            tokenId={tokenId}
+            onNext={() => setStep("broadcast")}
             onBack={onBack}
           />
         )}

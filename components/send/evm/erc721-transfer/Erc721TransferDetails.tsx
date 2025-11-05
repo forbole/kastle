@@ -7,7 +7,6 @@ import {
   isAddress,
   encodeFunctionData,
   erc721Abi,
-  parseEther,
   formatEther,
 } from "viem";
 import { Erc721TransferFormData } from "../../../screens/Erc721Transfer";
@@ -42,7 +41,6 @@ export default function Erc721TransferDetails({
     register,
     watch,
     setValue,
-    setError,
     formState: { isValid, errors, validatingFields },
   } = useFormContext<Erc721TransferFormData>();
   const { userInput, address } = watch();
@@ -57,7 +55,7 @@ export default function Erc721TransferDetails({
           data: encodeFunctionData({
             abi: erc721Abi,
             functionName: "safeTransferFrom",
-            args: [sender, address as Address, BigInt(parseInt(tokenId, 10))],
+            args: [sender, address as Address, BigInt(tokenId)],
           }),
         }
       : undefined;
