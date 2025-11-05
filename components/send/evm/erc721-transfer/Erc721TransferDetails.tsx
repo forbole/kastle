@@ -20,6 +20,7 @@ import { twMerge } from "tailwind-merge";
 import useFeeEstimate from "@/hooks/evm/useFeeEstimate";
 import placeholderImage from "@/assets/images/nft-placeholder.png";
 import { textEllipsis } from "@/lib/utils";
+import { useEffect } from "react";
 
 type Erc721TransferDetailsProps = {
   chainId: Hex;

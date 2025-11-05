@@ -155,7 +155,7 @@ export default function KNSTextAsset() {
             <>
               {isTransferDisabled && (
                 <Tooltip
-                  id="transer-disabled"
+                  id="transfer-disabled"
                   style={{
                     backgroundColor: "#203C49",
                     fontSize: "12px",
@@ -169,7 +169,7 @@ export default function KNSTextAsset() {
               )}
               <button
                 type="button"
-                data-tooltip-id="transer-disabled"
+                data-tooltip-id="transfer-disabled"
                 data-tooltip-content={
                   isLedger
                     ? "Ledger doesn’t support deploy function currently."

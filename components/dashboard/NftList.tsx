@@ -43,17 +43,13 @@ export default function NftList() {
           setSize(size + 1);
         } else if (!krc721HasNextPage) {
           setPagingErc721(true);
-          setTimeout(() => {
-            if (hasErc721NextPage) {
-              setErc721Size((prev) => prev + 1);
-            }
-          }, 0);
+          if (hasErc721NextPage) {
+            setErc721Size((prev) => prev + 1);
+          }
         }
       }
     } finally {
-      setTimeout(() => {
-        isLoadingRef.current = false;
-      }, 500);
+      isLoadingRef.current = false;
     }
   }, [
     pagingErc721,

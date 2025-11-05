@@ -7,6 +7,7 @@ import { Broadcasting } from "../send/Broadcasting";
 import useErc721Info from "@/hooks/evm/useErc721Info";
 import FailStatus from "@/components/send/evm/FailStatus";
 import SuccessStatus from "@/components/send/evm/SuccessStatus";
+import { useState } from "react";
 
 const steps = ["details", "confirm", "broadcast", "success", "fail"] as const;
 type Step = (typeof steps)[number];

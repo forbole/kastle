@@ -18,7 +18,7 @@ export default function TransferButton({
       <>
         {disabledMessage && (
           <Tooltip
-            id="transer-disabled"
+            id="transfer-disabled"
             style={{
               backgroundColor: "#203C49",
               fontSize: "12px",
@@ -32,7 +32,7 @@ export default function TransferButton({
         )}
         <button
           type="button"
-          data-tooltip-id="transer-disabled"
+          data-tooltip-id="transfer-disabled"
           data-tooltip-content={disabledMessage}
           className="inline-flex w-full rounded-full border border-white py-3 text-white disabled:border-[#093446] disabled:text-[#083344]"
           disabled={disabledMessage !== undefined}

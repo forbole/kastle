@@ -59,7 +59,7 @@ export default function Erc721TransferHotWalletConfirm({
           data: encodeFunctionData({
             abi: erc721Abi,
             functionName: "safeTransferFrom",
-            args: [sender, address as Address, BigInt(parseInt(tokenId, 10))],
+            args: [sender, address as Address, BigInt(tokenId)],
           }),
         }
       : undefined;

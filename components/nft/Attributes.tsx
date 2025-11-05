@@ -10,6 +10,10 @@ type AttributesProps = {
 
 const SHOW_ATTRIBUTES_LIMIT = 4;
 
+function toSentenceCase(sentence: string) {
+  if (!sentence) return "";
+  return sentence.charAt(0).toUpperCase() + sentence.slice(1).toLowerCase();
+}
 
 export default function Attributes({ attributes }: AttributesProps) {
   const [showMoreAttributes, setShowMoreAttributes] = useState(false);
@@ -37,7 +41,7 @@ export default function Attributes({ attributes }: AttributesProps) {
                   <span>{attr.trait_type}</span>
                   <Copy textToCopy={attr.value} id={`copy-attribute-${index}`}>
                     <span className="cursor-pointer font-medium">
-                      {attr.value}
+                      {toSentenceCase(attr.value)}
                     </span>
                   </Copy>
                 </div>
