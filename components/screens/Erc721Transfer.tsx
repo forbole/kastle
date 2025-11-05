@@ -70,7 +70,7 @@ export default function Erc721Transfer() {
             onFail={() => setStep("fail")}
           />
         )}
-        {step == "broadcast" && (
+        {step === "broadcast" && (
           <Broadcasting onSuccess={() => setStep("success")} />
         )}
         {isValidParams && step === "success" && (
