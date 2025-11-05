@@ -25,7 +25,6 @@ export default function useErc721AssetsFromApi() {
     settings?.networkId === "mainnet"
       ? MAINNET_SUPPORTED_EVM_L2_CHAINS
       : TESTNET_SUPPORTED_EVM_L2_CHAINS;
-  // const address = "0x7cc0cffdA9146832f68820a47d7a97A4581B0452";
   const address = useEvmAddress();
 
   const getKey = (

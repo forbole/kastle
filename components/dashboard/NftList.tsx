@@ -2,7 +2,7 @@ import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { useKRC721ByAddress } from "@/hooks/krc721/useKRC721";
 import KRC721Item from "@/components/dashboard/KRC721Item";
 import useErc721AssetsFromApi from "@/hooks/evm/useErc721AssetsFromApi";
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import ERC721Item from "./Erc721Item";
 import { Hex } from "viem";
 
@@ -18,26 +18,83 @@ export default function NftList() {
     hasNextPage: hasErc721NextPage,
   } = useErc721AssetsFromApi();
   const [pagingErc721, setPagingErc721] = useState(false);
+  const observerRef = useRef<HTMLDivElement>(null);
+  const isLoadingRef = useRef(false);
 
   const krc721HasNextPage = data && data[size - 1]?.next;
-  const hasNextPage = hasErc721NextPage || !pagingErc721 || krc721HasNextPage;
+  const hasNextPage = pagingErc721
+    ? hasErc721NextPage
+    : krc721HasNextPage || !pagingErc721;
 
+  const isCurrentlyLoading = pagingErc721 ? isErc721Loading : isLoading;
   const firstLoading = !data && isLoading;
 
-  const loadMore = () => {
-    switch (pagingErc721) {
-      case true:
-        if (isErc721Loading) return;
-        setErc721Size(erc721Size + 1);
-        break;
-      case false:
-        if (isLoading) return;
+  const loadMore = useCallback(async () => {
+    if (isLoadingRef.current || isCurrentlyLoading) return;
 
-        if (krc721HasNextPage) setSize(size + 1);
-        else setPagingErc721(true);
-        break;
+    isLoadingRef.current = true;
+    try {
+      if (pagingErc721) {
+        if (!isErc721Loading && hasErc721NextPage) {
+          setErc721Size(erc721Size + 1);
+        }
+      } else {
+        if (krc721HasNextPage && !isLoading) {
+          setSize(size + 1);
+        } else if (!krc721HasNextPage) {
+          setPagingErc721(true);
+          setTimeout(() => {
+            if (hasErc721NextPage) {
+              setErc721Size((prev) => prev + 1);
+            }
+          }, 0);
+        }
+      }
+    } finally {
+      setTimeout(() => {
+        isLoadingRef.current = false;
+      }, 500);
     }
-  };
+  }, [
+    pagingErc721,
+    isErc721Loading,
+    isLoading,
+    erc721Size,
+    setErc721Size,
+    krc721HasNextPage,
+    size,
+    setSize,
+    hasErc721NextPage,
+    isCurrentlyLoading,
+  ]);
+
+  // Intersection Observer for infinite scroll
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+
+        if (
+          entry.isIntersecting &&
+          hasNextPage &&
+          !isCurrentlyLoading &&
+          !isLoadingRef.current
+        ) {
+          loadMore();
+        }
+      },
+      {
+        rootMargin: "100px",
+        threshold: 0.1,
+      },
+    );
+
+    if (observerRef.current) {
+      observer.observe(observerRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [hasNextPage, isCurrentlyLoading, loadMore]);
 
   return (
     <>
@@ -72,22 +129,22 @@ export default function NftList() {
           )}
       </div>
 
-      {/* Load more button */}
+      {/* Infinite scroll trigger */}
       {hasNextPage && (
-        <button
-          onClick={loadMore}
-          className="mb-4 mt-4 w-full rounded-lg bg-[#102832] py-2 text-white hover:bg-[#3B6273]"
+        <div
+          ref={observerRef}
+          className="mb-4 mt-4 flex w-full justify-center py-4"
         >
-          {isLoading ? (
+          {isCurrentlyLoading ? (
             <div
-              className="inline-block size-6 animate-spin self-center rounded-full border-[6px] border-current border-t-[#A2F5FF] text-icy-blue-600"
+              className="inline-block size-8 animate-spin self-center rounded-full border-[6px] border-current border-t-[#A2F5FF] text-icy-blue-600"
               role="status"
               aria-label="loading"
             />
           ) : (
-            "Load More"
+            <div className="text-sm text-gray-400">Scroll to load more...</div>
           )}
-        </button>
+        </div>
       )}
     </>
   );
