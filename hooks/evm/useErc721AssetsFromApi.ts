@@ -85,8 +85,9 @@ export default function useErc721AssetsFromApi() {
       };
     },
     {
+      refreshInterval: 10_000,
       revalidateOnFocus: false,
-      dedupingInterval: 60000,
+      dedupingInterval: 60_000,
     },
   );
 
