@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.39.0](https://github.com/forbole/kastle/compare/v2.38.0...v2.39.0) (2025-11-06)
+
+
+### Features
+
+* add refresh for erc721 assets ([#232](https://github.com/forbole/kastle/issues/232)) ([86498bc](https://github.com/forbole/kastle/commit/86498bc30fe6ef0736ab1ade6fa8f7423dc4e42c))
+* erc721 support ([#230](https://github.com/forbole/kastle/issues/230)) ([e5c2c4b](https://github.com/forbole/kastle/commit/e5c2c4b6dd382fcdbcd68eaf1476cf21e2b6c32b))
+
 ## [2.38.0](https://github.com/forbole/kastle/compare/v2.37.0...v2.38.0) (2025-10-27)
 
 
