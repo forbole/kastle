@@ -3,7 +3,7 @@ import { textEllipsis } from "@/lib/utils.ts";
 import React, { useState } from "react";
 import { RecentAddress } from "@/contexts/RecentAddressesContext.tsx";
 import { Tooltip } from "react-tooltip";
-import { useKns } from "@/hooks/useKns";
+import { useKns } from "@/hooks/kns/useKns";
 
 export default function RecentAddressItem({
   recentAddress,

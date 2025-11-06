@@ -2,7 +2,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import Header from "@/components/GeneralHeader";
 import badgeCheck from "@/assets/images/badge-check.svg";
 import avatarIcon from "@/assets/images/avatar.png";
-import { useAssetDetails } from "@/hooks/useKns.ts";
+import { useAssetDetails } from "@/hooks/kns/useKns";
 import { textEllipsis } from "@/lib/utils";
 import Copy from "@/components/Copy";
 import HoverShowAllCopy from "@/components/HoverShowAllCopy";
@@ -11,7 +11,7 @@ import { Tooltip } from "react-tooltip";
 import React from "react";
 import { twMerge } from "tailwind-merge";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
-import useKNSRecentTransfer from "@/hooks/useKNSRecentTransfer.ts";
+import useKNSRecentTransfer from "@/hooks/kns/useKNSRecentTransfer";
 
 export default function KNSTextAsset() {
   const navigate = useNavigate();
@@ -155,7 +155,7 @@ export default function KNSTextAsset() {
             <>
               {isTransferDisabled && (
                 <Tooltip
-                  id="transer-disabled"
+                  id="transfer-disabled"
                   style={{
                     backgroundColor: "#203C49",
                     fontSize: "12px",
@@ -169,7 +169,7 @@ export default function KNSTextAsset() {
               )}
               <button
                 type="button"
-                data-tooltip-id="transer-disabled"
+                data-tooltip-id="transfer-disabled"
                 data-tooltip-content={
                   isLedger
                     ? "Ledger doesn’t support deploy function currently."

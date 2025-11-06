@@ -1,124 +1,110 @@
-import { useFormContext } from "react-hook-form";
-import React, { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import Header from "@/components/GeneralHeader.tsx";
-import useWalletManager from "@/hooks/wallet/useWalletManager";
-import { Address } from "@/wasm/core/kaspa";
-import { twMerge } from "tailwind-merge";
-import { useBoolean } from "usehooks-ts";
-import RecentAddresses from "@/components/send/RecentAddresses.tsx";
-import spinner from "@/assets/images/spinner.svg";
+import useErc721Info from "@/hooks/evm/useErc721Info";
+import useEvmKasBalance from "@/hooks/evm/useEvmKasBalance";
+import {
+  Address,
+  Hex,
+  isAddress,
+  encodeFunctionData,
+  erc721Abi,
+  formatEther,
+} from "viem";
+import { Erc721TransferFormData } from "../../../screens/Erc721Transfer";
+import { useFormContext } from "react-hook-form";
+import useEvmAddress from "@/hooks/evm/useEvmAddress";
+import FeeSegment from "../../../nft-transfer/FeeSegment";
+import { useNavigate } from "react-router-dom";
 import { Tooltip } from "react-tooltip";
-import { KRC721TransferFormData } from "@/components/screens/KRC721Transfer.tsx";
-import { Fee } from "@/lib/krc721";
-import { useKns } from "@/hooks/kns/useKns";
-import { convertIPFStoHTTP } from "@/lib/utils.ts";
-import useKaspaBalance from "@/hooks/wallet/useKaspaBalance";
-import { useKRC721Details } from "@/hooks/krc721/useKRC721";
-import FeeSegment from "../nft-transfer/FeeSegment";
+import spinner from "@/assets/images/spinner.svg";
+import { twMerge } from "tailwind-merge";
+import useFeeEstimate from "@/hooks/evm/useFeeEstimate";
+import placeholderImage from "@/assets/images/nft-placeholder.png";
+import { textEllipsis } from "@/lib/utils";
+import { useEffect } from "react";
 
-type KRC721TransferDetailsProps = {
+type Erc721TransferDetailsProps = {
+  chainId: Hex;
+  contractAddress: Address;
+  tokenId: string;
   onNext: () => void;
-  onBack?: () => void;
+  onBack: () => void;
 };
 
-export const KRC721TransferDetails = ({
+export default function Erc721TransferDetails({
+  chainId,
+  contractAddress,
+  tokenId,
   onNext,
   onBack,
-}: KRC721TransferDetailsProps) => {
+}: Erc721TransferDetailsProps) {
   const navigate = useNavigate();
-  const { account } = useWalletManager();
-  const { fetchDomainInfo } = useKns();
+  const sender = useEvmAddress();
   const {
     register,
     watch,
     setValue,
-    setError,
     formState: { isValid, errors, validatingFields },
-  } = useFormContext<KRC721TransferFormData>();
-  const { tick, tokenId, userInput, address, domain } = watch();
+  } = useFormContext<Erc721TransferFormData>();
+  const { userInput, address } = watch();
 
-  const {
-    value: isRecentAddressShown,
-    setFalse: hideRecentAddress,
-    setTrue: showRecentAddress,
-  } = useBoolean(false);
+  const { data } = useErc721Info(chainId, contractAddress, tokenId);
 
-  const { data } = useKRC721Details(tick, tokenId);
+  const payload =
+    address && isAddress(address ?? "") && sender
+      ? {
+          account: sender,
+          to: contractAddress,
+          data: encodeFunctionData({
+            abi: erc721Abi,
+            functionName: "safeTransferFrom",
+            args: [sender, address as Address, BigInt(tokenId)],
+          }),
+        }
+      : undefined;
 
-  const { value: isAddressFieldFocused, setValue: setAddressFieldFocused } =
-    useBoolean(false);
-  const kasBalance = useKaspaBalance(account?.address) ?? 0;
-  const currentBalance = kasBalance;
+  const { data: estimatedFee } = useFeeEstimate(chainId, payload);
+  const feeInKas = formatEther(estimatedFee ?? 0n);
+
+  const { data: kasBalanceData } = useEvmKasBalance(chainId) ?? 0;
+  const currentBalance = kasBalanceData?.rawBalance ?? 0n;
 
   const onClose = () => navigate("/dashboard");
 
   const addressValidator = async (value: string | undefined) => {
-    const genericErrorMessage = "Invalid address or KRC721 domain";
+    const genericErrorMessage = "Invalid address";
     if (!value) return false;
 
-    if (currentBalance < Fee.Base) {
+    if (estimatedFee && currentBalance < estimatedFee) {
       return "Oh, you don’t have enough funds";
     }
 
-    if (value === account?.address) {
+    if (value === sender) {
       return "You cannot send NFT to yourself";
     }
 
-    const domainInfo = value.endsWith(".kas")
-      ? await fetchDomainInfo(value)
-      : undefined;
-    const resolvedAddress = domainInfo?.data?.owner;
-
-    const isValidKRC721Record = () => {
-      const outcome = !!resolvedAddress && Address.validate(resolvedAddress);
-
-      if (outcome) {
-        setValue("address", resolvedAddress);
-        setValue("domain", value);
-        setError("userInput", { message: undefined });
-      } else {
-        setValue("address", undefined);
-        setValue("domain", undefined);
-      }
-
-      return outcome;
-    };
-
     const isValidKaspaAddress = () => {
-      const isValid = Address.validate(value);
+      const isValid = isAddress(value);
 
       setValue("address", isValid ? value : undefined);
-
       return isValid;
     };
 
     try {
-      return (
-        isValidKRC721Record() || isValidKaspaAddress() || genericErrorMessage
-      );
+      return isValidKaspaAddress() || genericErrorMessage;
     } catch (error) {
       console.error(error);
       return genericErrorMessage;
     }
   };
 
-  // Handle recent address list visibility
-  useEffect(() => {
-    if (userInput === "" && isAddressFieldFocused) {
-      showRecentAddress();
-    } else if (userInput !== "") {
-      hideRecentAddress();
-    }
-  }, [userInput, isAddressFieldFocused]);
-
   // Handle empty user input logic
   useEffect(() => {
     if (userInput === "") {
-      setValue("domain", undefined, { shouldValidate: true });
       setValue("address", undefined, { shouldValidate: true });
     }
   }, [userInput]);
+
+  const showName = textEllipsis(data?.metadata?.name ?? "Empty Name", 15);
 
   return (
     <>
@@ -128,8 +114,8 @@ export const KRC721TransferDetails = ({
         <div className="relative mx-auto max-h-28 max-w-48 rounded-xl bg-daintree-800">
           {!!data && (
             <img
-              src={convertIPFStoHTTP(data.image)}
-              alt="KRC721"
+              src={data.image_url ?? placeholderImage}
+              alt={data.metadata?.name ?? "ERC721"}
               className="m-auto max-h-28 max-w-48 rounded-xl"
             />
           )}
@@ -137,7 +123,7 @@ export const KRC721TransferDetails = ({
         <div className="flex items-center justify-between">
           <label className="flex gap-1 text-base font-medium">
             <span>Transfer</span>
-            <span className="text-icy-blue-400">{`${tick} #${tokenId}`}</span>
+            <span className="text-icy-blue-400">{showName}</span>
             <span>from</span>
           </label>
         </div>
@@ -145,7 +131,7 @@ export const KRC721TransferDetails = ({
           <textarea
             disabled
             className="no-scrollbar w-full resize-none rounded-lg border border-daintree-700 bg-daintree-800 px-4 py-3 pe-12 text-sm text-daintree-400 placeholder-daintree-200 ring-0 hover:placeholder-daintree-50 focus:border-daintree-700 focus:ring-0"
-            value={account?.address}
+            value={sender}
           />
         </div>
 
@@ -173,19 +159,17 @@ export const KRC721TransferDetails = ({
         </div>
 
         {/* Address input group */}
-        <div>
+        <div className="relative">
           <textarea
-            onFocus={() => setAddressFieldFocused(true)}
             {...register("userInput", {
               validate: addressValidator,
-              onBlur: () => setAddressFieldFocused(false),
             })}
             className={twMerge(
               "no-scrollbar w-full resize-none rounded-lg border border-daintree-700 bg-daintree-800 px-4 py-3 pe-12 text-sm placeholder-daintree-200 ring-0 hover:placeholder-daintree-50 focus:border-daintree-700 focus:ring-0",
               errors.userInput &&
                 "ring ring-red-500/25 focus:ring focus:ring-red-500/25",
             )}
-            placeholder="Enter wallet address or KRC721"
+            placeholder="Enter wallet address"
           />
 
           <div className="pointer-events-none absolute end-0 top-10 flex h-16 items-center pe-3">
@@ -197,11 +181,6 @@ export const KRC721TransferDetails = ({
               />
             )}
           </div>
-          {domain && (
-            <span className="inline-block break-all text-sm text-daintree-400">
-              {address}
-            </span>
-          )}
           {errors.userInput && (
             <span className="inline-block text-sm text-red-500">
               {errors.userInput.message}
@@ -209,15 +188,10 @@ export const KRC721TransferDetails = ({
           )}
         </div>
 
-        <RecentAddresses
-          isShown={isRecentAddressShown}
-          hideAddressSelect={hideRecentAddress}
-        />
-
         <FeeSegment
-          feeTooltipText="KRC721 fees are handled automatically by Kastle."
-          estimatedFeeTooltipText={`${Fee.Base} KAS for miner fees.`}
-          estimatedFee={Fee.Base.toString()}
+          feeTooltipText="Fees are handled automatically by Kastle."
+          estimatedFeeTooltipText={`${feeInKas} KAS for miner fees.`}
+          estimatedFee={feeInKas}
         />
 
         <div className="mt-auto">
@@ -232,4 +206,4 @@ export const KRC721TransferDetails = ({
       </div>
     </>
   );
-};
+}

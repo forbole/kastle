@@ -1,4 +1,4 @@
-import { useKRC721Details } from "@/hooks/useKRC721";
+import { useKRC721Details } from "@/hooks/krc721/useKRC721";
 import { convertIPFStoHTTP } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import NFTPlaceholderImage from "@/components/NFTPlaceholderImage.tsx";

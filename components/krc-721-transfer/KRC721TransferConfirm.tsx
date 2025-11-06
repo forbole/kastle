@@ -1,7 +1,6 @@
 import { useFormContext } from "react-hook-form";
 import Header from "@/components/GeneralHeader.tsx";
 import signImage from "@/assets/images/sign.png";
-import React from "react";
 import { useNavigate } from "react-router-dom";
 import { Fee } from "@/lib/kns.ts";
 import { formatCurrency } from "@/lib/utils.ts";

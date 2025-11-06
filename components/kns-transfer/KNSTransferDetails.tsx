@@ -7,7 +7,7 @@ import { Address } from "@/wasm/core/kaspa";
 import { twMerge } from "tailwind-merge";
 import { useBoolean } from "usehooks-ts";
 import spinner from "@/assets/images/spinner.svg";
-import { useAssetDetails, useKns } from "@/hooks/useKns.ts";
+import { useAssetDetails, useKns } from "@/hooks/kns/useKns";
 import { Tooltip } from "react-tooltip";
 import { KNSTransferFormData } from "@/components/screens/KNSTransfer.tsx";
 import { Fee } from "@/lib/kns.ts";

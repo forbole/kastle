@@ -3,7 +3,7 @@ import { useSettings } from "@/hooks/useSettings";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import useMempoolStatus from "@/hooks/useMempoolStatus";
-import { useKns } from "@/hooks/useKns";
+import { useKns } from "@/hooks/kns/useKns";
 import { useState } from "react";
 import { useBoolean } from "usehooks-ts";
 import Header from "@/components/GeneralHeader";

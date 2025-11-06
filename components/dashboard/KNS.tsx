@@ -1,6 +1,6 @@
 import React from "react";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
-import { useAssetsByAddress } from "@/hooks/useKns.ts";
+import { useAssetsByAddress } from "@/hooks/kns/useKns";
 import KNSItem from "@/components/dashboard/KNSItem.tsx";
 
 export default function KNS() {

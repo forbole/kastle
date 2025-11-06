@@ -1,5 +1,5 @@
 import { ALL_SUPPORTED_EVM_L2_CHAINS } from "@/lib/layer2";
-import { http, createPublicClient, numberToHex } from "viem";
+import { http, createPublicClient, numberToHex, Hex } from "viem";
 import useSWR from "swr";
 import useEvmAddress from "./useEvmAddress";
 
@@ -35,11 +35,10 @@ const fetcher = (chainId: `0x${string}`, payload: estimatePayload) => {
 };
 
 export default function useFeeEstimate(
-  chainId?: `0x${string}`,
+  chainId?: Hex,
   payload?: estimatePayload,
 ) {
   const evmAddress = useEvmAddress();
-
   const isLoading = !evmAddress || !chainId || !payload;
   return useSWR(
     isLoading
