@@ -74,6 +74,10 @@ export function truncToDecimals(number: number, decimals: number) {
 }
 
 export function textEllipsis(text: string, startPos = 8, endPos = 5) {
+  if (text.length <= startPos + endPos + 3) {
+    return text;
+  }
+
   const start = text.substring(0, startPos);
   const end = text.substring(text.length - endPos, text.length);
 
