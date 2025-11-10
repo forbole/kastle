@@ -20,6 +20,7 @@ import {
   TransactionSerializable,
 } from "viem";
 import useEvmHotWalletSigner from "@/hooks/wallet/useEvmHotWalletSigner";
+import useEvmKasBalance from "@/hooks/evm/useEvmKasBalance";
 
 type Erc721TransferHotWalletConfirmProps = {
   chainId: Hex;
@@ -44,6 +45,7 @@ export default function Erc721TransferHotWalletConfirm({
   const sender = useEvmAddress();
   const signer = useEvmHotWalletSigner();
   const [isSigning, setIsSigning] = useState(false);
+  const { data: balanceData } = useEvmKasBalance(chainId);
 
   const onClose = () => {
     navigate("/dashboard");
@@ -64,7 +66,10 @@ export default function Erc721TransferHotWalletConfirm({
         }
       : undefined;
 
-  const { data: estimatedFee } = useFeeEstimate(chainId, payload);
+  const { data: estimatedFee, error: estimatedFeeError } = useFeeEstimate(
+    chainId,
+    payload,
+  );
   const feeInKas = formatEther(estimatedFee ?? 0n);
   const kaspaPrice = useKaspaPrice().kaspaPrice;
   const { amount: feesCurrency, code: feesCurrencyCode } = useCurrencyValue(
@@ -118,7 +123,11 @@ export default function Erc721TransferHotWalletConfirm({
     }
   };
 
-  const showName = textEllipsis(data?.metadata?.name ?? "Empty Name", 15);
+  const showName = textEllipsis(data?.metadata?.name ?? "Empty Name");
+  const isInsufficientFunds =
+    estimatedFee !== undefined &&
+    balanceData !== undefined &&
+    (balanceData.rawBalance < estimatedFee || balanceData.rawBalance === 0n);
 
   return (
     <>
@@ -157,13 +166,24 @@ export default function Erc721TransferHotWalletConfirm({
         </div>
 
         <div className="mt-auto">
-          <button
-            onClick={onConfirm}
-            className="mt-auto flex w-full items-center justify-center gap-2 rounded-full bg-icy-blue-400 py-4 text-base font-medium text-white transition-colors hover:bg-icy-blue-600"
-          >
-            Confirm
-          </button>
+          {isInsufficientFunds && (
+            <div className="text-center text-sm text-red-500">
+              Insufficient funds to cover transaction fee.
+            </div>
+          )}
+          {estimatedFeeError && (
+            <div className="text-center text-sm text-red-500">
+              Failed to simulate transaction and estimate fee. Please try again.
+            </div>
+          )}
         </div>
+        <button
+          onClick={onConfirm}
+          className="mt-auto flex w-full items-center justify-center gap-2 rounded-full bg-icy-blue-400 py-4 text-base font-medium text-white transition-colors hover:bg-icy-blue-600 disabled:cursor-not-allowed disabled:bg-icy-blue-800"
+          disabled={isSigning || isInsufficientFunds || !!estimatedFeeError}
+        >
+          Confirm
+        </button>
       </div>
     </>
   );
