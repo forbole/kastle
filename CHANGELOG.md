@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.39.1](https://github.com/forbole/kastle/compare/v2.39.0...v2.39.1) (2025-11-10)
+
+
+### Bug Fixes
+
+* add error message for erc721 sending ([#235](https://github.com/forbole/kastle/issues/235)) ([82b0f74](https://github.com/forbole/kastle/commit/82b0f743798018da1e46bfea426a4128a98469a1))
+* correct text ellipsis ([#233](https://github.com/forbole/kastle/issues/233)) ([9cb7835](https://github.com/forbole/kastle/commit/9cb78357e5c053c74c8355eda645c2575f838573))
+
 ## [2.39.0](https://github.com/forbole/kastle/compare/v2.38.0...v2.39.0) (2025-11-06)
 
 
