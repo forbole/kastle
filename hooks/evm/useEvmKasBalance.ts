@@ -10,7 +10,7 @@ export default function useEvmKasBalance(
   const evmAddress = useEvmAddress();
   const fetcher = async () => {
     if (!evmAddress) {
-      return {};
+      return undefined;
     }
 
     const chain = ALL_SUPPORTED_EVM_L2_CHAINS.find(
