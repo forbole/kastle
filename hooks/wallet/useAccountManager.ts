@@ -55,6 +55,7 @@ export default function useAccountManager() {
       walletId,
       accountIndex: nextIndex,
       isLegacy: settings?.isLegacyEvmAddressEnabled ?? false,
+      isKastleLegacy: walletIsLegacy,
     });
 
     wallet.accounts.push({

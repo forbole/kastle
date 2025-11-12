@@ -13,20 +13,22 @@ export default function useEvmHotWalletSigner() {
   const signer = useEvmBackgroundSigner();
   const [settings] = useSettings();
 
-  const isLegacy = settings?.isLegacyEvmAddressEnabled ?? false;
+  const isEvmLegacy = settings?.isLegacyEvmAddressEnabled ?? false;
 
   if (!walletInfo || !account) {
     return undefined;
   }
 
-  const getPublicKey = async () => {
-    const walletId = walletInfo.id;
-    const accountIndex = account.index;
+  const walletId = walletInfo.id;
+  const accountIndex = account.index;
+  const isKastleLegacy = walletInfo.isLegacyWalletEnabled ?? true;
 
+  const getPublicKey = async () => {
     const { publicKey } = await signer.getPublicKey({
       walletId,
       accountIndex,
-      isLegacy,
+      isLegacy: isEvmLegacy,
+      isKastleLegacy,
     });
     return publicKey;
   };
@@ -37,26 +39,22 @@ export default function useEvmHotWalletSigner() {
   };
 
   const signTransaction = async (transaction: TransactionSerializable) => {
-    const walletId = walletInfo.id;
-    const accountIndex = account.index;
-
     const { signedTransaction } = await signer.signTransaction({
       walletId,
       accountIndex,
-      isLegacy,
+      isLegacy: isEvmLegacy,
+      isKastleLegacy,
       transaction: serializeTransaction(transaction),
     });
     return signedTransaction;
   };
 
   const signMessage = async (message: string) => {
-    const walletId = walletInfo.id;
-    const accountIndex = account.index;
-
     const { signature } = await signer.signMessage({
       walletId,
       accountIndex,
-      isLegacy,
+      isLegacy: isEvmLegacy,
+      isKastleLegacy,
       message,
     });
 
@@ -70,7 +68,8 @@ export default function useEvmHotWalletSigner() {
     const { signature } = await signer.signTypedData({
       walletId,
       accountIndex,
-      isLegacy,
+      isLegacy: isEvmLegacy,
+      isKastleLegacy,
       data: data.toString(),
     });
 
