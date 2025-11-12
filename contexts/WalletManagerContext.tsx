@@ -381,6 +381,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
       const newWallets = await Promise.all(
         wallets.map(async (wallet) => {
           if (wallet.type === "ledger") return wallet;
+          updated = true;
 
           const newAccounts = await Promise.all(
             wallet.accounts.map(async (account) => {
@@ -390,7 +391,6 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
                 isLegacy: settings?.isLegacyEvmAddressEnabled ?? false,
                 isKastleLegacy: wallet.isLegacyWalletEnabled ?? true,
               });
-              updated = true;
               return { ...account, evmPublicKey: publicKey };
             }),
           );
