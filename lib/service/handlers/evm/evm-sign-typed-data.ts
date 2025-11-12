@@ -9,8 +9,10 @@ export const signTypedDataSchema = z.custom<SignTypedDataParameters>();
 export interface EvmSignTypedDataRequest {
   walletId: string;
   accountIndex: number;
-  isLegacy: boolean;
   data: string;
+
+  isLegacy: boolean;
+  isKastleLegacy: boolean;
 }
 
 export interface EvmSignTypedDataResponse {
@@ -18,7 +20,13 @@ export interface EvmSignTypedDataResponse {
 }
 
 export async function evmSignTypedDataHandler(
-  { walletId, accountIndex, isLegacy, data }: EvmSignTypedDataRequest,
+  {
+    walletId,
+    accountIndex,
+    isLegacy,
+    isKastleLegacy,
+    data,
+  }: EvmSignTypedDataRequest,
   sendResponse: (response: EvmSignTypedDataResponse) => void,
 ) {
   const extensionService = ExtensionService.getInstance();
@@ -39,7 +47,12 @@ export async function evmSignTypedDataHandler(
     );
   }
 
-  const signer = await getSigner(walletId, accountIndex, isLegacy);
+  const signer = await getSigner(
+    walletId,
+    accountIndex,
+    isLegacy,
+    isKastleLegacy,
+  );
   const signature = await signer.signTypedData(parsed.data);
   sendResponse({ signature });
 }

@@ -6,6 +6,7 @@ export type EvmGetPublicKeyRequest = {
   walletId: string;
   accountIndex: number;
   isLegacy: boolean;
+  isKastleLegacy: boolean;
 };
 
 export type EvmGetPublicKeyResponse = {
@@ -13,7 +14,7 @@ export type EvmGetPublicKeyResponse = {
 };
 
 export async function evmGetPublicKeyHandler(
-  { walletId, accountIndex, isLegacy }: EvmGetPublicKeyRequest,
+  { walletId, accountIndex, isLegacy, isKastleLegacy }: EvmGetPublicKeyRequest,
   sendResponse: (response: EvmGetPublicKeyResponse) => void,
 ) {
   const extensionService = ExtensionService.getInstance();
@@ -26,7 +27,12 @@ export async function evmGetPublicKeyHandler(
     throw new Error("Keyring not initialized or locked");
   }
 
-  const signer = await getSigner(walletId, accountIndex, isLegacy);
+  const signer = await getSigner(
+    walletId,
+    accountIndex,
+    isLegacy,
+    isKastleLegacy,
+  );
 
   const publicKey = await signer.getPublicKey();
   sendResponse({ publicKey });

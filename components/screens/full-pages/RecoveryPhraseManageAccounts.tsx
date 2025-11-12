@@ -40,6 +40,7 @@ export default function RecoveryPhraseManageAccounts() {
               walletId,
               accountIndex: i,
               isLegacy: settings?.isLegacyEvmAddressEnabled ?? false,
+              isKastleLegacy: isLegacyEnabled,
             });
 
             accounts.push({ publicKeys, evmPublicKey });
@@ -54,7 +55,7 @@ export default function RecoveryPhraseManageAccounts() {
       {!wallet && <Splash />}
       {wallet && (
         <ManageAccounts
-          key={`manage-accounts-${isLegacyEnabled}`}
+          key={`manage-accounts-${isLegacyEnabled}-${settings?.isLegacyEvmAddressEnabled ?? false}`}
           wallet={wallet}
           listAccounts={listAccounts}
           isLegacyWalletEnabled={isLegacyEnabled}

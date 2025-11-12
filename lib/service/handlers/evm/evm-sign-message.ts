@@ -5,8 +5,10 @@ import { Hex } from "viem";
 export type EvmSignMessageRequest = {
   walletId: string;
   accountIndex: number;
-  isLegacy: boolean;
   message: string;
+
+  isLegacy: boolean;
+  isKastleLegacy: boolean;
 };
 
 export type EvmSignMessageResponse = {
@@ -14,7 +16,13 @@ export type EvmSignMessageResponse = {
 };
 
 export async function evmSignMessageHandler(
-  { walletId, accountIndex, isLegacy, message }: EvmSignMessageRequest,
+  {
+    walletId,
+    accountIndex,
+    message,
+    isLegacy,
+    isKastleLegacy,
+  }: EvmSignMessageRequest,
   sendResponse: (response: EvmSignMessageResponse) => void,
 ) {
   const extensionService = ExtensionService.getInstance();
@@ -27,7 +35,12 @@ export async function evmSignMessageHandler(
     throw new Error("Keyring not initialized or locked");
   }
 
-  const signer = await getSigner(walletId, accountIndex, isLegacy);
+  const signer = await getSigner(
+    walletId,
+    accountIndex,
+    isLegacy,
+    isKastleLegacy,
+  );
 
   const signature = await signer.signMessage(message);
   sendResponse({ signature });

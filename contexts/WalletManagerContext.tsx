@@ -14,6 +14,7 @@ import { explorerTxLinks } from "@/components/screens/Settings.tsx";
 import useKaspaBackgroundSigner from "@/hooks/wallet/useKaspaBackgroundSigner";
 import useEvmBackgroundSigner from "@/hooks/wallet/useEvmBackgroundSigner";
 import { NetworkType } from "./SettingsContext";
+import { useSettings } from "@/hooks/useSettings";
 
 export const WALLET_SETTINGS = "local:wallet-settings";
 const KASPA_BALANCES_KEY = "local:kaspa-balances";
@@ -120,6 +121,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
   >(KASPA_BALANCES_KEY, {});
   const kaspaSigner = useKaspaBackgroundSigner();
   const evmSigner = useEvmBackgroundSigner();
+  const [settings] = useSettings();
 
   // TODO: Remove this after the next release
   // Refresh public keys for the account that don't have them
@@ -371,38 +373,39 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!walletSettings || isWalletSettingsLoading) return;
 
-    const tryUpdateEvmPublicKeys = async () => {
+    const tryUpdateEvmPublicKeys = async (prev: WalletSettings) => {
+      const wallets = prev.wallets;
+      if (!wallets) return prev;
+
       let updated = false;
-      const updatePromises = walletSettings.wallets.map(async (wallet) => {
-        if (wallet.type === "ledger") return;
-        const isEvmPublicKeySet = wallet.accounts.every(
-          (account) => account.evmPublicKey !== undefined,
-        );
-        if (isEvmPublicKeySet) return;
-        updated = true;
+      const newWallets = await Promise.all(
+        wallets.map(async (wallet) => {
+          if (wallet.type === "ledger") return wallet;
 
-        await Promise.all(
-          wallet.accounts.map(async (account) => {
-            if (account.evmPublicKey !== undefined) return;
+          const newAccounts = await Promise.all(
+            wallet.accounts.map(async (account) => {
+              const { publicKey } = await evmSigner.getPublicKey({
+                walletId: wallet.id,
+                accountIndex: account.index,
+                isLegacy: settings?.isLegacyEvmAddressEnabled ?? false,
+                isKastleLegacy: wallet.isLegacyWalletEnabled ?? true,
+              });
+              updated = true;
+              return { ...account, evmPublicKey: publicKey };
+            }),
+          );
 
-            const { publicKey } = await evmSigner.getPublicKey({
-              walletId: wallet.id,
-              accountIndex: account.index,
-              isLegacy: false,
-            });
+          return { ...wallet, accounts: newAccounts };
+        }),
+      );
 
-            account.evmPublicKey = publicKey;
-          }),
-        );
-      });
-      await Promise.all(updatePromises);
+      if (!updated) return prev;
 
-      if (!updated) return;
-      await setWalletSettings({ ...walletSettings });
+      return { ...prev, wallets: newWallets };
     };
 
-    tryUpdateEvmPublicKeys();
-  }, [walletSettings, isWalletSettingsLoading]);
+    setWalletSettings(tryUpdateEvmPublicKeys);
+  }, [isWalletSettingsLoading, settings?.isLegacyEvmAddressEnabled]);
 
   return (
     <WalletManagerContext.Provider

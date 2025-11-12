@@ -6,8 +6,10 @@ import { Hex, parseTransaction } from "viem";
 export interface EvmSignTransactionRequest {
   walletId: string;
   accountIndex: number;
-  isLegacy: boolean;
   transaction: SerializedTransactionReturnType;
+
+  isLegacy: boolean;
+  isKastleLegacy: boolean;
 }
 
 export interface EvmSignTransactionResponse {
@@ -15,7 +17,13 @@ export interface EvmSignTransactionResponse {
 }
 
 export async function evmSignTransactionHandler(
-  { walletId, accountIndex, isLegacy, transaction }: EvmSignTransactionRequest,
+  {
+    walletId,
+    accountIndex,
+    isLegacy,
+    isKastleLegacy,
+    transaction,
+  }: EvmSignTransactionRequest,
   sendResponse: (response: EvmSignTransactionResponse) => void,
 ) {
   const extensionService = ExtensionService.getInstance();
@@ -28,7 +36,12 @@ export async function evmSignTransactionHandler(
     throw new Error("Keyring not initialized or locked");
   }
 
-  const signer = await getSigner(walletId, accountIndex, isLegacy);
+  const signer = await getSigner(
+    walletId,
+    accountIndex,
+    isLegacy,
+    isKastleLegacy,
+  );
 
   const signedTransaction = await signer.signTransaction(
     parseTransaction(transaction),

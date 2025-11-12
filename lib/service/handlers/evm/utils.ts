@@ -9,6 +9,7 @@ export async function getSigner(
   walletId: string,
   accountIndex: number,
   isLegacy: boolean = true,
+  isKastleLegacy: boolean = false,
 ) {
   const extensionService = ExtensionService.getInstance();
   const keyring = extensionService.getKeyring();
@@ -30,6 +31,7 @@ export async function getSigner(
       return accountFactory.createFromMnemonic(
         walletSecret.value,
         accountIndex,
+        isKastleLegacy,
       );
     default:
       throw new Error(`Unsupported wallet secret type: ${walletSecret.type}`);
