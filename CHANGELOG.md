@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.39.2](https://github.com/forbole/kastle/compare/v2.39.1...v2.39.2) (2025-11-12)
+
+
+### Bug Fixes
+
+* legacy evm address in popup inconsistent with manage accounts page ([#236](https://github.com/forbole/kastle/issues/236)) ([1f9d492](https://github.com/forbole/kastle/commit/1f9d4925d61602bb29b1bcd700941d58e8a603a9))
+
 ## [2.39.1](https://github.com/forbole/kastle/compare/v2.39.0...v2.39.1) (2025-11-10)
 
 
