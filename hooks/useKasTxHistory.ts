@@ -106,7 +106,7 @@ export default function useKasTxHistory(address?: string) {
 
   const loadMore = useCallback(() => {
     if (hasNextPage && !isLoadingMore) {
-      setSize(size + 1);
+      setSize((s) => s + 1);
     }
   }, [hasNextPage, isLoadingMore, setSize]);
 
