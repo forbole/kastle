@@ -23,6 +23,11 @@ export const explorerAddressLinks = {
   [NetworkType.TestnetT10]: "https://explorer-tn10.kaspa.org/addresses/",
 };
 
+export const restApis = {
+  [NetworkType.Mainnet]: "https://api.kaspa.org",
+  [NetworkType.TestnetT10]: "https://api-tn10.kaspa.org",
+};
+
 export default function Settings() {
   const [networkDropdownOpen, setNetworkDropdownOpen] = useState(false);
   const [lockAfterDropdownOpen, setLockAfterDropdownOpen] = useState(false);
