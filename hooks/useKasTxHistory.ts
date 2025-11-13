@@ -3,7 +3,7 @@ import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import { useSettings } from "./useSettings";
 import useSWRInfinite from "swr/infinite";
 import { fetcher, emptyFetcher } from "@/lib/utils";
-import { addressFromScriptPublicKey } from "@/wasm/core/kaspa";
+import { useCallback } from "react";
 
 const PAGE_SIZE = 20;
 
@@ -24,18 +24,37 @@ function mapTxResponseToHistoryItem(
 ): KaspaTxHistoryItem {
   return {
     txHash: tx.transaction_id,
-    inputs: (tx.inputs || []).map((input: any) => ({
-      address:
-        input.previous_outpoint_address ||
-        input.previous_outpoint_resolved?.script_public_key_address,
+    inputs: (tx.inputs || []).map((input) => ({
+      address: input.previous_outpoint_address,
       amount: input.previous_outpoint_amount,
     })),
-    outputs: (tx.outputs || []).map((output: any) => ({
+    outputs: (tx.outputs || []).map((output) => ({
       address: output.script_public_key_address,
       amount: output.amount,
     })),
   };
 }
+
+type InputResponse = {
+  transaction_id: string;
+  index: number;
+  previous_outpoint_hash: string;
+  previous_outpoint_index: string;
+  previous_outpoint_address: string;
+  previous_outpoint_amount: number;
+  signature_script: string;
+  sig_op_count: string;
+};
+
+type OutputResponse = {
+  transaction_id: string;
+  index: number;
+  amount: number;
+  script_public_key: string;
+  script_public_key_address: string;
+  script_public_key_type: string;
+  accepting_block_hash: string;
+};
 
 // Kaspa full-transactions API response type
 export type KaspaTxApiResponse = {
@@ -50,25 +69,8 @@ export type KaspaTxApiResponse = {
   accepting_block_hash: string;
   accepting_block_blue_score: number;
   accepting_block_time: number;
-  inputs: Array<{
-    transaction_id: string;
-    index: number;
-    previous_outpoint_hash: string;
-    previous_outpoint_index: string;
-    previous_outpoint_address: string;
-    previous_outpoint_amount: number;
-    signature_script: string;
-    sig_op_count: string;
-  }>;
-  outputs: Array<{
-    transaction_id: string;
-    index: number;
-    amount: number;
-    script_public_key: string;
-    script_public_key_address: string;
-    script_public_key_type: string;
-    accepting_block_hash: string;
-  }>;
+  inputs: Array<InputResponse>;
+  outputs: Array<OutputResponse>;
 };
 
 export default function useKasTxHistory(address?: string) {
@@ -77,7 +79,10 @@ export default function useKasTxHistory(address?: string) {
   const network = settings?.networkId ?? NetworkType.Mainnet;
   const restApi = restApis[network];
 
-  const getKey = (pageIndex: number, previousPageData: any) => {
+  const getKey = (
+    pageIndex: number,
+    previousPageData: KaspaTxApiResponse[] | null,
+  ) => {
     if (!address) return null;
     if (previousPageData && previousPageData.length < PAGE_SIZE) return null;
     return `${restApi}/addresses/${address}/full-transactions?resolve_previous_outpoints=light&limit=${PAGE_SIZE}&offset=${pageIndex * PAGE_SIZE}`;
@@ -99,11 +104,11 @@ export default function useKasTxHistory(address?: string) {
   const hasNextPage =
     !isEmpty && data && data[data.length - 1]?.length === PAGE_SIZE;
 
-  const loadMore = () => {
+  const loadMore = useCallback(() => {
     if (hasNextPage && !isLoadingMore) {
       setSize(size + 1);
     }
-  };
+  }, [hasNextPage, isLoadingMore, setSize]);
 
   return {
     txs,

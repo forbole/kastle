@@ -5,6 +5,8 @@ import useAccountManager from "@/hooks/wallet/useAccountManager";
 import { sompiToKaspaString } from "@/wasm/core/kaspa";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import { explorerTxLinks } from "@/components/screens/Settings.tsx";
+import useCurrencyValue from "@/hooks/useCurrencyValue";
+import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 
 type TokenHistoryItemProps = {
   inputs: {
@@ -69,7 +71,7 @@ export default function TokenHistoryItem({
         />
         <div className="flex flex-grow flex-col gap-1">
           <div className="flex items-center justify-between text-base text-white">
-            <span className="capitalize">Send</span>
+            <span className="capitalize">{status}</span>
             <span
               className={twMerge(
                 status === "Send" ? "text-[#EF4444]" : "text-[#14B8A6]",

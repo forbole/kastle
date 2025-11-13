@@ -23,14 +23,17 @@ export default function KasHistory() {
       { rootMargin: "100px" },
     );
     if (observerRef.current) observer.observe(observerRef.current);
-    return () => observer.disconnect();
+    return () => {
+      if (observerRef.current) observer.unobserve(observerRef.current);
+      observer.disconnect();
+    };
   }, [hasNextPage, isLoadingMore, loadMore]);
 
   return (
     <div className="no-scrollbar mt-8 flex flex-col items-stretch gap-2 overflow-y-auto">
-      {txs.map((data, index) => (
+      {txs.map((data) => (
         <TokenHistoryItem
-          key={index}
+          key={data.txHash}
           inputs={data.inputs}
           outputs={data.outputs}
           txHash={data.txHash}
