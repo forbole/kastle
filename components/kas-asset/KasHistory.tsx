@@ -37,17 +37,15 @@ export default function KasHistory() {
         />
       ))}
       {/* Infinite scroll trigger */}
-      {hasNextPage && (
-        <div ref={observerRef} className="flex justify-center py-4">
-          {isLoadingMore ? (
-            <span>Loading...</span>
-          ) : (
-            <span className="text-xs text-gray-400">
-              Scroll to load more...
-            </span>
-          )}
-        </div>
-      )}
+      <div ref={observerRef} className="flex justify-center">
+        {isLoadingMore && (
+          <span
+            className="inline-block size-6 animate-spin self-center rounded-full border-[6px] border-current border-t-[#A2F5FF] text-icy-blue-600"
+            role="status"
+            aria-label="loading"
+          />
+        )}
+      </div>
     </div>
   );
 }
