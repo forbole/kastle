@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.40.0](https://github.com/forbole/kastle/compare/v2.39.2...v2.40.0) (2025-11-14)
+
+
+### Features
+
+* implement kas tx history ([#238](https://github.com/forbole/kastle/issues/238)) ([c45b8ef](https://github.com/forbole/kastle/commit/c45b8ef8496dccc19ac7a3596c2827fa8dbda22c))
+
 ## [2.39.2](https://github.com/forbole/kastle/compare/v2.39.1...v2.39.2) (2025-11-12)
 
 
