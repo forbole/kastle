@@ -12,7 +12,7 @@ import { useSettings } from "../useSettings";
 
 export default function useAccountManager() {
   const { rpcClient, networkId } = useRpcClientStateful();
-  const { walletSettings, setWalletSettings } = useWalletManager();
+  const { walletSettings, setWalletSettings, account } = useWalletManager();
   const keyring = useKeyring();
   const kaspaBackgroundSigner = useKaspaBackgroundSigner();
   const evmBackgroundSigner = useEvmBackgroundSigner();
@@ -251,6 +251,7 @@ export default function useAccountManager() {
   };
 
   return {
+    account,
     addAccount,
     selectAccount,
     updateSelectedAccounts,
