@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.40.1](https://github.com/forbole/kastle/compare/v2.40.0...v2.40.1) (2025-11-17)
+
+
+### Bug Fixes
+
+* correct word for status in history page ([#241](https://github.com/forbole/kastle/issues/241)) ([df50750](https://github.com/forbole/kastle/commit/df5075047fdd378abb570e770acd12aa0f89b5c1))
+
 ## [2.40.0](https://github.com/forbole/kastle/compare/v2.39.2...v2.40.0) (2025-11-14)
 
 
