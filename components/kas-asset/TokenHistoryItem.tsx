@@ -45,7 +45,7 @@ export default function TokenHistoryItem({
   const amountInSompi = Number(totalOutput) - Number(totalInput);
   const absAmountInSompi = amountInSompi < 0 ? -amountInSompi : amountInSompi;
   const fiatAmount = parseFloat(sompiToKaspaString(absAmountInSompi));
-  const status = amountInSompi < 0 ? "Send" : "Receive";
+  const status = amountInSompi <= 0 ? "Sent" : "Received";
 
   const { amount: amountCurrency, code: amountCurrencyCode } =
     useCurrencyValue(fiatAmount);
@@ -74,11 +74,11 @@ export default function TokenHistoryItem({
             <span className="capitalize">{status}</span>
             <span
               className={twMerge(
-                status === "Send" ? "text-[#EF4444]" : "text-[#14B8A6]",
+                status === "Sent" ? "text-[#EF4444]" : "text-[#14B8A6]",
               )}
             >
-              {status === "Send" && "-"}
-              {status === "Receive" && "+"}
+              {status === "Sent" && "-"}
+              {status === "Received" && "+"}
               {fiatAmount}
             </span>
           </div>
