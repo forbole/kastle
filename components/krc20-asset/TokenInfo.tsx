@@ -16,14 +16,10 @@ export default function TokenInfo() {
   const { ticker } = useParams();
   const { data: tokenInfoResponse, isLoading: isTokenInfoLoading } =
     useTokenInfo(ticker);
-  const {
-    data: tokenMetadata,
-    isLoading: isMetadataLoading,
-    toPriceInUsd,
-  } = useTokenMetadata(ticker);
+  const { data: tokenMetadata, toPriceInUsd } = useTokenMetadata(ticker);
   const [imageUrl, setImageUrl] = useState(kasIcon);
   const [settings] = useSettings();
-  const isLoading = isTokenInfoLoading || isMetadataLoading;
+  const isLoading = isTokenInfoLoading;
   const tokenInfo = tokenInfoResponse?.result?.[0];
 
   const { toFloat } = applyDecimal(tokenInfo?.dec);

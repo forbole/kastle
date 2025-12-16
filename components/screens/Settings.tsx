@@ -14,12 +14,12 @@ import packageJson from "../../package.json";
 import CurrencySelection from "@/components/settings/CurrencySelection.tsx";
 
 export const explorerTxLinks = {
-  [NetworkType.Mainnet]: "https://kas.fyi/transaction/",
+  [NetworkType.Mainnet]: "https://explorer.kaspa.org/txs/",
   [NetworkType.TestnetT10]: "https://explorer-tn10.kaspa.org/txs/",
 };
 
 export const explorerAddressLinks = {
-  [NetworkType.Mainnet]: "https://kas.fyi/address/",
+  [NetworkType.Mainnet]: "https://explorer.kaspa.org/addresses/",
   [NetworkType.TestnetT10]: "https://explorer-tn10.kaspa.org/addresses/",
 };
 
