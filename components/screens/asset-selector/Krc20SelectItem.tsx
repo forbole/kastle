@@ -2,13 +2,13 @@ import { TokenItem } from "@/hooks/kasplex/useTokenListByAddress";
 import { applyDecimal } from "@/lib/krc20.ts";
 import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import { twMerge } from "tailwind-merge";
-import { useTokenMetadata } from "@/hooks/kasplex/useTokenMetadata";
 import { useTokenInfo } from "@/hooks/kasplex/useTokenInfo";
 import Layer2AssetImage from "@/components/Layer2AssetImage";
 import { textEllipsis } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import HoverTooltip from "@/components/HoverTooltip";
+import useKrc20Logo from "@/hooks/kasplex/useKrc20Logo";
 
 interface KRC20SelectItemProps {
   token: TokenItem;
@@ -18,7 +18,7 @@ export default function KRC20SelectItem({ token }: KRC20SelectItemProps) {
   const navigate = useNavigate();
   const { wallet } = useWalletManager();
 
-  const { data: tokenMetadata } = useTokenMetadata(token.id);
+  const { logo } = useKrc20Logo(token.id);
   const { toFloat } = applyDecimal(token.dec);
   const balance = parseInt(token.balance, 10);
   const { data: tokenInfoResponse } = useTokenInfo(token.id);
@@ -44,7 +44,7 @@ export default function KRC20SelectItem({ token }: KRC20SelectItemProps) {
         >
           <HoverTooltip text="KRC20" place="right">
             <Layer2AssetImage
-              tokenImage={tokenMetadata?.iconUrl}
+              tokenImage={logo}
               chainImage={kasIcon}
               chainImageSize={16}
               chainImageBottomPosition={-2}

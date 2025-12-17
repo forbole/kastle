@@ -10,7 +10,7 @@ import { formatCurrency } from "@/lib/utils.ts";
 import useKaspaPrice from "@/hooks/useKaspaPrice.ts";
 import { Tooltip } from "react-tooltip";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
-import { useTokenMetadata } from "@/hooks/kasplex/useTokenMetadata.ts";
+import { useKrc20Prices } from "@/hooks/kasplex/useKrc20Prices";
 import { textEllipsis } from "@/lib/utils.ts";
 import HoverShowAllCopy from "@/components/HoverShowAllCopy.tsx";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
@@ -31,7 +31,7 @@ export const ConfirmTokenOperationStep = ({
   const { krc20Fee, kaspaFee, forboleFee, totalFees } = computeOperationFees(
     opData.op as Operation,
   );
-  const { toPriceInUsd } = useTokenMetadata(
+  const { price } = useKrc20Prices(
     opData.op === "mint" ? opData.tick : undefined,
   );
   const { data: tokenInfoResponse } = useTokenInfo(
@@ -47,7 +47,7 @@ export const ConfirmTokenOperationStep = ({
     tokenInfo?.mod === "mint" ? tokenInfo?.tick : tokenInfo?.name;
 
   const amount = toFloatForExisting(parseInt(opData.amt, 10));
-  const fiatAmount = amount * toPriceInUsd();
+  const fiatAmount = amount * (price ?? 0);
   const fiatFees = totalFees * kaspaPrice.kaspaPrice;
   const { amount: amountCurrency, code: amountCurrencyCode } =
     useCurrencyValue(fiatAmount);

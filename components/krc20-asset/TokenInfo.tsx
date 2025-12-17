@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useTokenInfo } from "@/hooks/kasplex/useTokenInfo";
-import { useTokenMetadata } from "@/hooks/kasplex/useTokenMetadata";
 import { formatCurrency } from "@/lib/utils.ts";
 import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import { twMerge } from "tailwind-merge";
@@ -11,34 +10,38 @@ import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 import { textEllipsis } from "@/lib/utils.ts";
 import HoverShowAllCopy from "../HoverShowAllCopy";
 import { useSettings } from "@/hooks/useSettings";
+import useKrc20Logo from "@/hooks/kasplex/useKrc20Logo";
+import { useKrc20Prices } from "@/hooks/kasplex/useKrc20Prices";
 
 export default function TokenInfo() {
   const { ticker } = useParams();
   const { data: tokenInfoResponse, isLoading: isTokenInfoLoading } =
     useTokenInfo(ticker);
-  const { data: tokenMetadata, toPriceInUsd } = useTokenMetadata(ticker);
   const [imageUrl, setImageUrl] = useState(kasIcon);
   const [settings] = useSettings();
   const isLoading = isTokenInfoLoading;
   const tokenInfo = tokenInfoResponse?.result?.[0];
+  const { price } = useKrc20Prices(ticker);
+  const { logo } = useKrc20Logo(ticker);
 
   const { toFloat } = applyDecimal(tokenInfo?.dec);
   const max = tokenInfo ? parseInt(tokenInfo.max, 10) : 0;
   const minted = tokenInfo ? parseInt(tokenInfo.minted, 10) : 0;
   const mintedPercentage = (minted / max) * 100;
   const totalMinted = `${mintedPercentage < 0.1 ? "<0.1" : mintedPercentage.toFixed(1)}% (${toFloat(minted).toLocaleString()}/${toFloat(max).toLocaleString()})`;
-  const { amount: amountCurrency, code: amountCurrencyCode } =
-    useCurrencyValue(toPriceInUsd());
+  const { amount: amountCurrency, code: amountCurrencyCode } = useCurrencyValue(
+    price ?? 0,
+  );
 
   const onImageError = () => {
     setImageUrl(kasIcon);
   };
 
   useEffect(() => {
-    if (tokenMetadata?.iconUrl) {
-      setImageUrl(tokenMetadata.iconUrl);
+    if (logo) {
+      setImageUrl(logo);
     }
-  }, [tokenMetadata?.iconUrl]);
+  }, [logo]);
 
   const tokenName =
     tokenInfo?.mod === "mint" ? tokenInfo?.tick : tokenInfo?.name;

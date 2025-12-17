@@ -3,8 +3,8 @@ import { useFormContext } from "react-hook-form";
 import { DeployFormData } from "@/components/screens/full-pages/MintToken.tsx";
 import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import { applyDecimal } from "@/lib/krc20.ts";
-import { useTokenMetadata } from "@/hooks/kasplex/useTokenMetadata.ts";
 import { useTokenInfo } from "@/hooks/kasplex/useTokenInfo";
+import useKrc20Logo from "@/hooks/kasplex/useKrc20Logo";
 
 interface MintTokenItemProps {
   token?: any;
@@ -13,21 +13,21 @@ interface MintTokenItemProps {
 export default function MintTokenItem({ token }: MintTokenItemProps) {
   const { setValue } = useFormContext<DeployFormData>();
 
-  const { data: tokenMetadata } = useTokenMetadata(token.tick);
   const [imageUrl, setImageUrl] = useState(kasIcon);
   const { toFloat } = applyDecimal(token.dec);
   const balance = parseInt(token.balance, 10);
   const { data: tokenInfo } = useTokenInfo(token.id);
+  const { logo } = useKrc20Logo(token.id);
 
   const onImageError = () => {
     setImageUrl(kasIcon);
   };
 
   useEffect(() => {
-    if (tokenMetadata?.iconUrl) {
-      setImageUrl(tokenMetadata.iconUrl);
+    if (logo) {
+      setImageUrl(logo);
     }
-  }, [tokenMetadata?.iconUrl]);
+  }, [logo]);
 
   const isMintMode = tokenInfo?.result?.[0]?.mod === "mint";
 
