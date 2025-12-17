@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.41.0](https://github.com/forbole/kastle/compare/v2.40.1...v2.41.0) (2025-12-17)
+
+
+### Features
+
+* update explorer links for transaction and addresses ([#246](https://github.com/forbole/kastle/issues/246)) ([b47db5d](https://github.com/forbole/kastle/commit/b47db5d696039bade5480f464bbb619be2c83ba7))
+* update krc20 metadata apis ([#248](https://github.com/forbole/kastle/issues/248)) ([b41ae3c](https://github.com/forbole/kastle/commit/b41ae3cb191d8009d9dcefe1e7a3a22673c9bf93))
+
 ## [2.40.1](https://github.com/forbole/kastle/compare/v2.40.0...v2.40.1) (2025-11-17)
 
 
