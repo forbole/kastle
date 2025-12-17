@@ -11,7 +11,7 @@ import { textEllipsis } from "@/lib/utils.ts";
 import HoverShowAllCopy from "../HoverShowAllCopy";
 import { useSettings } from "@/hooks/useSettings";
 import useKrc20Logo from "@/hooks/kasplex/useKrc20Logo";
-import useKrc20Prices from "@/hooks/kasplex/useKrc20Prices";
+import { useKrc20Prices } from "@/hooks/kasplex/useKrc20Prices";
 
 export default function TokenInfo() {
   const { ticker } = useParams();

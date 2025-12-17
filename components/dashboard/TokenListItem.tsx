@@ -12,7 +12,7 @@ import { TokenItem } from "@/hooks/kasplex/useTokenListByAddress";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 import { useTokenInfo } from "@/hooks/kasplex/useTokenInfo";
 import Layer2AssetImage from "../Layer2AssetImage";
-import useKrc20Prices from "@/hooks/kasplex/useKrc20Prices";
+import { useKrc20Prices } from "@/hooks/kasplex/useKrc20Prices";
 import useKrc20Logo from "@/hooks/kasplex/useKrc20Logo";
 
 type TokenListItemProps = {

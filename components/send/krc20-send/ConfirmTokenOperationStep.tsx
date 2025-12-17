@@ -10,7 +10,7 @@ import { formatCurrency } from "@/lib/utils.ts";
 import useKaspaPrice from "@/hooks/useKaspaPrice.ts";
 import { Tooltip } from "react-tooltip";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
-import useKrc20Prices from "@/hooks/kasplex/useKrc20Prices";
+import { useKrc20Prices } from "@/hooks/kasplex/useKrc20Prices";
 import { textEllipsis } from "@/lib/utils.ts";
 import HoverShowAllCopy from "@/components/HoverShowAllCopy.tsx";
 import useWalletManager from "@/hooks/wallet/useWalletManager";

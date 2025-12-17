@@ -12,7 +12,7 @@ import useWalletManager from "@/hooks/wallet/useWalletManager";
 import useResetPreline from "@/hooks/useResetPreline.ts";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import useKrc20Logo from "@/hooks/kasplex/useKrc20Logo";
-import useKrc20Prices from "@/hooks/kasplex/useKrc20Prices";
+import { useKrc20Prices } from "@/hooks/kasplex/useKrc20Prices";
 
 type TokenHistoryItemProps = { op: Op; tokenInfo?: TokenInfo | undefined };
 

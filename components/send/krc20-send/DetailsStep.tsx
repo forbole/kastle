@@ -21,7 +21,7 @@ import useMempoolStatus from "@/hooks/useMempoolStatus.ts";
 import "/node_modules/flag-icons/css/flag-icons.min.css";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 import useKrc20Logo from "@/hooks/kasplex/useKrc20Logo";
-import useKrc20Prices from "@/hooks/kasplex/useKrc20Prices";
+import { useKrc20Prices } from "@/hooks/kasplex/useKrc20Prices";
 import { useTokenInfo } from "@/hooks/kasplex/useTokenInfo";
 import { KRC20SendForm } from "./Krc20Send";
 import Layer2AssetImage from "@/components/Layer2AssetImage";
