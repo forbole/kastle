@@ -12,7 +12,7 @@ import MintTokenItem from "@/components/mint-token/MintTokenItem.tsx";
 import { useNavigate } from "react-router-dom";
 import { useLocation } from "react-router";
 import kasIcon from "@/assets/images/network-logos/kaspa.svg";
-import { useTokenMetadata } from "@/hooks/kasplex/useTokenMetadata.ts";
+import useKrc20Logo from "@/hooks/kasplex/useKrc20Logo";
 import { useKasplex } from "@/hooks/kasplex/useKasplex.ts";
 import useKaspaBalance from "@/hooks/wallet/useKaspaBalance";
 
@@ -56,7 +56,7 @@ export default function MintToken() {
     mintTimes,
   );
 
-  const { data: tokenMetadata } = useTokenMetadata(
+  const { logo } = useKrc20Logo(
     !form.formState.errors.ticker ? tickerInput : undefined,
   );
   const [imageUrl, setImageUrl] = useState(kasIcon);
@@ -66,10 +66,10 @@ export default function MintToken() {
   };
 
   useEffect(() => {
-    if (tokenMetadata?.iconUrl) {
-      setImageUrl(tokenMetadata.iconUrl);
+    if (logo) {
+      setImageUrl(logo);
     }
-  }, [tokenMetadata?.iconUrl]);
+  }, [logo]);
 
   const tokens = tokenListItems
     ?.filter((token) =>

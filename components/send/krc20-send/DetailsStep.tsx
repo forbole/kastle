@@ -20,7 +20,8 @@ import usePriorityFeeEstimate from "@/hooks/usePriorityFeeEstimate.ts";
 import useMempoolStatus from "@/hooks/useMempoolStatus.ts";
 import "/node_modules/flag-icons/css/flag-icons.min.css";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
-import { useTokenMetadata } from "@/hooks/kasplex/useTokenMetadata.ts";
+import useKrc20Logo from "@/hooks/kasplex/useKrc20Logo";
+import useKrc20Prices from "@/hooks/kasplex/useKrc20Prices";
 import { useTokenInfo } from "@/hooks/kasplex/useTokenInfo";
 import { KRC20SendForm } from "./Krc20Send";
 import Layer2AssetImage from "@/components/Layer2AssetImage";
@@ -64,8 +65,11 @@ export const DetailsStep = () => {
       : [],
   );
 
-  const { data: tokenMetadata, toPriceInUsd } = useTokenMetadata(ticker);
-  const tokenPrice = toPriceInUsd();
+  const { price } = useKrc20Prices(ticker);
+  const tokenPrice = price ?? 0;
+
+  const { logo } = useKrc20Logo(ticker);
+
   const { amount: tokenCurrency } = useCurrencyValue(tokenPrice);
   const { data: tokenBalanceResponse } = useTokenBalance(
     account?.address && ticker
@@ -327,7 +331,7 @@ export const DetailsStep = () => {
                 onClick={toAssetSelectPage}
               >
                 <Layer2AssetImage
-                  tokenImage={tokenMetadata?.iconUrl ?? kasIcon}
+                  tokenImage={logo ?? kasIcon}
                   tokenImageSize={24}
                   chainImageSize={14}
                   chainImage={kasIcon}

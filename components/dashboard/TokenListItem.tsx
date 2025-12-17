@@ -6,13 +6,14 @@ import {
   symbolForCurrencyCode,
 } from "@/lib/utils.ts";
 import React, { useEffect, useState } from "react";
-import { useTokenMetadata } from "@/hooks/kasplex/useTokenMetadata";
 import { useNavigate } from "react-router-dom";
 import { applyDecimal } from "@/lib/krc20.ts";
 import { TokenItem } from "@/hooks/kasplex/useTokenListByAddress";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 import { useTokenInfo } from "@/hooks/kasplex/useTokenInfo";
 import Layer2AssetImage from "../Layer2AssetImage";
+import useKrc20Prices from "@/hooks/kasplex/useKrc20Prices";
+import useKrc20Logo from "@/hooks/kasplex/useKrc20Logo";
 
 type TokenListItemProps = {
   token: TokenItem;
@@ -21,9 +22,10 @@ type TokenListItemProps = {
 export default function TokenListItem({ token }: TokenListItemProps) {
   const navigate = useNavigate();
   const [settings] = useSettings();
-  const { data: tokenMetadata, toPriceInUsd } = useTokenMetadata(token.id);
   const [imageUrl, setImageUrl] = useState(kasIcon);
   const { data: tokenInfoResponse } = useTokenInfo(token.id);
+  const { price } = useKrc20Prices(token.id);
+  const { logo } = useKrc20Logo(token.id);
 
   const showBalance = !settings?.hideBalances;
 
@@ -31,7 +33,7 @@ export default function TokenListItem({ token }: TokenListItemProps) {
   const balanceNumber = toFloat(
     token.balance ? parseInt(token.balance, 10) : 0,
   );
-  const fiatTokenPrice = toPriceInUsd();
+  const fiatTokenPrice = price ?? 0;
   const fiatBalance = balanceNumber * fiatTokenPrice;
   const { amount: tokenPriceCurrency, code: tokenPriceCurrencyCode } =
     useCurrencyValue(fiatTokenPrice);
@@ -39,10 +41,10 @@ export default function TokenListItem({ token }: TokenListItemProps) {
     useCurrencyValue(fiatBalance);
 
   useEffect(() => {
-    if (tokenMetadata?.iconUrl) {
-      setImageUrl(tokenMetadata.iconUrl);
+    if (logo) {
+      setImageUrl(logo);
     }
-  }, [tokenMetadata?.iconUrl]);
+  }, [logo]);
 
   const tokenInfo = tokenInfoResponse?.result?.[0];
   const tokenName =

@@ -2,7 +2,6 @@ import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import { formatCurrency } from "@/lib/utils.ts";
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { useTokenMetadata } from "@/hooks/kasplex/useTokenMetadata";
 import { twMerge } from "tailwind-merge";
 import { applyDecimal } from "@/lib/krc20.ts";
 import { Op } from "@/hooks/useOpListByAddressAndTicker.ts";
@@ -12,6 +11,8 @@ import { TokenInfo } from "@/hooks/kasplex/useKasplex";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import useResetPreline from "@/hooks/useResetPreline.ts";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
+import useKrc20Logo from "@/hooks/kasplex/useKrc20Logo";
+import useKrc20Prices from "@/hooks/kasplex/useKrc20Prices";
 
 type TokenHistoryItemProps = { op: Op; tokenInfo?: TokenInfo | undefined };
 
@@ -22,10 +23,11 @@ export default function TokenHistoryItem({
   useResetPreline();
   const { networkId } = useRpcClientStateful();
   const { ticker } = useParams();
-  const { data: tokenMetadata, toPriceInUsd } = useTokenMetadata(ticker);
+  const { logo } = useKrc20Logo(ticker);
   const { account } = useWalletManager();
   const [imageUrl, setImageUrl] = useState(kasIcon);
   const { toFloat } = applyDecimal(tokenInfo?.dec);
+  const { price } = useKrc20Prices(ticker);
 
   const firstAddress = account?.address;
 
@@ -50,7 +52,7 @@ export default function TokenHistoryItem({
       }
   }
 
-  const fiatAmount = amount * toPriceInUsd();
+  const fiatAmount = amount * (price ?? 0);
   const { amount: amountCurrency, code: amountCurrencyCode } =
     useCurrencyValue(fiatAmount);
 
@@ -65,10 +67,10 @@ export default function TokenHistoryItem({
   };
 
   useEffect(() => {
-    if (tokenMetadata?.iconUrl) {
-      setImageUrl(tokenMetadata.iconUrl);
+    if (logo) {
+      setImageUrl(logo);
     }
-  }, [tokenMetadata?.iconUrl]);
+  }, [logo]);
 
   return (
     <div className="flex flex-col items-stretch gap-2">

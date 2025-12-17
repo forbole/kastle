@@ -1,4 +1,4 @@
-import { useTokensMetadata } from "@/hooks/kasplex/useTokenMetadata";
+import useKrc20TotalPriceInUsd from "./useKrc20TotalPriceInUsd";
 import { applyDecimal } from "@/lib/krc20.ts";
 import { useTokenListByAddress } from "@/hooks/kasplex/useTokenListByAddress";
 import { Account } from "@/contexts/WalletManagerContext.tsx";
@@ -23,17 +23,7 @@ export default function useTotalBalanceByAccount(account?: Account) {
     {},
   );
   const tokenIds = Object.keys(balancePerTicker ?? {});
-  const { toPriceInUsd } = useTokensMetadata(tokenIds);
-  const priceInUsdPerTicker = toPriceInUsd();
-
-  const totalTokenUsd = Object.entries(balancePerTicker ?? {}).reduce<number>(
-    (acc, [tokenId, amount]) => {
-      const tokenUsdPrice = priceInUsdPerTicker?.[tokenId] ?? 0;
-      const totalTickerUsd = amount * tokenUsdPrice;
-      return acc + totalTickerUsd;
-    },
-    0,
-  );
+  const { totalUsd: totalTokenUsd } = useKrc20TotalPriceInUsd(tokenIds);
 
   return kaspaUsd + totalTokenUsd;
 }
