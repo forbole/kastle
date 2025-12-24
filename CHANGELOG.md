@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.41.1](https://github.com/forbole/kastle/compare/v2.41.0...v2.41.1) (2025-12-24)
+
+
+### Bug Fixes
+
+* show floor price for krc20 ([#251](https://github.com/forbole/kastle/issues/251)) ([2aa69a2](https://github.com/forbole/kastle/commit/2aa69a265bde0494e149c0552a55ba7e28f7c2b2))
+
 ## [2.41.0](https://github.com/forbole/kastle/compare/v2.40.1...v2.41.0) (2025-12-17)
 
 
