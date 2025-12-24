@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.41.2](https://github.com/forbole/kastle/compare/v2.41.1...v2.41.2) (2025-12-24)
+
+
+### Bug Fixes
+
+* show krc20 in usd ([#253](https://github.com/forbole/kastle/issues/253)) ([09ca8e8](https://github.com/forbole/kastle/commit/09ca8e8e5b20bf90c1cb561f8c5bad6691b5db2d))
+
 ## [2.41.1](https://github.com/forbole/kastle/compare/v2.41.0...v2.41.1) (2025-12-24)
 
 
