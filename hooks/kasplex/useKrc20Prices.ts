@@ -57,21 +57,20 @@ export function useKrc20Prices(ticker?: string) {
     { suspense: false },
   );
 
-  const priceData: TokenPriceData | undefined = rawData?.data
+  const priceDataInKas: TokenPriceData | undefined = rawData?.data
     ? {
-        currentPrice:
-          (rawData.data[rawData.data.length - 1]?.price ?? 0) * kaspaPrice,
-        lastPrice: (rawData.data[0]?.price ?? 0) * kaspaPrice,
+        currentPrice: rawData.data[rawData.data.length - 1]?.price ?? 0,
+        lastPrice: rawData.data[0]?.price ?? 0,
       }
     : undefined;
 
-  const currentPrice =
-    priceData?.currentPrice && priceData.currentPrice > 0
-      ? priceData.currentPrice
+  const currentPriceInKas =
+    priceDataInKas?.currentPrice && priceDataInKas.currentPrice > 0
+      ? priceDataInKas.currentPrice
       : floorPriceData?.[0]?.floor_price;
 
   return {
-    price: currentPrice,
+    price: currentPriceInKas ? currentPriceInKas * kaspaPrice : undefined,
     error,
     isLoading,
     mutate,
