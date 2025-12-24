@@ -1,7 +1,7 @@
 import useSWR from "swr";
-import { fetcher, multiFetcher } from "@/lib/utils";
-import useKaspaPrice from "@/hooks/useKaspaPrice";
-import { applyDecimal } from "@/lib/krc20";
+import { fetcher, multiFetcher } from "@/lib/utils.ts";
+import useKaspaPrice from "@/hooks/useKaspaPrice.ts";
+import { applyDecimal } from "@/lib/krc20.ts";
 
 export interface PriceHistoryData {
   date: string;
@@ -23,16 +23,7 @@ export interface TokenBalanceData {
   dec: string;
 }
 
-type FloorPriceResponse = FloorPriceData[];
-
-interface FloorPriceData {
-  ticker: string;
-  floor_price: number;
-}
-
-const baseApiUrl = "https://api.kaspa.com";
-const krc20BaseUrl = `${baseApiUrl}/krc20`;
-const floorPriceBaseUrl = `${baseApiUrl}/p2p-data/floor-price`;
+const baseUrl = "https://api.kaspa.com/krc20";
 
 /**
  * Hook to fetch token price history and extract current and last day prices
@@ -47,12 +38,7 @@ export function useKrc20Prices(ticker?: string) {
     isLoading,
     mutate,
   } = useSWR<PriceHistoryResponse, Error>(
-    ticker ? `${krc20BaseUrl}/price-history-v2/${ticker}?timeFrame=1h` : null,
-    fetcher,
-    { suspense: false },
-  );
-  const { data: floorPriceData } = useSWR<FloorPriceResponse, Error>(
-    ticker ? `${floorPriceBaseUrl}?ticker=${ticker}` : null,
+    ticker ? `${baseUrl}/price-history-v2/${ticker}?timeFrame=1h` : null,
     fetcher,
     { suspense: false },
   );
@@ -65,13 +51,8 @@ export function useKrc20Prices(ticker?: string) {
       }
     : undefined;
 
-  const currentPrice =
-    priceData?.currentPrice && priceData.currentPrice > 0
-      ? priceData.currentPrice
-      : floorPriceData?.[0]?.floor_price;
-
   return {
-    price: currentPrice,
+    price: priceData?.currentPrice,
     error,
     isLoading,
     mutate,
@@ -87,9 +68,7 @@ export function useKrc20TotalPriceInUsd(tokens?: TokenBalanceData[]) {
   const { kaspaPrice } = useKaspaPrice();
   const urls = tokens
     ?.map((token) =>
-      token.id
-        ? `${krc20BaseUrl}/price-history-v2/${token.id}?timeFrame=1h`
-        : null,
+      token.id ? `${baseUrl}/price-history-v2/${token.id}?timeFrame=1h` : null,
     )
     .filter(Boolean) as string[];
 
@@ -100,27 +79,11 @@ export function useKrc20TotalPriceInUsd(tokens?: TokenBalanceData[]) {
     suspense: false,
   });
 
-  const floorPriceUrls = tokens
-    ?.map((token) =>
-      token.id ? `${floorPriceBaseUrl}?ticker=${token.id}` : null,
-    )
-    .filter(Boolean) as string[];
-
-  const { data: floorPriceData } = useSWR<FloorPriceResponse, Error>(
-    floorPriceUrls && floorPriceUrls.length > 0 ? floorPriceUrls : null,
-    multiFetcher,
-    { suspense: false },
-  );
-
   const totalUsd =
     tokens?.reduce<number>((acc, token, index) => {
       const response = data?.[index];
-      const priceFromHistory =
-        response?.data?.[response.data.length - 1]?.price;
       const currentPriceInKas =
-        priceFromHistory && priceFromHistory > 0
-          ? priceFromHistory
-          : (floorPriceData?.[index]?.floor_price ?? 0);
+        response?.data?.[response.data.length - 1]?.price ?? 0;
       const priceInUsd = currentPriceInKas * kaspaPrice;
 
       const { toFloat } = applyDecimal(token.dec);
@@ -146,9 +109,7 @@ export function useKrc20TotalPriceInUsdLastDay(tokens?: TokenBalanceData[]) {
   const { kaspaPrice } = useKaspaPrice();
   const urls = tokens
     ?.map((token) =>
-      token.id
-        ? `${krc20BaseUrl}/price-history-v2/${token.id}?timeFrame=1d`
-        : null,
+      token.id ? `${baseUrl}/price-history-v2/${token.id}?timeFrame=1d` : null,
     )
     .filter(Boolean) as string[];
 
@@ -159,26 +120,10 @@ export function useKrc20TotalPriceInUsdLastDay(tokens?: TokenBalanceData[]) {
     suspense: false,
   });
 
-  const floorPriceUrls = tokens
-    ?.map((token) =>
-      token.id ? `${floorPriceBaseUrl}?ticker=${token.id}` : null,
-    )
-    .filter(Boolean) as string[];
-
-  const { data: floorPriceData } = useSWR<FloorPriceResponse, Error>(
-    floorPriceUrls && floorPriceUrls.length > 0 ? floorPriceUrls : null,
-    multiFetcher,
-    { suspense: false },
-  );
-
   const totalUsd =
     tokens?.reduce<number>((acc, token, index) => {
       const response = data?.[index];
-      const priceFromHistory = response?.data?.[0]?.price;
-      const lastDayPriceInKas =
-        priceFromHistory && priceFromHistory > 0
-          ? priceFromHistory
-          : (floorPriceData?.[index]?.floor_price ?? 0);
+      const lastDayPriceInKas = response?.data?.[0]?.price ?? 0;
       const priceInUsd = lastDayPriceInKas * kaspaPrice;
 
       const { toFloat } = applyDecimal(token.dec);
