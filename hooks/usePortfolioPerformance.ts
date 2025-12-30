@@ -6,13 +6,30 @@ import {
   useKrc20TotalPriceInUsdLastDay,
   useKrc20TotalPriceInUsd,
 } from "./kasplex/useKrc20Prices";
+import { useEvmKasBalancesByAddress } from "./evm/useEvmKasBalance";
+import { publicKeyToAddress } from "viem/utils";
 
 export default function usePortfolioPerformance() {
   const { account } = useWalletManager();
   const kaspaPrice = useKaspaPrice();
   const balance = useKaspaBalance(account?.address) ?? 0;
-  const kaspaUsd = balance * kaspaPrice.kaspaPrice;
-  const kaspaLastDayUsd = balance ? balance * kaspaPrice.lastDayKaspaPrice : 0;
+
+  // Layer2 tokens
+  const evmAddress = account?.evmPublicKey
+    ? publicKeyToAddress(account.evmPublicKey)
+    : undefined;
+
+  const { data: evmKasBalances } = useEvmKasBalancesByAddress(evmAddress);
+  // TODO: Add ERC20 tokens performance calculation if last day price data is available
+
+  const kaspaBalance =
+    balance +
+    Object.values(evmKasBalances ?? {}).reduce(
+      (acc, { balance }) => acc + parseFloat(balance),
+      0,
+    );
+  const kaspaUsd = kaspaBalance * kaspaPrice.kaspaPrice;
+  const kaspaLastDayUsd = kaspaBalance * kaspaPrice.lastDayKaspaPrice;
 
   const tokenList = useTokenListByAddress(account?.address, 5000);
 

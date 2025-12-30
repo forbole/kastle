@@ -8,16 +8,14 @@ import useErc20Balance from "@/hooks/evm/useErc20Balance";
 import { Erc20Asset } from "@/contexts/EvmAssets";
 import { formatToken, textEllipsis } from "@/lib/utils.ts";
 import HoverTooltip from "@/components/HoverTooltip";
+import { useErc20Image } from "@/hooks/evm/useZealousSwapMetadata";
 
 export default function Erc20SelectItem({ asset }: { asset: Erc20Asset }) {
   const { wallet } = useWalletManager();
   const navigate = useNavigate();
-  const { data } = useErc20Balance(
-    asset.address,
-    asset.decimals,
-    asset.chainId,
-  );
+  const { data } = useErc20Balance(asset.address, asset.chainId);
   const balance = data?.balance ?? "0";
+  const { logoUrl } = useErc20Image(asset.chainId, asset.address);
 
   const isLedger = wallet?.type === "ledger";
   const onClick = () => {
@@ -41,7 +39,7 @@ export default function Erc20SelectItem({ asset }: { asset: Erc20Asset }) {
           >
             <HoverTooltip text={getChainName(asset.chainId)} place="right">
               <Layer2AssetImage
-                tokenImage={asset.image ?? kasIcon}
+                tokenImage={asset.image ?? logoUrl}
                 chainImage={getChainImage(asset.chainId)}
                 chainImageBottomPosition={-2}
                 chainImageSize={16}
@@ -54,7 +52,7 @@ export default function Erc20SelectItem({ asset }: { asset: Erc20Asset }) {
               </span>
             </div>
           </div>
-          {!isLedger && <span>{formatToken(parseFloat(balance))}</span>}
+          {!isLedger && <span>{formatToken(balance)}</span>}
           {isLedger && (
             <span className="rounded-full bg-[#1C333C] p-2 px-4 text-xs text-white">
               Not supported with Ledger

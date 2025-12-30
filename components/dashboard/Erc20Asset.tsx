@@ -9,24 +9,26 @@ import {
   symbolForCurrencyCode,
   formatToken,
 } from "@/lib/utils.ts";
+import {
+  useErc20Image,
+  useErc20Price,
+} from "@/hooks/evm/useZealousSwapMetadata";
 
 export default function Erc20Asset({ asset }: { asset: Erc20Asset }) {
   const navigate = useNavigate();
   const [settings] = useSettings();
-  const { data } = useErc20Balance(
-    asset.address,
-    asset.decimals,
-    asset.chainId,
+  const { data } = useErc20Balance(asset.address, asset.chainId);
+  const { price } = useErc20Price(asset.chainId, asset.address);
+  const { logoUrl } = useErc20Image(asset.chainId, asset.address);
+
+  const { amount: tokenPriceCurrency, code: tokenPriceCurrencyCode } =
+    useCurrencyValue(price);
+  const { amount: totalBalanceCurrency, code: currencyCode } = useCurrencyValue(
+    price * (data?.balance ?? 0),
   );
 
-  // TODO: Update it when erc20 token has price API
-  const { amount: tokenPriceCurrency, code: tokenPriceCurrencyCode } =
-    useCurrencyValue(0);
-  const { amount: totalBalanceCurrency, code: currencyCode } =
-    useCurrencyValue(0);
-
   const showBalance = !settings?.hideBalances;
-  const balance = formatToken(parseFloat(data?.balance ?? "0"));
+  const balance = formatToken(data?.balance ?? 0);
 
   return (
     <div
@@ -34,7 +36,7 @@ export default function Erc20Asset({ asset }: { asset: Erc20Asset }) {
       onClick={() => navigate(`/erc20-asset/${asset.chainId}/${asset.address}`)}
     >
       <Layer2AssetImage
-        tokenImage={asset.image}
+        tokenImage={asset.image ?? logoUrl}
         chainImage={getChainImage(asset.chainId as `0x${string}`)}
       />
       <div className="flex flex-grow flex-col gap-1">
