@@ -24,6 +24,10 @@ import useEvmAddress from "@/hooks/evm/useEvmAddress";
 import useErc20Balance from "@/hooks/evm/useErc20Balance";
 import { Erc20Asset } from "@/contexts/EvmAssets";
 import useEvmKasBalance from "@/hooks/evm/useEvmKasBalance";
+import {
+  useErc20Price,
+  useErc20Image,
+} from "@/hooks/evm/useZealousSwapMetadata";
 
 export default function DetailsStep({
   asset,
@@ -44,16 +48,12 @@ export default function DetailsStep({
     formState: { isValid, errors, validatingFields },
   } = useFormContext<Erc20SendForm>();
 
-  const { data: balanceInfo } = useErc20Balance(
-    asset.address,
-    asset?.decimals,
-    asset.chainId,
-  );
+  const { data: balanceInfo } = useErc20Balance(asset.address, asset.chainId);
 
   const { data: kasBalanceInfo } = useEvmKasBalance(asset.chainId);
 
   const { balance } = balanceInfo ?? {};
-  const currentBalance = parseFloat(balance ?? "0");
+  const currentBalance = balance ?? 0;
   const evmAddress = useEvmAddress();
 
   const { userInput, address, amount } = watch();
@@ -78,6 +78,8 @@ export default function DetailsStep({
 
   const { data: estimatedFee } = useFeeEstimate(asset.chainId, payload);
 
+  const { logoUrl } = useErc20Image(asset.chainId, asset.address);
+
   // TODO: Add recent address history logic for it
   const { value: isAddressFieldFocused, setValue: setAddressFieldFocused } =
     useBoolean(false);
@@ -86,8 +88,8 @@ export default function DetailsStep({
     navigate("/dashboard");
   };
 
-  // TODO: Add price when it is available
-  const { amount: tokenCurrency } = useCurrencyValue(0);
+  const { price } = useErc20Price(asset.chainId, asset.address);
+  const { amount: tokenCurrency } = useCurrencyValue(price);
 
   const addressValidator = async (value: string | undefined) => {
     const genericErrorMessage = "Invalid address";
@@ -224,7 +226,7 @@ export default function DetailsStep({
           <div className="flex items-center gap-3 text-sm">
             <span className="font-semibold">Balance</span>
             <span className="flex-grow">
-              {formatToken(parseFloat(balance ?? "0"))} {asset.symbol}
+              {formatToken(balance ?? 0)} {asset.symbol}
             </span>
             <button
               className="inline-flex items-center gap-x-2 rounded border border-transparent bg-icy-blue-400 px-3 py-2 text-sm text-white disabled:pointer-events-none disabled:opacity-50"
@@ -247,7 +249,7 @@ export default function DetailsStep({
                 onClick={() => navigate("/asset-select")}
               >
                 <Layer2AssetImage
-                  tokenImage={asset.image ?? kasIcon}
+                  tokenImage={asset.image ?? logoUrl}
                   tokenImageSize={24}
                   chainImageSize={14}
                   chainImage={getChainImage(asset.chainId)}

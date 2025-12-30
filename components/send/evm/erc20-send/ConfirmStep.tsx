@@ -26,6 +26,7 @@ import {
 } from "viem";
 import { Erc20Asset } from "@/contexts/EvmAssets";
 import { formatToken } from "@/lib/utils.ts";
+import { useErc20Price } from "@/hooks/evm/useZealousSwapMetadata";
 
 export const ConfirmStep = ({
   asset,
@@ -69,9 +70,8 @@ export const ConfirmStep = ({
       : undefined;
 
   const { data: estimatedFee } = useFeeEstimate(asset.chainId, payload);
+  const { price: tokenPrice } = useErc20Price(asset.chainId, asset.address);
 
-  // TODO: Add price when it is available
-  const tokenPrice = 0;
   const amountNumber = parseFloat(amount ?? "0");
   const fiatAmount = amountNumber * tokenPrice;
   const fiatFees = parseFloat(formatEther(estimatedFee ?? BigInt(0)));

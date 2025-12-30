@@ -1,41 +1,84 @@
-import { ALL_SUPPORTED_EVM_L2_CHAINS } from "@/lib/layer2";
-import { http, createPublicClient, numberToHex, formatUnits } from "viem";
+import { http, createPublicClient, numberToHex, Hex, formatEther } from "viem";
 import useEvmAddress from "./useEvmAddress";
 import useSWR from "swr";
+import {
+  MAINNET_SUPPORTED_EVM_L2_CHAINS,
+  TESTNET_SUPPORTED_EVM_L2_CHAINS,
+} from "@/lib/layer2";
+import { useSettings } from "../useSettings";
 
-export default function useEvmKasBalance(
-  chainId?: `0x${string}`,
-  decimals = 18,
-) {
-  const evmAddress = useEvmAddress();
-  const fetcher = async () => {
-    if (!evmAddress) {
-      return undefined;
-    }
+export default function useEvmKasBalance(chainId?: Hex) {
+  const balancesResult = useEvmKasBalances();
 
-    const chain = ALL_SUPPORTED_EVM_L2_CHAINS.find(
-      (c) => numberToHex(c.id) === chainId,
-    );
-    if (!chain) {
-      throw new Error(`Unsupported chain ID: ${chainId}`);
-    }
-
-    const client = createPublicClient({
-      chain,
-      transport: http(),
-    });
-
-    const rawBalance = await client.getBalance({
-      address: evmAddress as `0x${string}`,
-    });
+  if (!balancesResult.data || !chainId) {
     return {
-      rawBalance,
-      balance: formatUnits(rawBalance, decimals),
+      data: undefined,
+      error: balancesResult.error,
+      isLoading: balancesResult.isLoading,
+      isValidating: balancesResult.isValidating,
+      mutate: balancesResult.mutate,
     };
+  }
+
+  const balanceData = balancesResult.data[chainId];
+
+  return {
+    data: balanceData,
+    error: balancesResult.error,
+    isLoading: balancesResult.isLoading,
+    isValidating: balancesResult.isValidating,
+    mutate: balancesResult.mutate,
+  };
+}
+
+export function useEvmKasBalances() {
+  const evmAddress = useEvmAddress();
+  const [settings] = useSettings();
+
+  const chains =
+    settings?.networkId === "mainnet"
+      ? MAINNET_SUPPORTED_EVM_L2_CHAINS
+      : TESTNET_SUPPORTED_EVM_L2_CHAINS;
+
+  const fetcher = async () => {
+    if (!evmAddress || chains.length === 0) {
+      return {};
+    }
+
+    const balances: Record<string, { rawBalance: bigint; balance: string }> =
+      {};
+
+    for (const chain of chains) {
+      const chainId = numberToHex(chain.id);
+      const client = createPublicClient({
+        chain,
+        transport: http(),
+      });
+
+      try {
+        const rawBalance = await client.getBalance({
+          address: evmAddress as `0x${string}`,
+        });
+        balances[chainId] = {
+          rawBalance,
+          balance: formatEther(rawBalance),
+        };
+      } catch (error) {
+        console.error(`Error fetching balance for chain ${chainId}:`, error);
+        balances[chainId] = {
+          rawBalance: 0n,
+          balance: "0",
+        };
+      }
+    }
+
+    return balances;
   };
 
   return useSWR(
-    evmAddress ? `kasBalance:${chainId}-${evmAddress}` : null,
+    evmAddress && chains.length > 0
+      ? `kasBalances:${settings?.networkId}-${evmAddress}`
+      : null,
     evmAddress ? fetcher : null,
     {
       refreshInterval: 10000, // Refresh every 10 seconds
