@@ -1,4 +1,11 @@
-import { http, createPublicClient, numberToHex, Hex, formatEther } from "viem";
+import {
+  http,
+  createPublicClient,
+  numberToHex,
+  Hex,
+  formatEther,
+  Address,
+} from "viem";
 import useEvmAddress from "./useEvmAddress";
 import useSWR from "swr";
 import {
@@ -31,8 +38,7 @@ export default function useEvmKasBalance(chainId?: Hex) {
   };
 }
 
-export function useEvmKasBalances() {
-  const evmAddress = useEvmAddress();
+export function useEvmKasBalancesByAddress(evmAddress?: Address) {
   const [settings] = useSettings();
 
   const chains =
@@ -86,4 +92,9 @@ export function useEvmKasBalances() {
       revalidateOnReconnect: false,
     },
   );
+}
+
+export function useEvmKasBalances() {
+  const evmAddress = useEvmAddress();
+  return useEvmKasBalancesByAddress(evmAddress);
 }

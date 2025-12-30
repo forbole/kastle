@@ -1,5 +1,5 @@
 import useSWR from "swr";
-import { createPublicClient, http, erc20Abi } from "viem";
+import { createPublicClient, http, erc20Abi, Hex, Address } from "viem";
 import { numberToHex, formatUnits } from "viem";
 import { ALL_SUPPORTED_EVM_L2_CHAINS } from "@/lib/layer2";
 import useEvmAddress from "./useEvmAddress";
@@ -41,8 +41,7 @@ export default function useErc20Balance(tokenAddress: string, chainId: string) {
   };
 }
 
-export function useErc20Balances() {
-  const evmAddress = useEvmAddress();
+export function useErc20BalancesByAddress(evmAddress?: Address) {
   const { assets } = useErc20Assets();
 
   // Use all tokens from useErc20Tokens
@@ -113,4 +112,9 @@ export function useErc20Balances() {
     revalidateOnReconnect: false,
     dedupingInterval: 2_000,
   });
+}
+
+export function useErc20Balances() {
+  const evmAddress = useEvmAddress();
+  return useErc20BalancesByAddress(evmAddress);
 }
