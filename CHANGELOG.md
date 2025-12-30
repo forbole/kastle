@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.42.0](https://github.com/forbole/kastle/compare/v2.41.2...v2.42.0) (2025-12-30)
+
+
+### Features
+
+* include layer2 balances ([#255](https://github.com/forbole/kastle/issues/255)) ([3926175](https://github.com/forbole/kastle/commit/3926175f39fcd8ad0d399db9ec2e7b9aabc97e03))
+
 ## [2.41.2](https://github.com/forbole/kastle/compare/v2.41.1...v2.41.2) (2025-12-24)
 
 
