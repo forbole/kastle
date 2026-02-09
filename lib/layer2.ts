@@ -63,7 +63,7 @@ export const igraTestnet = {
   blockExplorers: {
     default: {
       name: "IGRA Galleon Testnet Explorer",
-      url: "https://explorer.galleon-testnet.igralabs.com/",
+      url: "https://explorer.galleon-testnet.igralabs.com",
     },
   },
   testnet: true,
