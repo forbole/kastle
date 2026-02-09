@@ -8,14 +8,12 @@ import { ApiExtensionUtils } from "@/api/extension";
 import { ApiUtils } from "@/api/background/utils";
 import { RPC_ERRORS } from "@/api/message";
 import {
-  TransactionSerializable,
   hexToBigInt,
   createPublicClient,
   http,
   hexToNumber,
   numberToHex,
 } from "viem";
-import { estimateFeesPerGas } from "viem/actions";
 import { ethereumTransactionRequestSchema } from "@/api/background/handlers/ethereum/sendTransaction";
 import {
   getChainName,
@@ -26,6 +24,8 @@ type SignTransactionProps = {
   walletSigner: IWalletWithGetAddress;
 };
 import { handleViemError } from "@/lib/errors";
+import { sendEvmTransaction } from "@/lib/ethereum/transaction";
+import { useSettings } from "@/hooks/useSettings";
 
 export default function SendTransaction({
   walletSigner,
@@ -90,11 +90,6 @@ export default function SendTransaction({
         transport: http(),
       });
 
-      const nonce = await ethClient.getTransactionCount({
-        address: (await walletSigner.getAddress()) as `0x${string}`,
-      });
-
-      const estimatedGas = await estimateFeesPerGas(ethClient);
       const gas = parsedRequest.gas
         ? hexToBigInt(parsedRequest.gas)
         : await ethClient.estimateGas({
@@ -104,29 +99,17 @@ export default function SendTransaction({
             data: parsedRequest.data,
           });
 
-      // Build eip1559 transaction
-      const transaction: TransactionSerializable = {
-        to: parsedRequest.to,
-        value: parsedRequest.value && hexToBigInt(parsedRequest.value),
-        data: parsedRequest.data,
+      const txHash = await sendEvmTransaction({
+        ethClient,
+        signer: walletSigner,
+        sender: parsedRequest.from as `0x${string}`,
+        to: parsedRequest.to as `0x${string}`,
+        valueInWei: parsedRequest.value && hexToBigInt(parsedRequest.value),
         gas,
-        maxFeePerGas: parsedRequest.maxFeePerGas
-          ? hexToBigInt(parsedRequest.maxFeePerGas)
-          : estimatedGas.maxFeePerGas,
-        maxPriorityFeePerGas: parsedRequest.maxPriorityFeePerGas
-          ? hexToBigInt(parsedRequest.maxPriorityFeePerGas)
-          : estimatedGas.maxPriorityFeePerGas,
         chainId: txChainId,
-        type: "eip1559",
-        nonce,
-      };
-
-      // Sign the message
-      const signed = await walletSigner.signTransaction(transaction);
-
-      const txHash = await ethClient.sendRawTransaction({
-        serializedTransaction: signed as `0x${string}`,
+        data: parsedRequest.data as `0x${string}` | undefined,
       });
+
       await ApiExtensionUtils.sendMessage(
         requestId,
         ApiUtils.createApiResponse(requestId, txHash),

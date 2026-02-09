@@ -13,14 +13,10 @@ import useCurrencyValue from "@/hooks/useCurrencyValue";
 import useKaspaPrice from "@/hooks/useKaspaPrice";
 import { useState } from "react";
 import { ALL_SUPPORTED_EVM_L2_CHAINS } from "@/lib/layer2";
-import {
-  createPublicClient,
-  http,
-  hexToNumber,
-  TransactionSerializable,
-} from "viem";
+import { createPublicClient, http, hexToNumber } from "viem";
 import useEvmHotWalletSigner from "@/hooks/wallet/useEvmHotWalletSigner";
 import useEvmKasBalance from "@/hooks/evm/useEvmKasBalance";
+import { sendEvmTransaction } from "@/lib/ethereum/transaction";
 
 type Erc721TransferHotWalletConfirmProps = {
   chainId: Hex;
@@ -89,29 +85,20 @@ export default function Erc721TransferHotWalletConfirm({
     setIsSigning(true);
 
     try {
-      const estimatedGas = await ethClient.estimateFeesPerGas();
       const gas = await ethClient.estimateGas({
         account: sender,
         to: payload.to,
         data: payload.data,
       });
 
-      const nonce = await ethClient.getTransactionCount({
-        address: sender,
-      });
-      const transaction: TransactionSerializable = {
+      const txId = await sendEvmTransaction({
+        ethClient,
+        signer,
+        sender,
         to: payload.to,
-        data: payload.data,
         gas,
-        maxFeePerGas: estimatedGas.maxFeePerGas,
-        maxPriorityFeePerGas: estimatedGas.maxPriorityFeePerGas,
-        chainId: hexToNumber(chainId),
-        type: "eip1559",
-        nonce,
-      };
-      const signed = await signer.signTransaction(transaction);
-      const txId = await ethClient.sendRawTransaction({
-        serializedTransaction: signed,
+        chainId,
+        data: payload.data,
       });
 
       setOutTxs([txId]);

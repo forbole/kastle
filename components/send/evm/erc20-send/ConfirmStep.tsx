@@ -14,7 +14,7 @@ import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 import useEvmAddress from "@/hooks/evm/useEvmAddress";
 import useFeeEstimate from "@/hooks/evm/useFeeEstimate";
 import useAnalytics from "@/hooks/useAnalytics.ts";
-import { formatEther, TransactionSerializable } from "viem";
+import { formatEther } from "viem";
 import { ALL_SUPPORTED_EVM_L2_CHAINS, getChainName } from "@/lib/layer2";
 import {
   createPublicClient,
@@ -27,6 +27,7 @@ import {
 import { Erc20Asset } from "@/contexts/EvmAssets";
 import { formatToken } from "@/lib/utils.ts";
 import { useErc20Price } from "@/hooks/evm/useZealousSwapMetadata";
+import { sendEvmTransaction } from "@/lib/ethereum/transaction";
 
 export const ConfirmStep = ({
   asset,
@@ -102,29 +103,20 @@ export const ConfirmStep = ({
       setIsSigning(true);
 
       const fromAddress = await signer.getAddress();
-      const estimatedGas = await ethClient.estimateFeesPerGas();
       const gas = await ethClient.estimateGas({
         account: fromAddress,
         to: payload.to,
         data: payload.data,
       });
 
-      const nonce = await ethClient.getTransactionCount({
-        address: fromAddress,
-      });
-      const transaction: TransactionSerializable = {
+      const txId = await sendEvmTransaction({
+        ethClient,
+        signer,
+        sender: fromAddress,
         to: payload.to,
-        data: payload.data,
         gas,
-        maxFeePerGas: estimatedGas.maxFeePerGas,
-        maxPriorityFeePerGas: estimatedGas.maxPriorityFeePerGas,
-        chainId: hexToNumber(asset.chainId),
-        type: "eip1559",
-        nonce,
-      };
-      const signed = await signer.signTransaction(transaction);
-      const txId = await ethClient.sendRawTransaction({
-        serializedTransaction: signed,
+        chainId: asset.chainId,
+        data: payload.data,
       });
 
       setOutTxs([txId]);
