@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.43.0](https://github.com/forbole/kastle/compare/v2.42.0...v2.43.0) (2026-02-09)
+
+
+### Features
+
+* add igra support ([#260](https://github.com/forbole/kastle/issues/260)) ([f2356ab](https://github.com/forbole/kastle/commit/f2356abc6a057fcd746cbe0e9702859b0914a2d1))
+
 ## [2.42.0](https://github.com/forbole/kastle/compare/v2.41.2...v2.42.0) (2025-12-30)
 
 
