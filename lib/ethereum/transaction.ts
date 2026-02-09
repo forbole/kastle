@@ -23,14 +23,13 @@ export async function sendEvmTransaction({
   chainId,
   data,
 }: SendEvmTransactionParams): Promise<Hex> {
-  const estimatedGas = await ethClient.estimateFeesPerGas();
-  const nonce = await ethClient.getTransactionCount({
-    address: sender,
-  });
-
-  // Get the minimum gas price from the network
-  const gasPrice = await ethClient.getGasPrice();
-
+  const [estimatedGas, nonce, gasPrice] = await Promise.all([
+    ethClient.estimateFeesPerGas(),
+    ethClient.getTransactionCount({
+      address: sender,
+    }),
+    ethClient.getGasPrice(),
+  ]);
   // Use the higher of estimated or minimum required gas price
   const maxFeePerGas = estimatedGas.maxFeePerGas
     ? estimatedGas.maxFeePerGas > gasPrice
