@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.43.1](https://github.com/forbole/kastle/compare/v2.43.0...v2.43.1) (2026-02-10)
+
+
+### Bug Fixes
+
+* igra timeout issue and qr code ui ([#264](https://github.com/forbole/kastle/issues/264)) ([ccbf860](https://github.com/forbole/kastle/commit/ccbf8600639605b3081d1a76814807a285b31a83))
+
 ## [2.43.0](https://github.com/forbole/kastle/compare/v2.42.0...v2.43.0) (2026-02-09)
 
 
