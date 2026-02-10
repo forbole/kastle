@@ -51,7 +51,7 @@ export const kasplexMainnet = {
 
 export const igraTestnet = {
   id: 38_836,
-  name: "IGRA Galleon Testnet",
+  name: "IGRA Testnet",
   nativeCurrency: {
     decimals: 18,
     name: "iKAS",
@@ -74,7 +74,7 @@ export const igraTestnet = {
 
 export const igraMainnet = {
   id: 38_837,
-  name: "IGRA Galleon Mainnet",
+  name: "IGRA",
   nativeCurrency: {
     decimals: 18,
     name: "iKAS",
