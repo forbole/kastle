@@ -1,5 +1,5 @@
 import kasIcon from "@/assets/images/network-logos/kaspa.svg";
-import { formatCurrency } from "@/lib/utils.ts";
+import { formatCurrency, formatToken } from "@/lib/utils.ts";
 import { twMerge } from "tailwind-merge";
 import useAccountManager from "@/hooks/wallet/useAccountManager";
 import { sompiToKaspaString } from "@/wasm/core/kaspa";
@@ -7,6 +7,7 @@ import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import { explorerTxLinks } from "@/components/screens/Settings.tsx";
 import useCurrencyValue from "@/hooks/useCurrencyValue";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
+import useKaspaPrice from "@/hooks/useKaspaPrice";
 
 type TokenHistoryItemProps = {
   inputs: {
@@ -25,6 +26,7 @@ export default function TokenHistoryItem({
   outputs,
   txHash,
 }: TokenHistoryItemProps) {
+  const { kaspaPrice } = useKaspaPrice();
   const { account } = useAccountManager();
   const inputsByAccount = inputs.filter(
     (input) => input.address === account?.address,
@@ -44,11 +46,13 @@ export default function TokenHistoryItem({
 
   const amountInSompi = Number(totalOutput) - Number(totalInput);
   const absAmountInSompi = amountInSompi < 0 ? -amountInSompi : amountInSompi;
-  const fiatAmount = parseFloat(sompiToKaspaString(absAmountInSompi));
+  const kaspaAmount = sompiToKaspaString(absAmountInSompi);
+  const kaspaAmountNumber = parseFloat(kaspaAmount.replace(/,/g, ''));
+  const formattedAmount = formatToken(kaspaAmountNumber, 4);
   const status = amountInSompi <= 0 ? "Sent" : "Received";
 
   const { amount: amountCurrency, code: amountCurrencyCode } =
-    useCurrencyValue(fiatAmount);
+    useCurrencyValue(kaspaAmountNumber * kaspaPrice);
 
   const { networkId } = useRpcClientStateful();
 
@@ -79,7 +83,7 @@ export default function TokenHistoryItem({
             >
               {status === "Sent" && "-"}
               {status === "Received" && "+"}
-              {fiatAmount}
+              {formattedAmount}
             </span>
           </div>
           <div className="hs-tooltip hs-tooltip-toggle flex items-center justify-between text-sm text-daintree-400 [--placement:bottom] [--trigger:hover]">
