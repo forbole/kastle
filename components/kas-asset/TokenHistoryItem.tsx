@@ -47,12 +47,13 @@ export default function TokenHistoryItem({
   const amountInSompi = Number(totalOutput) - Number(totalInput);
   const absAmountInSompi = amountInSompi < 0 ? -amountInSompi : amountInSompi;
   const kaspaAmount = sompiToKaspaString(absAmountInSompi);
-  const kaspaAmountNumber = parseFloat(kaspaAmount.replace(/,/g, ''));
+  const kaspaAmountNumber = parseFloat(kaspaAmount.replace(/,/g, ""));
   const formattedAmount = formatToken(kaspaAmountNumber, 4);
   const status = amountInSompi <= 0 ? "Sent" : "Received";
 
-  const { amount: amountCurrency, code: amountCurrencyCode } =
-    useCurrencyValue(kaspaAmountNumber * kaspaPrice);
+  const { amount: amountCurrency, code: amountCurrencyCode } = useCurrencyValue(
+    kaspaAmountNumber * kaspaPrice,
+  );
 
   const { networkId } = useRpcClientStateful();
 
