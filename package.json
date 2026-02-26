@@ -2,7 +2,7 @@
   "name": "Kastle",
   "description": "Kastle is a browser extension wallet for the Kaspa network",
   "private": true,
-  "version": "2.43.1",
+  "version": "2.43.2",
   "type": "module",
   "scripts": {
     "dev": "wxt",
