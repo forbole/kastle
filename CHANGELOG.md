@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.43.2](https://github.com/forbole/kastle/compare/v2.43.1...v2.43.2) (2026-02-26)
+
+
+### Bug Fixes
+
+* use kaspa price for currency formatting and format amount correctly ([#266](https://github.com/forbole/kastle/issues/266)) ([1e52a41](https://github.com/forbole/kastle/commit/1e52a410a93c18461ed4973550f6b01b5204aee9))
+
 ## [2.43.1](https://github.com/forbole/kastle/compare/v2.43.0...v2.43.1) (2026-02-10)
 
 
