@@ -123,58 +123,6 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
   const evmSigner = useEvmBackgroundSigner();
   const [settings] = useSettings();
 
-  // TODO: Remove this after the next release
-  // Refresh public keys for the account that don't have them
-  // NOTE: This is a temporary solution to fix the issue of missing public keys in old versions
-  const generatePublicKeysForOldVersion = async (
-    wallet: WalletInfo,
-    accountIndex: number,
-  ) => {
-    if (!rpcClient || !networkId) {
-      throw new Error("RPC client and settings not loaded");
-    }
-
-    const account = wallet.accounts.find((a) => a.index === accountIndex);
-    if (!account) {
-      return false;
-    }
-
-    if (account.publicKeys?.length) {
-      return false;
-    }
-
-    // Respect isLegacyFeaturesEnabled - force non-legacy if features disabled
-    const isLegacy = settings?.isLegacyFeaturesEnabled
-      ? (wallet.isLegacyWalletEnabled ?? false)
-      : false;
-
-    switch (wallet?.type) {
-      case "mnemonic":
-        if (!account.publicKeys) {
-          const { publicKeys } = await kaspaSigner.getPublicKeys({
-            walletId: wallet.id,
-            accountIndex: account.index,
-            isLegacy,
-          });
-
-          account.publicKeys = publicKeys;
-        }
-        break;
-      case "privateKey":
-        if (!account.publicKeys) {
-          const { publicKeys } = await kaspaSigner.getPublicKeys({
-            walletId: wallet.id,
-            accountIndex: account.index,
-            isLegacy,
-          });
-          account.publicKeys = publicKeys;
-        }
-        break;
-    }
-
-    return true;
-  };
-
   const getBalancesByAddresses = async (
     addresses: string[],
   ): Promise<number> => {
@@ -233,40 +181,6 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
 
     await setWalletSettings((prev) => ({ ...prev, wallets: wallets }));
   };
-
-  // Refresh public keys for old version wallets
-  useEffect(() => {
-    if (!rpcClient || isWalletSettingsLoading) {
-      return;
-    }
-
-    const refreshPublicKeysForOldVersion = async () => {
-      if (!walletSettings) return;
-
-      const wallets = walletSettings?.wallets;
-      if (!wallets) {
-        return;
-      }
-
-      let updated = false;
-      for (const wallet of wallets) {
-        for (const account of wallet.accounts) {
-          const isUpdated = await generatePublicKeysForOldVersion(
-            wallet,
-            account.index,
-          );
-          if (isUpdated) {
-            updated = true;
-          }
-        }
-      }
-      if (!updated) return;
-
-      await setWalletSettings((prev) => ({ ...prev, wallets: wallets }));
-    };
-
-    refreshPublicKeysForOldVersion();
-  }, [rpcClient, isWalletSettingsLoading]);
 
   // Refresh wallet and account after settings changed
   useEffect(() => {
