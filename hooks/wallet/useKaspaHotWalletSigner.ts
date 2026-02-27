@@ -3,15 +3,22 @@ import useWalletManager from "@/hooks/wallet/useWalletManager";
 import useKaspaBackgroundSigner from "./useKaspaBackgroundSigner";
 import { Transaction, PublicKey } from "@/wasm/core/kaspa";
 import { ScriptOption } from "@/lib/wallet/wallet-interface";
+import { useSettings } from "@/hooks/useSettings";
 
 export default function useKaspaHotWalletSigner() {
   const { wallet: walletInfo, account } = useWalletManager();
   const { networkId } = useRpcClientStateful();
   const signer = useKaspaBackgroundSigner();
+  const [settings] = useSettings();
 
   if (!walletInfo || !account || !networkId) {
     return undefined;
   }
+
+  // When legacy features is disabled, force non-legacy wallet
+  const isKastleLegacy = settings?.isLegacyFeaturesEnabled
+    ? (walletInfo.isLegacyWalletEnabled ?? false)
+    : false;
 
   const getPublicKeys = async () => {
     const walletId = walletInfo.id;
@@ -19,6 +26,7 @@ export default function useKaspaHotWalletSigner() {
     const { publicKeys } = await signer.getPublicKeys({
       walletId,
       accountIndex,
+      isLegacy: isKastleLegacy,
     });
     return publicKeys;
   };
@@ -40,6 +48,7 @@ export default function useKaspaHotWalletSigner() {
       scripts,
       walletId,
       accountIndex,
+      isLegacy: isKastleLegacy,
     });
 
     const { signedTransactionJSON } = signedTransaction;
@@ -54,6 +63,7 @@ export default function useKaspaHotWalletSigner() {
       message,
       walletId,
       accountIndex,
+      isLegacy: isKastleLegacy,
     });
     return signedMessage;
   };

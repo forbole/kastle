@@ -43,25 +43,28 @@ export const RpcClientContext = createContext<RpcClientContextType>({
 
 export function RpcClientProvider({ children }: { children: ReactNode }) {
   const [isConnected, setIsConnected] = useState(false);
-  const [settings] = useSettings();
+  const [settings, , isSettingsLoading] = useSettings();
   const [rpcClient, setRpcClient] = useState<RpcClient>();
   const [networkId, setNetworkId] = useState<NetworkType>();
-  const [rpcUrl, setRpcUrl] = useState<string>();
 
   useEffect(() => {
     const establishConnection = async () => {
-      if (!rpcUrl || !networkId) {
+      if (!settings?.networkId || isSettingsLoading) {
         return;
       }
+      setNetworkId(settings.networkId);
+
+      const rpcUrl = RPC_URLS[settings.networkId];
       const newRpcClient = new RpcClient({
         url: rpcUrl,
         resolver: rpcUrl ? undefined : new Resolver(),
         encoding: Encoding.Borsh,
-        networkId: networkId,
+        networkId: settings.networkId,
       });
 
       try {
         await newRpcClient.connect();
+
         if (!(await newRpcClient.getServerInfo()).isSynced) {
           throw new Error("Please wait for the node to sync");
         }
@@ -88,22 +91,7 @@ export function RpcClientProvider({ children }: { children: ReactNode }) {
     return () => {
       terminateConnection();
     };
-  }, [rpcUrl, networkId]);
-
-  useEffect(() => {
-    if (!settings) {
-      return;
-    }
-
-    if (!networkId || settings.networkId !== networkId) {
-      setNetworkId(settings.networkId);
-    }
-
-    const newRpcUrl = RPC_URLS[settings.networkId];
-    if (!rpcUrl || newRpcUrl !== rpcUrl) {
-      setRpcUrl(newRpcUrl);
-    }
-  }, [settings]);
+  }, [settings, isSettingsLoading]);
 
   const getMinimumFee = async (addresses: string[]) => {
     if (!rpcClient) {

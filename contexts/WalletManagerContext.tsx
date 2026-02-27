@@ -143,12 +143,18 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
       return false;
     }
 
+    // Respect isLegacyFeaturesEnabled - force non-legacy if features disabled
+    const isLegacy = settings?.isLegacyFeaturesEnabled
+      ? (wallet.isLegacyWalletEnabled ?? false)
+      : false;
+
     switch (wallet?.type) {
       case "mnemonic":
         if (!account.publicKeys) {
           const { publicKeys } = await kaspaSigner.getPublicKeys({
             walletId: wallet.id,
             accountIndex: account.index,
+            isLegacy,
           });
 
           account.publicKeys = publicKeys;
@@ -159,6 +165,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
           const { publicKeys } = await kaspaSigner.getPublicKeys({
             walletId: wallet.id,
             accountIndex: account.index,
+            isLegacy,
           });
           account.publicKeys = publicKeys;
         }
@@ -279,15 +286,18 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
   }, [walletSettings, networkId, isWalletSettingsLoading]);
 
   useEffect(() => {
-    if (!networkId || !account) {
+    if (!networkId || !account || !wallet) {
       return;
     }
 
-    const addressesToWatch = !account.publicKeys?.length
-      ? [account.address]
-      : account.publicKeys.map((publicKey) =>
-          new PublicKey(publicKey).toAddress(networkId).toString(),
-        );
+    // In legacy mode, watch all addresses derived from publicKeys
+    // In non-legacy mode, only watch the primary account.address
+    const addressesToWatch =
+      wallet.isLegacyWalletEnabled && account.publicKeys?.length
+        ? account.publicKeys.map((publicKey) =>
+            new PublicKey(publicKey).toAddress(networkId).toString(),
+          )
+        : [account.address];
 
     // skip if the addresses are the same
     if (addressesToWatch.join() === addresses.join()) {
@@ -295,23 +305,34 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
     }
 
     setAddresses(addressesToWatch);
-  }, [account, networkId]);
+  }, [account, wallet, networkId]);
 
   useEffect(() => {
-    if (!rpcClient || isWalletSettingsLoading || addresses.length === 0) {
+    if (
+      !rpcClient ||
+      isWalletSettingsLoading ||
+      addresses.length === 0 ||
+      !account ||
+      !networkId
+    ) {
       return;
     }
+
+    // Capture the current account address to avoid race conditions
+    const currentAccountAddress = account.address;
+    let cancelled = false;
 
     const fetchBalance = async () => {
       const balance = await getBalancesByAddresses(addresses);
 
-      if (!account) {
+      // Don't update if this fetch was cancelled
+      if (cancelled) {
         return;
       }
 
       setKaspaBalances((prev) => ({
         ...prev,
-        [account.address]: balance,
+        [currentAccountAddress]: balance,
       }));
     };
 
@@ -362,11 +383,12 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
 
     rpcClient.subscribeUtxosChanged(addresses);
     return () => {
+      cancelled = true;
       rpcClient.unsubscribeUtxosChanged(addresses);
 
       rpcClient.removeEventListener("utxos-changed", listenUtxosChanged);
     };
-  }, [addresses, rpcClient, isWalletSettingsLoading]);
+  }, [addresses, rpcClient, isWalletSettingsLoading, networkId]);
 
   // TODO: Remove this after the complete migration for users
   // Update accounts evm public key and kaspa addresses based on legacy settings
@@ -381,26 +403,52 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
       const newWallets = await Promise.all(
         wallets.map(async (wallet) => {
           if (wallet.type === "ledger") return wallet;
-          updated = true;
 
           // When legacy features is disabled, force wallet to non-legacy mode
+          const newIsLegacyWalletEnabled = settings?.isLegacyFeaturesEnabled
+            ? wallet.isLegacyWalletEnabled
+            : false;
+
           const updatedWallet = {
             ...wallet,
-            isLegacyWalletEnabled: settings?.isLegacyFeaturesEnabled
-              ? wallet.isLegacyWalletEnabled
-              : false,
+            isLegacyWalletEnabled: newIsLegacyWalletEnabled,
           };
 
           const newAccounts = await Promise.all(
             updatedWallet.accounts.map(async (account) => {
-              // When legacy features is disabled, force non-legacy EVM address
+              // Calculate what the legacy settings should be
               const shouldUseLegacy = settings?.isLegacyFeaturesEnabled
                 ? (settings?.isLegacyEvmAddressEnabled ?? false)
                 : false;
-              // When legacy features is disabled, force non-legacy wallet
               const isKastleLegacy = settings?.isLegacyFeaturesEnabled
                 ? (updatedWallet.isLegacyWalletEnabled ?? false)
                 : false;
+
+              // Check if we already have keys and they might still be valid
+              if (account.publicKeys?.length && account.evmPublicKey) {
+                // Calculate expected address for current networkId
+                const expectedKaspaAddress = new PublicKey(
+                  account.publicKeys[0],
+                )
+                  .toAddress(networkId)
+                  .toString();
+
+                // If address matches and legacy settings haven't changed, no need to regenerate
+                if (account.address === expectedKaspaAddress) {
+                  // Keys are already correct, no changes needed
+                  return account;
+                }
+
+                // Only networkId changed (mainnet ↔ testnet), just update address
+                updated = true;
+                return {
+                  ...account,
+                  address: expectedKaspaAddress,
+                };
+              }
+
+              // Need to generate keys (first time or missing keys)
+              updated = true;
 
               // Update EVM public key
               const { publicKey: evmPublicKey } = await evmSigner.getPublicKey({
