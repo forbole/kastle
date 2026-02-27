@@ -211,7 +211,9 @@ export default function Settings() {
                   ...prev,
                   isLegacyFeaturesEnabled: e.target.checked,
                   // When disabling legacy features, also disable legacy EVM address
-                  isLegacyEvmAddressEnabled: e.target.checked ? prev?.isLegacyEvmAddressEnabled : false,
+                  isLegacyEvmAddressEnabled: e.target.checked
+                    ? prev?.isLegacyEvmAddressEnabled
+                    : false,
                 }))
               }
               type="checkbox"

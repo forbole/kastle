@@ -20,7 +20,7 @@ export default function RecoveryPhraseManageAccounts() {
   const [settings] = useSettings();
 
   // When legacy features is disabled, force non-legacy wallet
-  const defaultLegacy = settings?.isLegacyFeaturesEnabled 
+  const defaultLegacy = settings?.isLegacyFeaturesEnabled
     ? (wallet?.isLegacyWalletEnabled ?? false)
     : false;
   const [isLegacyEnabled, setIsLegacyEnabled] = useState(defaultLegacy);

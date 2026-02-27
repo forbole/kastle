@@ -386,22 +386,22 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
           // When legacy features is disabled, force wallet to non-legacy mode
           const updatedWallet = {
             ...wallet,
-            isLegacyWalletEnabled: settings?.isLegacyFeaturesEnabled 
-              ? wallet.isLegacyWalletEnabled 
+            isLegacyWalletEnabled: settings?.isLegacyFeaturesEnabled
+              ? wallet.isLegacyWalletEnabled
               : false,
           };
 
           const newAccounts = await Promise.all(
             updatedWallet.accounts.map(async (account) => {
               // When legacy features is disabled, force non-legacy EVM address
-              const shouldUseLegacy = settings?.isLegacyFeaturesEnabled 
+              const shouldUseLegacy = settings?.isLegacyFeaturesEnabled
                 ? (settings?.isLegacyEvmAddressEnabled ?? false)
                 : false;
               // When legacy features is disabled, force non-legacy wallet
-              const isKastleLegacy = settings?.isLegacyFeaturesEnabled 
+              const isKastleLegacy = settings?.isLegacyFeaturesEnabled
                 ? (updatedWallet.isLegacyWalletEnabled ?? false)
                 : false;
-              
+
               // Update EVM public key
               const { publicKey: evmPublicKey } = await evmSigner.getPublicKey({
                 walletId: updatedWallet.id,
@@ -411,18 +411,19 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
               });
 
               // Update Kaspa public keys and address
-              const { publicKeys: kaspaPublicKeys } = await kaspaSigner.getPublicKeys({
-                walletId: updatedWallet.id,
-                accountIndex: account.index,
-                isLegacy: isKastleLegacy,
-              });
+              const { publicKeys: kaspaPublicKeys } =
+                await kaspaSigner.getPublicKeys({
+                  walletId: updatedWallet.id,
+                  accountIndex: account.index,
+                  isLegacy: isKastleLegacy,
+                });
 
               const kaspaAddress = new PublicKey(kaspaPublicKeys[0])
                 .toAddress(networkId)
                 .toString();
 
-              return { 
-                ...account, 
+              return {
+                ...account,
                 evmPublicKey,
                 publicKeys: kaspaPublicKeys,
                 address: kaspaAddress,
@@ -440,7 +441,12 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
     };
 
     setWalletSettings(tryUpdateAccountKeys);
-  }, [isWalletSettingsLoading, settings?.isLegacyEvmAddressEnabled, settings?.isLegacyFeaturesEnabled, networkId]);
+  }, [
+    isWalletSettingsLoading,
+    settings?.isLegacyEvmAddressEnabled,
+    settings?.isLegacyFeaturesEnabled,
+    networkId,
+  ]);
 
   return (
     <WalletManagerContext.Provider
