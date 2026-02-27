@@ -51,10 +51,15 @@ export default function useAccountManager() {
       .toAddress(networkId)
       .toString();
 
+    // When legacy features is disabled, force non-legacy EVM address
+    const shouldUseLegacy = settings?.isLegacyFeaturesEnabled
+      ? (settings?.isLegacyEvmAddressEnabled ?? false)
+      : false;
+
     const { publicKey: evmPublicKey } = await evmBackgroundSigner.getPublicKey({
       walletId,
       accountIndex: nextIndex,
-      isLegacy: settings?.isLegacyEvmAddressEnabled ?? false,
+      isLegacy: shouldUseLegacy,
       isKastleLegacy: walletIsLegacy,
     });
 

@@ -385,10 +385,15 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
 
           const newAccounts = await Promise.all(
             wallet.accounts.map(async (account) => {
+              // When legacy features is disabled, force non-legacy EVM address
+              const shouldUseLegacy = settings?.isLegacyFeaturesEnabled 
+                ? (settings?.isLegacyEvmAddressEnabled ?? false)
+                : false;
+              
               const { publicKey } = await evmSigner.getPublicKey({
                 walletId: wallet.id,
                 accountIndex: account.index,
-                isLegacy: settings?.isLegacyEvmAddressEnabled ?? false,
+                isLegacy: shouldUseLegacy,
                 isKastleLegacy: wallet.isLegacyWalletEnabled ?? true,
               });
               return { ...account, evmPublicKey: publicKey };
@@ -405,7 +410,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
     };
 
     setWalletSettings(tryUpdateEvmPublicKeys);
-  }, [isWalletSettingsLoading, settings?.isLegacyEvmAddressEnabled]);
+  }, [isWalletSettingsLoading, settings?.isLegacyEvmAddressEnabled, settings?.isLegacyFeaturesEnabled]);
 
   return (
     <WalletManagerContext.Provider

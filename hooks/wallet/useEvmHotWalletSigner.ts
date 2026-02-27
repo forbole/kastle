@@ -13,7 +13,10 @@ export default function useEvmHotWalletSigner() {
   const signer = useEvmBackgroundSigner();
   const [settings] = useSettings();
 
-  const isEvmLegacy = settings?.isLegacyEvmAddressEnabled ?? false;
+  // When legacy features is disabled, force non-legacy EVM address
+  const isEvmLegacy = settings?.isLegacyFeaturesEnabled
+    ? (settings?.isLegacyEvmAddressEnabled ?? false)
+    : false;
 
   if (!walletInfo || !account) {
     return undefined;

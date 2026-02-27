@@ -40,6 +40,7 @@ export type Settings = {
   preview: boolean;
 
   evmL2ChainId?: Record<NetworkType, number | undefined>;
+  isLegacyFeaturesEnabled?: boolean;
   isLegacyEvmAddressEnabled?: boolean;
 };
 
@@ -78,6 +79,7 @@ export const initialSettings = {
     [NetworkType.Mainnet]: kasplexMainnet.id,
     [NetworkType.TestnetT10]: kasplexTestnet.id,
   },
+  isLegacyFeaturesEnabled: false,
   isLegacyEvmAddressEnabled: false,
 } satisfies Settings;
 

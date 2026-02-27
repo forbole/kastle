@@ -36,10 +36,15 @@ export default function RecoveryPhraseManageAccounts() {
               isLegacy: isLegacyEnabled,
             });
 
+            // When legacy features is disabled, force non-legacy EVM address
+            const shouldUseLegacy = settings?.isLegacyFeaturesEnabled
+              ? (settings?.isLegacyEvmAddressEnabled ?? false)
+              : false;
+
             const { publicKey: evmPublicKey } = await evmSigner.getPublicKey({
               walletId,
               accountIndex: i,
-              isLegacy: settings?.isLegacyEvmAddressEnabled ?? false,
+              isLegacy: shouldUseLegacy,
               isKastleLegacy: isLegacyEnabled,
             });
 
@@ -55,7 +60,7 @@ export default function RecoveryPhraseManageAccounts() {
       {!wallet && <Splash />}
       {wallet && (
         <ManageAccounts
-          key={`manage-accounts-${isLegacyEnabled}-${settings?.isLegacyEvmAddressEnabled ?? false}`}
+          key={`manage-accounts-${isLegacyEnabled}-${settings?.isLegacyFeaturesEnabled}-${settings?.isLegacyEvmAddressEnabled ?? false}`}
           wallet={wallet}
           listAccounts={listAccounts}
           isLegacyWalletEnabled={isLegacyEnabled}
