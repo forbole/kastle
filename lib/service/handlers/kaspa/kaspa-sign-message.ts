@@ -1,10 +1,11 @@
 import { ExtensionService, Message } from "@/lib/service/extension-service.ts";
-import { getCurrentSigner } from "./utils";
+import { getSigner } from "./utils";
 
 export type KaspaSignMessageRequest = {
   walletId: string;
   accountIndex: number;
   message: string;
+  isLegacy: boolean; // Required to ensure correct signing
 };
 
 export type KaspaSignMessageResponse = {
@@ -12,7 +13,12 @@ export type KaspaSignMessageResponse = {
 };
 
 export async function kaspaSignMessageHandler(
-  { walletId, accountIndex, message }: Message<KaspaSignMessageRequest>,
+  {
+    walletId,
+    accountIndex,
+    message,
+    isLegacy,
+  }: Message<KaspaSignMessageRequest>,
   sendResponse: (response: KaspaSignMessageResponse) => void,
 ) {
   const extensionService = ExtensionService.getInstance();
@@ -25,7 +31,7 @@ export async function kaspaSignMessageHandler(
     throw new Error("Keyring not initialized or locked");
   }
 
-  const signer = await getCurrentSigner(walletId, accountIndex);
+  const signer = await getSigner(walletId, accountIndex, isLegacy);
   const signedMessage = await signer.signMessage(message);
   sendResponse({ signedMessage });
 }

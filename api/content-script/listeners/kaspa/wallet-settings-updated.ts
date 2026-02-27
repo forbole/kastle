@@ -19,11 +19,11 @@ export const watchWalletSettingsUpdated = () => {
     const oldSelectedWalletIsLegacyEnabled = oldValue?.wallets.find(
       (w) => w.id === oldSelectedWalletId,
     )?.isLegacyWalletEnabled;
-    const newSelectedWalletIIsLegacyEnabled = newValue?.wallets.find(
+    const newSelectedWalletIsLegacyEnabled = newValue?.wallets.find(
       (w) => w.id === newSelectedWalletId,
     )?.isLegacyWalletEnabled;
     const isLegacyChanged =
-      oldSelectedWalletIsLegacyEnabled !== newSelectedWalletIIsLegacyEnabled;
+      oldSelectedWalletIsLegacyEnabled !== newSelectedWalletIsLegacyEnabled;
 
     if (isSelectedAccountChanged || isLegacyChanged) {
       const isHostConnected = await ApiUtils.isHostConnected(

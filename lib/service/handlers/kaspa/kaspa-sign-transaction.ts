@@ -1,6 +1,6 @@
 import { ExtensionService, Message } from "@/lib/service/extension-service.ts";
 import { Transaction } from "@/wasm/core/kaspa";
-import { getCurrentSigner } from "./utils";
+import { getSigner } from "./utils";
 import { ScriptOption } from "@/lib/wallet/wallet-interface";
 
 export type KaspaSignTransactionRequest = {
@@ -8,6 +8,7 @@ export type KaspaSignTransactionRequest = {
   accountIndex: number;
   transactionJSON: string; // Serialized transaction data
   scripts?: ScriptOption[]; // Optional scripts for the transaction
+  isLegacy: boolean; // Required to ensure correct signing
 };
 
 export type KaspaSignTransactionResponse = {
@@ -20,6 +21,7 @@ export async function kaspaSignTransactionHandler(
     accountIndex,
     transactionJSON,
     scripts,
+    isLegacy,
   }: Message<KaspaSignTransactionRequest>,
   sendResponse: (response: KaspaSignTransactionResponse) => void,
 ) {
@@ -35,7 +37,7 @@ export async function kaspaSignTransactionHandler(
 
   const transaction = Transaction.deserializeFromSafeJSON(transactionJSON);
 
-  const signer = await getCurrentSigner(walletId, accountIndex);
+  const signer = await getSigner(walletId, accountIndex, isLegacy);
   const signedTransaction = await signer.signTx(transaction, scripts);
   sendResponse({
     signedTransactionJSON: signedTransaction.serializeToSafeJSON(),

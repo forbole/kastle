@@ -16,10 +16,12 @@ export default function EvmKasAsset({ chainId }: { chainId: `0x${string}` }) {
   const navigate = useNavigate();
   const kaspaPrice = useKaspaPrice();
   const { data } = useEvmKasBalance(chainId);
-  const balance = formatToken(parseFloat(data?.balance ?? "0"));
+  const balance = parseFloat(data?.balance ?? "0");
 
   const fiatKaspaPrice = kaspaPrice.kaspaPrice;
-  const fiatBalance = parseFloat(balance ?? "0") * kaspaPrice.kaspaPrice;
+  const fiatBalance = balance * kaspaPrice.kaspaPrice;
+  console.log("balance", balance);
+  console.log("fiatBalance", fiatBalance);
 
   const { amount: tokenPriceCurrency, code: tokenPriceCurrencyCode } =
     useCurrencyValue(fiatKaspaPrice);
@@ -42,7 +44,7 @@ export default function EvmKasAsset({ chainId }: { chainId: `0x${string}` }) {
           <div className="flex flex-col gap-1">
             <span>KAS</span>
           </div>
-          <span>{showBalance ? balance : "*****"}</span>
+          <span>{showBalance ? formatToken(balance) : "*****"}</span>
         </div>
         <div className="flex items-center justify-between text-sm text-daintree-400">
           <span>

@@ -51,6 +51,7 @@ export class ApiUtils {
           [NetworkType.Mainnet]: kasplexMainnet.id,
           [NetworkType.TestnetT10]: kasplexTestnet.id,
         },
+        isLegacyFeaturesEnabled: false,
         isLegacyEvmAddressEnabled: false,
       },
     });

@@ -122,7 +122,11 @@ export default function ManageAccounts({
         accounts,
       });
 
-      await setLegacyWalletEnabled(wallet.id, isLegacyWalletEnabled);
+      // When legacy features is disabled, force wallet to non-legacy mode
+      const shouldBeLegacy = settings?.isLegacyFeaturesEnabled
+        ? isLegacyWalletEnabled
+        : false;
+      await setLegacyWalletEnabled(wallet.id, shouldBeLegacy);
 
       navigate(location?.state?.redirect ?? "/accounts-imported");
     } catch (error: any) {
@@ -206,17 +210,19 @@ export default function ManageAccounts({
           </div>
         )}
 
-        {/* Advanced Settings Button */}
-        <div className="flex justify-end pr-4 text-base font-semibold">
-          <button
-            onClick={() => setShowAdvancedSettings(true)}
-            type="button"
-            className="flex items-center gap-2 text-sm text-slate-300 transition-colors hover:text-cyan-400"
-          >
-            <span>Advanced Settings</span>
-            <i className="hn hn-cog" />
-          </button>
-        </div>
+        {/* Advanced Settings Button - only visible when Legacy Features is enabled */}
+        {settings?.isLegacyFeaturesEnabled && (
+          <div className="flex justify-end pr-4 text-base font-semibold">
+            <button
+              onClick={() => setShowAdvancedSettings(true)}
+              type="button"
+              className="flex items-center gap-2 text-sm text-slate-300 transition-colors hover:text-cyan-400"
+            >
+              <span>Advanced Settings</span>
+              <i className="hn hn-cog" />
+            </button>
+          </div>
+        )}
 
         {/* Advanced Settings Modal */}
         <AdvancedSettingsModal

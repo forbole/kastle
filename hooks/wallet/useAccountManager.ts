@@ -39,7 +39,10 @@ export default function useAccountManager() {
     const lastAccount = wallet.accounts[wallet.accounts.length - 1];
     const nextIndex = lastAccount.index + 1;
 
-    const walletIsLegacy = wallet.isLegacyWalletEnabled ?? true;
+    // When legacy features is disabled, force non-legacy wallet
+    const walletIsLegacy = settings?.isLegacyFeaturesEnabled
+      ? (wallet.isLegacyWalletEnabled ?? false)
+      : false;
 
     const { publicKeys: kaspaPublicKeys } =
       await kaspaBackgroundSigner.getPublicKeys({
@@ -51,10 +54,15 @@ export default function useAccountManager() {
       .toAddress(networkId)
       .toString();
 
+    // When legacy features is disabled, force non-legacy EVM address
+    const shouldUseLegacy = settings?.isLegacyFeaturesEnabled
+      ? (settings?.isLegacyEvmAddressEnabled ?? false)
+      : false;
+
     const { publicKey: evmPublicKey } = await evmBackgroundSigner.getPublicKey({
       walletId,
       accountIndex: nextIndex,
-      isLegacy: settings?.isLegacyEvmAddressEnabled ?? false,
+      isLegacy: shouldUseLegacy,
       isKastleLegacy: walletIsLegacy,
     });
 
@@ -238,7 +246,7 @@ export default function useAccountManager() {
       throw new Error(`Wallet ${walletId} not found`);
     }
 
-    const isLegacyEnabled = wallet.isLegacyWalletEnabled ?? true; // Default to true if not specified
+    const isLegacyEnabled = wallet.isLegacyWalletEnabled ?? false;
     const factory = isLegacyEnabled
       ? new KaspaLegacyAccountFactory()
       : new KaspaAccountFactory();

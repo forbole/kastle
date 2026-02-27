@@ -1,38 +1,14 @@
 import {
-  WalletSettings,
-  WALLET_SETTINGS,
-  defaultValue,
-} from "@/contexts/WalletManagerContext";
-import {
   AccountFactory,
   LegacyAccountFactory,
 } from "@/lib/wallet/account-factory";
 import { ExtensionService } from "@/lib/service/extension-service.ts";
 import { WalletSecret } from "@/types/WalletSecret";
 
-async function getWalletSettings() {
-  return await storage.getItem<WalletSettings>(WALLET_SETTINGS, {
-    fallback: defaultValue,
-  });
-}
-
-async function isWalletLegacyEnabled(walletId: string) {
-  const walletSettings = await getWalletSettings();
-  const currentWallet = walletSettings.wallets.find(
-    (wallet) => wallet.id === walletId,
-  );
-  return currentWallet?.isLegacyWalletEnabled ?? true;
-}
-
 async function getAccountFactory(
   isLegacy: boolean,
 ): Promise<AccountFactory | LegacyAccountFactory> {
   return isLegacy ? new LegacyAccountFactory() : new AccountFactory();
-}
-
-export async function getCurrentSigner(walletId: string, accountIndex: number) {
-  const isLegacy = await isWalletLegacyEnabled(walletId);
-  return getSigner(walletId, accountIndex, isLegacy);
 }
 
 export async function getSigner(
