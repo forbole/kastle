@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.44.0](https://github.com/forbole/kastle/compare/v2.43.2...v2.44.0) (2026-02-27)
+
+
+### Features
+
+* force to use non legacy addresses ([#268](https://github.com/forbole/kastle/issues/268)) ([02ab360](https://github.com/forbole/kastle/commit/02ab360d53a8672b9794e3026c9f05cdb81f6ab1))
+
 ## [2.43.2](https://github.com/forbole/kastle/compare/v2.43.1...v2.43.2) (2026-02-26)
 
 
