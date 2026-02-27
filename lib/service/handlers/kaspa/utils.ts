@@ -21,7 +21,7 @@ async function isWalletLegacyEnabled(walletId: string) {
   const currentWallet = walletSettings.wallets.find(
     (wallet) => wallet.id === walletId,
   );
-  return currentWallet?.isLegacyWalletEnabled ?? true;
+  return currentWallet?.isLegacyWalletEnabled ?? false;
 }
 
 async function getAccountFactory(

@@ -15,7 +15,7 @@ export default function useKaspaLedgerSigner() {
     return undefined;
   }
 
-  const isLegacyEnabled = walletInfo.isLegacyWalletEnabled ?? true; // Default to true if not specified
+  const isLegacyEnabled = walletInfo.isLegacyWalletEnabled ?? false;
   const factory = isLegacyEnabled
     ? new LegacyAccountFactory()
     : new AccountFactory();

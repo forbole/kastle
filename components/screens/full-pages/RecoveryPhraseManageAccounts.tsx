@@ -19,9 +19,11 @@ export default function RecoveryPhraseManageAccounts() {
   const evmSigner = useEvmBackgroundSigner();
   const [settings] = useSettings();
 
-  const [isLegacyEnabled, setIsLegacyEnabled] = useState(
-    wallet?.isLegacyWalletEnabled ?? true,
-  );
+  // When legacy features is disabled, force non-legacy wallet
+  const defaultLegacy = settings?.isLegacyFeaturesEnabled 
+    ? (wallet?.isLegacyWalletEnabled ?? false)
+    : false;
+  const [isLegacyEnabled, setIsLegacyEnabled] = useState(defaultLegacy);
 
   const listAccounts =
     rpcClient && networkId

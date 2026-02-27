@@ -39,7 +39,10 @@ export default function useAccountManager() {
     const lastAccount = wallet.accounts[wallet.accounts.length - 1];
     const nextIndex = lastAccount.index + 1;
 
-    const walletIsLegacy = wallet.isLegacyWalletEnabled ?? true;
+    // When legacy features is disabled, force non-legacy wallet
+    const walletIsLegacy = settings?.isLegacyFeaturesEnabled
+      ? (wallet.isLegacyWalletEnabled ?? false)
+      : false;
 
     const { publicKeys: kaspaPublicKeys } =
       await kaspaBackgroundSigner.getPublicKeys({
@@ -243,7 +246,7 @@ export default function useAccountManager() {
       throw new Error(`Wallet ${walletId} not found`);
     }
 
-    const isLegacyEnabled = wallet.isLegacyWalletEnabled ?? true; // Default to true if not specified
+    const isLegacyEnabled = wallet.isLegacyWalletEnabled ?? false;
     const factory = isLegacyEnabled
       ? new KaspaLegacyAccountFactory()
       : new KaspaAccountFactory();

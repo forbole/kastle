@@ -24,7 +24,10 @@ export default function useEvmHotWalletSigner() {
 
   const walletId = walletInfo.id;
   const accountIndex = account.index;
-  const isKastleLegacy = walletInfo.isLegacyWalletEnabled ?? true;
+  // When legacy features is disabled, force non-legacy wallet
+  const isKastleLegacy = settings?.isLegacyFeaturesEnabled
+    ? (walletInfo.isLegacyWalletEnabled ?? false)
+    : false;
 
   const getPublicKey = async () => {
     const { publicKey } = await signer.getPublicKey({
