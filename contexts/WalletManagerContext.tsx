@@ -534,11 +534,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
     };
 
     setWalletSettings(updateKeysForLegacyMode);
-  }, [
-    isWalletSettingsLoading,
-    settings?.isLegacyFeaturesEnabled,
-    networkId,
-  ]);
+  }, [isWalletSettingsLoading, settings?.isLegacyFeaturesEnabled, networkId]);
 
   // 3. Handle EVM legacy address toggle (only update EVM public key)
   useEffect(() => {
