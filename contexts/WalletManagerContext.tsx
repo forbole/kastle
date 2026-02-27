@@ -390,12 +390,11 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
     };
   }, [addresses, rpcClient, isWalletSettingsLoading, networkId]);
 
-  // TODO: Remove this after the complete migration for users
-  // Update accounts evm public key and kaspa addresses based on legacy settings
+  // 1. Generate missing keys (first time or old version upgrade)
   useEffect(() => {
     if (!walletSettings || isWalletSettingsLoading || !networkId) return;
 
-    const tryUpdateAccountKeys = async (prev: WalletSettings) => {
+    const generateMissingKeys = async (prev: WalletSettings) => {
       const wallets = prev.wallets;
       if (!wallets) return prev;
 
@@ -404,64 +403,35 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
         wallets.map(async (wallet) => {
           if (wallet.type === "ledger") return wallet;
 
-          // When legacy features is disabled, force wallet to non-legacy mode
-          const newIsLegacyWalletEnabled = settings?.isLegacyFeaturesEnabled
-            ? wallet.isLegacyWalletEnabled
+          // Determine legacy mode based on current settings
+          const isKastleLegacy = settings?.isLegacyFeaturesEnabled
+            ? (wallet.isLegacyWalletEnabled ?? false)
+            : false;
+          const isEvmLegacy = settings?.isLegacyFeaturesEnabled
+            ? (settings?.isLegacyEvmAddressEnabled ?? false)
             : false;
 
-          const updatedWallet = {
-            ...wallet,
-            isLegacyWalletEnabled: newIsLegacyWalletEnabled,
-          };
-
           const newAccounts = await Promise.all(
-            updatedWallet.accounts.map(async (account) => {
-              // Calculate what the legacy settings should be
-              const shouldUseLegacy = settings?.isLegacyFeaturesEnabled
-                ? (settings?.isLegacyEvmAddressEnabled ?? false)
-                : false;
-              const isKastleLegacy = settings?.isLegacyFeaturesEnabled
-                ? (updatedWallet.isLegacyWalletEnabled ?? false)
-                : false;
-
-              // Check if we already have keys and they might still be valid
+            wallet.accounts.map(async (account) => {
+              // Skip if already has both keys
               if (account.publicKeys?.length && account.evmPublicKey) {
-                // Calculate expected address for current networkId
-                const expectedKaspaAddress = new PublicKey(
-                  account.publicKeys[0],
-                )
-                  .toAddress(networkId)
-                  .toString();
-
-                // If address matches and legacy settings haven't changed, no need to regenerate
-                if (account.address === expectedKaspaAddress) {
-                  // Keys are already correct, no changes needed
-                  return account;
-                }
-
-                // Only networkId changed (mainnet ↔ testnet), just update address
-                updated = true;
-                return {
-                  ...account,
-                  address: expectedKaspaAddress,
-                };
+                return account;
               }
 
-              // Need to generate keys (first time or missing keys)
               updated = true;
 
-              // Update EVM public key
+              // Generate EVM public key based on current settings
               const { publicKey: evmPublicKey } = await evmSigner.getPublicKey({
-                walletId: updatedWallet.id,
+                walletId: wallet.id,
                 accountIndex: account.index,
-                isLegacy: shouldUseLegacy,
-                isKastleLegacy: isKastleLegacy,
+                isLegacy: isEvmLegacy,
+                isKastleLegacy,
               });
 
-              // Update Kaspa public keys and address
+              // Generate Kaspa public keys based on current settings
               const { publicKeys: kaspaPublicKeys } =
                 await kaspaSigner.getPublicKeys({
-                  walletId: updatedWallet.id,
+                  walletId: wallet.id,
                   accountIndex: account.index,
                   isLegacy: isKastleLegacy,
                 });
@@ -479,22 +449,187 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
             }),
           );
 
+          return { ...wallet, accounts: newAccounts };
+        }),
+      );
+
+      if (!updated) return prev;
+      return { ...prev, wallets: newWallets };
+    };
+
+    setWalletSettings(generateMissingKeys);
+  }, [isWalletSettingsLoading, networkId]);
+
+  // 2. Handle legacy features toggle (regenerate all keys when legacy mode changes)
+  useEffect(() => {
+    if (!walletSettings || isWalletSettingsLoading || !networkId) return;
+
+    const updateKeysForLegacyMode = async (prev: WalletSettings) => {
+      const wallets = prev.wallets;
+      if (!wallets) return prev;
+
+      let updated = false;
+      const newWallets = await Promise.all(
+        wallets.map(async (wallet) => {
+          if (wallet.type === "ledger") return wallet;
+
+          // Force wallet to non-legacy if legacy features are disabled
+          const newIsLegacyWalletEnabled = settings?.isLegacyFeaturesEnabled
+            ? wallet.isLegacyWalletEnabled
+            : false;
+
+          const walletNeedsUpdate =
+            wallet.isLegacyWalletEnabled !== newIsLegacyWalletEnabled;
+
+          const updatedWallet = {
+            ...wallet,
+            isLegacyWalletEnabled: newIsLegacyWalletEnabled,
+          };
+
+          const isKastleLegacy = newIsLegacyWalletEnabled ?? false;
+
+          const newAccounts = await Promise.all(
+            updatedWallet.accounts.map(async (account) => {
+              // Regenerate both keys when wallet legacy mode changes
+              if (walletNeedsUpdate) {
+                updated = true;
+
+                const { publicKey: evmPublicKey } =
+                  await evmSigner.getPublicKey({
+                    walletId: updatedWallet.id,
+                    accountIndex: account.index,
+                    isLegacy: settings?.isLegacyEvmAddressEnabled ?? false,
+                    isKastleLegacy,
+                  });
+
+                const { publicKeys: kaspaPublicKeys } =
+                  await kaspaSigner.getPublicKeys({
+                    walletId: updatedWallet.id,
+                    accountIndex: account.index,
+                    isLegacy: isKastleLegacy,
+                  });
+
+                const kaspaAddress = new PublicKey(kaspaPublicKeys[0])
+                  .toAddress(networkId)
+                  .toString();
+
+                return {
+                  ...account,
+                  evmPublicKey,
+                  publicKeys: kaspaPublicKeys,
+                  address: kaspaAddress,
+                };
+              }
+
+              return account;
+            }),
+          );
+
           return { ...updatedWallet, accounts: newAccounts };
         }),
       );
 
       if (!updated) return prev;
-
       return { ...prev, wallets: newWallets };
     };
 
-    setWalletSettings(tryUpdateAccountKeys);
+    setWalletSettings(updateKeysForLegacyMode);
   }, [
     isWalletSettingsLoading,
-    settings?.isLegacyEvmAddressEnabled,
     settings?.isLegacyFeaturesEnabled,
     networkId,
   ]);
+
+  // 3. Handle EVM legacy address toggle (only update EVM public key)
+  useEffect(() => {
+    if (!walletSettings || isWalletSettingsLoading || !networkId) return;
+
+    const updateEvmPublicKeys = async (prev: WalletSettings) => {
+      const wallets = prev.wallets;
+      if (!wallets) return prev;
+
+      let updated = false;
+      const newWallets = await Promise.all(
+        wallets.map(async (wallet) => {
+          if (wallet.type === "ledger") return wallet;
+
+          const isKastleLegacy = settings?.isLegacyFeaturesEnabled
+            ? (wallet.isLegacyWalletEnabled ?? false)
+            : false;
+          const shouldUseLegacy = settings?.isLegacyFeaturesEnabled
+            ? (settings?.isLegacyEvmAddressEnabled ?? false)
+            : false;
+
+          const newAccounts = await Promise.all(
+            wallet.accounts.map(async (account) => {
+              // Only regenerate EVM public key
+              updated = true;
+
+              const { publicKey: evmPublicKey } = await evmSigner.getPublicKey({
+                walletId: wallet.id,
+                accountIndex: account.index,
+                isLegacy: shouldUseLegacy,
+                isKastleLegacy,
+              });
+
+              return {
+                ...account,
+                evmPublicKey,
+              };
+            }),
+          );
+
+          return { ...wallet, accounts: newAccounts };
+        }),
+      );
+
+      if (!updated) return prev;
+      return { ...prev, wallets: newWallets };
+    };
+
+    setWalletSettings(updateEvmPublicKeys);
+  }, [
+    isWalletSettingsLoading,
+    settings?.isLegacyFeaturesEnabled,
+    settings?.isLegacyEvmAddressEnabled,
+    networkId,
+  ]);
+
+  // 4. Update Kaspa addresses when network changes (mainnet ↔ testnet)
+  useEffect(() => {
+    if (!walletSettings || isWalletSettingsLoading || !networkId) return;
+
+    const updateKaspaAddresses = async (prev: WalletSettings) => {
+      const wallets = prev.wallets;
+      if (!wallets) return prev;
+
+      let updated = false;
+      const newWallets = wallets.map((wallet) => {
+        const newAccounts = wallet.accounts.map((account) => {
+          if (!account.publicKeys?.length) return account;
+
+          const expectedAddress = new PublicKey(account.publicKeys[0])
+            .toAddress(networkId)
+            .toString();
+
+          if (account.address === expectedAddress) return account;
+
+          updated = true;
+          return {
+            ...account,
+            address: expectedAddress,
+          };
+        });
+
+        return { ...wallet, accounts: newAccounts };
+      });
+
+      if (!updated) return prev;
+      return { ...prev, wallets: newWallets };
+    };
+
+    setWalletSettings(updateKaspaAddresses);
+  }, [isWalletSettingsLoading, networkId]);
 
   return (
     <WalletManagerContext.Provider
