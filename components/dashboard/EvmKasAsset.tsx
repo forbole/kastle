@@ -20,8 +20,6 @@ export default function EvmKasAsset({ chainId }: { chainId: `0x${string}` }) {
 
   const fiatKaspaPrice = kaspaPrice.kaspaPrice;
   const fiatBalance = balance * kaspaPrice.kaspaPrice;
-  console.log("balance", balance);
-  console.log("fiatBalance", fiatBalance);
 
   const { amount: tokenPriceCurrency, code: tokenPriceCurrencyCode } =
     useCurrencyValue(fiatKaspaPrice);
