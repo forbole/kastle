@@ -1,4 +1,4 @@
-import { createContext, ReactNode, useEffect, useState } from "react";
+import { createContext, ReactNode, useEffect, useRef, useState } from "react";
 import { WalletSecretType } from "@/types/WalletSecret.ts";
 import useKeyring from "@/hooks/useKeyring.ts";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful.ts";
@@ -15,6 +15,10 @@ import useKaspaBackgroundSigner from "@/hooks/wallet/useKaspaBackgroundSigner";
 import useEvmBackgroundSigner from "@/hooks/wallet/useEvmBackgroundSigner";
 import { NetworkType } from "./SettingsContext";
 import { useSettings } from "@/hooks/useSettings";
+import {
+  WALLET_SETTINGS_VERSION,
+  migrateWalletSettings,
+} from "@/lib/migrations/wallet-settings";
 
 export const WALLET_SETTINGS = "local:wallet-settings";
 const KASPA_BALANCES_KEY = "local:kaspa-balances";
@@ -44,6 +48,7 @@ export type WalletSettings = {
   lastRecoveryPhraseNumber: number;
   lastPrivateKeyNumber: number;
   lastLedgerNumber?: number;
+  version?: number;
 };
 
 type WalletManagerContextType = {
@@ -68,6 +73,7 @@ export const defaultValue = {
   selectedAccountIndex: undefined,
   selectedWalletId: undefined,
   wallets: [],
+  version: 1,
 } satisfies WalletSettings;
 
 const defaultAsyncFunction = () =>
@@ -110,7 +116,7 @@ const getCurrentAccount = (walletSettings: WalletSettings) => {
 
 export function WalletManagerProvider({ children }: { children: ReactNode }) {
   const keyring = useKeyring();
-  const { rpcClient, networkId } = useRpcClientStateful();
+  const { rpcClient } = useRpcClientStateful();
   const [walletSettings, setWalletSettings, isWalletSettingsLoading] =
     useStorageState<WalletSettings>(WALLET_SETTINGS, defaultValue);
   const [wallet, setWallet] = useState<WalletInfo>();
@@ -122,6 +128,8 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
   const kaspaSigner = useKaspaBackgroundSigner();
   const evmSigner = useEvmBackgroundSigner();
   const [settings] = useSettings();
+  const networkId = settings?.networkId;
+  const isMigratingRef = useRef(false);
 
   const getBalancesByAddresses = async (
     addresses: string[],
@@ -304,79 +312,57 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
     };
   }, [addresses, rpcClient, isWalletSettingsLoading, networkId]);
 
-  // 1. Generate missing keys (first time or old version upgrade)
+  // Migration: Generate missing keys (first time or old version upgrade)
+  // This migration runs only once when version is not set or less than current version
   useEffect(() => {
     if (!walletSettings || isWalletSettingsLoading || !networkId) return;
 
-    const generateMissingKeys = async (prev: WalletSettings) => {
-      const wallets = prev.wallets;
-      if (!wallets) return prev;
+    // Skip if already migrated to current version
+    if (
+      walletSettings.version &&
+      walletSettings.version >= WALLET_SETTINGS_VERSION
+    ) {
+      return;
+    }
 
-      let updated = false;
-      const newWallets = await Promise.all(
-        wallets.map(async (wallet) => {
-          if (wallet.type === "ledger") return wallet;
+    // Critical: Ensure all required services are ready before migration
+    if (!kaspaSigner || !evmSigner) {
+      return;
+    }
 
-          // Determine legacy mode based on current settings
-          const isKastleLegacy = settings?.isLegacyFeaturesEnabled
-            ? (wallet.isLegacyWalletEnabled ?? false)
-            : false;
-          const isEvmLegacy = settings?.isLegacyFeaturesEnabled
-            ? (settings?.isLegacyEvmAddressEnabled ?? false)
-            : false;
+    // Prevent concurrent execution
+    if (isMigratingRef.current) {
+      return;
+    }
 
-          const newAccounts = await Promise.all(
-            wallet.accounts.map(async (account) => {
-              // Skip if already has both keys
-              if (account.publicKeys?.length && account.evmPublicKey) {
-                return account;
-              }
+    isMigratingRef.current = true;
 
-              updated = true;
-
-              // Generate EVM public key based on current settings
-              const { publicKey: evmPublicKey } = await evmSigner.getPublicKey({
-                walletId: wallet.id,
-                accountIndex: account.index,
-                isLegacy: isEvmLegacy,
-                isKastleLegacy,
-              });
-
-              // Generate Kaspa public keys based on current settings
-              const { publicKeys: kaspaPublicKeys } =
-                await kaspaSigner.getPublicKeys({
-                  walletId: wallet.id,
-                  accountIndex: account.index,
-                  isLegacy: isKastleLegacy,
-                });
-
-              const kaspaAddress = new PublicKey(kaspaPublicKeys[0])
-                .toAddress(networkId)
-                .toString();
-
-              return {
-                ...account,
-                evmPublicKey,
-                publicKeys: kaspaPublicKeys,
-                address: kaspaAddress,
-              };
-            }),
-          );
-
-          return { ...wallet, accounts: newAccounts };
-        }),
-      );
-
-      if (!updated) return prev;
-      return { ...prev, wallets: newWallets };
+    const runMigration = async (prev: WalletSettings) => {
+      try {
+        const result = await migrateWalletSettings(prev, {
+          kaspaSigner,
+          evmSigner,
+          settings,
+          networkId,
+        });
+        return result;
+      } catch (error) {
+        // Keep original state and retry on next dependency change
+        return prev;
+      } finally {
+        isMigratingRef.current = false;
+      }
     };
 
-    setWalletSettings(generateMissingKeys);
-  }, [isWalletSettingsLoading, networkId]);
+    setWalletSettings(runMigration);
+  }, [isWalletSettingsLoading, networkId, kaspaSigner, evmSigner, settings]);
 
   // 2. Handle legacy features toggle (regenerate all keys when legacy mode changes)
   useEffect(() => {
     if (!walletSettings || isWalletSettingsLoading || !networkId) return;
+
+    // Wait for migration to complete first
+    if (!walletSettings.version || isMigratingRef.current) return;
 
     const updateKeysForLegacyMode = async (prev: WalletSettings) => {
       const wallets = prev.wallets;
@@ -454,6 +440,9 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!walletSettings || isWalletSettingsLoading || !networkId) return;
 
+    // Wait for migration to complete first
+    if (!walletSettings.version || isMigratingRef.current) return;
+
     const updateEvmPublicKeys = async (prev: WalletSettings) => {
       const wallets = prev.wallets;
       if (!wallets) return prev;
@@ -472,15 +461,18 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
 
           const newAccounts = await Promise.all(
             wallet.accounts.map(async (account) => {
-              // Only regenerate EVM public key
-              updated = true;
-
+              // Generate EVM public key with current settings
               const { publicKey: evmPublicKey } = await evmSigner.getPublicKey({
                 walletId: wallet.id,
                 accountIndex: account.index,
                 isLegacy: shouldUseLegacy,
                 isKastleLegacy,
               });
+
+              // Check if EVM public key actually changed
+              if (account.evmPublicKey !== evmPublicKey) {
+                updated = true;
+              }
 
               return {
                 ...account,
@@ -508,6 +500,9 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
   // 4. Update Kaspa addresses when network changes (mainnet ↔ testnet)
   useEffect(() => {
     if (!walletSettings || isWalletSettingsLoading || !networkId) return;
+
+    // Wait for migration to complete first
+    if (!walletSettings.version || isMigratingRef.current) return;
 
     const updateKaspaAddresses = async (prev: WalletSettings) => {
       const wallets = prev.wallets;
