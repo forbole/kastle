@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.44.0](https://github.com/forbole/kastle/compare/v2.43.2...v2.44.0) (2026-03-02)
+
+
+### Features
+
+* force to use non legacy addresses ([#268](https://github.com/forbole/kastle/issues/268)) ([02ab360](https://github.com/forbole/kastle/commit/02ab360d53a8672b9794e3026c9f05cdb81f6ab1))
+* implement wallet settings migration for versioning ([#270](https://github.com/forbole/kastle/issues/270)) ([7d81fdc](https://github.com/forbole/kastle/commit/7d81fdca8b98ae671f63b5605bd370f94c6bcda7))
+
 ## [2.43.2](https://github.com/forbole/kastle/compare/v2.43.1...v2.43.2) (2026-02-26)
 
 
