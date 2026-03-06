@@ -73,7 +73,7 @@ export const igraTestnet = {
 };
 
 export const igraMainnet = {
-  id: 38_837,
+  id: 38_833,
   name: "IGRA",
   nativeCurrency: {
     decimals: 18,
@@ -81,17 +81,17 @@ export const igraMainnet = {
     symbol: "iKAS",
   },
   rpcUrls: {
-    default: { http: ["https://galleon.igralabs.com:8545"] },
+    default: { http: ["https://rpc.igralabs.com:8545"] },
   },
   blockExplorers: {
     default: {
       name: "IGRA Galleon Explorer",
-      url: "https://explorer.galleon.igralabs.com",
+      url: "https://explorer.igralabs.com",
     },
   },
 
   icon: igraIcon,
-  apiUrl: "https://explorer.galleon.igralabs.com",
+  apiUrl: "https://explorer.igralabs.com",
 };
 
 export const TESTNET_SUPPORTED_EVM_L2_CHAINS = [kasplexTestnet, igraTestnet];
