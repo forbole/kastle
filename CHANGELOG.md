@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.45.0](https://github.com/forbole/kastle/compare/v2.44.0...v2.45.0) (2026-03-06)
+
+
+### Features
+
+* update igra mainnet config ([f80fe48](https://github.com/forbole/kastle/commit/f80fe48ad1780c5beaa2b99a08999b6a267567bc))
+
 ## [2.44.0](https://github.com/forbole/kastle/compare/v2.43.2...v2.44.0) (2026-03-02)
 
 
