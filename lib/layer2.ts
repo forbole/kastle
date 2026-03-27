@@ -121,3 +121,13 @@ export const getChainName = (chainId: `0x${string}`) => {
 
   return "Unknown Chain";
 };
+
+export const getChainTokenSymbol = (chainId: `0x${string}`) => {
+  const chainIdNumber = hexToNumber(chainId);
+  const chain = ALL_SUPPORTED_EVM_L2_CHAINS.find((c) => c.id === chainIdNumber);
+  if (chain?.nativeCurrency?.symbol) {
+    return chain.nativeCurrency.symbol;
+  }
+
+  return "KAS";
+};

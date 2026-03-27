@@ -15,7 +15,7 @@ import { formatToken, truncToDecimals } from "@/lib/utils";
 import useKaspaPrice from "@/hooks/useKaspaPrice";
 import useCurrencyValue from "@/hooks/useCurrencyValue";
 import Layer2AssetImage from "@/components/Layer2AssetImage";
-import { getChainImage } from "@/lib/layer2";
+import { getChainImage, getChainTokenSymbol } from "@/lib/layer2";
 import useEvmAddress from "@/hooks/evm/useEvmAddress";
 
 export default function DetailsStep({
@@ -67,6 +67,7 @@ export default function DetailsStep({
 
   const { kaspaPrice: tokenPrice } = useKaspaPrice();
   const { amount: tokenCurrency } = useCurrencyValue(tokenPrice);
+  const tokenSymbol = getChainTokenSymbol(chainId);
 
   const addressValidator = async (value: string | undefined) => {
     const genericErrorMessage = "Invalid address";
@@ -201,7 +202,7 @@ export default function DetailsStep({
           <div className="flex items-center gap-3 text-sm">
             <span className="font-semibold">Balance</span>
             <span className="flex-grow">
-              {formatToken(parseFloat(balance ?? "0"))} KAS
+              {formatToken(parseFloat(balance ?? "0"))} {tokenSymbol}
             </span>
             <button
               className="inline-flex items-center gap-x-2 rounded border border-transparent bg-icy-blue-400 px-3 py-2 text-sm text-white disabled:pointer-events-none disabled:opacity-50"
@@ -231,7 +232,7 @@ export default function DetailsStep({
                   chainImageBottomPosition={-2}
                   chainImageRightPosition={-12}
                 />
-                KAS
+                {tokenSymbol}
               </button>
               <input
                 {...register("amount", {
@@ -327,12 +328,12 @@ export default function DetailsStep({
             <i
               className="hn hn-info-circle text-[16px]"
               data-tooltip-id="fee-estimation-tooltip"
-              data-tooltip-content={`${formatToken(parseFloat(formatEther(estimatedFee ?? 0n)))} KAS for EVM miner fees.`}
+              data-tooltip-content={`${formatToken(parseFloat(formatEther(estimatedFee ?? 0n)))} ${tokenSymbol} for EVM miner fees.`}
             ></i>
 
             <span>Estimated</span>
             <span>
-              {formatToken(parseFloat(formatEther(estimatedFee ?? 0n)))} KAS
+              {formatToken(parseFloat(formatEther(estimatedFee ?? 0n)))} {tokenSymbol}
             </span>
           </div>
         </div>

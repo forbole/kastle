@@ -1,5 +1,5 @@
 import Layer2AssetImage from "../Layer2AssetImage";
-import { getChainImage } from "@/lib/layer2";
+import { getChainImage, getChainTokenSymbol } from "@/lib/layer2";
 import { useNavigate } from "react-router-dom";
 import {
   formatCurrency,
@@ -27,6 +27,7 @@ export default function EvmKasAsset({ chainId }: { chainId: `0x${string}` }) {
     useCurrencyValue(fiatBalance);
 
   const showBalance = !settings?.hideBalances;
+  const tokenSymbol = getChainTokenSymbol(chainId);
 
   return (
     <div
@@ -40,7 +41,7 @@ export default function EvmKasAsset({ chainId }: { chainId: `0x${string}` }) {
       <div className="flex flex-grow flex-col gap-1">
         <div className="flex items-start justify-between text-base text-white">
           <div className="flex flex-col gap-1">
-            <span>KAS</span>
+            <span>{tokenSymbol}</span>
           </div>
           <span>{showBalance ? formatToken(balance) : "*****"}</span>
         </div>

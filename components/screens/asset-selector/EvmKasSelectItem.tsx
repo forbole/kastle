@@ -2,7 +2,7 @@ import Layer2AssetImage from "@/components/Layer2AssetImage";
 import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import useEvmKasBalance from "@/hooks/evm/useEvmKasBalance";
 import { useNavigate } from "react-router-dom";
-import { getChainImage, getChainName } from "@/lib/layer2";
+import { getChainImage, getChainName, getChainTokenSymbol } from "@/lib/layer2";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { twMerge } from "tailwind-merge";
 import { formatToken } from "@/lib/utils.ts";
@@ -46,7 +46,7 @@ export default function EvmKasSelectItem({
                 chainImageBottomPosition={-2}
               />
             </HoverTooltip>
-            <span>KAS</span>
+            <span>{getChainTokenSymbol(chainId)}</span>
           </div>
           {!isLedger && <span>{formatToken(parseFloat(kasBalance))}</span>}
           {isLedger && (
