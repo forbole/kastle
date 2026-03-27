@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.46.0](https://github.com/forbole/kastle/compare/v2.45.0...v2.46.0) (2026-03-27)
+
+
+### Features
+
+* add getChainTokenSymbol function and update components to use dynamic token symbol ([5e37a64](https://github.com/forbole/kastle/commit/5e37a6400b224c1a11b3737a70d6a75bb50e45fa))
+
+
+### Bug Fixes
+
+* modify kasplex kas symbol to kas ([1a9a18d](https://github.com/forbole/kastle/commit/1a9a18d2e967990c161d392a5d0e99c45b2baae2))
+
 ## [2.45.0](https://github.com/forbole/kastle/compare/v2.44.0...v2.45.0) (2026-03-06)
 
 
