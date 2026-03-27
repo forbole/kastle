@@ -9,7 +9,7 @@ export const kasplexTestnet = {
   nativeCurrency: {
     decimals: 18,
     name: "Bridged KAS",
-    symbol: "WKAS",
+    symbol: "KAS",
   },
   rpcUrls: {
     default: { http: ["https://rpc.kasplextest.xyz"] },
@@ -33,7 +33,7 @@ export const kasplexMainnet = {
   nativeCurrency: {
     decimals: 18,
     name: "Bridged KAS",
-    symbol: "WKAS",
+    symbol: "KAS",
   },
   rpcUrls: {
     default: { http: ["https://evmrpc.kasplex.org"] },
