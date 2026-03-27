@@ -333,7 +333,8 @@ export default function DetailsStep({
 
             <span>Estimated</span>
             <span>
-              {formatToken(parseFloat(formatEther(estimatedFee ?? 0n)))} {tokenSymbol}
+              {formatToken(parseFloat(formatEther(estimatedFee ?? 0n)))}{" "}
+              {tokenSymbol}
             </span>
           </div>
         </div>
