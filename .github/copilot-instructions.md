@@ -117,21 +117,22 @@ npm run e2e                # Playwright tests
 
 #### Methods
 
-| Method | Action enum | Description |
-|--------|-------------|-------------|
-| `connect()` | `CONNECT` | Connect and request permission |
-| `getAccount()` | `GET_ACCOUNT` | Get current address and public key |
-| `getBalance()` | `GET_BALANCE` | Get current account balance (sompi as string) |
-| `getUtxoEntries()` | `GET_UTXO_ENTRIES` | Get all UTXOs for current account |
-| `buildTransaction(outputs, options?)` | `BUILD_TRANSACTION` | Build a transaction from current account UTXOs, returns serialized `txJson` ready for signing |
-| `signTx(networkId, txJson, scripts?)` | `SIGN_TX` | Sign a transaction (opens popup) |
-| `signAndBroadcastTx(networkId, txJson, scripts?)` | `SIGN_AND_BROADCAST_TX` | Sign and broadcast (opens popup) |
-| `signMessage(message)` | `SIGN_MESSAGE` | Sign a message |
-| `sendKaspa(toAddress, sompi, options?)` | `SEND_SOMPI` | Build + sign + broadcast in one call |
-| `switchNetwork(networkId)` | `SWITCH_NETWORK` | Switch network |
-| `request(method, args?)` | — | Generic method dispatcher via `kas:*` method strings |
+| Method                                            | Action enum             | Description                                                                                   |
+| ------------------------------------------------- | ----------------------- | --------------------------------------------------------------------------------------------- |
+| `connect()`                                       | `CONNECT`               | Connect and request permission                                                                |
+| `getAccount()`                                    | `GET_ACCOUNT`           | Get current address and public key                                                            |
+| `getBalance()`                                    | `GET_BALANCE`           | Get current account balance (sompi as string)                                                 |
+| `getUtxoEntries()`                                | `GET_UTXO_ENTRIES`      | Get all UTXOs for current account                                                             |
+| `buildTransaction(outputs, options?)`             | `BUILD_TRANSACTION`     | Build a transaction from current account UTXOs, returns serialized `txJson` ready for signing |
+| `signTx(networkId, txJson, scripts?)`             | `SIGN_TX`               | Sign a transaction (opens popup)                                                              |
+| `signAndBroadcastTx(networkId, txJson, scripts?)` | `SIGN_AND_BROADCAST_TX` | Sign and broadcast (opens popup)                                                              |
+| `signMessage(message)`                            | `SIGN_MESSAGE`          | Sign a message                                                                                |
+| `sendKaspa(toAddress, sompi, options?)`           | `SEND_SOMPI`            | Build + sign + broadcast in one call                                                          |
+| `switchNetwork(networkId)`                        | `SWITCH_NETWORK`        | Switch network                                                                                |
+| `request(method, args?)`                          | —                       | Generic method dispatcher via `kas:*` method strings                                          |
 
 `buildTransaction` notes:
+
 - `outputs[].amount` is a **string** (sompi) to avoid JS bigint precision loss
 - May return multiple transactions when UTXO compounding is needed
 - Returns `{ networkId, transactions: [{ txJson, id, feeAmount, changeAmount }] }`
@@ -139,19 +140,20 @@ npm run e2e                # Playwright tests
 #### Events (EventEmitter pattern)
 
 ```ts
-kastle.on(event, handler)
-kastle.removeListener(event, handler)
+kastle.on(event, handler);
+kastle.removeListener(event, handler);
 ```
 
-| Event | Handler signature | Description |
-|-------|-------------------|-------------|
-| `"accountsChanged"` | `(accounts: string[]) => void` | KasWare-compatible; empty array when disconnected |
-| `"networkChanged"` | `(network: string) => void` | KasWare-compatible |
-| `"kas:account_changed"` | `(address: string \| null) => void` | KIP-style; null when disconnected |
-| `"kas:network_changed"` | `(network: string \| null) => void` | KIP-style |
+| Event                   | Handler signature                   | Description                                       |
+| ----------------------- | ----------------------------------- | ------------------------------------------------- |
+| `"accountsChanged"`     | `(accounts: string[]) => void`      | KasWare-compatible; empty array when disconnected |
+| `"networkChanged"`      | `(network: string) => void`         | KasWare-compatible                                |
+| `"kas:account_changed"` | `(address: string \| null) => void` | KIP-style; null when disconnected                 |
+| `"kas:network_changed"` | `(network: string \| null) => void` | KIP-style                                         |
 
 Both KasWare-style and KIP-style events are emitted simultaneously from the same content script message.
 Event sources are in `api/content-script/listeners/kaspa/`:
+
 - `watchSettingsUpdated` — emits `kas:network_changed` and `kas:account_changed` on network switch
 - `watchWalletSettingsUpdated` — emits `kas:account_changed` on account/wallet switch
 

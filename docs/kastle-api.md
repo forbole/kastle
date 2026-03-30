@@ -5,6 +5,7 @@ Integrate your dApp with Kastle Wallet.
 > **Note:** This API is subject to changes. Refer to [`docs/index.js`](./index.js) for the most up-to-date working examples.
 
 Each API method is available in two styles:
+
 - **Direct method**: `kastle.methodName(...)`
 - **KIP-style generic request**: `kastle.request('kas:method_name', args)`
 
@@ -33,9 +34,9 @@ Each API method is available in two styles:
 
 ```js
 if (window.kastle) {
-  console.log('Kastle Wallet detected!');
+  console.log("Kastle Wallet detected!");
 } else {
-  alert('Please install Kastle Wallet.');
+  alert("Please install Kastle Wallet.");
 }
 ```
 
@@ -46,15 +47,17 @@ if (window.kastle) {
 Opens the permission popup and requests wallet access.
 
 **Direct method**
+
 ```js
 const isSuccess = await kastle.connect();
-console.log('Connected:', isSuccess); // true
+console.log("Connected:", isSuccess); // true
 ```
 
 **KIP-style**
+
 ```js
-const isSuccess = await kastle.request('kas:connect');
-console.log('Connected:', isSuccess); // true
+const isSuccess = await kastle.request("kas:connect");
+console.log("Connected:", isSuccess); // true
 ```
 
 ---
@@ -64,17 +67,19 @@ console.log('Connected:', isSuccess); // true
 Returns the current wallet address and public key.
 
 **Direct method**
+
 ```js
 const { address, publicKey } = await kastle.getAccount();
-console.log('Address:', address);
-console.log('Public Key:', publicKey);
+console.log("Address:", address);
+console.log("Public Key:", publicKey);
 ```
 
 **KIP-style**
+
 ```js
-const { address, publicKey } = await kastle.request('kas:get_account');
-console.log('Address:', address);
-console.log('Public Key:', publicKey);
+const { address, publicKey } = await kastle.request("kas:get_account");
+console.log("Address:", address);
+console.log("Public Key:", publicKey);
 ```
 
 ---
@@ -84,15 +89,17 @@ console.log('Public Key:', publicKey);
 Returns the currently active network ID.
 
 **Direct method**
+
 ```js
 const network = await kastle.getNetwork();
-console.log('Network:', network); // e.g. "mainnet"
+console.log("Network:", network); // e.g. "mainnet"
 ```
 
 **KIP-style**
+
 ```js
-const network = await kastle.request('kas:get_network');
-console.log('Network:', network);
+const network = await kastle.request("kas:get_network");
+console.log("Network:", network);
 ```
 
 ---
@@ -102,14 +109,16 @@ console.log('Network:', network);
 Prompts the user to switch to a different network.
 
 **Direct method**
+
 ```js
 // Valid values: "mainnet" | "testnet-10" | "testnet-11"
-await kastle.switchNetwork('mainnet');
+await kastle.switchNetwork("mainnet");
 ```
 
 **KIP-style**
+
 ```js
-await kastle.request('kas:switch_network', 'mainnet');
+await kastle.request("kas:switch_network", "mainnet");
 ```
 
 ---
@@ -119,15 +128,17 @@ await kastle.request('kas:switch_network', 'mainnet');
 Returns the current account balance in sompi.
 
 **Direct method**
+
 ```js
 const { balance } = await kastle.getBalance();
-console.log('Balance (sompi):', balance);
+console.log("Balance (sompi):", balance);
 ```
 
 **KIP-style**
+
 ```js
-const { balance } = await kastle.request('kas:get_balance');
-console.log('Balance (sompi):', balance);
+const { balance } = await kastle.request("kas:get_balance");
+console.log("Balance (sompi):", balance);
 ```
 
 ---
@@ -137,18 +148,25 @@ console.log('Balance (sompi):', balance);
 Returns all UTXOs for the current account.
 
 **Direct method**
+
 ```js
 const { entries } = await kastle.getUtxoEntries();
 entries.forEach((entry) => {
-  console.log('Outpoint:', entry.outpoint.transactionId, ':', entry.outpoint.index);
-  console.log('Amount (sompi):', entry.amount);
-  console.log('Is Coinbase:', entry.isCoinbase);
+  console.log(
+    "Outpoint:",
+    entry.outpoint.transactionId,
+    ":",
+    entry.outpoint.index,
+  );
+  console.log("Amount (sompi):", entry.amount);
+  console.log("Is Coinbase:", entry.isCoinbase);
 });
 ```
 
 **KIP-style**
+
 ```js
-const { entries } = await kastle.request('kas:get_utxo_entries');
+const { entries } = await kastle.request("kas:get_utxo_entries");
 ```
 
 ---
@@ -158,25 +176,27 @@ const { entries } = await kastle.request('kas:get_utxo_entries');
 Builds, signs, and broadcasts a KAS transfer in one call. No RPC or WASM needed.
 
 **Direct method**
+
 ```js
 const txId = await kastle.sendKaspa(
-  'kaspa:qr...recipient',
+  "kaspa:qr...recipient",
   100000000, // amount in sompi (1 KAS = 100,000,000 sompi)
   {
     priorityFee: 1000000, // optional, in sompi
-  }
+  },
 );
-console.log('Transaction ID:', txId);
+console.log("Transaction ID:", txId);
 ```
 
 **KIP-style**
+
 ```js
-const txId = await kastle.request('kas:send_sompi', {
-  toAddress: 'kaspa:qr...recipient',
+const txId = await kastle.request("kas:send_sompi", {
+  toAddress: "kaspa:qr...recipient",
   sompi: 100000000,
   options: { priorityFee: 1000000 },
 });
-console.log('Transaction ID:', txId);
+console.log("Transaction ID:", txId);
 ```
 
 ---
@@ -189,26 +209,31 @@ Builds one or more transactions from the current account's UTXOs. Returns serial
 > May return multiple transactions when UTXO compounding is needed.
 
 **Direct method**
+
 ```js
 const { networkId, transactions } = await kastle.buildTransaction(
-  [{ address: 'kaspa:qr...recipient', amount: '100000000' }],
-  { priorityFee: '1000000' },
+  [{ address: "kaspa:qr...recipient", amount: "100000000" }],
+  { priorityFee: "1000000" },
 );
 
 for (const tx of transactions) {
-  console.log('Tx ID:', tx.id);
-  console.log('Fee:', tx.feeAmount, 'sompi');
-  console.log('Change:', tx.changeAmount, 'sompi');
-  console.log('Tx JSON:', tx.txJson);
+  console.log("Tx ID:", tx.id);
+  console.log("Fee:", tx.feeAmount, "sompi");
+  console.log("Change:", tx.changeAmount, "sompi");
+  console.log("Tx JSON:", tx.txJson);
 }
 ```
 
 **KIP-style**
+
 ```js
-const { networkId, transactions } = await kastle.request('kas:build_transaction', {
-  outputs: [{ address: 'kaspa:qr...recipient', amount: '100000000' }],
-  priorityFee: '1000000',
-});
+const { networkId, transactions } = await kastle.request(
+  "kas:build_transaction",
+  {
+    outputs: [{ address: "kaspa:qr...recipient", amount: "100000000" }],
+    priorityFee: "1000000",
+  },
+);
 ```
 
 ---
@@ -218,18 +243,20 @@ const { networkId, transactions } = await kastle.request('kas:build_transaction'
 Signs a transaction and broadcasts it to the network. Opens a confirmation popup.
 
 **Direct method**
+
 ```js
 const txId = await kastle.signAndBroadcastTx(networkId, txJson);
-console.log('Transaction ID:', txId);
+console.log("Transaction ID:", txId);
 ```
 
 **KIP-style**
+
 ```js
-const txId = await kastle.request('kas:sign_and_broadcast_tx', {
+const txId = await kastle.request("kas:sign_and_broadcast_tx", {
   networkId,
   txJson,
 });
-console.log('Transaction ID:', txId);
+console.log("Transaction ID:", txId);
 ```
 
 > To build `txJson` manually using Kaspa WASM and an RPC client, see [`docs/index.js`](./index.js).
@@ -241,6 +268,7 @@ console.log('Transaction ID:', txId);
 Signs a transaction **without** broadcasting it. Returns the signed transaction as a JSON string. Useful for marketplace flows (e.g. `SingleAnyOneCanPay`).
 
 **Direct method**
+
 ```js
 const signedTxJson = await kastle.signTx(networkId, txJson);
 
@@ -251,17 +279,19 @@ const { transactionId } = await rpc.submitTransaction(
 ```
 
 **KIP-style**
+
 ```js
-const signedTxJson = await kastle.request('kas:sign_tx', {
+const signedTxJson = await kastle.request("kas:sign_tx", {
   networkId,
   txJson,
 });
 ```
 
 With a custom script (e.g. for P2SH spend):
+
 ```js
 const signedTxJson = await kastle.signTx(networkId, txJson, [
-  { inputIndex: 0, scriptHex: '...', signType: 'SingleAnyOneCanPay' },
+  { inputIndex: 0, scriptHex: "...", signType: "SingleAnyOneCanPay" },
 ]);
 ```
 
@@ -272,15 +302,20 @@ const signedTxJson = await kastle.signTx(networkId, txJson, [
 Signs an arbitrary message string.
 
 **Direct method**
+
 ```js
-const signature = await kastle.signMessage('Hello from my dApp!');
-console.log('Signature:', signature);
+const signature = await kastle.signMessage("Hello from my dApp!");
+console.log("Signature:", signature);
 ```
 
 **KIP-style**
+
 ```js
-const signature = await kastle.request('kas:sign_message', 'Hello from my dApp!');
-console.log('Signature:', signature);
+const signature = await kastle.request(
+  "kas:sign_message",
+  "Hello from my dApp!",
+);
+console.log("Signature:", signature);
 ```
 
 ---
@@ -290,38 +325,40 @@ console.log('Signature:', signature);
 KRC-20 operations use a commit-reveal pattern. Kastle handles both steps — no WASM needed.
 
 **Direct method**
+
 ```js
 const result = await kastle.commitReveal(
-  'mainnet',
-  'kasplex',
+  "mainnet",
+  "kasplex",
   JSON.stringify({
-    p: 'krc-20',
-    op: 'transfer',
-    tick: 'MYTOKEN',
-    to: 'kaspa:qr...recipient',
-    amt: '500',
+    p: "krc-20",
+    op: "transfer",
+    tick: "MYTOKEN",
+    to: "kaspa:qr...recipient",
+    amt: "500",
   }),
 );
-console.log('Commit Tx ID:', result.commitTxId);
-console.log('Reveal Tx ID:', result.revealTxId);
+console.log("Commit Tx ID:", result.commitTxId);
+console.log("Reveal Tx ID:", result.revealTxId);
 ```
 
 **KIP-style**
+
 ```js
-const result = await kastle.request('kas:commit_reveal', {
-  networkId: 'mainnet',
-  namespace: 'kasplex',
+const result = await kastle.request("kas:commit_reveal", {
+  networkId: "mainnet",
+  namespace: "kasplex",
   data: JSON.stringify({
-    p: 'krc-20',
-    op: 'transfer',
-    tick: 'MYTOKEN',
-    to: 'kaspa:qr...recipient',
-    amt: '500',
+    p: "krc-20",
+    op: "transfer",
+    tick: "MYTOKEN",
+    to: "kaspa:qr...recipient",
+    amt: "500",
   }),
   options: {},
 });
-console.log('Commit Tx ID:', result.commitTxId);
-console.log('Reveal Tx ID:', result.revealTxId);
+console.log("Commit Tx ID:", result.commitTxId);
+console.log("Reveal Tx ID:", result.revealTxId);
 ```
 
 ---
@@ -332,52 +369,53 @@ Listen to wallet state changes. Events are emitted in both KasWare-compatible an
 
 ```js
 // KasWare-compatible
-kastle.on('accountsChanged', (accounts) => {
+kastle.on("accountsChanged", (accounts) => {
   // string[] — empty array means disconnected
-  console.log('Accounts changed:', accounts);
+  console.log("Accounts changed:", accounts);
 });
 
-kastle.on('networkChanged', (network) => {
-  console.log('Network changed:', network);
+kastle.on("networkChanged", (network) => {
+  console.log("Network changed:", network);
 });
 
 // KIP-style
-kastle.on('kas:account_changed', (address) => {
+kastle.on("kas:account_changed", (address) => {
   // string | null — null means disconnected
-  console.log('Account changed:', address);
+  console.log("Account changed:", address);
 });
 
-kastle.on('kas:network_changed', (network) => {
-  console.log('Network changed:', network);
+kastle.on("kas:network_changed", (network) => {
+  console.log("Network changed:", network);
 });
 
 // Remove a listener
-kastle.removeListener('accountsChanged', myHandler);
+kastle.removeListener("accountsChanged", myHandler);
 ```
 
 ---
 
 ## API Reference
 
-| Direct Method | KIP-style (`kastle.request`) | Returns |
-|---|---|---|
-| `kastle.connect()` | `kas:connect` | `boolean` |
-| `kastle.getAccount()` | `kas:get_account` | `{ address, publicKey }` |
-| `kastle.getNetwork()` | `kas:get_network` | `string` |
-| `kastle.switchNetwork(networkId)` | `kas:switch_network` | `string` |
-| `kastle.getBalance()` | `kas:get_balance` | `{ balance: string }` |
-| `kastle.getUtxoEntries()` | `kas:get_utxo_entries` | `{ entries[] }` |
-| `kastle.sendKaspa(toAddress, sompi, opts?)` | `kas:send_sompi` | `string` (txId) |
-| `kastle.buildTransaction(outputs, opts?)` | `kas:build_transaction` | `{ networkId, transactions[] }` |
-| `kastle.signAndBroadcastTx(networkId, txJson, scripts?)` | `kas:sign_and_broadcast_tx` | `string` (txId) |
-| `kastle.signTx(networkId, txJson, scripts?)` | `kas:sign_tx` | `string` (signed txJson) |
-| `kastle.signMessage(message)` | `kas:sign_message` | `string` (signature) |
-| `kastle.commitReveal(networkId, namespace, data, opts?)` | `kas:commit_reveal` | `{ commitTxId, revealTxId }` |
+| Direct Method                                            | KIP-style (`kastle.request`) | Returns                         |
+| -------------------------------------------------------- | ---------------------------- | ------------------------------- |
+| `kastle.connect()`                                       | `kas:connect`                | `boolean`                       |
+| `kastle.getAccount()`                                    | `kas:get_account`            | `{ address, publicKey }`        |
+| `kastle.getNetwork()`                                    | `kas:get_network`            | `string`                        |
+| `kastle.switchNetwork(networkId)`                        | `kas:switch_network`         | `string`                        |
+| `kastle.getBalance()`                                    | `kas:get_balance`            | `{ balance: string }`           |
+| `kastle.getUtxoEntries()`                                | `kas:get_utxo_entries`       | `{ entries[] }`                 |
+| `kastle.sendKaspa(toAddress, sompi, opts?)`              | `kas:send_sompi`             | `string` (txId)                 |
+| `kastle.buildTransaction(outputs, opts?)`                | `kas:build_transaction`      | `{ networkId, transactions[] }` |
+| `kastle.signAndBroadcastTx(networkId, txJson, scripts?)` | `kas:sign_and_broadcast_tx`  | `string` (txId)                 |
+| `kastle.signTx(networkId, txJson, scripts?)`             | `kas:sign_tx`                | `string` (signed txJson)        |
+| `kastle.signMessage(message)`                            | `kas:sign_message`           | `string` (signature)            |
+| `kastle.commitReveal(networkId, namespace, data, opts?)` | `kas:commit_reveal`          | `{ commitTxId, revealTxId }`    |
 
 ---
 
 ## Full Working Example
 
 See the interactive demo for a complete, runnable reference:
+
 - **[docs/index.html](./index.html)** — Demo UI
 - **[docs/index.js](./index.js)** — Full source code for all operations above
