@@ -12,6 +12,9 @@ export enum Action {
   COMMIT_REVEAL,
 
   SEND_SOMPI,
+  GET_BALANCE,
+  GET_UTXO_ENTRIES,
+  BUILD_TRANSACTION,
 }
 
 // ================================================================================================

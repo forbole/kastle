@@ -21,10 +21,67 @@ function createApiRequest(
   };
 }
 
+export type KastleEventMap = {
+  // KasWare-compatible events
+  accountsChanged: (accounts: string[]) => void;
+  networkChanged: (network: string) => void;
+  // KIP-style events
+  "kas:account_changed": (address: string | null) => void;
+  "kas:network_changed": (network: string | null) => void;
+};
+
+export type KastleEventType = keyof KastleEventMap;
+
 export class KastleBrowserAPI {
   public readonly ethereum = new EthereumBrowserAPI();
 
-  constructor() {}
+  private readonly _eventListeners = new Map<
+    KastleEventType,
+    Set<(...args: any[]) => void>
+  >();
+
+  constructor() {
+    window.addEventListener("message", (event: MessageEvent<unknown>) => {
+      if (event.origin !== window.location.origin) return;
+
+      const result = ApiResponseSchema.safeParse(event.data);
+      if (!result.success) return;
+
+      const { id, response } = result.data;
+
+      if (id === "kas:account_changed") {
+        const address = response as string | null;
+        this._emit("accountsChanged", address ? [address] : []);
+        this._emit("kas:account_changed", address);
+      } else if (id === "kas:network_changed") {
+        this._emit("networkChanged", response as string);
+        this._emit("kas:network_changed", response as string | null);
+      }
+    });
+  }
+
+  on<E extends KastleEventType>(event: E, handler: KastleEventMap[E]): this {
+    if (!this._eventListeners.has(event)) {
+      this._eventListeners.set(event, new Set());
+    }
+    this._eventListeners.get(event)!.add(handler);
+    return this;
+  }
+
+  removeListener<E extends KastleEventType>(
+    event: E,
+    handler: KastleEventMap[E],
+  ): this {
+    this._eventListeners.get(event)?.delete(handler);
+    return this;
+  }
+
+  private _emit<E extends KastleEventType>(
+    event: E,
+    ...args: Parameters<KastleEventMap[E]>
+  ): void {
+    this._eventListeners.get(event)?.forEach((cb) => cb(...args));
+  }
 
   async connect(): Promise<boolean> {
     const requestId = uuid();
@@ -65,6 +122,9 @@ export class KastleBrowserAPI {
       "kas:sign_message": Action.SIGN_MESSAGE,
       "kas:commit_reveal": Action.COMMIT_REVEAL,
       "kas:send_sompi": Action.SEND_SOMPI,
+      "kas:get_balance": Action.GET_BALANCE,
+      "kas:get_utxo_entries": Action.GET_UTXO_ENTRIES,
+      "kas:build_transaction": Action.BUILD_TRANSACTION,
     }[method];
 
     if (!action) {
@@ -144,6 +204,54 @@ export class KastleBrowserAPI {
       requestId,
       networkId,
     );
+    window.postMessage(request, "*");
+
+    return await this.receiveMessageWithTimeout(requestId);
+  }
+
+  async getBalance(): Promise<{ balance: string }> {
+    const requestId = uuid();
+    const request = createApiRequest(Action.GET_BALANCE, requestId);
+    window.postMessage(request, "*");
+
+    return await this.receiveMessageWithTimeout(requestId);
+  }
+
+  async getUtxoEntries(): Promise<{
+    entries: {
+      address: string | undefined;
+      outpoint: { transactionId: string; index: number };
+      amount: string;
+      scriptPublicKey: string;
+      blockDaaScore: string;
+      isCoinbase: boolean;
+    }[];
+  }> {
+    const requestId = uuid();
+    const request = createApiRequest(Action.GET_UTXO_ENTRIES, requestId);
+    window.postMessage(request, "*");
+
+    return await this.receiveMessageWithTimeout(requestId);
+  }
+
+  async buildTransaction(
+    outputs: { address: string; amount: string }[],
+    options?: { priorityFee?: string; payload?: string },
+  ): Promise<{
+    networkId: string;
+    transactions: {
+      txJson: string;
+      id: string;
+      feeAmount: string;
+      changeAmount: string;
+    }[];
+  }> {
+    const requestId = uuid();
+    const request = createApiRequest(Action.BUILD_TRANSACTION, requestId, {
+      outputs,
+      priorityFee: options?.priorityFee ?? "0",
+      payload: options?.payload,
+    });
     window.postMessage(request, "*");
 
     return await this.receiveMessageWithTimeout(requestId);

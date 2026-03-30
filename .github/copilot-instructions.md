@@ -111,12 +111,57 @@ npm run e2e                # Playwright tests
 3. Send `ApiRequest` via `window.postMessage`, await response via promise/event listener pattern
 4. Implement corresponding background handler
 
+### Kaspa Browser API (`window.kastle`)
+
+`KastleBrowserAPI` in `api/browser.ts` exposes the following methods and events to dApps:
+
+#### Methods
+
+| Method | Action enum | Description |
+|--------|-------------|-------------|
+| `connect()` | `CONNECT` | Connect and request permission |
+| `getAccount()` | `GET_ACCOUNT` | Get current address and public key |
+| `getBalance()` | `GET_BALANCE` | Get current account balance (sompi as string) |
+| `getUtxoEntries()` | `GET_UTXO_ENTRIES` | Get all UTXOs for current account |
+| `buildTransaction(outputs, options?)` | `BUILD_TRANSACTION` | Build a transaction from current account UTXOs, returns serialized `txJson` ready for signing |
+| `signTx(networkId, txJson, scripts?)` | `SIGN_TX` | Sign a transaction (opens popup) |
+| `signAndBroadcastTx(networkId, txJson, scripts?)` | `SIGN_AND_BROADCAST_TX` | Sign and broadcast (opens popup) |
+| `signMessage(message)` | `SIGN_MESSAGE` | Sign a message |
+| `sendKaspa(toAddress, sompi, options?)` | `SEND_SOMPI` | Build + sign + broadcast in one call |
+| `switchNetwork(networkId)` | `SWITCH_NETWORK` | Switch network |
+| `request(method, args?)` | — | Generic method dispatcher via `kas:*` method strings |
+
+`buildTransaction` notes:
+- `outputs[].amount` is a **string** (sompi) to avoid JS bigint precision loss
+- May return multiple transactions when UTXO compounding is needed
+- Returns `{ networkId, transactions: [{ txJson, id, feeAmount, changeAmount }] }`
+
+#### Events (EventEmitter pattern)
+
+```ts
+kastle.on(event, handler)
+kastle.removeListener(event, handler)
+```
+
+| Event | Handler signature | Description |
+|-------|-------------------|-------------|
+| `"accountsChanged"` | `(accounts: string[]) => void` | KasWare-compatible; empty array when disconnected |
+| `"networkChanged"` | `(network: string) => void` | KasWare-compatible |
+| `"kas:account_changed"` | `(address: string \| null) => void` | KIP-style; null when disconnected |
+| `"kas:network_changed"` | `(network: string \| null) => void` | KIP-style |
+
+Both KasWare-style and KIP-style events are emitted simultaneously from the same content script message.
+Event sources are in `api/content-script/listeners/kaspa/`:
+- `watchSettingsUpdated` — emits `kas:network_changed` and `kas:account_changed` on network switch
+- `watchWalletSettingsUpdated` — emits `kas:account_changed` on account/wallet switch
+
 ### Crypto Operations
 
 - Use WASM bindings from `@/wasm/core/kaspa` for all Kaspa operations
 - For Ethereum: Use `viem` library (already imported)
 - Transaction signing: Always occurs in background context via `ExtensionService` methods
 - Public key derivation: Use `Generator` class from WASM for Kaspa, `evmGetPublicKeyHandler` for EVM
+- **RPC connections in background handlers**: Use `ApiUtils.getKaspaRpcClient()`, always `connect()` before use and `disconnect()` in `finally` block
 
 ## Key Files Reference
 
@@ -127,3 +172,4 @@ npm run e2e                # Playwright tests
 - Router: `entrypoints/popup/router.tsx` (uses `createHashRouter` from react-router-dom)
 - RPC client: `contexts/RpcClientContext.tsx` (WASM RpcClient wrapper)
 - Settings: `contexts/SettingsContext.tsx` (network config, RPC URLs)
+- Content script event listeners: `api/content-script/listeners/kaspa/`

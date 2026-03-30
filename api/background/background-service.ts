@@ -13,6 +13,9 @@ import { signMessageHandler } from "@/api/background/handlers/kaspa/signMessage"
 import { switchNetworkHandler } from "@/api/background/handlers/kaspa/switchNetwork";
 import { commitRevealHandler } from "./handlers/kaspa/commitReveal";
 import { sendSompiHandler } from "./handlers/kaspa/sendSompi";
+import { getBalanceHandler } from "./handlers/kaspa/getBalance";
+import { getUtxoEntriesHandler } from "./handlers/kaspa/getUtxoEntries";
+import { buildTransactionHandler } from "./handlers/kaspa/buildTransaction";
 
 export class BackgroundService {
   public listen(): void {
@@ -87,6 +90,9 @@ export class BackgroundService {
       [Action.COMMIT_REVEAL]: commitRevealHandler,
 
       [Action.SEND_SOMPI]: sendSompiHandler,
+      [Action.GET_BALANCE]: getBalanceHandler,
+      [Action.GET_UTXO_ENTRIES]: getUtxoEntriesHandler,
+      [Action.BUILD_TRANSACTION]: buildTransactionHandler,
     };
 
     return handlers[action];
