@@ -114,6 +114,7 @@ export class KastleBrowserAPI {
   async request(method: string, args?: unknown): Promise<any> {
     const requestId = uuid();
     const action = {
+      "kas:connect": Action.CONNECT,
       "kas:get_account": Action.GET_ACCOUNT,
       "kas:get_network": Action.GET_NETWORK,
       "kas:sign_tx": Action.SIGN_TX,
@@ -204,6 +205,32 @@ export class KastleBrowserAPI {
       requestId,
       networkId,
     );
+    window.postMessage(request, "*");
+
+    return await this.receiveMessageWithTimeout(requestId);
+  }
+
+  async getNetwork(): Promise<string> {
+    const requestId = uuid();
+    const request = createApiRequest(Action.GET_NETWORK, requestId);
+    window.postMessage(request, "*");
+
+    return await this.receiveMessageWithTimeout(requestId);
+  }
+
+  async commitReveal(
+    networkId: "mainnet" | "testnet-10",
+    namespace: string,
+    data: string,
+    options?: { revealPriorityFee?: string },
+  ): Promise<{ commitTxId: string; revealTxId: string }> {
+    const requestId = uuid();
+    const request = createApiRequest(Action.COMMIT_REVEAL, requestId, {
+      networkId,
+      namespace,
+      data,
+      options: options ?? {},
+    });
     window.postMessage(request, "*");
 
     return await this.receiveMessageWithTimeout(requestId);
