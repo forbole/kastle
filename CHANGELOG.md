@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.47.0](https://github.com/forbole/kastle/compare/v2.46.0...v2.47.0) (2026-03-30)
+
+
+### Features
+
+* add handlers for getBalance, getUtxoEntries, and buildTransaction actions ([b4a7dd4](https://github.com/forbole/kastle/commit/b4a7dd45ede4793b5d1e8c4766b39a7c1bde9d59))
+* add kas:connect action and implement getNetwork and commitReveal methods ([61fab2c](https://github.com/forbole/kastle/commit/61fab2c8b9707af76585addd1a67d47e4238127d))
+
 ## [2.46.0](https://github.com/forbole/kastle/compare/v2.45.0...v2.46.0) (2026-03-27)
 
 
