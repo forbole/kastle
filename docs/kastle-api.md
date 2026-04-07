@@ -67,10 +67,10 @@ console.log("Connected:", isSuccess); // true
 
 Returns the current wallet version in [SemVer](https://semver.org/) format. The build metadata suffix identifies the platform:
 
-| Suffix | Platform |
-| ------------ | -------- |
+| Suffix       | Platform          |
+| ------------ | ----------------- |
 | `+extension` | Browser extension |
-| `+mobile` | Mobile app |
+| `+mobile`    | Mobile app        |
 
 **Direct method**
 
@@ -423,21 +423,21 @@ kastle.removeListener("accountsChanged", myHandler);
 
 ## API Reference
 
-| Direct Method                                            | KIP-style (`kastle.request`) | Returns                         |
-| -------------------------------------------------------- | ---------------------------- | ------------------------------- |
-| `kastle.connect()`                                       | `kas:connect`                | `boolean`                       |
+| Direct Method                                            | KIP-style (`kastle.request`) | Returns                                             |
+| -------------------------------------------------------- | ---------------------------- | --------------------------------------------------- |
+| `kastle.connect()`                                       | `kas:connect`                | `boolean`                                           |
 | `kastle.getVersion()`                                    | `kas:get_version`            | `string` (e.g. `2.46.0+extension`, `2.46.0+mobile`) |
-| `kastle.getAccount()`                                    | `kas:get_account`            | `{ address, publicKey }`        |
-| `kastle.getNetwork()`                                    | `kas:get_network`            | `string`                        |
-| `kastle.switchNetwork(networkId)`                        | `kas:switch_network`         | `string`                        |
-| `kastle.getBalance()`                                    | `kas:get_balance`            | `{ balance: string }`           |
-| `kastle.getUtxoEntries()`                                | `kas:get_utxo_entries`       | `{ entries[] }`                 |
-| `kastle.sendKaspa(toAddress, sompi, opts?)`              | `kas:send_sompi`             | `string` (txId)                 |
-| `kastle.buildTransaction(outputs, opts?)`                | `kas:build_transaction`      | `{ networkId, transactions[] }` |
-| `kastle.signAndBroadcastTx(networkId, txJson, scripts?)` | `kas:sign_and_broadcast_tx`  | `string` (txId)                 |
-| `kastle.signTx(networkId, txJson, scripts?)`             | `kas:sign_tx`                | `string` (signed txJson)        |
-| `kastle.signMessage(message)`                            | `kas:sign_message`           | `string` (signature)            |
-| `kastle.commitReveal(networkId, namespace, data, opts?)` | `kas:commit_reveal`          | `{ commitTxId, revealTxId }`    |
+| `kastle.getAccount()`                                    | `kas:get_account`            | `{ address, publicKey }`                            |
+| `kastle.getNetwork()`                                    | `kas:get_network`            | `string`                                            |
+| `kastle.switchNetwork(networkId)`                        | `kas:switch_network`         | `string`                                            |
+| `kastle.getBalance()`                                    | `kas:get_balance`            | `{ balance: string }`                               |
+| `kastle.getUtxoEntries()`                                | `kas:get_utxo_entries`       | `{ entries[] }`                                     |
+| `kastle.sendKaspa(toAddress, sompi, opts?)`              | `kas:send_sompi`             | `string` (txId)                                     |
+| `kastle.buildTransaction(outputs, opts?)`                | `kas:build_transaction`      | `{ networkId, transactions[] }`                     |
+| `kastle.signAndBroadcastTx(networkId, txJson, scripts?)` | `kas:sign_and_broadcast_tx`  | `string` (txId)                                     |
+| `kastle.signTx(networkId, txJson, scripts?)`             | `kas:sign_tx`                | `string` (signed txJson)                            |
+| `kastle.signMessage(message)`                            | `kas:sign_message`           | `string` (signature)                                |
+| `kastle.commitReveal(networkId, namespace, data, opts?)` | `kas:commit_reveal`          | `{ commitTxId, revealTxId }`                        |
 
 ---
 
