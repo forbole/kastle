@@ -3,7 +3,6 @@ import { EthereumAccountsChangedListener } from "@/api/content-script/listeners/
 import { EthereumChainChangedListener } from "@/api/content-script/listeners/ethereum/chainChanged";
 import { watchSettingsUpdated } from "@/api/content-script/listeners/kaspa/settings-updated";
 import { watchWalletSettingsUpdated } from "@/api/content-script/listeners/kaspa/wallet-settings-updated";
-import { ApiUtils } from "@/api/background/utils";
 
 export default defineContentScript({
   matches: ["*://*/*"],
@@ -32,17 +31,14 @@ export default defineContentScript({
       window.postMessage(response, window.location.origin);
     });
 
-    // Emit the kastle_installed event to the page to notify that the extension is installed
-    window.postMessage(
-      ApiUtils.createApiResponse("kastle_installed", []),
-      window.location.origin,
-    );
-
     new EthereumAccountsChangedListener().start();
     new EthereumChainChangedListener().start();
 
     watchSettingsUpdated();
     watchWalletSettingsUpdated();
+
+    // Notify the page that Kastle is ready
+    window.dispatchEvent(new Event("kastle#initialized"));
   },
   runAt: "document_end",
 });
