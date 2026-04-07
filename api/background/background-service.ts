@@ -16,6 +16,7 @@ import { sendSompiHandler } from "./handlers/kaspa/sendSompi";
 import { getBalanceHandler } from "./handlers/kaspa/getBalance";
 import { getUtxoEntriesHandler } from "./handlers/kaspa/getUtxoEntries";
 import { buildTransactionHandler } from "./handlers/kaspa/buildTransaction";
+import { getVersionHandler } from "./handlers/kaspa/getVersion";
 
 export class BackgroundService {
   public listen(): void {
@@ -93,6 +94,7 @@ export class BackgroundService {
       [Action.GET_BALANCE]: getBalanceHandler,
       [Action.GET_UTXO_ENTRIES]: getUtxoEntriesHandler,
       [Action.BUILD_TRANSACTION]: buildTransactionHandler,
+      [Action.GET_VERSION]: getVersionHandler,
     };
 
     return handlers[action];

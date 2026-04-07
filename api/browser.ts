@@ -126,6 +126,7 @@ export class KastleBrowserAPI {
       "kas:get_balance": Action.GET_BALANCE,
       "kas:get_utxo_entries": Action.GET_UTXO_ENTRIES,
       "kas:build_transaction": Action.BUILD_TRANSACTION,
+      "kas:get_version": Action.GET_VERSION,
     }[method];
 
     if (!action) {
@@ -133,6 +134,14 @@ export class KastleBrowserAPI {
     }
 
     const request = createApiRequest(action, requestId, args);
+    window.postMessage(request, "*");
+
+    return await this.receiveMessageWithTimeout(requestId);
+  }
+
+  async getVersion(): Promise<string> {
+    const requestId = uuid();
+    const request = createApiRequest(Action.GET_VERSION, requestId);
     window.postMessage(request, "*");
 
     return await this.receiveMessageWithTimeout(requestId);

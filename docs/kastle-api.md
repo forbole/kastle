@@ -15,18 +15,19 @@ Each API method is available in two styles:
 
 1. [Detect Kastle](#1-detect-kastle)
 2. [Connect](#2-connect)
-3. [Get Account](#3-get-account)
-4. [Get Network](#4-get-network)
-5. [Switch Network](#5-switch-network)
-6. [Get Balance](#6-get-balance)
-7. [Get UTXO Entries](#7-get-utxo-entries)
-8. [Send KAS](#8-send-kas)
-9. [Build Transaction](#9-build-transaction)
-10. [Sign & Broadcast Transaction](#10-sign--broadcast-transaction)
-11. [Sign Transaction](#11-sign-transaction)
-12. [Sign Message](#12-sign-message)
-13. [KRC-20: Transfer Token](#13-krc-20-transfer-token)
-14. [Events](#14-events)
+3. [Get Version](#3-get-version)
+4. [Get Account](#4-get-account)
+5. [Get Network](#5-get-network)
+6. [Switch Network](#6-switch-network)
+7. [Get Balance](#7-get-balance)
+8. [Get UTXO Entries](#8-get-utxo-entries)
+9. [Send KAS](#9-send-kas)
+10. [Build Transaction](#10-build-transaction)
+11. [Sign & Broadcast Transaction](#11-sign--broadcast-transaction)
+12. [Sign Transaction](#12-sign-transaction)
+13. [Sign Message](#13-sign-message)
+14. [KRC-20: Transfer Token](#14-krc-20-transfer-token)
+15. [Events](#15-events)
 
 ---
 
@@ -62,9 +63,35 @@ console.log("Connected:", isSuccess); // true
 
 ---
 
-## 3. Get Account
+## 3. Get Version
 
-Returns the current wallet address and public key.
+Returns the current wallet version in [SemVer](https://semver.org/) format. The build metadata suffix identifies the platform:
+
+| Suffix | Platform |
+| ------------ | -------- |
+| `+extension` | Browser extension |
+| `+mobile` | Mobile app |
+
+**Direct method**
+
+```js
+const version = await kastle.getVersion();
+console.log("Version:", version);
+// Browser extension: "2.46.0+extension"
+// Mobile:            "1.82.0+mobile"
+```
+
+**KIP-style**
+
+```js
+const version = await kastle.request("kas:get_version");
+// Browser extension: "2.46.0+extension"
+// Mobile:            "1.82.0+mobile"
+```
+
+---
+
+## 4. Get Account
 
 **Direct method**
 
@@ -84,7 +111,7 @@ console.log("Public Key:", publicKey);
 
 ---
 
-## 4. Get Network
+## 5. Get Network
 
 Returns the currently active network ID.
 
@@ -104,7 +131,7 @@ console.log("Network:", network);
 
 ---
 
-## 5. Switch Network
+## 6. Switch Network
 
 Prompts the user to switch to a different network.
 
@@ -123,7 +150,7 @@ await kastle.request("kas:switch_network", "mainnet");
 
 ---
 
-## 6. Get Balance
+## 7. Get Balance
 
 Returns the current account balance in sompi.
 
@@ -143,7 +170,7 @@ console.log("Balance (sompi):", balance);
 
 ---
 
-## 7. Get UTXO Entries
+## 8. Get UTXO Entries
 
 Returns all UTXOs for the current account.
 
@@ -171,7 +198,7 @@ const { entries } = await kastle.request("kas:get_utxo_entries");
 
 ---
 
-## 8. Send KAS
+## 9. Send KAS
 
 Builds, signs, and broadcasts a KAS transfer in one call. No RPC or WASM needed.
 
@@ -201,7 +228,7 @@ console.log("Transaction ID:", txId);
 
 ---
 
-## 9. Build Transaction
+## 10. Build Transaction
 
 Builds one or more transactions from the current account's UTXOs. Returns serialized `txJson` ready for signing. No RPC or WASM needed.
 
@@ -238,7 +265,7 @@ const { networkId, transactions } = await kastle.request(
 
 ---
 
-## 10. Sign & Broadcast Transaction
+## 11. Sign & Broadcast Transaction
 
 Signs a transaction and broadcasts it to the network. Opens a confirmation popup.
 
@@ -263,7 +290,7 @@ console.log("Transaction ID:", txId);
 
 ---
 
-## 11. Sign Transaction
+## 12. Sign Transaction
 
 Signs a transaction **without** broadcasting it. Returns the signed transaction as a JSON string. Useful for marketplace flows (e.g. `SingleAnyOneCanPay`).
 
@@ -297,7 +324,7 @@ const signedTxJson = await kastle.signTx(networkId, txJson, [
 
 ---
 
-## 12. Sign Message
+## 13. Sign Message
 
 Signs an arbitrary message string.
 
@@ -320,7 +347,7 @@ console.log("Signature:", signature);
 
 ---
 
-## 13. KRC-20: Transfer Token
+## 14. KRC-20: Transfer Token
 
 KRC-20 operations use a commit-reveal pattern. Kastle handles both steps — no WASM needed.
 
@@ -363,7 +390,7 @@ console.log("Reveal Tx ID:", result.revealTxId);
 
 ---
 
-## 14. Events
+## 15. Events
 
 Listen to wallet state changes. Events are emitted in both KasWare-compatible and KIP-style formats simultaneously.
 
@@ -399,6 +426,7 @@ kastle.removeListener("accountsChanged", myHandler);
 | Direct Method                                            | KIP-style (`kastle.request`) | Returns                         |
 | -------------------------------------------------------- | ---------------------------- | ------------------------------- |
 | `kastle.connect()`                                       | `kas:connect`                | `boolean`                       |
+| `kastle.getVersion()`                                    | `kas:get_version`            | `string` (e.g. `2.46.0+extension`, `2.46.0+mobile`) |
 | `kastle.getAccount()`                                    | `kas:get_account`            | `{ address, publicKey }`        |
 | `kastle.getNetwork()`                                    | `kas:get_network`            | `string`                        |
 | `kastle.switchNetwork(networkId)`                        | `kas:switch_network`         | `string`                        |
