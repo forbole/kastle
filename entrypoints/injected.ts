@@ -2,6 +2,12 @@ import { KastleBrowserAPI } from "@/api/browser";
 import kastleIcon from "@/assets/images/kastle-icon.svg";
 import { EthereumBrowserAPI } from "@/api/ethereum";
 
+declare global {
+  interface Window {
+    ethereum?: EthereumBrowserAPI;
+  }
+}
+
 export default defineUnlistedScript(() => {
   // Add the kastle object to window
   Object.assign(window, { kastle: new KastleBrowserAPI() });
@@ -28,6 +34,12 @@ function handleEIP6963() {
   };
 
   const provider = new EthereumBrowserAPI();
+
+  // Also assign to window.ethereum for dApps that don't support EIP-6963
+  if (!window.ethereum) {
+    Object.assign(window, { ethereum: provider });
+  }
+
   const announceEvent = new CustomEvent("eip6963:announceProvider", {
     detail: Object.freeze({
       info,
