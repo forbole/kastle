@@ -208,6 +208,15 @@ const { entries } = await kastle.request("kas:get_utxo_entries");
 
 Builds, signs, and broadcasts a KAS transfer in one call. No RPC or WASM needed.
 
+**Parameters**
+
+| Parameter             | Type     | Required | Description                                                                                                       |
+| --------------------- | -------- | -------- | ----------------------------------------------------------------------------------------------------------------- |
+| `toAddress`           | `string` | ✅       | Recipient Kaspa address                                                                                           |
+| `sompi`               | `number` | ✅       | Amount in sompi (minimum 0.2 KAS = 20,000,000 sompi)                                                              |
+| `options.priorityFee` | `number` | ❌       | Priority fee in sompi (default: `0`)                                                                              |
+| `options.payload`     | `string` | ❌       | Transaction payload as a **hex string** (even length, `0-9 a-f` only). Returns an error if the format is invalid. |
+
 **Direct method**
 
 ```js
@@ -216,6 +225,7 @@ const txId = await kastle.sendKaspa(
   100000000, // amount in sompi (1 KAS = 100,000,000 sompi)
   {
     priorityFee: 1000000, // optional, in sompi
+    payload: "6b61737061", // optional hex string
   },
 );
 console.log("Transaction ID:", txId);
@@ -227,7 +237,7 @@ console.log("Transaction ID:", txId);
 const txId = await kastle.request("kas:send_sompi", {
   toAddress: "kaspa:qr...recipient",
   sompi: 100000000,
-  options: { priorityFee: 1000000 },
+  options: { priorityFee: 1000000, payload: "6b61737061" },
 });
 console.log("Transaction ID:", txId);
 ```

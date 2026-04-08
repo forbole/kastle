@@ -18,7 +18,13 @@ export const buildTransactionPayloadSchema = z.object({
     )
     .min(1, "outputs cannot be empty"),
   priorityFee: z.string().default("0"),
-  payload: z.string().optional(),
+  payload: z
+    .string()
+    .refine(
+      (v) => /^[0-9a-fA-F]*$/.test(v) && v.length % 2 === 0,
+      "payload must be a valid hex string (even length, 0-9 a-f only)",
+    )
+    .optional(),
 });
 
 export type BuildTransactionPayload = z.infer<
@@ -125,21 +131,7 @@ export const buildTransactionHandler: Handler = async (
     }
 
     // Validate payload is a valid hex string if provided
-    let payloadHex: string | undefined;
-    if (parsed.payload) {
-      const isHex = /^[0-9a-fA-F]*$/.test(parsed.payload);
-      if (!isHex || parsed.payload.length % 2 !== 0) {
-        sendResponse(
-          ApiUtils.createApiResponse(
-            message.id,
-            null,
-            "Invalid payload: must be a valid hex string (even length, 0-9 a-f only)",
-          ),
-        );
-        return;
-      }
-      payloadHex = parsed.payload;
-    }
+    const payloadHex = parsed.payload;
 
     const { transactions: pendingTxs } = await createTransactions({
       entries,
