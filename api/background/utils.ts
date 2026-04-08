@@ -215,7 +215,10 @@ export class ApiUtils {
       return;
     }
 
-    if (settings.isLegacyEvmAddressEnabled) {
+    if (
+      settings.isLegacyEvmAddressEnabled &&
+      settings.isLegacyFeaturesEnabled
+    ) {
       return account.publicKeys && account.publicKeys.length > 0
         ? toLegacyEvmAddress(account.publicKeys[0])
         : undefined;
