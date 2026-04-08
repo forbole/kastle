@@ -65,6 +65,8 @@ console.log("Connected:", isSuccess); // true
 
 ## 3. Get Version
 
+> **Available since:** Extension `2.48.0` · Mobile `1.19.0`
+
 Returns the current wallet version in [SemVer](https://semver.org/) format. The build metadata suffix identifies the platform:
 
 | Suffix       | Platform          |
@@ -77,16 +79,16 @@ Returns the current wallet version in [SemVer](https://semver.org/) format. The 
 ```js
 const version = await kastle.getVersion();
 console.log("Version:", version);
-// Browser extension: "2.46.0+extension"
-// Mobile:            "1.82.0+mobile"
+// Browser extension: "2.47.0+extension"
+// Mobile:            "1.19.0+mobile"
 ```
 
 **KIP-style**
 
 ```js
 const version = await kastle.request("kas:get_version");
-// Browser extension: "2.46.0+extension"
-// Mobile:            "1.82.0+mobile"
+// Browser extension: "2.47.0+extension"
+// Mobile:            "1.19.0+mobile"
 ```
 
 ---
@@ -152,6 +154,8 @@ await kastle.request("kas:switch_network", "mainnet");
 
 ## 7. Get Balance
 
+> **Available since:** Extension `2.47.0` · Mobile `1.19.0`
+
 Returns the current account balance in sompi.
 
 **Direct method**
@@ -171,6 +175,8 @@ console.log("Balance (sompi):", balance);
 ---
 
 ## 8. Get UTXO Entries
+
+> **Available since:** Extension `2.47.0` · Mobile `1.19.0`
 
 Returns all UTXOs for the current account.
 
@@ -229,6 +235,8 @@ console.log("Transaction ID:", txId);
 ---
 
 ## 10. Build Transaction
+
+> **Available since:** Extension `2.47.0` · Mobile `1.19.0`
 
 Builds one or more transactions from the current account's UTXOs. Returns serialized `txJson` ready for signing. No RPC or WASM needed.
 
@@ -438,7 +446,7 @@ kastle.removeListener("accountsChanged", myHandler);
 | Direct Method                                            | KIP-style (`kastle.request`) | Returns                                             |
 | -------------------------------------------------------- | ---------------------------- | --------------------------------------------------- |
 | `kastle.connect()`                                       | `kas:connect`                | `boolean`                                           |
-| `kastle.getVersion()`                                    | `kas:get_version`            | `string` (e.g. `2.46.0+extension`, `2.46.0+mobile`) |
+| `kastle.getVersion()`                                    | `kas:get_version`            | `string` (e.g. `2.47.0+extension`, `1.19.0+mobile`) |
 | `kastle.getAccount()`                                    | `kas:get_account`            | `{ address, publicKey }`                            |
 | `kastle.getNetwork()`                                    | `kas:get_network`            | `string`                                            |
 | `kastle.switchNetwork(networkId)`                        | `kas:switch_network`         | `string`                                            |
