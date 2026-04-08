@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.48.0](https://github.com/forbole/kastle/compare/v2.47.0...v2.48.0) (2026-04-08)
+
+
+### Features
+
+* add getVersion handler ([73a9bd0](https://github.com/forbole/kastle/commit/73a9bd0dcc00a54d67cf391f6d6c90a1a97ceabe))
+* add proper error for buildTransaction api ([a8eae7d](https://github.com/forbole/kastle/commit/a8eae7dee40528f1f470fc47f4fa0cef736de6de))
+* inject window.ethereum ([664a0c3](https://github.com/forbole/kastle/commit/664a0c333cc01b9318346ba3d586e782432a65eb))
+
+
+### Bug Fixes
+
+* add payload validation to sendSompi ([337a2e6](https://github.com/forbole/kastle/commit/337a2e6b975001e9cd9ffae946778e6d61119fc7))
+* align legacy EVM address in useEvmAddress with background API ([b05e32a](https://github.com/forbole/kastle/commit/b05e32ad15f02f96d490f9721cb3afe7ef57819d))
+
 ## [2.47.0](https://github.com/forbole/kastle/compare/v2.46.0...v2.47.0) (2026-03-30)
 
 
