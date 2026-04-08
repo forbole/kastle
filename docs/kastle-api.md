@@ -235,12 +235,23 @@ Builds one or more transactions from the current account's UTXOs. Returns serial
 > `amount` and `priorityFee` are **strings** (sompi) to avoid JS BigInt precision loss.
 > May return multiple transactions when UTXO compounding is needed.
 
+**Parameters**
+
+| Parameter             | Type                                    | Required | Description                                                                                                       |
+| --------------------- | --------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------- |
+| `outputs`             | `{ address: string; amount: string }[]` | ✅       | Recipient addresses and amounts (in sompi)                                                                        |
+| `options.priorityFee` | `string`                                | ❌       | Priority fee in sompi (default: `"0"`)                                                                            |
+| `options.payload`     | `string`                                | ❌       | Transaction payload as a **hex string** (even length, `0-9 a-f` only). Returns an error if the format is invalid. |
+
 **Direct method**
 
 ```js
 const { networkId, transactions } = await kastle.buildTransaction(
   [{ address: "kaspa:qr...recipient", amount: "100000000" }],
-  { priorityFee: "1000000" },
+  {
+    priorityFee: "1000000",
+    payload: "6b61737061", // optional hex string
+  },
 );
 
 for (const tx of transactions) {
@@ -259,6 +270,7 @@ const { networkId, transactions } = await kastle.request(
   {
     outputs: [{ address: "kaspa:qr...recipient", amount: "100000000" }],
     priorityFee: "1000000",
+    payload: "6b61737061", // optional hex string
   },
 );
 ```

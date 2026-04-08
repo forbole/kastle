@@ -87,6 +87,33 @@ document
     }
   });
 
+document.getElementById("buildTxButton").addEventListener("click", async () => {
+  try {
+    const toAddress = document.getElementById("buildTxToAddress").value;
+    if (!toAddress) {
+      throw new Error("Please enter a to address");
+    }
+    const amount = document.getElementById("buildTxAmount").value;
+    const priorityFee = document.getElementById("buildTxPriorityFee").value;
+    const payload =
+      document.getElementById("buildTxPayload").value || undefined;
+
+    const result = await kastle.buildTransaction(
+      [{ address: toAddress, amount }],
+      { priorityFee, payload },
+    );
+    document.getElementById("buildTxResult").innerText = JSON.stringify(
+      result,
+      null,
+      2,
+    );
+    document.getElementById("buildTxError").innerText = "None";
+  } catch (error) {
+    document.getElementById("buildTxError").innerText = error.message;
+    document.getElementById("buildTxResult").innerText = "";
+  }
+});
+
 document.getElementById("signMessage").addEventListener("click", async () => {
   try {
     const message = "Hello, World!";

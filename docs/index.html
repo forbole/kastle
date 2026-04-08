@@ -42,6 +42,50 @@
     <div>Error: <span id="error">None</span></div>
 
     <div>
+      <h3>Build Transaction</h3>
+      <div>
+        To Address:
+        <input
+          type="text"
+          id="buildTxToAddress"
+          placeholder="kaspatest:..."
+          style="width: 400px"
+        />
+      </div>
+      <div>
+        Amount (sompi):
+        <input
+          type="text"
+          id="buildTxAmount"
+          placeholder="100000000"
+          value="100000000"
+        />
+      </div>
+      <div>
+        Priority Fee (sompi):
+        <input type="text" id="buildTxPriorityFee" placeholder="0" value="0" />
+      </div>
+      <div>
+        Payload (optional, hex string only):
+        <input
+          type="text"
+          id="buildTxPayload"
+          placeholder="optional hex payload (e.g. 6b61737061)"
+          style="width: 400px"
+        />
+      </div>
+      <button id="buildTxButton">Build Transaction</button>
+      <div>
+        Result:
+        <pre
+          id="buildTxResult"
+          style="white-space: pre-wrap; word-break: break-all"
+        ></pre>
+      </div>
+      <div>Error: <span id="buildTxError">None</span></div>
+    </div>
+
+    <div>
       <button id="signMessage">Sign Message</button>
       <div>Signature: <span id="signature"></span></div>
       <div>Error: <span id="signMessageError">None</span></div>

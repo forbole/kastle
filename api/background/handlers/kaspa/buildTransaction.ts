@@ -124,6 +124,23 @@ export const buildTransactionHandler: Handler = async (
       return;
     }
 
+    // Validate payload is a valid hex string if provided
+    let payloadHex: string | undefined;
+    if (parsed.payload) {
+      const isHex = /^[0-9a-fA-F]*$/.test(parsed.payload);
+      if (!isHex || parsed.payload.length % 2 !== 0) {
+        sendResponse(
+          ApiUtils.createApiResponse(
+            message.id,
+            null,
+            "Invalid payload: must be a valid hex string (even length, 0-9 a-f only)",
+          ),
+        );
+        return;
+      }
+      payloadHex = parsed.payload;
+    }
+
     const { transactions: pendingTxs } = await createTransactions({
       entries,
       outputs: parsed.outputs.map((o) => ({
@@ -132,7 +149,7 @@ export const buildTransactionHandler: Handler = async (
       })),
       priorityFee: BigInt(parsed.priorityFee),
       changeAddress: account.address,
-      payload: parsed.payload,
+      payload: payloadHex,
       networkId,
     });
 
