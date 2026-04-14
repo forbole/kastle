@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.49.0](https://github.com/forbole/kastle/compare/v2.48.0...v2.49.0) (2026-04-14)
+
+
+### Features
+
+* enhance analytics tracking for onboarding and asset transfers ([#277](https://github.com/forbole/kastle/issues/277)) ([1d5c796](https://github.com/forbole/kastle/commit/1d5c79689d9729fa02f55139176c9602f5e84926))
+* migrate rpcs to new endpoints ([#275](https://github.com/forbole/kastle/issues/275)) ([dca7297](https://github.com/forbole/kastle/commit/dca7297a0e50866b7a2c335b2220aabdce238884))
+* remove duplicated posthog events ([3a274a7](https://github.com/forbole/kastle/commit/3a274a7a955da8fe56a4d0adc345d9bb8022043d))
+
 ## [2.48.0](https://github.com/forbole/kastle/compare/v2.47.0...v2.48.0) (2026-04-08)
 
 
