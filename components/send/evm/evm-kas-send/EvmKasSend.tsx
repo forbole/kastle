@@ -7,6 +7,8 @@ import { Broadcasting } from "../../Broadcasting";
 import SuccessStatus from "../SuccessStatus";
 import FailStatus from "../FailStatus";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
+import useAnalytics from "@/hooks/useAnalytics";
+import { hexToNumber } from "viem";
 
 import z from "zod";
 
@@ -26,6 +28,7 @@ type Step = (typeof steps)[number];
 export default function EvmKasSend() {
   const { wallet } = useWalletManager();
   const navigate = useNavigate();
+  const { emitSendCompleted } = useAnalytics();
   const { state } = useLocation() as {
     state?: {
       step: Step;
@@ -74,11 +77,29 @@ export default function EvmKasSend() {
             onNext={() => setStep("broadcast")}
             onBack={onBack}
             setOutTxs={setOutTxs}
-            onFail={() => setStep("fail")}
+            onFail={() => {
+              emitSendCompleted({
+                type: "EVM_KAS",
+                id: chainId!,
+                chainId: hexToNumber(chainId!),
+                status: "failed",
+              });
+              setStep("fail");
+            }}
           />
         )}
         {step == "broadcast" && (
-          <Broadcasting onSuccess={() => setStep("success")} />
+          <Broadcasting
+            onSuccess={() => {
+              emitSendCompleted({
+                type: "EVM_KAS",
+                id: chainId!,
+                chainId: hexToNumber(chainId!),
+                status: "success",
+              });
+              setStep("success");
+            }}
+          />
         )}
         {step === "success" && (
           <SuccessStatus chainId={chainId!} transactionIds={outTxs} />

@@ -14,7 +14,7 @@ import useWalletImporter from "@/hooks/wallet/useWalletImporter.ts";
 type PrivateKeyFormValues = { privateKey: string };
 
 export default function ImportPrivateKey() {
-  const { emitPrivateKeyImported } = useAnalytics();
+  const { emitWalletCreated } = useAnalytics();
   const navigate = useNavigate();
   const { keyringInitialize } = useKeyring();
   const { importWalletByPrivateKey } = useWalletImporter();
@@ -47,7 +47,7 @@ export default function ImportPrivateKey() {
 
     await importWalletByPrivateKey(uuid(), privateKey);
 
-    emitPrivateKeyImported();
+    emitWalletCreated({ method: "import" });
     navigate(
       onboardingForm ? "/onboarding-success/import" : "/accounts-imported",
     );

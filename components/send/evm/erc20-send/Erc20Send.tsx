@@ -9,6 +9,8 @@ import FailStatus from "../FailStatus";
 import z from "zod";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import useErc20Info from "@/hooks/evm/useErc20Info";
+import useAnalytics from "@/hooks/useAnalytics";
+import { hexToNumber } from "viem";
 
 export const Erc20SendFormSchema = z.object({
   userInput: z.string().optional(),
@@ -26,6 +28,7 @@ type Step = (typeof steps)[number];
 export default function Erc20Send() {
   const { wallet } = useWalletManager();
   const navigate = useNavigate();
+  const { emitSendCompleted } = useAnalytics();
   const { state } = useLocation() as {
     state?: {
       step: Step;
@@ -82,11 +85,31 @@ export default function Erc20Send() {
             onNext={() => setStep("broadcast")}
             onBack={onBack}
             setOutTxs={setOutTxs}
-            onFail={() => setStep("fail")}
+            onFail={() => {
+              if (asset)
+                emitSendCompleted({
+                  type: "ERC20",
+                  id: asset.address,
+                  chainId: hexToNumber(asset.chainId),
+                  status: "failed",
+                });
+              setStep("fail");
+            }}
           />
         )}
         {step == "broadcast" && (
-          <Broadcasting onSuccess={() => setStep("success")} />
+          <Broadcasting
+            onSuccess={() => {
+              if (asset)
+                emitSendCompleted({
+                  type: "ERC20",
+                  id: asset.address,
+                  chainId: hexToNumber(asset.chainId),
+                  status: "success",
+                });
+              setStep("success");
+            }}
+          />
         )}
         {step === "success" && asset && (
           <SuccessStatus

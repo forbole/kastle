@@ -6,6 +6,7 @@ import KNSTransferConfirm from "@/components/kns-transfer/KNSTransferConfirm.tsx
 import KNSTransferBroadcast from "@/components/kns-transfer/KNSTransferBroadcast.tsx";
 import KNSTransferSuccess from "@/components/kns-transfer/KNSTransferSuccess.tsx";
 import KNSTransferFailure from "@/components/kns-transfer/KNSTransferFailure.tsx";
+import useAnalytics from "@/hooks/useAnalytics";
 
 const steps = ["details", "confirm", "broadcast", "success", "fail"] as const;
 
@@ -23,6 +24,7 @@ export default function KNSTransfer() {
   const { assetId } = useParams();
   const navigate = useNavigate();
   const [step, setStep] = useState<Step>("details");
+  const { emitSendCompleted } = useAnalytics();
 
   const form = useForm<KNSTransferFormData>({
     defaultValues: { assetId, isDomain: true },
@@ -59,8 +61,22 @@ export default function KNSTransfer() {
         {step === "broadcast" && (
           <KNSTransferBroadcast
             setOutTxs={setOutTxs}
-            onFail={() => setStep("fail")}
-            onSuccess={() => setStep("success")}
+            onFail={() => {
+              emitSendCompleted({
+                type: "KNS",
+                id: assetId ?? "",
+                status: "failed",
+              });
+              setStep("fail");
+            }}
+            onSuccess={() => {
+              emitSendCompleted({
+                type: "KNS",
+                id: assetId ?? "",
+                status: "success",
+              });
+              setStep("success");
+            }}
           />
         )}
         {step === "success" && <KNSTransferSuccess transactionIds={outTxs} />}

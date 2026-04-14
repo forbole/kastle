@@ -8,6 +8,7 @@ import useResetPreline from "@/hooks/useResetPreline.ts";
 import { useLocation } from "react-router";
 import { OnboardingData } from "@/components/screens/Onboarding.tsx";
 import { useNavigate } from "react-router-dom";
+import useAnalytics from "@/hooks/useAnalytics.ts";
 import useWalletImporter from "@/hooks/wallet/useWalletImporter";
 
 export default function SetupPassword() {
@@ -19,6 +20,7 @@ export default function SetupPassword() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isMismatchShown, setIsMismatchShown] = useState(false);
   useResetPreline([location.pathname]);
+  const { emitWalletCreated } = useAnalytics();
 
   const {
     register,
@@ -36,6 +38,7 @@ export default function SetupPassword() {
     if (method === "create") {
       await keyringInitialize(data.password);
       await createNewWallet(uuid());
+      emitWalletCreated({ method: "new" });
       navigate("/onboarding-success/create");
     } else {
       setValue("step", "choose");

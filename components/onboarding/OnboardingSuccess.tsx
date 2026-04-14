@@ -8,7 +8,7 @@ import { useParams } from "react-router-dom";
 export default function OnboardingSuccess() {
   const calledOnce = useRef(false);
   const { method } = useParams();
-  const { emitOnboardingComplete } = useAnalytics();
+  const { emitOnboardingComplete, emitOnboardingCompleted } = useAnalytics();
   const { reopenPopup } = useExtensionUtils();
 
   useEffect(() => {
@@ -16,6 +16,7 @@ export default function OnboardingSuccess() {
     calledOnce.current = true;
 
     emitOnboardingComplete();
+    emitOnboardingCompleted();
   }, []);
 
   useEffect(() => {
