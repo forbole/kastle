@@ -45,8 +45,8 @@ export type Settings = {
 };
 
 export const RPC_URLS = {
-  [NetworkType.Mainnet]: "wss://kaspa-mainnet.forbole.com/borsh",
-  [NetworkType.TestnetT10]: "wss://kaspa-testnet.forbole.com/borsh",
+  [NetworkType.Mainnet]: "wss://kastle-mainnet-borsh.rhyzome.co",
+  [NetworkType.TestnetT10]: "wss://kastle-tn10-borsh.rhyzome.co",
 };
 export const KASPLEX_API_URLS = {
   [NetworkType.Mainnet]: "https://api.kasplex.org/v1",
