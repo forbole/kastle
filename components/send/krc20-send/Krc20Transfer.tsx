@@ -9,6 +9,7 @@ import { setPopupPath } from "@/lib/utils.ts";
 import { useTokenInfo } from "@/hooks/kasplex/useTokenInfo";
 import { applyDecimal } from "@/lib/krc20.ts";
 import { useLocation } from "react-router";
+import useAnalytics from "@/hooks/useAnalytics";
 
 const steps = ["confirm", "broadcast", "success", "fail"] as const;
 type Step = (typeof steps)[number];
@@ -32,6 +33,7 @@ export default function Krc20Transfer() {
     defaultValues: { opData: {}, domain },
   });
   const [outTxs, setOutTxs] = useState<string[]>();
+  const { emitSendCompleted } = useAnalytics();
 
   const { data: tokenInfoResponse, isLoading } = useTokenInfo(
     ticker ?? undefined,
@@ -83,8 +85,22 @@ export default function Krc20Transfer() {
         {step === "broadcast" && (
           <BroadcastTokenOperationStep
             setOutTxs={setOutTxs}
-            onFail={() => setStep("fail")}
-            onSuccess={() => setStep("success")}
+            onFail={() => {
+              emitSendCompleted({
+                type: "KRC20",
+                id: ticker,
+                status: "failed",
+              });
+              setStep("fail");
+            }}
+            onSuccess={() => {
+              emitSendCompleted({
+                type: "KRC20",
+                id: ticker,
+                status: "success",
+              });
+              setStep("success");
+            }}
           />
         )}
         {step === "success" && <SuccessStatus transactionIds={outTxs} />}

@@ -9,6 +9,7 @@ import { useNavigate } from "react-router-dom";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import HoverTooltip from "@/components/HoverTooltip";
 import useKrc20Logo from "@/hooks/kasplex/useKrc20Logo";
+import useAnalytics from "@/hooks/useAnalytics";
 
 interface KRC20SelectItemProps {
   token: TokenItem;
@@ -17,6 +18,7 @@ interface KRC20SelectItemProps {
 export default function KRC20SelectItem({ token }: KRC20SelectItemProps) {
   const navigate = useNavigate();
   const { wallet } = useWalletManager();
+  const { emitSendInitiated } = useAnalytics();
 
   const { logo } = useKrc20Logo(token.id);
   const { toFloat } = applyDecimal(token.dec);
@@ -33,7 +35,10 @@ export default function KRC20SelectItem({ token }: KRC20SelectItemProps) {
         type="button"
         className="flex items-center justify-between rounded-lg px-3 py-2 text-base font-medium text-daintree-200 hover:bg-daintree-800"
         onClick={() => {
-          if (!isLedger) navigate(`/krc20/send/${token.id}`);
+          if (!isLedger) {
+            emitSendInitiated({ type: "KRC20", id: token.id });
+            navigate(`/krc20/send/${token.id}`);
+          }
         }}
       >
         <div

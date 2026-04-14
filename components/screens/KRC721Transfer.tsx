@@ -6,6 +6,7 @@ import KRC721TransferConfirm from "@/components/krc-721-transfer/KRC721TransferC
 import KRC721TransferBroadcast from "@/components/krc-721-transfer/KRC721TransferBroadcast.tsx";
 import KRC721TransferSuccess from "@/components/krc-721-transfer/KRC721TransferSuccess.tsx";
 import KRC721TransferFailure from "@/components/krc-721-transfer/KRC721TransferFailure.tsx";
+import useAnalytics from "@/hooks/useAnalytics";
 
 const steps = ["details", "confirm", "broadcast", "success", "fail"] as const;
 
@@ -23,6 +24,7 @@ export default function KRC721Transfer() {
   const { tick, tokenId } = useParams();
   const navigate = useNavigate();
   const [step, setStep] = useState<Step>("details");
+  const { emitSendCompleted } = useAnalytics();
 
   const form = useForm<KRC721TransferFormData>({
     defaultValues: { tick, tokenId },
@@ -59,8 +61,22 @@ export default function KRC721Transfer() {
         {step === "broadcast" && (
           <KRC721TransferBroadcast
             setOutTxs={setOutTxs}
-            onFail={() => setStep("fail")}
-            onSuccess={() => setStep("success")}
+            onFail={() => {
+              emitSendCompleted({
+                type: "KRC721",
+                id: `${tick ?? ""}#${tokenId ?? ""}`,
+                status: "failed",
+              });
+              setStep("fail");
+            }}
+            onSuccess={() => {
+              emitSendCompleted({
+                type: "KRC721",
+                id: `${tick ?? ""}#${tokenId ?? ""}`,
+                status: "success",
+              });
+              setStep("success");
+            }}
           />
         )}
         {step === "success" && (

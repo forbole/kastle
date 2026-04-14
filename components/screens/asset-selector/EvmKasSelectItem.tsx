@@ -7,6 +7,8 @@ import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { twMerge } from "tailwind-merge";
 import { formatToken } from "@/lib/utils.ts";
 import HoverTooltip from "@/components/HoverTooltip";
+import useAnalytics from "@/hooks/useAnalytics";
+import { hexToNumber } from "viem";
 
 export default function EvmKasSelectItem({
   chainId,
@@ -15,12 +17,18 @@ export default function EvmKasSelectItem({
 }) {
   const { wallet } = useWalletManager();
   const navigate = useNavigate();
+  const { emitSendInitiated } = useAnalytics();
   const { data } = useEvmKasBalance(chainId);
   const kasBalance = data?.balance ?? "0";
 
   const isLedger = wallet?.type === "ledger";
   const onClick = () => {
     if (isLedger) return;
+    emitSendInitiated({
+      type: "EVM_KAS",
+      id: chainId,
+      chainId: hexToNumber(chainId),
+    });
     navigate(`/evm-kas/send/${chainId}`);
   };
 

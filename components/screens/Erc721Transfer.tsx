@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { Hex, Address } from "viem";
+import { Hex, Address, hexToNumber } from "viem";
 import { FormProvider, useForm } from "react-hook-form";
 import Erc721TransferDetails from "@/components/send/evm/erc721-transfer/Erc721TransferDetails";
 import Erc721TransferHotWalletConfirm from "@/components/send/evm/erc721-transfer/Erc721TransferHotWalletConfirm";
@@ -8,6 +8,7 @@ import useErc721Info from "@/hooks/evm/useErc721Info";
 import FailStatus from "@/components/send/evm/FailStatus";
 import SuccessStatus from "@/components/send/evm/SuccessStatus";
 import { useState } from "react";
+import useAnalytics from "@/hooks/useAnalytics";
 
 const steps = ["details", "confirm", "broadcast", "success", "fail"] as const;
 type Step = (typeof steps)[number];
@@ -26,6 +27,7 @@ export default function Erc721Transfer() {
   const navigate = useNavigate();
   const [step, setStep] = useState<Step>("details");
   const [outTxs, setOutTxs] = useState<string[]>();
+  const { emitSendCompleted } = useAnalytics();
 
   const { data } = useErc721Info(chainId, contractAddress, tokenId);
 
@@ -68,11 +70,29 @@ export default function Erc721Transfer() {
             onNext={() => setStep("broadcast")}
             onBack={onBack}
             setOutTxs={setOutTxs}
-            onFail={() => setStep("fail")}
+            onFail={() => {
+              emitSendCompleted({
+                type: "ERC721",
+                id: `${contractAddress}-${tokenId}`,
+                chainId: hexToNumber(chainId),
+                status: "failed",
+              });
+              setStep("fail");
+            }}
           />
         )}
         {step === "broadcast" && (
-          <Broadcasting onSuccess={() => setStep("success")} />
+          <Broadcasting
+            onSuccess={() => {
+              emitSendCompleted({
+                type: "ERC721",
+                id: `${contractAddress}-${tokenId}`,
+                chainId: hexToNumber(chainId!),
+                status: "success",
+              });
+              setStep("success");
+            }}
+          />
         )}
         {isValidParams && step === "success" && (
           <SuccessStatus

@@ -10,10 +10,12 @@ import useErc20Assets from "@/hooks/evm/useErc20Assets";
 import Erc20SelectItem from "./Erc20SelectItem";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import useKaspaBalance from "@/hooks/wallet/useKaspaBalance";
+import useAnalytics from "@/hooks/useAnalytics";
 
 export default function AssetSelect() {
   const navigate = useNavigate();
   const { account } = useWalletManager();
+  const { emitSendInitiated } = useAnalytics();
   const [searchQuery, setSearchQuery] = useState("");
   const kasAddress = account?.address;
   const kasBalance = useKaspaBalance(kasAddress) ?? 0;
@@ -72,7 +74,10 @@ export default function AssetSelect() {
           <button
             type="button"
             className="flex items-center justify-between rounded-lg px-3 py-2 text-base font-medium text-daintree-200 hover:bg-daintree-800"
-            onClick={() => navigate("/kas/send")}
+            onClick={() => {
+              emitSendInitiated({ type: "KAS", id: "KAS" });
+              navigate("/kas/send");
+            }}
           >
             <div className="flex items-center gap-3">
               <img

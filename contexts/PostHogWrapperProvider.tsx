@@ -23,7 +23,7 @@ export function PostHogWrapperProvider({ children }: { children: ReactNode }) {
     calledOnce.current = true;
 
     const postHogInstance = new PostHog(
-      "phc_cnYLzCi1iYgXbHycArgvgabG1VhNEOSjCZpFhJiirH1",
+      "phc_9GNofpiXuB3oDxjJes4K2VaTgM33mwCNt8ZoOoTgyon",
       {
         host: "https://eu.i.posthog.com",
         autocapture: false,

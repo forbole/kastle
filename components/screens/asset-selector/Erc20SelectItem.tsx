@@ -9,10 +9,13 @@ import { Erc20Asset } from "@/contexts/EvmAssets";
 import { formatToken, textEllipsis } from "@/lib/utils.ts";
 import HoverTooltip from "@/components/HoverTooltip";
 import { useErc20Image } from "@/hooks/evm/useZealousSwapMetadata";
+import useAnalytics from "@/hooks/useAnalytics";
+import { hexToNumber } from "viem";
 
 export default function Erc20SelectItem({ asset }: { asset: Erc20Asset }) {
   const { wallet } = useWalletManager();
   const navigate = useNavigate();
+  const { emitSendInitiated } = useAnalytics();
   const { data } = useErc20Balance(asset.address, asset.chainId);
   const balance = data?.balance ?? "0";
   const { logoUrl } = useErc20Image(asset.chainId, asset.address);
@@ -20,6 +23,11 @@ export default function Erc20SelectItem({ asset }: { asset: Erc20Asset }) {
   const isLedger = wallet?.type === "ledger";
   const onClick = () => {
     if (isLedger) return;
+    emitSendInitiated({
+      type: "ERC20",
+      id: asset.address,
+      chainId: hexToNumber(asset.chainId),
+    });
     navigate(`/erc20/send/${asset.chainId}/${asset.address}`);
   };
 

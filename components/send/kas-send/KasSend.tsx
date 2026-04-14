@@ -9,6 +9,7 @@ import useWalletManager from "@/hooks/wallet/useWalletManager";
 import HotWalletConfirm from "@/components/send/kas-send/HotWalletConfirm";
 import LedgerConfirm from "@/components/send/kas-send/LedgerConfirm";
 import z from "zod";
+import useAnalytics from "@/hooks/useAnalytics";
 
 const steps = ["details", "confirm", "broadcast", "success", "fail"] as const;
 
@@ -44,6 +45,7 @@ export default function KasSend() {
   };
   const [step, setStep] = useState<Step>(state?.step ?? "details");
   const { wallet } = useWalletManager();
+  const { emitSendCompleted } = useAnalytics();
 
   const form = useForm<KasSendForm>({
     defaultValues: {
@@ -78,7 +80,10 @@ export default function KasSend() {
             onNext={() => setStep("broadcast")}
             onBack={onBack}
             setOutTxs={setOutTxs}
-            onFail={() => setStep("fail")}
+            onFail={() => {
+              emitSendCompleted({ type: "KAS", id: "KAS", status: "failed" });
+              setStep("fail");
+            }}
           />
         )}
         {step === "confirm" && wallet?.type === "ledger" && (
@@ -86,11 +91,19 @@ export default function KasSend() {
             onNext={() => setStep("broadcast")}
             onBack={onBack}
             setOutTxs={setOutTxs}
-            onFail={() => setStep("fail")}
+            onFail={() => {
+              emitSendCompleted({ type: "KAS", id: "KAS", status: "failed" });
+              setStep("fail");
+            }}
           />
         )}
         {step === "broadcast" && (
-          <Broadcasting onSuccess={() => setStep("success")} />
+          <Broadcasting
+            onSuccess={() => {
+              emitSendCompleted({ type: "KAS", id: "KAS", status: "success" });
+              setStep("success");
+            }}
+          />
         )}
         {step === "success" && <SuccessStatus transactionIds={outTxs} />}
         {step === "fail" && <FailStatus transactionIds={outTxs} />}
