@@ -8,14 +8,13 @@ import { useParams } from "react-router-dom";
 export default function OnboardingSuccess() {
   const calledOnce = useRef(false);
   const { method } = useParams();
-  const { emitOnboardingComplete, emitOnboardingCompleted } = useAnalytics();
+  const { emitOnboardingCompleted } = useAnalytics();
   const { reopenPopup } = useExtensionUtils();
 
   useEffect(() => {
     if (calledOnce.current) return;
     calledOnce.current = true;
 
-    emitOnboardingComplete();
     emitOnboardingCompleted();
   }, []);
 

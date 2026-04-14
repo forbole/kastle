@@ -43,7 +43,6 @@ export default function useAnalytics() {
   const [cachedAnalytics, setCachedAnalytics] = useState<Analytics>();
 
   return {
-    emitOnboardingComplete: () => postHog?.capture("onboarding_complete"),
     emitOnboardingCompleted: () => postHog?.capture("onboarding_completed"),
     emitWalletCreated: (properties: { method: "new" | "import" }) =>
       postHog?.capture("wallet_created", properties),
