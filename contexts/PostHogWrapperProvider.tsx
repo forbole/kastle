@@ -1,4 +1,4 @@
-import { createContext, ReactNode, useState } from "react";
+import { createContext, ReactNode, useEffect, useRef, useState } from "react";
 import { PostHog } from "posthog-js-lite";
 import { isProduction } from "@/lib/utils.ts";
 
@@ -15,10 +15,6 @@ export function PostHogWrapperProvider({ children }: { children: ReactNode }) {
   const [postHog, setPostHog] = useState<PostHog>();
 
   useEffect(() => {
-    if (!isProduction) {
-      return;
-    }
-
     if (calledOnce.current) return;
     calledOnce.current = true;
 
@@ -27,6 +23,7 @@ export function PostHogWrapperProvider({ children }: { children: ReactNode }) {
       {
         host: "https://eu.i.posthog.com",
         autocapture: false,
+        defaultOptIn: isProduction,
       },
     );
 

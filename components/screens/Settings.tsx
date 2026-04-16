@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { SettingItem } from "@/components/SettingItem";
 import { useSettings } from "@/hooks/useSettings";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
@@ -9,6 +9,8 @@ import telegram from "@/assets/images/telegram.svg";
 import x from "@/assets/images/x.svg";
 import github from "@/assets/images/github.svg";
 import useSwitchNetwork from "@/hooks/useSwitchNetwork";
+import Copy from "@/components/Copy.tsx";
+import { PostHogWrapperContext } from "@/contexts/PostHogWrapperProvider.tsx";
 
 import packageJson from "../../package.json";
 import CurrencySelection from "@/components/settings/CurrencySelection.tsx";
@@ -35,6 +37,25 @@ export default function Settings() {
   const [settings, setSettings] = useSettings();
   const { switchKaspaNetwork } = useSwitchNetwork();
   const navigate = useNavigate();
+  const { postHog } = useContext(PostHogWrapperContext);
+  const [analyticsEnabled, setAnalyticsEnabled] = useState(true);
+
+  useEffect(() => {
+    if (postHog) {
+      setAnalyticsEnabled(!postHog.optedOut);
+    }
+  }, [postHog]);
+
+  const toggleAnalytics = async () => {
+    if (!postHog) return;
+    if (postHog.optedOut) {
+      await postHog.optIn();
+      setAnalyticsEnabled(true);
+    } else {
+      await postHog.optOut();
+      setAnalyticsEnabled(false);
+    }
+  };
 
   const lockAfterOptions = [
     { name: "1 minute", value: 1 },
@@ -242,6 +263,43 @@ export default function Settings() {
               />
             </div>
           </div>
+        )}
+
+        {/* Data & Privacy */}
+        {postHog && (
+          <>
+            <div className="flex w-full items-center justify-between rounded-xl border border-daintree-700 bg-[#1E343D] p-4 text-sm hover:border-white">
+              <div className="flex items-center justify-start gap-4 font-semibold">
+                <span className="font-semibold">
+                  Share anonymous usage data
+                </span>
+              </div>
+              <div className="flex items-center">
+                <input
+                  checked={analyticsEnabled}
+                  onChange={toggleAnalytics}
+                  type="checkbox"
+                  className="relative h-6 w-11 cursor-pointer rounded-full border-neutral-700 border-transparent bg-daintree-700 p-px text-transparent transition-colors duration-200 ease-in-out before:inline-block before:size-5 before:translate-x-0 before:transform before:rounded-full before:bg-white before:shadow before:ring-0 before:transition before:duration-200 before:ease-in-out checked:border-icy-blue-400 checked:bg-icy-blue-400 checked:bg-none checked:text-icy-blue-400 checked:before:translate-x-full checked:before:bg-white focus:ring-transparent focus:ring-offset-transparent focus:checked:border-transparent disabled:pointer-events-none disabled:opacity-50"
+                />
+              </div>
+            </div>
+            <div className="flex w-full items-center justify-between rounded-xl border border-daintree-700 bg-[#1E343D] p-4 text-sm hover:border-white">
+              <div className="flex flex-col gap-1">
+                <span className="font-semibold">Analytics ID</span>
+                <span className="break-all font-mono text-xs text-daintree-400">
+                  {postHog.getDistinctId()}
+                </span>
+              </div>
+              <Copy
+                textToCopy={postHog.getDistinctId()}
+                id="analytics-id-copy"
+                place="left"
+                className="ml-2 flex-shrink-0 cursor-pointer"
+              >
+                <i className="hn hn-copy text-daintree-400 hover:text-white" />
+              </Copy>
+            </div>
+          </>
         )}
 
         {/* Experimental features */}
