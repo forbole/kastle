@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.50.0](https://github.com/forbole/kastle/compare/v2.49.0...v2.50.0) (2026-04-16)
+
+
+### Features
+
+* integrate PostHog analytics with toggle option in settings ([c447b47](https://github.com/forbole/kastle/commit/c447b47a2a5fcac63f10feb1b00d2a05a9dc330b))
+* mask Analytics ID for improved privacy in settings ([f69303d](https://github.com/forbole/kastle/commit/f69303d6d1c5ae35018eb590ff1f64001209eacc))
+
 ## [2.49.0](https://github.com/forbole/kastle/compare/v2.48.0...v2.49.0) (2026-04-14)
 
 
