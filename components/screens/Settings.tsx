@@ -286,8 +286,13 @@ export default function Settings() {
             <div className="flex w-full items-center justify-between rounded-xl border border-daintree-700 bg-[#1E343D] p-4 text-sm hover:border-white">
               <div className="flex flex-col gap-1">
                 <span className="font-semibold">Analytics ID</span>
-                <span className="break-all font-mono text-xs text-daintree-400">
-                  {postHog.getDistinctId()}
+                <span className="font-mono text-xs text-daintree-400">
+                  {(() => {
+                    const id = postHog.getDistinctId();
+                    return id.length > 12
+                      ? `${id.slice(0, 8)}••••••••${id.slice(-4)}`
+                      : id;
+                  })()}
                 </span>
               </div>
               <Copy
