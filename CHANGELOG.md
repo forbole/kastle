@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.51.0](https://github.com/forbole/kastle/compare/v2.50.0...v2.51.0) (2026-04-17)
+
+
+### Features
+
+* update analytics settings UI for clarity and improved user experience ([92c7ac1](https://github.com/forbole/kastle/commit/92c7ac19a7a00f387c8fbc444c90d8b2a778d070))
+
 ## [2.50.0](https://github.com/forbole/kastle/compare/v2.49.0...v2.50.0) (2026-04-16)
 
 
