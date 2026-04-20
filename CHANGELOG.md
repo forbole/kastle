@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.52.0](https://github.com/forbole/kastle/compare/v2.51.0...v2.52.0) (2026-04-20)
+
+
+### Features
+
+* add compound UTXOs functionality and update API documentation ([4ea7ae2](https://github.com/forbole/kastle/commit/4ea7ae2e9aba8075d0a827d5feaf7242872f85db))
+* add igra erc20 price support and improve codes ([9ce03f6](https://github.com/forbole/kastle/commit/9ce03f609b5a01a658da86968727e5416dea5cf5))
+
 ## [2.51.0](https://github.com/forbole/kastle/compare/v2.50.0...v2.51.0) (2026-04-17)
 
 
