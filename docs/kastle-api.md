@@ -261,15 +261,54 @@ Builds one or more transactions from the current account's UTXOs. Returns serial
 | `outputs`             | `{ address: string; amount: string }[]` | ✅       | Recipient addresses and amounts (in sompi)                                                                        |
 | `options.priorityFee` | `string`                                | ❌       | Priority fee in sompi (default: `"0"`)                                                                            |
 | `options.payload`     | `string`                                | ❌       | Transaction payload as a **hex string** (even length, `0-9 a-f` only). Returns an error if the format is invalid. |
+| `options.inputs`      | `IUtxoEntry[]`                          | ❌       | Specific UTXOs to use as inputs. If omitted, all UTXOs of the current account are used automatically.             |
+
+**`IUtxoEntry` schema**
+
+```ts
+type IUtxoEntry = {
+  address?: string; // Kaspa address (optional)
+  outpoint: {
+    transactionId: string;
+    index: number;
+  };
+  amount: string; // sompi as string
+  scriptPublicKey: {
+    version: number;
+    script: string;
+  };
+  blockDaaScore: string;
+  isCoinbase: boolean;
+};
+```
 
 **Direct method**
 
 ```js
+// Basic — uses all account UTXOs automatically
 const { networkId, transactions } = await kastle.buildTransaction(
   [{ address: "kaspa:qr...recipient", amount: "100000000" }],
   {
     priorityFee: "1000000",
     payload: "6b61737061", // optional hex string
+  },
+);
+
+// With explicit inputs
+const { networkId, transactions } = await kastle.buildTransaction(
+  [{ address: "kaspa:qr...recipient", amount: "100000000" }],
+  {
+    priorityFee: "1000000",
+    inputs: [
+      {
+        address: "kaspa:qr...sender",
+        outpoint: { transactionId: "abc123...", index: 0 },
+        amount: "500000000",
+        scriptPublicKey: { version: 0, script: "20ab...ac" },
+        blockDaaScore: "443245436",
+        isCoinbase: false,
+      },
+    ],
   },
 );
 
@@ -290,6 +329,9 @@ const { networkId, transactions } = await kastle.request(
     outputs: [{ address: "kaspa:qr...recipient", amount: "100000000" }],
     priorityFee: "1000000",
     payload: "6b61737061", // optional hex string
+    inputs: [
+      /* optional IUtxoEntry[] */
+    ],
   },
 );
 ```
@@ -422,6 +464,8 @@ console.log("Reveal Tx ID:", result.revealTxId);
 ---
 
 ## 15. Compound UTXOs
+
+> **Available since:** Extension `2.52.0` · Mobile `1.20.0`
 
 Consolidates all UTXOs in the current account into a single UTXO by sending the full balance back to the sender's own address. Opens a confirmation popup.
 
