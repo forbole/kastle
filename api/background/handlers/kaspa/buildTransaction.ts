@@ -8,6 +8,21 @@ const ADDRESS_PREFIX_MAP = {
   "testnet-10": "kaspatest",
 };
 
+const iUtxoEntrySchema = z.object({
+  address: z.string().optional(),
+  outpoint: z.object({
+    transactionId: z.string(),
+    index: z.number(),
+  }),
+  amount: z.string().min(1, "amount cannot be empty"),
+  scriptPublicKey: z.object({
+    version: z.number(),
+    script: z.string(),
+  }),
+  blockDaaScore: z.string(),
+  isCoinbase: z.boolean(),
+});
+
 export const buildTransactionPayloadSchema = z.object({
   outputs: z
     .array(
@@ -25,6 +40,7 @@ export const buildTransactionPayloadSchema = z.object({
       "payload must be a valid hex string (even length, 0-9 a-f only)",
     )
     .optional(),
+  inputs: z.array(iUtxoEntrySchema).optional(),
 });
 
 export type BuildTransactionPayload = z.infer<
@@ -118,7 +134,21 @@ export const buildTransactionHandler: Handler = async (
   try {
     await rpcClient.connect();
 
-    const { entries } = await rpcClient.getUtxosByAddresses([account.address]);
+    let entries: any[];
+    if (parsed.inputs && parsed.inputs.length > 0) {
+      entries = parsed.inputs.map((input) => ({
+        address: input.address ? new Address(input.address) : undefined,
+        outpoint: input.outpoint,
+        amount: BigInt(input.amount),
+        scriptPublicKey: input.scriptPublicKey,
+        blockDaaScore: BigInt(input.blockDaaScore),
+        isCoinbase: input.isCoinbase,
+      }));
+    } else {
+      const result = await rpcClient.getUtxosByAddresses([account.address]);
+      entries = result.entries;
+    }
+
     if (entries.length === 0) {
       sendResponse(
         ApiUtils.createApiResponse(

@@ -16,6 +16,7 @@ export enum Action {
   GET_UTXO_ENTRIES,
   BUILD_TRANSACTION,
   GET_VERSION,
+  COMPOUND_UTXOS,
 }
 
 // ================================================================================================

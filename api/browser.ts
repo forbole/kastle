@@ -113,6 +113,29 @@ export class KastleBrowserAPI {
 
   async request(method: string, args?: unknown): Promise<any> {
     const requestId = uuid();
+
+    // kas:connect requires name/icon from page context if not provided
+    if (method === "kas:connect") {
+      const iconElement =
+        document.querySelector('link[rel="icon"]') ||
+        document.querySelector('link[rel="shortcut icon"]');
+      let iconUrl: string | undefined;
+      if (iconElement instanceof HTMLLinkElement) {
+        iconUrl = iconElement.href;
+      }
+      const request = createApiRequest(
+        Action.CONNECT,
+        requestId,
+        ConnectPayloadSchema.parse({
+          name: document.title,
+          icon: iconUrl,
+          ...(args && typeof args === "object" ? args : {}),
+        }),
+      );
+      window.postMessage(request, "*");
+      return await this.receiveMessageWithTimeout(requestId);
+    }
+
     const action = {
       "kas:connect": Action.CONNECT,
       "kas:get_account": Action.GET_ACCOUNT,
@@ -127,6 +150,7 @@ export class KastleBrowserAPI {
       "kas:get_utxo_entries": Action.GET_UTXO_ENTRIES,
       "kas:build_transaction": Action.BUILD_TRANSACTION,
       "kas:get_version": Action.GET_VERSION,
+      "kas:compound_utxos": Action.COMPOUND_UTXOS,
     }[method];
 
     if (!action) {
@@ -272,7 +296,18 @@ export class KastleBrowserAPI {
 
   async buildTransaction(
     outputs: { address: string; amount: string }[],
-    options?: { priorityFee?: string; payload?: string },
+    options?: {
+      priorityFee?: string;
+      payload?: string;
+      inputs?: {
+        address?: string;
+        outpoint: { transactionId: string; index: number };
+        amount: string;
+        scriptPublicKey: { version: number; script: string };
+        blockDaaScore: string;
+        isCoinbase: boolean;
+      }[];
+    },
   ): Promise<{
     networkId: string;
     transactions: {
@@ -287,6 +322,17 @@ export class KastleBrowserAPI {
       outputs,
       priorityFee: options?.priorityFee ?? "0",
       payload: options?.payload,
+      inputs: options?.inputs,
+    });
+    window.postMessage(request, "*");
+
+    return await this.receiveMessageWithTimeout(requestId);
+  }
+
+  async compoundUtxos(options?: { priorityFee?: string }): Promise<string> {
+    const requestId = uuid();
+    const request = createApiRequest(Action.COMPOUND_UTXOS, requestId, {
+      priorityFee: options?.priorityFee ?? "0",
     });
     window.postMessage(request, "*");
 

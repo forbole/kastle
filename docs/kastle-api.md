@@ -27,7 +27,8 @@ Each API method is available in two styles:
 12. [Sign Transaction](#12-sign-transaction)
 13. [Sign Message](#13-sign-message)
 14. [KRC-20: Transfer Token](#14-krc-20-transfer-token)
-15. [Events](#15-events)
+15. [Compound UTXOs](#15-compound-utxos)
+16. [Events](#16-events)
 
 ---
 
@@ -420,7 +421,37 @@ console.log("Reveal Tx ID:", result.revealTxId);
 
 ---
 
-## 15. Events
+## 15. Compound UTXOs
+
+Consolidates all UTXOs in the current account into a single UTXO by sending the full balance back to the sender's own address. Opens a confirmation popup.
+
+Useful for reducing future transaction fees caused by having many small UTXOs.
+
+**Parameters**
+
+| Parameter             | Type     | Required | Description                            |
+| --------------------- | -------- | -------- | -------------------------------------- |
+| `options.priorityFee` | `string` | ❌       | Priority fee in sompi (default: `"0"`) |
+
+**Direct method**
+
+```js
+const txId = await kastle.compoundUtxos({ priorityFee: "1000" });
+console.log("Transaction ID:", txId);
+```
+
+**KIP-style**
+
+```js
+const txId = await kastle.request("kas:compound_utxos", {
+  priorityFee: "1000",
+});
+console.log("Transaction ID:", txId);
+```
+
+---
+
+## 16. Events
 
 Listen to wallet state changes. Events are emitted in both KasWare-compatible and KIP-style formats simultaneously.
 
@@ -468,6 +499,7 @@ kastle.removeListener("accountsChanged", myHandler);
 | `kastle.signTx(networkId, txJson, scripts?)`             | `kas:sign_tx`                | `string` (signed txJson)                            |
 | `kastle.signMessage(message)`                            | `kas:sign_message`           | `string` (signature)                                |
 | `kastle.commitReveal(networkId, namespace, data, opts?)` | `kas:commit_reveal`          | `{ commitTxId, revealTxId }`                        |
+| `kastle.compoundUtxos(opts?)`                            | `kas:compound_utxos`         | `string` (txId)                                     |
 
 ---
 
