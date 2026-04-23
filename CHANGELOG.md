@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.53.0](https://github.com/forbole/kastle/compare/v2.52.0...v2.53.0) (2026-04-23)
+
+
+### Features
+
+* refactor legacy features handling ([ae1e859](https://github.com/forbole/kastle/commit/ae1e8591baed2c48de9105a9061934ac773c67f3))
+
 ## [2.52.0](https://github.com/forbole/kastle/compare/v2.51.0...v2.52.0) (2026-04-20)
 
 
