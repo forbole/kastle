@@ -51,7 +51,6 @@ export class ApiUtils {
           [NetworkType.Mainnet]: kasplexMainnet.id,
           [NetworkType.TestnetT10]: kasplexTestnet.id,
         },
-        isLegacyFeaturesEnabled: false,
         isLegacyEvmAddressEnabled: false,
       },
     });
@@ -215,10 +214,7 @@ export class ApiUtils {
       return;
     }
 
-    if (
-      settings.isLegacyEvmAddressEnabled &&
-      settings.isLegacyFeaturesEnabled
-    ) {
+    if (settings.isLegacyEvmAddressEnabled) {
       return account.publicKeys && account.publicKeys.length > 0
         ? toLegacyEvmAddress(account.publicKeys[0])
         : undefined;

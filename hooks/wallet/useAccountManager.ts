@@ -39,10 +39,7 @@ export default function useAccountManager() {
     const lastAccount = wallet.accounts[wallet.accounts.length - 1];
     const nextIndex = lastAccount.index + 1;
 
-    // When legacy features is disabled, force non-legacy wallet
-    const walletIsLegacy = settings?.isLegacyFeaturesEnabled
-      ? (wallet.isLegacyWalletEnabled ?? false)
-      : false;
+    const walletIsLegacy = wallet.isLegacyWalletEnabled ?? false;
 
     const { publicKeys: kaspaPublicKeys } =
       await kaspaBackgroundSigner.getPublicKeys({
@@ -54,10 +51,7 @@ export default function useAccountManager() {
       .toAddress(networkId)
       .toString();
 
-    // When legacy features is disabled, force non-legacy EVM address
-    const shouldUseLegacy = settings?.isLegacyFeaturesEnabled
-      ? (settings?.isLegacyEvmAddressEnabled ?? false)
-      : false;
+    const shouldUseLegacy = settings?.isLegacyEvmAddressEnabled ?? false;
 
     const { publicKey: evmPublicKey } = await evmBackgroundSigner.getPublicKey({
       walletId,

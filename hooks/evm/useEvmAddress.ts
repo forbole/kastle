@@ -7,9 +7,7 @@ export default function useEvmAddress() {
   const { account } = useWalletManager();
   const [settings] = useSettings();
 
-  const isLegacyEvmEnabled =
-    settings?.isLegacyFeaturesEnabled &&
-    (settings?.isLegacyEvmAddressEnabled ?? false);
+  const isLegacyEvmEnabled = settings?.isLegacyEvmAddressEnabled ?? false;
 
   if (isLegacyEvmEnabled) {
     return account?.publicKeys && account.publicKeys.length > 0

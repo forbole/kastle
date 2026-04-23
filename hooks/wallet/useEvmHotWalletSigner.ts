@@ -13,10 +13,7 @@ export default function useEvmHotWalletSigner() {
   const signer = useEvmBackgroundSigner();
   const [settings] = useSettings();
 
-  // When legacy features is disabled, force non-legacy EVM address
-  const isEvmLegacy = settings?.isLegacyFeaturesEnabled
-    ? (settings?.isLegacyEvmAddressEnabled ?? false)
-    : false;
+  const isEvmLegacy = settings?.isLegacyEvmAddressEnabled ?? false;
 
   if (!walletInfo || !account) {
     return undefined;
@@ -24,10 +21,7 @@ export default function useEvmHotWalletSigner() {
 
   const walletId = walletInfo.id;
   const accountIndex = account.index;
-  // When legacy features is disabled, force non-legacy wallet
-  const isKastleLegacy = settings?.isLegacyFeaturesEnabled
-    ? (walletInfo.isLegacyWalletEnabled ?? false)
-    : false;
+  const isKastleLegacy = walletInfo.isLegacyWalletEnabled ?? false;
 
   const getPublicKey = async () => {
     const { publicKey } = await signer.getPublicKey({

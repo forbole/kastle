@@ -21,7 +21,6 @@ export interface MigrationContext {
     }) => Promise<{ publicKey: `0x${string}` }>;
   };
   settings?: {
-    isLegacyFeaturesEnabled?: boolean;
     isLegacyEvmAddressEnabled?: boolean;
   };
   networkId: NetworkType;
@@ -56,12 +55,8 @@ export async function migrateWalletSettings(
       if (wallet.type === "ledger") return wallet;
 
       // Determine legacy mode based on current settings
-      const isKastleLegacy = settings?.isLegacyFeaturesEnabled
-        ? (wallet.isLegacyWalletEnabled ?? false)
-        : false;
-      const isEvmLegacy = settings?.isLegacyFeaturesEnabled
-        ? (settings?.isLegacyEvmAddressEnabled ?? false)
-        : false;
+      const isKastleLegacy = wallet.isLegacyWalletEnabled ?? false;
+      const isEvmLegacy = settings?.isLegacyEvmAddressEnabled ?? false;
 
       const newAccounts = await Promise.all(
         wallet.accounts.map(async (account) => {

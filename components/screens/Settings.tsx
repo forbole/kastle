@@ -218,51 +218,12 @@ export default function Settings() {
           }}
         />
 
-        {/* Legacy Features */}
-        <div className="flex w-full items-center justify-between rounded-xl border border-daintree-700 bg-[#1E343D] p-4 text-sm hover:border-white">
-          <div className="flex items-center justify-start gap-4 font-semibold">
-            <span className="font-semibold">Legacy Features</span>
-          </div>
-          <div className="flex items-center">
-            <input
-              checked={settings?.isLegacyFeaturesEnabled ?? false}
-              onChange={(e) =>
-                setSettings((prev) => ({
-                  ...prev,
-                  isLegacyFeaturesEnabled: e.target.checked,
-                  // When disabling legacy features, also disable legacy EVM address
-                  isLegacyEvmAddressEnabled: e.target.checked
-                    ? prev?.isLegacyEvmAddressEnabled
-                    : false,
-                }))
-              }
-              type="checkbox"
-              className="relative h-6 w-11 cursor-pointer rounded-full border-neutral-700 border-transparent bg-daintree-700 p-px text-transparent transition-colors duration-200 ease-in-out before:inline-block before:size-5 before:translate-x-0 before:transform before:rounded-full before:bg-white before:shadow before:ring-0 before:transition before:duration-200 before:ease-in-out checked:border-icy-blue-400 checked:bg-icy-blue-400 checked:bg-none checked:text-icy-blue-400 checked:before:translate-x-full checked:before:bg-white focus:ring-transparent focus:ring-offset-transparent focus:checked:border-transparent disabled:pointer-events-none disabled:opacity-50"
-            />
-          </div>
-        </div>
-
-        {/* Legacy EVM address - only visible when Legacy Features is enabled */}
-        {settings?.isLegacyFeaturesEnabled && (
-          <div className="flex w-full items-center justify-between rounded-xl border border-daintree-700 bg-[#1E343D] p-4 text-sm hover:border-white">
-            <div className="flex items-center justify-start gap-4 font-semibold">
-              <span className="font-semibold">Legacy EVM address</span>
-            </div>
-            <div className="flex items-center">
-              <input
-                checked={settings?.isLegacyEvmAddressEnabled ?? false}
-                onChange={(e) =>
-                  setSettings((prev) => ({
-                    ...prev,
-                    isLegacyEvmAddressEnabled: e.target.checked,
-                  }))
-                }
-                type="checkbox"
-                className="relative h-6 w-11 cursor-pointer rounded-full border-neutral-700 border-transparent bg-daintree-700 p-px text-transparent transition-colors duration-200 ease-in-out before:inline-block before:size-5 before:translate-x-0 before:transform before:rounded-full before:bg-white before:shadow before:ring-0 before:transition before:duration-200 before:ease-in-out checked:border-icy-blue-400 checked:bg-icy-blue-400 checked:bg-none checked:text-icy-blue-400 checked:before:translate-x-full checked:before:bg-white focus:ring-transparent focus:ring-offset-transparent focus:checked:border-transparent disabled:pointer-events-none disabled:opacity-50"
-              />
-            </div>
-          </div>
-        )}
+        {/* Legacy features */}
+        <SettingItem
+          title="Legacy features"
+          showChevron
+          onClick={() => navigate("/legacy-features")}
+        />
 
         {/* Data & Privacy */}
         {postHog && (

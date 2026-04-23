@@ -3,22 +3,17 @@ import useWalletManager from "@/hooks/wallet/useWalletManager";
 import useKaspaBackgroundSigner from "./useKaspaBackgroundSigner";
 import { Transaction, PublicKey } from "@/wasm/core/kaspa";
 import { ScriptOption } from "@/lib/wallet/wallet-interface";
-import { useSettings } from "@/hooks/useSettings";
 
 export default function useKaspaHotWalletSigner() {
   const { wallet: walletInfo, account } = useWalletManager();
   const { networkId } = useRpcClientStateful();
   const signer = useKaspaBackgroundSigner();
-  const [settings] = useSettings();
 
   if (!walletInfo || !account || !networkId) {
     return undefined;
   }
 
-  // When legacy features is disabled, force non-legacy wallet
-  const isKastleLegacy = settings?.isLegacyFeaturesEnabled
-    ? (walletInfo.isLegacyWalletEnabled ?? false)
-    : false;
+  const isKastleLegacy = walletInfo.isLegacyWalletEnabled ?? false;
 
   const getPublicKeys = async () => {
     const walletId = walletInfo.id;

@@ -35,6 +35,7 @@ import { WalletManagerProvider } from "@/contexts/WalletManagerContext.tsx";
 import RootLayout from "@/components/layouts/RootLayout.tsx";
 import WalletUnlock from "@/components/screens/WalletUnlock.tsx";
 import DevMode from "@/components/screens/DevMode.tsx";
+import LegacyFeatures from "@/components/screens/LegacyFeatures.tsx";
 import DeployToken from "@/components/screens/full-pages/DeployToken.tsx";
 import Krc20Transfer from "@/components/send/krc20-send/Krc20Transfer";
 import MintToken from "@/components/screens/full-pages/MintToken.tsx";
@@ -250,6 +251,10 @@ export const router = createHashRouter([
                   {
                     path: "connected-apps",
                     element: <ConnectedApps />,
+                  },
+                  {
+                    path: "legacy-features",
+                    element: <LegacyFeatures />,
                   },
                   {
                     path: "dev-mode",
