@@ -146,11 +146,14 @@ export function useErc20BalancesByAddress(evmAddress?: Address) {
             item,
           ): item is {
             tokenAddress: Address;
-            chainId: string;
+            chainId: Hex;
             decimals: number;
             rawBalance: bigint;
             balance: number;
-          } => !("error" in item),
+          } =>
+            !("error" in item) &&
+            item.tokenAddress != null &&
+            item.chainId != null,
         )
         .map(({ tokenAddress, chainId, decimals, balance }) => ({
           tokenAddress,
@@ -166,6 +169,7 @@ export function useErc20BalancesByAddress(evmAddress?: Address) {
 function buildFallback(cached: Erc20BalanceCacheItem[]) {
   return cached.map((item) => ({
     ...item,
+    chainId: item.chainId as Hex,
     rawBalance: 0n,
   }));
 }

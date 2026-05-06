@@ -1,5 +1,5 @@
 import { storage } from "wxt/storage";
-import type { Address } from "viem";
+import type { Address, Hex } from "viem";
 
 const PREFIX = "local:cache:erc20Balance:";
 
@@ -10,7 +10,7 @@ const PREFIX = "local:cache:erc20Balance:";
  */
 export type Erc20BalanceCacheItem = {
   tokenAddress: Address;
-  chainId: string;
+  chainId: Hex;
   decimals: number;
   balance: number;
 };
