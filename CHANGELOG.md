@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.54.0](https://github.com/forbole/kastle/compare/v2.53.0...v2.54.0) (2026-05-06)
+
+
+### Features
+
+* add origin parameter to transaction handlers and analytics tracking ([c206d36](https://github.com/forbole/kastle/commit/c206d3617b21bd4ac42ece8744343ee32fa03228))
+* implement caching for Evm KAS, ERC20 and KRC20 token balances and prices ([5fd36d7](https://github.com/forbole/kastle/commit/5fd36d7725f529a25a8d3feac0db16bd0f6da054))
+
+
+### Bug Fixes
+
+* lint ([8a1efac](https://github.com/forbole/kastle/commit/8a1efac9ccfdd0f4e73c421281ac8f5d03a473a5))
+
 ## [2.53.0](https://github.com/forbole/kastle/compare/v2.52.0...v2.53.0) (2026-04-23)
 
 
