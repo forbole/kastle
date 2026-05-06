@@ -1,4 +1,5 @@
 import useSWR from "swr";
+import { useEffect, useState } from "react";
 import {
   TESTNET_SUPPORTED_EVM_L2_CHAINS,
   MAINNET_SUPPORTED_EVM_L2_CHAINS,
@@ -6,6 +7,10 @@ import {
 import { useSettings } from "@/hooks/useSettings";
 import { Address, numberToHex } from "viem";
 import useEvmAddress from "@/hooks/evm/useEvmAddress";
+import {
+  erc20TokensCache,
+  type Erc20TokensChainCache,
+} from "@/lib/cache/erc20TokensCache";
 
 type ERC20TokenItem = {
   value: string;
@@ -64,11 +69,43 @@ const fetchAllERC20TokensForChain = async (
 
 export default function useErc20TokensFromApi() {
   const [settings] = useSettings();
+  const [cacheReady, setCacheReady] = useState(false);
   const chains =
     settings?.networkId === "mainnet"
       ? MAINNET_SUPPORTED_EVM_L2_CHAINS
       : TESTNET_SUPPORTED_EVM_L2_CHAINS;
   const address = useEvmAddress();
+
+  const cacheKey = address
+    ? `${settings?.networkId ?? "mainnet"}:${address}`
+    : null;
+
+  useEffect(() => {
+    if (!cacheKey) return;
+    erc20TokensCache.load(cacheKey).then(() => setCacheReady(true));
+  }, [cacheKey]);
+
+  const cachedRaw = cacheKey ? erc20TokensCache.read(cacheKey) : null;
+  // Reconstruct full shape with value:"0" placeholders so downstream hooks
+  // (useErc20BalancesByAddress) receive a compatible token list and their SWR
+  // keys resolve, making their own fallbackData fire.
+  const fallbackData =
+    cacheReady && cachedRaw != null
+      ? cachedRaw.map((chain) => ({
+          chainId: chain.chainId,
+          success: true as const,
+          tokens: chain.tokens.map((t) => ({
+            value: "0",
+            token: {
+              address_hash: t.address_hash,
+              name: "",
+              symbol: "",
+              decimals: t.decimals,
+              icon_url: undefined as string | undefined,
+            },
+          })),
+        }))
+      : undefined;
 
   return useSWR(
     address && chains?.length > 0
@@ -108,8 +145,23 @@ export default function useErc20TokensFromApi() {
       );
     },
     {
+      fallbackData,
+      keepPreviousData: true,
       revalidateOnFocus: false,
       dedupingInterval: 60000,
+      onSuccess: (data) => {
+        if (!cacheKey || !data) return;
+        const slim: Erc20TokensChainCache[] = data
+          .filter((chain) => chain.success)
+          .map((chain) => ({
+            chainId: chain.chainId as `0x${string}`,
+            tokens: chain.tokens.map((t) => ({
+              address_hash: t.token.address_hash,
+              decimals: t.token.decimals,
+            })),
+          }));
+        erc20TokensCache.write(cacheKey, slim);
+      },
     },
   );
 }

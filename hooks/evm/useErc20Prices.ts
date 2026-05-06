@@ -1,9 +1,11 @@
+import { useEffect, useState } from "react";
 import { Address, Hex, numberToHex } from "viem";
 import { igraMainnet, kasplexMainnet } from "@/lib/layer2";
 import {
   useZealousSwapIgraTokensMetadata,
   useZealousSwapTokensMetadata,
 } from "@/hooks/evm/provider/useZealousSwap";
+import { erc20PriceCache } from "@/lib/cache/erc20PriceCache";
 
 export type Erc20PriceEntry = {
   chainId: Hex;
@@ -15,6 +17,11 @@ export type Erc20PriceEntry = {
 export function useErc20Prices() {
   const kasplex = useZealousSwapTokensMetadata();
   const igra = useZealousSwapIgraTokensMetadata();
+  const [cacheReady, setCacheReady] = useState(false);
+
+  useEffect(() => {
+    erc20PriceCache.load().then(() => setCacheReady(true));
+  }, []);
 
   const isLoading = kasplex.isLoading || igra.isLoading;
   const error = kasplex.error ?? igra.error;
@@ -33,8 +40,36 @@ export function useErc20Prices() {
       price: t.price ?? 0,
     })) ?? [];
 
+  const liveEntries = [...kasplexEntries, ...igraEntries];
+
+  // Persist live data whenever providers respond
+  useEffect(() => {
+    if (liveEntries.length === 0) return;
+    erc20PriceCache.merge(liveEntries);
+  }, [kasplex.data, igra.data]);
+
+  // Derive entries: use live data if available, fall back to cache
+  let data: Erc20PriceEntry[];
+  if (liveEntries.length > 0) {
+    data = liveEntries;
+  } else if (cacheReady) {
+    const cached = erc20PriceCache.read();
+    data = cached
+      ? Object.entries(cached).map(([key, price]) => {
+          const [chainId, ...rest] = key.split(":");
+          return {
+            chainId: chainId as Hex,
+            address: rest.join(":") as Address,
+            price,
+          };
+        })
+      : [];
+  } else {
+    data = [];
+  }
+
   return {
-    data: [...kasplexEntries, ...igraEntries],
+    data,
     error,
     isLoading,
   };

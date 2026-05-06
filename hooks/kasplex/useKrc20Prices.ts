@@ -1,7 +1,9 @@
 import useSWR from "swr";
+import { useEffect, useState } from "react";
 import { fetcher, multiFetcher } from "@/lib/utils";
 import useKaspaPrice from "@/hooks/useKaspaPrice";
 import { applyDecimal } from "@/lib/krc20";
+import { krc20PriceCache } from "@/lib/cache/krc20PriceCache";
 
 export interface PriceHistoryData {
   date: string;
@@ -41,6 +43,16 @@ const floorPriceBaseUrl = `${baseApiUrl}/p2p-data/floor-price`;
  */
 export function useKrc20Prices(ticker?: string) {
   const { kaspaPrice } = useKaspaPrice();
+  const [cacheReady, setCacheReady] = useState(false);
+
+  useEffect(() => {
+    krc20PriceCache.load().then(() => setCacheReady(true));
+  }, []);
+
+  const cachedPrices = krc20PriceCache.read();
+  const cachedPriceInKas =
+    ticker && cachedPrices ? cachedPrices[ticker] : undefined;
+
   const {
     data: rawData,
     error,
@@ -49,7 +61,16 @@ export function useKrc20Prices(ticker?: string) {
   } = useSWR<PriceHistoryResponse, Error>(
     ticker ? `${krc20BaseUrl}/price-history-v2/${ticker}?timeFrame=1h` : null,
     fetcher,
-    { suspense: false },
+    {
+      suspense: false,
+      onSuccess: (data) => {
+        if (!ticker) return;
+        const priceInKas = data?.data?.[data.data.length - 1]?.price;
+        if (priceInKas != null && priceInKas > 0) {
+          krc20PriceCache.merge(ticker, priceInKas);
+        }
+      },
+    },
   );
   const { data: floorPriceData } = useSWR<FloorPriceResponse, Error>(
     ticker ? `${floorPriceBaseUrl}?ticker=${ticker}` : null,
@@ -64,10 +85,13 @@ export function useKrc20Prices(ticker?: string) {
       }
     : undefined;
 
-  const currentPriceInKas =
+  const livePriceInKas =
     priceDataInKas?.currentPrice && priceDataInKas.currentPrice > 0
       ? priceDataInKas.currentPrice
       : floorPriceData?.[0]?.floor_price;
+
+  const currentPriceInKas =
+    cacheReady && livePriceInKas == null ? cachedPriceInKas : livePriceInKas;
 
   return {
     price: currentPriceInKas ? currentPriceInKas * kaspaPrice : undefined,
