@@ -5,15 +5,23 @@ import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import { Transaction } from "@/wasm/core/kaspa";
 import SignConfirm from "@/components/screens/browser-api/kaspa/sign/SignConfirm";
 import { ApiUtils } from "@/api/background/utils";
+import useAnalytics from "@/hooks/useAnalytics";
 
 type SignTxProps = {
   wallet: IWallet;
   requestId: string;
   payload: SignTxPayload;
+  origin: string;
 };
 
-export default function SignTx({ wallet, requestId, payload }: SignTxProps) {
+export default function SignTx({
+  wallet,
+  requestId,
+  payload,
+  origin,
+}: SignTxProps) {
   const { rpcClient } = useRpcClientStateful();
+  const { emitKasSignTx } = useAnalytics();
 
   const handleConfirm = async () => {
     if (!rpcClient || !wallet) {
@@ -27,7 +35,9 @@ export default function SignTx({ wallet, requestId, payload }: SignTxProps) {
         requestId,
         ApiUtils.createApiResponse(requestId, signed.serializeToSafeJSON()),
       );
+      emitKasSignTx({ origin, status: "success" });
     } catch (err) {
+      emitKasSignTx({ origin, status: "failed" });
       await ApiExtensionUtils.sendMessage(
         requestId,
         ApiUtils.createApiResponse(

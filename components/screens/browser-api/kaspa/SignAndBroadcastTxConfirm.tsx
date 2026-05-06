@@ -17,6 +17,8 @@ export default function SignAndBroadcastTxConfirm() {
     : null;
 
   const parsedPayload = payload ? SignTxPayloadSchema.parse(payload) : null;
+  const origin =
+    new URLSearchParams(window.location.search).get("origin") ?? "";
 
   const loading = !wallet || !requestId || !parsedPayload;
 
@@ -27,10 +29,15 @@ export default function SignAndBroadcastTxConfirm() {
         <HotWalletSignAndBroadcast
           requestId={requestId}
           payload={parsedPayload}
+          origin={origin}
         />
       )}
       {!loading && wallet.type === "ledger" && (
-        <LedgerSignAndBroadcast requestId={requestId} payload={parsedPayload} />
+        <LedgerSignAndBroadcast
+          requestId={requestId}
+          payload={parsedPayload}
+          origin={origin}
+        />
       )}
     </div>
   );

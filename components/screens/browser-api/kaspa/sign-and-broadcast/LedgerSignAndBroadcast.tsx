@@ -10,11 +10,13 @@ import useKaspaLedgerSigner from "@/hooks/wallet/useKaspaLedgerSigner";
 type LedgerSignAndBroadcastProps = {
   requestId: string;
   payload: SignTxPayload;
+  origin: string;
 };
 
 export default function LedgerSignAndBroadcast({
   requestId,
   payload,
+  origin,
 }: LedgerSignAndBroadcastProps) {
   const { transport, isAppOpen } = useLedgerTransport();
   const walletSigner = useKaspaLedgerSigner();
@@ -42,6 +44,7 @@ export default function LedgerSignAndBroadcast({
           wallet={walletSigner}
           requestId={requestId}
           payload={payload}
+          origin={origin}
         />
       )}
     </>

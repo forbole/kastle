@@ -8,11 +8,13 @@ import useKaspaHotWalletSigner from "@/hooks/wallet/useKaspaHotWalletSigner";
 type HotWalletSignAndBroadcastProps = {
   requestId: string;
   payload: SignTxPayload;
+  origin: string;
 };
 
 export default function HotWalletSignAndBroadcast({
   requestId,
   payload,
+  origin,
 }: HotWalletSignAndBroadcastProps) {
   const { wallet: walletInfo, account } = useWalletManager();
   const { rpcClient, networkId } = useRpcClientStateful();
@@ -28,6 +30,7 @@ export default function HotWalletSignAndBroadcast({
           wallet={walletSigner}
           requestId={requestId}
           payload={payload}
+          origin={origin}
         />
       )}
     </>

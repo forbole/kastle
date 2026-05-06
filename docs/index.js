@@ -40,7 +40,7 @@ document
 
 function getRpc() {
   return (rpc = new kaspaWasm.RpcClient({
-    url: "wss://kaspa-testnet.forbole.com/borsh",
+    url: "wss://kastle-tn10-borsh.rhyzome.co",
     networkId: network,
   }));
 }
@@ -256,7 +256,7 @@ document
   .getElementById("krcDeployReveal")
   .addEventListener("click", async () => {
     const rpc = new kaspaWasm.RpcClient({
-      url: "wss://kaspa-testnet.forbole.com/borsh",
+      url: "wss://kastle-tn10-borsh.rhyzome.co",
       networkId: network,
     });
     await rpc.connect();
@@ -331,7 +331,7 @@ document.getElementById("krcMintCommit").addEventListener("click", async () => {
 
 document.getElementById("krcMintReveal").addEventListener("click", async () => {
   const rpc = new kaspaWasm.RpcClient({
-    url: "wss://kaspa-testnet.forbole.com/borsh",
+    url: "wss://kastle-tn10-borsh.rhyzome.co",
     networkId: network,
   });
   await rpc.connect();
@@ -411,7 +411,7 @@ document
   .getElementById("krcTransferReveal")
   .addEventListener("click", async () => {
     const rpc = new kaspaWasm.RpcClient({
-      url: "wss://kaspa-testnet.forbole.com/borsh",
+      url: "wss://kastle-tn10-borsh.rhyzome.co",
       networkId: network,
     });
     await rpc.connect();
@@ -551,7 +551,7 @@ document.getElementById("krcListCommit").addEventListener("click", async () => {
 
 document.getElementById("krcListReveal").addEventListener("click", async () => {
   const rpc = new kaspaWasm.RpcClient({
-    url: "wss://kaspa-testnet.forbole.com/borsh",
+    url: "wss://kastle-tn10-borsh.rhyzome.co",
     networkId: network,
   });
   await rpc.connect();
@@ -621,7 +621,7 @@ document
   .getElementById("preparedSendTx")
   .addEventListener("click", async () => {
     const rpc = new kaspaWasm.RpcClient({
-      url: "wss://kaspa-testnet.forbole.com/borsh",
+      url: "wss://kastle-tn10-borsh.rhyzome.co",
       networkId: network,
     });
     await rpc.connect();
@@ -669,7 +669,7 @@ document
   .getElementById("krcCancelReveal")
   .addEventListener("click", async () => {
     const rpc = new kaspaWasm.RpcClient({
-      url: "wss://kaspa-testnet.forbole.com/borsh",
+      url: "wss://kastle-tn10-borsh.rhyzome.co",
       networkId: network,
     });
     await rpc.connect();
@@ -720,7 +720,7 @@ document.getElementById("krcBuyReveal").addEventListener("click", async () => {
 
   const address = document.getElementById("address").innerText;
   const rpc = new kaspaWasm.RpcClient({
-    url: "wss://kaspa-testnet.forbole.com/borsh",
+    url: "wss://kastle-tn10-borsh.rhyzome.co",
     networkId: network,
   });
   await rpc.connect();
@@ -808,7 +808,7 @@ document
   .getElementById("krcDeployIssueReveal")
   .addEventListener("click", async () => {
     const rpc = new kaspaWasm.RpcClient({
-      url: "wss://kaspa-testnet.forbole.com/borsh",
+      url: "wss://kastle-tn10-borsh.rhyzome.co",
       networkId: network,
     });
     await rpc.connect();
@@ -893,7 +893,7 @@ document
   .getElementById("krcIssueReveal")
   .addEventListener("click", async () => {
     const rpc = new kaspaWasm.RpcClient({
-      url: "wss://kaspa-testnet.forbole.com/borsh",
+      url: "wss://kastle-tn10-borsh.rhyzome.co",
       networkId: network,
     });
     await rpc.connect();

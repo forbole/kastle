@@ -7,20 +7,24 @@ import { Transaction } from "@/wasm/core/kaspa";
 import SignConfirm from "@/components/screens/browser-api/kaspa/sign/SignConfirm";
 import { useState } from "react";
 import { ApiUtils } from "@/api/background/utils";
+import useAnalytics from "@/hooks/useAnalytics";
 
 type SignAndBroadcastProps = {
   wallet: IWallet;
   requestId: string;
   payload: SignTxPayload;
+  origin: string;
 };
 
 export default function SignAndBroadcast({
   wallet,
   requestId,
   payload,
+  origin,
 }: SignAndBroadcastProps) {
   const { rpcClient } = useRpcClientStateful();
   const { account } = useWalletManager();
+  const { emitKasSignAndBroadcastTx } = useAnalytics();
 
   const transaction = Transaction.deserializeFromSafeJSON(payload.txJson);
 
@@ -39,7 +43,9 @@ export default function SignAndBroadcast({
         requestId,
         ApiUtils.createApiResponse(requestId, txId),
       );
+      emitKasSignAndBroadcastTx({ origin, status: "success" });
     } catch (err) {
+      emitKasSignAndBroadcastTx({ origin, status: "failed" });
       await ApiExtensionUtils.sendMessage(
         requestId,
         ApiUtils.createApiResponse(

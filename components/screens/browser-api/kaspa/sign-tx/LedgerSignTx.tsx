@@ -11,11 +11,13 @@ import useLedgerTransport from "@/hooks/useLedgerTransport";
 type LedgerSignTxProps = {
   requestId: string;
   payload: SignTxPayload;
+  origin: string;
 };
 
 export default function LedgerSignTx({
   requestId,
   payload,
+  origin,
 }: LedgerSignTxProps) {
   const { transport, isAppOpen } = useLedgerTransport();
   const walletSigner = useKaspaLedgerSigner();
@@ -39,7 +41,12 @@ export default function LedgerSignTx({
       )}
       {transport && isAppOpen && !walletSigner && <Splash />}
       {walletSigner && isAppOpen && (
-        <SignTx wallet={walletSigner} requestId={requestId} payload={payload} />
+        <SignTx
+          wallet={walletSigner}
+          requestId={requestId}
+          payload={payload}
+          origin={origin}
+        />
       )}
     </>
   );

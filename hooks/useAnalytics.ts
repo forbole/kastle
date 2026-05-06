@@ -50,6 +50,14 @@ export default function useAnalytics() {
       postHog?.capture("send_initiated", properties),
     emitSendCompleted: (properties: SendCompletedProperties) =>
       postHog?.capture("send_completed", properties),
+    emitKasSignTx: (properties: {
+      origin: string;
+      status: "success" | "failed";
+    }) => postHog?.capture("kas:sign_tx", properties),
+    emitKasSignAndBroadcastTx: (properties: {
+      origin: string;
+      status: "success" | "failed";
+    }) => postHog?.capture("kas:sign_and_broadcast_tx", properties),
     emitFirstTransaction: async (properties: {
       direction: "send" | "receive";
       amount: string;
