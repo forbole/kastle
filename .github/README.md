@@ -59,3 +59,4 @@ project.
 ## License
 
 See the [LICENSE](https://github.com/forbole/kastle/blob/main/LICENSE) file for details.
+
