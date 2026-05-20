@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.54.1](https://github.com/forbole/kastle/compare/v2.54.0...v2.54.1) (2026-05-20)
+
+
+### Bug Fixes
+
+* add nft list empty check ([466deb9](https://github.com/forbole/kastle/commit/466deb94d9a02b3f9951a772e97bb37835a3aa92))
+
 ## [2.54.0](https://github.com/forbole/kastle/compare/v2.53.0...v2.54.0) (2026-05-06)
 
 
