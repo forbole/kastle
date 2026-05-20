@@ -9,7 +9,7 @@ import useSWRInfinite from "swr/infinite";
 
 type KRC721ByAddressResponse = {
   message: string;
-  result: KRC721Info[];
+  result?: KRC721Info[];
   next?: string;
 };
 

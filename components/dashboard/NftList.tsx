@@ -104,7 +104,7 @@ export default function NftList() {
           ))}
 
         {data?.map((page) =>
-          page.result.map((krc721) => (
+          page.result?.map((krc721) => (
             <KRC721Item
               key={`${krc721.tick}-${krc721.tokenId}`}
               tick={krc721.tick}
