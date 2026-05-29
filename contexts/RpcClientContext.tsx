@@ -54,32 +54,39 @@ export function RpcClientProvider({ children }: { children: ReactNode }) {
       }
       setNetworkId(settings.networkId);
 
-      const rpcUrl = RPC_URLS[settings.networkId];
-      const newRpcClient = new RpcClient({
-        url: rpcUrl,
-        resolver: rpcUrl ? undefined : new Resolver(),
-        encoding: Encoding.Borsh,
-        networkId: settings.networkId,
-      });
+      const rpcUrls = RPC_URLS[settings.networkId];
+      let lastError: unknown;
 
-      try {
-        await newRpcClient.connect();
+      for (const rpcUrl of rpcUrls) {
+        const newRpcClient = new RpcClient({
+          url: rpcUrl,
+          resolver: rpcUrl ? undefined : new Resolver(),
+          encoding: Encoding.Borsh,
+          networkId: settings.networkId,
+        });
 
-        const serverInfo = await newRpcClient.getServerInfo();
-        if (!serverInfo.isSynced) {
-          const v = serverInfo.virtualDaaScore ?? "unknown";
-          throw new Error(
-            `Please wait for the node to sync (virtualDaaScore: ${v})`,
-          );
+        try {
+          await newRpcClient.connect();
+
+          const serverInfo = await newRpcClient.getServerInfo();
+          if (!serverInfo.isSynced) {
+            const v = serverInfo.virtualDaaScore ?? "unknown";
+            throw new Error(
+              `Please wait for the node to sync (virtualDaaScore: ${v})`,
+            );
+          }
+
+          setRpcClient(newRpcClient);
+          setIsConnected(true);
+          return;
+        } catch (e) {
+          await newRpcClient.disconnect();
+          await newRpcClient.stop();
+          lastError = e;
         }
-
-        setRpcClient(newRpcClient);
-        setIsConnected(true);
-      } catch (e) {
-        await newRpcClient.disconnect();
-        await newRpcClient.stop();
-        throw new Error("Failed to handle the rpcClient operation: " + e);
       }
+
+      throw new Error("Failed to handle the rpcClient operation: " + lastError);
     };
 
     const terminateConnection = async () => {

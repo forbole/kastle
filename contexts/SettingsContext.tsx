@@ -43,9 +43,12 @@ export type Settings = {
   isLegacyEvmAddressEnabled?: boolean;
 };
 
-export const RPC_URLS = {
-  [NetworkType.Mainnet]: "wss://kastle-mainnet-borsh.rhyzome.co",
-  [NetworkType.TestnetT10]: "wss://kastle-tn10-borsh.rhyzome.co",
+export const RPC_URLS: Record<NetworkType, string[]> = {
+  [NetworkType.Mainnet]: ["wss://kastle-mainnet-borsh.rhyzome.co"],
+  [NetworkType.TestnetT10]: [
+    "wss://kastle-tn10-borsh.rhyzome.co",
+    "wss://testnet10-wrpc.kasia.fyi",
+  ],
 };
 export const KASPLEX_API_URLS = {
   [NetworkType.Mainnet]: "https://api.kasplex.org/v1",
