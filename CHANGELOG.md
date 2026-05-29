@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.54.2](https://github.com/forbole/kastle/compare/v2.54.1...v2.54.2) (2026-05-29)
+
+
+### Bug Fixes
+
+* add RPC fallback URLs for testnet-10 ([8e7f44e](https://github.com/forbole/kastle/commit/8e7f44eb98f0e61e36946af9906532d55542ff27))
+
 ## [2.54.1](https://github.com/forbole/kastle/compare/v2.54.0...v2.54.1) (2026-05-20)
 
 
