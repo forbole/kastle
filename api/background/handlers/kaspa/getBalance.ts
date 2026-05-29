@@ -37,8 +37,7 @@ export const getBalanceHandler: Handler = async (
       throw new Error("No address found");
     }
 
-    const rpcClient = await ApiUtils.getKaspaRpcClient();
-    await rpcClient.connect();
+    const rpcClient = await ApiUtils.connectKaspaRpcClient();
 
     try {
       const balanceResponse = await rpcClient.getBalanceByAddress({

@@ -65,8 +65,12 @@ export function RpcClientProvider({ children }: { children: ReactNode }) {
       try {
         await newRpcClient.connect();
 
-        if (!(await newRpcClient.getServerInfo()).isSynced) {
-          throw new Error("Please wait for the node to sync");
+        const serverInfo = await newRpcClient.getServerInfo();
+        if (!serverInfo.isSynced) {
+          const v = serverInfo.virtualDaaScore ?? "unknown";
+          throw new Error(
+            `Please wait for the node to sync (virtualDaaScore: ${v})`,
+          );
         }
 
         setRpcClient(newRpcClient);

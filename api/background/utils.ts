@@ -239,6 +239,29 @@ export class ApiUtils {
     });
     return rpcClient;
   }
+
+  static async connectKaspaRpcClient(): Promise<RpcClient> {
+    const rpcClient = await this.getKaspaRpcClient();
+    await rpcClient.connect();
+    return rpcClient;
+  }
+
+  static async getServerSyncInfo(): Promise<{
+    isSynced: boolean;
+    virtualDaaScore: bigint;
+  }> {
+    const rpcClient = await this.getKaspaRpcClient();
+    await rpcClient.connect();
+    try {
+      const serverInfo = await rpcClient.getServerInfo();
+      return {
+        isSynced: serverInfo.isSynced,
+        virtualDaaScore: serverInfo.virtualDaaScore,
+      };
+    } finally {
+      await rpcClient.disconnect();
+    }
+  }
 }
 
 export type Handler = (
