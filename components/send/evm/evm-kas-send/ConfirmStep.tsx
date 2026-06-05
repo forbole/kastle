@@ -111,7 +111,7 @@ export const ConfirmStep = ({
 
       setOutTxs([txId]);
       // Don't await, analytics should not crash the app
-      emitFirstTransaction({
+      void emitFirstTransaction({
         amount,
         coin: "KAS",
         direction: "send",

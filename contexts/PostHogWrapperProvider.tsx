@@ -18,16 +18,20 @@ export function PostHogWrapperProvider({ children }: { children: ReactNode }) {
     if (calledOnce.current) return;
     calledOnce.current = true;
 
-    const postHogInstance = new PostHog(
-      "phc_9GNofpiXuB3oDxjJes4K2VaTgM33mwCNt8ZoOoTgyon",
-      {
-        host: "https://eu.i.posthog.com",
-        autocapture: false,
-        defaultOptIn: isProduction,
-      },
-    );
+    try {
+      const postHogInstance = new PostHog(
+        "phc_9GNofpiXuB3oDxjJes4K2VaTgM33mwCNt8ZoOoTgyon",
+        {
+          host: "https://eu.i.posthog.com",
+          autocapture: false,
+          defaultOptIn: isProduction,
+        },
+      );
 
-    setPostHog(postHogInstance);
+      setPostHog(postHogInstance);
+    } catch {
+      // Analytics init failure must not affect the app
+    }
   }, []);
 
   return (
