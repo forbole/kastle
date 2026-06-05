@@ -44,11 +44,12 @@ export type Settings = {
 };
 
 export const RPC_URLS: Record<NetworkType, string[]> = {
-  [NetworkType.Mainnet]: ["wss://kastle-mainnet-borsh.rhyzome.co"],
-  [NetworkType.TestnetT10]: [
-    "wss://kastle-tn10-borsh.rhyzome.co",
+  [NetworkType.Mainnet]: [
+    "wss://kastle-mainnet-borsh.rhyzome.co",
     "wss://testnet10-wrpc.kasia.fyi",
+    "wss://zoe.kaspa.stream/kaspa/mainnet/wrpc/borsh",
   ],
+  [NetworkType.TestnetT10]: ["wss://testnet10-wrpc.kasia.fyi"],
 };
 export const KASPLEX_API_URLS = {
   [NetworkType.Mainnet]: "https://api.kasplex.org/v1",
