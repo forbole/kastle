@@ -3,6 +3,7 @@ import { CURRENCIES } from "@/contexts/SettingsContext.tsx";
 import * as secp from "@noble/secp256k1";
 import { bytesToHex } from "viem";
 import { publicKeyToAddress } from "viem/accounts";
+import { sha256 } from "hash-wasm";
 
 export const isProduction = process.env.NODE_ENV === "production";
 
@@ -104,4 +105,8 @@ export function toLegacyEvmAddress(publicKey: string) {
     secp.ProjectivePoint.fromHex(publicKey).toRawBytes(false);
   const uncompressedHex = bytesToHex(uncompressed);
   return publicKeyToAddress(uncompressedHex);
+}
+
+export function hashAddress(address: string): Promise<string> {
+  return sha256(address);
 }

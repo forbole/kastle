@@ -45,9 +45,8 @@ export default function ImportPrivateKey() {
       await keyringInitialize(onboardingForm.getValues("password"));
     }
 
-    await importWalletByPrivateKey(uuid(), privateKey);
-
-    emitWalletCreated({ method: "import" });
+    const address = await importWalletByPrivateKey(uuid(), privateKey);
+    emitWalletCreated({ method: "import", sender: address ?? undefined });
     navigate(
       onboardingForm ? "/onboarding-success/import" : "/accounts-imported",
     );

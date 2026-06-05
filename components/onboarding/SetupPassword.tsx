@@ -37,8 +37,8 @@ export default function SetupPassword() {
   const onSubmit = handleSubmit(async (data) => {
     if (method === "create") {
       await keyringInitialize(data.password);
-      await createNewWallet(uuid());
-      emitWalletCreated({ method: "new" });
+      const address = await createNewWallet(uuid());
+      emitWalletCreated({ method: "new", sender: address ?? undefined });
       navigate("/onboarding-success/create");
     } else {
       setValue("step", "choose");

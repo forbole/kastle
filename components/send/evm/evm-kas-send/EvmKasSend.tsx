@@ -9,6 +9,9 @@ import FailStatus from "../FailStatus";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import useAnalytics from "@/hooks/useAnalytics";
 import { hexToNumber } from "viem";
+import useEvmAddress from "@/hooks/evm/useEvmAddress";
+import useKaspaPrice from "@/hooks/useKaspaPrice";
+import { getChainTokenSymbol } from "@/lib/layer2";
 
 import z from "zod";
 
@@ -29,6 +32,8 @@ export default function EvmKasSend() {
   const { wallet } = useWalletManager();
   const navigate = useNavigate();
   const { emitSendCompleted } = useAnalytics();
+  const evmAddress = useEvmAddress();
+  const { kaspaPrice } = useKaspaPrice();
   const { state } = useLocation() as {
     state?: {
       step: Step;
@@ -83,6 +88,7 @@ export default function EvmKasSend() {
                 id: chainId!,
                 chainId: hexToNumber(chainId!),
                 status: "failed",
+                sender: evmAddress,
               });
               setStep("fail");
             }}
@@ -91,11 +97,24 @@ export default function EvmKasSend() {
         {step == "broadcast" && (
           <Broadcasting
             onSuccess={() => {
+              const amount = form.getValues("amount");
+              const value_native = amount ? parseFloat(amount) : undefined;
+              const tokenSymbol = chainId
+                ? getChainTokenSymbol(chainId)
+                : undefined;
               emitSendCompleted({
                 type: "EVM_KAS",
                 id: chainId!,
                 chainId: hexToNumber(chainId!),
                 status: "success",
+                sender: evmAddress,
+                value_native,
+                native_asset:
+                  value_native !== undefined ? tokenSymbol : undefined,
+                value_usd:
+                  value_native && kaspaPrice
+                    ? value_native * kaspaPrice
+                    : undefined,
               });
               setStep("success");
             }}

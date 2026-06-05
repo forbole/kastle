@@ -13,6 +13,7 @@ import useWalletEditor from "@/hooks/wallet/useWalletEditor";
 import { PublicKey } from "@/wasm/core/kaspa";
 import { useSettings } from "@/hooks/useSettings";
 import { twMerge } from "tailwind-merge";
+import useAnalytics from "@/hooks/useAnalytics";
 
 export type AccountsFormValues = Record<
   string,
@@ -55,6 +56,7 @@ export default function ManageAccounts({
   const { action } = useParams();
   const pageSize = 10;
   const [offset, setOffset] = useState(0);
+  const { emitAccountCreated } = useAnalytics();
 
   const {
     value: isFetchingAccounts,
@@ -123,6 +125,16 @@ export default function ManageAccounts({
       });
 
       await setLegacyWalletEnabled(wallet.id, isLegacyWalletEnabled);
+
+      // Emit account_created for newly added accounts
+      const originalIndexes = new Set(
+        Object.keys(selectedAccountIds ?? {}).map(Number),
+      );
+      for (const [index, value] of Object.entries(accounts)) {
+        if (!originalIndexes.has(parseInt(index, 10))) {
+          emitAccountCreated({ sender: value.address });
+        }
+      }
 
       navigate(location?.state?.redirect ?? "/accounts-imported");
     } catch (error: any) {

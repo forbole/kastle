@@ -68,6 +68,7 @@ export const sendTransactionHandler = async (
   const url = new URL(browser.runtime.getURL("/popup.html"));
   url.hash = `/ethereum/send-transaction`;
   url.searchParams.set("requestId", message.id);
+  url.searchParams.set("origin", message.host);
   url.searchParams.set(
     "payload",
     encodeURIComponent(JSON.stringify(transaction)),

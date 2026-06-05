@@ -79,6 +79,8 @@ export default function useWalletImporter() {
       ],
       backed,
     });
+
+    return address;
   };
 
   const importWalletByLedger = async (
@@ -103,6 +105,10 @@ export default function useWalletImporter() {
       walletSettings.lastLedgerNumber = 0;
     }
 
+    const address = new PublicKey(publicKeys[0])
+      .toAddress(networkId)
+      .toString();
+
     await addWallet({
       id,
       type: "ledger",
@@ -112,12 +118,14 @@ export default function useWalletImporter() {
         {
           index: 0,
           name: defaultAccountName,
-          address: new PublicKey(publicKeys[0]).toAddress(networkId).toString(),
+          address,
           publicKeys: publicKeys,
         },
       ],
       backed: true,
     });
+
+    return address;
   };
 
   const importWalletByPrivateKey = async (id: string, privateKey: string) => {
@@ -161,11 +169,13 @@ export default function useWalletImporter() {
     await setWalletSettings({
       ...walletSettings,
     });
+
+    return address;
   };
 
   const createNewWallet = async (id: string, defaultAccountName?: string) => {
     const mnemonic = KaspaAccountFactory.generateMnemonic();
-    await importWalletByMnemonic(id, mnemonic, defaultAccountName, false);
+    return importWalletByMnemonic(id, mnemonic, defaultAccountName, false);
   };
 
   return {

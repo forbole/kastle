@@ -75,6 +75,8 @@ export default function useAccountManager() {
     await setWalletSettings({
       ...walletSettings,
     });
+
+    return kaspaAddress;
   };
 
   // Function to select an account in the wallet

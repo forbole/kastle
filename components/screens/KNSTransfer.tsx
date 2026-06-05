@@ -7,6 +7,7 @@ import KNSTransferBroadcast from "@/components/kns-transfer/KNSTransferBroadcast
 import KNSTransferSuccess from "@/components/kns-transfer/KNSTransferSuccess.tsx";
 import KNSTransferFailure from "@/components/kns-transfer/KNSTransferFailure.tsx";
 import useAnalytics from "@/hooks/useAnalytics";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 
 const steps = ["details", "confirm", "broadcast", "success", "fail"] as const;
 
@@ -25,6 +26,7 @@ export default function KNSTransfer() {
   const navigate = useNavigate();
   const [step, setStep] = useState<Step>("details");
   const { emitSendCompleted } = useAnalytics();
+  const { account } = useWalletManager();
 
   const form = useForm<KNSTransferFormData>({
     defaultValues: { assetId, isDomain: true },
@@ -66,6 +68,7 @@ export default function KNSTransfer() {
                 type: "KNS",
                 id: assetId ?? "",
                 status: "failed",
+                sender: account?.address,
               });
               setStep("fail");
             }}
@@ -74,6 +77,7 @@ export default function KNSTransfer() {
                 type: "KNS",
                 id: assetId ?? "",
                 status: "success",
+                sender: account?.address,
               });
               setStep("success");
             }}

@@ -86,9 +86,8 @@ export default function ImportRecoveryPhrase() {
     }
 
     const walletId = uuid();
-    await importWalletByMnemonic(walletId, words.join(" "));
-
-    emitWalletCreated({ method: "import" });
+    const address = await importWalletByMnemonic(walletId, words.join(" "));
+    emitWalletCreated({ method: "import", sender: address ?? undefined });
     navigate(`/manage-accounts/recovery-phrase/${walletId}/import`, {
       state: {
         ...(onboardingForm && { redirect: "/onboarding-success/import" }),

@@ -10,6 +10,7 @@ import { useTokenInfo } from "@/hooks/kasplex/useTokenInfo";
 import { applyDecimal } from "@/lib/krc20.ts";
 import { useLocation } from "react-router";
 import useAnalytics from "@/hooks/useAnalytics";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 
 const steps = ["confirm", "broadcast", "success", "fail"] as const;
 type Step = (typeof steps)[number];
@@ -34,6 +35,7 @@ export default function Krc20Transfer() {
   });
   const [outTxs, setOutTxs] = useState<string[]>();
   const { emitSendCompleted } = useAnalytics();
+  const { account } = useWalletManager();
 
   const { data: tokenInfoResponse, isLoading } = useTokenInfo(
     ticker ?? undefined,
@@ -90,14 +92,19 @@ export default function Krc20Transfer() {
                 type: "KRC20",
                 id: ticker,
                 status: "failed",
+                sender: account?.address,
               });
               setStep("fail");
             }}
             onSuccess={() => {
+              const value_native = amount ? parseFloat(amount) : undefined;
               emitSendCompleted({
                 type: "KRC20",
                 id: ticker,
                 status: "success",
+                sender: account?.address,
+                value_native,
+                native_asset: value_native !== undefined ? ticker : undefined,
               });
               setStep("success");
             }}

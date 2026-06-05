@@ -26,16 +26,20 @@ type SignTransactionProps = {
 import { handleViemError } from "@/lib/errors";
 import { sendEvmTransaction } from "@/lib/ethereum/transaction";
 import { useSettings } from "@/hooks/useSettings";
+import useAnalytics from "@/hooks/useAnalytics";
 
 export default function SendTransaction({
   walletSigner,
 }: SignTransactionProps) {
   const [settings] = useSettings();
   const { wallet } = useWalletManager();
+  const { emitEthSendTransaction } = useAnalytics();
   const { value: isSigning, toggle: toggleIsSigning } = useBoolean(false);
 
   const requestId =
     new URLSearchParams(window.location.search).get("requestId") ?? "";
+  const origin =
+    new URLSearchParams(window.location.search).get("origin") ?? "";
   const encodedPayload = new URLSearchParams(window.location.search).get(
     "payload",
   );
@@ -114,8 +118,10 @@ export default function SendTransaction({
         requestId,
         ApiUtils.createApiResponse(requestId, txHash),
       );
+      emitEthSendTransaction({ origin, status: "success" });
       toggleIsSigning();
     } catch (err) {
+      emitEthSendTransaction({ origin, status: "failed" });
       await ApiExtensionUtils.sendMessage(
         requestId,
         ApiUtils.createApiResponse(requestId, null, handleViemError(err)),

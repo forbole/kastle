@@ -7,12 +7,14 @@ import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { v4 as uuid } from "uuid";
 import { useNavigate } from "react-router-dom";
 import useWalletImporter from "@/hooks/wallet/useWalletImporter";
+import useAnalytics from "@/hooks/useAnalytics";
 
 export default function ChooseImport() {
   const form = useFormContext<OnboardingData>();
   const navigate = useNavigate();
   const { keyringInitialize } = useKeyring();
   const { createNewWallet } = useWalletImporter();
+  const { emitWalletCreated } = useAnalytics();
   const password = form.watch("password");
 
   return (
@@ -54,7 +56,11 @@ export default function ChooseImport() {
             className="mt-14 p-4 text-base font-semibold text-white"
             onClick={async () => {
               await keyringInitialize(password);
-              await createNewWallet(uuid());
+              const address = await createNewWallet(uuid());
+              emitWalletCreated({
+                method: "new",
+                sender: address ?? undefined,
+              });
               navigate("/onboarding-success/create");
             }}
           >

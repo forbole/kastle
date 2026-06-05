@@ -9,6 +9,7 @@ import FailStatus from "@/components/send/evm/FailStatus";
 import SuccessStatus from "@/components/send/evm/SuccessStatus";
 import { useState } from "react";
 import useAnalytics from "@/hooks/useAnalytics";
+import useEvmAddress from "@/hooks/evm/useEvmAddress";
 
 const steps = ["details", "confirm", "broadcast", "success", "fail"] as const;
 type Step = (typeof steps)[number];
@@ -28,6 +29,7 @@ export default function Erc721Transfer() {
   const [step, setStep] = useState<Step>("details");
   const [outTxs, setOutTxs] = useState<string[]>();
   const { emitSendCompleted } = useAnalytics();
+  const evmAddress = useEvmAddress();
 
   const { data } = useErc721Info(chainId, contractAddress, tokenId);
 
@@ -76,6 +78,7 @@ export default function Erc721Transfer() {
                 id: `${contractAddress}-${tokenId}`,
                 chainId: hexToNumber(chainId),
                 status: "failed",
+                sender: evmAddress,
               });
               setStep("fail");
             }}
@@ -89,6 +92,7 @@ export default function Erc721Transfer() {
                 id: `${contractAddress}-${tokenId}`,
                 chainId: hexToNumber(chainId!),
                 status: "success",
+                sender: evmAddress,
               });
               setStep("success");
             }}

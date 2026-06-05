@@ -3,16 +3,18 @@ import { useNavigate } from "react-router-dom";
 import internalToast from "@/components/Toast.tsx";
 import { v4 as uuid } from "uuid";
 import useWalletImporter from "@/hooks/wallet/useWalletImporter";
+import useAnalytics from "@/hooks/useAnalytics";
 
 export default function AddWallet() {
   const { createNewWallet } = useWalletImporter();
   const navigate = useNavigate();
+  const { emitWalletCreated } = useAnalytics();
   const onClose = () => navigate("/dashboard");
 
   const newWallet = async () => {
     try {
-      await createNewWallet(uuid());
-
+      const address = await createNewWallet(uuid());
+      emitWalletCreated({ method: "new", sender: address ?? undefined });
       internalToast.success("Wallet has been created successfully !");
       navigate("/dashboard");
     } catch (error) {

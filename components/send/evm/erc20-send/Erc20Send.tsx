@@ -11,6 +11,8 @@ import useWalletManager from "@/hooks/wallet/useWalletManager";
 import useErc20Info from "@/hooks/evm/useErc20Info";
 import useAnalytics from "@/hooks/useAnalytics";
 import { hexToNumber } from "viem";
+import useEvmAddress from "@/hooks/evm/useEvmAddress";
+import { useErc20Price } from "@/hooks/evm/useErc20Prices";
 
 export const Erc20SendFormSchema = z.object({
   userInput: z.string().optional(),
@@ -48,6 +50,11 @@ export default function Erc20Send() {
   const asset = useErc20Info(
     chainId as `0x${string}`,
     tokenId as `0x${string}`,
+  );
+  const evmAddress = useEvmAddress();
+  const { price: tokenPrice } = useErc20Price(
+    asset?.chainId,
+    asset?.address as `0x${string}` | undefined,
   );
 
   const form = useForm<Erc20SendForm>({
@@ -92,6 +99,7 @@ export default function Erc20Send() {
                   id: asset.address,
                   chainId: hexToNumber(asset.chainId),
                   status: "failed",
+                  sender: evmAddress,
                 });
               setStep("fail");
             }}
@@ -100,13 +108,24 @@ export default function Erc20Send() {
         {step == "broadcast" && (
           <Broadcasting
             onSuccess={() => {
-              if (asset)
+              if (asset) {
+                const amount = form.getValues("amount");
+                const value_native = amount ? parseFloat(amount) : undefined;
                 emitSendCompleted({
                   type: "ERC20",
                   id: asset.address,
                   chainId: hexToNumber(asset.chainId),
                   status: "success",
+                  sender: evmAddress,
+                  value_native,
+                  native_asset:
+                    value_native !== undefined ? asset.symbol : undefined,
+                  value_usd:
+                    value_native && tokenPrice
+                      ? value_native * tokenPrice
+                      : undefined,
                 });
+              }
               setStep("success");
             }}
           />

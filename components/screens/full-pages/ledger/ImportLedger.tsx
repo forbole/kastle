@@ -10,6 +10,7 @@ import { OnboardingData } from "@/components/screens/Onboarding.tsx";
 import { useFormContext } from "react-hook-form";
 import LedgerConnectForImport from "@/components/screens/full-pages/ledger/LedgerConnectForImport";
 import useWalletImporter from "@/hooks/wallet/useWalletImporter";
+import useAnalytics from "@/hooks/useAnalytics";
 
 export default function ImportLedger() {
   const { transport, isAppOpen } = useLedgerTransport();
@@ -17,6 +18,7 @@ export default function ImportLedger() {
   const { keyringInitialize } = useKeyring();
   const { rpcClient, networkId } = useRpcClientStateful();
   const { importWalletByLedger } = useWalletImporter();
+  const { emitWalletCreated } = useAnalytics();
   const onboardingForm = useFormContext<OnboardingData>();
 
   const importLedgerAccount = async () => {
@@ -36,12 +38,12 @@ export default function ImportLedger() {
 
       const walletId = uuid();
 
-      await importWalletByLedger(
+      const address = await importWalletByLedger(
         walletId,
         publicKeys[0], // deviceId is the first publicKey
         publicKeys,
       );
-
+      emitWalletCreated({ method: "import", sender: address ?? undefined });
       navigate(`/manage-accounts/ledger/${walletId}/import`, {
         state: {
           ...(onboardingForm && { redirect: "/onboarding-success/import" }),
