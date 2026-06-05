@@ -6,6 +6,7 @@ import { useBoolean } from "usehooks-ts";
 import kastleBanner from "@/assets/images/kastle-banner.svg";
 import { twMerge } from "tailwind-merge";
 import useKeyring from "@/hooks/useKeyring.ts";
+import useAnalytics from "@/hooks/useAnalytics.ts";
 
 type FormValues = {
   password: string;
@@ -14,6 +15,7 @@ type FormValues = {
 export default function WalletUnlock() {
   const [searchParams] = useSearchParams();
   const { keyringUnlock } = useKeyring();
+  const { emitExtensionUnlocked } = useAnalytics();
   const navigate = useNavigate();
   const { value: showPassword, toggle } = useBoolean(false);
 
@@ -35,6 +37,8 @@ export default function WalletUnlock() {
         });
         return;
       }
+
+      emitExtensionUnlocked();
 
       const redirect = searchParams.get("redirect");
 

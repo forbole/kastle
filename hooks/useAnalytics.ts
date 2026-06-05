@@ -66,6 +66,11 @@ export default function useAnalytics() {
   const { postHog } = useContext(PostHogWrapperContext);
   const [cachedAnalytics, setCachedAnalytics] = useState<Analytics>();
 
+  const PLATFORM = { platform: "extension" } as const;
+
+  const capture = (event: string, properties?: Record<string, unknown>) =>
+    postHog?.capture(event, { ...properties, ...PLATFORM });
+
   const captureWithSender = (
     event: string,
     properties: Record<string, unknown>,
@@ -74,17 +79,22 @@ export default function useAnalytics() {
     const senderStr = typeof sender === "string" ? sender : undefined;
     if (senderStr) {
       void hashAddress(senderStr)
-        .then((hashedSender) =>
-          postHog?.capture(event, { ...rest, hashedSender }),
-        )
-        .catch(() => postHog?.capture(event, rest));
+        .then((hashedSender) => capture(event, { ...rest, hashedSender }))
+        .catch(() => capture(event, rest));
     } else {
-      postHog?.capture(event, rest);
+      capture(event, rest);
     }
   };
 
   return {
-    emitOnboardingCompleted: () => postHog?.capture("onboarding_completed"),
+    emitExtensionUnlocked: () => {
+      const manifest = browser.runtime.getManifest();
+      capture("extension_unlocked", {
+        $app_version: manifest.version,
+        $app_name: manifest.name,
+      });
+    },
+    emitOnboardingCompleted: () => capture("onboarding_completed"),
     emitWalletCreated: (properties: {
       method: "new" | "import";
       sender?: string;
@@ -92,7 +102,7 @@ export default function useAnalytics() {
     emitAccountCreated: (properties: { sender?: string }) =>
       captureWithSender("account_created", properties),
     emitSendInitiated: (properties: SendInitiatedProperties) =>
-      postHog?.capture("send_initiated", properties),
+      capture("send_initiated", properties),
     emitSendCompleted: (properties: SendCompletedProperties) =>
       captureWithSender(
         "send_completed",
@@ -101,15 +111,15 @@ export default function useAnalytics() {
     emitKasSignTx: (properties: {
       origin: string;
       status: "success" | "failed";
-    }) => postHog?.capture("kas:sign_tx", properties),
+    }) => capture("kas:sign_tx", properties),
     emitKasSignAndBroadcastTx: (properties: {
       origin: string;
       status: "success" | "failed";
-    }) => postHog?.capture("kas:sign_and_broadcast_tx", properties),
+    }) => capture("kas:sign_and_broadcast_tx", properties),
     emitEthSendTransaction: (properties: {
       origin: string;
       status: "success" | "failed";
-    }) => postHog?.capture("eth_sendTransaction", properties),
+    }) => capture("eth_sendTransaction", properties),
     emitFirstTransaction: async (properties: {
       direction: "send" | "receive";
       amount: string;
@@ -131,7 +141,7 @@ export default function useAnalytics() {
         hasFirstTransaction: true,
       });
 
-      return postHog?.capture("first_transaction", properties);
+      return capture("first_transaction", properties);
     },
   };
 }
