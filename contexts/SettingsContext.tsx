@@ -46,8 +46,7 @@ export type Settings = {
 export const RPC_URLS: Record<NetworkType, string[]> = {
   [NetworkType.Mainnet]: [
     "wss://kastle-mainnet-borsh.rhyzome.co",
-    "wss://testnet10-wrpc.kasia.fyi",
-    "wss://zoe.kaspa.stream/kaspa/mainnet/wrpc/borsh",
+    "wss://wrpc.kasia.fyi",
   ],
   [NetworkType.TestnetT10]: ["wss://testnet10-wrpc.kasia.fyi"],
 };
