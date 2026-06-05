@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.55.0](https://github.com/forbole/kastle/compare/v2.54.2...v2.55.0) (2026-06-05)
+
+
+### Features
+
+* add more mainnet rpc urls as fallback ([6485b78](https://github.com/forbole/kastle/commit/6485b781c1ed198d4dca34555e9a5d3bb1c51afd))
+* enhance PostHog analytics tracking ([018bd07](https://github.com/forbole/kastle/commit/018bd07fc31937bced378b477c479b74e519ae12))
+* **posthog:** add unlock event ([273d9f0](https://github.com/forbole/kastle/commit/273d9f01679d8b43ebb91e7a2c27b9d4d936f80c))
+
+
+### Bug Fixes
+
+* update rpcs ([39291bb](https://github.com/forbole/kastle/commit/39291bbad8b647037401bffb61486fb4383b491a))
+
 ## [2.54.2](https://github.com/forbole/kastle/compare/v2.54.1...v2.54.2) (2026-05-29)
 
 
