@@ -40,7 +40,7 @@ document
 
 function getRpc() {
   return (rpc = new kaspaWasm.RpcClient({
-    url: "wss://kastle-tn10-borsh.rhyzome.co",
+    url: "wss://testnet10-wrpc.kasia.fyi",
     networkId: network,
   }));
 }
@@ -183,14 +183,21 @@ async function commitTransaction(P2SHAddress) {
   }
 }
 
-async function revealTransaction(p2shEntry, outputs, scripts, priorityFee) {
+async function revealTransaction(
+  p2shEntry,
+  outputs,
+  scripts,
+  priorityFee,
+  existingRpc,
+) {
   const address = document.getElementById("address").innerText;
   if (!address) {
     throw new Error("Please get the account first");
   }
 
-  const rpc = getRpc();
-  await rpc.connect();
+  const rpc = existingRpc ?? getRpc();
+  const shouldDisconnect = !existingRpc;
+  if (shouldDisconnect) await rpc.connect();
 
   try {
     const { entries } = await rpc.getUtxosByAddresses([address]);
@@ -217,7 +224,7 @@ async function revealTransaction(p2shEntry, outputs, scripts, priorityFee) {
     );
     return revealTxId;
   } finally {
-    rpc.disconnect();
+    if (shouldDisconnect) rpc.disconnect();
   }
 }
 
@@ -255,10 +262,7 @@ document
 document
   .getElementById("krcDeployReveal")
   .addEventListener("click", async () => {
-    const rpc = new kaspaWasm.RpcClient({
-      url: "wss://kastle-tn10-borsh.rhyzome.co",
-      networkId: network,
-    });
+    const rpc = getRpc();
     await rpc.connect();
 
     try {
@@ -291,6 +295,7 @@ document
           },
         ],
         "1000",
+        rpc,
       );
       document.getElementById("deployRevealTxId").innerText = revealTxId;
       document.getElementById("deployErrorKRC20").innerText = "";
@@ -330,10 +335,7 @@ document.getElementById("krcMintCommit").addEventListener("click", async () => {
 });
 
 document.getElementById("krcMintReveal").addEventListener("click", async () => {
-  const rpc = new kaspaWasm.RpcClient({
-    url: "wss://kastle-tn10-borsh.rhyzome.co",
-    networkId: network,
-  });
+  const rpc = getRpc();
   await rpc.connect();
 
   try {
@@ -363,6 +365,7 @@ document.getElementById("krcMintReveal").addEventListener("click", async () => {
         },
       ],
       "1",
+      rpc,
     );
     document.getElementById("mintRevealTxId").innerText = revealTxId;
     document.getElementById("mintErrorKRC20").innerText = "";
@@ -410,10 +413,7 @@ document
 document
   .getElementById("krcTransferReveal")
   .addEventListener("click", async () => {
-    const rpc = new kaspaWasm.RpcClient({
-      url: "wss://kastle-tn10-borsh.rhyzome.co",
-      networkId: network,
-    });
+    const rpc = getRpc();
     await rpc.connect();
 
     try {
@@ -447,6 +447,7 @@ document
           },
         ],
         "0.1",
+        rpc,
       );
       document.getElementById("transferRevealTxId").innerText = revealTxId;
       document.getElementById("transferErrorKRC20").innerText = "";
@@ -550,10 +551,7 @@ document.getElementById("krcListCommit").addEventListener("click", async () => {
 });
 
 document.getElementById("krcListReveal").addEventListener("click", async () => {
-  const rpc = new kaspaWasm.RpcClient({
-    url: "wss://kastle-tn10-borsh.rhyzome.co",
-    networkId: network,
-  });
+  const rpc = getRpc();
   await rpc.connect();
 
   try {
@@ -606,6 +604,7 @@ document.getElementById("krcListReveal").addEventListener("click", async () => {
         },
       ],
       "1",
+      rpc,
     );
 
     document.getElementById("listRevealTxId").innerText = revealTxId;
@@ -620,10 +619,7 @@ document.getElementById("krcListReveal").addEventListener("click", async () => {
 document
   .getElementById("preparedSendTx")
   .addEventListener("click", async () => {
-    const rpc = new kaspaWasm.RpcClient({
-      url: "wss://kastle-tn10-borsh.rhyzome.co",
-      networkId: network,
-    });
+    const rpc = getRpc();
     await rpc.connect();
 
     try {
@@ -668,10 +664,7 @@ document
 document
   .getElementById("krcCancelReveal")
   .addEventListener("click", async () => {
-    const rpc = new kaspaWasm.RpcClient({
-      url: "wss://kastle-tn10-borsh.rhyzome.co",
-      networkId: network,
-    });
+    const rpc = getRpc();
     await rpc.connect();
 
     try {
@@ -703,6 +696,7 @@ document
           },
         ],
         "0.02",
+        rpc,
       );
 
       document.getElementById("cancelTradeTxId").innerText = revealTxId;
@@ -719,10 +713,7 @@ document.getElementById("krcBuyReveal").addEventListener("click", async () => {
   const tx = kaspaWasm.Transaction.deserializeFromSafeJSON(txJson);
 
   const address = document.getElementById("address").innerText;
-  const rpc = new kaspaWasm.RpcClient({
-    url: "wss://kastle-tn10-borsh.rhyzome.co",
-    networkId: network,
-  });
+  const rpc = getRpc();
   await rpc.connect();
 
   try {
@@ -807,10 +798,7 @@ document
 document
   .getElementById("krcDeployIssueReveal")
   .addEventListener("click", async () => {
-    const rpc = new kaspaWasm.RpcClient({
-      url: "wss://kastle-tn10-borsh.rhyzome.co",
-      networkId: network,
-    });
+    const rpc = getRpc();
     await rpc.connect();
 
     try {
@@ -844,6 +832,7 @@ document
           },
         ],
         "1000",
+        rpc,
       );
       document.getElementById("deployIssueRevealTxId").innerText = revealTxId;
       document.getElementById("deployIssueErrorKRC20").innerText = "";
@@ -892,10 +881,7 @@ document
 document
   .getElementById("krcIssueReveal")
   .addEventListener("click", async () => {
-    const rpc = new kaspaWasm.RpcClient({
-      url: "wss://kastle-tn10-borsh.rhyzome.co",
-      networkId: network,
-    });
+    const rpc = getRpc();
     await rpc.connect();
 
     try {
@@ -927,6 +913,7 @@ document
           },
         ],
         "1",
+        rpc,
       );
       document.getElementById("issueRevealTxId").innerText = revealTxId;
       document.getElementById("issueErrorKRC20").innerText = "";

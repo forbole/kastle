@@ -8,6 +8,47 @@ import {
 } from "@/wasm/core/kaspa";
 import { PaymentOutput, SignType } from "@/lib/wallet/wallet-interface.ts";
 
+/**
+ * Patches a serialized transaction JSON to ensure all inputs have the
+ * `computeBudget` field required by newer WASM versions.
+ * Older serialized transactions (e.g. from external dApps using an older WASM)
+ * may omit this field, causing deserialization to fail.
+ */
+export function patchTransactionJSON(txJson: string): string {
+  try {
+    const tx = JSON.parse(txJson);
+    if (Array.isArray(tx.inputs)) {
+      tx.inputs = tx.inputs.map((input: Record<string, unknown>) =>
+        input.computeBudget === undefined
+          ? { ...input, computeBudget: 0 }
+          : input,
+      );
+    }
+    return JSON.stringify(tx);
+  } catch {
+    return txJson;
+  }
+}
+
+/**
+ * Strips the `computeBudget` field from all inputs in a serialized transaction
+ * JSON. Used before passing a new-WASM transaction to the legacy WASM for
+ * signing on mainnet, since legacy WASM doesn't recognise this field.
+ */
+export function stripTransactionJSON(txJson: string): string {
+  try {
+    const tx = JSON.parse(txJson);
+    if (Array.isArray(tx.inputs)) {
+      tx.inputs = tx.inputs.map(
+        ({ computeBudget: _cb, ...rest }: Record<string, unknown>) => rest,
+      );
+    }
+    return JSON.stringify(tx);
+  } catch {
+    return txJson;
+  }
+}
+
 // Sending amount must be greater than 0.2 KAS as KIP-0009 standard requires
 // https://github.com/kaspanet/kips/blob/master/kip-0009.md
 export const MIN_KAS_AMOUNT = 0.2;

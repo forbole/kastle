@@ -3,11 +3,10 @@ import { ApiExtensionUtils } from "@/api/extension";
 import { IWallet } from "@/lib/wallet/wallet-interface.ts";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
-import { Transaction } from "@/wasm/core/kaspa";
 import SignConfirm from "@/components/screens/browser-api/kaspa/sign/SignConfirm";
-import { useState } from "react";
 import { ApiUtils } from "@/api/background/utils";
 import useAnalytics from "@/hooks/useAnalytics";
+import { deserializeTransaction } from "@/lib/kaspa-compat";
 
 type SignAndBroadcastProps = {
   wallet: IWallet;
@@ -26,7 +25,7 @@ export default function SignAndBroadcast({
   const { account } = useWalletManager();
   const { emitKasSignAndBroadcastTx } = useAnalytics();
 
-  const transaction = Transaction.deserializeFromSafeJSON(payload.txJson);
+  const transaction = deserializeTransaction(payload.txJson);
 
   const handleConfirm = async () => {
     if (!rpcClient || !wallet || !account) {

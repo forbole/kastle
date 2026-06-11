@@ -1,11 +1,12 @@
 import { ExtensionService, Message } from "@/lib/service/extension-service.ts";
-import { Transaction } from "@/wasm/core/kaspa";
 import { getSigner } from "./utils";
 import { ScriptOption } from "@/lib/wallet/wallet-interface";
+import { deserializeTransaction } from "@/lib/kaspa-compat";
 
 export type KaspaSignTransactionRequest = {
   walletId: string;
   accountIndex: number;
+  networkId: string;
   transactionJSON: string; // Serialized transaction data
   scripts?: ScriptOption[]; // Optional scripts for the transaction
   isLegacy: boolean; // Required to ensure correct signing
@@ -19,6 +20,7 @@ export async function kaspaSignTransactionHandler(
   {
     walletId,
     accountIndex,
+    networkId,
     transactionJSON,
     scripts,
     isLegacy,
@@ -35,9 +37,9 @@ export async function kaspaSignTransactionHandler(
     throw new Error("Keyring not initialized or locked");
   }
 
-  const transaction = Transaction.deserializeFromSafeJSON(transactionJSON);
+  const transaction = deserializeTransaction(transactionJSON);
 
-  const signer = await getSigner(walletId, accountIndex, isLegacy);
+  const signer = await getSigner(walletId, accountIndex, isLegacy, networkId);
   const signedTransaction = await signer.signTx(transaction, scripts);
   sendResponse({
     signedTransactionJSON: signedTransaction.serializeToSafeJSON(),

@@ -18,6 +18,7 @@ import { useBoolean } from "usehooks-ts";
 import ledgerSignImage from "@/assets/images/ledger-on-sign.svg";
 import { formatCurrency } from "@/lib/utils.ts";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
+import { deserializeTransaction } from "@/lib/kaspa-compat";
 
 type SignConfirmProps = {
   payload: SignTxPayload;
@@ -36,7 +37,7 @@ export default function SignConfirm({
   const [settings, setSettings] = useSettings();
   const { value: isSigning, toggle: toggleIsSigning } = useBoolean(false);
 
-  const transaction = Transaction.deserializeFromSafeJSON(payload.txJson);
+  const transaction = deserializeTransaction(payload.txJson);
 
   const inputsAmount = transaction.inputs.reduce(
     (acc, input) => acc + (input.utxo?.amount ?? 0n),
