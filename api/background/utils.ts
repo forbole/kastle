@@ -255,6 +255,12 @@ export class ApiUtils {
       });
       try {
         await rpcClient.connect();
+        const { isSynced } = await rpcClient.getServerInfo();
+        if (!isSynced) {
+          await rpcClient.disconnect();
+          throw new Error(`RPC client at ${rpcUrl} is not synced`);
+        }
+
         return rpcClient;
       } catch (e) {
         await rpcClient.disconnect();
