@@ -88,7 +88,7 @@ export class LegacyHotWalletAccount implements IWallet {
   }
 
   signMessage(message: string): string {
-    return signMessage({ message, privateKey: this.getPrivateKey() });
+    return signMessage({ message, privateKey: this.getPrivateKeyString() });
   }
 
   protected getPrivateKey() {

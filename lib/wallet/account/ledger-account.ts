@@ -57,8 +57,9 @@ export class LegacyLedgerAccount implements IWallet {
     if (scripts) {
       throw new Error("Method not implemented.");
     }
+    const transaction = tx as Transaction;
 
-    const inputs = tx.inputs.map(
+    const inputs = transaction.inputs.map(
       (input) =>
         new LedgerTransactionInput({
           value: Number(input.utxo?.amount),
@@ -69,7 +70,7 @@ export class LegacyLedgerAccount implements IWallet {
         }),
     );
 
-    const outputs = tx.outputs.map(
+    const outputs = transaction.outputs.map(
       (output) =>
         new LedgerTransactionOutput({
           value: Number(output.value),

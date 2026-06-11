@@ -135,6 +135,28 @@ const CLOSURE_DTORS = (typeof FinalizationRegistry === 'undefined')
     wasm.__wbindgen_export_4.get(state.dtor)(state.a, state.b)
 });
 
+function makeClosure(arg0, arg1, dtor, f) {
+    const state = { a: arg0, b: arg1, cnt: 1, dtor };
+    const real = (...args) => {
+        // First up with a closure we increment the internal reference
+        // count. This ensures that the Rust closure environment won't
+        // be deallocated while we're invoking it.
+        state.cnt++;
+        try {
+            return f(state.a, state.b, ...args);
+        } finally {
+            if (--state.cnt === 0) {
+                wasm.__wbindgen_export_4.get(state.dtor)(state.a, state.b);
+                state.a = 0;
+                CLOSURE_DTORS.unregister(state);
+            }
+        }
+    };
+    real.original = state;
+    CLOSURE_DTORS.register(real, state, state);
+    return real;
+}
+
 function makeMutClosure(arg0, arg1, dtor, f) {
     const state = { a: arg0, b: arg1, cnt: 1, dtor };
     const real = (...args) => {
@@ -152,28 +174,6 @@ function makeMutClosure(arg0, arg1, dtor, f) {
                 CLOSURE_DTORS.unregister(state);
             } else {
                 state.a = a;
-            }
-        }
-    };
-    real.original = state;
-    CLOSURE_DTORS.register(real, state, state);
-    return real;
-}
-
-function makeClosure(arg0, arg1, dtor, f) {
-    const state = { a: arg0, b: arg1, cnt: 1, dtor };
-    const real = (...args) => {
-        // First up with a closure we increment the internal reference
-        // count. This ensures that the Rust closure environment won't
-        // be deallocated while we're invoking it.
-        state.cnt++;
-        try {
-            return f(state.a, state.b, ...args);
-        } finally {
-            if (--state.cnt === 0) {
-                wasm.__wbindgen_export_4.get(state.dtor)(state.a, state.b);
-                state.a = 0;
-                CLOSURE_DTORS.unregister(state);
             }
         }
     };
@@ -261,46 +261,23 @@ function _assertClass(instance, klass) {
     }
 }
 /**
- * Returns true if the script passed is a pay-to-script-hash (P2SH) format, false otherwise.
- * @param script - The script ({@link HexString} or Uint8Array).
+ * Takes a script and returns an equivalent pay-to-script-hash script.
+ * @param redeem_script - The redeem script ({@link HexString} or Uint8Array).
  * @category Wallet SDK
- * @param {HexString | Uint8Array} script
- * @returns {boolean}
+ * @param {HexString | Uint8Array} redeem_script
+ * @returns {ScriptPublicKey}
  */
-export function isScriptPayToScriptHash(script) {
+export function payToScriptHashScript(redeem_script) {
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-        wasm.isScriptPayToScriptHash(retptr, addHeapObject(script));
+        wasm.payToScriptHashScript(retptr, addHeapObject(redeem_script));
         var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
         var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
         var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
         if (r2) {
             throw takeObject(r1);
         }
-        return r0 !== 0;
-    } finally {
-        wasm.__wbindgen_add_to_stack_pointer(16);
-    }
-}
-
-/**
- * Returns returns true if the script passed is an ECDSA pay-to-pubkey.
- * @param script - The script ({@link HexString} or Uint8Array).
- * @category Wallet SDK
- * @param {HexString | Uint8Array} script
- * @returns {boolean}
- */
-export function isScriptPayToPubkeyECDSA(script) {
-    try {
-        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-        wasm.isScriptPayToPubkeyECDSA(retptr, addHeapObject(script));
-        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-        var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-        if (r2) {
-            throw takeObject(r1);
-        }
-        return r0 !== 0;
+        return ScriptPublicKey.__wrap(r0);
     } finally {
         wasm.__wbindgen_add_to_stack_pointer(16);
     }
@@ -357,6 +334,29 @@ export function addressFromScriptPublicKey(script_public_key, network) {
 }
 
 /**
+ * Returns true if the script passed is a pay-to-script-hash (P2SH) format, false otherwise.
+ * @param script - The script ({@link HexString} or Uint8Array).
+ * @category Wallet SDK
+ * @param {HexString | Uint8Array} script
+ * @returns {boolean}
+ */
+export function isScriptPayToScriptHash(script) {
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        wasm.isScriptPayToScriptHash(retptr, addHeapObject(script));
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+        if (r2) {
+            throw takeObject(r1);
+        }
+        return r0 !== 0;
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+    }
+}
+
+/**
  * Generates a signature script that fits a pay-to-script-hash script.
  * @param redeem_script - The redeem script ({@link HexString} or Uint8Array).
  * @param signature - The signature ({@link HexString} or Uint8Array).
@@ -376,29 +376,6 @@ export function payToScriptHashSignatureScript(redeem_script, signature) {
             throw takeObject(r1);
         }
         return takeObject(r0);
-    } finally {
-        wasm.__wbindgen_add_to_stack_pointer(16);
-    }
-}
-
-/**
- * Takes a script and returns an equivalent pay-to-script-hash script.
- * @param redeem_script - The redeem script ({@link HexString} or Uint8Array).
- * @category Wallet SDK
- * @param {HexString | Uint8Array} redeem_script
- * @returns {ScriptPublicKey}
- */
-export function payToScriptHashScript(redeem_script) {
-    try {
-        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-        wasm.payToScriptHashScript(retptr, addHeapObject(redeem_script));
-        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-        var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-        if (r2) {
-            throw takeObject(r1);
-        }
-        return ScriptPublicKey.__wrap(r0);
     } finally {
         wasm.__wbindgen_add_to_stack_pointer(16);
     }
@@ -428,6 +405,62 @@ export function payToAddressScript(address) {
 }
 
 /**
+ * Returns returns true if the script passed is an ECDSA pay-to-pubkey.
+ * @param script - The script ({@link HexString} or Uint8Array).
+ * @category Wallet SDK
+ * @param {HexString | Uint8Array} script
+ * @returns {boolean}
+ */
+export function isScriptPayToPubkeyECDSA(script) {
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        wasm.isScriptPayToPubkeyECDSA(retptr, addHeapObject(script));
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+        if (r2) {
+            throw takeObject(r1);
+        }
+        return r0 !== 0;
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+    }
+}
+
+/**
+ * Computes the covenant ID from the genesis outpoint and its authorized outputs.
+ *
+ * `genesis_outpoint` may be a [`TransactionOutpoint`] instance or a
+ * compatible plain object: `{ transactionId: HexString, index: number }`.
+ *
+ * `auth_outputs` is a JS array of objects, each with:
+ * - `index: number` — position of this output in the transaction's output array
+ * - `output: TransactionOutput | ITransactionOutput` — the authorized output
+ *
+ * @category Consensus
+ * @param {ITransactionOutpoint | TransactionOutpoint} genesis_outpoint
+ * @param {ICovenantAuthorizedOutput[]} auth_outputs
+ * @returns {Hash}
+ */
+export function covenantId(genesis_outpoint, auth_outputs) {
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        wasm.covenantId(retptr, addBorrowedObject(genesis_outpoint), addBorrowedObject(auth_outputs));
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+        if (r2) {
+            throw takeObject(r1);
+        }
+        return Hash.__wrap(r0);
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+        heap[stack_pointer++] = undefined;
+        heap[stack_pointer++] = undefined;
+    }
+}
+
+/**
  * Calculates target from difficulty, based on set_difficulty function on
  * <https://github.com/tmrlvi/kaspa-miner/blob/bf361d02a46c580f55f46b5dfa773477634a5753/src/client/stratum.rs#L375>
  * @category Mining
@@ -451,154 +484,68 @@ export function calculateTarget(difficulty) {
 }
 
 /**
- * `calculateStorageMass()` is a helper function to compute the storage mass of inputs and outputs.
- * This function can be use to calculate the storage mass of transaction inputs and outputs.
- * Note that the storage mass is only a component of the total transaction mass. You are not
- * meant to use this function by itself and should use `calculateTransactionMass()` instead.
- * This function purely exists for diagnostic purposes and to help with complex algorithms that
- * may require a manual UTXO selection for identifying UTXOs and outputs needed for low storage mass.
+ * Set the name of the default wallet file name
+ * or the `localStorage` key.  If `Wallet::open`
+ * is called without a wallet file name, this name
+ * will be used.  Please note that this name
+ * will be suffixed with `.wallet` suffix.
  *
- * @category Wallet SDK
- * @see {@link maximumStandardTransactionMass}
- * @see {@link calculateTransactionMass}
- * @param {NetworkId | string} network_id
- * @param {Array<number>} input_values
- * @param {Array<number>} output_values
- * @returns {bigint | undefined}
+ * This function should be called before using any
+ * other wallet SDK functions.
+ *
+ * @param {String} folder - the name to the wallet file or key.
+ *
+ * @category Wallet API
+ * @param {string} folder
  */
-export function calculateStorageMass(network_id, input_values, output_values) {
-    try {
-        const retptr = wasm.__wbindgen_add_to_stack_pointer(-32);
-        wasm.calculateStorageMass(retptr, addHeapObject(network_id), addBorrowedObject(input_values), addBorrowedObject(output_values));
-        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-        var r2 = getDataViewMemory0().getBigInt64(retptr + 8 * 1, true);
-        var r4 = getDataViewMemory0().getInt32(retptr + 4 * 4, true);
-        var r5 = getDataViewMemory0().getInt32(retptr + 4 * 5, true);
-        if (r5) {
-            throw takeObject(r4);
-        }
-        return r0 === 0 ? undefined : BigInt.asUintN(64, r2);
-    } finally {
-        wasm.__wbindgen_add_to_stack_pointer(32);
-        heap[stack_pointer++] = undefined;
-        heap[stack_pointer++] = undefined;
-    }
-}
-
-/**
- * `calculateTransactionFee()` returns minimum fees needed for the transaction to be
- * accepted by the network. If the transaction is invalid or the mass can not be calculated,
- * the function throws an error. If the mass exceeds the maximum standard transaction mass,
- * the function returns `undefined`.
- *
- * @category Wallet SDK
- * @see {@link maximumStandardTransactionMass}
- * @see {@link calculateTransactionMass}
- * @see {@link updateTransactionMass}
- * @param {NetworkId | string} network_id
- * @param {ITransaction | Transaction} tx
- * @param {number | null} [minimum_signatures]
- * @returns {bigint | undefined}
- */
-export function calculateTransactionFee(network_id, tx, minimum_signatures) {
-    try {
-        const retptr = wasm.__wbindgen_add_to_stack_pointer(-32);
-        wasm.calculateTransactionFee(retptr, addHeapObject(network_id), addBorrowedObject(tx), isLikeNone(minimum_signatures) ? 0xFFFFFF : minimum_signatures);
-        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-        var r2 = getDataViewMemory0().getBigInt64(retptr + 8 * 1, true);
-        var r4 = getDataViewMemory0().getInt32(retptr + 4 * 4, true);
-        var r5 = getDataViewMemory0().getInt32(retptr + 4 * 5, true);
-        if (r5) {
-            throw takeObject(r4);
-        }
-        return r0 === 0 ? undefined : BigInt.asUintN(64, r2);
-    } finally {
-        wasm.__wbindgen_add_to_stack_pointer(32);
-        heap[stack_pointer++] = undefined;
-    }
-}
-
-/**
- * `updateTransactionMass()` updates the mass property of the passed transaction.
- * If the transaction is invalid, the function throws an error.
- *
- * The function returns `true` if the mass is within the maximum standard transaction mass and
- * the transaction mass is updated. Otherwise, the function returns `false`.
- *
- * This is similar to `calculateTransactionMass()` but modifies the supplied
- * `Transaction` object.
- *
- * @category Wallet SDK
- * @see {@link maximumStandardTransactionMass}
- * @see {@link calculateTransactionMass}
- * @see {@link calculateTransactionFee}
- * @param {NetworkId | string} network_id
- * @param {Transaction} tx
- * @param {number | null} [minimum_signatures]
- * @returns {boolean}
- */
-export function updateTransactionMass(network_id, tx, minimum_signatures) {
+export function setDefaultWalletFile(folder) {
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-        _assertClass(tx, Transaction);
-        wasm.updateTransactionMass(retptr, addHeapObject(network_id), tx.__wbg_ptr, isLikeNone(minimum_signatures) ? 0xFFFFFF : minimum_signatures);
+        const ptr0 = passStringToWasm0(folder, wasm.__wbindgen_export_1, wasm.__wbindgen_export_2);
+        const len0 = WASM_VECTOR_LEN;
+        wasm.setDefaultWalletFile(retptr, ptr0, len0);
         var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
         var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-        var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-        if (r2) {
-            throw takeObject(r1);
+        if (r1) {
+            throw takeObject(r0);
         }
-        return r0 !== 0;
     } finally {
         wasm.__wbindgen_add_to_stack_pointer(16);
     }
 }
 
 /**
- * `calculateTransactionMass()` returns the mass of the passed transaction.
- * If the transaction is invalid, or the mass can not be calculated
- * the function throws an error.
+ * Set a custom storage folder for the wallet SDK
+ * subsystem.  Encrypted wallet files and transaction
+ * data will be stored in this folder. If not set
+ * the storage folder will default to `~/.kaspa`
+ * (note that the folder is hidden).
  *
- * The mass value must not exceed the maximum standard transaction mass
- * that can be obtained using `maximumStandardTransactionMass()`.
+ * This must be called before using any other wallet
+ * SDK functions.
  *
- * @category Wallet SDK
- * @see {@link maximumStandardTransactionMass}
- * @param {NetworkId | string} network_id
- * @param {ITransaction | Transaction} tx
- * @param {number | null} [minimum_signatures]
- * @returns {bigint}
+ * NOTE: This function will create a folder if it
+ * doesn't exist. This function will have no effect
+ * if invoked in the browser environment.
+ *
+ * @param {String} folder - the path to the storage folder
+ *
+ * @category Wallet API
  */
-export function calculateTransactionMass(network_id, tx, minimum_signatures) {
+export function setDefaultStorageFolder(folder) {
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-        wasm.calculateTransactionMass(retptr, addHeapObject(network_id), addBorrowedObject(tx), isLikeNone(minimum_signatures) ? 0xFFFFFF : minimum_signatures);
-        var r0 = getDataViewMemory0().getBigInt64(retptr + 8 * 0, true);
-        var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-        var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
-        if (r3) {
-            throw takeObject(r2);
+        const ptr0 = passStringToWasm0(folder, wasm.__wbindgen_export_1, wasm.__wbindgen_export_2);
+        const len0 = WASM_VECTOR_LEN;
+        wasm.setDefaultStorageFolder(retptr, ptr0, len0);
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        if (r1) {
+            throw takeObject(r0);
         }
-        return BigInt.asUintN(64, r0);
     } finally {
         wasm.__wbindgen_add_to_stack_pointer(16);
-        heap[stack_pointer++] = undefined;
     }
-}
-
-/**
- * `maximumStandardTransactionMass()` returns the maximum transaction
- * size allowed by the network.
- *
- * @category Wallet SDK
- * @see {@link calculateTransactionMass}
- * @see {@link updateTransactionMass}
- * @see {@link calculateTransactionFee}
- * @returns {bigint}
- */
-export function maximumStandardTransactionMass() {
-    const ret = wasm.maximumStandardTransactionMass();
-    return BigInt.asUintN(64, ret);
 }
 
 /**
@@ -664,189 +611,53 @@ export function createMultisigAddress(minimum_signatures, keys, network_type, ec
 }
 
 /**
- * @param {bigint} blockDaaScore
- * @param {bigint} currentDaaScore
- * @param {NetworkId | string} networkId
- * @param {boolean} isCoinbase
+ * WASM32 binding for `encryptXChaCha20Poly1305` function.
+ * @returns The encrypted text as a base64 string.
+ * @category Encryption
+ * @param {string} plainText
+ * @param {string} password
  * @returns {string}
  */
-export function getTransactionMaturityProgress(blockDaaScore, currentDaaScore, networkId, isCoinbase) {
-    let deferred2_0;
-    let deferred2_1;
+export function encryptXChaCha20Poly1305(plainText, password) {
+    let deferred4_0;
+    let deferred4_1;
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-        wasm.getTransactionMaturityProgress(retptr, addHeapObject(blockDaaScore), addHeapObject(currentDaaScore), addHeapObject(networkId), isCoinbase);
+        const ptr0 = passStringToWasm0(plainText, wasm.__wbindgen_export_1, wasm.__wbindgen_export_2);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(password, wasm.__wbindgen_export_1, wasm.__wbindgen_export_2);
+        const len1 = WASM_VECTOR_LEN;
+        wasm.encryptXChaCha20Poly1305(retptr, ptr0, len0, ptr1, len1);
         var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
         var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
         var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
         var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
-        var ptr1 = r0;
-        var len1 = r1;
+        var ptr3 = r0;
+        var len3 = r1;
         if (r3) {
-            ptr1 = 0; len1 = 0;
+            ptr3 = 0; len3 = 0;
             throw takeObject(r2);
         }
-        deferred2_0 = ptr1;
-        deferred2_1 = len1;
-        return getStringFromWasm0(ptr1, len1);
+        deferred4_0 = ptr3;
+        deferred4_1 = len3;
+        return getStringFromWasm0(ptr3, len3);
     } finally {
         wasm.__wbindgen_add_to_stack_pointer(16);
-        wasm.__wbindgen_export_3(deferred2_0, deferred2_1, 1);
+        wasm.__wbindgen_export_3(deferred4_0, deferred4_1, 1);
     }
 }
 
 /**
- * @param {NetworkId | string} networkId
- * @returns {INetworkParams}
- */
-export function getNetworkParams(networkId) {
-    try {
-        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-        wasm.getNetworkParams(retptr, addHeapObject(networkId));
-        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-        var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-        if (r2) {
-            throw takeObject(r1);
-        }
-        return takeObject(r0);
-    } finally {
-        wasm.__wbindgen_add_to_stack_pointer(16);
-    }
-}
-
-/**
- *
- * Format a Sompi amount to a string representation of the amount in Kaspa with a suffix
- * based on the network type (e.g. `KAS` for mainnet, `TKAS` for testnet,
- * `SKAS` for simnet, `DKAS` for devnet).
- *
- * @category Wallet SDK
- * @param {bigint | number | HexString} sompi
- * @param {NetworkType | NetworkId | string} network
- * @returns {string}
- */
-export function sompiToKaspaStringWithSuffix(sompi, network) {
-    let deferred2_0;
-    let deferred2_1;
-    try {
-        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-        wasm.sompiToKaspaStringWithSuffix(retptr, addHeapObject(sompi), addBorrowedObject(network));
-        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-        var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-        var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
-        var ptr1 = r0;
-        var len1 = r1;
-        if (r3) {
-            ptr1 = 0; len1 = 0;
-            throw takeObject(r2);
-        }
-        deferred2_0 = ptr1;
-        deferred2_1 = len1;
-        return getStringFromWasm0(ptr1, len1);
-    } finally {
-        wasm.__wbindgen_add_to_stack_pointer(16);
-        heap[stack_pointer++] = undefined;
-        wasm.__wbindgen_export_3(deferred2_0, deferred2_1, 1);
-    }
-}
-
-/**
- *
- * Convert Sompi to a string representation of the amount in Kaspa.
- *
- * @category Wallet SDK
- * @param {bigint | number | HexString} sompi
- * @returns {string}
- */
-export function sompiToKaspaString(sompi) {
-    let deferred2_0;
-    let deferred2_1;
-    try {
-        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-        wasm.sompiToKaspaString(retptr, addHeapObject(sompi));
-        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-        var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-        var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
-        var ptr1 = r0;
-        var len1 = r1;
-        if (r3) {
-            ptr1 = 0; len1 = 0;
-            throw takeObject(r2);
-        }
-        deferred2_0 = ptr1;
-        deferred2_1 = len1;
-        return getStringFromWasm0(ptr1, len1);
-    } finally {
-        wasm.__wbindgen_add_to_stack_pointer(16);
-        wasm.__wbindgen_export_3(deferred2_0, deferred2_1, 1);
-    }
-}
-
-/**
- * Convert a Kaspa string to Sompi represented by bigint.
- * This function provides correct precision handling and
- * can be used to parse user input.
- * @category Wallet SDK
- * @param {string} kaspa
- * @returns {bigint | undefined}
- */
-export function kaspaToSompi(kaspa) {
-    const ptr0 = passStringToWasm0(kaspa, wasm.__wbindgen_export_1, wasm.__wbindgen_export_2);
-    const len0 = WASM_VECTOR_LEN;
-    const ret = wasm.kaspaToSompi(ptr0, len0);
-    return takeObject(ret);
-}
-
-/**
- * @category Wallet SDK
- * @param {any} script_hash
- * @param {PrivateKey} privkey
- * @returns {string}
- */
-export function signScriptHash(script_hash, privkey) {
-    let deferred2_0;
-    let deferred2_1;
-    try {
-        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-        _assertClass(privkey, PrivateKey);
-        wasm.signScriptHash(retptr, addHeapObject(script_hash), privkey.__wbg_ptr);
-        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-        var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-        var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
-        var ptr1 = r0;
-        var len1 = r1;
-        if (r3) {
-            ptr1 = 0; len1 = 0;
-            throw takeObject(r2);
-        }
-        deferred2_0 = ptr1;
-        deferred2_1 = len1;
-        return getStringFromWasm0(ptr1, len1);
-    } finally {
-        wasm.__wbindgen_add_to_stack_pointer(16);
-        wasm.__wbindgen_export_3(deferred2_0, deferred2_1, 1);
-    }
-}
-
-/**
- * `createInputSignature()` is a helper function to sign a transaction input with a specific SigHash type using a private key.
- * @category Wallet SDK
- * @param {Transaction} tx
- * @param {number} input_index
- * @param {PrivateKey} private_key
- * @param {SighashType | null} [sighash_type]
+ * WASM32 binding for `SHA256d` hash function.
+ * @param data - The data to hash ({@link HexString} or Uint8Array).
+ * @category Encryption
+ * @param {HexString | Uint8Array} data
  * @returns {HexString}
  */
-export function createInputSignature(tx, input_index, private_key, sighash_type) {
+export function sha256dFromBinary(data) {
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-        _assertClass(tx, Transaction);
-        _assertClass(private_key, PrivateKey);
-        wasm.createInputSignature(retptr, tx.__wbg_ptr, input_index, private_key.__wbg_ptr, isLikeNone(sighash_type) ? 6 : sighash_type);
+        wasm.sha256dFromBinary(retptr, addHeapObject(data));
         var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
         var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
         var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
@@ -856,32 +667,6 @@ export function createInputSignature(tx, input_index, private_key, sighash_type)
         return takeObject(r0);
     } finally {
         wasm.__wbindgen_add_to_stack_pointer(16);
-    }
-}
-
-/**
- * `signTransaction()` is a helper function to sign a transaction using a private key array or a signer array.
- * @category Wallet SDK
- * @param {Transaction} tx
- * @param {(PrivateKey | HexString | Uint8Array)[]} signer
- * @param {boolean} verify_sig
- * @returns {Transaction}
- */
-export function signTransaction(tx, signer, verify_sig) {
-    try {
-        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-        _assertClass(tx, Transaction);
-        wasm.signTransaction(retptr, tx.__wbg_ptr, addBorrowedObject(signer), verify_sig);
-        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-        var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-        if (r2) {
-            throw takeObject(r1);
-        }
-        return Transaction.__wrap(r0);
-    } finally {
-        wasm.__wbindgen_add_to_stack_pointer(16);
-        heap[stack_pointer++] = undefined;
     }
 }
 
@@ -961,16 +746,52 @@ export function sha256dFromText(text) {
 }
 
 /**
- * WASM32 binding for `SHA256d` hash function.
+ * WASM32 binding for `decryptXChaCha20Poly1305` function.
+ * @category Encryption
+ * @param {string} base64string
+ * @param {string} password
+ * @returns {string}
+ */
+export function decryptXChaCha20Poly1305(base64string, password) {
+    let deferred4_0;
+    let deferred4_1;
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        const ptr0 = passStringToWasm0(base64string, wasm.__wbindgen_export_1, wasm.__wbindgen_export_2);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(password, wasm.__wbindgen_export_1, wasm.__wbindgen_export_2);
+        const len1 = WASM_VECTOR_LEN;
+        wasm.decryptXChaCha20Poly1305(retptr, ptr0, len0, ptr1, len1);
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+        var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
+        var ptr3 = r0;
+        var len3 = r1;
+        if (r3) {
+            ptr3 = 0; len3 = 0;
+            throw takeObject(r2);
+        }
+        deferred4_0 = ptr3;
+        deferred4_1 = len3;
+        return getStringFromWasm0(ptr3, len3);
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+        wasm.__wbindgen_export_3(deferred4_0, deferred4_1, 1);
+    }
+}
+
+/**
+ * WASM32 binding for `SHA256` hash function.
  * @param data - The data to hash ({@link HexString} or Uint8Array).
  * @category Encryption
  * @param {HexString | Uint8Array} data
  * @returns {HexString}
  */
-export function sha256dFromBinary(data) {
+export function sha256FromBinary(data) {
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-        wasm.sha256dFromBinary(retptr, addHeapObject(data));
+        wasm.sha256FromBinary(retptr, addHeapObject(data));
         var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
         var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
         var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
@@ -1009,16 +830,164 @@ export function sha256FromText(text) {
 }
 
 /**
- * WASM32 binding for `SHA256` hash function.
- * @param data - The data to hash ({@link HexString} or Uint8Array).
- * @category Encryption
- * @param {HexString | Uint8Array} data
- * @returns {HexString}
+ * `maximumStandardTransactionMass()` returns the maximum transaction
+ * size allowed by the network.
+ *
+ * @category Wallet SDK
+ * @see {@link calculateTransactionMass}
+ * @see {@link updateTransactionMass}
+ * @see {@link calculateTransactionFee}
+ * @returns {bigint}
  */
-export function sha256FromBinary(data) {
+export function maximumStandardTransactionMass() {
+    const ret = wasm.maximumStandardTransactionMass();
+    return BigInt.asUintN(64, ret);
+}
+
+/**
+ * `calculateTransactionMass()` returns the mass of the passed transaction.
+ * If the transaction is invalid, or the mass can not be calculated
+ * the function throws an error.
+ *
+ * The mass value must not exceed the maximum standard transaction mass
+ * that can be obtained using `maximumStandardTransactionMass()`.
+ *
+ * @category Wallet SDK
+ * @see {@link maximumStandardTransactionMass}
+ * @param {NetworkId | string} network_id
+ * @param {ITransaction | Transaction} tx
+ * @param {number | null} [minimum_signatures]
+ * @returns {bigint}
+ */
+export function calculateTransactionMass(network_id, tx, minimum_signatures) {
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-        wasm.sha256FromBinary(retptr, addHeapObject(data));
+        wasm.calculateTransactionMass(retptr, addHeapObject(network_id), addBorrowedObject(tx), isLikeNone(minimum_signatures) ? 0xFFFFFF : minimum_signatures);
+        var r0 = getDataViewMemory0().getBigInt64(retptr + 8 * 0, true);
+        var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+        var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
+        if (r3) {
+            throw takeObject(r2);
+        }
+        return BigInt.asUintN(64, r0);
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+        heap[stack_pointer++] = undefined;
+    }
+}
+
+/**
+ * `calculateStorageMass()` is a helper function to compute the storage mass of inputs and outputs.
+ * This function can be use to calculate the storage mass of transaction inputs and outputs.
+ * Note that the storage mass is only a component of the total transaction mass. You are not
+ * meant to use this function by itself and should use `calculateTransactionMass()` instead.
+ * This function purely exists for diagnostic purposes and to help with complex algorithms that
+ * may require a manual UTXO selection for identifying UTXOs and outputs needed for low storage mass.
+ *
+ * @category Wallet SDK
+ * @see {@link maximumStandardTransactionMass}
+ * @see {@link calculateTransactionMass}
+ * @param {NetworkId | string} network_id
+ * @param {Array<number>} input_values
+ * @param {Array<number>} output_values
+ * @returns {bigint | undefined}
+ */
+export function calculateStorageMass(network_id, input_values, output_values) {
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-32);
+        wasm.calculateStorageMass(retptr, addHeapObject(network_id), addBorrowedObject(input_values), addBorrowedObject(output_values));
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r2 = getDataViewMemory0().getBigInt64(retptr + 8 * 1, true);
+        var r4 = getDataViewMemory0().getInt32(retptr + 4 * 4, true);
+        var r5 = getDataViewMemory0().getInt32(retptr + 4 * 5, true);
+        if (r5) {
+            throw takeObject(r4);
+        }
+        return r0 === 0 ? undefined : BigInt.asUintN(64, r2);
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(32);
+        heap[stack_pointer++] = undefined;
+        heap[stack_pointer++] = undefined;
+    }
+}
+
+/**
+ * `updateTransactionMass()` updates the mass property of the passed transaction.
+ * If the transaction is invalid, the function throws an error.
+ *
+ * The function returns `true` if the mass is within the maximum standard transaction mass and
+ * the transaction mass is updated. Otherwise, the function returns `false`.
+ *
+ * This is similar to `calculateTransactionMass()` but modifies the supplied
+ * `Transaction` object.
+ *
+ * @category Wallet SDK
+ * @see {@link maximumStandardTransactionMass}
+ * @see {@link calculateTransactionMass}
+ * @see {@link calculateTransactionFee}
+ * @param {NetworkId | string} network_id
+ * @param {Transaction} tx
+ * @param {number | null} [minimum_signatures]
+ * @returns {boolean}
+ */
+export function updateTransactionMass(network_id, tx, minimum_signatures) {
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        _assertClass(tx, Transaction);
+        wasm.updateTransactionMass(retptr, addHeapObject(network_id), tx.__wbg_ptr, isLikeNone(minimum_signatures) ? 0xFFFFFF : minimum_signatures);
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+        if (r2) {
+            throw takeObject(r1);
+        }
+        return r0 !== 0;
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+    }
+}
+
+/**
+ * `calculateTransactionFee()` returns minimum fees needed for the transaction to be
+ * accepted by the network. If the transaction is invalid or the mass can not be calculated,
+ * the function throws an error. If the mass exceeds the maximum standard transaction mass,
+ * the function returns `undefined`.
+ *
+ * @category Wallet SDK
+ * @see {@link maximumStandardTransactionMass}
+ * @see {@link calculateTransactionMass}
+ * @see {@link updateTransactionMass}
+ * @param {NetworkId | string} network_id
+ * @param {ITransaction | Transaction} tx
+ * @param {number | null} [minimum_signatures]
+ * @returns {bigint | undefined}
+ */
+export function calculateTransactionFee(network_id, tx, minimum_signatures) {
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-32);
+        wasm.calculateTransactionFee(retptr, addHeapObject(network_id), addBorrowedObject(tx), isLikeNone(minimum_signatures) ? 0xFFFFFF : minimum_signatures);
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r2 = getDataViewMemory0().getBigInt64(retptr + 8 * 1, true);
+        var r4 = getDataViewMemory0().getInt32(retptr + 4 * 4, true);
+        var r5 = getDataViewMemory0().getInt32(retptr + 4 * 5, true);
+        if (r5) {
+            throw takeObject(r4);
+        }
+        return r0 === 0 ? undefined : BigInt.asUintN(64, r2);
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(32);
+        heap[stack_pointer++] = undefined;
+    }
+}
+
+/**
+ * @param {NetworkId | string} networkId
+ * @returns {INetworkParams}
+ */
+export function getNetworkParams(networkId) {
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        wasm.getNetworkParams(retptr, addHeapObject(networkId));
         var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
         var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
         var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
@@ -1032,140 +1001,204 @@ export function sha256FromBinary(data) {
 }
 
 /**
- * WASM32 binding for `decryptXChaCha20Poly1305` function.
- * @category Encryption
- * @param {string} base64string
- * @param {string} password
+ *
+ * Format a Sompi amount to a string representation of the amount in Kaspa with a suffix
+ * based on the network type (e.g. `KAS` for mainnet, `TKAS` for testnet,
+ * `SKAS` for simnet, `DKAS` for devnet).
+ *
+ * @category Wallet SDK
+ * @param {bigint | number | HexString} sompi
+ * @param {NetworkType | NetworkId | string} network
  * @returns {string}
  */
-export function decryptXChaCha20Poly1305(base64string, password) {
-    let deferred4_0;
-    let deferred4_1;
+export function sompiToKaspaStringWithSuffix(sompi, network) {
+    let deferred2_0;
+    let deferred2_1;
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-        const ptr0 = passStringToWasm0(base64string, wasm.__wbindgen_export_1, wasm.__wbindgen_export_2);
-        const len0 = WASM_VECTOR_LEN;
-        const ptr1 = passStringToWasm0(password, wasm.__wbindgen_export_1, wasm.__wbindgen_export_2);
-        const len1 = WASM_VECTOR_LEN;
-        wasm.decryptXChaCha20Poly1305(retptr, ptr0, len0, ptr1, len1);
+        wasm.sompiToKaspaStringWithSuffix(retptr, addHeapObject(sompi), addBorrowedObject(network));
         var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
         var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
         var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
         var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
-        var ptr3 = r0;
-        var len3 = r1;
+        var ptr1 = r0;
+        var len1 = r1;
         if (r3) {
-            ptr3 = 0; len3 = 0;
+            ptr1 = 0; len1 = 0;
             throw takeObject(r2);
         }
-        deferred4_0 = ptr3;
-        deferred4_1 = len3;
-        return getStringFromWasm0(ptr3, len3);
+        deferred2_0 = ptr1;
+        deferred2_1 = len1;
+        return getStringFromWasm0(ptr1, len1);
     } finally {
         wasm.__wbindgen_add_to_stack_pointer(16);
-        wasm.__wbindgen_export_3(deferred4_0, deferred4_1, 1);
+        heap[stack_pointer++] = undefined;
+        wasm.__wbindgen_export_3(deferred2_0, deferred2_1, 1);
     }
 }
 
 /**
- * WASM32 binding for `encryptXChaCha20Poly1305` function.
- * @returns The encrypted text as a base64 string.
- * @category Encryption
- * @param {string} plainText
- * @param {string} password
+ * Convert a Kaspa string to Sompi represented by bigint.
+ * This function provides correct precision handling and
+ * can be used to parse user input.
+ * @category Wallet SDK
+ * @param {string} kaspa
+ * @returns {bigint | undefined}
+ */
+export function kaspaToSompi(kaspa) {
+    const ptr0 = passStringToWasm0(kaspa, wasm.__wbindgen_export_1, wasm.__wbindgen_export_2);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.kaspaToSompi(ptr0, len0);
+    return takeObject(ret);
+}
+
+/**
+ * @param {bigint} blockDaaScore
+ * @param {bigint} currentDaaScore
+ * @param {NetworkId | string} networkId
+ * @param {boolean} isCoinbase
  * @returns {string}
  */
-export function encryptXChaCha20Poly1305(plainText, password) {
-    let deferred4_0;
-    let deferred4_1;
+export function getTransactionMaturityProgress(blockDaaScore, currentDaaScore, networkId, isCoinbase) {
+    let deferred2_0;
+    let deferred2_1;
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-        const ptr0 = passStringToWasm0(plainText, wasm.__wbindgen_export_1, wasm.__wbindgen_export_2);
-        const len0 = WASM_VECTOR_LEN;
-        const ptr1 = passStringToWasm0(password, wasm.__wbindgen_export_1, wasm.__wbindgen_export_2);
-        const len1 = WASM_VECTOR_LEN;
-        wasm.encryptXChaCha20Poly1305(retptr, ptr0, len0, ptr1, len1);
+        wasm.getTransactionMaturityProgress(retptr, addHeapObject(blockDaaScore), addHeapObject(currentDaaScore), addHeapObject(networkId), isCoinbase);
         var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
         var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
         var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
         var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
-        var ptr3 = r0;
-        var len3 = r1;
+        var ptr1 = r0;
+        var len1 = r1;
         if (r3) {
-            ptr3 = 0; len3 = 0;
+            ptr1 = 0; len1 = 0;
             throw takeObject(r2);
         }
-        deferred4_0 = ptr3;
-        deferred4_1 = len3;
-        return getStringFromWasm0(ptr3, len3);
+        deferred2_0 = ptr1;
+        deferred2_1 = len1;
+        return getStringFromWasm0(ptr1, len1);
     } finally {
         wasm.__wbindgen_add_to_stack_pointer(16);
-        wasm.__wbindgen_export_3(deferred4_0, deferred4_1, 1);
+        wasm.__wbindgen_export_3(deferred2_0, deferred2_1, 1);
     }
 }
 
 /**
- * Set a custom storage folder for the wallet SDK
- * subsystem.  Encrypted wallet files and transaction
- * data will be stored in this folder. If not set
- * the storage folder will default to `~/.kaspa`
- * (note that the folder is hidden).
  *
- * This must be called before using any other wallet
- * SDK functions.
+ * Convert Sompi to a string representation of the amount in Kaspa.
  *
- * NOTE: This function will create a folder if it
- * doesn't exist. This function will have no effect
- * if invoked in the browser environment.
- *
- * @param {String} folder - the path to the storage folder
- *
- * @category Wallet API
+ * @category Wallet SDK
+ * @param {bigint | number | HexString} sompi
+ * @returns {string}
  */
-export function setDefaultStorageFolder(folder) {
+export function sompiToKaspaString(sompi) {
+    let deferred2_0;
+    let deferred2_1;
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-        const ptr0 = passStringToWasm0(folder, wasm.__wbindgen_export_1, wasm.__wbindgen_export_2);
-        const len0 = WASM_VECTOR_LEN;
-        wasm.setDefaultStorageFolder(retptr, ptr0, len0);
+        wasm.sompiToKaspaString(retptr, addHeapObject(sompi));
         var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
         var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-        if (r1) {
-            throw takeObject(r0);
+        var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+        var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
+        var ptr1 = r0;
+        var len1 = r1;
+        if (r3) {
+            ptr1 = 0; len1 = 0;
+            throw takeObject(r2);
         }
+        deferred2_0 = ptr1;
+        deferred2_1 = len1;
+        return getStringFromWasm0(ptr1, len1);
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+        wasm.__wbindgen_export_3(deferred2_0, deferred2_1, 1);
+    }
+}
+
+/**
+ * `createInputSignature()` is a helper function to sign a transaction input with a specific SigHash type using a private key.
+ * @category Wallet SDK
+ * @param {Transaction} tx
+ * @param {number} input_index
+ * @param {PrivateKey} private_key
+ * @param {SighashType | null} [sighash_type]
+ * @returns {HexString}
+ */
+export function createInputSignature(tx, input_index, private_key, sighash_type) {
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        _assertClass(tx, Transaction);
+        _assertClass(private_key, PrivateKey);
+        wasm.createInputSignature(retptr, tx.__wbg_ptr, input_index, private_key.__wbg_ptr, isLikeNone(sighash_type) ? 6 : sighash_type);
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+        if (r2) {
+            throw takeObject(r1);
+        }
+        return takeObject(r0);
     } finally {
         wasm.__wbindgen_add_to_stack_pointer(16);
     }
 }
 
 /**
- * Set the name of the default wallet file name
- * or the `localStorage` key.  If `Wallet::open`
- * is called without a wallet file name, this name
- * will be used.  Please note that this name
- * will be suffixed with `.wallet` suffix.
- *
- * This function should be called before using any
- * other wallet SDK functions.
- *
- * @param {String} folder - the name to the wallet file or key.
- *
- * @category Wallet API
- * @param {string} folder
+ * `signTransaction()` is a helper function to sign a transaction using a private key array or a signer array.
+ * @category Wallet SDK
+ * @param {Transaction} tx
+ * @param {(PrivateKey | HexString | Uint8Array)[]} signer
+ * @param {boolean} verify_sig
+ * @returns {Transaction}
  */
-export function setDefaultWalletFile(folder) {
+export function signTransaction(tx, signer, verify_sig) {
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-        const ptr0 = passStringToWasm0(folder, wasm.__wbindgen_export_1, wasm.__wbindgen_export_2);
-        const len0 = WASM_VECTOR_LEN;
-        wasm.setDefaultWalletFile(retptr, ptr0, len0);
+        _assertClass(tx, Transaction);
+        wasm.signTransaction(retptr, tx.__wbg_ptr, addBorrowedObject(signer), verify_sig);
         var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
         var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-        if (r1) {
-            throw takeObject(r0);
+        var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+        if (r2) {
+            throw takeObject(r1);
         }
+        return Transaction.__wrap(r0);
     } finally {
         wasm.__wbindgen_add_to_stack_pointer(16);
+        heap[stack_pointer++] = undefined;
+    }
+}
+
+/**
+ * @category Wallet SDK
+ * @param {any} script_hash
+ * @param {PrivateKey} privkey
+ * @returns {string}
+ */
+export function signScriptHash(script_hash, privkey) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        _assertClass(privkey, PrivateKey);
+        wasm.signScriptHash(retptr, addHeapObject(script_hash), privkey.__wbg_ptr);
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+        var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
+        var ptr1 = r0;
+        var len1 = r1;
+        if (r3) {
+            ptr1 = 0; len1 = 0;
+            throw takeObject(r2);
+        }
+        deferred2_0 = ptr1;
+        deferred2_1 = len1;
+        return getStringFromWasm0(ptr1, len1);
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+        wasm.__wbindgen_export_3(deferred2_0, deferred2_1, 1);
     }
 }
 
@@ -1179,18 +1212,6 @@ export function setDefaultWalletFile(folder) {
  */
 export function estimateTransactions(settings) {
     const ret = wasm.estimateTransactions(addHeapObject(settings));
-    return takeObject(ret);
-}
-
-/**
- * Helper function that creates a set of transactions using the transaction {@link Generator}.
- * @see {@link IGeneratorSettingsObject}, {@link Generator}, {@link estimateTransactions}
- * @category Wallet SDK
- * @param {IGeneratorSettingsObject} settings
- * @returns {Promise<ICreateTransactions>}
- */
-export function createTransactions(settings) {
-    const ret = wasm.createTransactions(addHeapObject(settings));
     return takeObject(ret);
 }
 
@@ -1218,6 +1239,18 @@ export function createTransaction(utxo_entry_source, outputs, priority_fee, payl
     } finally {
         wasm.__wbindgen_add_to_stack_pointer(16);
     }
+}
+
+/**
+ * Helper function that creates a set of transactions using the transaction {@link Generator}.
+ * @see {@link IGeneratorSettingsObject}, {@link Generator}, {@link estimateTransactions}
+ * @category Wallet SDK
+ * @param {IGeneratorSettingsObject} settings
+ * @returns {Promise<ICreateTransactions>}
+ */
+export function createTransactions(settings) {
+    const ret = wasm.createTransactions(addHeapObject(settings));
+    return takeObject(ret);
 }
 
 /**
@@ -1314,34 +1347,17 @@ export function setLogLevel(level) {
 }
 
 /**
- * Configuration for the WASM32 bindings runtime interface.
- * @see {@link IWASM32BindingsConfig}
- * @category General
- * @param {IWASM32BindingsConfig} config
+ * r" Deferred promise - an object that has `resolve()` and `reject()`
+ * r" functions that can be called outside of the promise body.
+ * r" WARNING: This function uses `eval` and can not be used in environments
+ * r" where dynamically-created code can not be executed such as web browser
+ * r" extensions.
+ * r" @category General
+ * @returns {Promise<any>}
  */
-export function initWASM32Bindings(config) {
-    try {
-        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-        wasm.initWASM32Bindings(retptr, addHeapObject(config));
-        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-        if (r1) {
-            throw takeObject(r0);
-        }
-    } finally {
-        wasm.__wbindgen_add_to_stack_pointer(16);
-    }
-}
-
-/**
- * Initialize Rust panic handler in console mode.
- *
- * This will output additional debug information during a panic to the console.
- * This function should be called right after loading WASM libraries.
- * @category General
- */
-export function initConsolePanicHook() {
-    wasm.initConsolePanicHook();
+export function defer() {
+    const ret = wasm.defer();
+    return takeObject(ret);
 }
 
 /**
@@ -1360,6 +1376,17 @@ export function initBrowserPanicHook() {
 }
 
 /**
+ * Initialize Rust panic handler in console mode.
+ *
+ * This will output additional debug information during a panic to the console.
+ * This function should be called right after loading WASM libraries.
+ * @category General
+ */
+export function initConsolePanicHook() {
+    wasm.initConsolePanicHook();
+}
+
+/**
  * Present panic logs to the user in the browser.
  *
  * This function should be called after a panic has occurred and the
@@ -1373,17 +1400,23 @@ export function presentPanicHookLogs() {
 }
 
 /**
- * r" Deferred promise - an object that has `resolve()` and `reject()`
- * r" functions that can be called outside of the promise body.
- * r" WARNING: This function uses `eval` and can not be used in environments
- * r" where dynamically-created code can not be executed such as web browser
- * r" extensions.
- * r" @category General
- * @returns {Promise<any>}
+ * Configuration for the WASM32 bindings runtime interface.
+ * @see {@link IWASM32BindingsConfig}
+ * @category General
+ * @param {IWASM32BindingsConfig} config
  */
-export function defer() {
-    const ret = wasm.defer();
-    return takeObject(ret);
+export function initWASM32Bindings(config) {
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        wasm.initWASM32Bindings(retptr, addHeapObject(config));
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        if (r1) {
+            throw takeObject(r0);
+        }
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+    }
 }
 
 function __wbg_adapter_66(arg0, arg1) {
@@ -1416,24 +1449,24 @@ function __wbg_adapter_78(arg0, arg1, arg2) {
     wasm.__wbindgen_export_9(arg0, arg1, addHeapObject(arg2));
 }
 
-function __wbg_adapter_81(arg0, arg1, arg2) {
-    wasm.__wbindgen_export_10(arg0, arg1, arg2);
-}
-
-function __wbg_adapter_84(arg0, arg1, arg2, arg3) {
-    const ret = wasm.__wbindgen_export_11(arg0, arg1, addHeapObject(arg2), arg3);
+function __wbg_adapter_81(arg0, arg1, arg2, arg3) {
+    const ret = wasm.__wbindgen_export_10(arg0, arg1, addHeapObject(arg2), arg3);
     return takeObject(ret);
 }
 
+function __wbg_adapter_84(arg0, arg1, arg2) {
+    wasm.__wbindgen_export_11(arg0, arg1, arg2);
+}
+
 function __wbg_adapter_87(arg0, arg1, arg2) {
-    wasm.__wbindgen_export_10(arg0, arg1, addHeapObject(arg2));
+    wasm.__wbindgen_export_11(arg0, arg1, addHeapObject(arg2));
 }
 
 function __wbg_adapter_90(arg0, arg1, arg2) {
     wasm.__wbindgen_export_12(arg0, arg1, addHeapObject(arg2));
 }
 
-function __wbg_adapter_199(arg0, arg1, arg2, arg3) {
+function __wbg_adapter_165(arg0, arg1, arg2, arg3) {
     wasm.__wbindgen_export_13(arg0, arg1, addHeapObject(arg2), addHeapObject(arg3));
 }
 
@@ -1689,7 +1722,7 @@ export const Opcodes = Object.freeze({
      * Splice opcodes.
      */
     OpCat: 126, "126": "OpCat",
-    OpSubStr: 127, "127": "OpSubStr",
+    OpSubstr: 127, "127": "OpSubstr",
     OpLeft: 128, "128": "OpLeft",
     OpRight: 129, "129": "OpRight",
     OpSize: 130, "130": "OpSize",
@@ -1737,8 +1770,8 @@ export const Opcodes = Object.freeze({
     /**
      * Undefined opcodes.
      */
-    OpUnknown166: 166, "166": "OpUnknown166",
-    OpUnknown167: 167, "167": "OpUnknown167",
+    OpZkPrecompile: 166, "166": "OpZkPrecompile",
+    OpBlake2bWithKey: 167, "167": "OpBlake2bWithKey",
     /**
      * Crypto opcodes.
      */
@@ -1753,49 +1786,49 @@ export const Opcodes = Object.freeze({
     OpCheckLockTimeVerify: 176, "176": "OpCheckLockTimeVerify",
     OpCheckSequenceVerify: 177, "177": "OpCheckSequenceVerify",
     /**
-     * Undefined opcodes.
+     * Transaction introspection opcodes.
      */
-    OpUnknown178: 178, "178": "OpUnknown178",
-    OpUnknown179: 179, "179": "OpUnknown179",
-    OpUnknown180: 180, "180": "OpUnknown180",
-    OpUnknown181: 181, "181": "OpUnknown181",
-    OpUnknown182: 182, "182": "OpUnknown182",
-    OpUnknown183: 183, "183": "OpUnknown183",
-    OpUnknown184: 184, "184": "OpUnknown184",
-    OpUnknown185: 185, "185": "OpUnknown185",
-    OpUnknown186: 186, "186": "OpUnknown186",
-    OpUnknown187: 187, "187": "OpUnknown187",
-    OpUnknown188: 188, "188": "OpUnknown188",
-    OpUnknown189: 189, "189": "OpUnknown189",
-    OpUnknown190: 190, "190": "OpUnknown190",
-    OpUnknown191: 191, "191": "OpUnknown191",
-    OpUnknown192: 192, "192": "OpUnknown192",
-    OpUnknown193: 193, "193": "OpUnknown193",
-    OpUnknown194: 194, "194": "OpUnknown194",
-    OpUnknown195: 195, "195": "OpUnknown195",
-    OpUnknown196: 196, "196": "OpUnknown196",
-    OpUnknown197: 197, "197": "OpUnknown197",
-    OpUnknown198: 198, "198": "OpUnknown198",
-    OpUnknown199: 199, "199": "OpUnknown199",
-    OpUnknown200: 200, "200": "OpUnknown200",
-    OpUnknown201: 201, "201": "OpUnknown201",
+    OpTxVersion: 178, "178": "OpTxVersion",
+    OpTxInputCount: 179, "179": "OpTxInputCount",
+    OpTxOutputCount: 180, "180": "OpTxOutputCount",
+    OpTxLockTime: 181, "181": "OpTxLockTime",
+    OpTxSubnetId: 182, "182": "OpTxSubnetId",
+    OpTxGas: 183, "183": "OpTxGas",
+    OpTxPayloadSubstr: 184, "184": "OpTxPayloadSubstr",
+    OpTxInputIndex: 185, "185": "OpTxInputIndex",
+    OpOutpointTxId: 186, "186": "OpOutpointTxId",
+    OpOutpointIndex: 187, "187": "OpOutpointIndex",
+    OpTxInputScriptSigSubstr: 188, "188": "OpTxInputScriptSigSubstr",
+    OpTxInputSeq: 189, "189": "OpTxInputSeq",
+    OpTxInputAmount: 190, "190": "OpTxInputAmount",
+    OpTxInputSpk: 191, "191": "OpTxInputSpk",
+    OpTxInputDaaScore: 192, "192": "OpTxInputDaaScore",
+    OpTxInputIsCoinbase: 193, "193": "OpTxInputIsCoinbase",
+    OpTxOutputAmount: 194, "194": "OpTxOutputAmount",
+    OpTxOutputSpk: 195, "195": "OpTxOutputSpk",
+    OpTxPayloadLen: 196, "196": "OpTxPayloadLen",
+    OpTxInputSpkLen: 197, "197": "OpTxInputSpkLen",
+    OpTxInputSpkSubstr: 198, "198": "OpTxInputSpkSubstr",
+    OpTxOutputSpkLen: 199, "199": "OpTxOutputSpkLen",
+    OpTxOutputSpkSubstr: 200, "200": "OpTxOutputSpkSubstr",
+    OpTxInputScriptSigLen: 201, "201": "OpTxInputScriptSigLen",
     OpUnknown202: 202, "202": "OpUnknown202",
-    OpUnknown203: 203, "203": "OpUnknown203",
-    OpUnknown204: 204, "204": "OpUnknown204",
-    OpUnknown205: 205, "205": "OpUnknown205",
-    OpUnknown206: 206, "206": "OpUnknown206",
-    OpUnknown207: 207, "207": "OpUnknown207",
-    OpUnknown208: 208, "208": "OpUnknown208",
-    OpUnknown209: 209, "209": "OpUnknown209",
-    OpUnknown210: 210, "210": "OpUnknown210",
-    OpUnknown211: 211, "211": "OpUnknown211",
-    OpUnknown212: 212, "212": "OpUnknown212",
-    OpUnknown213: 213, "213": "OpUnknown213",
+    OpAuthOutputCount: 203, "203": "OpAuthOutputCount",
+    OpAuthOutputIdx: 204, "204": "OpAuthOutputIdx",
+    OpNum2Bin: 205, "205": "OpNum2Bin",
+    OpBin2Num: 206, "206": "OpBin2Num",
+    OpInputCovenantId: 207, "207": "OpInputCovenantId",
+    OpCovInputCount: 208, "208": "OpCovInputCount",
+    OpCovInputIdx: 209, "209": "OpCovInputIdx",
+    OpCovOutputCount: 210, "210": "OpCovOutputCount",
+    OpCovOutputIdx: 211, "211": "OpCovOutputIdx",
+    OpChainblockSeqCommit: 212, "212": "OpChainblockSeqCommit",
+    OpOutputCovenantId: 213, "213": "OpOutputCovenantId",
     OpUnknown214: 214, "214": "OpUnknown214",
-    OpUnknown215: 215, "215": "OpUnknown215",
-    OpUnknown216: 216, "216": "OpUnknown216",
-    OpUnknown217: 217, "217": "OpUnknown217",
-    OpUnknown218: 218, "218": "OpUnknown218",
+    OpCheckSigFromStack: 215, "215": "OpCheckSigFromStack",
+    OpCheckSigFromStackECDSA: 216, "216": "OpCheckSigFromStackECDSA",
+    OpBlake3: 217, "217": "OpBlake3",
+    OpBlake3WithKey: 218, "218": "OpBlake3WithKey",
     OpUnknown219: 219, "219": "OpUnknown219",
     OpUnknown220: 220, "220": "OpUnknown220",
     OpUnknown221: 221, "221": "OpUnknown221",
@@ -1890,18 +1923,18 @@ export class Abortable {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_abortable_free(ptr, 0);
     }
-    constructor() {
-        const ret = wasm.abortable_new();
-        this.__wbg_ptr = ret >>> 0;
-        AbortableFinalization.register(this, this.__wbg_ptr, this);
-        return this;
-    }
     /**
      * @returns {boolean}
      */
     isAborted() {
         const ret = wasm.abortable_isAborted(this.__wbg_ptr);
         return ret !== 0;
+    }
+    constructor() {
+        const ret = wasm.abortable_new();
+        this.__wbg_ptr = ret >>> 0;
+        AbortableFinalization.register(this, this.__wbg_ptr, this);
+        return this;
     }
     abort() {
         wasm.abortable_abort(this.__wbg_ptr);
@@ -1987,6 +2020,25 @@ export class AccountKind {
         wasm.__wbg_accountkind_free(ptr, 0);
     }
     /**
+     * @returns {string}
+     */
+    toString() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.accountkind_toString(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
      * @param {string} kind
      */
     constructor(kind) {
@@ -2006,25 +2058,6 @@ export class AccountKind {
             return this;
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
-        }
-    }
-    /**
-     * @returns {string}
-     */
-    toString() {
-        let deferred1_0;
-        let deferred1_1;
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.accountkind_toString(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            deferred1_0 = r0;
-            deferred1_1 = r1;
-            return getStringFromWasm0(r0, r1);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
         }
     }
 }
@@ -2049,9 +2082,9 @@ export class Address {
 
     toJSON() {
         return {
-            version: this.version,
             prefix: this.prefix,
             payload: this.payload,
+            version: this.version,
         };
     }
 
@@ -2082,14 +2115,23 @@ export class Address {
         return this;
     }
     /**
-     * @param {string} address
-     * @returns {boolean}
+     * @returns {string}
      */
-    static validate(address) {
-        const ptr0 = passStringToWasm0(address, wasm.__wbindgen_export_1, wasm.__wbindgen_export_2);
-        const len0 = WASM_VECTOR_LEN;
-        const ret = wasm.address_validate(ptr0, len0);
-        return ret !== 0;
+    get prefix() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.address_prefix(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
+        }
     }
     /**
      * Convert an address to a string.
@@ -2101,6 +2143,25 @@ export class Address {
         try {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
             wasm.address_toString(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * @returns {string}
+     */
+    get payload() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.address_payload(retptr, this.__wbg_ptr);
             var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
             var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
             deferred1_0 = r0;
@@ -2131,25 +2192,6 @@ export class Address {
         }
     }
     /**
-     * @returns {string}
-     */
-    get prefix() {
-        let deferred1_0;
-        let deferred1_1;
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.address_prefix(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            deferred1_0 = r0;
-            deferred1_1 = r1;
-            return getStringFromWasm0(r0, r1);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
-        }
-    }
-    /**
      * @param {string} prefix
      */
     set setPrefix(prefix) {
@@ -2158,43 +2200,14 @@ export class Address {
         wasm.address_set_setPrefix(this.__wbg_ptr, ptr0, len0);
     }
     /**
-     * @returns {string}
+     * @param {string} address
+     * @returns {boolean}
      */
-    get payload() {
-        let deferred1_0;
-        let deferred1_1;
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.address_payload(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            deferred1_0 = r0;
-            deferred1_1 = r1;
-            return getStringFromWasm0(r0, r1);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
-        }
-    }
-    /**
-     * @param {number} n
-     * @returns {string}
-     */
-    short(n) {
-        let deferred1_0;
-        let deferred1_1;
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.address_short(retptr, this.__wbg_ptr, n);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            deferred1_0 = r0;
-            deferred1_1 = r1;
-            return getStringFromWasm0(r0, r1);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
-        }
+    static validate(address) {
+        const ptr0 = passStringToWasm0(address, wasm.__wbindgen_export_1, wasm.__wbindgen_export_2);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.address_validate(ptr0, len0);
+        return ret !== 0;
     }
 }
 
@@ -2216,43 +2229,11 @@ export class AgentConstructorOptions {
         wasm.__wbg_agentconstructoroptions_free(ptr, 0);
     }
     /**
-     * @returns {number}
-     */
-    get keep_alive_msecs() {
-        const ret = wasm.agentconstructoroptions_keep_alive_msecs(this.__wbg_ptr);
-        return ret;
-    }
-    /**
-     * @param {number} value
-     */
-    set keep_alive_msecs(value) {
-        wasm.agentconstructoroptions_set_keep_alive_msecs(this.__wbg_ptr, value);
-    }
-    /**
      * @returns {boolean}
      */
     get keep_alive() {
         const ret = wasm.agentconstructoroptions_keep_alive(this.__wbg_ptr);
         return ret !== 0;
-    }
-    /**
-     * @param {boolean} value
-     */
-    set keep_alive(value) {
-        wasm.agentconstructoroptions_set_keep_alive(this.__wbg_ptr, value);
-    }
-    /**
-     * @returns {number}
-     */
-    get max_free_sockets() {
-        const ret = wasm.agentconstructoroptions_max_free_sockets(this.__wbg_ptr);
-        return ret;
-    }
-    /**
-     * @param {number} value
-     */
-    set max_free_sockets(value) {
-        wasm.agentconstructoroptions_set_max_free_sockets(this.__wbg_ptr, value);
     }
     /**
      * @returns {number}
@@ -2264,8 +2245,46 @@ export class AgentConstructorOptions {
     /**
      * @param {number} value
      */
+    set timeout(value) {
+        wasm.agentconstructoroptions_set_timeout(this.__wbg_ptr, value);
+    }
+    /**
+     * @param {boolean} value
+     */
+    set keep_alive(value) {
+        wasm.agentconstructoroptions_set_keep_alive(this.__wbg_ptr, value);
+    }
+    /**
+     * @param {number} value
+     */
     set max_sockets(value) {
         wasm.agentconstructoroptions_set_max_sockets(this.__wbg_ptr, value);
+    }
+    /**
+     * @returns {number}
+     */
+    get keep_alive_msecs() {
+        const ret = wasm.agentconstructoroptions_keep_alive_msecs(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * @returns {number}
+     */
+    get max_free_sockets() {
+        const ret = wasm.agentconstructoroptions_max_free_sockets(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * @param {number} value
+     */
+    set keep_alive_msecs(value) {
+        wasm.agentconstructoroptions_set_keep_alive_msecs(this.__wbg_ptr, value);
+    }
+    /**
+     * @param {number} value
+     */
+    set max_free_sockets(value) {
+        wasm.agentconstructoroptions_set_max_free_sockets(this.__wbg_ptr, value);
     }
     /**
      * @returns {number}
@@ -2273,12 +2292,6 @@ export class AgentConstructorOptions {
     get timeout() {
         const ret = wasm.agentconstructoroptions_timeout(this.__wbg_ptr);
         return ret;
-    }
-    /**
-     * @param {number} value
-     */
-    set timeout(value) {
-        wasm.agentconstructoroptions_set_timeout(this.__wbg_ptr, value);
     }
 }
 
@@ -2308,6 +2321,12 @@ export class AppendFileOptions {
         wasm.__wbg_appendfileoptions_free(ptr, 0);
     }
     /**
+     * @param {string | null} [value]
+     */
+    set encoding(value) {
+        wasm.appendfileoptions_set_encoding(this.__wbg_ptr, isLikeNone(value) ? 0 : addHeapObject(value));
+    }
+    /**
      * @param {string | null} [encoding]
      * @param {number | null} [mode]
      * @param {string | null} [flag]
@@ -2328,15 +2347,9 @@ export class AppendFileOptions {
     /**
      * @returns {string | undefined}
      */
-    get encoding() {
-        const ret = wasm.appendfileoptions_encoding(this.__wbg_ptr);
+    get flag() {
+        const ret = wasm.appendfileoptions_flag(this.__wbg_ptr);
         return takeObject(ret);
-    }
-    /**
-     * @param {string | null} [value]
-     */
-    set encoding(value) {
-        wasm.appendfileoptions_set_encoding(this.__wbg_ptr, isLikeNone(value) ? 0 : addHeapObject(value));
     }
     /**
      * @returns {number | undefined}
@@ -2346,16 +2359,10 @@ export class AppendFileOptions {
         return ret === 0x100000001 ? undefined : ret;
     }
     /**
-     * @param {number | null} [value]
-     */
-    set mode(value) {
-        wasm.appendfileoptions_set_mode(this.__wbg_ptr, isLikeNone(value) ? 0x100000001 : (value) >>> 0);
-    }
-    /**
      * @returns {string | undefined}
      */
-    get flag() {
-        const ret = wasm.appendfileoptions_flag(this.__wbg_ptr);
+    get encoding() {
+        const ret = wasm.appendfileoptions_encoding(this.__wbg_ptr);
         return takeObject(ret);
     }
     /**
@@ -2363,6 +2370,12 @@ export class AppendFileOptions {
      */
     set flag(value) {
         wasm.appendfileoptions_set_flag(this.__wbg_ptr, isLikeNone(value) ? 0 : addHeapObject(value));
+    }
+    /**
+     * @param {number | null} [value]
+     */
+    set mode(value) {
+        wasm.appendfileoptions_set_mode(this.__wbg_ptr, isLikeNone(value) ? 0x100000001 : (value) >>> 0);
     }
 }
 
@@ -2384,6 +2397,30 @@ export class AssertionErrorOptions {
         wasm.__wbg_assertionerroroptions_free(ptr, 0);
     }
     /**
+     * @param {any} value
+     */
+    set actual(value) {
+        wasm.assertionerroroptions_set_actual(this.__wbg_ptr, addHeapObject(value));
+    }
+    /**
+     * @param {string | null} [value]
+     */
+    set message(value) {
+        wasm.assertionerroroptions_set_message(this.__wbg_ptr, isLikeNone(value) ? 0 : addHeapObject(value));
+    }
+    /**
+     * @param {any} value
+     */
+    set expected(value) {
+        wasm.assertionerroroptions_set_expected(this.__wbg_ptr, addHeapObject(value));
+    }
+    /**
+     * @param {string} value
+     */
+    set operator(value) {
+        wasm.assertionerroroptions_set_operator(this.__wbg_ptr, addHeapObject(value));
+    }
+    /**
      * @param {string | null | undefined} message
      * @param {any} actual
      * @param {any} expected
@@ -2396,20 +2433,6 @@ export class AssertionErrorOptions {
         return this;
     }
     /**
-     * If provided, the error message is set to this value.
-     * @returns {string | undefined}
-     */
-    get message() {
-        const ret = wasm.assertionerroroptions_message(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * @param {string | null} [value]
-     */
-    set message(value) {
-        wasm.assertionerroroptions_set_message(this.__wbg_ptr, isLikeNone(value) ? 0 : addHeapObject(value));
-    }
-    /**
      * The actual property on the error instance.
      * @returns {any}
      */
@@ -2418,10 +2441,12 @@ export class AssertionErrorOptions {
         return takeObject(ret);
     }
     /**
-     * @param {any} value
+     * If provided, the error message is set to this value.
+     * @returns {string | undefined}
      */
-    set actual(value) {
-        wasm.assertionerroroptions_set_actual(this.__wbg_ptr, addHeapObject(value));
+    get message() {
+        const ret = wasm.assertionerroroptions_message(this.__wbg_ptr);
+        return takeObject(ret);
     }
     /**
      * The expected property on the error instance.
@@ -2432,24 +2457,12 @@ export class AssertionErrorOptions {
         return takeObject(ret);
     }
     /**
-     * @param {any} value
-     */
-    set expected(value) {
-        wasm.assertionerroroptions_set_expected(this.__wbg_ptr, addHeapObject(value));
-    }
-    /**
      * The operator property on the error instance.
      * @returns {string}
      */
     get operator() {
         const ret = wasm.assertionerroroptions_operator(this.__wbg_ptr);
         return takeObject(ret);
-    }
-    /**
-     * @param {string} value
-     */
-    set operator(value) {
-        wasm.assertionerroroptions_set_operator(this.__wbg_ptr, addHeapObject(value));
     }
 }
 
@@ -2486,6 +2499,26 @@ export class Balance {
         wasm.__wbg_balance_free(ptr, 0);
     }
     /**
+     * @param {NetworkType | NetworkId | string} network_type
+     * @returns {BalanceStrings}
+     */
+    toBalanceStrings(network_type) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.balance_toBalanceStrings(retptr, this.__wbg_ptr, addBorrowedObject(network_type));
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return BalanceStrings.__wrap(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            heap[stack_pointer++] = undefined;
+        }
+    }
+    /**
      * Confirmed amount of funds available for spending.
      * @returns {bigint}
      */
@@ -2508,26 +2541,6 @@ export class Balance {
     get outgoing() {
         const ret = wasm.balance_outgoing(this.__wbg_ptr);
         return takeObject(ret);
-    }
-    /**
-     * @param {NetworkType | NetworkId | string} network_type
-     * @returns {BalanceStrings}
-     */
-    toBalanceStrings(network_type) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.balance_toBalanceStrings(retptr, this.__wbg_ptr, addBorrowedObject(network_type));
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
-            }
-            return BalanceStrings.__wrap(r0);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-            heap[stack_pointer++] = undefined;
-        }
     }
 }
 
@@ -2603,6 +2616,113 @@ export class BalanceStrings {
     }
 }
 
+const CompressedParentsFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_compressedparents_free(ptr >>> 0, 1));
+/**
+ * An efficient cumulative-sum run-length encoding for the parents-by-level vector in the block header.
+ * @category Consensus
+ */
+export class CompressedParents {
+
+    static __wrap(ptr) {
+        ptr = ptr >>> 0;
+        const obj = Object.create(CompressedParents.prototype);
+        obj.__wbg_ptr = ptr;
+        CompressedParentsFinalization.register(obj, obj.__wbg_ptr, obj);
+        return obj;
+    }
+
+    toJSON() {
+        return {
+        };
+    }
+
+    toString() {
+        return JSON.stringify(this);
+    }
+
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        CompressedParentsFinalization.unregister(this);
+        return ptr;
+    }
+
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_compressedparents_free(ptr, 0);
+    }
+    /**
+     * Converts the compressed parents to an expanded `JsValue` of `Array<Array<HexString>>`.
+     * @returns {any}
+     */
+    toExpanded() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.compressedparents_toExpanded(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return takeObject(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * The number of levels in the expanded representation.
+     * @returns {number}
+     */
+    expandedLen() {
+        const ret = wasm.compressedparents_expandedLen(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+     * Get the parent hashes at a specific level.
+     * Returns an array of `HexString`s.
+     * @param {number} index
+     * @returns {any}
+     */
+    get(index) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.compressedparents_get(retptr, this.__wbg_ptr, index);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return takeObject(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * @param {any} js_value
+     */
+    constructor(js_value) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.compressedparents_new(retptr, addHeapObject(js_value));
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            this.__wbg_ptr = r0 >>> 0;
+            CompressedParentsFinalization.register(this, this.__wbg_ptr, this);
+            return this;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+}
+
 const ConsoleConstructorOptionsFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_consoleconstructoroptions_free(ptr >>> 0, 1));
@@ -2629,33 +2749,10 @@ export class ConsoleConstructorOptions {
         wasm.__wbg_consoleconstructoroptions_free(ptr, 0);
     }
     /**
-     * @param {any} stdout
-     * @param {any} stderr
-     * @param {boolean | null | undefined} ignore_errors
-     * @param {any} color_mod
-     * @param {object | null} [inspect_options]
+     * @param {any} value
      */
-    constructor(stdout, stderr, ignore_errors, color_mod, inspect_options) {
-        const ret = wasm.consoleconstructoroptions_new_with_values(addHeapObject(stdout), addHeapObject(stderr), isLikeNone(ignore_errors) ? 0xFFFFFF : ignore_errors ? 1 : 0, addHeapObject(color_mod), isLikeNone(inspect_options) ? 0 : addHeapObject(inspect_options));
-        this.__wbg_ptr = ret >>> 0;
-        ConsoleConstructorOptionsFinalization.register(this, this.__wbg_ptr, this);
-        return this;
-    }
-    /**
-     * @param {any} stdout
-     * @param {any} stderr
-     * @returns {ConsoleConstructorOptions}
-     */
-    static new(stdout, stderr) {
-        const ret = wasm.consoleconstructoroptions_new(addHeapObject(stdout), addHeapObject(stderr));
-        return ConsoleConstructorOptions.__wrap(ret);
-    }
-    /**
-     * @returns {any}
-     */
-    get stdout() {
-        const ret = wasm.consoleconstructoroptions_stdout(this.__wbg_ptr);
-        return takeObject(ret);
+    set stderr(value) {
+        wasm.consoleconstructoroptions_set_stderr(this.__wbg_ptr, addHeapObject(value));
     }
     /**
      * @param {any} value
@@ -2664,37 +2761,11 @@ export class ConsoleConstructorOptions {
         wasm.consoleconstructoroptions_set_stdout(this.__wbg_ptr, addHeapObject(value));
     }
     /**
-     * @returns {any}
-     */
-    get stderr() {
-        const ret = wasm.consoleconstructoroptions_stderr(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * @param {any} value
-     */
-    set stderr(value) {
-        wasm.consoleconstructoroptions_set_stderr(this.__wbg_ptr, addHeapObject(value));
-    }
-    /**
      * @returns {boolean | undefined}
      */
     get ignore_errors() {
         const ret = wasm.consoleconstructoroptions_ignore_errors(this.__wbg_ptr);
         return ret === 0xFFFFFF ? undefined : ret !== 0;
-    }
-    /**
-     * @param {boolean | null} [value]
-     */
-    set ignore_errors(value) {
-        wasm.consoleconstructoroptions_set_ignore_errors(this.__wbg_ptr, isLikeNone(value) ? 0xFFFFFF : value ? 1 : 0);
-    }
-    /**
-     * @returns {any}
-     */
-    get color_mod() {
-        const ret = wasm.consoleconstructoroptions_color_mod(this.__wbg_ptr);
-        return takeObject(ret);
     }
     /**
      * @param {any} value
@@ -2710,10 +2781,155 @@ export class ConsoleConstructorOptions {
         return takeObject(ret);
     }
     /**
+     * @param {any} stdout
+     * @param {any} stderr
+     * @param {boolean | null | undefined} ignore_errors
+     * @param {any} color_mod
+     * @param {object | null} [inspect_options]
+     */
+    constructor(stdout, stderr, ignore_errors, color_mod, inspect_options) {
+        const ret = wasm.consoleconstructoroptions_new_with_values(addHeapObject(stdout), addHeapObject(stderr), isLikeNone(ignore_errors) ? 0xFFFFFF : ignore_errors ? 1 : 0, addHeapObject(color_mod), isLikeNone(inspect_options) ? 0 : addHeapObject(inspect_options));
+        this.__wbg_ptr = ret >>> 0;
+        ConsoleConstructorOptionsFinalization.register(this, this.__wbg_ptr, this);
+        return this;
+    }
+    /**
+     * @param {boolean | null} [value]
+     */
+    set ignore_errors(value) {
+        wasm.consoleconstructoroptions_set_ignore_errors(this.__wbg_ptr, isLikeNone(value) ? 0xFFFFFF : value ? 1 : 0);
+    }
+    /**
      * @param {object | null} [value]
      */
     set inspect_options(value) {
         wasm.consoleconstructoroptions_set_inspect_options(this.__wbg_ptr, isLikeNone(value) ? 0 : addHeapObject(value));
+    }
+    /**
+     * @param {any} stdout
+     * @param {any} stderr
+     * @returns {ConsoleConstructorOptions}
+     */
+    static new(stdout, stderr) {
+        const ret = wasm.consoleconstructoroptions_new(addHeapObject(stdout), addHeapObject(stderr));
+        return ConsoleConstructorOptions.__wrap(ret);
+    }
+    /**
+     * @returns {any}
+     */
+    get stderr() {
+        const ret = wasm.consoleconstructoroptions_stderr(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+     * @returns {any}
+     */
+    get stdout() {
+        const ret = wasm.consoleconstructoroptions_stdout(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+     * @returns {any}
+     */
+    get color_mod() {
+        const ret = wasm.consoleconstructoroptions_color_mod(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+}
+
+const CovenantBindingFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_covenantbinding_free(ptr >>> 0, 1));
+
+export class CovenantBinding {
+
+    static __wrap(ptr) {
+        ptr = ptr >>> 0;
+        const obj = Object.create(CovenantBinding.prototype);
+        obj.__wbg_ptr = ptr;
+        CovenantBindingFinalization.register(obj, obj.__wbg_ptr, obj);
+        return obj;
+    }
+
+    toJSON() {
+        return {
+            covenantId: this.covenantId,
+            authorizingInput: this.authorizingInput,
+        };
+    }
+
+    toString() {
+        return JSON.stringify(this);
+    }
+
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        CovenantBindingFinalization.unregister(this);
+        return ptr;
+    }
+
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_covenantbinding_free(ptr, 0);
+    }
+    /**
+     * @returns {object}
+     */
+    toJSON() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.covenantbinding_toJSON(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return takeObject(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * @returns {Hash}
+     */
+    get covenantId() {
+        const ret = wasm.covenantbinding_covenantId(this.__wbg_ptr);
+        return Hash.__wrap(ret);
+    }
+    /**
+     * @param {Hash} v
+     */
+    set covenantId(v) {
+        _assertClass(v, Hash);
+        var ptr0 = v.__destroy_into_raw();
+        wasm.covenantbinding_set_covenantId(this.__wbg_ptr, ptr0);
+    }
+    /**
+     * @returns {number}
+     */
+    get authorizingInput() {
+        const ret = wasm.covenantbinding_authorizingInput(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * @param {number} v
+     */
+    set authorizingInput(v) {
+        wasm.covenantbinding_set_authorizingInput(this.__wbg_ptr, v);
+    }
+    /**
+     * @param {number} authorizing_input
+     * @param {Hash} covenant_id
+     */
+    constructor(authorizing_input, covenant_id) {
+        _assertClass(covenant_id, Hash);
+        var ptr0 = covenant_id.__destroy_into_raw();
+        const ret = wasm.covenantbinding_new(authorizing_input, ptr0);
+        this.__wbg_ptr = ret >>> 0;
+        CovenantBindingFinalization.register(this, this.__wbg_ptr, this);
+        return this;
     }
 }
 
@@ -2733,6 +2949,31 @@ export class CreateHookCallbacks {
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_createhookcallbacks_free(ptr, 0);
+    }
+    /**
+     * @param {Function} value
+     */
+    set before(value) {
+        wasm.createhookcallbacks_set_before(this.__wbg_ptr, addHeapObject(value));
+    }
+    /**
+     * @param {Function} value
+     */
+    set destroy(value) {
+        wasm.createhookcallbacks_set_destroy(this.__wbg_ptr, addHeapObject(value));
+    }
+    /**
+     * @returns {Function}
+     */
+    get promise_resolve() {
+        const ret = wasm.createhookcallbacks_promise_resolve(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+     * @param {Function} value
+     */
+    set promise_resolve(value) {
+        wasm.createhookcallbacks_set_promise_resolve(this.__wbg_ptr, addHeapObject(value));
     }
     /**
      * @param {Function} init
@@ -2763,25 +3004,6 @@ export class CreateHookCallbacks {
         return takeObject(ret);
     }
     /**
-     * @param {Function} value
-     */
-    set init(value) {
-        wasm.createhookcallbacks_set_init(this.__wbg_ptr, addHeapObject(value));
-    }
-    /**
-     * @returns {Function}
-     */
-    get before() {
-        const ret = wasm.createhookcallbacks_before(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * @param {Function} value
-     */
-    set before(value) {
-        wasm.createhookcallbacks_set_before(this.__wbg_ptr, addHeapObject(value));
-    }
-    /**
      * @returns {Function}
      */
     get after() {
@@ -2789,10 +3011,11 @@ export class CreateHookCallbacks {
         return takeObject(ret);
     }
     /**
-     * @param {Function} value
+     * @returns {Function}
      */
-    set after(value) {
-        wasm.createhookcallbacks_set_after(this.__wbg_ptr, addHeapObject(value));
+    get before() {
+        const ret = wasm.createhookcallbacks_before(this.__wbg_ptr);
+        return takeObject(ret);
     }
     /**
      * @returns {Function}
@@ -2804,21 +3027,14 @@ export class CreateHookCallbacks {
     /**
      * @param {Function} value
      */
-    set destroy(value) {
-        wasm.createhookcallbacks_set_destroy(this.__wbg_ptr, addHeapObject(value));
-    }
-    /**
-     * @returns {Function}
-     */
-    get promise_resolve() {
-        const ret = wasm.createhookcallbacks_promise_resolve(this.__wbg_ptr);
-        return takeObject(ret);
+    set init(value) {
+        wasm.createhookcallbacks_set_init(this.__wbg_ptr, addHeapObject(value));
     }
     /**
      * @param {Function} value
      */
-    set promise_resolve(value) {
-        wasm.createhookcallbacks_set_promise_resolve(this.__wbg_ptr, addHeapObject(value));
+    set after(value) {
+        wasm.createhookcallbacks_set_after(this.__wbg_ptr, addHeapObject(value));
     }
 }
 
@@ -2840,6 +3056,52 @@ export class CreateReadStreamOptions {
         wasm.__wbg_createreadstreamoptions_free(ptr, 0);
     }
     /**
+     * @returns {boolean | undefined}
+     */
+    get auto_close() {
+        const ret = wasm.createreadstreamoptions_auto_close(this.__wbg_ptr);
+        return ret === 0xFFFFFF ? undefined : ret !== 0;
+    }
+    /**
+     * @returns {boolean | undefined}
+     */
+    get emit_close() {
+        const ret = wasm.createreadstreamoptions_emit_close(this.__wbg_ptr);
+        return ret === 0xFFFFFF ? undefined : ret !== 0;
+    }
+    /**
+     * @param {string | null} [value]
+     */
+    set encoding(value) {
+        wasm.createreadstreamoptions_set_encoding(this.__wbg_ptr, isLikeNone(value) ? 0 : addHeapObject(value));
+    }
+    /**
+     * @param {boolean | null} [value]
+     */
+    set auto_close(value) {
+        wasm.createreadstreamoptions_set_auto_close(this.__wbg_ptr, isLikeNone(value) ? 0xFFFFFF : value ? 1 : 0);
+    }
+    /**
+     * @param {boolean | null} [value]
+     */
+    set emit_close(value) {
+        wasm.createreadstreamoptions_set_emit_close(this.__wbg_ptr, isLikeNone(value) ? 0xFFFFFF : value ? 1 : 0);
+    }
+    /**
+     * @returns {number | undefined}
+     */
+    get high_water_mark() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.createreadstreamoptions_high_water_mark(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r2 = getDataViewMemory0().getFloat64(retptr + 8 * 1, true);
+            return r0 === 0 ? undefined : r2;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
      * @param {boolean | null} [auto_close]
      * @param {boolean | null} [emit_close]
      * @param {string | null} [encoding]
@@ -2857,43 +3119,17 @@ export class CreateReadStreamOptions {
         return this;
     }
     /**
-     * @returns {boolean | undefined}
+     * @param {number | null} [value]
      */
-    get auto_close() {
-        const ret = wasm.createreadstreamoptions_auto_close(this.__wbg_ptr);
-        return ret === 0xFFFFFF ? undefined : ret !== 0;
+    set high_water_mark(value) {
+        wasm.createreadstreamoptions_set_high_water_mark(this.__wbg_ptr, !isLikeNone(value), isLikeNone(value) ? 0 : value);
     }
     /**
-     * @param {boolean | null} [value]
+     * @returns {number | undefined}
      */
-    set auto_close(value) {
-        wasm.createreadstreamoptions_set_auto_close(this.__wbg_ptr, isLikeNone(value) ? 0xFFFFFF : value ? 1 : 0);
-    }
-    /**
-     * @returns {boolean | undefined}
-     */
-    get emit_close() {
-        const ret = wasm.createreadstreamoptions_emit_close(this.__wbg_ptr);
-        return ret === 0xFFFFFF ? undefined : ret !== 0;
-    }
-    /**
-     * @param {boolean | null} [value]
-     */
-    set emit_close(value) {
-        wasm.createreadstreamoptions_set_emit_close(this.__wbg_ptr, isLikeNone(value) ? 0xFFFFFF : value ? 1 : 0);
-    }
-    /**
-     * @returns {string | undefined}
-     */
-    get encoding() {
-        const ret = wasm.createreadstreamoptions_encoding(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * @param {string | null} [value]
-     */
-    set encoding(value) {
-        wasm.createreadstreamoptions_set_encoding(this.__wbg_ptr, isLikeNone(value) ? 0 : addHeapObject(value));
+    get fd() {
+        const ret = wasm.createreadstreamoptions_fd(this.__wbg_ptr);
+        return ret === 0x100000001 ? undefined : ret;
     }
     /**
      * @returns {number | undefined}
@@ -2910,58 +3146,6 @@ export class CreateReadStreamOptions {
         }
     }
     /**
-     * @param {number | null} [value]
-     */
-    set end(value) {
-        wasm.createreadstreamoptions_set_end(this.__wbg_ptr, !isLikeNone(value), isLikeNone(value) ? 0 : value);
-    }
-    /**
-     * @returns {number | undefined}
-     */
-    get fd() {
-        const ret = wasm.createreadstreamoptions_fd(this.__wbg_ptr);
-        return ret === 0x100000001 ? undefined : ret;
-    }
-    /**
-     * @param {number | null} [value]
-     */
-    set fd(value) {
-        wasm.createreadstreamoptions_set_fd(this.__wbg_ptr, isLikeNone(value) ? 0x100000001 : (value) >>> 0);
-    }
-    /**
-     * @returns {string | undefined}
-     */
-    get flags() {
-        const ret = wasm.createreadstreamoptions_flags(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * @param {string | null} [value]
-     */
-    set flags(value) {
-        wasm.createreadstreamoptions_set_flags(this.__wbg_ptr, isLikeNone(value) ? 0 : addHeapObject(value));
-    }
-    /**
-     * @returns {number | undefined}
-     */
-    get high_water_mark() {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.createreadstreamoptions_high_water_mark(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r2 = getDataViewMemory0().getFloat64(retptr + 8 * 1, true);
-            return r0 === 0 ? undefined : r2;
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
-    }
-    /**
-     * @param {number | null} [value]
-     */
-    set high_water_mark(value) {
-        wasm.createreadstreamoptions_set_high_water_mark(this.__wbg_ptr, !isLikeNone(value), isLikeNone(value) ? 0 : value);
-    }
-    /**
      * @returns {number | undefined}
      */
     get mode() {
@@ -2969,10 +3153,11 @@ export class CreateReadStreamOptions {
         return ret === 0x100000001 ? undefined : ret;
     }
     /**
-     * @param {number | null} [value]
+     * @returns {string | undefined}
      */
-    set mode(value) {
-        wasm.createreadstreamoptions_set_mode(this.__wbg_ptr, isLikeNone(value) ? 0x100000001 : (value) >>> 0);
+    get flags() {
+        const ret = wasm.createreadstreamoptions_flags(this.__wbg_ptr);
+        return takeObject(ret);
     }
     /**
      * @returns {number | undefined}
@@ -2987,6 +3172,37 @@ export class CreateReadStreamOptions {
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
+    }
+    /**
+     * @param {number | null} [value]
+     */
+    set fd(value) {
+        wasm.createreadstreamoptions_set_fd(this.__wbg_ptr, isLikeNone(value) ? 0x100000001 : (value) >>> 0);
+    }
+    /**
+     * @param {number | null} [value]
+     */
+    set end(value) {
+        wasm.createreadstreamoptions_set_end(this.__wbg_ptr, !isLikeNone(value), isLikeNone(value) ? 0 : value);
+    }
+    /**
+     * @returns {string | undefined}
+     */
+    get encoding() {
+        const ret = wasm.createreadstreamoptions_encoding(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+     * @param {number | null} [value]
+     */
+    set mode(value) {
+        wasm.createreadstreamoptions_set_mode(this.__wbg_ptr, isLikeNone(value) ? 0x100000001 : (value) >>> 0);
+    }
+    /**
+     * @param {string | null} [value]
+     */
+    set flags(value) {
+        wasm.createreadstreamoptions_set_flags(this.__wbg_ptr, isLikeNone(value) ? 0 : addHeapObject(value));
     }
     /**
      * @param {number | null} [value]
@@ -3014,6 +3230,38 @@ export class CreateWriteStreamOptions {
         wasm.__wbg_createwritestreamoptions_free(ptr, 0);
     }
     /**
+     * @returns {boolean | undefined}
+     */
+    get auto_close() {
+        const ret = wasm.createwritestreamoptions_auto_close(this.__wbg_ptr);
+        return ret === 0xFFFFFF ? undefined : ret !== 0;
+    }
+    /**
+     * @returns {boolean | undefined}
+     */
+    get emit_close() {
+        const ret = wasm.createwritestreamoptions_emit_close(this.__wbg_ptr);
+        return ret === 0xFFFFFF ? undefined : ret !== 0;
+    }
+    /**
+     * @param {string | null} [value]
+     */
+    set encoding(value) {
+        wasm.createwritestreamoptions_set_encoding(this.__wbg_ptr, isLikeNone(value) ? 0 : addHeapObject(value));
+    }
+    /**
+     * @param {boolean | null} [value]
+     */
+    set auto_close(value) {
+        wasm.createwritestreamoptions_set_auto_close(this.__wbg_ptr, isLikeNone(value) ? 0xFFFFFF : value ? 1 : 0);
+    }
+    /**
+     * @param {boolean | null} [value]
+     */
+    set emit_close(value) {
+        wasm.createwritestreamoptions_set_emit_close(this.__wbg_ptr, isLikeNone(value) ? 0xFFFFFF : value ? 1 : 0);
+    }
+    /**
      * @param {boolean | null} [auto_close]
      * @param {boolean | null} [emit_close]
      * @param {string | null} [encoding]
@@ -3029,69 +3277,11 @@ export class CreateWriteStreamOptions {
         return this;
     }
     /**
-     * @returns {boolean | undefined}
-     */
-    get auto_close() {
-        const ret = wasm.createwritestreamoptions_auto_close(this.__wbg_ptr);
-        return ret === 0xFFFFFF ? undefined : ret !== 0;
-    }
-    /**
-     * @param {boolean | null} [value]
-     */
-    set auto_close(value) {
-        wasm.createwritestreamoptions_set_auto_close(this.__wbg_ptr, isLikeNone(value) ? 0xFFFFFF : value ? 1 : 0);
-    }
-    /**
-     * @returns {boolean | undefined}
-     */
-    get emit_close() {
-        const ret = wasm.createwritestreamoptions_emit_close(this.__wbg_ptr);
-        return ret === 0xFFFFFF ? undefined : ret !== 0;
-    }
-    /**
-     * @param {boolean | null} [value]
-     */
-    set emit_close(value) {
-        wasm.createwritestreamoptions_set_emit_close(this.__wbg_ptr, isLikeNone(value) ? 0xFFFFFF : value ? 1 : 0);
-    }
-    /**
-     * @returns {string | undefined}
-     */
-    get encoding() {
-        const ret = wasm.createwritestreamoptions_encoding(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * @param {string | null} [value]
-     */
-    set encoding(value) {
-        wasm.createwritestreamoptions_set_encoding(this.__wbg_ptr, isLikeNone(value) ? 0 : addHeapObject(value));
-    }
-    /**
      * @returns {number | undefined}
      */
     get fd() {
         const ret = wasm.createwritestreamoptions_fd(this.__wbg_ptr);
         return ret === 0x100000001 ? undefined : ret;
-    }
-    /**
-     * @param {number | null} [value]
-     */
-    set fd(value) {
-        wasm.createwritestreamoptions_set_fd(this.__wbg_ptr, isLikeNone(value) ? 0x100000001 : (value) >>> 0);
-    }
-    /**
-     * @returns {string | undefined}
-     */
-    get flags() {
-        const ret = wasm.createwritestreamoptions_flags(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * @param {string | null} [value]
-     */
-    set flags(value) {
-        wasm.createwritestreamoptions_set_flags(this.__wbg_ptr, isLikeNone(value) ? 0 : addHeapObject(value));
     }
     /**
      * @returns {number | undefined}
@@ -3101,10 +3291,11 @@ export class CreateWriteStreamOptions {
         return ret === 0x100000001 ? undefined : ret;
     }
     /**
-     * @param {number | null} [value]
+     * @returns {string | undefined}
      */
-    set mode(value) {
-        wasm.createwritestreamoptions_set_mode(this.__wbg_ptr, isLikeNone(value) ? 0x100000001 : (value) >>> 0);
+    get flags() {
+        const ret = wasm.createwritestreamoptions_flags(this.__wbg_ptr);
+        return takeObject(ret);
     }
     /**
      * @returns {number | undefined}
@@ -3119,6 +3310,31 @@ export class CreateWriteStreamOptions {
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
+    }
+    /**
+     * @param {number | null} [value]
+     */
+    set fd(value) {
+        wasm.createwritestreamoptions_set_fd(this.__wbg_ptr, isLikeNone(value) ? 0x100000001 : (value) >>> 0);
+    }
+    /**
+     * @returns {string | undefined}
+     */
+    get encoding() {
+        const ret = wasm.createwritestreamoptions_encoding(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+     * @param {number | null} [value]
+     */
+    set mode(value) {
+        wasm.createwritestreamoptions_set_mode(this.__wbg_ptr, isLikeNone(value) ? 0x100000001 : (value) >>> 0);
+    }
+    /**
+     * @param {string | null} [value]
+     */
+    set flags(value) {
+        wasm.createwritestreamoptions_set_flags(this.__wbg_ptr, isLikeNone(value) ? 0 : addHeapObject(value));
     }
     /**
      * @param {number | null} [value]
@@ -3163,6 +3379,25 @@ export class CryptoBox {
         wasm.__wbg_cryptobox_free(ptr, 0);
     }
     /**
+     * @returns {string}
+     */
+    get publicKey() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.cryptobox_publicKey(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
      * @param {CryptoBoxPrivateKey | HexString | Uint8Array} secretKey
      * @param {CryptoBoxPublicKey | HexString | Uint8Array} peerPublicKey
      */
@@ -3186,36 +3421,17 @@ export class CryptoBox {
         }
     }
     /**
+     * @param {string} base64string
      * @returns {string}
      */
-    get publicKey() {
-        let deferred1_0;
-        let deferred1_1;
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.cryptobox_publicKey(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            deferred1_0 = r0;
-            deferred1_1 = r1;
-            return getStringFromWasm0(r0, r1);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
-        }
-    }
-    /**
-     * @param {string} plaintext
-     * @returns {string}
-     */
-    encrypt(plaintext) {
+    decrypt(base64string) {
         let deferred3_0;
         let deferred3_1;
         try {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            const ptr0 = passStringToWasm0(plaintext, wasm.__wbindgen_export_1, wasm.__wbindgen_export_2);
+            const ptr0 = passStringToWasm0(base64string, wasm.__wbindgen_export_1, wasm.__wbindgen_export_2);
             const len0 = WASM_VECTOR_LEN;
-            wasm.cryptobox_encrypt(retptr, this.__wbg_ptr, ptr0, len0);
+            wasm.cryptobox_decrypt(retptr, this.__wbg_ptr, ptr0, len0);
             var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
             var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
             var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
@@ -3235,17 +3451,17 @@ export class CryptoBox {
         }
     }
     /**
-     * @param {string} base64string
+     * @param {string} plaintext
      * @returns {string}
      */
-    decrypt(base64string) {
+    encrypt(plaintext) {
         let deferred3_0;
         let deferred3_1;
         try {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            const ptr0 = passStringToWasm0(base64string, wasm.__wbindgen_export_1, wasm.__wbindgen_export_2);
+            const ptr0 = passStringToWasm0(plaintext, wasm.__wbindgen_export_1, wasm.__wbindgen_export_2);
             const len0 = WASM_VECTOR_LEN;
-            wasm.cryptobox_decrypt(retptr, this.__wbg_ptr, ptr0, len0);
+            wasm.cryptobox_encrypt(retptr, this.__wbg_ptr, ptr0, len0);
             var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
             var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
             var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
@@ -3286,6 +3502,13 @@ export class CryptoBoxPrivateKey {
         wasm.__wbg_cryptoboxprivatekey_free(ptr, 0);
     }
     /**
+     * @returns {CryptoBoxPublicKey}
+     */
+    to_public_key() {
+        const ret = wasm.cryptoboxprivatekey_to_public_key(this.__wbg_ptr);
+        return CryptoBoxPublicKey.__wrap(ret);
+    }
+    /**
      * @param {HexString | Uint8Array} secretKey
      */
     constructor(secretKey) {
@@ -3304,13 +3527,6 @@ export class CryptoBoxPrivateKey {
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
-    }
-    /**
-     * @returns {CryptoBoxPublicKey}
-     */
-    to_public_key() {
-        const ret = wasm.cryptoboxprivatekey_to_public_key(this.__wbg_ptr);
-        return CryptoBoxPublicKey.__wrap(ret);
     }
 }
 
@@ -3342,6 +3558,25 @@ export class CryptoBoxPublicKey {
         wasm.__wbg_cryptoboxpublickey_free(ptr, 0);
     }
     /**
+     * @returns {string}
+     */
+    toString() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.cryptoboxpublickey_toString(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
      * @param {HexString | Uint8Array} publicKey
      */
     constructor(publicKey) {
@@ -3359,25 +3594,6 @@ export class CryptoBoxPublicKey {
             return this;
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
-        }
-    }
-    /**
-     * @returns {string}
-     */
-    toString() {
-        let deferred1_0;
-        let deferred1_1;
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.cryptoboxpublickey_toString(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            deferred1_0 = r0;
-            deferred1_1 = r1;
-            return getStringFromWasm0(r0, r1);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
         }
     }
 }
@@ -3413,6 +3629,14 @@ export class DerivationPath {
         wasm.__wbg_derivationpath_free(ptr, 0);
     }
     /**
+     * Get the count of [`ChildNumber`] values in this derivation path.
+     * @returns {number}
+     */
+    length() {
+        const ret = wasm.derivationpath_length(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
      * @param {string} path
      */
     constructor(path) {
@@ -3435,32 +3659,6 @@ export class DerivationPath {
         }
     }
     /**
-     * Is this derivation path empty? (i.e. the root)
-     * @returns {boolean}
-     */
-    isEmpty() {
-        const ret = wasm.derivationpath_isEmpty(this.__wbg_ptr);
-        return ret !== 0;
-    }
-    /**
-     * Get the count of [`ChildNumber`] values in this derivation path.
-     * @returns {number}
-     */
-    length() {
-        const ret = wasm.derivationpath_length(this.__wbg_ptr);
-        return ret >>> 0;
-    }
-    /**
-     * Get the parent [`DerivationPath`] for the current one.
-     *
-     * Returns `Undefined` if this is already the root path.
-     * @returns {DerivationPath | undefined}
-     */
-    parent() {
-        const ret = wasm.derivationpath_parent(this.__wbg_ptr);
-        return ret === 0 ? undefined : DerivationPath.__wrap(ret);
-    }
-    /**
      * Push a [`ChildNumber`] onto an existing derivation path.
      * @param {number} child_number
      * @param {boolean | null} [hardened]
@@ -3477,6 +3675,16 @@ export class DerivationPath {
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
+    }
+    /**
+     * Get the parent [`DerivationPath`] for the current one.
+     *
+     * Returns `Undefined` if this is already the root path.
+     * @returns {DerivationPath | undefined}
+     */
+    parent() {
+        const ret = wasm.derivationpath_parent(this.__wbg_ptr);
+        return ret === 0 ? undefined : DerivationPath.__wrap(ret);
     }
     /**
      * @returns {string}
@@ -3496,6 +3704,14 @@ export class DerivationPath {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
         }
+    }
+    /**
+     * Is this derivation path empty? (i.e. the root)
+     * @returns {boolean}
+     */
+    isEmpty() {
+        const ret = wasm.derivationpath_isEmpty(this.__wbg_ptr);
+        return ret !== 0;
     }
 }
 
@@ -3538,6 +3754,20 @@ export class FormatInputPathObject {
         return this;
     }
     /**
+     * @returns {string | undefined}
+     */
+    get dir() {
+        const ret = wasm.formatinputpathobject_dir(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+     * @returns {string | undefined}
+     */
+    get ext() {
+        const ret = wasm.formatinputpathobject_ext(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
      * @returns {FormatInputPathObject}
      */
     static new() {
@@ -3552,16 +3782,17 @@ export class FormatInputPathObject {
         return takeObject(ret);
     }
     /**
-     * @param {string | null} [value]
+     * @returns {string | undefined}
      */
-    set base(value) {
-        wasm.formatinputpathobject_set_base(this.__wbg_ptr, isLikeNone(value) ? 0 : addHeapObject(value));
+    get name() {
+        const ret = wasm.formatinputpathobject_name(this.__wbg_ptr);
+        return takeObject(ret);
     }
     /**
      * @returns {string | undefined}
      */
-    get dir() {
-        const ret = wasm.formatinputpathobject_dir(this.__wbg_ptr);
+    get root() {
+        const ret = wasm.formatinputpathobject_root(this.__wbg_ptr);
         return takeObject(ret);
     }
     /**
@@ -3571,37 +3802,22 @@ export class FormatInputPathObject {
         wasm.formatinputpathobject_set_dir(this.__wbg_ptr, isLikeNone(value) ? 0 : addHeapObject(value));
     }
     /**
-     * @returns {string | undefined}
-     */
-    get ext() {
-        const ret = wasm.formatinputpathobject_ext(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
      * @param {string | null} [value]
      */
     set ext(value) {
         wasm.formatinputpathobject_set_ext(this.__wbg_ptr, isLikeNone(value) ? 0 : addHeapObject(value));
     }
     /**
-     * @returns {string | undefined}
+     * @param {string | null} [value]
      */
-    get name() {
-        const ret = wasm.formatinputpathobject_name(this.__wbg_ptr);
-        return takeObject(ret);
+    set base(value) {
+        wasm.formatinputpathobject_set_base(this.__wbg_ptr, isLikeNone(value) ? 0 : addHeapObject(value));
     }
     /**
      * @param {string | null} [value]
      */
     set name(value) {
         wasm.formatinputpathobject_set_name(this.__wbg_ptr, isLikeNone(value) ? 0 : addHeapObject(value));
-    }
-    /**
-     * @returns {string | undefined}
-     */
-    get root() {
-        const ret = wasm.formatinputpathobject_root(this.__wbg_ptr);
-        return takeObject(ret);
     }
     /**
      * @param {string | null} [value]
@@ -3700,18 +3916,18 @@ export class Generator {
         return takeObject(ret);
     }
     /**
-     * @returns {Promise<GeneratorSummary>}
-     */
-    estimate() {
-        const ret = wasm.generator_estimate(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
      * @returns {GeneratorSummary}
      */
     summary() {
         const ret = wasm.generator_summary(this.__wbg_ptr);
         return GeneratorSummary.__wrap(ret);
+    }
+    /**
+     * @returns {Promise<GeneratorSummary>}
+     */
+    estimate() {
+        const ret = wasm.generator_estimate(this.__wbg_ptr);
+        return takeObject(ret);
     }
 }
 
@@ -3741,12 +3957,12 @@ export class GeneratorSummary {
     toJSON() {
         return {
             networkType: this.networkType,
-            utxos: this.utxos,
             fees: this.fees,
             mass: this.mass,
-            transactions: this.transactions,
-            finalAmount: this.finalAmount,
+            utxos: this.utxos,
             finalTransactionId: this.finalTransactionId,
+            finalAmount: this.finalAmount,
+            transactions: this.transactions,
         };
     }
 
@@ -3773,13 +3989,6 @@ export class GeneratorSummary {
         return ret;
     }
     /**
-     * @returns {number}
-     */
-    get utxos() {
-        const ret = wasm.generatorsummary_utxos(this.__wbg_ptr);
-        return ret >>> 0;
-    }
-    /**
      * @returns {bigint}
      */
     get fees() {
@@ -3796,16 +4005,9 @@ export class GeneratorSummary {
     /**
      * @returns {number}
      */
-    get transactions() {
-        const ret = wasm.generatorsummary_transactions(this.__wbg_ptr);
+    get utxos() {
+        const ret = wasm.generatorsummary_utxos(this.__wbg_ptr);
         return ret >>> 0;
-    }
-    /**
-     * @returns {bigint | undefined}
-     */
-    get finalAmount() {
-        const ret = wasm.generatorsummary_finalAmount(this.__wbg_ptr);
-        return takeObject(ret);
     }
     /**
      * @returns {string | undefined}
@@ -3825,6 +4027,149 @@ export class GeneratorSummary {
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
+    }
+    /**
+     * @returns {bigint | undefined}
+     */
+    get finalAmount() {
+        const ret = wasm.generatorsummary_finalAmount(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+     * @returns {number}
+     */
+    get transactions() {
+        const ret = wasm.generatorsummary_transactions(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+}
+
+const GenesisCovenantGroupFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_genesiscovenantgroup_free(ptr >>> 0, 1));
+/**
+ * A genesis covenant group for bulk covenant binding population.
+ *
+ * All listed outputs are bound to the same covenant id, derived from the
+ * authorizing input outpoint and this exact ordered output list.
+ * @category Consensus
+ */
+export class GenesisCovenantGroup {
+
+    toJSON() {
+        return {
+            authorizingInput: this.authorizingInput,
+            outputs: this.outputs,
+        };
+    }
+
+    toString() {
+        return JSON.stringify(this);
+    }
+
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        GenesisCovenantGroupFinalization.unregister(this);
+        return ptr;
+    }
+
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_genesiscovenantgroup_free(ptr, 0);
+    }
+    /**
+     * @param {Array<number>} outputs
+     */
+    set outputs(outputs) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.genesiscovenantgroup_set_outputs(retptr, this.__wbg_ptr, addHeapObject(outputs));
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            if (r1) {
+                throw takeObject(r0);
+            }
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * @returns {string}
+     */
+    toString() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.genesiscovenantgroup_toString(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return takeObject(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * @returns {object}
+     */
+    toJSON() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.genesiscovenantgroup_toJSON(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return takeObject(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * @returns {number}
+     */
+    get authorizingInput() {
+        const ret = wasm.genesiscovenantgroup_authorizingInput(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * @param {number} value
+     */
+    set authorizingInput(value) {
+        wasm.genesiscovenantgroup_set_authorizingInput(this.__wbg_ptr, value);
+    }
+    /**
+     * @param {number} authorizing_input
+     * @param {Array<number>} outputs
+     */
+    constructor(authorizing_input, outputs) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.genesiscovenantgroup_ctor(retptr, authorizing_input, addHeapObject(outputs));
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            this.__wbg_ptr = r0 >>> 0;
+            GenesisCovenantGroupFinalization.register(this, this.__wbg_ptr, this);
+            return this;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * @returns {Array<number>}
+     */
+    get outputs() {
+        const ret = wasm.genesiscovenantgroup_outputs(this.__wbg_ptr);
+        return takeObject(ret);
     }
 }
 
@@ -3854,41 +4199,10 @@ export class GetNameOptions {
         wasm.__wbg_getnameoptions_free(ptr, 0);
     }
     /**
-     * @param {number | null | undefined} family
-     * @param {string} host
-     * @param {string} local_address
-     * @param {number} port
-     * @returns {GetNameOptions}
-     */
-    static new(family, host, local_address, port) {
-        const ret = wasm.getnameoptions_new(isLikeNone(family) ? 0xFFFFFF : family, addHeapObject(host), addHeapObject(local_address), port);
-        return GetNameOptions.__wrap(ret);
-    }
-    /**
-     * @returns {number | undefined}
-     */
-    get family() {
-        const ret = wasm.getnameoptions_family(this.__wbg_ptr);
-        return ret === 0xFFFFFF ? undefined : ret;
-    }
-    /**
      * @param {number | null} [value]
      */
     set family(value) {
         wasm.getnameoptions_set_family(this.__wbg_ptr, isLikeNone(value) ? 0xFFFFFF : value);
-    }
-    /**
-     * @returns {string}
-     */
-    get host() {
-        const ret = wasm.getnameoptions_host(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * @param {string} value
-     */
-    set host(value) {
-        wasm.getnameoptions_set_host(this.__wbg_ptr, addHeapObject(value));
     }
     /**
      * @returns {string}
@@ -3904,11 +4218,42 @@ export class GetNameOptions {
         wasm.getnameoptions_set_local_address(this.__wbg_ptr, addHeapObject(value));
     }
     /**
+     * @param {number | null | undefined} family
+     * @param {string} host
+     * @param {string} local_address
+     * @param {number} port
+     * @returns {GetNameOptions}
+     */
+    static new(family, host, local_address, port) {
+        const ret = wasm.getnameoptions_new(isLikeNone(family) ? 0xFFFFFF : family, addHeapObject(host), addHeapObject(local_address), port);
+        return GetNameOptions.__wrap(ret);
+    }
+    /**
+     * @returns {string}
+     */
+    get host() {
+        const ret = wasm.getnameoptions_host(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
      * @returns {number}
      */
     get port() {
         const ret = wasm.getnameoptions_port(this.__wbg_ptr);
         return ret >>> 0;
+    }
+    /**
+     * @returns {number | undefined}
+     */
+    get family() {
+        const ret = wasm.getnameoptions_family(this.__wbg_ptr);
+        return ret === 0xFFFFFF ? undefined : ret;
+    }
+    /**
+     * @param {string} value
+     */
+    set host(value) {
+        wasm.getnameoptions_set_host(this.__wbg_ptr, addHeapObject(value));
     }
     /**
      * @param {number} value
@@ -3989,19 +4334,19 @@ export class Header {
 
     toJSON() {
         return {
+            blueScore: this.blueScore,
             version: this.version,
             timestamp: this.timestamp,
+            hash: this.hash,
+            pruningPoint: this.pruningPoint,
+            utxoCommitment: this.utxoCommitment,
+            hashMerkleRoot: this.hashMerkleRoot,
+            parentsByLevel: this.parentsByLevel,
+            acceptedIdMerkleRoot: this.acceptedIdMerkleRoot,
             bits: this.bits,
             nonce: this.nonce,
-            daaScore: this.daaScore,
-            blueScore: this.blueScore,
-            hash: this.hash,
-            hashMerkleRoot: this.hashMerkleRoot,
-            acceptedIdMerkleRoot: this.acceptedIdMerkleRoot,
-            utxoCommitment: this.utxoCommitment,
-            pruningPoint: this.pruningPoint,
-            parentsByLevel: this.parentsByLevel,
             blueWork: this.blueWork,
+            daaScore: this.daaScore,
         };
     }
 
@@ -4019,6 +4364,13 @@ export class Header {
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_header_free(ptr, 0);
+    }
+    /**
+     * @returns {bigint}
+     */
+    get blueScore() {
+        const ret = wasm.header_blue_score(this.__wbg_ptr);
+        return BigInt.asUintN(64, ret);
     }
     /**
      * @param {Header | IHeader | IRawHeader} js_value
@@ -4062,28 +4414,6 @@ export class Header {
         }
     }
     /**
-     * Obtain `JSON` representation of the header. JSON representation
-     * should be obtained using WASM, to ensure proper serialization of
-     * big integers.
-     * @returns {string}
-     */
-    asJSON() {
-        let deferred1_0;
-        let deferred1_1;
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.header_asJSON(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            deferred1_0 = r0;
-            deferred1_1 = r1;
-            return getStringFromWasm0(r0, r1);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
-        }
-    }
-    /**
      * @returns {number}
      */
     get version() {
@@ -4104,56 +4434,16 @@ export class Header {
         return BigInt.asUintN(64, ret);
     }
     /**
-     * @param {bigint} timestamp
-     */
-    set timestamp(timestamp) {
-        wasm.header_set_timestamp(this.__wbg_ptr, timestamp);
-    }
-    /**
-     * @returns {number}
-     */
-    get bits() {
-        const ret = wasm.header_bits(this.__wbg_ptr);
-        return ret >>> 0;
-    }
-    /**
-     * @param {number} bits
-     */
-    set bits(bits) {
-        wasm.header_set_bits(this.__wbg_ptr, bits);
-    }
-    /**
-     * @returns {bigint}
-     */
-    get nonce() {
-        const ret = wasm.header_nonce(this.__wbg_ptr);
-        return BigInt.asUintN(64, ret);
-    }
-    /**
-     * @param {bigint} nonce
-     */
-    set nonce(nonce) {
-        wasm.header_set_nonce(this.__wbg_ptr, nonce);
-    }
-    /**
-     * @returns {bigint}
-     */
-    get daaScore() {
-        const ret = wasm.header_daa_score(this.__wbg_ptr);
-        return BigInt.asUintN(64, ret);
-    }
-    /**
      * @param {bigint} daa_score
      */
     set daaScore(daa_score) {
         wasm.header_set_daa_score(this.__wbg_ptr, daa_score);
     }
     /**
-     * @returns {bigint}
+     * @param {bigint} timestamp
      */
-    get blueScore() {
-        const ret = wasm.header_blue_score(this.__wbg_ptr);
-        return BigInt.asUintN(64, ret);
+    set timestamp(timestamp) {
+        wasm.header_set_timestamp(this.__wbg_ptr, timestamp);
     }
     /**
      * @param {bigint} blue_score
@@ -4170,6 +4460,63 @@ export class Header {
         try {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
             wasm.header_get_hash_as_hex(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * @returns {string}
+     */
+    getBlueWorkAsHex() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.header_getBlueWorkAsHex(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * @returns {string}
+     */
+    get pruningPoint() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.header_get_pruning_point_as_hex(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * @returns {string}
+     */
+    get utxoCommitment() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.header_get_utxo_commitment_as_hex(retptr, this.__wbg_ptr);
             var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
             var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
             deferred1_0 = r0;
@@ -4202,8 +4549,27 @@ export class Header {
     /**
      * @param {any} js_value
      */
-    set hashMerkleRoot(js_value) {
-        wasm.header_set_hash_merkle_root_from_js_value(this.__wbg_ptr, addHeapObject(js_value));
+    set blueWork(js_value) {
+        wasm.header_set_blue_work_from_js_value(this.__wbg_ptr, addHeapObject(js_value));
+    }
+    /**
+     * @param {any} js_value
+     */
+    set pruningPoint(js_value) {
+        wasm.header_set_pruning_point_from_js_value(this.__wbg_ptr, addHeapObject(js_value));
+    }
+    /**
+     * @returns {any}
+     */
+    get parentsByLevel() {
+        const ret = wasm.header_get_parents_by_level_as_js_value(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+     * @param {any} js_value
+     */
+    set utxoCommitment(js_value) {
+        wasm.header_set_utxo_commitment_from_js_value(this.__wbg_ptr, addHeapObject(js_value));
     }
     /**
      * @returns {string}
@@ -4227,71 +4593,62 @@ export class Header {
     /**
      * @param {any} js_value
      */
-    set acceptedIdMerkleRoot(js_value) {
-        wasm.header_set_accepted_id_merkle_root_from_js_value(this.__wbg_ptr, addHeapObject(js_value));
-    }
-    /**
-     * @returns {string}
-     */
-    get utxoCommitment() {
-        let deferred1_0;
-        let deferred1_1;
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.header_get_utxo_commitment_as_hex(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            deferred1_0 = r0;
-            deferred1_1 = r1;
-            return getStringFromWasm0(r0, r1);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
-        }
-    }
-    /**
-     * @param {any} js_value
-     */
-    set utxoCommitment(js_value) {
-        wasm.header_set_utxo_commitment_from_js_value(this.__wbg_ptr, addHeapObject(js_value));
-    }
-    /**
-     * @returns {string}
-     */
-    get pruningPoint() {
-        let deferred1_0;
-        let deferred1_1;
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.header_get_pruning_point_as_hex(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            deferred1_0 = r0;
-            deferred1_1 = r1;
-            return getStringFromWasm0(r0, r1);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
-        }
-    }
-    /**
-     * @param {any} js_value
-     */
-    set pruningPoint(js_value) {
-        wasm.header_set_pruning_point_from_js_value(this.__wbg_ptr, addHeapObject(js_value));
-    }
-    /**
-     * @returns {any}
-     */
-    get parentsByLevel() {
-        const ret = wasm.header_get_parents_by_level_as_js_value(this.__wbg_ptr);
-        return takeObject(ret);
+    set hashMerkleRoot(js_value) {
+        wasm.header_set_hash_merkle_root_from_js_value(this.__wbg_ptr, addHeapObject(js_value));
     }
     /**
      * @param {any} js_value
      */
     set parentsByLevel(js_value) {
         wasm.header_set_parents_by_level_from_js_value(this.__wbg_ptr, addHeapObject(js_value));
+    }
+    /**
+     * @param {any} js_value
+     */
+    set acceptedIdMerkleRoot(js_value) {
+        wasm.header_set_accepted_id_merkle_root_from_js_value(this.__wbg_ptr, addHeapObject(js_value));
+    }
+    /**
+     * @returns {number}
+     */
+    get bits() {
+        const ret = wasm.header_bits(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+     * @returns {bigint}
+     */
+    get nonce() {
+        const ret = wasm.header_nonce(this.__wbg_ptr);
+        return BigInt.asUintN(64, ret);
+    }
+    /**
+     * Obtain `JSON` representation of the header. JSON representation
+     * should be obtained using WASM, to ensure proper serialization of
+     * big integers.
+     * @returns {string}
+     */
+    asJSON() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.header_asJSON(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * @param {number} bits
+     */
+    set bits(bits) {
+        wasm.header_set_bits(this.__wbg_ptr, bits);
     }
     /**
      * @returns {bigint}
@@ -4301,29 +4658,17 @@ export class Header {
         return takeObject(ret);
     }
     /**
-     * @returns {string}
+     * @returns {bigint}
      */
-    getBlueWorkAsHex() {
-        let deferred1_0;
-        let deferred1_1;
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.header_getBlueWorkAsHex(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            deferred1_0 = r0;
-            deferred1_1 = r1;
-            return getStringFromWasm0(r0, r1);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
-        }
+    get daaScore() {
+        const ret = wasm.header_daa_score(this.__wbg_ptr);
+        return BigInt.asUintN(64, ret);
     }
     /**
-     * @param {any} js_value
+     * @param {bigint} nonce
      */
-    set blueWork(js_value) {
-        wasm.header_set_blue_work_from_js_value(this.__wbg_ptr, addHeapObject(js_value));
+    set nonce(nonce) {
+        wasm.header_set_nonce(this.__wbg_ptr, nonce);
     }
 }
 
@@ -4368,6 +4713,30 @@ export class Keypair {
         wasm.__wbg_keypair_free(ptr, 0);
     }
     /**
+     * Get the [`Address`] of this Keypair's [`PublicKey`].
+     * Receives a [`NetworkType`](kaspa_consensus_core::network::NetworkType)
+     * to determine the prefix of the address.
+     * JavaScript: `let address = keypair.toAddress(NetworkType.MAINNET);`.
+     * @param {NetworkType | NetworkId | string} network
+     * @returns {Address}
+     */
+    toAddress(network) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.keypair_toAddress(retptr, this.__wbg_ptr, addBorrowedObject(network));
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return Address.__wrap(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            heap[stack_pointer++] = undefined;
+        }
+    }
+    /**
      * Get the [`PublicKey`] of this [`Keypair`].
      * @returns {string}
      */
@@ -4408,35 +4777,25 @@ export class Keypair {
         }
     }
     /**
-     * Get the `XOnlyPublicKey` of this [`Keypair`].
-     * @returns {any}
+     * Create a new [`Keypair`] from a [`PrivateKey`].
+     * JavaScript: `let privkey = new PrivateKey(hexString); let keypair = privkey.toKeypair();`.
+     * @param {PrivateKey} secret_key
+     * @returns {Keypair}
      */
-    get xOnlyPublicKey() {
-        const ret = wasm.keypair_get_xonly_public_key(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * Get the [`Address`] of this Keypair's [`PublicKey`].
-     * Receives a [`NetworkType`](kaspa_consensus_core::network::NetworkType)
-     * to determine the prefix of the address.
-     * JavaScript: `let address = keypair.toAddress(NetworkType.MAINNET);`.
-     * @param {NetworkType | NetworkId | string} network
-     * @returns {Address}
-     */
-    toAddress(network) {
+    static fromPrivateKey(secret_key) {
         try {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.keypair_toAddress(retptr, this.__wbg_ptr, addBorrowedObject(network));
+            _assertClass(secret_key, PrivateKey);
+            wasm.keypair_fromPrivateKey(retptr, secret_key.__wbg_ptr);
             var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
             var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
             var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
             if (r2) {
                 throw takeObject(r1);
             }
-            return Address.__wrap(r0);
+            return Keypair.__wrap(r0);
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
-            heap[stack_pointer++] = undefined;
         }
     }
     /**
@@ -4464,6 +4823,14 @@ export class Keypair {
         }
     }
     /**
+     * Get the `XOnlyPublicKey` of this [`Keypair`].
+     * @returns {any}
+     */
+    get xOnlyPublicKey() {
+        const ret = wasm.keypair_get_xonly_public_key(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
      * Create a new random [`Keypair`].
      * JavaScript: `let keypair = Keypair::random();`.
      * @returns {Keypair}
@@ -4472,28 +4839,6 @@ export class Keypair {
         try {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
             wasm.keypair_random(retptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
-            }
-            return Keypair.__wrap(r0);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
-    }
-    /**
-     * Create a new [`Keypair`] from a [`PrivateKey`].
-     * JavaScript: `let privkey = new PrivateKey(hexString); let keypair = privkey.toKeypair();`.
-     * @param {PrivateKey} secret_key
-     * @returns {Keypair}
-     */
-    static fromPrivateKey(secret_key) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            _assertClass(secret_key, PrivateKey);
-            wasm.keypair_fromPrivateKey(retptr, secret_key.__wbg_ptr);
             var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
             var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
             var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
@@ -4533,6 +4878,12 @@ export class MkdtempSyncOptions {
         wasm.__wbg_mkdtempsyncoptions_free(ptr, 0);
     }
     /**
+     * @param {string | null} [value]
+     */
+    set encoding(value) {
+        wasm.mkdtempsyncoptions_set_encoding(this.__wbg_ptr, isLikeNone(value) ? 0 : addHeapObject(value));
+    }
+    /**
      * @param {string | null} [encoding]
      */
     constructor(encoding) {
@@ -4554,12 +4905,6 @@ export class MkdtempSyncOptions {
     get encoding() {
         const ret = wasm.mkdtempsyncoptions_encoding(this.__wbg_ptr);
         return takeObject(ret);
-    }
-    /**
-     * @param {string | null} [value]
-     */
-    set encoding(value) {
-        wasm.mkdtempsyncoptions_set_encoding(this.__wbg_ptr, isLikeNone(value) ? 0 : addHeapObject(value));
     }
 }
 
@@ -4604,6 +4949,14 @@ export class Mnemonic {
     }
     /**
      * @param {string} phrase
+     */
+    set phrase(phrase) {
+        const ptr0 = passStringToWasm0(phrase, wasm.__wbindgen_export_1, wasm.__wbindgen_export_2);
+        const len0 = WASM_VECTOR_LEN;
+        wasm.mnemonic_set_phrase(this.__wbg_ptr, ptr0, len0);
+    }
+    /**
+     * @param {string} phrase
      * @param {Language | null} [language]
      */
     constructor(phrase, language) {
@@ -4626,16 +4979,26 @@ export class Mnemonic {
         }
     }
     /**
-     * Validate mnemonic phrase. Returns `true` if the phrase is valid, `false` otherwise.
-     * @param {string} phrase
-     * @param {Language | null} [language]
-     * @returns {boolean}
+     * @param {string | null} [password]
+     * @returns {string}
      */
-    static validate(phrase, language) {
-        const ptr0 = passStringToWasm0(phrase, wasm.__wbindgen_export_1, wasm.__wbindgen_export_2);
-        const len0 = WASM_VECTOR_LEN;
-        const ret = wasm.mnemonic_validate(ptr0, len0, isLikeNone(language) ? 1 : language);
-        return ret !== 0;
+    toSeed(password) {
+        let deferred2_0;
+        let deferred2_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            var ptr0 = isLikeNone(password) ? 0 : passStringToWasm0(password, wasm.__wbindgen_export_1, wasm.__wbindgen_export_2);
+            var len0 = WASM_VECTOR_LEN;
+            wasm.mnemonic_toSeed(retptr, this.__wbg_ptr, ptr0, len0);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred2_0 = r0;
+            deferred2_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export_3(deferred2_0, deferred2_1, 1);
+        }
     }
     /**
      * @returns {string}
@@ -4665,25 +5028,6 @@ export class Mnemonic {
         wasm.mnemonic_set_entropy(this.__wbg_ptr, ptr0, len0);
     }
     /**
-     * @param {number | null} [word_count]
-     * @returns {Mnemonic}
-     */
-    static random(word_count) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.mnemonic_random(retptr, isLikeNone(word_count) ? 0x100000001 : (word_count) >>> 0);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
-            }
-            return Mnemonic.__wrap(r0);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
-    }
-    /**
      * @returns {string}
      */
     get phrase() {
@@ -4703,34 +5047,35 @@ export class Mnemonic {
         }
     }
     /**
-     * @param {string} phrase
+     * @param {number | null} [word_count]
+     * @returns {Mnemonic}
      */
-    set phrase(phrase) {
-        const ptr0 = passStringToWasm0(phrase, wasm.__wbindgen_export_1, wasm.__wbindgen_export_2);
-        const len0 = WASM_VECTOR_LEN;
-        wasm.mnemonic_set_phrase(this.__wbg_ptr, ptr0, len0);
-    }
-    /**
-     * @param {string | null} [password]
-     * @returns {string}
-     */
-    toSeed(password) {
-        let deferred2_0;
-        let deferred2_1;
+    static random(word_count) {
         try {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            var ptr0 = isLikeNone(password) ? 0 : passStringToWasm0(password, wasm.__wbindgen_export_1, wasm.__wbindgen_export_2);
-            var len0 = WASM_VECTOR_LEN;
-            wasm.mnemonic_toSeed(retptr, this.__wbg_ptr, ptr0, len0);
+            wasm.mnemonic_random(retptr, isLikeNone(word_count) ? 0x100000001 : (word_count) >>> 0);
             var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
             var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            deferred2_0 = r0;
-            deferred2_1 = r1;
-            return getStringFromWasm0(r0, r1);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return Mnemonic.__wrap(r0);
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_export_3(deferred2_0, deferred2_1, 1);
         }
+    }
+    /**
+     * Validate mnemonic phrase. Returns `true` if the phrase is valid, `false` otherwise.
+     * @param {string} phrase
+     * @param {Language | null} [language]
+     * @returns {boolean}
+     */
+    static validate(phrase, language) {
+        const ptr0 = passStringToWasm0(phrase, wasm.__wbindgen_export_1, wasm.__wbindgen_export_2);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.mnemonic_validate(ptr0, len0, isLikeNone(language) ? 1 : language);
+        return ret !== 0;
     }
 }
 
@@ -4760,19 +5105,19 @@ export class NetServerOptions {
         return ret === 0xFFFFFF ? undefined : ret !== 0;
     }
     /**
-     * @param {boolean | null} [value]
-     */
-    set allow_half_open(value) {
-        const ptr = this.__destroy_into_raw();
-        wasm.netserveroptions_set_allow_half_open(ptr, isLikeNone(value) ? 0xFFFFFF : value ? 1 : 0);
-    }
-    /**
      * @returns {boolean | undefined}
      */
     get pause_on_connect() {
         const ptr = this.__destroy_into_raw();
         const ret = wasm.netserveroptions_pause_on_connect(ptr);
         return ret === 0xFFFFFF ? undefined : ret !== 0;
+    }
+    /**
+     * @param {boolean | null} [value]
+     */
+    set allow_half_open(value) {
+        const ptr = this.__destroy_into_raw();
+        wasm.netserveroptions_set_allow_half_open(ptr, isLikeNone(value) ? 0xFFFFFF : value ? 1 : 0);
     }
     /**
      * @param {boolean | null} [value]
@@ -4853,6 +5198,44 @@ export class NetworkId {
         wasm.__wbg_set_networkid_suffix(this.__wbg_ptr, isLikeNone(arg0) ? 0x100000001 : (arg0) >>> 0);
     }
     /**
+     * @returns {string}
+     */
+    toString() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.networkid_id(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * @returns {string}
+     */
+    addressPrefix() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.networkid_addressPrefix(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
      * @param {any} value
      */
     constructor(value) {
@@ -4882,44 +5265,6 @@ export class NetworkId {
         try {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
             wasm.networkid_id(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            deferred1_0 = r0;
-            deferred1_1 = r1;
-            return getStringFromWasm0(r0, r1);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
-        }
-    }
-    /**
-     * @returns {string}
-     */
-    toString() {
-        let deferred1_0;
-        let deferred1_1;
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.networkid_id(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            deferred1_0 = r0;
-            deferred1_1 = r1;
-            return getStringFromWasm0(r0, r1);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
-        }
-    }
-    /**
-     * @returns {string}
-     */
-    addressPrefix() {
-        let deferred1_0;
-        let deferred1_1;
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.networkid_addressPrefix(retptr, this.__wbg_ptr);
             var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
             var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
             deferred1_0 = r0;
@@ -5034,6 +5379,254 @@ export class NodeDescriptor {
     }
 }
 
+const OptionalHeaderFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_optionalheader_free(ptr >>> 0, 1));
+
+export class OptionalHeader {
+
+    static __wrap(ptr) {
+        ptr = ptr >>> 0;
+        const obj = Object.create(OptionalHeader.prototype);
+        obj.__wbg_ptr = ptr;
+        OptionalHeaderFinalization.register(obj, obj.__wbg_ptr, obj);
+        return obj;
+    }
+
+    toJSON() {
+        return {
+            blueScore: this.blueScore,
+            blueWork: this.blueWork,
+            pruningPoint: this.pruningPoint,
+            utxoCommitment: this.utxoCommitment,
+            hashMerkleRoot: this.hashMerkleRoot,
+            parentsByLevel: this.parentsByLevel,
+            acceptedIdMerkleRoot: this.acceptedIdMerkleRoot,
+            bits: this.bits,
+            hash: this.hash,
+            nonce: this.nonce,
+            version: this.version,
+            daaScore: this.daaScore,
+            timestamp: this.timestamp,
+        };
+    }
+
+    toString() {
+        return JSON.stringify(this);
+    }
+
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        OptionalHeaderFinalization.unregister(this);
+        return ptr;
+    }
+
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_optionalheader_free(ptr, 0);
+    }
+    /**
+     * @returns {bigint | undefined}
+     */
+    get blueScore() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.optionalheader_blueScore(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r2 = getDataViewMemory0().getBigInt64(retptr + 8 * 1, true);
+            return r0 === 0 ? undefined : BigInt.asUintN(64, r2);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * @returns {any}
+     */
+    get blueWork() {
+        const ret = wasm.optionalheader_blueWork(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+     * @returns {string | undefined}
+     */
+    get pruningPoint() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.optionalheader_pruningPoint(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            let v1;
+            if (r0 !== 0) {
+                v1 = getStringFromWasm0(r0, r1).slice();
+                wasm.__wbindgen_export_3(r0, r1 * 1, 1);
+            }
+            return v1;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * @returns {string | undefined}
+     */
+    get utxoCommitment() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.optionalheader_utxoCommitment(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            let v1;
+            if (r0 !== 0) {
+                v1 = getStringFromWasm0(r0, r1).slice();
+                wasm.__wbindgen_export_3(r0, r1 * 1, 1);
+            }
+            return v1;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * @returns {string | undefined}
+     */
+    get hashMerkleRoot() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.optionalheader_hashMerkleRoot(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            let v1;
+            if (r0 !== 0) {
+                v1 = getStringFromWasm0(r0, r1).slice();
+                wasm.__wbindgen_export_3(r0, r1 * 1, 1);
+            }
+            return v1;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * @returns {CompressedParents | undefined}
+     */
+    get parentsByLevel() {
+        const ret = wasm.optionalheader_parentsByLevel(this.__wbg_ptr);
+        return ret === 0 ? undefined : CompressedParents.__wrap(ret);
+    }
+    /**
+     * @returns {string | undefined}
+     */
+    get acceptedIdMerkleRoot() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.optionalheader_acceptedIdMerkleRoot(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            let v1;
+            if (r0 !== 0) {
+                v1 = getStringFromWasm0(r0, r1).slice();
+                wasm.__wbindgen_export_3(r0, r1 * 1, 1);
+            }
+            return v1;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * @param {OptionalHeader | IOptionalHeader} js_value
+     */
+    constructor(js_value) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.optionalheader_new(retptr, addHeapObject(js_value));
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            this.__wbg_ptr = r0 >>> 0;
+            OptionalHeaderFinalization.register(this, this.__wbg_ptr, this);
+            return this;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * @returns {number | undefined}
+     */
+    get bits() {
+        const ret = wasm.optionalheader_bits(this.__wbg_ptr);
+        return ret === 0x100000001 ? undefined : ret;
+    }
+    /**
+     * @returns {string | undefined}
+     */
+    get hash() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.optionalheader_hash(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            let v1;
+            if (r0 !== 0) {
+                v1 = getStringFromWasm0(r0, r1).slice();
+                wasm.__wbindgen_export_3(r0, r1 * 1, 1);
+            }
+            return v1;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * @returns {bigint | undefined}
+     */
+    get nonce() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.optionalheader_nonce(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r2 = getDataViewMemory0().getBigInt64(retptr + 8 * 1, true);
+            return r0 === 0 ? undefined : BigInt.asUintN(64, r2);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * @returns {number | undefined}
+     */
+    get version() {
+        const ret = wasm.optionalheader_version(this.__wbg_ptr);
+        return ret === 0xFFFFFF ? undefined : ret;
+    }
+    /**
+     * @returns {bigint | undefined}
+     */
+    get daaScore() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.optionalheader_daaScore(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r2 = getDataViewMemory0().getBigInt64(retptr + 8 * 1, true);
+            return r0 === 0 ? undefined : BigInt.asUintN(64, r2);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * @returns {bigint | undefined}
+     */
+    get timestamp() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.optionalheader_timestamp(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r2 = getDataViewMemory0().getBigInt64(retptr + 8 * 1, true);
+            return r0 === 0 ? undefined : BigInt.asUintN(64, r2);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+}
+
 const PSKBFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_pskb_free(ptr >>> 0, 1));
@@ -5059,48 +5652,25 @@ export class PSKB {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_pskb_free(ptr, 0);
     }
-    constructor() {
+    /**
+     * @param {string} hex_data
+     * @returns {PSKB}
+     */
+    static deserialize(hex_data) {
         try {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.pskb_new(retptr);
+            const ptr0 = passStringToWasm0(hex_data, wasm.__wbindgen_export_1, wasm.__wbindgen_export_2);
+            const len0 = WASM_VECTOR_LEN;
+            wasm.pskb_deserialize(retptr, ptr0, len0);
             var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
             var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
             var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
             if (r2) {
                 throw takeObject(r1);
             }
-            this.__wbg_ptr = r0 >>> 0;
-            PSKBFinalization.register(this, this.__wbg_ptr, this);
-            return this;
+            return PSKB.__wrap(r0);
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
-        }
-    }
-    /**
-     * @returns {string}
-     */
-    serialize() {
-        let deferred2_0;
-        let deferred2_1;
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.pskb_serialize(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
-            var ptr1 = r0;
-            var len1 = r1;
-            if (r3) {
-                ptr1 = 0; len1 = 0;
-                throw takeObject(r2);
-            }
-            deferred2_0 = ptr1;
-            deferred2_1 = len1;
-            return getStringFromWasm0(ptr1, len1);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_export_3(deferred2_0, deferred2_1, 1);
         }
     }
     /**
@@ -5133,34 +5703,6 @@ export class PSKB {
         }
     }
     /**
-     * @param {string} hex_data
-     * @returns {PSKB}
-     */
-    static deserialize(hex_data) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            const ptr0 = passStringToWasm0(hex_data, wasm.__wbindgen_export_1, wasm.__wbindgen_export_2);
-            const len0 = WASM_VECTOR_LEN;
-            wasm.pskb_deserialize(retptr, ptr0, len0);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
-            }
-            return PSKB.__wrap(r0);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
-    }
-    /**
-     * @returns {number}
-     */
-    get length() {
-        const ret = wasm.pskb_length(this.__wbg_ptr);
-        return ret >>> 0;
-    }
-    /**
      * @param {PSKT} pskt
      */
     add(pskt) {
@@ -5177,12 +5719,63 @@ export class PSKB {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
+    constructor() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.pskb_new(retptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            this.__wbg_ptr = r0 >>> 0;
+            PSKBFinalization.register(this, this.__wbg_ptr, this);
+            return this;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
     /**
      * @param {PSKB} other
      */
     merge(other) {
         _assertClass(other, PSKB);
         wasm.pskb_merge(this.__wbg_ptr, other.__wbg_ptr);
+    }
+    /**
+     * @returns {number}
+     */
+    get length() {
+        const ret = wasm.pskb_length(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+     * @returns {string}
+     */
+    serialize() {
+        let deferred2_0;
+        let deferred2_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.pskb_serialize(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
+            var ptr1 = r0;
+            var len1 = r1;
+            if (r3) {
+                ptr1 = 0; len1 = 0;
+                throw takeObject(r2);
+            }
+            deferred2_0 = ptr1;
+            deferred2_1 = len1;
+            return getStringFromWasm0(ptr1, len1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export_3(deferred2_0, deferred2_1, 1);
+        }
     }
 }
 
@@ -5223,21 +5816,20 @@ export class PSKT {
         wasm.__wbg_pskt_free(ptr, 0);
     }
     /**
-     * @param {PSKT | Transaction | string | undefined} payload
+     * Change role to `CONSTRUCTOR`
+     * @returns {PSKT}
      */
-    constructor(payload) {
+    toConstructor() {
         try {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.pskt_new(retptr, addHeapObject(payload));
+            wasm.pskt_toConstructor(retptr, this.__wbg_ptr);
             var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
             var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
             var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
             if (r2) {
                 throw takeObject(r1);
             }
-            this.__wbg_ptr = r0 >>> 0;
-            PSKTFinalization.register(this, this.__wbg_ptr, this);
-            return this;
+            return PSKT.__wrap(r0);
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
@@ -5262,40 +5854,32 @@ export class PSKT {
         }
     }
     /**
-     * @returns {any}
+     * @returns {Hash}
      */
-    get payload() {
-        const ret = wasm.pskt_payload(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * @returns {string}
-     */
-    serialize() {
-        let deferred1_0;
-        let deferred1_1;
+    calculateId() {
         try {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.pskt_serialize(retptr, this.__wbg_ptr);
+            wasm.pskt_calculateId(retptr, this.__wbg_ptr);
             var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
             var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            deferred1_0 = r0;
-            deferred1_1 = r1;
-            return getStringFromWasm0(r0, r1);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return Hash.__wrap(r0);
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
         }
     }
     /**
-     * Change role to `CREATOR`
-     * #[wasm_bindgen(js_name = toCreator)]
+     * @param {bigint} n
+     * @param {number} input_index
      * @returns {PSKT}
      */
-    creator() {
+    setSequence(n, input_index) {
         try {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.pskt_creator(retptr, this.__wbg_ptr);
+            wasm.pskt_setSequence(retptr, this.__wbg_ptr, n, input_index);
             var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
             var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
             var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
@@ -5308,172 +5892,23 @@ export class PSKT {
         }
     }
     /**
-     * Change role to `CONSTRUCTOR`
-     * @returns {PSKT}
+     * @param {any} data
+     * @returns {bigint}
      */
-    toConstructor() {
+    calculateMass(data) {
         try {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.pskt_toConstructor(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            wasm.pskt_calculateMass(retptr, this.__wbg_ptr, addBorrowedObject(data));
+            var r0 = getDataViewMemory0().getBigInt64(retptr + 8 * 0, true);
             var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
+            var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
+            if (r3) {
+                throw takeObject(r2);
             }
-            return PSKT.__wrap(r0);
+            return BigInt.asUintN(64, r0);
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
-        }
-    }
-    /**
-     * Change role to `UPDATER`
-     * @returns {PSKT}
-     */
-    toUpdater() {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.pskt_toUpdater(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
-            }
-            return PSKT.__wrap(r0);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
-    }
-    /**
-     * Change role to `SIGNER`
-     * @returns {PSKT}
-     */
-    toSigner() {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.pskt_toSigner(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
-            }
-            return PSKT.__wrap(r0);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
-    }
-    /**
-     * Change role to `COMBINER`
-     * @returns {PSKT}
-     */
-    toCombiner() {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.pskt_toCombiner(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
-            }
-            return PSKT.__wrap(r0);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
-    }
-    /**
-     * Change role to `FINALIZER`
-     * @returns {PSKT}
-     */
-    toFinalizer() {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.pskt_toFinalizer(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
-            }
-            return PSKT.__wrap(r0);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
-    }
-    /**
-     * Change role to `EXTRACTOR`
-     * @returns {PSKT}
-     */
-    toExtractor() {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.pskt_toExtractor(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
-            }
-            return PSKT.__wrap(r0);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
-    }
-    /**
-     * @param {bigint} lock_time
-     * @returns {PSKT}
-     */
-    fallbackLockTime(lock_time) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.pskt_fallbackLockTime(retptr, this.__wbg_ptr, lock_time);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
-            }
-            return PSKT.__wrap(r0);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
-    }
-    /**
-     * @returns {PSKT}
-     */
-    inputsModifiable() {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.pskt_inputsModifiable(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
-            }
-            return PSKT.__wrap(r0);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
-    }
-    /**
-     * @returns {PSKT}
-     */
-    outputsModifiable() {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.pskt_outputsModifiable(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
-            }
-            return PSKT.__wrap(r0);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
+            heap[stack_pointer++] = undefined;
         }
     }
     /**
@@ -5493,6 +5928,13 @@ export class PSKT {
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
+    }
+    /**
+     * @returns {any}
+     */
+    get payload() {
+        const ret = wasm.pskt_payload(this.__wbg_ptr);
+        return takeObject(ret);
     }
     /**
      * @returns {PSKT}
@@ -5532,6 +5974,81 @@ export class PSKT {
             wasm.__wbindgen_add_to_stack_pointer(16);
             heap[stack_pointer++] = undefined;
             heap[stack_pointer++] = undefined;
+        }
+    }
+    /**
+     * @returns {PSKT}
+     */
+    inputsModifiable() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.pskt_inputsModifiable(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return PSKT.__wrap(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * @param {bigint} lock_time
+     * @returns {PSKT}
+     */
+    fallbackLockTime(lock_time) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.pskt_fallbackLockTime(retptr, this.__wbg_ptr, lock_time);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return PSKT.__wrap(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * @returns {PSKT}
+     */
+    outputsModifiable() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.pskt_outputsModifiable(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return PSKT.__wrap(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * @param {PSKT | Transaction | string | undefined} payload
+     */
+    constructor(payload) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.pskt_new(retptr, addHeapObject(payload));
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            this.__wbg_ptr = r0 >>> 0;
+            PSKTFinalization.register(this, this.__wbg_ptr, this);
+            return this;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
     /**
@@ -5575,14 +6092,13 @@ export class PSKT {
         }
     }
     /**
-     * @param {bigint} n
-     * @param {number} input_index
+     * Change role to `SIGNER`
      * @returns {PSKT}
      */
-    setSequence(n, input_index) {
+    toSigner() {
         try {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.pskt_setSequence(retptr, this.__wbg_ptr, n, input_index);
+            wasm.pskt_toSigner(retptr, this.__wbg_ptr);
             var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
             var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
             var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
@@ -5595,41 +6111,118 @@ export class PSKT {
         }
     }
     /**
-     * @returns {Hash}
+     * Change role to `CREATOR`
+     * #[wasm_bindgen(js_name = toCreator)]
+     * @returns {PSKT}
      */
-    calculateId() {
+    creator() {
         try {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.pskt_calculateId(retptr, this.__wbg_ptr);
+            wasm.pskt_creator(retptr, this.__wbg_ptr);
             var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
             var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
             var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
             if (r2) {
                 throw takeObject(r1);
             }
-            return Hash.__wrap(r0);
+            return PSKT.__wrap(r0);
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
     /**
-     * @param {any} data
-     * @returns {bigint}
+     * Change role to `UPDATER`
+     * @returns {PSKT}
      */
-    calculateMass(data) {
+    toUpdater() {
         try {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.pskt_calculateMass(retptr, this.__wbg_ptr, addBorrowedObject(data));
-            var r0 = getDataViewMemory0().getBigInt64(retptr + 8 * 0, true);
+            wasm.pskt_toUpdater(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
             var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
-            if (r3) {
-                throw takeObject(r2);
+            if (r2) {
+                throw takeObject(r1);
             }
-            return BigInt.asUintN(64, r0);
+            return PSKT.__wrap(r0);
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
-            heap[stack_pointer++] = undefined;
+        }
+    }
+    /**
+     * Change role to `COMBINER`
+     * @returns {PSKT}
+     */
+    toCombiner() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.pskt_toCombiner(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return PSKT.__wrap(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Change role to `EXTRACTOR`
+     * @returns {PSKT}
+     */
+    toExtractor() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.pskt_toExtractor(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return PSKT.__wrap(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Change role to `FINALIZER`
+     * @returns {PSKT}
+     */
+    toFinalizer() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.pskt_toFinalizer(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return PSKT.__wrap(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * @returns {string}
+     */
+    serialize() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.pskt_serialize(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
         }
     }
 }
@@ -5639,16 +6232,25 @@ const PaymentOutputFinalization = (typeof FinalizationRegistry === 'undefined')
     : new FinalizationRegistry(ptr => wasm.__wbg_paymentoutput_free(ptr >>> 0, 1));
 /**
  * A Rust data structure representing a single payment
- * output containing a destination address and amount.
+ * output containing a destination address, amount and covenant.
  *
  * @category Wallet SDK
  */
 export class PaymentOutput {
 
+    static __wrap(ptr) {
+        ptr = ptr >>> 0;
+        const obj = Object.create(PaymentOutput.prototype);
+        obj.__wbg_ptr = ptr;
+        PaymentOutputFinalization.register(obj, obj.__wbg_ptr, obj);
+        return obj;
+    }
+
     toJSON() {
         return {
             address: this.address,
             amount: this.amount,
+            covenant: this.covenant,
         };
     }
 
@@ -5666,6 +6268,34 @@ export class PaymentOutput {
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_paymentoutput_free(ptr, 0);
+    }
+    /**
+     * Factory method for covenant variant
+     * @param {Address} address
+     * @param {bigint} amount
+     * @param {CovenantBinding} covenant
+     * @returns {PaymentOutput}
+     */
+    static withCovenant(address, amount, covenant) {
+        _assertClass(address, Address);
+        var ptr0 = address.__destroy_into_raw();
+        _assertClass(covenant, CovenantBinding);
+        var ptr1 = covenant.__destroy_into_raw();
+        const ret = wasm.paymentoutput_withCovenant(ptr0, amount, ptr1);
+        return PaymentOutput.__wrap(ret);
+    }
+    /**
+     * Main constructor (no covenant)
+     * @param {Address} address
+     * @param {bigint} amount
+     */
+    constructor(address, amount) {
+        _assertClass(address, Address);
+        var ptr0 = address.__destroy_into_raw();
+        const ret = wasm.paymentoutput_new(ptr0, amount);
+        this.__wbg_ptr = ret >>> 0;
+        PaymentOutputFinalization.register(this, this.__wbg_ptr, this);
+        return this;
     }
     /**
      * @returns {Address}
@@ -5696,16 +6326,22 @@ export class PaymentOutput {
         wasm.__wbg_set_paymentoutput_amount(this.__wbg_ptr, arg0);
     }
     /**
-     * @param {Address} address
-     * @param {bigint} amount
+     * @returns {CovenantBinding | undefined}
      */
-    constructor(address, amount) {
-        _assertClass(address, Address);
-        var ptr0 = address.__destroy_into_raw();
-        const ret = wasm.paymentoutput_new(ptr0, amount);
-        this.__wbg_ptr = ret >>> 0;
-        PaymentOutputFinalization.register(this, this.__wbg_ptr, this);
-        return this;
+    get covenant() {
+        const ret = wasm.__wbg_get_paymentoutput_covenant(this.__wbg_ptr);
+        return ret === 0 ? undefined : CovenantBinding.__wrap(ret);
+    }
+    /**
+     * @param {CovenantBinding | null} [arg0]
+     */
+    set covenant(arg0) {
+        let ptr0 = 0;
+        if (!isLikeNone(arg0)) {
+            _assertClass(arg0, CovenantBinding);
+            ptr0 = arg0.__destroy_into_raw();
+        }
+        wasm.__wbg_set_paymentoutput_covenant(this.__wbg_ptr, ptr0);
     }
 }
 
@@ -5768,16 +6404,16 @@ export class PendingTransaction {
 
     toJSON() {
         return {
-            id: this.id,
-            paymentAmount: this.paymentAmount,
+            transaction: this.transaction,
             changeAmount: this.changeAmount,
-            feeAmount: this.feeAmount,
-            mass: this.mass,
+            paymentAmount: this.paymentAmount,
             minimumSignatures: this.minimumSignatures,
             aggregateInputAmount: this.aggregateInputAmount,
             aggregateOutputAmount: this.aggregateOutputAmount,
+            id: this.id,
+            feeAmount: this.feeAmount,
             type: this.type,
-            transaction: this.transaction,
+            mass: this.mass,
         };
     }
 
@@ -5795,144 +6431,6 @@ export class PendingTransaction {
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_pendingtransaction_free(ptr, 0);
-    }
-    /**
-     * Transaction Id
-     * @returns {string}
-     */
-    get id() {
-        let deferred1_0;
-        let deferred1_1;
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.pendingtransaction_id(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            deferred1_0 = r0;
-            deferred1_1 = r1;
-            return getStringFromWasm0(r0, r1);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
-        }
-    }
-    /**
-     * Total amount transferred to the destination (aggregate output - change).
-     * @returns {any}
-     */
-    get paymentAmount() {
-        const ret = wasm.pendingtransaction_paymentAmount(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * Change amount (if any).
-     * @returns {bigint}
-     */
-    get changeAmount() {
-        const ret = wasm.pendingtransaction_changeAmount(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * Total transaction fees (network fees + priority fees).
-     * @returns {bigint}
-     */
-    get feeAmount() {
-        const ret = wasm.pendingtransaction_feeAmount(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * Calculated transaction mass.
-     * @returns {bigint}
-     */
-    get mass() {
-        const ret = wasm.pendingtransaction_mass(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * Minimum number of signatures required by the transaction.
-     * (as specified during the transaction creation).
-     * @returns {number}
-     */
-    get minimumSignatures() {
-        const ret = wasm.pendingtransaction_minimumSignatures(this.__wbg_ptr);
-        return ret;
-    }
-    /**
-     * Total aggregate input amount.
-     * @returns {bigint}
-     */
-    get aggregateInputAmount() {
-        const ret = wasm.pendingtransaction_aggregateInputAmount(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * Total aggregate output amount.
-     * @returns {bigint}
-     */
-    get aggregateOutputAmount() {
-        const ret = wasm.pendingtransaction_aggregateOutputAmount(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * Transaction type ("batch" or "final").
-     * @returns {string}
-     */
-    get type() {
-        let deferred1_0;
-        let deferred1_1;
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.pendingtransaction_type(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            deferred1_0 = r0;
-            deferred1_1 = r1;
-            return getStringFromWasm0(r0, r1);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
-        }
-    }
-    /**
-     * List of unique addresses used by transaction inputs.
-     * This method can be used to determine addresses used by transaction inputs
-     * in order to select private keys needed for transaction signing.
-     * @returns {Array<any>}
-     */
-    addresses() {
-        const ret = wasm.pendingtransaction_addresses(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * Provides a list of UTXO entries used by the transaction.
-     * @returns {Array<any>}
-     */
-    getUtxoEntries() {
-        const ret = wasm.pendingtransaction_getUtxoEntries(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * Creates and returns a signature for the input at the specified index.
-     * @param {number} input_index
-     * @param {PrivateKey} private_key
-     * @param {SighashType | null} [sighash_type]
-     * @returns {HexString}
-     */
-    createInputSignature(input_index, private_key, sighash_type) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            _assertClass(private_key, PrivateKey);
-            wasm.pendingtransaction_createInputSignature(retptr, this.__wbg_ptr, input_index, private_key.__wbg_ptr, isLikeNone(sighash_type) ? 6 : sighash_type);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
-            }
-            return takeObject(r0);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
     }
     /**
      * Sets a signature to the input at the specified index.
@@ -5972,6 +6470,236 @@ export class PendingTransaction {
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
+    }
+    /**
+     * Returns encapsulated network [`Transaction`]
+     * @returns {Transaction}
+     */
+    get transaction() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.pendingtransaction_transaction(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return Transaction.__wrap(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Change amount (if any).
+     * @returns {bigint}
+     */
+    get changeAmount() {
+        const ret = wasm.pendingtransaction_changeAmount(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+     * Total amount transferred to the destination (aggregate output - change).
+     * @returns {any}
+     */
+    get paymentAmount() {
+        const ret = wasm.pendingtransaction_paymentAmount(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+     * Provides a list of UTXO entries used by the transaction.
+     * @returns {Array<any>}
+     */
+    getUtxoEntries() {
+        const ret = wasm.pendingtransaction_getUtxoEntries(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+     * Serializes the transaction to a JSON string.
+     * The schema of the JSON is defined by {@link ISerializableTransaction}.
+     * Once serialized, the transaction can be deserialized using {@link Transaction.deserializeFromJSON}.
+     * @see {@link Transaction}, {@link ISerializableTransaction}
+     * @returns {string}
+     */
+    serializeToJSON() {
+        let deferred2_0;
+        let deferred2_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.pendingtransaction_serializeToJSON(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
+            var ptr1 = r0;
+            var len1 = r1;
+            if (r3) {
+                ptr1 = 0; len1 = 0;
+                throw takeObject(r2);
+            }
+            deferred2_0 = ptr1;
+            deferred2_1 = len1;
+            return getStringFromWasm0(ptr1, len1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export_3(deferred2_0, deferred2_1, 1);
+        }
+    }
+    /**
+     * Minimum number of signatures required by the transaction.
+     * (as specified during the transaction creation).
+     * @returns {number}
+     */
+    get minimumSignatures() {
+        const ret = wasm.pendingtransaction_minimumSignatures(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * Serializes the transaction to a pure JavaScript Object.
+     * The schema of the JavaScript object is defined by {@link ISerializableTransaction}.
+     * @see {@link ISerializableTransaction}
+     * @see {@link Transaction}, {@link ISerializableTransaction}
+     * @returns {ITransaction | Transaction}
+     */
+    serializeToObject() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.pendingtransaction_serializeToObject(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return takeObject(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Total aggregate input amount.
+     * @returns {bigint}
+     */
+    get aggregateInputAmount() {
+        const ret = wasm.pendingtransaction_aggregateInputAmount(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+     * Total aggregate output amount.
+     * @returns {bigint}
+     */
+    get aggregateOutputAmount() {
+        const ret = wasm.pendingtransaction_aggregateOutputAmount(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+     * Creates and returns a signature for the input at the specified index.
+     * @param {number} input_index
+     * @param {PrivateKey} private_key
+     * @param {SighashType | null} [sighash_type]
+     * @returns {HexString}
+     */
+    createInputSignature(input_index, private_key, sighash_type) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            _assertClass(private_key, PrivateKey);
+            wasm.pendingtransaction_createInputSignature(retptr, this.__wbg_ptr, input_index, private_key.__wbg_ptr, isLikeNone(sighash_type) ? 6 : sighash_type);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return takeObject(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Serializes the transaction to a "Safe" JSON schema where it converts all `bigint` values to `string` to avoid potential client-side precision loss.
+     * Once serialized, the transaction can be deserialized using {@link Transaction.deserializeFromSafeJSON}.
+     * @see {@link Transaction}, {@link ISerializableTransaction}
+     * @returns {string}
+     */
+    serializeToSafeJSON() {
+        let deferred2_0;
+        let deferred2_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.pendingtransaction_serializeToSafeJSON(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
+            var ptr1 = r0;
+            var len1 = r1;
+            if (r3) {
+                ptr1 = 0; len1 = 0;
+                throw takeObject(r2);
+            }
+            deferred2_0 = ptr1;
+            deferred2_1 = len1;
+            return getStringFromWasm0(ptr1, len1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export_3(deferred2_0, deferred2_1, 1);
+        }
+    }
+    /**
+     * Transaction Id
+     * @returns {string}
+     */
+    get id() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.pendingtransaction_id(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * Total transaction fees (network fees + priority fees).
+     * @returns {bigint}
+     */
+    get feeAmount() {
+        const ret = wasm.pendingtransaction_feeAmount(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+     * Transaction type ("batch" or "final").
+     * @returns {string}
+     */
+    get type() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.pendingtransaction_type(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * Calculated transaction mass.
+     * @returns {bigint}
+     */
+    get mass() {
+        const ret = wasm.pendingtransaction_mass(this.__wbg_ptr);
+        return takeObject(ret);
     }
     /**
      * Signs transaction with supplied [`Array`] or [`PrivateKey`] or an array of
@@ -6016,106 +6744,14 @@ export class PendingTransaction {
         return takeObject(ret);
     }
     /**
-     * Returns encapsulated network [`Transaction`]
-     * @returns {Transaction}
+     * List of unique addresses used by transaction inputs.
+     * This method can be used to determine addresses used by transaction inputs
+     * in order to select private keys needed for transaction signing.
+     * @returns {Array<any>}
      */
-    get transaction() {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.pendingtransaction_transaction(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
-            }
-            return Transaction.__wrap(r0);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
-    }
-    /**
-     * Serializes the transaction to a pure JavaScript Object.
-     * The schema of the JavaScript object is defined by {@link ISerializableTransaction}.
-     * @see {@link ISerializableTransaction}
-     * @see {@link Transaction}, {@link ISerializableTransaction}
-     * @returns {ITransaction | Transaction}
-     */
-    serializeToObject() {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.pendingtransaction_serializeToObject(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
-            }
-            return takeObject(r0);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
-    }
-    /**
-     * Serializes the transaction to a JSON string.
-     * The schema of the JSON is defined by {@link ISerializableTransaction}.
-     * Once serialized, the transaction can be deserialized using {@link Transaction.deserializeFromJSON}.
-     * @see {@link Transaction}, {@link ISerializableTransaction}
-     * @returns {string}
-     */
-    serializeToJSON() {
-        let deferred2_0;
-        let deferred2_1;
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.pendingtransaction_serializeToJSON(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
-            var ptr1 = r0;
-            var len1 = r1;
-            if (r3) {
-                ptr1 = 0; len1 = 0;
-                throw takeObject(r2);
-            }
-            deferred2_0 = ptr1;
-            deferred2_1 = len1;
-            return getStringFromWasm0(ptr1, len1);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_export_3(deferred2_0, deferred2_1, 1);
-        }
-    }
-    /**
-     * Serializes the transaction to a "Safe" JSON schema where it converts all `bigint` values to `string` to avoid potential client-side precision loss.
-     * Once serialized, the transaction can be deserialized using {@link Transaction.deserializeFromSafeJSON}.
-     * @see {@link Transaction}, {@link ISerializableTransaction}
-     * @returns {string}
-     */
-    serializeToSafeJSON() {
-        let deferred2_0;
-        let deferred2_1;
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.pendingtransaction_serializeToSafeJSON(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
-            var ptr1 = r0;
-            var len1 = r1;
-            if (r3) {
-                ptr1 = 0; len1 = 0;
-                throw takeObject(r2);
-            }
-            deferred2_0 = ptr1;
-            deferred2_1 = len1;
-            return getStringFromWasm0(ptr1, len1);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_export_3(deferred2_0, deferred2_1, 1);
-        }
+    addresses() {
+        const ret = wasm.pendingtransaction_addresses(this.__wbg_ptr);
+        return takeObject(ret);
     }
 }
 
@@ -6137,6 +6773,14 @@ export class PipeOptions {
         wasm.__wbg_pipeoptions_free(ptr, 0);
     }
     /**
+     * @returns {boolean | undefined}
+     */
+    get end() {
+        const ptr = this.__destroy_into_raw();
+        const ret = wasm.pipeoptions_end(ptr);
+        return ret === 0xFFFFFF ? undefined : ret !== 0;
+    }
+    /**
      * @param {boolean | null} [end]
      */
     constructor(end) {
@@ -6144,14 +6788,6 @@ export class PipeOptions {
         this.__wbg_ptr = ret >>> 0;
         PipeOptionsFinalization.register(this, this.__wbg_ptr, this);
         return this;
-    }
-    /**
-     * @returns {boolean | undefined}
-     */
-    get end() {
-        const ptr = this.__destroy_into_raw();
-        const ret = wasm.pipeoptions_end(ptr);
-        return ret === 0xFFFFFF ? undefined : ret !== 0;
     }
     /**
      * @param {boolean | null} [value]
@@ -6181,8 +6817,8 @@ export class PoW {
 
     toJSON() {
         return {
-            target: this.target,
             prePoWHash: this.prePoWHash,
+            target: this.target,
         };
     }
 
@@ -6200,47 +6836,6 @@ export class PoW {
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_pow_free(ptr, 0);
-    }
-    /**
-     * @param {Header | IHeader | IRawHeader} header
-     * @param {bigint | null} [timestamp]
-     */
-    constructor(header, timestamp) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.pow_new(retptr, addBorrowedObject(header), !isLikeNone(timestamp), isLikeNone(timestamp) ? BigInt(0) : timestamp);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
-            }
-            this.__wbg_ptr = r0 >>> 0;
-            PoWFinalization.register(this, this.__wbg_ptr, this);
-            return this;
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-            heap[stack_pointer++] = undefined;
-        }
-    }
-    /**
-     * The target based on the provided bits.
-     * @returns {bigint}
-     */
-    get target() {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.pow_target(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
-            }
-            return takeObject(r0);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
     }
     /**
      * Checks if the computed target meets or exceeds the difficulty specified in the template.
@@ -6281,6 +6876,47 @@ export class PoW {
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * @param {Header | IHeader | IRawHeader} header
+     * @param {bigint | null} [timestamp]
+     */
+    constructor(header, timestamp) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.pow_new(retptr, addBorrowedObject(header), !isLikeNone(timestamp), isLikeNone(timestamp) ? BigInt(0) : timestamp);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            this.__wbg_ptr = r0 >>> 0;
+            PoWFinalization.register(this, this.__wbg_ptr, this);
+            return this;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            heap[stack_pointer++] = undefined;
+        }
+    }
+    /**
+     * The target based on the provided bits.
+     * @returns {bigint}
+     */
+    get target() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.pow_target(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return takeObject(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
     /**
@@ -6338,46 +6974,27 @@ export class PrivateKey {
         wasm.__wbg_privatekey_free(ptr, 0);
     }
     /**
-     * Create a new [`PrivateKey`] from a hex-encoded string.
-     * @param {string} key
+     * Get the [`Address`] of the PublicKey generated from this PrivateKey.
+     * Receives a [`NetworkType`](kaspa_consensus_core::network::NetworkType)
+     * to determine the prefix of the address.
+     * JavaScript: `let address = privateKey.toAddress(NetworkType.MAINNET);`.
+     * @param {NetworkType | NetworkId | string} network
+     * @returns {Address}
      */
-    constructor(key) {
+    toAddress(network) {
         try {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            const ptr0 = passStringToWasm0(key, wasm.__wbindgen_export_1, wasm.__wbindgen_export_2);
-            const len0 = WASM_VECTOR_LEN;
-            wasm.privatekey_try_new(retptr, ptr0, len0);
+            wasm.privatekey_toAddress(retptr, this.__wbg_ptr, addBorrowedObject(network));
             var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
             var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
             var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
             if (r2) {
                 throw takeObject(r1);
             }
-            this.__wbg_ptr = r0 >>> 0;
-            PrivateKeyFinalization.register(this, this.__wbg_ptr, this);
-            return this;
+            return Address.__wrap(r0);
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
-        }
-    }
-    /**
-     * Returns the [`PrivateKey`] key encoded as a hex string.
-     * @returns {string}
-     */
-    toString() {
-        let deferred1_0;
-        let deferred1_1;
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.privatekey_toString(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            deferred1_0 = r0;
-            deferred1_1 = r1;
-            return getStringFromWasm0(r0, r1);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
+            heap[stack_pointer++] = undefined;
         }
     }
     /**
@@ -6418,30 +7035,6 @@ export class PrivateKey {
         }
     }
     /**
-     * Get the [`Address`] of the PublicKey generated from this PrivateKey.
-     * Receives a [`NetworkType`](kaspa_consensus_core::network::NetworkType)
-     * to determine the prefix of the address.
-     * JavaScript: `let address = privateKey.toAddress(NetworkType.MAINNET);`.
-     * @param {NetworkType | NetworkId | string} network
-     * @returns {Address}
-     */
-    toAddress(network) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.privatekey_toAddress(retptr, this.__wbg_ptr, addBorrowedObject(network));
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
-            }
-            return Address.__wrap(r0);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-            heap[stack_pointer++] = undefined;
-        }
-    }
-    /**
      * Get `ECDSA` [`Address`] of the PublicKey generated from this PrivateKey.
      * Receives a [`NetworkType`](kaspa_consensus_core::network::NetworkType)
      * to determine the prefix of the address.
@@ -6463,6 +7056,49 @@ export class PrivateKey {
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             heap[stack_pointer++] = undefined;
+        }
+    }
+    /**
+     * Returns the [`PrivateKey`] key encoded as a hex string.
+     * @returns {string}
+     */
+    toString() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.privatekey_toString(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * Create a new [`PrivateKey`] from a hex-encoded string.
+     * @param {string} key
+     */
+    constructor(key) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            const ptr0 = passStringToWasm0(key, wasm.__wbindgen_export_1, wasm.__wbindgen_export_2);
+            const len0 = WASM_VECTOR_LEN;
+            wasm.privatekey_try_new(retptr, ptr0, len0);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            this.__wbg_ptr = r0 >>> 0;
+            PrivateKeyFinalization.register(this, this.__wbg_ptr, this);
+            return this;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
 }
@@ -6496,6 +7132,44 @@ export class PrivateKeyGenerator {
         wasm.__wbg_privatekeygenerator_free(ptr, 0);
     }
     /**
+     * @param {number} index
+     * @returns {PrivateKey}
+     */
+    changeKey(index) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.privatekeygenerator_changeKey(retptr, this.__wbg_ptr, index);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return PrivateKey.__wrap(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * @param {number} index
+     * @returns {PrivateKey}
+     */
+    receiveKey(index) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.privatekeygenerator_receiveKey(retptr, this.__wbg_ptr, index);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return PrivateKey.__wrap(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
      * @param {XPrv | string} xprv
      * @param {boolean} is_multisig
      * @param {bigint} account_index
@@ -6519,44 +7193,6 @@ export class PrivateKeyGenerator {
             heap[stack_pointer++] = undefined;
         }
     }
-    /**
-     * @param {number} index
-     * @returns {PrivateKey}
-     */
-    receiveKey(index) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.privatekeygenerator_receiveKey(retptr, this.__wbg_ptr, index);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
-            }
-            return PrivateKey.__wrap(r0);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
-    }
-    /**
-     * @param {number} index
-     * @returns {PrivateKey}
-     */
-    changeKey(index) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.privatekeygenerator_changeKey(retptr, this.__wbg_ptr, index);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
-            }
-            return PrivateKey.__wrap(r0);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
-    }
 }
 
 const ProcessSendOptionsFinalization = (typeof FinalizationRegistry === 'undefined')
@@ -6577,15 +7213,6 @@ export class ProcessSendOptions {
         wasm.__wbg_processsendoptions_free(ptr, 0);
     }
     /**
-     * @param {boolean | null} [swallow_errors]
-     */
-    constructor(swallow_errors) {
-        const ret = wasm.processsendoptions_new(isLikeNone(swallow_errors) ? 0xFFFFFF : swallow_errors ? 1 : 0);
-        this.__wbg_ptr = ret >>> 0;
-        ProcessSendOptionsFinalization.register(this, this.__wbg_ptr, this);
-        return this;
-    }
-    /**
      * @returns {boolean | undefined}
      */
     get swallow_errors() {
@@ -6597,6 +7224,15 @@ export class ProcessSendOptions {
      */
     set swallow_errors(value) {
         wasm.processsendoptions_set_swallow_errors(this.__wbg_ptr, isLikeNone(value) ? 0xFFFFFF : value ? 1 : 0);
+    }
+    /**
+     * @param {boolean | null} [swallow_errors]
+     */
+    constructor(swallow_errors) {
+        const ret = wasm.processsendoptions_new(isLikeNone(swallow_errors) ? 0xFFFFFF : swallow_errors ? 1 : 0);
+        this.__wbg_ptr = ret >>> 0;
+        ProcessSendOptionsFinalization.register(this, this.__wbg_ptr, this);
+        return this;
     }
 }
 
@@ -6618,6 +7254,13 @@ export class PrvKeyDataInfo {
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_prvkeydatainfo_free(ptr, 0);
+    }
+    /**
+     * @returns {any}
+     */
+    get isEncrypted() {
+        const ret = wasm.prvkeydatainfo_isEncrypted(this.__wbg_ptr);
+        return takeObject(ret);
     }
     /**
      * @returns {string}
@@ -6643,13 +7286,6 @@ export class PrvKeyDataInfo {
      */
     get name() {
         const ret = wasm.prvkeydatainfo_name(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * @returns {any}
-     */
-    get isEncrypted() {
-        const ret = wasm.prvkeydatainfo_isEncrypted(this.__wbg_ptr);
         return takeObject(ret);
     }
     /**
@@ -6702,46 +7338,13 @@ export class PublicKey {
         wasm.__wbg_publickey_free(ptr, 0);
     }
     /**
-     * Create a new [`PublicKey`] from a hex-encoded string.
-     * @param {string} key
+     * Compute a 4-byte key fingerprint for this public key as a hex string.
+     * Default implementation uses `RIPEMD160(SHA256(public_key))`.
+     * @returns {HexString | undefined}
      */
-    constructor(key) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            const ptr0 = passStringToWasm0(key, wasm.__wbindgen_export_1, wasm.__wbindgen_export_2);
-            const len0 = WASM_VECTOR_LEN;
-            wasm.publickey_try_new(retptr, ptr0, len0);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
-            }
-            this.__wbg_ptr = r0 >>> 0;
-            PublicKeyFinalization.register(this, this.__wbg_ptr, this);
-            return this;
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
-    }
-    /**
-     * @returns {string}
-     */
-    toString() {
-        let deferred1_0;
-        let deferred1_1;
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.publickey_toString(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            deferred1_0 = r0;
-            deferred1_1 = r1;
-            return getStringFromWasm0(r0, r1);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
-        }
+    fingerprint() {
+        const ret = wasm.publickey_fingerprint(this.__wbg_ptr);
+        return takeObject(ret);
     }
     /**
      * Get the [`Address`] of this PublicKey.
@@ -6764,6 +7367,25 @@ export class PublicKey {
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             heap[stack_pointer++] = undefined;
+        }
+    }
+    /**
+     * @returns {string}
+     */
+    toString() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.publickey_toString(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
         }
     }
     /**
@@ -6797,13 +7419,27 @@ export class PublicKey {
         return XOnlyPublicKey.__wrap(ret);
     }
     /**
-     * Compute a 4-byte key fingerprint for this public key as a hex string.
-     * Default implementation uses `RIPEMD160(SHA256(public_key))`.
-     * @returns {HexString | undefined}
+     * Create a new [`PublicKey`] from a hex-encoded string.
+     * @param {string} key
      */
-    fingerprint() {
-        const ret = wasm.publickey_fingerprint(this.__wbg_ptr);
-        return takeObject(ret);
+    constructor(key) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            const ptr0 = passStringToWasm0(key, wasm.__wbindgen_export_1, wasm.__wbindgen_export_2);
+            const len0 = WASM_VECTOR_LEN;
+            wasm.publickey_try_new(retptr, ptr0, len0);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            this.__wbg_ptr = r0 >>> 0;
+            PublicKeyFinalization.register(this, this.__wbg_ptr, this);
+            return this;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
     }
 }
 
@@ -6842,59 +7478,57 @@ export class PublicKeyGenerator {
         wasm.__wbg_publickeygenerator_free(ptr, 0);
     }
     /**
-     * @param {XPub | string} kpub
-     * @param {number | null} [cosigner_index]
-     * @returns {PublicKeyGenerator}
+     * Generate a single Change Public Key derivation at a given index.
+     * @param {number} index
+     * @returns {PublicKey}
      */
-    static fromXPub(kpub, cosigner_index) {
+    changePubkey(index) {
         try {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.publickeygenerator_fromXPub(retptr, addBorrowedObject(kpub), isLikeNone(cosigner_index) ? 0x100000001 : (cosigner_index) >>> 0);
+            wasm.publickeygenerator_changePubkey(retptr, this.__wbg_ptr, index);
             var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
             var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
             var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
             if (r2) {
                 throw takeObject(r1);
             }
-            return PublicKeyGenerator.__wrap(r0);
+            return PublicKey.__wrap(r0);
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
-            heap[stack_pointer++] = undefined;
         }
     }
     /**
-     * @param {XPrv | string} xprv
-     * @param {boolean} is_multisig
-     * @param {bigint} account_index
-     * @param {number | null} [cosigner_index]
-     * @returns {PublicKeyGenerator}
+     * Generate a single Change Address derivation at a given index.
+     * @param {NetworkType | NetworkId | string} networkType
+     * @param {number} index
+     * @returns {Address}
      */
-    static fromMasterXPrv(xprv, is_multisig, account_index, cosigner_index) {
+    changeAddress(networkType, index) {
         try {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.publickeygenerator_fromMasterXPrv(retptr, addBorrowedObject(xprv), is_multisig, account_index, isLikeNone(cosigner_index) ? 0x100000001 : (cosigner_index) >>> 0);
+            wasm.publickeygenerator_changeAddress(retptr, this.__wbg_ptr, addBorrowedObject(networkType), index);
             var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
             var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
             var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
             if (r2) {
                 throw takeObject(r1);
             }
-            return PublicKeyGenerator.__wrap(r0);
+            return Address.__wrap(r0);
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             heap[stack_pointer++] = undefined;
         }
     }
     /**
-     * Generate Receive Public Key derivations for a given range.
+     * Generate Change Public Key derivations for a given range.
      * @param {number} start
      * @param {number} end
      * @returns {(PublicKey | string)[]}
      */
-    receivePubkeys(start, end) {
+    changePubkeys(start, end) {
         try {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.publickeygenerator_receivePubkeys(retptr, this.__wbg_ptr, start, end);
+            wasm.publickeygenerator_changePubkeys(retptr, this.__wbg_ptr, start, end);
             var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
             var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
             var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
@@ -6927,15 +7561,37 @@ export class PublicKeyGenerator {
         }
     }
     /**
-     * Generate a range of Receive Public Key derivations and return them as strings.
-     * @param {number} start
-     * @param {number} end
-     * @returns {Array<string>}
+     * Generate a single Receive Address derivation at a given index.
+     * @param {NetworkType | NetworkId | string} networkType
+     * @param {number} index
+     * @returns {Address}
      */
-    receivePubkeysAsStrings(start, end) {
+    receiveAddress(networkType, index) {
         try {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.publickeygenerator_receivePubkeysAsStrings(retptr, this.__wbg_ptr, start, end);
+            wasm.publickeygenerator_receiveAddress(retptr, this.__wbg_ptr, addBorrowedObject(networkType), index);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return Address.__wrap(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            heap[stack_pointer++] = undefined;
+        }
+    }
+    /**
+     * Generate Receive Public Key derivations for a given range.
+     * @param {number} start
+     * @param {number} end
+     * @returns {(PublicKey | string)[]}
+     */
+    receivePubkeys(start, end) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.publickeygenerator_receivePubkeys(retptr, this.__wbg_ptr, start, end);
             var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
             var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
             var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
@@ -6945,6 +7601,135 @@ export class PublicKeyGenerator {
             return takeObject(r0);
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Generate Change Address derivations for a given range.
+     * @param {NetworkType | NetworkId | string} networkType
+     * @param {number} start
+     * @param {number} end
+     * @returns {Address[]}
+     */
+    changeAddresses(networkType, start, end) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.publickeygenerator_changeAddresses(retptr, this.__wbg_ptr, addBorrowedObject(networkType), start, end);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return takeObject(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            heap[stack_pointer++] = undefined;
+        }
+    }
+    /**
+     * @param {XPrv | string} xprv
+     * @param {boolean} is_multisig
+     * @param {bigint} account_index
+     * @param {number | null} [cosigner_index]
+     * @returns {PublicKeyGenerator}
+     */
+    static fromMasterXPrv(xprv, is_multisig, account_index, cosigner_index) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.publickeygenerator_fromMasterXPrv(retptr, addBorrowedObject(xprv), is_multisig, account_index, isLikeNone(cosigner_index) ? 0x100000001 : (cosigner_index) >>> 0);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return PublicKeyGenerator.__wrap(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            heap[stack_pointer++] = undefined;
+        }
+    }
+    /**
+     * Generate Receive Address derivations for a given range.
+     * @param {NetworkType | NetworkId | string} networkType
+     * @param {number} start
+     * @param {number} end
+     * @returns {Address[]}
+     */
+    receiveAddresses(networkType, start, end) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.publickeygenerator_receiveAddresses(retptr, this.__wbg_ptr, addBorrowedObject(networkType), start, end);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return takeObject(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            heap[stack_pointer++] = undefined;
+        }
+    }
+    /**
+     * Generate a single Change Public Key derivation at a given index and return it as a string.
+     * @param {number} index
+     * @returns {string}
+     */
+    changePubkeyAsString(index) {
+        let deferred2_0;
+        let deferred2_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.publickeygenerator_changePubkeyAsString(retptr, this.__wbg_ptr, index);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
+            var ptr1 = r0;
+            var len1 = r1;
+            if (r3) {
+                ptr1 = 0; len1 = 0;
+                throw takeObject(r2);
+            }
+            deferred2_0 = ptr1;
+            deferred2_1 = len1;
+            return getStringFromWasm0(ptr1, len1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export_3(deferred2_0, deferred2_1, 1);
+        }
+    }
+    /**
+     * Generate a single Change Address derivation at a given index and return it as a string.
+     * @param {NetworkType | NetworkId | string} networkType
+     * @param {number} index
+     * @returns {string}
+     */
+    changeAddressAsString(networkType, index) {
+        let deferred2_0;
+        let deferred2_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.publickeygenerator_changeAddressAsString(retptr, this.__wbg_ptr, addBorrowedObject(networkType), index);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
+            var ptr1 = r0;
+            var len1 = r1;
+            if (r3) {
+                ptr1 = 0; len1 = 0;
+                throw takeObject(r2);
+            }
+            deferred2_0 = ptr1;
+            deferred2_1 = len1;
+            return getStringFromWasm0(ptr1, len1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            heap[stack_pointer++] = undefined;
+            wasm.__wbindgen_export_3(deferred2_0, deferred2_1, 1);
         }
     }
     /**
@@ -6977,61 +7762,15 @@ export class PublicKeyGenerator {
         }
     }
     /**
-     * Generate Receive Address derivations for a given range.
-     * @param {NetworkType | NetworkId | string} networkType
-     * @param {number} start
-     * @param {number} end
-     * @returns {Address[]}
-     */
-    receiveAddresses(networkType, start, end) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.publickeygenerator_receiveAddresses(retptr, this.__wbg_ptr, addBorrowedObject(networkType), start, end);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
-            }
-            return takeObject(r0);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-            heap[stack_pointer++] = undefined;
-        }
-    }
-    /**
-     * Generate a single Receive Address derivation at a given index.
-     * @param {NetworkType | NetworkId | string} networkType
-     * @param {number} index
-     * @returns {Address}
-     */
-    receiveAddress(networkType, index) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.publickeygenerator_receiveAddress(retptr, this.__wbg_ptr, addBorrowedObject(networkType), index);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
-            }
-            return Address.__wrap(r0);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-            heap[stack_pointer++] = undefined;
-        }
-    }
-    /**
-     * Generate a range of Receive Address derivations and return them as strings.
-     * @param {NetworkType | NetworkId | string} networkType
+     * Generate a range of Change Public Key derivations and return them as strings.
      * @param {number} start
      * @param {number} end
      * @returns {Array<string>}
      */
-    receiveAddressAsStrings(networkType, start, end) {
+    changePubkeysAsStrings(start, end) {
         try {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.publickeygenerator_receiveAddressAsStrings(retptr, this.__wbg_ptr, addBorrowedObject(networkType), start, end);
+            wasm.publickeygenerator_changePubkeysAsStrings(retptr, this.__wbg_ptr, start, end);
             var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
             var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
             var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
@@ -7041,7 +7780,6 @@ export class PublicKeyGenerator {
             return takeObject(r0);
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
-            heap[stack_pointer++] = undefined;
         }
     }
     /**
@@ -7076,56 +7814,15 @@ export class PublicKeyGenerator {
         }
     }
     /**
-     * Generate Change Public Key derivations for a given range.
-     * @param {number} start
-     * @param {number} end
-     * @returns {(PublicKey | string)[]}
-     */
-    changePubkeys(start, end) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.publickeygenerator_changePubkeys(retptr, this.__wbg_ptr, start, end);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
-            }
-            return takeObject(r0);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
-    }
-    /**
-     * Generate a single Change Public Key derivation at a given index.
-     * @param {number} index
-     * @returns {PublicKey}
-     */
-    changePubkey(index) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.publickeygenerator_changePubkey(retptr, this.__wbg_ptr, index);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
-            }
-            return PublicKey.__wrap(r0);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
-    }
-    /**
-     * Generate a range of Change Public Key derivations and return them as strings.
+     * Generate a range of Receive Public Key derivations and return them as strings.
      * @param {number} start
      * @param {number} end
      * @returns {Array<string>}
      */
-    changePubkeysAsStrings(start, end) {
+    receivePubkeysAsStrings(start, end) {
         try {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.publickeygenerator_changePubkeysAsStrings(retptr, this.__wbg_ptr, start, end);
+            wasm.publickeygenerator_receivePubkeysAsStrings(retptr, this.__wbg_ptr, start, end);
             var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
             var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
             var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
@@ -7135,80 +7832,6 @@ export class PublicKeyGenerator {
             return takeObject(r0);
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
-        }
-    }
-    /**
-     * Generate a single Change Public Key derivation at a given index and return it as a string.
-     * @param {number} index
-     * @returns {string}
-     */
-    changePubkeyAsString(index) {
-        let deferred2_0;
-        let deferred2_1;
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.publickeygenerator_changePubkeyAsString(retptr, this.__wbg_ptr, index);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
-            var ptr1 = r0;
-            var len1 = r1;
-            if (r3) {
-                ptr1 = 0; len1 = 0;
-                throw takeObject(r2);
-            }
-            deferred2_0 = ptr1;
-            deferred2_1 = len1;
-            return getStringFromWasm0(ptr1, len1);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_export_3(deferred2_0, deferred2_1, 1);
-        }
-    }
-    /**
-     * Generate Change Address derivations for a given range.
-     * @param {NetworkType | NetworkId | string} networkType
-     * @param {number} start
-     * @param {number} end
-     * @returns {Address[]}
-     */
-    changeAddresses(networkType, start, end) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.publickeygenerator_changeAddresses(retptr, this.__wbg_ptr, addBorrowedObject(networkType), start, end);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
-            }
-            return takeObject(r0);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-            heap[stack_pointer++] = undefined;
-        }
-    }
-    /**
-     * Generate a single Change Address derivation at a given index.
-     * @param {NetworkType | NetworkId | string} networkType
-     * @param {number} index
-     * @returns {Address}
-     */
-    changeAddress(networkType, index) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.publickeygenerator_changeAddress(retptr, this.__wbg_ptr, addBorrowedObject(networkType), index);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
-            }
-            return Address.__wrap(r0);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-            heap[stack_pointer++] = undefined;
         }
     }
     /**
@@ -7235,34 +7858,47 @@ export class PublicKeyGenerator {
         }
     }
     /**
-     * Generate a single Change Address derivation at a given index and return it as a string.
+     * Generate a range of Receive Address derivations and return them as strings.
      * @param {NetworkType | NetworkId | string} networkType
-     * @param {number} index
-     * @returns {string}
+     * @param {number} start
+     * @param {number} end
+     * @returns {Array<string>}
      */
-    changeAddressAsString(networkType, index) {
-        let deferred2_0;
-        let deferred2_1;
+    receiveAddressAsStrings(networkType, start, end) {
         try {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.publickeygenerator_changeAddressAsString(retptr, this.__wbg_ptr, addBorrowedObject(networkType), index);
+            wasm.publickeygenerator_receiveAddressAsStrings(retptr, this.__wbg_ptr, addBorrowedObject(networkType), start, end);
             var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
             var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
             var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
-            var ptr1 = r0;
-            var len1 = r1;
-            if (r3) {
-                ptr1 = 0; len1 = 0;
-                throw takeObject(r2);
+            if (r2) {
+                throw takeObject(r1);
             }
-            deferred2_0 = ptr1;
-            deferred2_1 = len1;
-            return getStringFromWasm0(ptr1, len1);
+            return takeObject(r0);
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             heap[stack_pointer++] = undefined;
-            wasm.__wbindgen_export_3(deferred2_0, deferred2_1, 1);
+        }
+    }
+    /**
+     * @param {XPub | string} kpub
+     * @param {number | null} [cosigner_index]
+     * @returns {PublicKeyGenerator}
+     */
+    static fromXPub(kpub, cosigner_index) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.publickeygenerator_fromXPub(retptr, addBorrowedObject(kpub), isLikeNone(cosigner_index) ? 0x100000001 : (cosigner_index) >>> 0);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return PublicKeyGenerator.__wrap(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            heap[stack_pointer++] = undefined;
         }
     }
     /**
@@ -7315,30 +7951,6 @@ export class ReadStream {
      * @param {Function} listener
      * @returns {any}
      */
-    add_listener_with_open(listener) {
-        try {
-            const ret = wasm.readstream_add_listener_with_open(this.__wbg_ptr, addBorrowedObject(listener));
-            return takeObject(ret);
-        } finally {
-            heap[stack_pointer++] = undefined;
-        }
-    }
-    /**
-     * @param {Function} listener
-     * @returns {any}
-     */
-    add_listener_with_close(listener) {
-        try {
-            const ret = wasm.readstream_add_listener_with_close(this.__wbg_ptr, addBorrowedObject(listener));
-            return takeObject(ret);
-        } finally {
-            heap[stack_pointer++] = undefined;
-        }
-    }
-    /**
-     * @param {Function} listener
-     * @returns {any}
-     */
     on_with_open(listener) {
         try {
             const ret = wasm.readstream_on_with_open(this.__wbg_ptr, addBorrowedObject(listener));
@@ -7378,6 +7990,30 @@ export class ReadStream {
     once_with_close(listener) {
         try {
             const ret = wasm.readstream_once_with_close(this.__wbg_ptr, addBorrowedObject(listener));
+            return takeObject(ret);
+        } finally {
+            heap[stack_pointer++] = undefined;
+        }
+    }
+    /**
+     * @param {Function} listener
+     * @returns {any}
+     */
+    add_listener_with_open(listener) {
+        try {
+            const ret = wasm.readstream_add_listener_with_open(this.__wbg_ptr, addBorrowedObject(listener));
+            return takeObject(ret);
+        } finally {
+            heap[stack_pointer++] = undefined;
+        }
+    }
+    /**
+     * @param {Function} listener
+     * @returns {any}
+     */
+    add_listener_with_close(listener) {
+        try {
+            const ret = wasm.readstream_add_listener_with_close(this.__wbg_ptr, addBorrowedObject(listener));
             return takeObject(ret);
         } finally {
             heap[stack_pointer++] = undefined;
@@ -7496,47 +8132,6 @@ export class Resolver {
         wasm.__wbg_resolver_free(ptr, 0);
     }
     /**
-     * List of public Kaspa Resolver URLs.
-     * @returns {string[] | undefined}
-     */
-    get urls() {
-        const ret = wasm.resolver_urls(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * Fetches a public Kaspa wRPC endpoint for the given encoding and network identifier.
-     * @see {@link Encoding}, {@link NetworkId}, {@link Node}
-     * @param {Encoding} encoding
-     * @param {NetworkId | string} network_id
-     * @returns {Promise<NodeDescriptor>}
-     */
-    getNode(encoding, network_id) {
-        const ret = wasm.resolver_getNode(this.__wbg_ptr, encoding, addHeapObject(network_id));
-        return takeObject(ret);
-    }
-    /**
-     * Fetches a public Kaspa wRPC endpoint URL for the given encoding and network identifier.
-     * @see {@link Encoding}, {@link NetworkId}
-     * @param {Encoding} encoding
-     * @param {NetworkId | string} network_id
-     * @returns {Promise<string>}
-     */
-    getUrl(encoding, network_id) {
-        const ret = wasm.resolver_getUrl(this.__wbg_ptr, encoding, addHeapObject(network_id));
-        return takeObject(ret);
-    }
-    /**
-     * Connect to a public Kaspa wRPC endpoint for the given encoding and network identifier
-     * supplied via {@link IResolverConnect} interface.
-     * @see {@link IResolverConnect}, {@link RpcClient}
-     * @param {IResolverConnect | NetworkId | string} options
-     * @returns {Promise<RpcClient>}
-     */
-    connect(options) {
-        const ret = wasm.resolver_connect(this.__wbg_ptr, addHeapObject(options));
-        return takeObject(ret);
-    }
-    /**
      * Creates a new Resolver client with the given
      * configuration supplied as {@link IResolverConfig}
      * interface. If not supplied, the default configuration
@@ -7560,6 +8155,47 @@ export class Resolver {
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
+    }
+    /**
+     * List of public Kaspa Resolver URLs.
+     * @returns {string[] | undefined}
+     */
+    get urls() {
+        const ret = wasm.resolver_urls(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+     * Connect to a public Kaspa wRPC endpoint for the given encoding and network identifier
+     * supplied via {@link IResolverConnect} interface.
+     * @see {@link IResolverConnect}, {@link RpcClient}
+     * @param {IResolverConnect | NetworkId | string} options
+     * @returns {Promise<RpcClient>}
+     */
+    connect(options) {
+        const ret = wasm.resolver_connect(this.__wbg_ptr, addHeapObject(options));
+        return takeObject(ret);
+    }
+    /**
+     * Fetches a public Kaspa wRPC endpoint URL for the given encoding and network identifier.
+     * @see {@link Encoding}, {@link NetworkId}
+     * @param {Encoding} encoding
+     * @param {NetworkId | string} network_id
+     * @returns {Promise<string>}
+     */
+    getUrl(encoding, network_id) {
+        const ret = wasm.resolver_getUrl(this.__wbg_ptr, encoding, addHeapObject(network_id));
+        return takeObject(ret);
+    }
+    /**
+     * Fetches a public Kaspa wRPC endpoint for the given encoding and network identifier.
+     * @see {@link Encoding}, {@link NetworkId}, {@link Node}
+     * @param {Encoding} encoding
+     * @param {NetworkId | string} network_id
+     * @returns {Promise<NodeDescriptor>}
+     */
+    getNode(encoding, network_id) {
+        const ret = wasm.resolver_getNode(this.__wbg_ptr, encoding, addHeapObject(network_id));
+        return takeObject(ret);
     }
 }
 
@@ -7664,11 +8300,12 @@ export class RpcClient {
 
     toJSON() {
         return {
-            url: this.url,
-            resolver: this.resolver,
+            networkId: this.networkId,
             isConnected: this.isConnected,
-            encoding: this.encoding,
             nodeId: this.nodeId,
+            url: this.url,
+            encoding: this.encoding,
+            resolver: this.resolver,
         };
     }
 
@@ -7688,86 +8325,43 @@ export class RpcClient {
         wasm.__wbg_rpcclient_free(ptr, 0);
     }
     /**
-     * Retrieves the current number of blocks in the Kaspa BlockDAG.
-     * This is not a block count, not a "block height" and can not be
-     * used for transaction validation.
-     * Returned information: Current block count.
-     * @see {@link IGetBlockCountRequest}, {@link IGetBlockCountResponse}
-     * @throws `string` on an RPC error or a server-side error.
-     * @param {IGetBlockCountRequest | null} [request]
-     * @returns {Promise<IGetBlockCountResponse>}
+     * Disconnect from the Kaspa RPC server.
+     * @returns {Promise<void>}
      */
-    getBlockCount(request) {
-        const ret = wasm.rpcclient_getBlockCount(this.__wbg_ptr, isLikeNone(request) ? 0 : addHeapObject(request));
+    disconnect() {
+        const ret = wasm.rpcclient_disconnect(this.__wbg_ptr);
         return takeObject(ret);
     }
     /**
-     * Provides information about the Directed Acyclic Graph (DAG)
-     * structure of the Kaspa BlockDAG.
-     * Returned information: Number of blocks in the DAG,
-     * number of tips in the DAG, hash of the selected parent block,
-     * difficulty of the selected parent block, selected parent block
-     * blue score, selected parent block time.
-     * @see {@link IGetBlockDagInfoRequest}, {@link IGetBlockDagInfoResponse}
-     * @throws `string` on an RPC error or a server-side error.
-     * @param {IGetBlockDagInfoRequest | null} [request]
-     * @returns {Promise<IGetBlockDagInfoResponse>}
+     * Retrieves multiple blocks from the Kaspa BlockDAG.
+     * Returned information: List of block information.
+     * @see {@link IGetBlocksRequest}, {@link IGetBlocksResponse}
+     * @throws `string` on an RPC error, a server-side error or when supplying incorrect arguments.
+     * @param {IGetBlocksRequest} request
+     * @returns {Promise<IGetBlocksResponse>}
      */
-    getBlockDagInfo(request) {
-        const ret = wasm.rpcclient_getBlockDagInfo(this.__wbg_ptr, isLikeNone(request) ? 0 : addHeapObject(request));
+    getBlocks(request) {
+        const ret = wasm.rpcclient_getBlocks(this.__wbg_ptr, addHeapObject(request));
         return takeObject(ret);
     }
     /**
-     * Returns the total current coin supply of Kaspa network.
-     * Returned information: Total coin supply.
-     * @see {@link IGetCoinSupplyRequest}, {@link IGetCoinSupplyResponse}
-     * @throws `string` on an RPC error or a server-side error.
-     * @param {IGetCoinSupplyRequest | null} [request]
-     * @returns {Promise<IGetCoinSupplyResponse>}
+     * Current nerwork id
+     * @returns {NetworkId | undefined}
      */
-    getCoinSupply(request) {
-        const ret = wasm.rpcclient_getCoinSupply(this.__wbg_ptr, isLikeNone(request) ? 0 : addHeapObject(request));
-        return takeObject(ret);
+    get networkId() {
+        const ret = wasm.rpcclient_networkId(this.__wbg_ptr);
+        return ret === 0 ? undefined : NetworkId.__wrap(ret);
     }
     /**
-     * Retrieves information about the peers connected to the Kaspa node.
-     * Returned information: Peer ID, IP address and port, connection
-     * status, protocol version.
-     * @see {@link IGetConnectedPeerInfoRequest}, {@link IGetConnectedPeerInfoResponse}
-     * @throws `string` on an RPC error or a server-side error.
-     * @param {IGetConnectedPeerInfoRequest | null} [request]
-     * @returns {Promise<IGetConnectedPeerInfoResponse>}
+     * Retrieves block headers from the Kaspa BlockDAG.
+     * Returned information: List of block headers.
+     * @see {@link IGetHeadersRequest}, {@link IGetHeadersResponse}
+     * @throws `string` on an RPC error, a server-side error or when supplying incorrect arguments.
+     * @param {IGetHeadersRequest} request
+     * @returns {Promise<IGetHeadersResponse>}
      */
-    getConnectedPeerInfo(request) {
-        const ret = wasm.rpcclient_getConnectedPeerInfo(this.__wbg_ptr, isLikeNone(request) ? 0 : addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * Retrieves general information about the Kaspa node.
-     * Returned information: Version of the Kaspa node, protocol
-     * version, network identifier.
-     * This call is primarily used by gRPC clients.
-     * For wRPC clients, use {@link RpcClient.getServerInfo}.
-     * @see {@link IGetInfoRequest}, {@link IGetInfoResponse}
-     * @throws `string` on an RPC error or a server-side error.
-     * @param {IGetInfoRequest | null} [request]
-     * @returns {Promise<IGetInfoResponse>}
-     */
-    getInfo(request) {
-        const ret = wasm.rpcclient_getInfo(this.__wbg_ptr, isLikeNone(request) ? 0 : addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * Provides a list of addresses of known peers in the Kaspa
-     * network that the node can potentially connect to.
-     * Returned information: List of peer addresses.
-     * @see {@link IGetPeerAddressesRequest}, {@link IGetPeerAddressesResponse}
-     * @throws `string` on an RPC error or a server-side error.
-     * @param {IGetPeerAddressesRequest | null} [request]
-     * @returns {Promise<IGetPeerAddressesResponse>}
-     */
-    getPeerAddresses(request) {
-        const ret = wasm.rpcclient_getPeerAddresses(this.__wbg_ptr, isLikeNone(request) ? 0 : addHeapObject(request));
+    getHeaders(request) {
+        const ret = wasm.rpcclient_getHeaders(this.__wbg_ptr, addHeapObject(request));
         return takeObject(ret);
     }
     /**
@@ -7784,6 +8378,133 @@ export class RpcClient {
         return takeObject(ret);
     }
     /**
+     * @param {Encoding} encoding
+     * @param {NetworkType | NetworkId | string} network
+     * @returns {number}
+     */
+    static defaultPort(encoding, network) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.rpcclient_defaultPort(retptr, encoding, addBorrowedObject(network));
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return r0;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            heap[stack_pointer++] = undefined;
+        }
+    }
+    /**
+     * The current connection status of the RPC client.
+     * @returns {boolean}
+     */
+    get isConnected() {
+        const ret = wasm.rpcclient_isConnected(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
+     * Set the resolver for the RPC client.
+     * This setting will take effect on the next connection.
+     * @param {Resolver} resolver
+     */
+    setResolver(resolver) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            _assertClass(resolver, Resolver);
+            var ptr0 = resolver.__destroy_into_raw();
+            wasm.rpcclient_setResolver(retptr, this.__wbg_ptr, ptr0);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            if (r1) {
+                throw takeObject(r0);
+            }
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Submits a block to the Kaspa network.
+     * Returned information: None.
+     * @see {@link ISubmitBlockRequest}, {@link ISubmitBlockResponse}
+     * @throws `string` on an RPC error, a server-side error or when supplying incorrect arguments.
+     * @param {ISubmitBlockRequest} request
+     * @returns {Promise<ISubmitBlockResponse>}
+     */
+    submitBlock(request) {
+        const ret = wasm.rpcclient_submitBlock(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * Triggers a disconnection on the underlying WebSocket
+     * if the WebSocket is in connected state.
+     * This is intended for debug purposes only.
+     * Can be used to test application reconnection logic.
+     */
+    triggerAbort() {
+        wasm.rpcclient_triggerAbort(this.__wbg_ptr);
+    }
+    /**
+     * Retrieves information about a subnetwork in the Kaspa BlockDAG.
+     * Returned information: Subnetwork information.
+     * @see {@link IGetSubnetworkRequest}, {@link IGetSubnetworkResponse}
+     * @throws `string` on an RPC error, a server-side error or when supplying incorrect arguments.
+     * @param {IGetSubnetworkRequest} request
+     * @returns {Promise<IGetSubnetworkResponse>}
+     */
+    getSubnetwork(request) {
+        const ret = wasm.rpcclient_getSubnetwork(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * Set the network id for the RPC client.
+     * This setting will take effect on the next connection.
+     * @param {NetworkId | string} network_id
+     */
+    setNetworkId(network_id) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.rpcclient_setNetworkId(retptr, this.__wbg_ptr, addBorrowedObject(network_id));
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            if (r1) {
+                throw takeObject(r0);
+            }
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            heap[stack_pointer++] = undefined;
+        }
+    }
+    /**
+     * Retrieves the current number of blocks in the Kaspa BlockDAG.
+     * This is not a block count, not a "block height" and can not be
+     * used for transaction validation.
+     * Returned information: Current block count.
+     * @see {@link IGetBlockCountRequest}, {@link IGetBlockCountResponse}
+     * @throws `string` on an RPC error or a server-side error.
+     * @param {IGetBlockCountRequest | null} [request]
+     * @returns {Promise<IGetBlockCountResponse>}
+     */
+    getBlockCount(request) {
+        const ret = wasm.rpcclient_getBlockCount(this.__wbg_ptr, isLikeNone(request) ? 0 : addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * Returns the total current coin supply of Kaspa network.
+     * Returned information: Total coin supply.
+     * @see {@link IGetCoinSupplyRequest}, {@link IGetCoinSupplyResponse}
+     * @throws `string` on an RPC error or a server-side error.
+     * @param {IGetCoinSupplyRequest | null} [request]
+     * @returns {Promise<IGetCoinSupplyResponse>}
+     */
+    getCoinSupply(request) {
+        const ret = wasm.rpcclient_getCoinSupply(this.__wbg_ptr, isLikeNone(request) ? 0 : addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
      * Retrieves current number of network connections
      * @see {@link IGetConnectionsRequest}, {@link IGetConnectionsResponse}
      * @throws `string` on an RPC error or a server-side error.
@@ -7792,57 +8513,6 @@ export class RpcClient {
      */
     getConnections(request) {
         const ret = wasm.rpcclient_getConnections(this.__wbg_ptr, isLikeNone(request) ? 0 : addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * Retrieves the current sink block, which is the block with
-     * the highest cumulative difficulty in the Kaspa BlockDAG.
-     * Returned information: Sink block hash, sink block height.
-     * @see {@link IGetSinkRequest}, {@link IGetSinkResponse}
-     * @throws `string` on an RPC error or a server-side error.
-     * @param {IGetSinkRequest | null} [request]
-     * @returns {Promise<IGetSinkResponse>}
-     */
-    getSink(request) {
-        const ret = wasm.rpcclient_getSink(this.__wbg_ptr, isLikeNone(request) ? 0 : addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * Returns the blue score of the current sink block, indicating
-     * the total amount of work that has been done on the main chain
-     * leading up to that block.
-     * Returned information: Blue score of the sink block.
-     * @see {@link IGetSinkBlueScoreRequest}, {@link IGetSinkBlueScoreResponse}
-     * @throws `string` on an RPC error or a server-side error.
-     * @param {IGetSinkBlueScoreRequest | null} [request]
-     * @returns {Promise<IGetSinkBlueScoreResponse>}
-     */
-    getSinkBlueScore(request) {
-        const ret = wasm.rpcclient_getSinkBlueScore(this.__wbg_ptr, isLikeNone(request) ? 0 : addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * Tests the connection and responsiveness of a Kaspa node.
-     * Returned information: None.
-     * @see {@link IPingRequest}, {@link IPingResponse}
-     * @throws `string` on an RPC error or a server-side error.
-     * @param {IPingRequest | null} [request]
-     * @returns {Promise<IPingResponse>}
-     */
-    ping(request) {
-        const ret = wasm.rpcclient_ping(this.__wbg_ptr, isLikeNone(request) ? 0 : addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * Gracefully shuts down the Kaspa node.
-     * Returned information: None.
-     * @see {@link IShutdownRequest}, {@link IShutdownResponse}
-     * @throws `string` on an RPC error or a server-side error.
-     * @param {IShutdownRequest | null} [request]
-     * @returns {Promise<IShutdownResponse>}
-     */
-    shutdown(request) {
-        const ret = wasm.rpcclient_shutdown(this.__wbg_ptr, isLikeNone(request) ? 0 : addHeapObject(request));
         return takeObject(ret);
     }
     /**
@@ -7882,645 +8552,6 @@ export class RpcClient {
         return takeObject(ret);
     }
     /**
-     * Retrieves the current network configuration.
-     * Returned information: Current network configuration.
-     * @see {@link IGetCurrentNetworkRequest}, {@link IGetCurrentNetworkResponse}
-     * @throws `string` on an RPC error or a server-side error.
-     * @param {IGetCurrentNetworkRequest | null} [request]
-     * @returns {Promise<IGetCurrentNetworkResponse>}
-     */
-    getCurrentNetwork(request) {
-        const ret = wasm.rpcclient_getCurrentNetwork(this.__wbg_ptr, isLikeNone(request) ? 0 : addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * Adds a peer to the Kaspa node's list of known peers.
-     * Returned information: None.
-     * @see {@link IAddPeerRequest}, {@link IAddPeerResponse}
-     * @throws `string` on an RPC error, a server-side error or when supplying incorrect arguments.
-     * @param {IAddPeerRequest} request
-     * @returns {Promise<IAddPeerResponse>}
-     */
-    addPeer(request) {
-        const ret = wasm.rpcclient_addPeer(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * Bans a peer from connecting to the Kaspa node for a specified duration.
-     * Returned information: None.
-     * @see {@link IBanRequest}, {@link IBanResponse}
-     * @throws `string` on an RPC error, a server-side error or when supplying incorrect arguments.
-     * @param {IBanRequest} request
-     * @returns {Promise<IBanResponse>}
-     */
-    ban(request) {
-        const ret = wasm.rpcclient_ban(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * Estimates the network's current hash rate in hashes per second.
-     * Returned information: Estimated network hashes per second.
-     * @see {@link IEstimateNetworkHashesPerSecondRequest}, {@link IEstimateNetworkHashesPerSecondResponse}
-     * @throws `string` on an RPC error, a server-side error or when supplying incorrect arguments.
-     * @param {IEstimateNetworkHashesPerSecondRequest} request
-     * @returns {Promise<IEstimateNetworkHashesPerSecondResponse>}
-     */
-    estimateNetworkHashesPerSecond(request) {
-        const ret = wasm.rpcclient_estimateNetworkHashesPerSecond(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * Retrieves the balance of a specific address in the Kaspa BlockDAG.
-     * Returned information: Balance of the address.
-     * @see {@link IGetBalanceByAddressRequest}, {@link IGetBalanceByAddressResponse}
-     * @throws `string` on an RPC error, a server-side error or when supplying incorrect arguments.
-     * @param {IGetBalanceByAddressRequest} request
-     * @returns {Promise<IGetBalanceByAddressResponse>}
-     */
-    getBalanceByAddress(request) {
-        const ret = wasm.rpcclient_getBalanceByAddress(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * Retrieves balances for multiple addresses in the Kaspa BlockDAG.
-     * Returned information: Balances of the addresses.
-     * @see {@link IGetBalancesByAddressesRequest}, {@link IGetBalancesByAddressesResponse}
-     * @throws `string` on an RPC error, a server-side error or when supplying incorrect arguments.
-     * @param {IGetBalancesByAddressesRequest | Address[] | string[]} request
-     * @returns {Promise<IGetBalancesByAddressesResponse>}
-     */
-    getBalancesByAddresses(request) {
-        const ret = wasm.rpcclient_getBalancesByAddresses(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * Retrieves a specific block from the Kaspa BlockDAG.
-     * Returned information: Block information.
-     * @see {@link IGetBlockRequest}, {@link IGetBlockResponse}
-     * @throws `string` on an RPC error, a server-side error or when supplying incorrect arguments.
-     * @param {IGetBlockRequest} request
-     * @returns {Promise<IGetBlockResponse>}
-     */
-    getBlock(request) {
-        const ret = wasm.rpcclient_getBlock(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * Retrieves multiple blocks from the Kaspa BlockDAG.
-     * Returned information: List of block information.
-     * @see {@link IGetBlocksRequest}, {@link IGetBlocksResponse}
-     * @throws `string` on an RPC error, a server-side error or when supplying incorrect arguments.
-     * @param {IGetBlocksRequest} request
-     * @returns {Promise<IGetBlocksResponse>}
-     */
-    getBlocks(request) {
-        const ret = wasm.rpcclient_getBlocks(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * Generates a new block template for mining.
-     * Returned information: Block template information.
-     * @see {@link IGetBlockTemplateRequest}, {@link IGetBlockTemplateResponse}
-     * @throws `string` on an RPC error, a server-side error or when supplying incorrect arguments.
-     * @param {IGetBlockTemplateRequest} request
-     * @returns {Promise<IGetBlockTemplateResponse>}
-     */
-    getBlockTemplate(request) {
-        const ret = wasm.rpcclient_getBlockTemplate(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * Checks if block is blue or not.
-     * Returned information: Block blueness.
-     * @see {@link IGetCurrentBlockColorRequest}, {@link IGetCurrentBlockColorResponse}
-     * @throws `string` on an RPC error, a server-side error or when supplying incorrect arguments.
-     * @param {IGetCurrentBlockColorRequest} request
-     * @returns {Promise<IGetCurrentBlockColorResponse>}
-     */
-    getCurrentBlockColor(request) {
-        const ret = wasm.rpcclient_getCurrentBlockColor(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * Retrieves the estimated DAA (Difficulty Adjustment Algorithm)
-     * score timestamp estimate.
-     * Returned information: DAA score timestamp estimate.
-     * @see {@link IGetDaaScoreTimestampEstimateRequest}, {@link IGetDaaScoreTimestampEstimateResponse}
-     * @throws `string` on an RPC error, a server-side error or when supplying incorrect arguments.
-     * @param {IGetDaaScoreTimestampEstimateRequest} request
-     * @returns {Promise<IGetDaaScoreTimestampEstimateResponse>}
-     */
-    getDaaScoreTimestampEstimate(request) {
-        const ret = wasm.rpcclient_getDaaScoreTimestampEstimate(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * Feerate estimates (experimental)
-     * @see {@link IGetFeeEstimateExperimentalRequest}, {@link IGetFeeEstimateExperimentalResponse}
-     * @throws `string` on an RPC error, a server-side error or when supplying incorrect arguments.
-     * @param {IGetFeeEstimateExperimentalRequest} request
-     * @returns {Promise<IGetFeeEstimateExperimentalResponse>}
-     */
-    getFeeEstimateExperimental(request) {
-        const ret = wasm.rpcclient_getFeeEstimateExperimental(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * Retrieves block headers from the Kaspa BlockDAG.
-     * Returned information: List of block headers.
-     * @see {@link IGetHeadersRequest}, {@link IGetHeadersResponse}
-     * @throws `string` on an RPC error, a server-side error or when supplying incorrect arguments.
-     * @param {IGetHeadersRequest} request
-     * @returns {Promise<IGetHeadersResponse>}
-     */
-    getHeaders(request) {
-        const ret = wasm.rpcclient_getHeaders(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * Retrieves mempool entries from the Kaspa node's mempool.
-     * Returned information: List of mempool entries.
-     * @see {@link IGetMempoolEntriesRequest}, {@link IGetMempoolEntriesResponse}
-     * @throws `string` on an RPC error, a server-side error or when supplying incorrect arguments.
-     * @param {IGetMempoolEntriesRequest} request
-     * @returns {Promise<IGetMempoolEntriesResponse>}
-     */
-    getMempoolEntries(request) {
-        const ret = wasm.rpcclient_getMempoolEntries(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * Retrieves mempool entries associated with specific addresses.
-     * Returned information: List of mempool entries.
-     * @see {@link IGetMempoolEntriesByAddressesRequest}, {@link IGetMempoolEntriesByAddressesResponse}
-     * @throws `string` on an RPC error, a server-side error or when supplying incorrect arguments.
-     * @param {IGetMempoolEntriesByAddressesRequest} request
-     * @returns {Promise<IGetMempoolEntriesByAddressesResponse>}
-     */
-    getMempoolEntriesByAddresses(request) {
-        const ret = wasm.rpcclient_getMempoolEntriesByAddresses(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * Retrieves a specific mempool entry by transaction ID.
-     * Returned information: Mempool entry information.
-     * @see {@link IGetMempoolEntryRequest}, {@link IGetMempoolEntryResponse}
-     * @throws `string` on an RPC error, a server-side error or when supplying incorrect arguments.
-     * @param {IGetMempoolEntryRequest} request
-     * @returns {Promise<IGetMempoolEntryResponse>}
-     */
-    getMempoolEntry(request) {
-        const ret = wasm.rpcclient_getMempoolEntry(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * Retrieves information about a subnetwork in the Kaspa BlockDAG.
-     * Returned information: Subnetwork information.
-     * @see {@link IGetSubnetworkRequest}, {@link IGetSubnetworkResponse}
-     * @throws `string` on an RPC error, a server-side error or when supplying incorrect arguments.
-     * @param {IGetSubnetworkRequest} request
-     * @returns {Promise<IGetSubnetworkResponse>}
-     */
-    getSubnetwork(request) {
-        const ret = wasm.rpcclient_getSubnetwork(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * Retrieves unspent transaction outputs (UTXOs) associated with
-     * specific addresses.
-     * Returned information: List of UTXOs.
-     * @see {@link IGetUtxosByAddressesRequest}, {@link IGetUtxosByAddressesResponse}
-     * @throws `string` on an RPC error, a server-side error or when supplying incorrect arguments.
-     * @param {IGetUtxosByAddressesRequest | Address[] | string[]} request
-     * @returns {Promise<IGetUtxosByAddressesResponse>}
-     */
-    getUtxosByAddresses(request) {
-        const ret = wasm.rpcclient_getUtxosByAddresses(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * Retrieves the virtual chain corresponding to a specified block hash.
-     * Returned information: Virtual chain information.
-     * @see {@link IGetVirtualChainFromBlockRequest}, {@link IGetVirtualChainFromBlockResponse}
-     * @throws `string` on an RPC error, a server-side error or when supplying incorrect arguments.
-     * @param {IGetVirtualChainFromBlockRequest} request
-     * @returns {Promise<IGetVirtualChainFromBlockResponse>}
-     */
-    getVirtualChainFromBlock(request) {
-        const ret = wasm.rpcclient_getVirtualChainFromBlock(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * Resolves a finality conflict in the Kaspa BlockDAG.
-     * Returned information: None.
-     * @see {@link IResolveFinalityConflictRequest}, {@link IResolveFinalityConflictResponse}
-     * @throws `string` on an RPC error, a server-side error or when supplying incorrect arguments.
-     * @param {IResolveFinalityConflictRequest} request
-     * @returns {Promise<IResolveFinalityConflictResponse>}
-     */
-    resolveFinalityConflict(request) {
-        const ret = wasm.rpcclient_resolveFinalityConflict(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * Submits a block to the Kaspa network.
-     * Returned information: None.
-     * @see {@link ISubmitBlockRequest}, {@link ISubmitBlockResponse}
-     * @throws `string` on an RPC error, a server-side error or when supplying incorrect arguments.
-     * @param {ISubmitBlockRequest} request
-     * @returns {Promise<ISubmitBlockResponse>}
-     */
-    submitBlock(request) {
-        const ret = wasm.rpcclient_submitBlock(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * Submits a transaction to the Kaspa network.
-     * Returned information: Submitted Transaction Id.
-     * @see {@link ISubmitTransactionRequest}, {@link ISubmitTransactionResponse}
-     * @throws `string` on an RPC error, a server-side error or when supplying incorrect arguments.
-     * @param {ISubmitTransactionRequest} request
-     * @returns {Promise<ISubmitTransactionResponse>}
-     */
-    submitTransaction(request) {
-        const ret = wasm.rpcclient_submitTransaction(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * Submits an RBF transaction to the Kaspa network.
-     * Returned information: Submitted Transaction Id, Transaction that was replaced.
-     * @see {@link ISubmitTransactionReplacementRequest}, {@link ISubmitTransactionReplacementResponse}
-     * @throws `string` on an RPC error, a server-side error or when supplying incorrect arguments.
-     * @param {ISubmitTransactionReplacementRequest} request
-     * @returns {Promise<ISubmitTransactionReplacementResponse>}
-     */
-    submitTransactionReplacement(request) {
-        const ret = wasm.rpcclient_submitTransactionReplacement(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * Unbans a previously banned peer, allowing it to connect
-     * to the Kaspa node again.
-     * Returned information: None.
-     * @see {@link IUnbanRequest}, {@link IUnbanResponse}
-     * @throws `string` on an RPC error, a server-side error or when supplying incorrect arguments.
-     * @param {IUnbanRequest} request
-     * @returns {Promise<IUnbanResponse>}
-     */
-    unban(request) {
-        const ret = wasm.rpcclient_unban(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * Manage subscription for a block added notification event.
-     * Block added notification event is produced when a new
-     * block is added to the Kaspa BlockDAG.
-     * @returns {Promise<void>}
-     */
-    subscribeBlockAdded() {
-        const ret = wasm.rpcclient_subscribeBlockAdded(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * @returns {Promise<void>}
-     */
-    unsubscribeBlockAdded() {
-        const ret = wasm.rpcclient_unsubscribeBlockAdded(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * Manage subscription for a finality conflict notification event.
-     * Finality conflict notification event is produced when a finality
-     * conflict occurs in the Kaspa BlockDAG.
-     * @returns {Promise<void>}
-     */
-    subscribeFinalityConflict() {
-        const ret = wasm.rpcclient_subscribeFinalityConflict(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * @returns {Promise<void>}
-     */
-    unsubscribeFinalityConflict() {
-        const ret = wasm.rpcclient_unsubscribeFinalityConflict(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * Manage subscription for a finality conflict resolved notification event.
-     * Finality conflict resolved notification event is produced when a finality
-     * conflict in the Kaspa BlockDAG is resolved.
-     * @returns {Promise<void>}
-     */
-    subscribeFinalityConflictResolved() {
-        const ret = wasm.rpcclient_subscribeFinalityConflictResolved(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * @returns {Promise<void>}
-     */
-    unsubscribeFinalityConflictResolved() {
-        const ret = wasm.rpcclient_unsubscribeFinalityConflictResolved(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * Manage subscription for a sink blue score changed notification event.
-     * Sink blue score changed notification event is produced when the blue
-     * score of the sink block changes in the Kaspa BlockDAG.
-     * @returns {Promise<void>}
-     */
-    subscribeSinkBlueScoreChanged() {
-        const ret = wasm.rpcclient_subscribeSinkBlueScoreChanged(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * @returns {Promise<void>}
-     */
-    unsubscribeSinkBlueScoreChanged() {
-        const ret = wasm.rpcclient_unsubscribeSinkBlueScoreChanged(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * Manage subscription for a pruning point UTXO set override notification event.
-     * Pruning point UTXO set override notification event is produced when the
-     * UTXO set override for the pruning point changes in the Kaspa BlockDAG.
-     * @returns {Promise<void>}
-     */
-    subscribePruningPointUtxoSetOverride() {
-        const ret = wasm.rpcclient_subscribePruningPointUtxoSetOverride(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * @returns {Promise<void>}
-     */
-    unsubscribePruningPointUtxoSetOverride() {
-        const ret = wasm.rpcclient_unsubscribePruningPointUtxoSetOverride(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * Manage subscription for a new block template notification event.
-     * New block template notification event is produced when a new block
-     * template is generated for mining in the Kaspa BlockDAG.
-     * @returns {Promise<void>}
-     */
-    subscribeNewBlockTemplate() {
-        const ret = wasm.rpcclient_subscribeNewBlockTemplate(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * @returns {Promise<void>}
-     */
-    unsubscribeNewBlockTemplate() {
-        const ret = wasm.rpcclient_unsubscribeNewBlockTemplate(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * Manage subscription for a virtual DAA score changed notification event.
-     * Virtual DAA score changed notification event is produced when the virtual
-     * Difficulty Adjustment Algorithm (DAA) score changes in the Kaspa BlockDAG.
-     * @returns {Promise<void>}
-     */
-    subscribeVirtualDaaScoreChanged() {
-        const ret = wasm.rpcclient_subscribeVirtualDaaScoreChanged(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * Manage subscription for a virtual DAA score changed notification event.
-     * Virtual DAA score changed notification event is produced when the virtual
-     * Difficulty Adjustment Algorithm (DAA) score changes in the Kaspa BlockDAG.
-     * @returns {Promise<void>}
-     */
-    unsubscribeVirtualDaaScoreChanged() {
-        const ret = wasm.rpcclient_unsubscribeVirtualDaaScoreChanged(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * Subscribe for a UTXOs changed notification event.
-     * UTXOs changed notification event is produced when the set
-     * of unspent transaction outputs (UTXOs) changes in the
-     * Kaspa BlockDAG. The event notification will be scoped to the
-     * provided list of addresses.
-     * @param {(Address | string)[]} addresses
-     * @returns {Promise<void>}
-     */
-    subscribeUtxosChanged(addresses) {
-        const ret = wasm.rpcclient_subscribeUtxosChanged(this.__wbg_ptr, addHeapObject(addresses));
-        return takeObject(ret);
-    }
-    /**
-     * Unsubscribe from UTXOs changed notification event
-     * for a specific set of addresses.
-     * @param {(Address | string)[]} addresses
-     * @returns {Promise<void>}
-     */
-    unsubscribeUtxosChanged(addresses) {
-        const ret = wasm.rpcclient_unsubscribeUtxosChanged(this.__wbg_ptr, addHeapObject(addresses));
-        return takeObject(ret);
-    }
-    /**
-     * Manage subscription for a virtual chain changed notification event.
-     * Virtual chain changed notification event is produced when the virtual
-     * chain changes in the Kaspa BlockDAG.
-     * @param {boolean} include_accepted_transaction_ids
-     * @returns {Promise<void>}
-     */
-    subscribeVirtualChainChanged(include_accepted_transaction_ids) {
-        const ret = wasm.rpcclient_subscribeVirtualChainChanged(this.__wbg_ptr, include_accepted_transaction_ids);
-        return takeObject(ret);
-    }
-    /**
-     * Manage subscription for a virtual chain changed notification event.
-     * Virtual chain changed notification event is produced when the virtual
-     * chain changes in the Kaspa BlockDAG.
-     * @param {boolean} include_accepted_transaction_ids
-     * @returns {Promise<void>}
-     */
-    unsubscribeVirtualChainChanged(include_accepted_transaction_ids) {
-        const ret = wasm.rpcclient_unsubscribeVirtualChainChanged(this.__wbg_ptr, include_accepted_transaction_ids);
-        return takeObject(ret);
-    }
-    /**
-     * @param {Encoding} encoding
-     * @param {NetworkType | NetworkId | string} network
-     * @returns {number}
-     */
-    static defaultPort(encoding, network) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.rpcclient_defaultPort(retptr, encoding, addBorrowedObject(network));
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
-            }
-            return r0;
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-            heap[stack_pointer++] = undefined;
-        }
-    }
-    /**
-     * Constructs an WebSocket RPC URL given the partial URL or an IP, RPC encoding
-     * and a network type.
-     *
-     * # Arguments
-     *
-     * * `url` - Partial URL or an IP address
-     * * `encoding` - RPC encoding
-     * * `network_type` - Network type
-     * @param {string} url
-     * @param {Encoding} encoding
-     * @param {NetworkId} network
-     * @returns {string}
-     */
-    static parseUrl(url, encoding, network) {
-        let deferred4_0;
-        let deferred4_1;
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            const ptr0 = passStringToWasm0(url, wasm.__wbindgen_export_1, wasm.__wbindgen_export_2);
-            const len0 = WASM_VECTOR_LEN;
-            _assertClass(network, NetworkId);
-            var ptr1 = network.__destroy_into_raw();
-            wasm.rpcclient_parseUrl(retptr, ptr0, len0, encoding, ptr1);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
-            var ptr3 = r0;
-            var len3 = r1;
-            if (r3) {
-                ptr3 = 0; len3 = 0;
-                throw takeObject(r2);
-            }
-            deferred4_0 = ptr3;
-            deferred4_1 = len3;
-            return getStringFromWasm0(ptr3, len3);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_export_3(deferred4_0, deferred4_1, 1);
-        }
-    }
-    /**
-     *
-     * Create a new RPC client with optional {@link Encoding} and a `url`.
-     *
-     * @see {@link IRpcConfig} interface for more details.
-     * @param {IRpcConfig | null} [config]
-     */
-    constructor(config) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.rpcclient_ctor(retptr, isLikeNone(config) ? 0 : addHeapObject(config));
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
-            }
-            this.__wbg_ptr = r0 >>> 0;
-            RpcClientFinalization.register(this, this.__wbg_ptr, this);
-            return this;
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
-    }
-    /**
-     * The current URL of the RPC client.
-     * @returns {string | undefined}
-     */
-    get url() {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.rpcclient_url(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            let v1;
-            if (r0 !== 0) {
-                v1 = getStringFromWasm0(r0, r1).slice();
-                wasm.__wbindgen_export_3(r0, r1 * 1, 1);
-            }
-            return v1;
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
-    }
-    /**
-     * Current rpc resolver
-     * @returns {Resolver | undefined}
-     */
-    get resolver() {
-        const ret = wasm.rpcclient_resolver(this.__wbg_ptr);
-        return ret === 0 ? undefined : Resolver.__wrap(ret);
-    }
-    /**
-     * Set the resolver for the RPC client.
-     * This setting will take effect on the next connection.
-     * @param {Resolver} resolver
-     */
-    setResolver(resolver) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            _assertClass(resolver, Resolver);
-            var ptr0 = resolver.__destroy_into_raw();
-            wasm.rpcclient_setResolver(retptr, this.__wbg_ptr, ptr0);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            if (r1) {
-                throw takeObject(r0);
-            }
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
-    }
-    /**
-     * Set the network id for the RPC client.
-     * This setting will take effect on the next connection.
-     * @param {NetworkId | string} network_id
-     */
-    setNetworkId(network_id) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.rpcclient_setNetworkId(retptr, this.__wbg_ptr, addBorrowedObject(network_id));
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            if (r1) {
-                throw takeObject(r0);
-            }
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-            heap[stack_pointer++] = undefined;
-        }
-    }
-    /**
-     * The current connection status of the RPC client.
-     * @returns {boolean}
-     */
-    get isConnected() {
-        const ret = wasm.rpcclient_isConnected(this.__wbg_ptr);
-        return ret !== 0;
-    }
-    /**
-     * The current protocol encoding.
-     * @returns {string}
-     */
-    get encoding() {
-        let deferred1_0;
-        let deferred1_1;
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.rpcclient_encoding(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            deferred1_0 = r0;
-            deferred1_1 = r1;
-            return getStringFromWasm0(r0, r1);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
-        }
-    }
-    /**
      * Optional: Resolver node id.
      * @returns {string | undefined}
      */
@@ -8541,50 +8572,16 @@ export class RpcClient {
         }
     }
     /**
-     * Connect to the Kaspa RPC server. This function starts a background
-     * task that connects and reconnects to the server if the connection
-     * is terminated.  Use [`disconnect()`](Self::disconnect()) to
-     * terminate the connection.
-     * @see {@link IConnectOptions} interface for more details.
-     * @param {IConnectOptions | undefined | null} [args]
-     * @returns {Promise<void>}
+     * Retrieves a specific mempool entry by transaction ID.
+     * Returned information: Mempool entry information.
+     * @see {@link IGetMempoolEntryRequest}, {@link IGetMempoolEntryResponse}
+     * @throws `string` on an RPC error, a server-side error or when supplying incorrect arguments.
+     * @param {IGetMempoolEntryRequest} request
+     * @returns {Promise<IGetMempoolEntryResponse>}
      */
-    connect(args) {
-        const ret = wasm.rpcclient_connect(this.__wbg_ptr, isLikeNone(args) ? 0 : addHeapObject(args));
+    getMempoolEntry(request) {
+        const ret = wasm.rpcclient_getMempoolEntry(this.__wbg_ptr, addHeapObject(request));
         return takeObject(ret);
-    }
-    /**
-     * Disconnect from the Kaspa RPC server.
-     * @returns {Promise<void>}
-     */
-    disconnect() {
-        const ret = wasm.rpcclient_disconnect(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * Start background RPC services (automatically started when invoking {@link RpcClient.connect}).
-     * @returns {Promise<void>}
-     */
-    start() {
-        const ret = wasm.rpcclient_start(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * Stop background RPC services (automatically stopped when invoking {@link RpcClient.disconnect}).
-     * @returns {Promise<void>}
-     */
-    stop() {
-        const ret = wasm.rpcclient_stop(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * Triggers a disconnection on the underlying WebSocket
-     * if the WebSocket is in connected state.
-     * This is intended for debug purposes only.
-     * Can be used to test application reconnection logic.
-     */
-    triggerAbort() {
-        wasm.rpcclient_triggerAbort(this.__wbg_ptr);
     }
     /**
      *
@@ -8713,6 +8710,127 @@ export class RpcClient {
         }
     }
     /**
+     * Provides information about the Directed Acyclic Graph (DAG)
+     * structure of the Kaspa BlockDAG.
+     * Returned information: Number of blocks in the DAG,
+     * number of tips in the DAG, hash of the selected parent block,
+     * difficulty of the selected parent block, selected parent block
+     * blue score, selected parent block time.
+     * @see {@link IGetBlockDagInfoRequest}, {@link IGetBlockDagInfoResponse}
+     * @throws `string` on an RPC error or a server-side error.
+     * @param {IGetBlockDagInfoRequest | null} [request]
+     * @returns {Promise<IGetBlockDagInfoResponse>}
+     */
+    getBlockDagInfo(request) {
+        const ret = wasm.rpcclient_getBlockDagInfo(this.__wbg_ptr, isLikeNone(request) ? 0 : addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * Generates a new block template for mining.
+     * Returned information: Block template information.
+     * @see {@link IGetBlockTemplateRequest}, {@link IGetBlockTemplateResponse}
+     * @throws `string` on an RPC error, a server-side error or when supplying incorrect arguments.
+     * @param {IGetBlockTemplateRequest} request
+     * @returns {Promise<IGetBlockTemplateResponse>}
+     */
+    getBlockTemplate(request) {
+        const ret = wasm.rpcclient_getBlockTemplate(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * Provides a list of addresses of known peers in the Kaspa
+     * network that the node can potentially connect to.
+     * Returned information: List of peer addresses.
+     * @see {@link IGetPeerAddressesRequest}, {@link IGetPeerAddressesResponse}
+     * @throws `string` on an RPC error or a server-side error.
+     * @param {IGetPeerAddressesRequest | null} [request]
+     * @returns {Promise<IGetPeerAddressesResponse>}
+     */
+    getPeerAddresses(request) {
+        const ret = wasm.rpcclient_getPeerAddresses(this.__wbg_ptr, isLikeNone(request) ? 0 : addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * Submits a transaction to the Kaspa network.
+     * Returned information: Submitted Transaction Id.
+     * @see {@link ISubmitTransactionRequest}, {@link ISubmitTransactionResponse}
+     * @throws `string` on an RPC error, a server-side error or when supplying incorrect arguments.
+     * @param {ISubmitTransactionRequest} request
+     * @returns {Promise<ISubmitTransactionResponse>}
+     */
+    submitTransaction(request) {
+        const ret = wasm.rpcclient_submitTransaction(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * Retrieves the current network configuration.
+     * Returned information: Current network configuration.
+     * @see {@link IGetCurrentNetworkRequest}, {@link IGetCurrentNetworkResponse}
+     * @throws `string` on an RPC error or a server-side error.
+     * @param {IGetCurrentNetworkRequest | null} [request]
+     * @returns {Promise<IGetCurrentNetworkResponse>}
+     */
+    getCurrentNetwork(request) {
+        const ret = wasm.rpcclient_getCurrentNetwork(this.__wbg_ptr, isLikeNone(request) ? 0 : addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * Retrieves mempool entries from the Kaspa node's mempool.
+     * Returned information: List of mempool entries.
+     * @see {@link IGetMempoolEntriesRequest}, {@link IGetMempoolEntriesResponse}
+     * @throws `string` on an RPC error, a server-side error or when supplying incorrect arguments.
+     * @param {IGetMempoolEntriesRequest} request
+     * @returns {Promise<IGetMempoolEntriesResponse>}
+     */
+    getMempoolEntries(request) {
+        const ret = wasm.rpcclient_getMempoolEntries(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * Returns the blue score of the current sink block, indicating
+     * the total amount of work that has been done on the main chain
+     * leading up to that block.
+     * Returned information: Blue score of the sink block.
+     * @see {@link IGetSinkBlueScoreRequest}, {@link IGetSinkBlueScoreResponse}
+     * @throws `string` on an RPC error or a server-side error.
+     * @param {IGetSinkBlueScoreRequest | null} [request]
+     * @returns {Promise<IGetSinkBlueScoreResponse>}
+     */
+    getSinkBlueScore(request) {
+        const ret = wasm.rpcclient_getSinkBlueScore(this.__wbg_ptr, isLikeNone(request) ? 0 : addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * Manage subscription for a virtual DAA score changed notification event.
+     * Virtual DAA score changed notification event is produced when the virtual
+     * Difficulty Adjustment Algorithm (DAA) score changes in the Kaspa BlockDAG.
+     * @returns {Promise<void>}
+     */
+    subscribeVirtualDaaScoreChanged() {
+        const ret = wasm.rpcclient_subscribeVirtualDaaScoreChanged(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+     *
+     * Unregister a single event listener callback from all events.
+     *
+     *
+     * @param {RpcEventCallback} callback
+     */
+    clearEventListener(callback) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.rpcclient_clearEventListener(retptr, this.__wbg_ptr, addHeapObject(callback));
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            if (r1) {
+                throw takeObject(r0);
+            }
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
      *
      * Unregister an event listener.
      * This function will remove the callback for the specified event.
@@ -8737,24 +8855,139 @@ export class RpcClient {
         }
     }
     /**
-     *
-     * Unregister a single event listener callback from all events.
-     *
-     *
-     * @param {RpcEventCallback} callback
+     * Manage subscription for a block added notification event.
+     * Block added notification event is produced when a new
+     * block is added to the Kaspa BlockDAG.
+     * @returns {Promise<void>}
      */
-    clearEventListener(callback) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.rpcclient_clearEventListener(retptr, this.__wbg_ptr, addHeapObject(callback));
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            if (r1) {
-                throw takeObject(r0);
-            }
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
+    subscribeBlockAdded() {
+        const ret = wasm.rpcclient_subscribeBlockAdded(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+     * Manage subscription for a virtual DAA score changed notification event.
+     * Virtual DAA score changed notification event is produced when the virtual
+     * Difficulty Adjustment Algorithm (DAA) score changes in the Kaspa BlockDAG.
+     * @returns {Promise<void>}
+     */
+    unsubscribeVirtualDaaScoreChanged() {
+        const ret = wasm.rpcclient_unsubscribeVirtualDaaScoreChanged(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+     * Retrieves the balance of a specific address in the Kaspa BlockDAG.
+     * Returned information: Balance of the address.
+     * @see {@link IGetBalanceByAddressRequest}, {@link IGetBalanceByAddressResponse}
+     * @throws `string` on an RPC error, a server-side error or when supplying incorrect arguments.
+     * @param {IGetBalanceByAddressRequest} request
+     * @returns {Promise<IGetBalanceByAddressResponse>}
+     */
+    getBalanceByAddress(request) {
+        const ret = wasm.rpcclient_getBalanceByAddress(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * Retrieves unspent transaction outputs (UTXOs) associated with
+     * specific addresses.
+     * Returned information: List of UTXOs.
+     * @see {@link IGetUtxosByAddressesRequest}, {@link IGetUtxosByAddressesResponse}
+     * @throws `string` on an RPC error, a server-side error or when supplying incorrect arguments.
+     * @param {IGetUtxosByAddressesRequest | Address[] | string[]} request
+     * @returns {Promise<IGetUtxosByAddressesResponse>}
+     */
+    getUtxosByAddresses(request) {
+        const ret = wasm.rpcclient_getUtxosByAddresses(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * Retrieves information about the peers connected to the Kaspa node.
+     * Returned information: Peer ID, IP address and port, connection
+     * status, protocol version.
+     * @see {@link IGetConnectedPeerInfoRequest}, {@link IGetConnectedPeerInfoResponse}
+     * @throws `string` on an RPC error or a server-side error.
+     * @param {IGetConnectedPeerInfoRequest | null} [request]
+     * @returns {Promise<IGetConnectedPeerInfoResponse>}
+     */
+    getConnectedPeerInfo(request) {
+        const ret = wasm.rpcclient_getConnectedPeerInfo(this.__wbg_ptr, isLikeNone(request) ? 0 : addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * Checks if block is blue or not.
+     * Returned information: Block blueness.
+     * @see {@link IGetCurrentBlockColorRequest}, {@link IGetCurrentBlockColorResponse}
+     * @throws `string` on an RPC error, a server-side error or when supplying incorrect arguments.
+     * @param {IGetCurrentBlockColorRequest} request
+     * @returns {Promise<IGetCurrentBlockColorResponse>}
+     */
+    getCurrentBlockColor(request) {
+        const ret = wasm.rpcclient_getCurrentBlockColor(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * Get UTXO Return Addresses.
+     * @see {@link IGetUtxoReturnAddressRequest}, {@link IGetUtxoReturnAddressResponse}
+     * @throws `string` on an RPC error, a server-side error or when supplying incorrect arguments.
+     * @param {IGetUtxoReturnAddressRequest} request
+     * @returns {Promise<IGetUtxoReturnAddressResponse>}
+     */
+    getUtxoReturnAddress(request) {
+        const ret = wasm.rpcclient_getUtxoReturnAddress(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * Subscribe for a UTXOs changed notification event.
+     * UTXOs changed notification event is produced when the set
+     * of unspent transaction outputs (UTXOs) changes in the
+     * Kaspa BlockDAG. The event notification will be scoped to the
+     * provided list of addresses.
+     * @param {(Address | string)[]} addresses
+     * @returns {Promise<void>}
+     */
+    subscribeUtxosChanged(addresses) {
+        const ret = wasm.rpcclient_subscribeUtxosChanged(this.__wbg_ptr, addHeapObject(addresses));
+        return takeObject(ret);
+    }
+    /**
+     * @returns {Promise<void>}
+     */
+    unsubscribeBlockAdded() {
+        const ret = wasm.rpcclient_unsubscribeBlockAdded(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+     * Retrieves balances for multiple addresses in the Kaspa BlockDAG.
+     * Returned information: Balances of the addresses.
+     * @see {@link IGetBalancesByAddressesRequest}, {@link IGetBalancesByAddressesResponse}
+     * @throws `string` on an RPC error, a server-side error or when supplying incorrect arguments.
+     * @param {IGetBalancesByAddressesRequest | Address[] | string[]} request
+     * @returns {Promise<IGetBalancesByAddressesResponse>}
+     */
+    getBalancesByAddresses(request) {
+        const ret = wasm.rpcclient_getBalancesByAddresses(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * Resolves a finality conflict in the Kaspa BlockDAG.
+     * Returned information: None.
+     * @see {@link IResolveFinalityConflictRequest}, {@link IResolveFinalityConflictResponse}
+     * @throws `string` on an RPC error, a server-side error or when supplying incorrect arguments.
+     * @param {IResolveFinalityConflictRequest} request
+     * @returns {Promise<IResolveFinalityConflictResponse>}
+     */
+    resolveFinalityConflict(request) {
+        const ret = wasm.rpcclient_resolveFinalityConflict(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * Unsubscribe from UTXOs changed notification event
+     * for a specific set of addresses.
+     * @param {(Address | string)[]} addresses
+     * @returns {Promise<void>}
+     */
+    unsubscribeUtxosChanged(addresses) {
+        const ret = wasm.rpcclient_unsubscribeUtxosChanged(this.__wbg_ptr, addHeapObject(addresses));
+        return takeObject(ret);
     }
     /**
      *
@@ -8771,6 +9004,442 @@ export class RpcClient {
             }
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Manage subscription for a finality conflict notification event.
+     * Finality conflict notification event is produced when a finality
+     * conflict occurs in the Kaspa BlockDAG.
+     * @returns {Promise<void>}
+     */
+    subscribeFinalityConflict() {
+        const ret = wasm.rpcclient_subscribeFinalityConflict(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+     * Retrieves the virtual chain corresponding to a specified block hash.
+     * Returned information: Virtual chain information.
+     * @see {@link IGetVirtualChainFromBlockRequest}, {@link IGetVirtualChainFromBlockResponse}
+     * @throws `string` on an RPC error, a server-side error or when supplying incorrect arguments.
+     * @param {IGetVirtualChainFromBlockRequest} request
+     * @returns {Promise<IGetVirtualChainFromBlockResponse>}
+     */
+    getVirtualChainFromBlock(request) {
+        const ret = wasm.rpcclient_getVirtualChainFromBlock(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * Manage subscription for a new block template notification event.
+     * New block template notification event is produced when a new block
+     * template is generated for mining in the Kaspa BlockDAG.
+     * @returns {Promise<void>}
+     */
+    subscribeNewBlockTemplate() {
+        const ret = wasm.rpcclient_subscribeNewBlockTemplate(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+     * Feerate estimates (experimental)
+     * @see {@link IGetFeeEstimateExperimentalRequest}, {@link IGetFeeEstimateExperimentalResponse}
+     * @throws `string` on an RPC error, a server-side error or when supplying incorrect arguments.
+     * @param {IGetFeeEstimateExperimentalRequest} request
+     * @returns {Promise<IGetFeeEstimateExperimentalResponse>}
+     */
+    getFeeEstimateExperimental(request) {
+        const ret = wasm.rpcclient_getFeeEstimateExperimental(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * @returns {Promise<void>}
+     */
+    unsubscribeFinalityConflict() {
+        const ret = wasm.rpcclient_unsubscribeFinalityConflict(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+     * Submits an RBF transaction to the Kaspa network.
+     * Returned information: Submitted Transaction Id, Transaction that was replaced.
+     * @see {@link ISubmitTransactionReplacementRequest}, {@link ISubmitTransactionReplacementResponse}
+     * @throws `string` on an RPC error, a server-side error or when supplying incorrect arguments.
+     * @param {ISubmitTransactionReplacementRequest} request
+     * @returns {Promise<ISubmitTransactionReplacementResponse>}
+     */
+    submitTransactionReplacement(request) {
+        const ret = wasm.rpcclient_submitTransactionReplacement(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * @returns {Promise<void>}
+     */
+    unsubscribeNewBlockTemplate() {
+        const ret = wasm.rpcclient_unsubscribeNewBlockTemplate(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+     * Retrieves the virtual chain corresponding to a specified block hash.
+     * Returned information: Virtual chain information. (Version 2)
+     * May be used to get fully populated transactions
+     * @see {@link IGetVirtualChainFromBlockV2Request}, {@link IGetVirtualChainFromBlockV2Response}
+     * @throws `string` on an RPC error, a server-side error or when supplying incorrect arguments.
+     * @param {IGetVirtualChainFromBlockV2Request} request
+     * @returns {Promise<IGetVirtualChainFromBlockV2Response>}
+     */
+    getVirtualChainFromBlockV2(request) {
+        const ret = wasm.rpcclient_getVirtualChainFromBlockV2(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * Manage subscription for a virtual chain changed notification event.
+     * Virtual chain changed notification event is produced when the virtual
+     * chain changes in the Kaspa BlockDAG.
+     * @param {boolean} include_accepted_transaction_ids
+     * @returns {Promise<void>}
+     */
+    subscribeVirtualChainChanged(include_accepted_transaction_ids) {
+        const ret = wasm.rpcclient_subscribeVirtualChainChanged(this.__wbg_ptr, include_accepted_transaction_ids);
+        return takeObject(ret);
+    }
+    /**
+     * Retrieves the estimated DAA (Difficulty Adjustment Algorithm)
+     * score timestamp estimate.
+     * Returned information: DAA score timestamp estimate.
+     * @see {@link IGetDaaScoreTimestampEstimateRequest}, {@link IGetDaaScoreTimestampEstimateResponse}
+     * @throws `string` on an RPC error, a server-side error or when supplying incorrect arguments.
+     * @param {IGetDaaScoreTimestampEstimateRequest} request
+     * @returns {Promise<IGetDaaScoreTimestampEstimateResponse>}
+     */
+    getDaaScoreTimestampEstimate(request) {
+        const ret = wasm.rpcclient_getDaaScoreTimestampEstimate(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * Retrieves mempool entries associated with specific addresses.
+     * Returned information: List of mempool entries.
+     * @see {@link IGetMempoolEntriesByAddressesRequest}, {@link IGetMempoolEntriesByAddressesResponse}
+     * @throws `string` on an RPC error, a server-side error or when supplying incorrect arguments.
+     * @param {IGetMempoolEntriesByAddressesRequest} request
+     * @returns {Promise<IGetMempoolEntriesByAddressesResponse>}
+     */
+    getMempoolEntriesByAddresses(request) {
+        const ret = wasm.rpcclient_getMempoolEntriesByAddresses(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * Manage subscription for a sink blue score changed notification event.
+     * Sink blue score changed notification event is produced when the blue
+     * score of the sink block changes in the Kaspa BlockDAG.
+     * @returns {Promise<void>}
+     */
+    subscribeSinkBlueScoreChanged() {
+        const ret = wasm.rpcclient_subscribeSinkBlueScoreChanged(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+     * Manage subscription for a virtual chain changed notification event.
+     * Virtual chain changed notification event is produced when the virtual
+     * chain changes in the Kaspa BlockDAG.
+     * @param {boolean} include_accepted_transaction_ids
+     * @returns {Promise<void>}
+     */
+    unsubscribeVirtualChainChanged(include_accepted_transaction_ids) {
+        const ret = wasm.rpcclient_unsubscribeVirtualChainChanged(this.__wbg_ptr, include_accepted_transaction_ids);
+        return takeObject(ret);
+    }
+    /**
+     * Estimates the network's current hash rate in hashes per second.
+     * Returned information: Estimated network hashes per second.
+     * @see {@link IEstimateNetworkHashesPerSecondRequest}, {@link IEstimateNetworkHashesPerSecondResponse}
+     * @throws `string` on an RPC error, a server-side error or when supplying incorrect arguments.
+     * @param {IEstimateNetworkHashesPerSecondRequest} request
+     * @returns {Promise<IEstimateNetworkHashesPerSecondResponse>}
+     */
+    estimateNetworkHashesPerSecond(request) {
+        const ret = wasm.rpcclient_estimateNetworkHashesPerSecond(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * @returns {Promise<void>}
+     */
+    unsubscribeSinkBlueScoreChanged() {
+        const ret = wasm.rpcclient_unsubscribeSinkBlueScoreChanged(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+     * Manage subscription for a finality conflict resolved notification event.
+     * Finality conflict resolved notification event is produced when a finality
+     * conflict in the Kaspa BlockDAG is resolved.
+     * @returns {Promise<void>}
+     */
+    subscribeFinalityConflictResolved() {
+        const ret = wasm.rpcclient_subscribeFinalityConflictResolved(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+     * @returns {Promise<void>}
+     */
+    unsubscribeFinalityConflictResolved() {
+        const ret = wasm.rpcclient_unsubscribeFinalityConflictResolved(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+     * Bans a peer from connecting to the Kaspa node for a specified duration.
+     * Returned information: None.
+     * @see {@link IBanRequest}, {@link IBanResponse}
+     * @throws `string` on an RPC error, a server-side error or when supplying incorrect arguments.
+     * @param {IBanRequest} request
+     * @returns {Promise<IBanResponse>}
+     */
+    ban(request) {
+        const ret = wasm.rpcclient_ban(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * The current URL of the RPC client.
+     * @returns {string | undefined}
+     */
+    get url() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.rpcclient_url(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            let v1;
+            if (r0 !== 0) {
+                v1 = getStringFromWasm0(r0, r1).slice();
+                wasm.__wbindgen_export_3(r0, r1 * 1, 1);
+            }
+            return v1;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Manage subscription for a pruning point UTXO set override notification event.
+     * Pruning point UTXO set override notification event is produced when the
+     * UTXO set override for the pruning point changes in the Kaspa BlockDAG.
+     * @returns {Promise<void>}
+     */
+    subscribePruningPointUtxoSetOverride() {
+        const ret = wasm.rpcclient_subscribePruningPointUtxoSetOverride(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+     * @returns {Promise<void>}
+     */
+    unsubscribePruningPointUtxoSetOverride() {
+        const ret = wasm.rpcclient_unsubscribePruningPointUtxoSetOverride(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+     *
+     * Create a new RPC client with optional {@link Encoding} and a `url`.
+     *
+     * @see {@link IRpcConfig} interface for more details.
+     * @param {IRpcConfig | null} [config]
+     */
+    constructor(config) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.rpcclient_ctor(retptr, isLikeNone(config) ? 0 : addHeapObject(config));
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            this.__wbg_ptr = r0 >>> 0;
+            RpcClientFinalization.register(this, this.__wbg_ptr, this);
+            return this;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Tests the connection and responsiveness of a Kaspa node.
+     * Returned information: None.
+     * @see {@link IPingRequest}, {@link IPingResponse}
+     * @throws `string` on an RPC error or a server-side error.
+     * @param {IPingRequest | null} [request]
+     * @returns {Promise<IPingResponse>}
+     */
+    ping(request) {
+        const ret = wasm.rpcclient_ping(this.__wbg_ptr, isLikeNone(request) ? 0 : addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * Stop background RPC services (automatically stopped when invoking {@link RpcClient.disconnect}).
+     * @returns {Promise<void>}
+     */
+    stop() {
+        const ret = wasm.rpcclient_stop(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+     * Start background RPC services (automatically started when invoking {@link RpcClient.connect}).
+     * @returns {Promise<void>}
+     */
+    start() {
+        const ret = wasm.rpcclient_start(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+     * Unbans a previously banned peer, allowing it to connect
+     * to the Kaspa node again.
+     * Returned information: None.
+     * @see {@link IUnbanRequest}, {@link IUnbanResponse}
+     * @throws `string` on an RPC error, a server-side error or when supplying incorrect arguments.
+     * @param {IUnbanRequest} request
+     * @returns {Promise<IUnbanResponse>}
+     */
+    unban(request) {
+        const ret = wasm.rpcclient_unban(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * Connect to the Kaspa RPC server. This function starts a background
+     * task that connects and reconnects to the server if the connection
+     * is terminated.  Use [`disconnect()`](Self::disconnect()) to
+     * terminate the connection.
+     * @see {@link IConnectOptions} interface for more details.
+     * @param {IConnectOptions | undefined | null} [args]
+     * @returns {Promise<void>}
+     */
+    connect(args) {
+        const ret = wasm.rpcclient_connect(this.__wbg_ptr, isLikeNone(args) ? 0 : addHeapObject(args));
+        return takeObject(ret);
+    }
+    /**
+     * Adds a peer to the Kaspa node's list of known peers.
+     * Returned information: None.
+     * @see {@link IAddPeerRequest}, {@link IAddPeerResponse}
+     * @throws `string` on an RPC error, a server-side error or when supplying incorrect arguments.
+     * @param {IAddPeerRequest} request
+     * @returns {Promise<IAddPeerResponse>}
+     */
+    addPeer(request) {
+        const ret = wasm.rpcclient_addPeer(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * The current protocol encoding.
+     * @returns {string}
+     */
+    get encoding() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.rpcclient_encoding(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * Retrieves general information about the Kaspa node.
+     * Returned information: Version of the Kaspa node, protocol
+     * version, network identifier.
+     * This call is primarily used by gRPC clients.
+     * For wRPC clients, use {@link RpcClient.getServerInfo}.
+     * @see {@link IGetInfoRequest}, {@link IGetInfoResponse}
+     * @throws `string` on an RPC error or a server-side error.
+     * @param {IGetInfoRequest | null} [request]
+     * @returns {Promise<IGetInfoResponse>}
+     */
+    getInfo(request) {
+        const ret = wasm.rpcclient_getInfo(this.__wbg_ptr, isLikeNone(request) ? 0 : addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * Retrieves the current sink block, which is the block with
+     * the highest cumulative difficulty in the Kaspa BlockDAG.
+     * Returned information: Sink block hash, sink block height.
+     * @see {@link IGetSinkRequest}, {@link IGetSinkResponse}
+     * @throws `string` on an RPC error or a server-side error.
+     * @param {IGetSinkRequest | null} [request]
+     * @returns {Promise<IGetSinkResponse>}
+     */
+    getSink(request) {
+        const ret = wasm.rpcclient_getSink(this.__wbg_ptr, isLikeNone(request) ? 0 : addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * Current rpc resolver
+     * @returns {Resolver | undefined}
+     */
+    get resolver() {
+        const ret = wasm.rpcclient_resolver(this.__wbg_ptr);
+        return ret === 0 ? undefined : Resolver.__wrap(ret);
+    }
+    /**
+     * Gracefully shuts down the Kaspa node.
+     * Returned information: None.
+     * @see {@link IShutdownRequest}, {@link IShutdownResponse}
+     * @throws `string` on an RPC error or a server-side error.
+     * @param {IShutdownRequest | null} [request]
+     * @returns {Promise<IShutdownResponse>}
+     */
+    shutdown(request) {
+        const ret = wasm.rpcclient_shutdown(this.__wbg_ptr, isLikeNone(request) ? 0 : addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * Retrieves a specific block from the Kaspa BlockDAG.
+     * Returned information: Block information.
+     * @see {@link IGetBlockRequest}, {@link IGetBlockResponse}
+     * @throws `string` on an RPC error, a server-side error or when supplying incorrect arguments.
+     * @param {IGetBlockRequest} request
+     * @returns {Promise<IGetBlockResponse>}
+     */
+    getBlock(request) {
+        const ret = wasm.rpcclient_getBlock(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * Constructs an WebSocket RPC URL given the partial URL or an IP, RPC encoding
+     * and a network type.
+     *
+     * # Arguments
+     *
+     * * `url` - Partial URL or an IP address
+     * * `encoding` - RPC encoding
+     * * `network_type` - Network type
+     * @param {string} url
+     * @param {Encoding} encoding
+     * @param {NetworkId} network
+     * @returns {string}
+     */
+    static parseUrl(url, encoding, network) {
+        let deferred4_0;
+        let deferred4_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            const ptr0 = passStringToWasm0(url, wasm.__wbindgen_export_1, wasm.__wbindgen_export_2);
+            const len0 = WASM_VECTOR_LEN;
+            _assertClass(network, NetworkId);
+            var ptr1 = network.__destroy_into_raw();
+            wasm.rpcclient_parseUrl(retptr, ptr0, len0, encoding, ptr1);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
+            var ptr3 = r0;
+            var len3 = r1;
+            if (r3) {
+                ptr3 = 0; len3 = 0;
+                throw takeObject(r2);
+            }
+            deferred4_0 = ptr3;
+            deferred4_1 = len3;
+            return getStringFromWasm0(ptr3, len3);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export_3(deferred4_0, deferred4_1, 1);
         }
     }
 }
@@ -8817,12 +9486,6 @@ export class ScriptBuilder {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_scriptbuilder_free(ptr, 0);
     }
-    constructor() {
-        const ret = wasm.scriptbuilder_new();
-        this.__wbg_ptr = ret >>> 0;
-        ScriptBuilderFinalization.register(this, this.__wbg_ptr, this);
-        return this;
-    }
     /**
      * Creates a new ScriptBuilder over an existing script.
      * Supplied script can be represented as an `Uint8Array` or a `HexString`.
@@ -8845,6 +9508,116 @@ export class ScriptBuilder {
         }
     }
     /**
+     * @param {bigint} sequence
+     * @returns {ScriptBuilder}
+     */
+    addSequence(sequence) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.scriptbuilder_addLockTime(retptr, this.__wbg_ptr, sequence);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return ScriptBuilder.__wrap(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Get script bytes represented by a hex string.
+     * @returns {HexString}
+     */
+    toString() {
+        const ret = wasm.scriptbuilder_toString(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+     * @param {bigint} lock_time
+     * @returns {ScriptBuilder}
+     */
+    addLockTime(lock_time) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.scriptbuilder_addLockTime(retptr, this.__wbg_ptr, lock_time);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return ScriptBuilder.__wrap(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * @param {HexString | Uint8Array} data
+     * @returns {number}
+     */
+    static canonicalDataSize(data) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.scriptbuilder_canonicalDataSize(retptr, addHeapObject(data));
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return r0 >>> 0;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Creates an equivalent pay-to-script-hash script.
+     * Can be used to create an P2SH address.
+     * @see {@link addressFromScriptPublicKey}
+     * @returns {ScriptPublicKey}
+     */
+    createPayToScriptHashScript() {
+        const ret = wasm.scriptbuilder_createPayToScriptHashScript(this.__wbg_ptr);
+        return ScriptPublicKey.__wrap(ret);
+    }
+    /**
+     * Generates a signature script that fits a pay-to-script-hash script.
+     * @param {HexString | Uint8Array} signature
+     * @returns {HexString}
+     */
+    encodePayToScriptHashSignatureScript(signature) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.scriptbuilder_encodePayToScriptHashSignatureScript(retptr, this.__wbg_ptr, addHeapObject(signature));
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return takeObject(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    constructor() {
+        const ret = wasm.scriptbuilder_new();
+        this.__wbg_ptr = ret >>> 0;
+        ScriptBuilderFinalization.register(this, this.__wbg_ptr, this);
+        return this;
+    }
+    /**
+     * Drains (empties) the script builder, returning the
+     * script bytes represented by a hex string.
+     * @returns {HexString}
+     */
+    drain() {
+        const ret = wasm.scriptbuilder_drain(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
      * Pushes the passed opcode to the end of the script. The script will not
      * be modified if pushing the opcode would cause the script to exceed the
      * maximum allowed script engine size.
@@ -8855,6 +9628,25 @@ export class ScriptBuilder {
         try {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
             wasm.scriptbuilder_addOp(retptr, this.__wbg_ptr, op);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return ScriptBuilder.__wrap(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * @param {bigint} value
+     * @returns {ScriptBuilder}
+     */
+    addI64(value) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.scriptbuilder_addI64(retptr, this.__wbg_ptr, value);
             var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
             var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
             var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
@@ -8892,11 +9684,11 @@ export class ScriptBuilder {
      * chooses canonical opcodes depending on the length of the data.
      *
      * A zero length buffer will lead to a push of empty data onto the stack (Op0 = OpFalse)
-     * and any push of data greater than [`MAX_SCRIPT_ELEMENT_SIZE`](kaspa_txscript::MAX_SCRIPT_ELEMENT_SIZE) will not modify
+     * and any push of data greater than the maximum script element size will not modify
      * the script since that is not allowed by the script engine.
      *
      * Also, the script will not be modified if pushing the data would cause the script to
-     * exceed the maximum allowed script engine size [`MAX_SCRIPTS_SIZE`](kaspa_txscript::MAX_SCRIPTS_SIZE).
+     * exceed the maximum allowed script engine size.
      * @param {HexString | Uint8Array} data
      * @returns {ScriptBuilder}
      */
@@ -8911,129 +9703,6 @@ export class ScriptBuilder {
                 throw takeObject(r1);
             }
             return ScriptBuilder.__wrap(r0);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
-    }
-    /**
-     * @param {bigint} value
-     * @returns {ScriptBuilder}
-     */
-    addI64(value) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.scriptbuilder_addI64(retptr, this.__wbg_ptr, value);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
-            }
-            return ScriptBuilder.__wrap(r0);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
-    }
-    /**
-     * @param {bigint} lock_time
-     * @returns {ScriptBuilder}
-     */
-    addLockTime(lock_time) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.scriptbuilder_addLockTime(retptr, this.__wbg_ptr, lock_time);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
-            }
-            return ScriptBuilder.__wrap(r0);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
-    }
-    /**
-     * @param {bigint} sequence
-     * @returns {ScriptBuilder}
-     */
-    addSequence(sequence) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.scriptbuilder_addLockTime(retptr, this.__wbg_ptr, sequence);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
-            }
-            return ScriptBuilder.__wrap(r0);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
-    }
-    /**
-     * @param {HexString | Uint8Array} data
-     * @returns {number}
-     */
-    static canonicalDataSize(data) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.scriptbuilder_canonicalDataSize(retptr, addHeapObject(data));
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
-            }
-            return r0 >>> 0;
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
-    }
-    /**
-     * Get script bytes represented by a hex string.
-     * @returns {HexString}
-     */
-    toString() {
-        const ret = wasm.scriptbuilder_toString(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * Drains (empties) the script builder, returning the
-     * script bytes represented by a hex string.
-     * @returns {HexString}
-     */
-    drain() {
-        const ret = wasm.scriptbuilder_drain(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * Creates an equivalent pay-to-script-hash script.
-     * Can be used to create an P2SH address.
-     * @see {@link addressFromScriptPublicKey}
-     * @returns {ScriptPublicKey}
-     */
-    createPayToScriptHashScript() {
-        const ret = wasm.scriptbuilder_createPayToScriptHashScript(this.__wbg_ptr);
-        return ScriptPublicKey.__wrap(ret);
-    }
-    /**
-     * Generates a signature script that fits a pay-to-script-hash script.
-     * @param {HexString | Uint8Array} signature
-     * @returns {HexString}
-     */
-    encodePayToScriptHashSignatureScript(signature) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.scriptbuilder_encodePayToScriptHashSignatureScript(retptr, this.__wbg_ptr, addHeapObject(signature));
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
-            }
-            return takeObject(r0);
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
@@ -9087,8 +9756,8 @@ export class ScriptPublicKey {
 
     toJSON() {
         return {
-            version: this.version,
             script: this.script,
+            version: this.version,
         };
     }
 
@@ -9106,19 +9775,6 @@ export class ScriptPublicKey {
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_scriptpublickey_free(ptr, 0);
-    }
-    /**
-     * @returns {number}
-     */
-    get version() {
-        const ret = wasm.__wbg_get_scriptpublickey_version(this.__wbg_ptr);
-        return ret;
-    }
-    /**
-     * @param {number} arg0
-     */
-    set version(arg0) {
-        wasm.__wbg_set_scriptpublickey_version(this.__wbg_ptr, arg0);
     }
     /**
      * @param {number} version
@@ -9160,6 +9816,19 @@ export class ScriptPublicKey {
             wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
         }
     }
+    /**
+     * @returns {number}
+     */
+    get version() {
+        const ret = wasm.__wbg_get_scriptpublickey_version(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * @param {number} arg0
+     */
+    set version(arg0) {
+        wasm.__wbg_set_scriptpublickey_version(this.__wbg_ptr, arg0);
+    }
 }
 
 const SetAadOptionsFinalization = (typeof FinalizationRegistry === 'undefined')
@@ -9178,6 +9847,25 @@ export class SetAadOptions {
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_setaadoptions_free(ptr, 0);
+    }
+    /**
+     * @param {Function} value
+     */
+    set transform(value) {
+        wasm.setaadoptions_set_transform(this.__wbg_ptr, addHeapObject(value));
+    }
+    /**
+     * @returns {number}
+     */
+    get plaintextLength() {
+        const ret = wasm.setaadoptions_plaintextLength(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * @param {number} value
+     */
+    set plaintext_length(value) {
+        wasm.setaadoptions_set_plaintext_length(this.__wbg_ptr, value);
     }
     /**
      * @param {Function} flush
@@ -9204,30 +9892,11 @@ export class SetAadOptions {
         wasm.setaadoptions_set_flush(this.__wbg_ptr, addHeapObject(value));
     }
     /**
-     * @returns {number}
-     */
-    get plaintextLength() {
-        const ret = wasm.setaadoptions_plaintextLength(this.__wbg_ptr);
-        return ret;
-    }
-    /**
-     * @param {number} value
-     */
-    set plaintext_length(value) {
-        wasm.setaadoptions_set_plaintext_length(this.__wbg_ptr, value);
-    }
-    /**
      * @returns {Function}
      */
     get transform() {
         const ret = wasm.setaadoptions_transform(this.__wbg_ptr);
         return takeObject(ret);
-    }
-    /**
-     * @param {Function} value
-     */
-    set transform(value) {
-        wasm.setaadoptions_set_transform(this.__wbg_ptr, addHeapObject(value));
     }
 }
 
@@ -9319,6 +9988,12 @@ export class StreamTransformOptions {
         wasm.__wbg_streamtransformoptions_free(ptr, 0);
     }
     /**
+     * @param {Function} value
+     */
+    set transform(value) {
+        wasm.streamtransformoptions_set_transform(this.__wbg_ptr, addHeapObject(value));
+    }
+    /**
      * @param {Function} flush
      * @param {Function} transform
      */
@@ -9348,12 +10023,6 @@ export class StreamTransformOptions {
         const ret = wasm.streamtransformoptions_transform(this.__wbg_ptr);
         return takeObject(ret);
     }
-    /**
-     * @param {Function} value
-     */
-    set transform(value) {
-        wasm.streamtransformoptions_set_transform(this.__wbg_ptr, addHeapObject(value));
-    }
 }
 
 const TransactionFinalization = (typeof FinalizationRegistry === 'undefined')
@@ -9378,15 +10047,15 @@ export class Transaction {
 
     toJSON() {
         return {
-            id: this.id,
-            inputs: this.inputs,
-            outputs: this.outputs,
             version: this.version,
             lockTime: this.lockTime,
-            gas: this.gas,
+            inputs: this.inputs,
+            outputs: this.outputs,
             subnetworkId: this.subnetworkId,
             payload: this.payload,
+            gas: this.gas,
             mass: this.mass,
+            id: this.id,
         };
     }
 
@@ -9404,56 +10073,6 @@ export class Transaction {
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_transaction_free(ptr, 0);
-    }
-    /**
-     * Determines whether or not a transaction is a coinbase transaction. A coinbase
-     * transaction is a special transaction created by miners that distributes fees and block subsidy
-     * to the previous blocks' miners, and specifies the script_pub_key that will be used to pay the current
-     * miner in future blocks.
-     * @returns {boolean}
-     */
-    is_coinbase() {
-        const ret = wasm.transaction_is_coinbase(this.__wbg_ptr);
-        return ret !== 0;
-    }
-    /**
-     * Recompute and finalize the tx id based on updated tx fields
-     * @returns {Hash}
-     */
-    finalize() {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.transaction_finalize(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
-            }
-            return Hash.__wrap(r0);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
-    }
-    /**
-     * Returns the transaction ID
-     * @returns {string}
-     */
-    get id() {
-        let deferred1_0;
-        let deferred1_1;
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.transaction_id(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            deferred1_0 = r0;
-            deferred1_1 = r1;
-            return getStringFromWasm0(r0, r1);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
-        }
     }
     /**
      * @param {ITransaction | Transaction} js_value
@@ -9477,68 +10096,22 @@ export class Transaction {
         }
     }
     /**
-     * @returns {TransactionInput[]}
-     */
-    get inputs() {
-        const ret = wasm.transaction_get_inputs_as_js_array(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * Returns a list of unique addresses used by transaction inputs.
-     * This method can be used to determine addresses used by transaction inputs
-     * in order to select private keys needed for transaction signing.
-     * @param {NetworkType | NetworkId | string} network_type
-     * @returns {Address[]}
-     */
-    addresses(network_type) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.transaction_addresses(retptr, this.__wbg_ptr, addBorrowedObject(network_type));
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
-            }
-            return takeObject(r0);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-            heap[stack_pointer++] = undefined;
-        }
-    }
-    /**
-     * @param {(ITransactionInput | TransactionInput)[]} js_value
-     */
-    set inputs(js_value) {
-        try {
-            wasm.transaction_set_inputs_from_js_array(this.__wbg_ptr, addBorrowedObject(js_value));
-        } finally {
-            heap[stack_pointer++] = undefined;
-        }
-    }
-    /**
-     * @returns {TransactionOutput[]}
-     */
-    get outputs() {
-        const ret = wasm.transaction_get_outputs_as_js_array(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * @param {(ITransactionOutput | TransactionOutput)[]} js_value
-     */
-    set outputs(js_value) {
-        try {
-            wasm.transaction_set_outputs_from_js_array(this.__wbg_ptr, addBorrowedObject(js_value));
-        } finally {
-            heap[stack_pointer++] = undefined;
-        }
-    }
-    /**
      * @returns {number}
      */
     get version() {
         const ret = wasm.transaction_version(this.__wbg_ptr);
         return ret;
+    }
+    /**
+     * Determines whether or not a transaction is a coinbase transaction. A coinbase
+     * transaction is a special transaction created by miners that distributes fees and block subsidy
+     * to the previous blocks' miners, and specifies the script_pub_key that will be used to pay the current
+     * miner in future blocks.
+     * @returns {boolean}
+     */
+    is_coinbase() {
+        const ret = wasm.transaction_is_coinbase(this.__wbg_ptr);
+        return ret !== 0;
     }
     /**
      * @param {number} v
@@ -9558,103 +10131,6 @@ export class Transaction {
      */
     set lockTime(v) {
         wasm.transaction_set_lockTime(this.__wbg_ptr, v);
-    }
-    /**
-     * @returns {bigint}
-     */
-    get gas() {
-        const ret = wasm.transaction_gas(this.__wbg_ptr);
-        return BigInt.asUintN(64, ret);
-    }
-    /**
-     * @param {bigint} v
-     */
-    set gas(v) {
-        wasm.transaction_set_gas(this.__wbg_ptr, v);
-    }
-    /**
-     * @returns {string}
-     */
-    get subnetworkId() {
-        let deferred1_0;
-        let deferred1_1;
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.transaction_get_subnetwork_id_as_hex(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            deferred1_0 = r0;
-            deferred1_1 = r1;
-            return getStringFromWasm0(r0, r1);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
-        }
-    }
-    /**
-     * @param {any} js_value
-     */
-    set subnetworkId(js_value) {
-        wasm.transaction_set_subnetwork_id_from_js_value(this.__wbg_ptr, addHeapObject(js_value));
-    }
-    /**
-     * @returns {string}
-     */
-    get payload() {
-        let deferred1_0;
-        let deferred1_1;
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.transaction_get_payload_as_hex_string(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            deferred1_0 = r0;
-            deferred1_1 = r1;
-            return getStringFromWasm0(r0, r1);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
-        }
-    }
-    /**
-     * @param {any} js_value
-     */
-    set payload(js_value) {
-        wasm.transaction_set_payload_from_js_value(this.__wbg_ptr, addHeapObject(js_value));
-    }
-    /**
-     * @returns {bigint}
-     */
-    get mass() {
-        const ret = wasm.transaction_get_mass(this.__wbg_ptr);
-        return BigInt.asUintN(64, ret);
-    }
-    /**
-     * @param {bigint} v
-     */
-    set mass(v) {
-        wasm.transaction_set_mass(this.__wbg_ptr, v);
-    }
-    /**
-     * Serializes the transaction to a pure JavaScript Object.
-     * The schema of the JavaScript object is defined by {@link ISerializableTransaction}.
-     * @see {@link ISerializableTransaction}
-     * @returns {ISerializableTransaction}
-     */
-    serializeToObject() {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.transaction_serializeToObject(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
-            }
-            return takeObject(r0);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
     }
     /**
      * Serializes the transaction to a JSON string.
@@ -9684,6 +10160,56 @@ export class Transaction {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_export_3(deferred2_0, deferred2_1, 1);
         }
+    }
+    /**
+     * Serializes the transaction to a pure JavaScript Object.
+     * The schema of the JavaScript object is defined by {@link ISerializableTransaction}.
+     * @see {@link ISerializableTransaction}
+     * @returns {ISerializableTransaction}
+     */
+    serializeToObject() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.transaction_serializeToObject(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return takeObject(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Deserialize the {@link Transaction} Object from a JSON string.
+     * @param {string} json
+     * @returns {Transaction}
+     */
+    static deserializeFromJSON(json) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            const ptr0 = passStringToWasm0(json, wasm.__wbindgen_export_1, wasm.__wbindgen_export_2);
+            const len0 = WASM_VECTOR_LEN;
+            wasm.transaction_deserializeFromJSON(retptr, ptr0, len0);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return Transaction.__wrap(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * @returns {TransactionInput[]}
+     */
+    get inputs() {
+        const ret = wasm.transaction_get_inputs_as_js_array(this.__wbg_ptr);
+        return takeObject(ret);
     }
     /**
      * Serializes the transaction to a "Safe" JSON schema where it converts all `bigint` values to `string` to avoid potential client-side precision loss.
@@ -9735,26 +10261,75 @@ export class Transaction {
         }
     }
     /**
-     * Deserialize the {@link Transaction} Object from a JSON string.
-     * @param {string} json
-     * @returns {Transaction}
+     * @returns {TransactionOutput[]}
      */
-    static deserializeFromJSON(json) {
+    get outputs() {
+        const ret = wasm.transaction_get_outputs_as_js_array(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+     * @returns {string}
+     */
+    get subnetworkId() {
+        let deferred1_0;
+        let deferred1_1;
         try {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            const ptr0 = passStringToWasm0(json, wasm.__wbindgen_export_1, wasm.__wbindgen_export_2);
-            const len0 = WASM_VECTOR_LEN;
-            wasm.transaction_deserializeFromJSON(retptr, ptr0, len0);
+            wasm.transaction_get_subnetwork_id_as_hex(retptr, this.__wbg_ptr);
             var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
             var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
-            }
-            return Transaction.__wrap(r0);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
         }
+    }
+    /**
+     * @param {(ITransactionInput | TransactionInput)[]} js_value
+     */
+    set inputs(js_value) {
+        try {
+            wasm.transaction_set_inputs_from_js_array(this.__wbg_ptr, addBorrowedObject(js_value));
+        } finally {
+            heap[stack_pointer++] = undefined;
+        }
+    }
+    /**
+     * @returns {string}
+     */
+    get payload() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.transaction_get_payload_as_hex_string(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * @param {(ITransactionOutput | TransactionOutput)[]} js_value
+     */
+    set outputs(js_value) {
+        try {
+            wasm.transaction_set_outputs_from_js_array(this.__wbg_ptr, addBorrowedObject(js_value));
+        } finally {
+            heap[stack_pointer++] = undefined;
+        }
+    }
+    /**
+     * @param {any} js_value
+     */
+    set payload(js_value) {
+        wasm.transaction_set_payload_from_js_value(this.__wbg_ptr, addHeapObject(js_value));
     }
     /**
      * Deserialize the {@link Transaction} Object from a "Safe" JSON schema where all `bigint` values are represented as `string`.
@@ -9778,6 +10353,117 @@ export class Transaction {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
+    /**
+     * @param {(IGenesisCovenantGroup | GenesisCovenantGroup)[]} groups
+     */
+    populateGenesisCovenants(groups) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.transaction_populateGenesisCovenants(retptr, this.__wbg_ptr, addBorrowedObject(groups));
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            if (r1) {
+                throw takeObject(r0);
+            }
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            heap[stack_pointer++] = undefined;
+        }
+    }
+    /**
+     * @param {any} js_value
+     */
+    set subnetworkId(js_value) {
+        wasm.transaction_set_subnetwork_id_from_js_value(this.__wbg_ptr, addHeapObject(js_value));
+    }
+    /**
+     * @returns {bigint}
+     */
+    get gas() {
+        const ret = wasm.transaction_gas(this.__wbg_ptr);
+        return BigInt.asUintN(64, ret);
+    }
+    /**
+     * @param {bigint} v
+     */
+    set gas(v) {
+        wasm.transaction_set_gas(this.__wbg_ptr, v);
+    }
+    /**
+     * Recompute and finalize the tx id based on updated tx fields
+     * @returns {Hash}
+     */
+    finalize() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.transaction_finalize(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return Hash.__wrap(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * @returns {bigint}
+     */
+    get mass() {
+        const ret = wasm.transaction_get_mass(this.__wbg_ptr);
+        return BigInt.asUintN(64, ret);
+    }
+    /**
+     * @param {bigint} v
+     */
+    set mass(v) {
+        wasm.transaction_set_mass(this.__wbg_ptr, v);
+    }
+    /**
+     * Returns a list of unique addresses used by transaction inputs.
+     * This method can be used to determine addresses used by transaction inputs
+     * in order to select private keys needed for transaction signing.
+     * @param {NetworkType | NetworkId | string} network_type
+     * @returns {Address[]}
+     */
+    addresses(network_type) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.transaction_addresses(retptr, this.__wbg_ptr, addBorrowedObject(network_type));
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return takeObject(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            heap[stack_pointer++] = undefined;
+        }
+    }
+    /**
+     * Returns the transaction ID
+     * @returns {string}
+     */
+    get id() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.transaction_id(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
+        }
+    }
 }
 
 const TransactionInputFinalization = (typeof FinalizationRegistry === 'undefined')
@@ -9799,10 +10485,11 @@ export class TransactionInput {
 
     toJSON() {
         return {
-            previousOutpoint: this.previousOutpoint,
-            signatureScript: this.signatureScript,
             sequence: this.sequence,
             sigOpCount: this.sigOpCount,
+            computeBudget: this.computeBudget,
+            previousOutpoint: this.previousOutpoint,
+            signatureScript: this.signatureScript,
             utxo: this.utxo,
         };
     }
@@ -9842,6 +10529,45 @@ export class TransactionInput {
             wasm.__wbindgen_add_to_stack_pointer(16);
             heap[stack_pointer++] = undefined;
         }
+    }
+    /**
+     * @returns {bigint}
+     */
+    get sequence() {
+        const ret = wasm.transactioninput_get_sequence(this.__wbg_ptr);
+        return BigInt.asUintN(64, ret);
+    }
+    /**
+     * @param {bigint} sequence
+     */
+    set sequence(sequence) {
+        wasm.transactioninput_set_sequence(this.__wbg_ptr, sequence);
+    }
+    /**
+     * @returns {number}
+     */
+    get sigOpCount() {
+        const ret = wasm.transactioninput_get_sig_op_count(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * @param {number} sig_op_count
+     */
+    set sigOpCount(sig_op_count) {
+        wasm.transactioninput_set_sig_op_count(this.__wbg_ptr, sig_op_count);
+    }
+    /**
+     * @returns {number}
+     */
+    get computeBudget() {
+        const ret = wasm.transactioninput_get_compute_budget(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * @param {number} compute_budget
+     */
+    set computeBudget(compute_budget) {
+        wasm.transactioninput_set_compute_budget(this.__wbg_ptr, compute_budget);
     }
     /**
      * @returns {TransactionOutpoint}
@@ -9903,32 +10629,6 @@ export class TransactionInput {
         }
     }
     /**
-     * @returns {bigint}
-     */
-    get sequence() {
-        const ret = wasm.transactioninput_get_sequence(this.__wbg_ptr);
-        return BigInt.asUintN(64, ret);
-    }
-    /**
-     * @param {bigint} sequence
-     */
-    set sequence(sequence) {
-        wasm.transactioninput_set_sequence(this.__wbg_ptr, sequence);
-    }
-    /**
-     * @returns {number}
-     */
-    get sigOpCount() {
-        const ret = wasm.transactioninput_get_sig_op_count(this.__wbg_ptr);
-        return ret;
-    }
-    /**
-     * @param {number} sig_op_count
-     */
-    set sigOpCount(sig_op_count) {
-        wasm.transactioninput_set_sig_op_count(this.__wbg_ptr, sig_op_count);
-    }
-    /**
      * @returns {UtxoEntryReference | undefined}
      */
     get utxo() {
@@ -9980,37 +10680,6 @@ export class TransactionOutpoint {
         wasm.__wbg_transactionoutpoint_free(ptr, 0);
     }
     /**
-     * @param {Hash} transaction_id
-     * @param {number} index
-     */
-    constructor(transaction_id, index) {
-        _assertClass(transaction_id, Hash);
-        var ptr0 = transaction_id.__destroy_into_raw();
-        const ret = wasm.transactionoutpoint_ctor(ptr0, index);
-        this.__wbg_ptr = ret >>> 0;
-        TransactionOutpointFinalization.register(this, this.__wbg_ptr, this);
-        return this;
-    }
-    /**
-     * @returns {string}
-     */
-    getId() {
-        let deferred1_0;
-        let deferred1_1;
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.transactionoutpoint_getId(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            deferred1_0 = r0;
-            deferred1_1 = r1;
-            return getStringFromWasm0(r0, r1);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
-        }
-    }
-    /**
      * @returns {string}
      */
     get transactionId() {
@@ -10030,11 +10699,42 @@ export class TransactionOutpoint {
         }
     }
     /**
+     * @param {Hash} transaction_id
+     * @param {number} index
+     */
+    constructor(transaction_id, index) {
+        _assertClass(transaction_id, Hash);
+        var ptr0 = transaction_id.__destroy_into_raw();
+        const ret = wasm.transactionoutpoint_ctor(ptr0, index);
+        this.__wbg_ptr = ret >>> 0;
+        TransactionOutpointFinalization.register(this, this.__wbg_ptr, this);
+        return this;
+    }
+    /**
      * @returns {number}
      */
     get index() {
         const ret = wasm.transactionoutpoint_index(this.__wbg_ptr);
         return ret >>> 0;
+    }
+    /**
+     * @returns {string}
+     */
+    getId() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.transactionoutpoint_getId(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
+        }
     }
 }
 
@@ -10057,8 +10757,9 @@ export class TransactionOutput {
 
     toJSON() {
         return {
-            value: this.value,
+            covenant: this.covenant,
             scriptPublicKey: this.scriptPublicKey,
+            value: this.value,
         };
     }
 
@@ -10078,13 +10779,48 @@ export class TransactionOutput {
         wasm.__wbg_transactionoutput_free(ptr, 0);
     }
     /**
+     * @returns {CovenantBinding | undefined}
+     */
+    get covenant() {
+        const ret = wasm.transactionoutput_covenant(this.__wbg_ptr);
+        return ret === 0 ? undefined : CovenantBinding.__wrap(ret);
+    }
+    /**
+     * @param {CovenantBinding} v
+     */
+    set covenant(v) {
+        _assertClass(v, CovenantBinding);
+        var ptr0 = v.__destroy_into_raw();
+        wasm.transactionoutput_set_covenant(this.__wbg_ptr, ptr0);
+    }
+    /**
+     * @returns {ScriptPublicKey}
+     */
+    get scriptPublicKey() {
+        const ret = wasm.transactionoutput_scriptPublicKey(this.__wbg_ptr);
+        return ScriptPublicKey.__wrap(ret);
+    }
+    /**
+     * @param {ScriptPublicKey} v
+     */
+    set scriptPublicKey(v) {
+        _assertClass(v, ScriptPublicKey);
+        wasm.transactionoutput_set_scriptPublicKey(this.__wbg_ptr, v.__wbg_ptr);
+    }
+    /**
      * TransactionOutput constructor
      * @param {bigint} value
      * @param {ScriptPublicKey} script_public_key
+     * @param {CovenantBinding | null} [covenant]
      */
-    constructor(value, script_public_key) {
+    constructor(value, script_public_key, covenant) {
         _assertClass(script_public_key, ScriptPublicKey);
-        const ret = wasm.transactionoutput_ctor(value, script_public_key.__wbg_ptr);
+        let ptr0 = 0;
+        if (!isLikeNone(covenant)) {
+            _assertClass(covenant, CovenantBinding);
+            ptr0 = covenant.__destroy_into_raw();
+        }
+        const ret = wasm.transactionoutput_ctor(value, script_public_key.__wbg_ptr, ptr0);
         this.__wbg_ptr = ret >>> 0;
         TransactionOutputFinalization.register(this, this.__wbg_ptr, this);
         return this;
@@ -10101,20 +10837,6 @@ export class TransactionOutput {
      */
     set value(v) {
         wasm.transactionoutput_set_value(this.__wbg_ptr, v);
-    }
-    /**
-     * @returns {ScriptPublicKey}
-     */
-    get scriptPublicKey() {
-        const ret = wasm.transactionoutput_scriptPublicKey(this.__wbg_ptr);
-        return ScriptPublicKey.__wrap(ret);
-    }
-    /**
-     * @param {ScriptPublicKey} v
-     */
-    set scriptPublicKey(v) {
-        _assertClass(v, ScriptPublicKey);
-        wasm.transactionoutput_set_scriptPublicKey(this.__wbg_ptr, v.__wbg_ptr);
     }
 }
 
@@ -10136,16 +10858,16 @@ export class TransactionRecord {
 
     toJSON() {
         return {
+            data: this.data,
+            value: this.value,
+            binding: this.binding,
+            blockDaaScore: this.blockDaaScore,
+            type: this.type,
             id: this.id,
             unixtimeMsec: this.unixtimeMsec,
             network: this.network,
             note: this.note,
             metadata: this.metadata,
-            value: this.value,
-            blockDaaScore: this.blockDaaScore,
-            binding: this.binding,
-            data: this.data,
-            type: this.type,
         };
     }
 
@@ -10163,6 +10885,91 @@ export class TransactionRecord {
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_transactionrecord_free(ptr, 0);
+    }
+    /**
+     * Check if the transaction record has the given address within the associated UTXO set.
+     * @param {Address} address
+     * @returns {boolean}
+     */
+    hasAddress(address) {
+        _assertClass(address, Address);
+        const ret = wasm.transactionrecord_hasAddress(this.__wbg_ptr, address.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
+     * @returns {ITransactionData}
+     */
+    get data() {
+        const ret = wasm.transactionrecord_data(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+     * @returns {bigint}
+     */
+    get value() {
+        const ret = wasm.transactionrecord_value(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+     * @returns {IBinding}
+     */
+    get binding() {
+        const ret = wasm.transactionrecord_binding(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+     * @param {bigint} currentDaaScore
+     * @returns {string}
+     */
+    maturityProgress(currentDaaScore) {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.transactionrecord_maturityProgress(retptr, this.__wbg_ptr, addHeapObject(currentDaaScore));
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * @returns {bigint}
+     */
+    get blockDaaScore() {
+        const ret = wasm.transactionrecord_blockDaaScore(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+     * @returns {string}
+     */
+    get type() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.transactionrecord_type(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * Serialize the transaction record to a JavaScript object.
+     * @returns {any}
+     */
+    serialize() {
+        const ret = wasm.transactionrecord_serialize(this.__wbg_ptr);
+        return takeObject(ret);
     }
     /**
      * @returns {Hash}
@@ -10269,91 +11076,6 @@ export class TransactionRecord {
         var ptr0 = isLikeNone(arg0) ? 0 : passStringToWasm0(arg0, wasm.__wbindgen_export_1, wasm.__wbindgen_export_2);
         var len0 = WASM_VECTOR_LEN;
         wasm.__wbg_set_transactionrecord_metadata(this.__wbg_ptr, ptr0, len0);
-    }
-    /**
-     * @param {bigint} currentDaaScore
-     * @returns {string}
-     */
-    maturityProgress(currentDaaScore) {
-        let deferred1_0;
-        let deferred1_1;
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.transactionrecord_maturityProgress(retptr, this.__wbg_ptr, addHeapObject(currentDaaScore));
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            deferred1_0 = r0;
-            deferred1_1 = r1;
-            return getStringFromWasm0(r0, r1);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
-        }
-    }
-    /**
-     * @returns {bigint}
-     */
-    get value() {
-        const ret = wasm.transactionrecord_value(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * @returns {bigint}
-     */
-    get blockDaaScore() {
-        const ret = wasm.transactionrecord_blockDaaScore(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * @returns {IBinding}
-     */
-    get binding() {
-        const ret = wasm.transactionrecord_binding(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * @returns {ITransactionData}
-     */
-    get data() {
-        const ret = wasm.transactionrecord_data(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * @returns {string}
-     */
-    get type() {
-        let deferred1_0;
-        let deferred1_1;
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.transactionrecord_type(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            deferred1_0 = r0;
-            deferred1_1 = r1;
-            return getStringFromWasm0(r0, r1);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
-        }
-    }
-    /**
-     * Check if the transaction record has the given address within the associated UTXO set.
-     * @param {Address} address
-     * @returns {boolean}
-     */
-    hasAddress(address) {
-        _assertClass(address, Address);
-        const ret = wasm.transactionrecord_hasAddress(this.__wbg_ptr, address.__wbg_ptr);
-        return ret !== 0;
-    }
-    /**
-     * Serialize the transaction record to a JavaScript object.
-     * @returns {any}
-     */
-    serialize() {
-        const ret = wasm.transactionrecord_serialize(this.__wbg_ptr);
-        return takeObject(ret);
     }
 }
 
@@ -10579,6 +11301,7 @@ export class TransactionUtxoEntry {
             scriptPublicKey: this.scriptPublicKey,
             blockDaaScore: this.blockDaaScore,
             isCoinbase: this.isCoinbase,
+            covenantId: this.covenantId,
         };
     }
 
@@ -10651,6 +11374,24 @@ export class TransactionUtxoEntry {
     set isCoinbase(arg0) {
         wasm.__wbg_set_transactionutxoentry_isCoinbase(this.__wbg_ptr, arg0);
     }
+    /**
+     * @returns {Hash | undefined}
+     */
+    get covenantId() {
+        const ret = wasm.__wbg_get_transactionutxoentry_covenantId(this.__wbg_ptr);
+        return ret === 0 ? undefined : Hash.__wrap(ret);
+    }
+    /**
+     * @param {Hash | null} [arg0]
+     */
+    set covenantId(arg0) {
+        let ptr0 = 0;
+        if (!isLikeNone(arg0)) {
+            _assertClass(arg0, Hash);
+            ptr0 = arg0.__destroy_into_raw();
+        }
+        wasm.__wbg_set_transactionutxoentry_covenantId(this.__wbg_ptr, ptr0);
+    }
 }
 
 const UserInfoOptionsFinalization = (typeof FinalizationRegistry === 'undefined')
@@ -10679,6 +11420,12 @@ export class UserInfoOptions {
         wasm.__wbg_userinfooptions_free(ptr, 0);
     }
     /**
+     * @param {string | null} [value]
+     */
+    set encoding(value) {
+        wasm.userinfooptions_set_encoding(this.__wbg_ptr, isLikeNone(value) ? 0 : addHeapObject(value));
+    }
+    /**
      * @param {string | null} [encoding]
      */
     constructor(encoding) {
@@ -10700,12 +11447,6 @@ export class UserInfoOptions {
     get encoding() {
         const ret = wasm.userinfooptions_encoding(this.__wbg_ptr);
         return takeObject(ret);
-    }
-    /**
-     * @param {string | null} [value]
-     */
-    set encoding(value) {
-        wasm.userinfooptions_set_encoding(this.__wbg_ptr, isLikeNone(value) ? 0 : addHeapObject(value));
     }
 }
 
@@ -10772,10 +11513,10 @@ export class UtxoContext {
 
     toJSON() {
         return {
-            isActive: this.isActive,
             matureLength: this.matureLength,
-            balance: this.balance,
             balanceStrings: this.balanceStrings,
+            isActive: this.isActive,
+            balance: this.balance,
         };
     }
 
@@ -10793,62 +11534,6 @@ export class UtxoContext {
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_utxocontext_free(ptr, 0);
-    }
-    /**
-     * @param {IUtxoContextArgs} js_value
-     */
-    constructor(js_value) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.utxocontext_ctor(retptr, addHeapObject(js_value));
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
-            }
-            this.__wbg_ptr = r0 >>> 0;
-            UtxoContextFinalization.register(this, this.__wbg_ptr, this);
-            return this;
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
-    }
-    /**
-     * Performs a scan of the given addresses and registers them in the context for event notifications.
-     * @param {(Address | string)[]} addresses
-     * @param {bigint | null} [optional_current_daa_score]
-     * @returns {Promise<void>}
-     */
-    trackAddresses(addresses, optional_current_daa_score) {
-        const ret = wasm.utxocontext_trackAddresses(this.__wbg_ptr, addHeapObject(addresses), isLikeNone(optional_current_daa_score) ? 0 : addHeapObject(optional_current_daa_score));
-        return takeObject(ret);
-    }
-    /**
-     * Unregister a list of addresses from the context. This will stop tracking of these addresses.
-     * @param {(Address | string)[]} addresses
-     * @returns {Promise<void>}
-     */
-    unregisterAddresses(addresses) {
-        const ret = wasm.utxocontext_unregisterAddresses(this.__wbg_ptr, addHeapObject(addresses));
-        return takeObject(ret);
-    }
-    /**
-     * Clear the UtxoContext.  Unregister all addresses and clear all UTXO entries.
-     * IMPORTANT: This function must be manually called when disconnecting or re-connecting to the node
-     * (followed by address re-registration).
-     * @returns {Promise<void>}
-     */
-    clear() {
-        const ret = wasm.utxocontext_clear(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * @returns {boolean}
-     */
-    get isActive() {
-        const ret = wasm.utxocontext_isActive(this.__wbg_ptr);
-        return ret !== 0;
     }
     /**
      *
@@ -10893,33 +11578,6 @@ export class UtxoContext {
         return ret >>> 0;
     }
     /**
-     * Returns pending UTXO entries that are currently managed by the UtxoContext.
-     * @returns {UtxoEntryReference[]}
-     */
-    getPending() {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.utxocontext_getPending(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
-            }
-            return takeObject(r0);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
-    }
-    /**
-     * Current {@link Balance} of the UtxoContext.
-     * @returns {Balance | undefined}
-     */
-    get balance() {
-        const ret = wasm.utxocontext_balance(this.__wbg_ptr);
-        return ret === 0 ? undefined : Balance.__wrap(ret);
-    }
-    /**
      * Current {@link BalanceStrings} of the UtxoContext.
      * @returns {BalanceStrings | undefined}
      */
@@ -10934,6 +11592,89 @@ export class UtxoContext {
                 throw takeObject(r1);
             }
             return r0 === 0 ? undefined : BalanceStrings.__wrap(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Performs a scan of the given addresses and registers them in the context for event notifications.
+     * @param {(Address | string)[]} addresses
+     * @param {bigint | null} [optional_current_daa_score]
+     * @returns {Promise<void>}
+     */
+    trackAddresses(addresses, optional_current_daa_score) {
+        const ret = wasm.utxocontext_trackAddresses(this.__wbg_ptr, addHeapObject(addresses), isLikeNone(optional_current_daa_score) ? 0 : addHeapObject(optional_current_daa_score));
+        return takeObject(ret);
+    }
+    /**
+     * Unregister a list of addresses from the context. This will stop tracking of these addresses.
+     * @param {(Address | string)[]} addresses
+     * @returns {Promise<void>}
+     */
+    unregisterAddresses(addresses) {
+        const ret = wasm.utxocontext_unregisterAddresses(this.__wbg_ptr, addHeapObject(addresses));
+        return takeObject(ret);
+    }
+    /**
+     * @param {IUtxoContextArgs} js_value
+     */
+    constructor(js_value) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.utxocontext_ctor(retptr, addHeapObject(js_value));
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            this.__wbg_ptr = r0 >>> 0;
+            UtxoContextFinalization.register(this, this.__wbg_ptr, this);
+            return this;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Clear the UtxoContext.  Unregister all addresses and clear all UTXO entries.
+     * IMPORTANT: This function must be manually called when disconnecting or re-connecting to the node
+     * (followed by address re-registration).
+     * @returns {Promise<void>}
+     */
+    clear() {
+        const ret = wasm.utxocontext_clear(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+     * @returns {boolean}
+     */
+    get isActive() {
+        const ret = wasm.utxocontext_isActive(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
+     * Current {@link Balance} of the UtxoContext.
+     * @returns {Balance | undefined}
+     */
+    get balance() {
+        const ret = wasm.utxocontext_balance(this.__wbg_ptr);
+        return ret === 0 ? undefined : Balance.__wrap(ret);
+    }
+    /**
+     * Returns pending UTXO entries that are currently managed by the UtxoContext.
+     * @returns {UtxoEntryReference[]}
+     */
+    getPending() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.utxocontext_getPending(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return takeObject(r0);
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
@@ -10976,27 +11717,6 @@ export class UtxoEntries {
         wasm.__wbg_utxoentries_free(ptr, 0);
     }
     /**
-     * Create a new `UtxoEntries` struct with a set of entries.
-     * @param {any} js_value
-     */
-    constructor(js_value) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.utxoentries_js_ctor(retptr, addHeapObject(js_value));
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
-            }
-            this.__wbg_ptr = r0 >>> 0;
-            UtxoEntriesFinalization.register(this, this.__wbg_ptr, this);
-            return this;
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
-    }
-    /**
      * @returns {any}
      */
     get items() {
@@ -11028,6 +11748,27 @@ export class UtxoEntries {
         const ret = wasm.utxoentries_amount(this.__wbg_ptr);
         return BigInt.asUintN(64, ret);
     }
+    /**
+     * Create a new `UtxoEntries` struct with a set of entries.
+     * @param {any} js_value
+     */
+    constructor(js_value) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.utxoentries_js_ctor(retptr, addHeapObject(js_value));
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            this.__wbg_ptr = r0 >>> 0;
+            UtxoEntriesFinalization.register(this, this.__wbg_ptr, this);
+            return this;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
 }
 
 const UtxoEntryFinalization = (typeof FinalizationRegistry === 'undefined')
@@ -11056,6 +11797,7 @@ export class UtxoEntry {
             scriptPublicKey: this.scriptPublicKey,
             blockDaaScore: this.blockDaaScore,
             isCoinbase: this.isCoinbase,
+            covenantId: this.covenantId,
         };
     }
 
@@ -11162,6 +11904,24 @@ export class UtxoEntry {
         wasm.__wbg_set_utxoentry_isCoinbase(this.__wbg_ptr, arg0);
     }
     /**
+     * @returns {Hash | undefined}
+     */
+    get covenantId() {
+        const ret = wasm.__wbg_get_utxoentry_covenantId(this.__wbg_ptr);
+        return ret === 0 ? undefined : Hash.__wrap(ret);
+    }
+    /**
+     * @param {Hash | null} [arg0]
+     */
+    set covenantId(arg0) {
+        let ptr0 = 0;
+        if (!isLikeNone(arg0)) {
+            _assertClass(arg0, Hash);
+            ptr0 = arg0.__destroy_into_raw();
+        }
+        wasm.__wbg_set_utxoentry_covenantId(this.__wbg_ptr, ptr0);
+    }
+    /**
      * @returns {string}
      */
     toString() {
@@ -11201,13 +11961,13 @@ export class UtxoEntryReference {
 
     toJSON() {
         return {
-            entry: this.entry,
-            outpoint: this.outpoint,
-            address: this.address,
-            amount: this.amount,
             isCoinbase: this.isCoinbase,
             blockDaaScore: this.blockDaaScore,
             scriptPublicKey: this.scriptPublicKey,
+            entry: this.entry,
+            amount: this.amount,
+            address: this.address,
+            outpoint: this.outpoint,
         };
     }
 
@@ -11225,6 +11985,13 @@ export class UtxoEntryReference {
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_utxoentryreference_free(ptr, 0);
+    }
+    /**
+     * @returns {boolean}
+     */
+    get isCoinbase() {
+        const ret = wasm.utxoentryreference_isCoinbase(this.__wbg_ptr);
+        return ret !== 0;
     }
     /**
      * @returns {string}
@@ -11245,41 +12012,6 @@ export class UtxoEntryReference {
         }
     }
     /**
-     * @returns {UtxoEntry}
-     */
-    get entry() {
-        const ret = wasm.utxoentryreference_entry(this.__wbg_ptr);
-        return UtxoEntry.__wrap(ret);
-    }
-    /**
-     * @returns {TransactionOutpoint}
-     */
-    get outpoint() {
-        const ret = wasm.utxoentryreference_outpoint(this.__wbg_ptr);
-        return TransactionOutpoint.__wrap(ret);
-    }
-    /**
-     * @returns {Address | undefined}
-     */
-    get address() {
-        const ret = wasm.utxoentryreference_address(this.__wbg_ptr);
-        return ret === 0 ? undefined : Address.__wrap(ret);
-    }
-    /**
-     * @returns {bigint}
-     */
-    get amount() {
-        const ret = wasm.utxoentryreference_amount(this.__wbg_ptr);
-        return BigInt.asUintN(64, ret);
-    }
-    /**
-     * @returns {boolean}
-     */
-    get isCoinbase() {
-        const ret = wasm.utxoentryreference_isCoinbase(this.__wbg_ptr);
-        return ret !== 0;
-    }
-    /**
      * @returns {bigint}
      */
     get blockDaaScore() {
@@ -11292,6 +12024,34 @@ export class UtxoEntryReference {
     get scriptPublicKey() {
         const ret = wasm.utxoentryreference_scriptPublicKey(this.__wbg_ptr);
         return ScriptPublicKey.__wrap(ret);
+    }
+    /**
+     * @returns {UtxoEntry}
+     */
+    get entry() {
+        const ret = wasm.utxoentryreference_entry(this.__wbg_ptr);
+        return UtxoEntry.__wrap(ret);
+    }
+    /**
+     * @returns {bigint}
+     */
+    get amount() {
+        const ret = wasm.utxoentryreference_amount(this.__wbg_ptr);
+        return BigInt.asUintN(64, ret);
+    }
+    /**
+     * @returns {Address | undefined}
+     */
+    get address() {
+        const ret = wasm.utxoentryreference_address(this.__wbg_ptr);
+        return ret === 0 ? undefined : Address.__wrap(ret);
+    }
+    /**
+     * @returns {TransactionOutpoint}
+     */
+    get outpoint() {
+        const ret = wasm.utxoentryreference_outpoint(this.__wbg_ptr);
+        return TransactionOutpoint.__wrap(ret);
     }
 }
 
@@ -11316,8 +12076,8 @@ export class UtxoProcessor {
 
     toJSON() {
         return {
-            rpc: this.rpc,
             networkId: this.networkId,
+            rpc: this.rpc,
             isActive: this.isActive,
         };
     }
@@ -11336,88 +12096,6 @@ export class UtxoProcessor {
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_utxoprocessor_free(ptr, 0);
-    }
-    /**
-     * @param {string | UtxoProcessorNotificationCallback} event
-     * @param {UtxoProcessorNotificationCallback | null} [callback]
-     */
-    addEventListener(event, callback) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.utxoprocessor_addEventListener(retptr, this.__wbg_ptr, addHeapObject(event), isLikeNone(callback) ? 0 : addHeapObject(callback));
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            if (r1) {
-                throw takeObject(r0);
-            }
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
-    }
-    /**
-     * @param {UtxoProcessorEventType | UtxoProcessorEventType[] | string | string[]} event
-     * @param {UtxoProcessorNotificationCallback | null} [callback]
-     */
-    removeEventListener(event, callback) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.utxoprocessor_removeEventListener(retptr, this.__wbg_ptr, addHeapObject(event), isLikeNone(callback) ? 0 : addHeapObject(callback));
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            if (r1) {
-                throw takeObject(r0);
-            }
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
-    }
-    /**
-     * UtxoProcessor constructor.
-     *
-     *
-     *
-     * @see {@link IUtxoProcessorArgs}
-     * @param {IUtxoProcessorArgs} js_value
-     */
-    constructor(js_value) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.utxoprocessor_ctor(retptr, addHeapObject(js_value));
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
-            }
-            this.__wbg_ptr = r0 >>> 0;
-            UtxoProcessorFinalization.register(this, this.__wbg_ptr, this);
-            return this;
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
-    }
-    /**
-     * Starts the UtxoProcessor and begins processing UTXO and other notifications.
-     * @returns {Promise<void>}
-     */
-    start() {
-        const ret = wasm.utxoprocessor_start(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * Stops the UtxoProcessor and ends processing UTXO and other notifications.
-     * @returns {Promise<void>}
-     */
-    stop() {
-        const ret = wasm.utxoprocessor_stop(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * @returns {RpcClient}
-     */
-    get rpc() {
-        const ret = wasm.utxoprocessor_rpc(this.__wbg_ptr);
-        return RpcClient.__wrap(ret);
     }
     /**
      * @returns {string | undefined}
@@ -11456,11 +12134,72 @@ export class UtxoProcessor {
         }
     }
     /**
-     * @returns {boolean}
+     * @param {string | UtxoProcessorNotificationCallback} event
+     * @param {UtxoProcessorNotificationCallback | null} [callback]
      */
-    get isActive() {
-        const ret = wasm.utxoprocessor_isActive(this.__wbg_ptr);
-        return ret !== 0;
+    addEventListener(event, callback) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.utxoprocessor_addEventListener(retptr, this.__wbg_ptr, addHeapObject(event), isLikeNone(callback) ? 0 : addHeapObject(callback));
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            if (r1) {
+                throw takeObject(r0);
+            }
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * @param {UtxoProcessorEventType | UtxoProcessorEventType[] | string | string[]} event
+     * @param {UtxoProcessorNotificationCallback | null} [callback]
+     */
+    removeEventListener(event, callback) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.utxoprocessor_removeEventListener(retptr, this.__wbg_ptr, addHeapObject(event), isLikeNone(callback) ? 0 : addHeapObject(callback));
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            if (r1) {
+                throw takeObject(r0);
+            }
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * @returns {RpcClient}
+     */
+    get rpc() {
+        const ret = wasm.utxoprocessor_rpc(this.__wbg_ptr);
+        return RpcClient.__wrap(ret);
+    }
+    /**
+     *
+     * Set the user transaction maturity period DAA score for a given network.
+     * This controls the DAA period after which the user transactions are considered mature
+     * and the wallet subsystem emits the transaction maturity event.
+     *
+     * @see {@link TransactionRecord}
+     * @see {@link IUtxoProcessorEvent}
+     *
+     * @category Wallet SDK
+     * @param {NetworkId | string} network_id
+     * @param {bigint} value
+     */
+    static setUserTransactionMaturityDAA(network_id, value) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.utxoprocessor_setUserTransactionMaturityDAA(retptr, addBorrowedObject(network_id), value);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            if (r1) {
+                throw takeObject(r0);
+            }
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            heap[stack_pointer++] = undefined;
+        }
     }
     /**
      *
@@ -11490,31 +12229,52 @@ export class UtxoProcessor {
         }
     }
     /**
+     * UtxoProcessor constructor.
      *
-     * Set the user transaction maturity period DAA score for a given network.
-     * This controls the DAA period after which the user transactions are considered mature
-     * and the wallet subsystem emits the transaction maturity event.
      *
-     * @see {@link TransactionRecord}
-     * @see {@link IUtxoProcessorEvent}
      *
-     * @category Wallet SDK
-     * @param {NetworkId | string} network_id
-     * @param {bigint} value
+     * @see {@link IUtxoProcessorArgs}
+     * @param {IUtxoProcessorArgs} js_value
      */
-    static setUserTransactionMaturityDAA(network_id, value) {
+    constructor(js_value) {
         try {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.utxoprocessor_setUserTransactionMaturityDAA(retptr, addBorrowedObject(network_id), value);
+            wasm.utxoprocessor_ctor(retptr, addHeapObject(js_value));
             var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
             var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            if (r1) {
-                throw takeObject(r0);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
             }
+            this.__wbg_ptr = r0 >>> 0;
+            UtxoProcessorFinalization.register(this, this.__wbg_ptr, this);
+            return this;
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
-            heap[stack_pointer++] = undefined;
         }
+    }
+    /**
+     * Stops the UtxoProcessor and ends processing UTXO and other notifications.
+     * @returns {Promise<void>}
+     */
+    stop() {
+        const ret = wasm.utxoprocessor_stop(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+     * Starts the UtxoProcessor and begins processing UTXO and other notifications.
+     * @returns {Promise<void>}
+     */
+    start() {
+        const ret = wasm.utxoprocessor_start(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+     * @returns {boolean}
+     */
+    get isActive() {
+        const ret = wasm.utxoprocessor_isActive(this.__wbg_ptr);
+        return ret !== 0;
     }
 }
 
@@ -11560,10 +12320,10 @@ export class Wallet {
 
     toJSON() {
         return {
+            descriptor: this.descriptor,
             rpc: this.rpc,
             isOpen: this.isOpen,
             isSynced: this.isSynced,
-            descriptor: this.descriptor,
         };
     }
 
@@ -11583,424 +12343,17 @@ export class Wallet {
         wasm.__wbg_wallet_free(ptr, 0);
     }
     /**
-     * Ping backend
-     * @see {@link IBatchRequest} {@link IBatchResponse}
-     * @throws `string` in case of an error.
-     * @param {IBatchRequest} request
-     * @returns {Promise<IBatchResponse>}
+     * @returns {WalletDescriptor | undefined}
      */
-    batch(request) {
-        const ret = wasm.wallet_batch(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
+    get descriptor() {
+        const ret = wasm.wallet_descriptor(this.__wbg_ptr);
+        return ret === 0 ? undefined : WalletDescriptor.__wrap(ret);
     }
     /**
-     * @see {@link IFlushRequest} {@link IFlushResponse}
-     * @throws `string` in case of an error.
-     * @param {IFlushRequest} request
-     * @returns {Promise<IFlushResponse>}
+     * @returns {Promise<void>}
      */
-    flush(request) {
-        const ret = wasm.wallet_flush(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * @see {@link IRetainContextRequest} {@link IRetainContextResponse}
-     * @throws `string` in case of an error.
-     * @param {IRetainContextRequest} request
-     * @returns {Promise<IRetainContextResponse>}
-     */
-    retainContext(request) {
-        const ret = wasm.wallet_retainContext(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * @see {@link IGetStatusRequest} {@link IGetStatusResponse}
-     * @throws `string` in case of an error.
-     * @param {IGetStatusRequest} request
-     * @returns {Promise<IGetStatusResponse>}
-     */
-    getStatus(request) {
-        const ret = wasm.wallet_getStatus(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * @see {@link IWalletEnumerateRequest} {@link IWalletEnumerateResponse}
-     * @throws `string` in case of an error.
-     * @param {IWalletEnumerateRequest} request
-     * @returns {Promise<IWalletEnumerateResponse>}
-     */
-    walletEnumerate(request) {
-        const ret = wasm.wallet_walletEnumerate(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * @see {@link IWalletCreateRequest} {@link IWalletCreateResponse}
-     * @throws `string` in case of an error.
-     * @param {IWalletCreateRequest} request
-     * @returns {Promise<IWalletCreateResponse>}
-     */
-    walletCreate(request) {
-        const ret = wasm.wallet_walletCreate(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * @see {@link IWalletOpenRequest} {@link IWalletOpenResponse}
-     * @throws `string` in case of an error.
-     * @param {IWalletOpenRequest} request
-     * @returns {Promise<IWalletOpenResponse>}
-     */
-    walletOpen(request) {
-        const ret = wasm.wallet_walletOpen(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * @see {@link IWalletReloadRequest} {@link IWalletReloadResponse}
-     * @throws `string` in case of an error.
-     * @param {IWalletReloadRequest} request
-     * @returns {Promise<IWalletReloadResponse>}
-     */
-    walletReload(request) {
-        const ret = wasm.wallet_walletReload(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * @see {@link IWalletCloseRequest} {@link IWalletCloseResponse}
-     * @throws `string` in case of an error.
-     * @param {IWalletCloseRequest} request
-     * @returns {Promise<IWalletCloseResponse>}
-     */
-    walletClose(request) {
-        const ret = wasm.wallet_walletClose(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * @see {@link IWalletChangeSecretRequest} {@link IWalletChangeSecretResponse}
-     * @throws `string` in case of an error.
-     * @param {IWalletChangeSecretRequest} request
-     * @returns {Promise<IWalletChangeSecretResponse>}
-     */
-    walletChangeSecret(request) {
-        const ret = wasm.wallet_walletChangeSecret(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * @see {@link IWalletExportRequest} {@link IWalletExportResponse}
-     * @throws `string` in case of an error.
-     * @param {IWalletExportRequest} request
-     * @returns {Promise<IWalletExportResponse>}
-     */
-    walletExport(request) {
-        const ret = wasm.wallet_walletExport(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * @see {@link IWalletImportRequest} {@link IWalletImportResponse}
-     * @throws `string` in case of an error.
-     * @param {IWalletImportRequest} request
-     * @returns {Promise<IWalletImportResponse>}
-     */
-    walletImport(request) {
-        const ret = wasm.wallet_walletImport(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * @see {@link IPrvKeyDataEnumerateRequest} {@link IPrvKeyDataEnumerateResponse}
-     * @throws `string` in case of an error.
-     * @param {IPrvKeyDataEnumerateRequest} request
-     * @returns {Promise<IPrvKeyDataEnumerateResponse>}
-     */
-    prvKeyDataEnumerate(request) {
-        const ret = wasm.wallet_prvKeyDataEnumerate(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * @see {@link IPrvKeyDataCreateRequest} {@link IPrvKeyDataCreateResponse}
-     * @throws `string` in case of an error.
-     * @param {IPrvKeyDataCreateRequest} request
-     * @returns {Promise<IPrvKeyDataCreateResponse>}
-     */
-    prvKeyDataCreate(request) {
-        const ret = wasm.wallet_prvKeyDataCreate(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * @see {@link IPrvKeyDataRemoveRequest} {@link IPrvKeyDataRemoveResponse}
-     * @throws `string` in case of an error.
-     * @param {IPrvKeyDataRemoveRequest} request
-     * @returns {Promise<IPrvKeyDataRemoveResponse>}
-     */
-    prvKeyDataRemove(request) {
-        const ret = wasm.wallet_prvKeyDataRemove(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * @see {@link IPrvKeyDataGetRequest} {@link IPrvKeyDataGetResponse}
-     * @throws `string` in case of an error.
-     * @param {IPrvKeyDataGetRequest} request
-     * @returns {Promise<IPrvKeyDataGetResponse>}
-     */
-    prvKeyDataGet(request) {
-        const ret = wasm.wallet_prvKeyDataGet(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * @see {@link IAccountsEnumerateRequest} {@link IAccountsEnumerateResponse}
-     * @throws `string` in case of an error.
-     * @param {IAccountsEnumerateRequest} request
-     * @returns {Promise<IAccountsEnumerateResponse>}
-     */
-    accountsEnumerate(request) {
-        const ret = wasm.wallet_accountsEnumerate(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * @see {@link IAccountsRenameRequest} {@link IAccountsRenameResponse}
-     * @throws `string` in case of an error.
-     * @param {IAccountsRenameRequest} request
-     * @returns {Promise<IAccountsRenameResponse>}
-     */
-    accountsRename(request) {
-        const ret = wasm.wallet_accountsRename(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * @see {@link IAccountsDiscoveryRequest} {@link IAccountsDiscoveryResponse}
-     * @throws `string` in case of an error.
-     * @param {IAccountsDiscoveryRequest} request
-     * @returns {Promise<IAccountsDiscoveryResponse>}
-     */
-    accountsDiscovery(request) {
-        const ret = wasm.wallet_accountsDiscovery(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * @see {@link IAccountsCreateRequest} {@link IAccountsCreateResponse}
-     * @throws `string` in case of an error.
-     * @param {IAccountsCreateRequest} request
-     * @returns {Promise<IAccountsCreateResponse>}
-     */
-    accountsCreate(request) {
-        const ret = wasm.wallet_accountsCreate(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * @see {@link IAccountsEnsureDefaultRequest} {@link IAccountsEnsureDefaultResponse}
-     * @throws `string` in case of an error.
-     * @param {IAccountsEnsureDefaultRequest} request
-     * @returns {Promise<IAccountsEnsureDefaultResponse>}
-     */
-    accountsEnsureDefault(request) {
-        const ret = wasm.wallet_accountsEnsureDefault(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * @see {@link IAccountsImportRequest} {@link IAccountsImportResponse}
-     * @throws `string` in case of an error.
-     * @param {IAccountsImportRequest} request
-     * @returns {Promise<IAccountsImportResponse>}
-     */
-    accountsImport(request) {
-        const ret = wasm.wallet_accountsImport(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * @see {@link IAccountsActivateRequest} {@link IAccountsActivateResponse}
-     * @throws `string` in case of an error.
-     * @param {IAccountsActivateRequest} request
-     * @returns {Promise<IAccountsActivateResponse>}
-     */
-    accountsActivate(request) {
-        const ret = wasm.wallet_accountsActivate(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * @see {@link IAccountsDeactivateRequest} {@link IAccountsDeactivateResponse}
-     * @throws `string` in case of an error.
-     * @param {IAccountsDeactivateRequest} request
-     * @returns {Promise<IAccountsDeactivateResponse>}
-     */
-    accountsDeactivate(request) {
-        const ret = wasm.wallet_accountsDeactivate(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * @see {@link IAccountsGetRequest} {@link IAccountsGetResponse}
-     * @throws `string` in case of an error.
-     * @param {IAccountsGetRequest} request
-     * @returns {Promise<IAccountsGetResponse>}
-     */
-    accountsGet(request) {
-        const ret = wasm.wallet_accountsGet(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * @see {@link IAccountsCreateNewAddressRequest} {@link IAccountsCreateNewAddressResponse}
-     * @throws `string` in case of an error.
-     * @param {IAccountsCreateNewAddressRequest} request
-     * @returns {Promise<IAccountsCreateNewAddressResponse>}
-     */
-    accountsCreateNewAddress(request) {
-        const ret = wasm.wallet_accountsCreateNewAddress(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * @see {@link IAccountsSendRequest} {@link IAccountsSendResponse}
-     * @throws `string` in case of an error.
-     * @param {IAccountsSendRequest} request
-     * @returns {Promise<IAccountsSendResponse>}
-     */
-    accountsSend(request) {
-        const ret = wasm.wallet_accountsSend(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * @see {@link IAccountsPskbSignRequest} {@link IAccountsPskbSignResponse}
-     * @throws `string` in case of an error.
-     * @param {IAccountsPskbSignRequest} request
-     * @returns {Promise<IAccountsPskbSignResponse>}
-     */
-    accountsPskbSign(request) {
-        const ret = wasm.wallet_accountsPskbSign(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * @see {@link IAccountsPskbBroadcastRequest} {@link IAccountsPskbBroadcastResponse}
-     * @throws `string` in case of an error.
-     * @param {IAccountsPskbBroadcastRequest} request
-     * @returns {Promise<IAccountsPskbBroadcastResponse>}
-     */
-    accountsPskbBroadcast(request) {
-        const ret = wasm.wallet_accountsPskbBroadcast(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * @see {@link IAccountsPskbSendRequest} {@link IAccountsPskbSendResponse}
-     * @throws `string` in case of an error.
-     * @param {IAccountsPskbSendRequest} request
-     * @returns {Promise<IAccountsPskbSendResponse>}
-     */
-    accountsPskbSend(request) {
-        const ret = wasm.wallet_accountsPskbSend(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * @see {@link IAccountsGetUtxosRequest} {@link IAccountsGetUtxosResponse}
-     * @throws `string` in case of an error.
-     * @param {IAccountsGetUtxosRequest} request
-     * @returns {Promise<IAccountsGetUtxosResponse>}
-     */
-    accountsGetUtxos(request) {
-        const ret = wasm.wallet_accountsGetUtxos(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * @see {@link IAccountsTransferRequest} {@link IAccountsTransferResponse}
-     * @throws `string` in case of an error.
-     * @param {IAccountsTransferRequest} request
-     * @returns {Promise<IAccountsTransferResponse>}
-     */
-    accountsTransfer(request) {
-        const ret = wasm.wallet_accountsTransfer(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * @see {@link IAccountsEstimateRequest} {@link IAccountsEstimateResponse}
-     * @throws `string` in case of an error.
-     * @param {IAccountsEstimateRequest} request
-     * @returns {Promise<IAccountsEstimateResponse>}
-     */
-    accountsEstimate(request) {
-        const ret = wasm.wallet_accountsEstimate(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * @see {@link ITransactionsDataGetRequest} {@link ITransactionsDataGetResponse}
-     * @throws `string` in case of an error.
-     * @param {ITransactionsDataGetRequest} request
-     * @returns {Promise<ITransactionsDataGetResponse>}
-     */
-    transactionsDataGet(request) {
-        const ret = wasm.wallet_transactionsDataGet(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * @see {@link ITransactionsReplaceNoteRequest} {@link ITransactionsReplaceNoteResponse}
-     * @throws `string` in case of an error.
-     * @param {ITransactionsReplaceNoteRequest} request
-     * @returns {Promise<ITransactionsReplaceNoteResponse>}
-     */
-    transactionsReplaceNote(request) {
-        const ret = wasm.wallet_transactionsReplaceNote(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * @see {@link ITransactionsReplaceMetadataRequest} {@link ITransactionsReplaceMetadataResponse}
-     * @throws `string` in case of an error.
-     * @param {ITransactionsReplaceMetadataRequest} request
-     * @returns {Promise<ITransactionsReplaceMetadataResponse>}
-     */
-    transactionsReplaceMetadata(request) {
-        const ret = wasm.wallet_transactionsReplaceMetadata(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * @see {@link IAddressBookEnumerateRequest} {@link IAddressBookEnumerateResponse}
-     * @throws `string` in case of an error.
-     * @param {IAddressBookEnumerateRequest} request
-     * @returns {Promise<IAddressBookEnumerateResponse>}
-     */
-    addressBookEnumerate(request) {
-        const ret = wasm.wallet_addressBookEnumerate(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * @see {@link IFeeRateEstimateRequest} {@link IFeeRateEstimateResponse}
-     * @throws `string` in case of an error.
-     * @param {IFeeRateEstimateRequest} request
-     * @returns {Promise<IFeeRateEstimateResponse>}
-     */
-    feeRateEstimate(request) {
-        const ret = wasm.wallet_feeRateEstimate(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * @see {@link IFeeRatePollerEnableRequest} {@link IFeeRatePollerEnableResponse}
-     * @throws `string` in case of an error.
-     * @param {IFeeRatePollerEnableRequest} request
-     * @returns {Promise<IFeeRatePollerEnableResponse>}
-     */
-    feeRatePollerEnable(request) {
-        const ret = wasm.wallet_feeRatePollerEnable(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * @see {@link IFeeRatePollerDisableRequest} {@link IFeeRatePollerDisableResponse}
-     * @throws `string` in case of an error.
-     * @param {IFeeRatePollerDisableRequest} request
-     * @returns {Promise<IFeeRatePollerDisableResponse>}
-     */
-    feeRatePollerDisable(request) {
-        const ret = wasm.wallet_feeRatePollerDisable(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * @see {@link IAccountsCommitRevealRequest} {@link IAccountsCommitRevealResponse}
-     * @throws `string` in case of an error.
-     * @param {IAccountsCommitRevealRequest} request
-     * @returns {Promise<IAccountsCommitRevealResponse>}
-     */
-    accountsCommitReveal(request) {
-        const ret = wasm.wallet_accountsCommitReveal(this.__wbg_ptr, addHeapObject(request));
-        return takeObject(ret);
-    }
-    /**
-     * @see {@link IAccountsCommitRevealManualRequest} {@link IAccountsCommitRevealManualResponse}
-     * @throws `string` in case of an error.
-     * @param {IAccountsCommitRevealManualRequest} request
-     * @returns {Promise<IAccountsCommitRevealManualResponse>}
-     */
-    accountsCommitRevealManual(request) {
-        const ret = wasm.wallet_accountsCommitRevealManual(this.__wbg_ptr, addHeapObject(request));
+    disconnect() {
+        const ret = wasm.wallet_disconnect(this.__wbg_ptr);
         return takeObject(ret);
     }
     /**
@@ -12024,76 +12377,20 @@ export class Wallet {
         }
     }
     /**
-     * @returns {RpcClient}
+     * @param {NetworkId | string} network_id
      */
-    get rpc() {
-        const ret = wasm.wallet_rpc(this.__wbg_ptr);
-        return RpcClient.__wrap(ret);
-    }
-    /**
-     * @remarks This is a local property indicating
-     * if the wallet is currently open.
-     * @returns {boolean}
-     */
-    get isOpen() {
-        const ret = wasm.wallet_isOpen(this.__wbg_ptr);
-        return ret !== 0;
-    }
-    /**
-     * @remarks This is a local property indicating
-     * if the node is currently synced.
-     * @returns {boolean}
-     */
-    get isSynced() {
-        const ret = wasm.wallet_isSynced(this.__wbg_ptr);
-        return ret !== 0;
-    }
-    /**
-     * @returns {WalletDescriptor | undefined}
-     */
-    get descriptor() {
-        const ret = wasm.wallet_descriptor(this.__wbg_ptr);
-        return ret === 0 ? undefined : WalletDescriptor.__wrap(ret);
-    }
-    /**
-     * Check if a wallet with a given name exists.
-     * @param {string | null} [name]
-     * @returns {Promise<boolean>}
-     */
-    exists(name) {
-        var ptr0 = isLikeNone(name) ? 0 : passStringToWasm0(name, wasm.__wbindgen_export_1, wasm.__wbindgen_export_2);
-        var len0 = WASM_VECTOR_LEN;
-        const ret = wasm.wallet_exists(this.__wbg_ptr, ptr0, len0);
-        return takeObject(ret);
-    }
-    /**
-     * @returns {Promise<void>}
-     */
-    start() {
-        const ret = wasm.wallet_start(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * @returns {Promise<void>}
-     */
-    stop() {
-        const ret = wasm.wallet_stop(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * @param {IConnectOptions | undefined | null} [args]
-     * @returns {Promise<void>}
-     */
-    connect(args) {
-        const ret = wasm.wallet_connect(this.__wbg_ptr, isLikeNone(args) ? 0 : addHeapObject(args));
-        return takeObject(ret);
-    }
-    /**
-     * @returns {Promise<void>}
-     */
-    disconnect() {
-        const ret = wasm.wallet_disconnect(this.__wbg_ptr);
-        return takeObject(ret);
+    setNetworkId(network_id) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wallet_setNetworkId(retptr, this.__wbg_ptr, addHeapObject(network_id));
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            if (r1) {
+                throw takeObject(r0);
+            }
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
     }
     /**
      * @param {string | WalletNotificationCallback} event
@@ -12130,20 +12427,483 @@ export class Wallet {
         }
     }
     /**
-     * @param {NetworkId | string} network_id
+     * @returns {RpcClient}
      */
-    setNetworkId(network_id) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.wallet_setNetworkId(retptr, this.__wbg_ptr, addHeapObject(network_id));
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            if (r1) {
-                throw takeObject(r0);
-            }
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
+    get rpc() {
+        const ret = wasm.wallet_rpc(this.__wbg_ptr);
+        return RpcClient.__wrap(ret);
+    }
+    /**
+     * @returns {Promise<void>}
+     */
+    stop() {
+        const ret = wasm.wallet_stop(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+     * @returns {Promise<void>}
+     */
+    start() {
+        const ret = wasm.wallet_start(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+     * Check if a wallet with a given name exists.
+     * @param {string | null} [name]
+     * @returns {Promise<boolean>}
+     */
+    exists(name) {
+        var ptr0 = isLikeNone(name) ? 0 : passStringToWasm0(name, wasm.__wbindgen_export_1, wasm.__wbindgen_export_2);
+        var len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wallet_exists(this.__wbg_ptr, ptr0, len0);
+        return takeObject(ret);
+    }
+    /**
+     * @param {IConnectOptions | undefined | null} [args]
+     * @returns {Promise<void>}
+     */
+    connect(args) {
+        const ret = wasm.wallet_connect(this.__wbg_ptr, isLikeNone(args) ? 0 : addHeapObject(args));
+        return takeObject(ret);
+    }
+    /**
+     * @remarks This is a local property indicating
+     * if the wallet is currently open.
+     * @returns {boolean}
+     */
+    get isOpen() {
+        const ret = wasm.wallet_isOpen(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
+     * @remarks This is a local property indicating
+     * if the node is currently synced.
+     * @returns {boolean}
+     */
+    get isSynced() {
+        const ret = wasm.wallet_isSynced(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
+     * @see {@link IGetStatusRequest} {@link IGetStatusResponse}
+     * @throws `string` in case of an error.
+     * @param {IGetStatusRequest} request
+     * @returns {Promise<IGetStatusResponse>}
+     */
+    getStatus(request) {
+        const ret = wasm.wallet_getStatus(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * @see {@link IWalletOpenRequest} {@link IWalletOpenResponse}
+     * @throws `string` in case of an error.
+     * @param {IWalletOpenRequest} request
+     * @returns {Promise<IWalletOpenResponse>}
+     */
+    walletOpen(request) {
+        const ret = wasm.wallet_walletOpen(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * @see {@link IAccountsGetRequest} {@link IAccountsGetResponse}
+     * @throws `string` in case of an error.
+     * @param {IAccountsGetRequest} request
+     * @returns {Promise<IAccountsGetResponse>}
+     */
+    accountsGet(request) {
+        const ret = wasm.wallet_accountsGet(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * @see {@link IWalletCloseRequest} {@link IWalletCloseResponse}
+     * @throws `string` in case of an error.
+     * @param {IWalletCloseRequest} request
+     * @returns {Promise<IWalletCloseResponse>}
+     */
+    walletClose(request) {
+        const ret = wasm.wallet_walletClose(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * @see {@link IAccountsSendRequest} {@link IAccountsSendResponse}
+     * @throws `string` in case of an error.
+     * @param {IAccountsSendRequest} request
+     * @returns {Promise<IAccountsSendResponse>}
+     */
+    accountsSend(request) {
+        const ret = wasm.wallet_accountsSend(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * @see {@link IWalletCreateRequest} {@link IWalletCreateResponse}
+     * @throws `string` in case of an error.
+     * @param {IWalletCreateRequest} request
+     * @returns {Promise<IWalletCreateResponse>}
+     */
+    walletCreate(request) {
+        const ret = wasm.wallet_walletCreate(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * @see {@link IWalletExportRequest} {@link IWalletExportResponse}
+     * @throws `string` in case of an error.
+     * @param {IWalletExportRequest} request
+     * @returns {Promise<IWalletExportResponse>}
+     */
+    walletExport(request) {
+        const ret = wasm.wallet_walletExport(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * @see {@link IWalletImportRequest} {@link IWalletImportResponse}
+     * @throws `string` in case of an error.
+     * @param {IWalletImportRequest} request
+     * @returns {Promise<IWalletImportResponse>}
+     */
+    walletImport(request) {
+        const ret = wasm.wallet_walletImport(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * @see {@link IWalletReloadRequest} {@link IWalletReloadResponse}
+     * @throws `string` in case of an error.
+     * @param {IWalletReloadRequest} request
+     * @returns {Promise<IWalletReloadResponse>}
+     */
+    walletReload(request) {
+        const ret = wasm.wallet_walletReload(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * @see {@link IRetainContextRequest} {@link IRetainContextResponse}
+     * @throws `string` in case of an error.
+     * @param {IRetainContextRequest} request
+     * @returns {Promise<IRetainContextResponse>}
+     */
+    retainContext(request) {
+        const ret = wasm.wallet_retainContext(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * @see {@link IAccountsCreateRequest} {@link IAccountsCreateResponse}
+     * @throws `string` in case of an error.
+     * @param {IAccountsCreateRequest} request
+     * @returns {Promise<IAccountsCreateResponse>}
+     */
+    accountsCreate(request) {
+        const ret = wasm.wallet_accountsCreate(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * @see {@link IAccountsImportRequest} {@link IAccountsImportResponse}
+     * @throws `string` in case of an error.
+     * @param {IAccountsImportRequest} request
+     * @returns {Promise<IAccountsImportResponse>}
+     */
+    accountsImport(request) {
+        const ret = wasm.wallet_accountsImport(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * @see {@link IAccountsRenameRequest} {@link IAccountsRenameResponse}
+     * @throws `string` in case of an error.
+     * @param {IAccountsRenameRequest} request
+     * @returns {Promise<IAccountsRenameResponse>}
+     */
+    accountsRename(request) {
+        const ret = wasm.wallet_accountsRename(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * @see {@link IPrvKeyDataGetRequest} {@link IPrvKeyDataGetResponse}
+     * @throws `string` in case of an error.
+     * @param {IPrvKeyDataGetRequest} request
+     * @returns {Promise<IPrvKeyDataGetResponse>}
+     */
+    prvKeyDataGet(request) {
+        const ret = wasm.wallet_prvKeyDataGet(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * @see {@link IWalletEnumerateRequest} {@link IWalletEnumerateResponse}
+     * @throws `string` in case of an error.
+     * @param {IWalletEnumerateRequest} request
+     * @returns {Promise<IWalletEnumerateResponse>}
+     */
+    walletEnumerate(request) {
+        const ret = wasm.wallet_walletEnumerate(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * @see {@link IAccountsActivateRequest} {@link IAccountsActivateResponse}
+     * @throws `string` in case of an error.
+     * @param {IAccountsActivateRequest} request
+     * @returns {Promise<IAccountsActivateResponse>}
+     */
+    accountsActivate(request) {
+        const ret = wasm.wallet_accountsActivate(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * @see {@link IAccountsEstimateRequest} {@link IAccountsEstimateResponse}
+     * @throws `string` in case of an error.
+     * @param {IAccountsEstimateRequest} request
+     * @returns {Promise<IAccountsEstimateResponse>}
+     */
+    accountsEstimate(request) {
+        const ret = wasm.wallet_accountsEstimate(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * @see {@link IAccountsTransferRequest} {@link IAccountsTransferResponse}
+     * @throws `string` in case of an error.
+     * @param {IAccountsTransferRequest} request
+     * @returns {Promise<IAccountsTransferResponse>}
+     */
+    accountsTransfer(request) {
+        const ret = wasm.wallet_accountsTransfer(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * @see {@link IFeeRateEstimateRequest} {@link IFeeRateEstimateResponse}
+     * @throws `string` in case of an error.
+     * @param {IFeeRateEstimateRequest} request
+     * @returns {Promise<IFeeRateEstimateResponse>}
+     */
+    feeRateEstimate(request) {
+        const ret = wasm.wallet_feeRateEstimate(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * @see {@link IAccountsDiscoveryRequest} {@link IAccountsDiscoveryResponse}
+     * @throws `string` in case of an error.
+     * @param {IAccountsDiscoveryRequest} request
+     * @returns {Promise<IAccountsDiscoveryResponse>}
+     */
+    accountsDiscovery(request) {
+        const ret = wasm.wallet_accountsDiscovery(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * @see {@link IAccountsEnumerateRequest} {@link IAccountsEnumerateResponse}
+     * @throws `string` in case of an error.
+     * @param {IAccountsEnumerateRequest} request
+     * @returns {Promise<IAccountsEnumerateResponse>}
+     */
+    accountsEnumerate(request) {
+        const ret = wasm.wallet_accountsEnumerate(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * @see {@link IAccountsGetUtxosRequest} {@link IAccountsGetUtxosResponse}
+     * @throws `string` in case of an error.
+     * @param {IAccountsGetUtxosRequest} request
+     * @returns {Promise<IAccountsGetUtxosResponse>}
+     */
+    accountsGetUtxos(request) {
+        const ret = wasm.wallet_accountsGetUtxos(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * @see {@link IAccountsPskbSendRequest} {@link IAccountsPskbSendResponse}
+     * @throws `string` in case of an error.
+     * @param {IAccountsPskbSendRequest} request
+     * @returns {Promise<IAccountsPskbSendResponse>}
+     */
+    accountsPskbSend(request) {
+        const ret = wasm.wallet_accountsPskbSend(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * @see {@link IAccountsPskbSignRequest} {@link IAccountsPskbSignResponse}
+     * @throws `string` in case of an error.
+     * @param {IAccountsPskbSignRequest} request
+     * @returns {Promise<IAccountsPskbSignResponse>}
+     */
+    accountsPskbSign(request) {
+        const ret = wasm.wallet_accountsPskbSign(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * @see {@link IAccountsDeactivateRequest} {@link IAccountsDeactivateResponse}
+     * @throws `string` in case of an error.
+     * @param {IAccountsDeactivateRequest} request
+     * @returns {Promise<IAccountsDeactivateResponse>}
+     */
+    accountsDeactivate(request) {
+        const ret = wasm.wallet_accountsDeactivate(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * @see {@link IPrvKeyDataCreateRequest} {@link IPrvKeyDataCreateResponse}
+     * @throws `string` in case of an error.
+     * @param {IPrvKeyDataCreateRequest} request
+     * @returns {Promise<IPrvKeyDataCreateResponse>}
+     */
+    prvKeyDataCreate(request) {
+        const ret = wasm.wallet_prvKeyDataCreate(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * @see {@link IPrvKeyDataRemoveRequest} {@link IPrvKeyDataRemoveResponse}
+     * @throws `string` in case of an error.
+     * @param {IPrvKeyDataRemoveRequest} request
+     * @returns {Promise<IPrvKeyDataRemoveResponse>}
+     */
+    prvKeyDataRemove(request) {
+        const ret = wasm.wallet_prvKeyDataRemove(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * @see {@link IWalletChangeSecretRequest} {@link IWalletChangeSecretResponse}
+     * @throws `string` in case of an error.
+     * @param {IWalletChangeSecretRequest} request
+     * @returns {Promise<IWalletChangeSecretResponse>}
+     */
+    walletChangeSecret(request) {
+        const ret = wasm.wallet_walletChangeSecret(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * @see {@link ITransactionsDataGetRequest} {@link ITransactionsDataGetResponse}
+     * @throws `string` in case of an error.
+     * @param {ITransactionsDataGetRequest} request
+     * @returns {Promise<ITransactionsDataGetResponse>}
+     */
+    transactionsDataGet(request) {
+        const ret = wasm.wallet_transactionsDataGet(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * @see {@link IAccountsCommitRevealRequest} {@link IAccountsCommitRevealResponse}
+     * @throws `string` in case of an error.
+     * @param {IAccountsCommitRevealRequest} request
+     * @returns {Promise<IAccountsCommitRevealResponse>}
+     */
+    accountsCommitReveal(request) {
+        const ret = wasm.wallet_accountsCommitReveal(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * @see {@link IAddressBookEnumerateRequest} {@link IAddressBookEnumerateResponse}
+     * @throws `string` in case of an error.
+     * @param {IAddressBookEnumerateRequest} request
+     * @returns {Promise<IAddressBookEnumerateResponse>}
+     */
+    addressBookEnumerate(request) {
+        const ret = wasm.wallet_addressBookEnumerate(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * @see {@link IFeeRatePollerEnableRequest} {@link IFeeRatePollerEnableResponse}
+     * @throws `string` in case of an error.
+     * @param {IFeeRatePollerEnableRequest} request
+     * @returns {Promise<IFeeRatePollerEnableResponse>}
+     */
+    feeRatePollerEnable(request) {
+        const ret = wasm.wallet_feeRatePollerEnable(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * @see {@link IPrvKeyDataEnumerateRequest} {@link IPrvKeyDataEnumerateResponse}
+     * @throws `string` in case of an error.
+     * @param {IPrvKeyDataEnumerateRequest} request
+     * @returns {Promise<IPrvKeyDataEnumerateResponse>}
+     */
+    prvKeyDataEnumerate(request) {
+        const ret = wasm.wallet_prvKeyDataEnumerate(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * @see {@link IAccountsEnsureDefaultRequest} {@link IAccountsEnsureDefaultResponse}
+     * @throws `string` in case of an error.
+     * @param {IAccountsEnsureDefaultRequest} request
+     * @returns {Promise<IAccountsEnsureDefaultResponse>}
+     */
+    accountsEnsureDefault(request) {
+        const ret = wasm.wallet_accountsEnsureDefault(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * @see {@link IAccountsPskbBroadcastRequest} {@link IAccountsPskbBroadcastResponse}
+     * @throws `string` in case of an error.
+     * @param {IAccountsPskbBroadcastRequest} request
+     * @returns {Promise<IAccountsPskbBroadcastResponse>}
+     */
+    accountsPskbBroadcast(request) {
+        const ret = wasm.wallet_accountsPskbBroadcast(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * @see {@link IFeeRatePollerDisableRequest} {@link IFeeRatePollerDisableResponse}
+     * @throws `string` in case of an error.
+     * @param {IFeeRatePollerDisableRequest} request
+     * @returns {Promise<IFeeRatePollerDisableResponse>}
+     */
+    feeRatePollerDisable(request) {
+        const ret = wasm.wallet_feeRatePollerDisable(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * @see {@link ITransactionsReplaceNoteRequest} {@link ITransactionsReplaceNoteResponse}
+     * @throws `string` in case of an error.
+     * @param {ITransactionsReplaceNoteRequest} request
+     * @returns {Promise<ITransactionsReplaceNoteResponse>}
+     */
+    transactionsReplaceNote(request) {
+        const ret = wasm.wallet_transactionsReplaceNote(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * @see {@link IAccountsCreateNewAddressRequest} {@link IAccountsCreateNewAddressResponse}
+     * @throws `string` in case of an error.
+     * @param {IAccountsCreateNewAddressRequest} request
+     * @returns {Promise<IAccountsCreateNewAddressResponse>}
+     */
+    accountsCreateNewAddress(request) {
+        const ret = wasm.wallet_accountsCreateNewAddress(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * @see {@link IAccountsCommitRevealManualRequest} {@link IAccountsCommitRevealManualResponse}
+     * @throws `string` in case of an error.
+     * @param {IAccountsCommitRevealManualRequest} request
+     * @returns {Promise<IAccountsCommitRevealManualResponse>}
+     */
+    accountsCommitRevealManual(request) {
+        const ret = wasm.wallet_accountsCommitRevealManual(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * @see {@link ITransactionsReplaceMetadataRequest} {@link ITransactionsReplaceMetadataResponse}
+     * @throws `string` in case of an error.
+     * @param {ITransactionsReplaceMetadataRequest} request
+     * @returns {Promise<ITransactionsReplaceMetadataResponse>}
+     */
+    transactionsReplaceMetadata(request) {
+        const ret = wasm.wallet_transactionsReplaceMetadata(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * Ping backend
+     * @see {@link IBatchRequest} {@link IBatchResponse}
+     * @throws `string` in case of an error.
+     * @param {IBatchRequest} request
+     * @returns {Promise<IBatchResponse>}
+     */
+    batch(request) {
+        const ret = wasm.wallet_batch(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
+    }
+    /**
+     * @see {@link IFlushRequest} {@link IFlushResponse}
+     * @throws `string` in case of an error.
+     * @param {IFlushRequest} request
+     * @returns {Promise<IFlushResponse>}
+     */
+    flush(request) {
+        const ret = wasm.wallet_flush(this.__wbg_ptr, addHeapObject(request));
+        return takeObject(ret);
     }
 }
 
@@ -12267,6 +13027,12 @@ export class WasiOptions {
         wasm.__wbg_wasioptions_free(ptr, 0);
     }
     /**
+     * @param {object} value
+     */
+    set preopens(value) {
+        wasm.wasioptions_set_preopens(this.__wbg_ptr, addHeapObject(value));
+    }
+    /**
      * @param {any[] | null | undefined} args
      * @param {object | null | undefined} env
      * @param {object} preopens
@@ -12278,6 +13044,13 @@ export class WasiOptions {
         this.__wbg_ptr = ret >>> 0;
         WasiOptionsFinalization.register(this, this.__wbg_ptr, this);
         return this;
+    }
+    /**
+     * @returns {object | undefined}
+     */
+    get env() {
+        const ret = wasm.wasioptions_env(this.__wbg_ptr);
+        return takeObject(ret);
     }
     /**
      * @param {object} preopens
@@ -12307,21 +13080,6 @@ export class WasiOptions {
         }
     }
     /**
-     * @param {any[] | null} [value]
-     */
-    set args(value) {
-        var ptr0 = isLikeNone(value) ? 0 : passArrayJsValueToWasm0(value, wasm.__wbindgen_export_1);
-        var len0 = WASM_VECTOR_LEN;
-        wasm.wasioptions_set_args(this.__wbg_ptr, ptr0, len0);
-    }
-    /**
-     * @returns {object | undefined}
-     */
-    get env() {
-        const ret = wasm.wasioptions_env(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
      * @param {object | null} [value]
      */
     set env(value) {
@@ -12335,10 +13093,12 @@ export class WasiOptions {
         return takeObject(ret);
     }
     /**
-     * @param {object} value
+     * @param {any[] | null} [value]
      */
-    set preopens(value) {
-        wasm.wasioptions_set_preopens(this.__wbg_ptr, addHeapObject(value));
+    set args(value) {
+        var ptr0 = isLikeNone(value) ? 0 : passArrayJsValueToWasm0(value, wasm.__wbindgen_export_1);
+        var len0 = WASM_VECTOR_LEN;
+        wasm.wasioptions_set_args(this.__wbg_ptr, ptr0, len0);
     }
 }
 
@@ -12360,6 +13120,12 @@ export class WriteFileSyncOptions {
         wasm.__wbg_writefilesyncoptions_free(ptr, 0);
     }
     /**
+     * @param {string | null} [value]
+     */
+    set encoding(value) {
+        wasm.writefilesyncoptions_set_encoding(this.__wbg_ptr, isLikeNone(value) ? 0 : addHeapObject(value));
+    }
+    /**
      * @param {string | null} [encoding]
      * @param {string | null} [flag]
      * @param {number | null} [mode]
@@ -12373,28 +13139,9 @@ export class WriteFileSyncOptions {
     /**
      * @returns {string | undefined}
      */
-    get encoding() {
-        const ret = wasm.writefilesyncoptions_encoding(this.__wbg_ptr);
-        return takeObject(ret);
-    }
-    /**
-     * @param {string | null} [value]
-     */
-    set encoding(value) {
-        wasm.writefilesyncoptions_set_encoding(this.__wbg_ptr, isLikeNone(value) ? 0 : addHeapObject(value));
-    }
-    /**
-     * @returns {string | undefined}
-     */
     get flag() {
         const ret = wasm.writefilesyncoptions_flag(this.__wbg_ptr);
         return takeObject(ret);
-    }
-    /**
-     * @param {string | null} [value]
-     */
-    set flag(value) {
-        wasm.writefilesyncoptions_set_flag(this.__wbg_ptr, isLikeNone(value) ? 0 : addHeapObject(value));
     }
     /**
      * @returns {number | undefined}
@@ -12402,6 +13149,19 @@ export class WriteFileSyncOptions {
     get mode() {
         const ret = wasm.writefilesyncoptions_mode(this.__wbg_ptr);
         return ret === 0x100000001 ? undefined : ret;
+    }
+    /**
+     * @returns {string | undefined}
+     */
+    get encoding() {
+        const ret = wasm.writefilesyncoptions_encoding(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+     * @param {string | null} [value]
+     */
+    set flag(value) {
+        wasm.writefilesyncoptions_set_flag(this.__wbg_ptr, isLikeNone(value) ? 0 : addHeapObject(value));
     }
     /**
      * @param {number | null} [value]
@@ -12432,33 +13192,9 @@ export class WriteStream {
      * @param {Function} listener
      * @returns {any}
      */
-    add_listener_with_open(listener) {
-        try {
-            const ret = wasm.writestream_add_listener_with_open(this.__wbg_ptr, addBorrowedObject(listener));
-            return takeObject(ret);
-        } finally {
-            heap[stack_pointer++] = undefined;
-        }
-    }
-    /**
-     * @param {Function} listener
-     * @returns {any}
-     */
-    add_listener_with_close(listener) {
-        try {
-            const ret = wasm.writestream_add_listener_with_close(this.__wbg_ptr, addBorrowedObject(listener));
-            return takeObject(ret);
-        } finally {
-            heap[stack_pointer++] = undefined;
-        }
-    }
-    /**
-     * @param {Function} listener
-     * @returns {any}
-     */
     on_with_open(listener) {
         try {
-            const ret = wasm.writestream_on_with_open(this.__wbg_ptr, addBorrowedObject(listener));
+            const ret = wasm.readstream_on_with_open(this.__wbg_ptr, addBorrowedObject(listener));
             return takeObject(ret);
         } finally {
             heap[stack_pointer++] = undefined;
@@ -12470,7 +13206,7 @@ export class WriteStream {
      */
     on_with_close(listener) {
         try {
-            const ret = wasm.writestream_on_with_close(this.__wbg_ptr, addBorrowedObject(listener));
+            const ret = wasm.readstream_on_with_close(this.__wbg_ptr, addBorrowedObject(listener));
             return takeObject(ret);
         } finally {
             heap[stack_pointer++] = undefined;
@@ -12482,7 +13218,7 @@ export class WriteStream {
      */
     once_with_open(listener) {
         try {
-            const ret = wasm.writestream_once_with_open(this.__wbg_ptr, addBorrowedObject(listener));
+            const ret = wasm.readstream_once_with_open(this.__wbg_ptr, addBorrowedObject(listener));
             return takeObject(ret);
         } finally {
             heap[stack_pointer++] = undefined;
@@ -12494,7 +13230,31 @@ export class WriteStream {
      */
     once_with_close(listener) {
         try {
-            const ret = wasm.writestream_once_with_close(this.__wbg_ptr, addBorrowedObject(listener));
+            const ret = wasm.readstream_once_with_close(this.__wbg_ptr, addBorrowedObject(listener));
+            return takeObject(ret);
+        } finally {
+            heap[stack_pointer++] = undefined;
+        }
+    }
+    /**
+     * @param {Function} listener
+     * @returns {any}
+     */
+    add_listener_with_open(listener) {
+        try {
+            const ret = wasm.readstream_add_listener_with_open(this.__wbg_ptr, addBorrowedObject(listener));
+            return takeObject(ret);
+        } finally {
+            heap[stack_pointer++] = undefined;
+        }
+    }
+    /**
+     * @param {Function} listener
+     * @returns {any}
+     */
+    add_listener_with_close(listener) {
+        try {
+            const ret = wasm.readstream_add_listener_with_close(this.__wbg_ptr, addBorrowedObject(listener));
             return takeObject(ret);
         } finally {
             heap[stack_pointer++] = undefined;
@@ -12506,7 +13266,7 @@ export class WriteStream {
      */
     prepend_listener_with_open(listener) {
         try {
-            const ret = wasm.writestream_prepend_listener_with_open(this.__wbg_ptr, addBorrowedObject(listener));
+            const ret = wasm.readstream_prepend_listener_with_open(this.__wbg_ptr, addBorrowedObject(listener));
             return takeObject(ret);
         } finally {
             heap[stack_pointer++] = undefined;
@@ -12518,7 +13278,7 @@ export class WriteStream {
      */
     prepend_listener_with_close(listener) {
         try {
-            const ret = wasm.writestream_prepend_listener_with_close(this.__wbg_ptr, addBorrowedObject(listener));
+            const ret = wasm.readstream_prepend_listener_with_close(this.__wbg_ptr, addBorrowedObject(listener));
             return takeObject(ret);
         } finally {
             heap[stack_pointer++] = undefined;
@@ -12530,7 +13290,7 @@ export class WriteStream {
      */
     prepend_once_listener_with_open(listener) {
         try {
-            const ret = wasm.writestream_prepend_once_listener_with_open(this.__wbg_ptr, addBorrowedObject(listener));
+            const ret = wasm.readstream_prepend_once_listener_with_open(this.__wbg_ptr, addBorrowedObject(listener));
             return takeObject(ret);
         } finally {
             heap[stack_pointer++] = undefined;
@@ -12542,7 +13302,7 @@ export class WriteStream {
      */
     prepend_once_listener_with_close(listener) {
         try {
-            const ret = wasm.writestream_prepend_once_listener_with_close(this.__wbg_ptr, addBorrowedObject(listener));
+            const ret = wasm.readstream_prepend_once_listener_with_close(this.__wbg_ptr, addBorrowedObject(listener));
             return takeObject(ret);
         } finally {
             heap[stack_pointer++] = undefined;
@@ -12584,47 +13344,6 @@ export class XOnlyPublicKey {
         wasm.__wbg_xonlypublickey_free(ptr, 0);
     }
     /**
-     * @param {string} key
-     */
-    constructor(key) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            const ptr0 = passStringToWasm0(key, wasm.__wbindgen_export_1, wasm.__wbindgen_export_2);
-            const len0 = WASM_VECTOR_LEN;
-            wasm.xonlypublickey_try_new(retptr, ptr0, len0);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
-            }
-            this.__wbg_ptr = r0 >>> 0;
-            XOnlyPublicKeyFinalization.register(this, this.__wbg_ptr, this);
-            return this;
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
-    }
-    /**
-     * @returns {string}
-     */
-    toString() {
-        let deferred1_0;
-        let deferred1_1;
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.xonlypublickey_toString(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            deferred1_0 = r0;
-            deferred1_1 = r1;
-            return getStringFromWasm0(r0, r1);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
-        }
-    }
-    /**
      * Get the [`Address`] of this XOnlyPublicKey.
      * Receives a [`NetworkType`] to determine the prefix of the address.
      * JavaScript: `let address = xOnlyPublicKey.toAddress(NetworkType.MAINNET);`.
@@ -12635,29 +13354,6 @@ export class XOnlyPublicKey {
         try {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
             wasm.xonlypublickey_toAddress(retptr, this.__wbg_ptr, addBorrowedObject(network));
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
-            }
-            return Address.__wrap(r0);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-            heap[stack_pointer++] = undefined;
-        }
-    }
-    /**
-     * Get `ECDSA` [`Address`] of this XOnlyPublicKey.
-     * Receives a [`NetworkType`] to determine the prefix of the address.
-     * JavaScript: `let address = xOnlyPublicKey.toAddress(NetworkType.MAINNET);`.
-     * @param {NetworkType | NetworkId | string} network
-     * @returns {Address}
-     */
-    toAddressECDSA(network) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.xonlypublickey_toAddressECDSA(retptr, this.__wbg_ptr, addBorrowedObject(network));
             var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
             var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
             var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
@@ -12686,6 +13382,70 @@ export class XOnlyPublicKey {
                 throw takeObject(r1);
             }
             return XOnlyPublicKey.__wrap(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * @returns {string}
+     */
+    toString() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.xonlypublickey_toString(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * Get `ECDSA` [`Address`] of this XOnlyPublicKey.
+     * Receives a [`NetworkType`] to determine the prefix of the address.
+     * JavaScript: `let address = xOnlyPublicKey.toAddress(NetworkType.MAINNET);`.
+     * @param {NetworkType | NetworkId | string} network
+     * @returns {Address}
+     */
+    toAddressECDSA(network) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.xonlypublickey_toAddressECDSA(retptr, this.__wbg_ptr, addBorrowedObject(network));
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return Address.__wrap(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            heap[stack_pointer++] = undefined;
+        }
+    }
+    /**
+     * @param {string} key
+     */
+    constructor(key) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            const ptr0 = passStringToWasm0(key, wasm.__wbindgen_export_1, wasm.__wbindgen_export_2);
+            const len0 = WASM_VECTOR_LEN;
+            wasm.xonlypublickey_try_new(retptr, ptr0, len0);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            this.__wbg_ptr = r0 >>> 0;
+            XOnlyPublicKeyFinalization.register(this, this.__wbg_ptr, this);
+            return this;
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
@@ -12719,12 +13479,12 @@ export class XPrv {
 
     toJSON() {
         return {
-            xprv: this.xprv,
-            privateKey: this.privateKey,
-            depth: this.depth,
-            parentFingerprint: this.parentFingerprint,
             childNumber: this.childNumber,
             chainCode: this.chainCode,
+            privateKey: this.privateKey,
+            parentFingerprint: this.parentFingerprint,
+            xprv: this.xprv,
+            depth: this.depth,
         };
     }
 
@@ -12742,68 +13502,6 @@ export class XPrv {
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_xprv_free(ptr, 0);
-    }
-    /**
-     * @param {HexString} seed
-     */
-    constructor(seed) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.xprv_try_new(retptr, addHeapObject(seed));
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
-            }
-            this.__wbg_ptr = r0 >>> 0;
-            XPrvFinalization.register(this, this.__wbg_ptr, this);
-            return this;
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
-    }
-    /**
-     * Create {@link XPrv} from `xprvxxxx..` string
-     * @param {string} xprv
-     * @returns {XPrv}
-     */
-    static fromXPrv(xprv) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            const ptr0 = passStringToWasm0(xprv, wasm.__wbindgen_export_1, wasm.__wbindgen_export_2);
-            const len0 = WASM_VECTOR_LEN;
-            wasm.xprv_fromXPrv(retptr, ptr0, len0);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
-            }
-            return XPrv.__wrap(r0);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
-    }
-    /**
-     * @param {number} child_number
-     * @param {boolean | null} [hardened]
-     * @returns {XPrv}
-     */
-    deriveChild(child_number, hardened) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.xprv_deriveChild(retptr, this.__wbg_ptr, child_number, isLikeNone(hardened) ? 0xFFFFFF : hardened ? 1 : 0);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
-            }
-            return XPrv.__wrap(r0);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
     }
     /**
      * @param {any} path
@@ -12856,46 +13554,50 @@ export class XPrv {
         }
     }
     /**
-     * @returns {string}
+     * @returns {number}
      */
-    toString() {
-        let deferred2_0;
-        let deferred2_1;
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.xprv_toString(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
-            var ptr1 = r0;
-            var len1 = r1;
-            if (r3) {
-                ptr1 = 0; len1 = 0;
-                throw takeObject(r2);
-            }
-            deferred2_0 = ptr1;
-            deferred2_1 = len1;
-            return getStringFromWasm0(ptr1, len1);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_export_3(deferred2_0, deferred2_1, 1);
-        }
+    get childNumber() {
+        const ret = wasm.xprv_childNumber(this.__wbg_ptr);
+        return ret >>> 0;
     }
     /**
-     * @returns {XPub}
+     * @param {number} child_number
+     * @param {boolean | null} [hardened]
+     * @returns {XPrv}
      */
-    toXPub() {
+    deriveChild(child_number, hardened) {
         try {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.xprv_toXPub(retptr, this.__wbg_ptr);
+            wasm.xprv_deriveChild(retptr, this.__wbg_ptr, child_number, isLikeNone(hardened) ? 0xFFFFFF : hardened ? 1 : 0);
             var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
             var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
             var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
             if (r2) {
                 throw takeObject(r1);
             }
-            return XPub.__wrap(r0);
+            return XPrv.__wrap(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * Create {@link XPrv} from `xprvxxxx..` string
+     * @param {string} xprv
+     * @returns {XPrv}
+     */
+    static fromXPrv(xprv) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            const ptr0 = passStringToWasm0(xprv, wasm.__wbindgen_export_1, wasm.__wbindgen_export_2);
+            const len0 = WASM_VECTOR_LEN;
+            wasm.xprv_fromXPrv(retptr, ptr0, len0);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return XPrv.__wrap(r0);
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
@@ -12916,6 +13618,63 @@ export class XPrv {
             return PrivateKey.__wrap(r0);
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * @returns {string}
+     */
+    get chainCode() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.xprv_chainCode(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * @returns {string}
+     */
+    get privateKey() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.xprv_privateKey(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * @returns {string}
+     */
+    get parentFingerprint() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.xprv_parentFingerprint(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
         }
     }
     /**
@@ -12946,25 +13705,6 @@ export class XPrv {
         }
     }
     /**
-     * @returns {string}
-     */
-    get privateKey() {
-        let deferred1_0;
-        let deferred1_1;
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.xprv_privateKey(retptr, this.__wbg_ptr);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            deferred1_0 = r0;
-            deferred1_1 = r1;
-            return getStringFromWasm0(r0, r1);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
-        }
-    }
-    /**
      * @returns {number}
      */
     get depth() {
@@ -12972,48 +13712,68 @@ export class XPrv {
         return ret;
     }
     /**
-     * @returns {string}
+     * @returns {XPub}
      */
-    get parentFingerprint() {
-        let deferred1_0;
-        let deferred1_1;
+    toXPub() {
         try {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.xprv_parentFingerprint(retptr, this.__wbg_ptr);
+            wasm.xprv_toXPub(retptr, this.__wbg_ptr);
             var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
             var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            deferred1_0 = r0;
-            deferred1_1 = r1;
-            return getStringFromWasm0(r0, r1);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return XPub.__wrap(r0);
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
         }
     }
     /**
-     * @returns {number}
+     * @param {HexString} seed
      */
-    get childNumber() {
-        const ret = wasm.xprv_childNumber(this.__wbg_ptr);
-        return ret >>> 0;
+    constructor(seed) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.xprv_try_new(retptr, addHeapObject(seed));
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            this.__wbg_ptr = r0 >>> 0;
+            XPrvFinalization.register(this, this.__wbg_ptr, this);
+            return this;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
     }
     /**
      * @returns {string}
      */
-    get chainCode() {
-        let deferred1_0;
-        let deferred1_1;
+    toString() {
+        let deferred2_0;
+        let deferred2_1;
         try {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.xprv_chainCode(retptr, this.__wbg_ptr);
+            wasm.xprv_toString(retptr, this.__wbg_ptr);
             var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
             var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            deferred1_0 = r0;
-            deferred1_1 = r1;
-            return getStringFromWasm0(r0, r1);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
+            var ptr1 = r0;
+            var len1 = r1;
+            if (r3) {
+                ptr1 = 0; len1 = 0;
+                throw takeObject(r2);
+            }
+            deferred2_0 = ptr1;
+            deferred2_1 = len1;
+            return getStringFromWasm0(ptr1, len1);
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
+            wasm.__wbindgen_export_3(deferred2_0, deferred2_1, 1);
         }
     }
 }
@@ -13045,11 +13805,11 @@ export class XPub {
 
     toJSON() {
         return {
-            xpub: this.xpub,
-            depth: this.depth,
-            parentFingerprint: this.parentFingerprint,
             childNumber: this.childNumber,
             chainCode: this.chainCode,
+            parentFingerprint: this.parentFingerprint,
+            xpub: this.xpub,
+            depth: this.depth,
         };
     }
 
@@ -13069,46 +13829,11 @@ export class XPub {
         wasm.__wbg_xpub_free(ptr, 0);
     }
     /**
-     * @param {string} xpub
+     * @returns {PublicKey}
      */
-    constructor(xpub) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            const ptr0 = passStringToWasm0(xpub, wasm.__wbindgen_export_1, wasm.__wbindgen_export_2);
-            const len0 = WASM_VECTOR_LEN;
-            wasm.xpub_try_new(retptr, ptr0, len0);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
-            }
-            this.__wbg_ptr = r0 >>> 0;
-            XPubFinalization.register(this, this.__wbg_ptr, this);
-            return this;
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
-    }
-    /**
-     * @param {number} child_number
-     * @param {boolean | null} [hardened]
-     * @returns {XPub}
-     */
-    deriveChild(child_number, hardened) {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.xpub_deriveChild(retptr, this.__wbg_ptr, child_number, isLikeNone(hardened) ? 0xFFFFFF : hardened ? 1 : 0);
-            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
-            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            if (r2) {
-                throw takeObject(r1);
-            }
-            return XPub.__wrap(r0);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-        }
+    toPublicKey() {
+        const ret = wasm.xpub_toPublicKey(this.__wbg_ptr);
+        return PublicKey.__wrap(ret);
     }
     /**
      * @param {any} path
@@ -13131,41 +13856,69 @@ export class XPub {
         }
     }
     /**
-     * @param {string} prefix
-     * @returns {string}
+     * @returns {number}
      */
-    intoString(prefix) {
-        let deferred3_0;
-        let deferred3_1;
+    get childNumber() {
+        const ret = wasm.xpub_childNumber(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+     * @param {number} child_number
+     * @param {boolean | null} [hardened]
+     * @returns {XPub}
+     */
+    deriveChild(child_number, hardened) {
         try {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            const ptr0 = passStringToWasm0(prefix, wasm.__wbindgen_export_1, wasm.__wbindgen_export_2);
-            const len0 = WASM_VECTOR_LEN;
-            wasm.xpub_intoString(retptr, this.__wbg_ptr, ptr0, len0);
+            wasm.xpub_deriveChild(retptr, this.__wbg_ptr, child_number, isLikeNone(hardened) ? 0xFFFFFF : hardened ? 1 : 0);
             var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
             var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
             var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
-            var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
-            var ptr2 = r0;
-            var len2 = r1;
-            if (r3) {
-                ptr2 = 0; len2 = 0;
-                throw takeObject(r2);
+            if (r2) {
+                throw takeObject(r1);
             }
-            deferred3_0 = ptr2;
-            deferred3_1 = len2;
-            return getStringFromWasm0(ptr2, len2);
+            return XPub.__wrap(r0);
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_export_3(deferred3_0, deferred3_1, 1);
         }
     }
     /**
-     * @returns {PublicKey}
+     * @returns {string}
      */
-    toPublicKey() {
-        const ret = wasm.xpub_toPublicKey(this.__wbg_ptr);
-        return PublicKey.__wrap(ret);
+    get chainCode() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.xpub_chainCode(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * @returns {string}
+     */
+    get parentFingerprint() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.xpub_parentFingerprint(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
+        }
     }
     /**
      * @returns {string}
@@ -13202,48 +13955,55 @@ export class XPub {
         return ret;
     }
     /**
+     * @param {string} prefix
      * @returns {string}
      */
-    get parentFingerprint() {
-        let deferred1_0;
-        let deferred1_1;
+    intoString(prefix) {
+        let deferred3_0;
+        let deferred3_1;
         try {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.xpub_parentFingerprint(retptr, this.__wbg_ptr);
+            const ptr0 = passStringToWasm0(prefix, wasm.__wbindgen_export_1, wasm.__wbindgen_export_2);
+            const len0 = WASM_VECTOR_LEN;
+            wasm.xpub_intoString(retptr, this.__wbg_ptr, ptr0, len0);
             var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
             var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            deferred1_0 = r0;
-            deferred1_1 = r1;
-            return getStringFromWasm0(r0, r1);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
+            var ptr2 = r0;
+            var len2 = r1;
+            if (r3) {
+                ptr2 = 0; len2 = 0;
+                throw takeObject(r2);
+            }
+            deferred3_0 = ptr2;
+            deferred3_1 = len2;
+            return getStringFromWasm0(ptr2, len2);
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
+            wasm.__wbindgen_export_3(deferred3_0, deferred3_1, 1);
         }
     }
     /**
-     * @returns {number}
+     * @param {string} xpub
      */
-    get childNumber() {
-        const ret = wasm.xpub_childNumber(this.__wbg_ptr);
-        return ret >>> 0;
-    }
-    /**
-     * @returns {string}
-     */
-    get chainCode() {
-        let deferred1_0;
-        let deferred1_1;
+    constructor(xpub) {
         try {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.xpub_chainCode(retptr, this.__wbg_ptr);
+            const ptr0 = passStringToWasm0(xpub, wasm.__wbindgen_export_1, wasm.__wbindgen_export_2);
+            const len0 = WASM_VECTOR_LEN;
+            wasm.xpub_try_new(retptr, ptr0, len0);
             var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
             var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
-            deferred1_0 = r0;
-            deferred1_1 = r1;
-            return getStringFromWasm0(r0, r1);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            this.__wbg_ptr = r0 >>> 0;
+            XPubFinalization.register(this, this.__wbg_ptr, this);
+            return this;
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_export_3(deferred1_0, deferred1_1, 1);
         }
     }
 }
@@ -13695,7 +14455,7 @@ function __wbg_get_imports() {
                 const a = state0.a;
                 state0.a = 0;
                 try {
-                    return __wbg_adapter_199(a, state0.b, arg0, arg1);
+                    return __wbg_adapter_165(a, state0.b, arg0, arg1);
                 } finally {
                     state0.a = a;
                 }
@@ -13810,6 +14570,10 @@ function __wbg_get_imports() {
         const ret = getObject(arg0).open(getStringFromWasm0(arg1, arg2), arg3 >>> 0);
         return addHeapObject(ret);
     }, arguments) };
+    imports.wbg.__wbg_optionalheader_new = function(arg0) {
+        const ret = OptionalHeader.__wrap(arg0);
+        return addHeapObject(ret);
+    };
     imports.wbg.__wbg_pendingtransaction_new = function(arg0) {
         const ret = PendingTransaction.__wrap(arg0);
         return addHeapObject(ret);
@@ -14216,44 +14980,44 @@ function __wbg_get_imports() {
         const ret = false;
         return ret;
     };
-    imports.wbg.__wbindgen_closure_wrapper16260 = function(arg0, arg1, arg2) {
-        const ret = makeMutClosure(arg0, arg1, 6017, __wbg_adapter_78);
+    imports.wbg.__wbindgen_closure_wrapper1078 = function(arg0, arg1, arg2) {
+        const ret = makeClosure(arg0, arg1, 321, __wbg_adapter_69);
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper17014 = function(arg0, arg1, arg2) {
-        const ret = makeMutClosure(arg0, arg1, 6045, __wbg_adapter_81);
+    imports.wbg.__wbindgen_closure_wrapper1080 = function(arg0, arg1, arg2) {
+        const ret = makeClosure(arg0, arg1, 321, __wbg_adapter_72);
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper17016 = function(arg0, arg1, arg2) {
-        const ret = makeMutClosure(arg0, arg1, 6045, __wbg_adapter_84);
+    imports.wbg.__wbindgen_closure_wrapper17862 = function(arg0, arg1, arg2) {
+        const ret = makeMutClosure(arg0, arg1, 6960, __wbg_adapter_78);
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper17018 = function(arg0, arg1, arg2) {
-        const ret = makeMutClosure(arg0, arg1, 6045, __wbg_adapter_87);
+    imports.wbg.__wbindgen_closure_wrapper18555 = function(arg0, arg1, arg2) {
+        const ret = makeMutClosure(arg0, arg1, 6977, __wbg_adapter_81);
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper17350 = function(arg0, arg1, arg2) {
-        const ret = makeMutClosure(arg0, arg1, 6153, __wbg_adapter_90);
+    imports.wbg.__wbindgen_closure_wrapper18557 = function(arg0, arg1, arg2) {
+        const ret = makeMutClosure(arg0, arg1, 6977, __wbg_adapter_84);
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper17352 = function(arg0, arg1, arg2) {
-        const ret = makeMutClosure(arg0, arg1, 6153, __wbg_adapter_90);
+    imports.wbg.__wbindgen_closure_wrapper18559 = function(arg0, arg1, arg2) {
+        const ret = makeMutClosure(arg0, arg1, 6977, __wbg_adapter_87);
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper5957 = function(arg0, arg1, arg2) {
-        const ret = makeMutClosure(arg0, arg1, 1959, __wbg_adapter_75);
+    imports.wbg.__wbindgen_closure_wrapper18956 = function(arg0, arg1, arg2) {
+        const ret = makeMutClosure(arg0, arg1, 7097, __wbg_adapter_90);
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper836 = function(arg0, arg1, arg2) {
-        const ret = makeMutClosure(arg0, arg1, 213, __wbg_adapter_66);
+    imports.wbg.__wbindgen_closure_wrapper18957 = function(arg0, arg1, arg2) {
+        const ret = makeMutClosure(arg0, arg1, 7097, __wbg_adapter_90);
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper956 = function(arg0, arg1, arg2) {
-        const ret = makeClosure(arg0, arg1, 263, __wbg_adapter_69);
+    imports.wbg.__wbindgen_closure_wrapper4742 = function(arg0, arg1, arg2) {
+        const ret = makeMutClosure(arg0, arg1, 992, __wbg_adapter_75);
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper958 = function(arg0, arg1, arg2) {
-        const ret = makeClosure(arg0, arg1, 263, __wbg_adapter_72);
+    imports.wbg.__wbindgen_closure_wrapper922 = function(arg0, arg1, arg2) {
+        const ret = makeMutClosure(arg0, arg1, 249, __wbg_adapter_66);
         return addHeapObject(ret);
     };
     imports.wbg.__wbindgen_debug_string = function(arg0, arg1) {

@@ -75,6 +75,6 @@ export class HotWalletPrivateKey implements IWallet {
   }
 
   signMessage(message: string): string {
-    return signMessage({ message, privateKey: this.privateKey });
+    return signMessage({ message, privateKey: this.getPrivateKeyString() });
   }
 }
