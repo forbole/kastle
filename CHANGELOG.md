@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.56.0](https://github.com/forbole/kastle/compare/v2.55.0...v2.56.0) (2026-06-15)
+
+
+### Features
+
+* improve scrolling for kns and add retry for commit reveal ([ca18bbf](https://github.com/forbole/kastle/commit/ca18bbfcb43543d799c054b22b56ea12b591e54c))
+* integrate toccata to testnet ([#287](https://github.com/forbole/kastle/issues/287)) ([2c84efc](https://github.com/forbole/kastle/commit/2c84efc528cb608cb8b59f847c170d4ad64bfb44))
+
 ## [2.55.0](https://github.com/forbole/kastle/compare/v2.54.2...v2.55.0) (2026-06-05)
 
 
