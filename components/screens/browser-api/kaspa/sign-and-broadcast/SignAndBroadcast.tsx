@@ -34,9 +34,33 @@ export default function SignAndBroadcast({
 
     try {
       const signedTx = await wallet.signTx(transaction, payload.scripts);
-      const { transactionId: txId } = await rpcClient.submitTransaction({
-        transaction: signedTx,
-      });
+
+      const MAX_RETRIES = 5;
+      let txId: string | undefined;
+      let lastError: Error | undefined;
+      for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+        if (attempt > 0) {
+          await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
+        }
+        try {
+          const result = await rpcClient.submitTransaction({
+            transaction: signedTx,
+          });
+          txId = result.transactionId;
+          lastError = undefined;
+          break;
+        } catch (e) {
+          if (
+            e instanceof Error &&
+            e.message.toLowerCase().includes("orphan")
+          ) {
+            lastError = e;
+            continue;
+          }
+          throw e;
+        }
+      }
+      if (lastError) throw lastError;
 
       await ApiExtensionUtils.sendMessage(
         requestId,

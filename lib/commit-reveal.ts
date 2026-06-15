@@ -50,26 +50,53 @@ export class CommitRevealHelper {
       commitTxId: commitTxId,
     };
 
-    // Create the reveal transaction
-    const scriptUTXOs = await this.rpcClient.getUtxosByAddresses({
-      addresses: [p2SHAddress.toString()],
-    });
+    // Create the reveal transaction, with retries for orphan errors
+    const MAX_REVEAL_RETRIES = 5;
+    let revealTxId!: string;
+    let revealTxIdConfirm!: Promise<void>;
+    let lastRevealError: Error | undefined;
 
-    const scriptUtxo = scriptUTXOs.entries.find(
-      (entry) => entry.outpoint.transactionId === commitTxId,
-    );
+    for (let attempt = 0; attempt < MAX_REVEAL_RETRIES; attempt++) {
+      if (attempt > 0) {
+        await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
+      }
 
-    if (!scriptUtxo) {
-      throw new Error("Could not find script UTXO");
+      const scriptUTXOs = await this.rpcClient.getUtxosByAddresses({
+        addresses: [p2SHAddress.toString()],
+      });
+
+      const scriptUtxo = scriptUTXOs.entries.find(
+        (entry) => entry.outpoint.transactionId === commitTxId,
+      );
+
+      if (!scriptUtxo) {
+        lastRevealError = new Error("Could not find script UTXO");
+        continue;
+      }
+
+      try {
+        const result = await this.revealScript(
+          this.scriptBuilder,
+          scriptUtxo,
+          revealPriorityFee,
+          extraOutputs,
+        );
+        revealTxId = result.transactionId;
+        revealTxIdConfirm = result.confirm;
+        lastRevealError = undefined;
+        break;
+      } catch (e) {
+        if (e instanceof Error && e.message.toLowerCase().includes("orphan")) {
+          lastRevealError = e;
+          continue;
+        }
+        throw e;
+      }
     }
 
-    const { transactionId: revealTxId, confirm: revealTxIdConfirm } =
-      await this.revealScript(
-        this.scriptBuilder,
-        scriptUtxo,
-        revealPriorityFee,
-        extraOutputs,
-      );
+    if (lastRevealError) {
+      throw lastRevealError;
+    }
 
     // Wait for the reveal transaction to be removed to the UTXO set of the P2SH address
     // TODO: yield failed status and retry if timeout
