@@ -2,16 +2,11 @@ import { BackgroundService } from "@/api/background/background-service";
 import { ExtensionService } from "@/lib/service/extension-service.ts";
 import { MigrationManager } from "@/lib/migrations/migration";
 import init from "@/wasm/core/kaspa";
-import initLegacy from "@/wasm/legacy/kaspa";
 import kaspaModule from "@/assets/kaspa_bg.wasm?url";
-import kaspaLegacyModule from "@/assets/kaspa_bg_legacy.wasm?url";
 
 export default defineBackground(() => {
   init(kaspaModule).catch((error) => {
     console.error("Failed to initialize the Kaspa module:", error);
-  });
-  initLegacy(kaspaLegacyModule).catch((error) => {
-    console.error("Failed to initialize the legacy Kaspa module:", error);
   });
 
   new BackgroundService().listen();

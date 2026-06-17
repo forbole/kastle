@@ -27,9 +27,7 @@ import ImportLedger from "@/components/screens/full-pages/ledger/ImportLedger";
 import LedgerManageAccounts from "@/components/screens/full-pages/ledger/LedgerManageAccounts";
 import WalletLockedAlert from "@/components/screens/full-pages/WalletLockedAlert";
 import init from "@/wasm/core/kaspa";
-import initLegacy from "@/wasm/legacy/kaspa";
 import kaspaModule from "@/assets/kaspa_bg.wasm?url";
-import kaspaLegacyModule from "@/assets/kaspa_bg_legacy.wasm?url";
 import { KaspaPriceProvider } from "@/contexts/KaspaPriceContext.tsx";
 import { RpcClientProvider } from "@/contexts/RpcClientContext.tsx";
 import { SettingsProvider } from "@/contexts/SettingsContext.tsx";
@@ -86,10 +84,7 @@ import Erc721 from "@/components/screens/ERC721";
 import Erc721Transfer from "@/components/screens/Erc721Transfer";
 
 const loadKaspaWasm = async () => {
-  await Promise.all([
-    init({ module_or_path: kaspaModule }),
-    initLegacy(kaspaLegacyModule),
-  ]);
+  await init({ module_or_path: kaspaModule });
   return null;
 };
 

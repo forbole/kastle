@@ -21,7 +21,7 @@ export default function LedgerSignAndBroadcast({
   const { transport, isAppOpen } = useLedgerTransport();
   const walletSigner = useKaspaLedgerSigner();
 
-  if (payload.scripts) {
+  if (payload.scripts?.length) {
     ApiExtensionUtils.sendMessage(
       requestId,
       ApiUtils.createApiResponse(

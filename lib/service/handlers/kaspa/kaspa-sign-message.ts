@@ -17,7 +17,6 @@ export async function kaspaSignMessageHandler(
   {
     walletId,
     accountIndex,
-    networkId,
     message,
     isLegacy,
   }: Message<KaspaSignMessageRequest>,
@@ -33,7 +32,7 @@ export async function kaspaSignMessageHandler(
     throw new Error("Keyring not initialized or locked");
   }
 
-  const signer = await getSigner(walletId, accountIndex, isLegacy, networkId);
+  const signer = await getSigner(walletId, accountIndex, isLegacy);
   const signedMessage = await signer.signMessage(message);
   sendResponse({ signedMessage });
 }

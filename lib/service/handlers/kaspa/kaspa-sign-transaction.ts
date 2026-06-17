@@ -20,7 +20,6 @@ export async function kaspaSignTransactionHandler(
   {
     walletId,
     accountIndex,
-    networkId,
     transactionJSON,
     scripts,
     isLegacy,
@@ -39,7 +38,7 @@ export async function kaspaSignTransactionHandler(
 
   const transaction = deserializeTransaction(transactionJSON);
 
-  const signer = await getSigner(walletId, accountIndex, isLegacy, networkId);
+  const signer = await getSigner(walletId, accountIndex, isLegacy);
   const signedTransaction = await signer.signTx(transaction, scripts);
   sendResponse({
     signedTransactionJSON: signedTransaction.serializeToSafeJSON(),

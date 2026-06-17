@@ -135,7 +135,8 @@ export default function SignConfirm({
 
   const networkId = settings?.networkId;
 
-  const networkMismatched = networkId?.toString() !== payload.networkId;
+  const networkMismatched =
+    !!payload.networkId && networkId?.toString() !== payload.networkId;
   const switchNetwork = () => {
     setSettings((prev) => ({
       ...prev,
