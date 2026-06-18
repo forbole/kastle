@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.57.0](https://github.com/forbole/kastle/compare/v2.56.0...v2.57.0) (2026-06-18)
+
+
+### Features
+
+* remove all legacy ([8c57eec](https://github.com/forbole/kastle/commit/8c57eec545f1e06f288ee95ffddb89379b1c6c1e))
+
+
+### Bug Fixes
+
+* dynamic fee estimation for commit-reveal transactions ([822451a](https://github.com/forbole/kastle/commit/822451a7284dadc52dd0db31366fb707b664f228))
+
 ## [2.56.0](https://github.com/forbole/kastle/compare/v2.55.0...v2.56.0) (2026-06-15)
 
 
