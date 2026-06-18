@@ -256,12 +256,13 @@ Builds one or more transactions from the current account's UTXOs. Returns serial
 
 **Parameters**
 
-| Parameter             | Type                                    | Required | Description                                                                                                       |
-| --------------------- | --------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------- |
-| `outputs`             | `{ address: string; amount: string }[]` | ✅       | Recipient addresses and amounts (in sompi)                                                                        |
-| `options.priorityFee` | `string`                                | ❌       | Priority fee in sompi (default: `"0"`)                                                                            |
-| `options.payload`     | `string`                                | ❌       | Transaction payload as a **hex string** (even length, `0-9 a-f` only). Returns an error if the format is invalid. |
-| `options.inputs`      | `IUtxoEntry[]`                          | ❌       | Specific UTXOs to use as inputs. If omitted, all UTXOs of the current account are used automatically.             |
+| Parameter             | Type                                    | Required | Description                                                                                                        |
+| --------------------- | --------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------ |
+| `outputs`             | `{ address: string; amount: string }[]` | ✅       | Recipient addresses and amounts (in sompi)                                                                         |
+| `options.priorityFee` | `string`                                | ❌       | Priority fee in sompi (default: `"0"`)                                                                             |
+| `options.payload`     | `string`                                | ❌       | Transaction payload as a **hex string** (even length, `0-9 a-f` only). Returns an error if the format is invalid.  |
+| `options.inputs`      | `IUtxoEntry[]`                          | ❌       | Specific UTXOs to use as inputs. If omitted, all UTXOs of the current account are used automatically.              |
+| `options.sigOpCount`  | `number`                                | ❌       | Number of signature operations in the transaction. Required for P2SH scripts (e.g. `1` for a single `OpCheckSig`). |
 
 **`IUtxoEntry` schema**
 

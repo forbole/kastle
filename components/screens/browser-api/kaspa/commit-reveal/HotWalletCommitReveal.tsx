@@ -8,7 +8,7 @@ import Header from "@/components/GeneralHeader";
 import signImage from "@/assets/images/sign.png";
 import { twMerge } from "tailwind-merge";
 import useKaspaPrice from "@/hooks/useKaspaPrice";
-import { formatCurrency } from "@/lib/utils.ts";
+import { formatCurrency, formatToken } from "@/lib/utils.ts";
 import { useSettings } from "@/hooks/useSettings";
 import { NetworkType } from "@/contexts/SettingsContext";
 import ScriptDetailsBox from "./ScriptDetailsBox";
@@ -16,6 +16,9 @@ import useCurrencyValue from "@/hooks/useCurrencyValue";
 import { useState } from "react";
 import { CommitRevealHelper } from "@/lib/commit-reveal";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
+import { PublicKey } from "@/wasm/core/kaspa";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
+import { useKasFeeEstimate } from "@/hooks/useKasFeeEstimate";
 
 export default function HotWalletCommitReveal({
   requestId,
@@ -26,14 +29,33 @@ export default function HotWalletCommitReveal({
 }) {
   const walletSigner = useKaspaHotWalletSigner();
   const kaspaPrice = useKaspaPrice();
-  const [settings, setSettings] = useSettings();
+  const [, setSettings] = useSettings();
   const [step, setStep] = useState<string>();
   const [hideDetails, setHideDetails] = useState(true);
   const { rpcClient, networkId } = useRpcClientStateful();
+  const { account } = useWalletManager();
 
+  const scriptHex = useMemo(() => {
+    const pubKeyHex = account?.publicKeys?.[0];
+    if (!pubKeyHex) return undefined;
+    try {
+      return buildCommitRevealScript(
+        new PublicKey(pubKeyHex),
+        payload.namespace,
+        JSON.parse(payload.data),
+      ).toString();
+    } catch {
+      return undefined;
+    }
+  }, [account?.publicKeys?.[0], payload.namespace, payload.data]);
+
+  const { fee: commitFee } = useKasFeeEstimate();
+  const { fee: revealFee } = useKasFeeEstimate(
+    scriptHex ? { scriptsHexes: [scriptHex] } : undefined,
+  );
   const feesInKas =
-    parseFloat(payload.options.revealPriorityFee ?? Krc20Fee.Base.toString()) +
-    Krc20Fee.Base;
+    parseFloat(payload.options.revealPriorityFee ?? "0") +
+    ((commitFee ?? 0) + (revealFee ?? 0)) / 1e8;
   const fiatFees = feesInKas * kaspaPrice.kaspaPrice;
   const { amount: feesCurrency, code: feesCurrencyCode } =
     useCurrencyValue(fiatFees);
@@ -84,7 +106,7 @@ export default function HotWalletCommitReveal({
         requestId,
         ApiUtils.createApiResponse(requestId, response),
       );
-    } catch (error) {
+    } catch {
       await ApiExtensionUtils.sendMessage(
         requestId,
         ApiUtils.createApiResponse(requestId, null, "Commit/Reveal failed"),
@@ -181,7 +203,7 @@ export default function HotWalletCommitReveal({
                       >
                         <span className="font-medium">
                           {differenceInKas >= 0 && "+"}
-                          {differenceInKas.toFixed(3)} KAS
+                          {formatToken(differenceInKas, 3)} KAS
                         </span>
                         <span className="text-xs text-daintree-400">
                           {formatCurrency(
@@ -201,7 +223,7 @@ export default function HotWalletCommitReveal({
                       <span className="font-medium">Fee</span>
                       <div className="flex flex-col text-right">
                         <span className="font-medium">
-                          {feesInKas.toFixed(3)} KAS
+                          {formatToken(feesInKas, 3)} KAS
                         </span>
                         <span className="text-xs text-daintree-400">
                           {formatCurrency(feesCurrency, feesCurrencyCode)}

@@ -2,8 +2,10 @@ import { useFormContext } from "react-hook-form";
 import Header from "@/components/GeneralHeader.tsx";
 import signImage from "@/assets/images/sign.png";
 import { useNavigate } from "react-router-dom";
-import { Fee } from "@/lib/kns.ts";
-import { formatCurrency } from "@/lib/utils.ts";
+import { buildKrc721TransferScript } from "@/lib/krc721";
+import { PublicKey } from "@/wasm/core/kaspa";
+import { useKasFeeEstimate } from "@/hooks/useKasFeeEstimate";
+import { formatCurrency, formatToken } from "@/lib/utils.ts";
 import useKaspaPrice from "@/hooks/useKaspaPrice.ts";
 import { KRC721TransferFormData } from "@/components/screens/KRC721Transfer.tsx";
 import useWalletManager from "@/hooks/wallet/useWalletManager.ts";
@@ -22,8 +24,28 @@ export default function KRC721TransferConfirm({
   const { watch } = useFormContext<KRC721TransferFormData>();
   const { tick, tokenId, address, domain } = watch();
   const kaspaPrice = useKaspaPrice();
+
+  const scriptHex = useMemo(() => {
+    const pubKeyHex = account?.publicKeys?.[0];
+    if (!pubKeyHex || !tick || !tokenId || !address) return undefined;
+    try {
+      return buildKrc721TransferScript(new PublicKey(pubKeyHex), {
+        tick,
+        tokenId,
+        to: address,
+      }).toString();
+    } catch {
+      return undefined;
+    }
+  }, [account?.publicKeys?.[0], tick, tokenId, address]);
+
+  const { fee: commitFee } = useKasFeeEstimate();
+  const { fee: revealFee } = useKasFeeEstimate(
+    scriptHex ? { scriptsHexes: [scriptHex] } : undefined,
+  );
+  const totalFee = ((commitFee ?? 0) + (revealFee ?? 0)) / 1e8;
   const { amount: feesCurrency, code: feesCurrencyCode } = useCurrencyValue(
-    Fee.Base * kaspaPrice.kaspaPrice,
+    totalFee * kaspaPrice.kaspaPrice,
   );
 
   const onClose = () => {
@@ -63,7 +85,7 @@ export default function KRC721TransferConfirm({
           <span className="text-base font-medium">Fee</span>
           <div className="flex flex-col items-end break-all">
             <span className="text-base font-medium text-white">
-              {Fee.Base} KAS
+              ~{formatToken(totalFee, 3)} KAS
             </span>
             <span className="text-xs text-daintree-400">
               {formatCurrency(feesCurrency, feesCurrencyCode)}

@@ -1,10 +1,17 @@
 import { useFormContext } from "react-hook-form";
-import React from "react";
 import signImage from "@/assets/images/sign.png";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/GeneralHeader.tsx";
 import { TokenOperationFormData } from "@/components/send/krc20-send/Krc20Transfer";
-import { applyDecimal, computeOperationFees, Operation } from "@/lib/krc20.ts";
+import {
+  applyDecimal,
+  buildCommitRevealScript,
+  computeOperationFees,
+  Operation,
+} from "@/lib/krc20.ts";
+import { PublicKey } from "@/wasm/core/kaspa";
+import { useKasFeeEstimate } from "@/hooks/useKasFeeEstimate";
+import { formatToken } from "@/lib/utils.ts";
 import { useTokenInfo } from "@/hooks/kasplex/useTokenInfo";
 import { formatCurrency } from "@/lib/utils.ts";
 import useKaspaPrice from "@/hooks/useKaspaPrice.ts";
@@ -28,9 +35,28 @@ export const ConfirmTokenOperationStep = ({
   const { account } = useWalletManager();
 
   const { opData, domain } = watch();
-  const { krc20Fee, kaspaFee, forboleFee, totalFees } = computeOperationFees(
-    opData.op as Operation,
+  const { krc20Fee, forboleFee } = computeOperationFees(opData.op as Operation);
+
+  const scriptHex = useMemo(() => {
+    const pubKeyHex = account?.publicKeys?.[0];
+    if (!pubKeyHex || !opData?.op || !opData?.tick) return undefined;
+    try {
+      return buildCommitRevealScript(
+        new PublicKey(pubKeyHex),
+        "krc-20",
+        opData,
+      ).toString();
+    } catch {
+      return undefined;
+    }
+  }, [account?.publicKeys?.[0], opData]);
+
+  const { fee: commitFee } = useKasFeeEstimate();
+  const { fee: revealFee } = useKasFeeEstimate(
+    scriptHex ? { scriptsHexes: [scriptHex] } : undefined,
   );
+  const kaspaFee = ((commitFee ?? 0) + (revealFee ?? 0)) / 1e8;
+  const totalFees = krc20Fee + kaspaFee + forboleFee;
   const { price } = useKrc20Prices(
     opData.op === "mint" ? opData.tick : undefined,
   );
@@ -147,8 +173,8 @@ export const ConfirmTokenOperationStep = ({
                     data-tooltip-id="info-tooltip"
                     data-tooltip-content={
                       forboleFee > 0
-                        ? `${krc20Fee} KAS for KRC20 fees, ${kaspaFee} KAS for Kaspa network fees and ${forboleFee} KAS for Kastle fees.`
-                        : `${krc20Fee} KAS for KRC20 fees and ${kaspaFee} KAS for Kaspa network fees.`
+                        ? `${formatToken(krc20Fee, 3)} KAS for KRC20 fees, ${formatToken(kaspaFee, 3)} KAS for Kaspa network fees and ${formatToken(forboleFee, 3)} KAS for Kastle fees.`
+                        : `${formatToken(krc20Fee, 3)} KAS for KRC20 fees and ${formatToken(kaspaFee, 3)} KAS for Kaspa network fees.`
                     }
                   ></i>
                   <Tooltip
@@ -162,7 +188,9 @@ export const ConfirmTokenOperationStep = ({
                   />
                 </div>
                 <div className="flex flex-col text-right">
-                  <span className="font-medium">{totalFees} KAS</span>
+                  <span className="font-medium">
+                    {formatToken(totalFees, 3)} KAS
+                  </span>
                   <span className="text-xs text-daintree-400">
                     {formatCurrency(feesCurrency, feesCurrencyCode)}
                   </span>

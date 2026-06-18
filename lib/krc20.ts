@@ -12,7 +12,7 @@ export type Operation = "deploy" | "mint" | "transfer";
 export enum Krc20Fee {
   Deploy = 1000,
   Mint = 1,
-  Base = 0.001,
+  Base = 0.0035,
 }
 
 export enum ForboleFee {
@@ -144,5 +144,5 @@ export const transfer = async (
     networkId,
     script,
   );
-  return commitRevealHelper.perform(Krc20Fee.Base.toString(), extraOutputs);
+  return commitRevealHelper.perform("0", extraOutputs);
 };

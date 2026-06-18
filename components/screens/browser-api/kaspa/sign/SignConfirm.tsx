@@ -24,12 +24,14 @@ type SignConfirmProps = {
   payload: SignTxPayload;
   confirm: () => void;
   cancel: () => void;
+  warning?: string;
 };
 
 export default function SignConfirm({
   payload,
   confirm,
   cancel,
+  warning,
 }: SignConfirmProps) {
   const kaspaPrice = useKaspaPrice();
   const { account, wallet } = useWalletManager();
@@ -200,6 +202,11 @@ export default function SignConfirm({
         {/* Confirm Content */}
         {!networkMismatched && (
           <>
+            {warning && (
+              <div className="mt-3 rounded-lg border border-yellow-600 bg-yellow-900/30 px-4 py-2 text-xs text-yellow-400">
+                {warning}
+              </div>
+            )}
             <ul className="mt-3 flex flex-col rounded-lg bg-daintree-800">
               <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
                 <div className="flex w-full items-start justify-between">

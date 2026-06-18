@@ -9,8 +9,8 @@ import {
 } from "@/wasm/core/kaspa";
 import { PaymentOutput, IWallet } from "@/lib/wallet/wallet-interface.ts";
 import { toKaspaPaymentOutput } from "./kaspa";
+import { calcRevealInputFee } from "./kaspaFee";
 
-export const COMMIT_FEE = "0.001"; // 0.001 KAS
 export const SCRIPT_UTXO_AMOUNT = "0.3";
 
 export class CommitRevealHelper {
@@ -127,7 +127,7 @@ export class CommitRevealHelper {
           amount: kaspaToSompi(SCRIPT_UTXO_AMOUNT)!,
         },
       ],
-      priorityFee: kaspaToSompi(COMMIT_FEE)!,
+      priorityFee: 0n,
       changeAddress: address.toString(),
       networkId: this.networkId,
     });
@@ -160,13 +160,16 @@ export class CommitRevealHelper {
       .toString();
     const { entries } = await this.rpcClient.getUtxosByAddresses([address]);
 
+    const revealInputFee = calcRevealInputFee(script.toString());
+
     const { transactions: revealPendingTxs } = await createTransactions({
       priorityEntries: [scriptUtxo],
       entries,
       outputs: extraOutputs.map((output) => toKaspaPaymentOutput(output)),
       changeAddress: address,
-      priorityFee: kaspaToSompi(priorityFee),
+      priorityFee: (kaspaToSompi(priorityFee ?? "0") ?? 0n) + revealInputFee,
       networkId: this.networkId,
+      sigOpCount: 1, // P2SH redeem script contains one OpCheckSig
     });
 
     // Sign the transaction with the script

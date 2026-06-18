@@ -1030,10 +1030,7 @@ document
       document.getElementById("commitRevealRevealTxId").innerText = "";
       document.getElementById("commitRevealError").innerText = "None";
 
-      const commitTxId = await kastle.signAndBroadcastTx(
-        network,
-        commitTxJson,
-      );
+      const commitTxId = await kastle.signAndBroadcastTx(network, commitTxJson);
       document.getElementById("commitRevealCommitTxId").innerText = commitTxId;
 
       const revealTxId = await kastle.signAndBroadcastTx(

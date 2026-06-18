@@ -41,6 +41,7 @@ export const buildTransactionPayloadSchema = z.object({
     )
     .optional(),
   inputs: z.array(iUtxoEntrySchema).optional(),
+  sigOpCount: z.number().int().min(1).optional(),
 });
 
 export type BuildTransactionPayload = z.infer<
@@ -173,6 +174,7 @@ export const buildTransactionHandler: Handler = async (
       changeAddress: account.address,
       payload: payloadHex,
       networkId,
+      sigOpCount: parsed.sigOpCount,
     });
 
     if (pendingTxs.length === 0) {

@@ -1,18 +1,19 @@
 import { useFormContext } from "react-hook-form";
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/GeneralHeader.tsx";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
-import { Address } from "@/wasm/core/kaspa";
+import { Address, PublicKey } from "@/wasm/core/kaspa";
 import { twMerge } from "tailwind-merge";
 import { useBoolean } from "usehooks-ts";
 import RecentAddresses from "@/components/send/RecentAddresses.tsx";
 import spinner from "@/assets/images/spinner.svg";
 import { Tooltip } from "react-tooltip";
 import { KRC721TransferFormData } from "@/components/screens/KRC721Transfer.tsx";
-import { Fee } from "@/lib/krc721";
+import { buildKrc721TransferScript } from "@/lib/krc721";
+import { useKasFeeEstimate } from "@/hooks/useKasFeeEstimate";
 import { useKns } from "@/hooks/kns/useKns";
-import { convertIPFStoHTTP } from "@/lib/utils.ts";
+import { convertIPFStoHTTP, formatToken } from "@/lib/utils.ts";
 import useKaspaBalance from "@/hooks/wallet/useKaspaBalance";
 import { useKRC721Details } from "@/hooks/krc721/useKRC721";
 import FeeSegment from "../nft-transfer/FeeSegment";
@@ -38,6 +39,29 @@ export const KRC721TransferDetails = ({
   } = useFormContext<KRC721TransferFormData>();
   const { tick, tokenId, userInput, address, domain } = watch();
 
+  const scriptHex = useMemo(() => {
+    const pubKeyHex = account?.publicKeys?.[0];
+    if (!pubKeyHex || !tick || !tokenId || !address) return undefined;
+    try {
+      return buildKrc721TransferScript(new PublicKey(pubKeyHex), {
+        tick,
+        tokenId,
+        to: address,
+      }).toString();
+    } catch {
+      return undefined;
+    }
+  }, [account?.publicKeys?.[0], tick, tokenId, address]);
+
+  const { fee: commitFee } = useKasFeeEstimate();
+  const { fee: revealFee } = useKasFeeEstimate(
+    scriptHex ? { scriptsHexes: [scriptHex] } : undefined,
+  );
+  const estimatedFeeKas = formatToken(
+    ((commitFee ?? 0) + (revealFee ?? 0)) / 1e8,
+    3,
+  );
+
   const {
     value: isRecentAddressShown,
     setFalse: hideRecentAddress,
@@ -57,7 +81,7 @@ export const KRC721TransferDetails = ({
     const genericErrorMessage = "Invalid address or KRC721 domain";
     if (!value) return false;
 
-    if (currentBalance < Fee.Base) {
+    if (currentBalance < ((commitFee ?? 0) + (revealFee ?? 0)) / 1e8) {
       return "Oh, you don’t have enough funds";
     }
 
@@ -216,8 +240,8 @@ export const KRC721TransferDetails = ({
 
         <FeeSegment
           feeTooltipText="KRC721 fees are handled automatically by Kastle."
-          estimatedFeeTooltipText={`${Fee.Base} KAS for miner fees.`}
-          estimatedFee={Fee.Base.toString()}
+          estimatedFeeTooltipText={`~${estimatedFeeKas} KAS for miner fees.`}
+          estimatedFee={estimatedFeeKas}
         />
 
         <div className="mt-auto">

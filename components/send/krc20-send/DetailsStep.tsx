@@ -1,21 +1,21 @@
 import { useFormContext } from "react-hook-form";
-import React, { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { formatToken } from "@/lib/utils.ts";
 import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import Header from "@/components/GeneralHeader.tsx";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
-import { Address, kaspaToSompi, sompiToKaspaString } from "@/wasm/core/kaspa";
+import { Address, PublicKey, sompiToKaspaString } from "@/wasm/core/kaspa";
 import { twMerge } from "tailwind-merge";
 import { useBoolean } from "usehooks-ts";
 import { useTokenBalance } from "@/hooks/kasplex/useTokenBalance";
-import { applyDecimal, computeOperationFees, Krc20Fee } from "@/lib/krc20.ts";
+import { applyDecimal, buildCommitRevealScript } from "@/lib/krc20.ts";
 import RecentAddresses from "@/components/send/RecentAddresses.tsx";
 import spinner from "@/assets/images/spinner.svg";
 import { useKns } from "@/hooks/kns/useKns";
 import { Tooltip } from "react-tooltip";
 import PriorityFeeSelection from "@/components/send/PriorityFeeSelection.tsx";
-import useMassCalculation from "@/hooks/useMassCalculation.ts";
+import { useKasFeeEstimate } from "@/hooks/useKasFeeEstimate";
 import usePriorityFeeEstimate from "@/hooks/usePriorityFeeEstimate.ts";
 import useMempoolStatus from "@/hooks/useMempoolStatus.ts";
 import "/node_modules/flag-icons/css/flag-icons.min.css";
@@ -54,15 +54,30 @@ export const DetailsStep = () => {
 
   const { userInput, address, amount, domain, priority, priorityFee } = watch();
   const priorityFeeEstimate = usePriorityFeeEstimate();
-  const estimatedMass = useMassCalculation(
-    address
-      ? [
-          {
-            address: address,
-            amount: kaspaToSompi(amount ?? "0") ?? 0n,
-          },
-        ]
-      : [],
+  const scriptHex = useMemo(() => {
+    const pubKeyHex = account?.publicKeys?.[0];
+    if (!pubKeyHex || !ticker) return undefined;
+    try {
+      const script = buildCommitRevealScript(
+        new PublicKey(pubKeyHex),
+        "krc-20",
+        {
+          p: "krc-20",
+          op: "transfer",
+          tick: ticker,
+          to: address ?? account?.address ?? "",
+          amt: "1",
+        },
+      );
+      return script.toString();
+    } catch {
+      return undefined;
+    }
+  }, [account?.publicKeys?.[0], ticker, address]);
+
+  const { fee: commitFee } = useKasFeeEstimate();
+  const { fee: revealFee } = useKasFeeEstimate(
+    scriptHex ? { scriptsHexes: [scriptHex] } : undefined,
   );
 
   const { price } = useKrc20Prices(ticker);
@@ -97,7 +112,7 @@ export const DetailsStep = () => {
       return "Oh, you don’t have enough funds";
     }
 
-    if (kasBalance < Krc20Fee.Base) {
+    if (kasBalance * 1e8 < (commitFee ?? 0) + (revealFee ?? 0)) {
       return "Oh, you don't have enough KAS to cover the operation fees";
     }
 
@@ -206,24 +221,27 @@ export const DetailsStep = () => {
     const selectedPriorityFee = (() => {
       if (priority === "low") {
         return (
-          (priorityFeeEstimate?.estimate?.lowBuckets?.[0]?.feerate ?? 0) *
-          Number(estimatedMass)
+          ((priorityFeeEstimate?.estimate?.lowBuckets?.[0]?.feerate ?? 0) *
+            (commitFee ?? 0)) /
+          100
         );
       }
       if (priority === "medium") {
         return (
-          (priorityFeeEstimate?.estimate?.normalBuckets?.[0]?.feerate ?? 0) *
-          Number(estimatedMass)
+          ((priorityFeeEstimate?.estimate?.normalBuckets?.[0]?.feerate ?? 0) *
+            (commitFee ?? 0)) /
+          100
         );
       }
       return (
-        (priorityFeeEstimate?.estimate?.priorityBucket?.feerate ?? 0) *
-        Number(estimatedMass)
+        ((priorityFeeEstimate?.estimate?.priorityBucket?.feerate ?? 0) *
+          (commitFee ?? 0)) /
+        100
       );
     })();
 
     setValue("priorityFee", BigInt(Math.round(selectedPriorityFee)));
-  }, [estimatedMass, priorityFeeEstimate, priority]);
+  }, [commitFee, priorityFeeEstimate, priority]);
 
   useEffect(() => {
     trigger("userInput");
@@ -463,7 +481,9 @@ export const DetailsStep = () => {
             ></i>
 
             <span>Estimated</span>
-            <span>{computeOperationFees("transfer").totalFees} KAS</span>
+            <span>
+              {formatToken(((commitFee ?? 0) + (revealFee ?? 0)) / 1e8, 3)} KAS
+            </span>
           </div>
         </div>
 

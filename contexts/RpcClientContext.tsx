@@ -17,7 +17,6 @@ interface RpcClientContextType {
   rpcClient: RpcClient | undefined;
   networkId?: NetworkType;
   isConnected: boolean;
-  getMinimumFee: (addresses: string[]) => Promise<number>;
   getUtxos: (addresses: string[]) => Promise<UtxoEntryReference[]>;
   estimateTransactionFees: (
     entries: IUtxoEntry[],
@@ -36,7 +35,6 @@ const defaultFunction = () => Promise.reject("RPC client not initialized");
 export const RpcClientContext = createContext<RpcClientContextType>({
   rpcClient: undefined,
   isConnected: false,
-  getMinimumFee: defaultFunction,
   getUtxos: defaultFunction,
   estimateTransactionFees: defaultFunction,
 });
@@ -103,21 +101,6 @@ export function RpcClientProvider({ children }: { children: ReactNode }) {
       terminateConnection();
     };
   }, [settings, isSettingsLoading]);
-
-  const getMinimumFee = async (addresses: string[]) => {
-    if (!rpcClient) {
-      throw new Error("RPC client not initialized");
-    }
-
-    // Credits to https://github.com/coderofstuff/kasvault/blob/eb071744fc128da340966d5eb023b01a4a2c9448/src/lib/ledger.ts#L86
-    const utxos =
-      (await rpcClient?.getUtxosByAddresses(addresses))?.entries ?? [];
-    const minimumFee = 239 + 690;
-
-    return parseFloat(
-      sompiToKaspaString(BigInt(minimumFee + utxos.length * 1118)),
-    );
-  };
 
   const getUtxos = async (addresses: string[]) => {
     if (!rpcClient) {
@@ -191,7 +174,6 @@ export function RpcClientProvider({ children }: { children: ReactNode }) {
         rpcClient,
         networkId,
         isConnected,
-        getMinimumFee,
         getUtxos,
         estimateTransactionFees,
       }}

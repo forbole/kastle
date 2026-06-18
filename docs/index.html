@@ -246,20 +246,40 @@
 
     <div>
       <h3>Sign &amp; Broadcast Commit + Reveal (pre-built txns)</h3>
-      <p>Paste pre-built commit and reveal txJsons. Kastle signs and broadcasts commit first, then reveal.</p>
+      <p>
+        Paste pre-built commit and reveal txJsons. Kastle signs and broadcasts
+        commit first, then reveal.
+      </p>
       <div>
         Commit txJson:
-        <textarea id="commitRevealCommitTxJson" rows="6" style="width: 100%; font-family: monospace; font-size: 12px" placeholder='{"id":"...","version":0,...}'></textarea>
+        <textarea
+          id="commitRevealCommitTxJson"
+          rows="6"
+          style="width: 100%; font-family: monospace; font-size: 12px"
+          placeholder='{"id":"...","version":0,...}'
+        ></textarea>
       </div>
       <div>
         Reveal txJson:
-        <textarea id="commitRevealRevealTxJson" rows="6" style="width: 100%; font-family: monospace; font-size: 12px" placeholder='{"id":"...","version":0,...}'></textarea>
+        <textarea
+          id="commitRevealRevealTxJson"
+          rows="6"
+          style="width: 100%; font-family: monospace; font-size: 12px"
+          placeholder='{"id":"...","version":0,...}'
+        ></textarea>
       </div>
       <div>
         Reveal scripts (JSON array):
-        <textarea id="commitRevealScripts" rows="3" style="width: 100%; font-family: monospace; font-size: 12px" placeholder='[{"inputIndex":0,"scriptHex":"20...68","signType":"All"}]'></textarea>
+        <textarea
+          id="commitRevealScripts"
+          rows="3"
+          style="width: 100%; font-family: monospace; font-size: 12px"
+          placeholder='[{"inputIndex":0,"scriptHex":"20...68","signType":"All"}]'
+        ></textarea>
       </div>
-      <button id="signAndBroadcastCommitReveal">Sign &amp; Broadcast Commit + Reveal</button>
+      <button id="signAndBroadcastCommitReveal">
+        Sign &amp; Broadcast Commit + Reveal
+      </button>
       <div>Commit Tx Id: <span id="commitRevealCommitTxId"></span></div>
       <div>Reveal Tx Id: <span id="commitRevealRevealTxId"></span></div>
       <div>Error: <span id="commitRevealError">None</span></div>

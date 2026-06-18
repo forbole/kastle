@@ -3,12 +3,14 @@ import { KNSTransferFormData } from "@/components/screens/KNSTransfer.tsx";
 import { useAssetDetails } from "@/hooks/kns/useKns";
 import Header from "@/components/GeneralHeader.tsx";
 import signImage from "@/assets/images/sign.png";
-import React from "react";
 import { useNavigate } from "react-router-dom";
-import { Fee } from "@/lib/kns.ts";
-import { formatCurrency } from "@/lib/utils.ts";
+import { buildKnsTransferScript } from "@/lib/kns.ts";
+import { formatCurrency, formatToken } from "@/lib/utils.ts";
 import useKaspaPrice from "@/hooks/useKaspaPrice.ts";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
+import { PublicKey } from "@/wasm/core/kaspa";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
+import { useKasFeeEstimate } from "@/hooks/useKasFeeEstimate";
 
 type KNSTransferConfirmProps = {
   onNext?: () => void;
@@ -20,12 +22,32 @@ export default function KNSTransferConfirm({
   onBack,
 }: KNSTransferConfirmProps) {
   const navigate = useNavigate();
+  const { account } = useWalletManager();
   const { watch } = useFormContext<KNSTransferFormData>();
   const { assetId, address, domain } = watch();
   const { data: response } = useAssetDetails(assetId);
   const kaspaPrice = useKaspaPrice();
+
+  const scriptHex = useMemo(() => {
+    const pubKeyHex = account?.publicKeys?.[0];
+    if (!pubKeyHex || !assetId || !address) return undefined;
+    try {
+      return buildKnsTransferScript(new PublicKey(pubKeyHex), {
+        id: assetId,
+        to: address,
+      }).toString();
+    } catch {
+      return undefined;
+    }
+  }, [account?.publicKeys?.[0], assetId, address]);
+
+  const { fee: commitFee } = useKasFeeEstimate();
+  const { fee: revealFee } = useKasFeeEstimate(
+    scriptHex ? { scriptsHexes: [scriptHex] } : undefined,
+  );
+  const totalFee = ((commitFee ?? 0) + (revealFee ?? 0)) / 1e8;
   const { amount: feesCurrency, code: feesCurrencyCode } = useCurrencyValue(
-    Fee.Base * kaspaPrice.kaspaPrice,
+    totalFee * kaspaPrice.kaspaPrice,
   );
 
   const asset = response?.data;
@@ -67,7 +89,7 @@ export default function KNSTransferConfirm({
           <span className="text-base font-medium">Fee</span>
           <div className="flex flex-col items-end break-all">
             <span className="text-base font-medium text-white">
-              {Fee.Base} KAS
+              ~{formatToken(totalFee, 3)} KAS
             </span>
             <span className="text-xs text-daintree-400">
               {formatCurrency(feesCurrency, feesCurrencyCode)}

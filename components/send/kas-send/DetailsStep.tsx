@@ -1,14 +1,13 @@
 import { useNavigate } from "react-router-dom";
 import { useSettings } from "@/hooks/useSettings";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
-import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import useMempoolStatus from "@/hooks/useMempoolStatus";
 import { useKns } from "@/hooks/kns/useKns";
-import { useState } from "react";
 import { useBoolean } from "usehooks-ts";
 import Header from "@/components/GeneralHeader";
 import { Tooltip } from "react-tooltip";
-import { Address, sompiToKaspaString, kaspaToSompi } from "@/wasm/core/kaspa";
+import { Address, sompiToKaspaString } from "@/wasm/core/kaspa";
+import { useKasFeeEstimate } from "@/hooks/useKasFeeEstimate";
 import { MIN_KAS_AMOUNT } from "@/lib/kaspa.ts";
 import { useFormContext } from "react-hook-form";
 import { twMerge } from "tailwind-merge";
@@ -29,8 +28,7 @@ export function DetailsStep({
 }) {
   const navigate = useNavigate();
   const [settings] = useSettings();
-  const { account, addresses } = useWalletManager();
-  const { rpcClient, getMinimumFee } = useRpcClientStateful();
+  const { account } = useWalletManager();
   const { mempoolCongestionLevel } = useMempoolStatus();
   const { fetchDomainInfo } = useKns();
   const { value: isAddressFieldFocused, setValue: setAddressFieldFocused } =
@@ -41,7 +39,6 @@ export function DetailsStep({
     setFalse: hideRecentAddress,
     setTrue: showRecentAddress,
   } = useBoolean(false);
-  const [accountMinimumFees, setAccountMinimumFees] = useState<number>(0.0);
   const {
     value: isPriorityFeeSelectionOpen,
     setTrue: openPriorityFeeSelection,
@@ -59,16 +56,7 @@ export function DetailsStep({
 
   const { userInput, address, amount, domain, priority, priorityFee } = watch();
   const priorityFeeEstimate = usePriorityFeeEstimate();
-  const estimatedMass = useMassCalculation(
-    address
-      ? [
-          {
-            address: address,
-            amount: kaspaToSompi(amount ?? "0") ?? 0n,
-          },
-        ]
-      : [],
-  );
+  const { fee: baseFee } = useKasFeeEstimate();
 
   const { kaspaPrice: tokenPrice } = useKaspaPrice();
   const { amount: tokenCurrency } = useCurrencyValue(tokenPrice);
@@ -86,7 +74,10 @@ export function DetailsStep({
       return "Oh, the minimum sending amount has to be greater than 0.2 KAS";
     }
 
-    if (amountNumber + accountMinimumFees > currentBalance) {
+    const estimatedFeeKas = parseFloat(
+      sompiToKaspaString(BigInt(baseFee ?? 0) + priorityFee),
+    );
+    if (amountNumber + estimatedFeeKas > currentBalance) {
       return "Oh, you don't have enough funds to cover the estimated fees";
     }
 
@@ -142,20 +133,15 @@ export function DetailsStep({
       return;
     }
 
-    const maxAmount = currentBalance - accountMinimumFees;
+    const maxAmount =
+      currentBalance -
+      parseFloat(sompiToKaspaString(BigInt(baseFee ?? 0) + priorityFee));
     setValue("amount", maxAmount > 0 ? maxAmount.toFixed(8) : "0", {
       shouldValidate: true,
     });
   };
 
   const navigateToNextStep = () => onNext();
-
-  // Fetch account minimum fees
-  useEffect(() => {
-    if (rpcClient && account) {
-      getMinimumFee(addresses).then(setAccountMinimumFees);
-    }
-  }, [rpcClient, account]);
 
   // Update USD amount
   useEffect(() => {
@@ -189,24 +175,27 @@ export function DetailsStep({
     const selectedPriorityFee = (() => {
       if (priority === "low") {
         return (
-          (priorityFeeEstimate?.estimate?.lowBuckets?.[0]?.feerate ?? 0) *
-          Number(estimatedMass)
+          ((priorityFeeEstimate?.estimate?.lowBuckets?.[0]?.feerate ?? 0) *
+            (baseFee ?? 0)) /
+          100
         );
       }
       if (priority === "medium") {
         return (
-          (priorityFeeEstimate?.estimate?.normalBuckets?.[0]?.feerate ?? 0) *
-          Number(estimatedMass)
+          ((priorityFeeEstimate?.estimate?.normalBuckets?.[0]?.feerate ?? 0) *
+            (baseFee ?? 0)) /
+          100
         );
       }
       return (
-        (priorityFeeEstimate?.estimate?.priorityBucket?.feerate ?? 0) *
-        Number(estimatedMass)
+        ((priorityFeeEstimate?.estimate?.priorityBucket?.feerate ?? 0) *
+          (baseFee ?? 0)) /
+        100
       );
     })();
 
     setValue("priorityFee", BigInt(Math.round(selectedPriorityFee)));
-  }, [estimatedMass, priorityFeeEstimate, priority]);
+  }, [baseFee, priorityFeeEstimate, priority]);
 
   useEffect(() => {
     trigger("userInput");
