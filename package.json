@@ -32,7 +32,7 @@
     "@preline/dropdown": "^2.6.0",
     "@sentry/react": "^9.0.0",
     "buffer": "^6.0.3",
-    "canvas": "^2.11.2",
+    "canvas": "^3.2.1",
     "canvas-confetti": "^1.9.3",
     "eslint-plugin-react-hooks": "^5.1.0",
     "flag-icons": "^7.3.2",
@@ -77,6 +77,6 @@
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.19.1",
     "vite-plugin-node-polyfills": "^0.22.0",
-    "wxt": "^0.19.24"
+    "wxt": "^0.20.14"
   }
 }
