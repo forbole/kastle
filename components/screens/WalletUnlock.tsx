@@ -59,7 +59,11 @@ export default function WalletUnlock() {
           <div className="flex items-center justify-center gap-2">
             <img alt="bank" className="h-[20px] w-[112px]" src={kastleBanner} />
           </div>
-          <img alt="castle" className="h-[229px] w-[229px]" src={castleImage} />
+          <img
+            alt="castle"
+            className="mx-auto aspect-[686/456] w-full max-w-[343px]"
+            src={castleImage}
+          />
           <h3 className="text-center text-lg text-gray-200">Welcome back</h3>
         </div>
         {/** Form */}

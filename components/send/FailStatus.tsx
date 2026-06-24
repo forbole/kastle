@@ -1,7 +1,7 @@
 import { explorerTxLinks } from "@/components/screens/Settings.tsx";
 import { useNavigate } from "react-router-dom";
 import React from "react";
-import warningImage from "@/assets/images/warning.png";
+import failImage from "@/assets/images/fail.png";
 import Header from "@/components/GeneralHeader";
 import { useFormContext } from "react-hook-form";
 import { KasSendForm } from "@/components/send/kas-send/KasSend";
@@ -41,7 +41,11 @@ export const FailStatus = ({ transactionIds }: FailProps) => {
 
       <div className="mt-20 flex flex-1 flex-col justify-between">
         <div className="flex flex-col items-center gap-4">
-          <img src={warningImage} alt="Warning" className="mx-auto h-24 w-24" />
+          <img
+            src={failImage}
+            alt="Warning"
+            className="mx-auto aspect-[686/240] w-full max-w-[343px]"
+          />
           <div className="flex flex-col gap-2 text-center">
             <span className="text-xl font-semibold text-red-500">
               Sorry, Your Majesty.

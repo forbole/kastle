@@ -63,7 +63,11 @@ export default function SignMessage({
         <Header showPrevious={false} showClose={false} title="Confirm" />
         <div className="relative">
           {wallet?.type !== "ledger" && (
-            <img src={signImage} alt="Sign" className="mx-auto" />
+            <img
+              src={signImage}
+              alt="Sign"
+              className="mx-auto aspect-[686/240] w-full max-w-[343px]"
+            />
           )}
           {wallet?.type === "ledger" && (
             <img src={ledgerSignImage} alt="Sign" className="mx-auto" />
