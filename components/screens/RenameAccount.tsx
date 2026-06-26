@@ -59,7 +59,11 @@ export default function RenameAccount() {
       <form className="flex flex-grow flex-col gap-6" onSubmit={onSubmit}>
         <div className="flex h-full flex-col items-stretch gap-6">
           <div className="flex h-[168px] w-[168px] items-center justify-center self-center rounded-full bg-daintree-800">
-            <img alt="castle" className="h-[90px] w-[120px]" src={chestImage} />
+            <img
+              alt="castle"
+              className="mx-auto aspect-[240/240] w-full max-w-[120px]"
+              src={chestImage}
+            />
           </div>
 
           <div className="max-w-sm">

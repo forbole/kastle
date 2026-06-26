@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import React from "react";
-import warningImage from "@/assets/images/warning.png";
+import failImage from "@/assets/images/fail.png";
 import Header from "@/components/GeneralHeader";
 import { useLocation } from "react-router";
 import { useTokenInfo } from "@/hooks/kasplex/useTokenInfo";
@@ -95,9 +95,9 @@ export const TokenOperationFailed = () => {
         <div className="mt-20 flex flex-1 flex-col justify-between">
           <div className="flex flex-col items-center gap-4">
             <img
-              src={warningImage}
+              src={failImage}
               alt="Warning"
-              className="mx-auto h-24 w-24"
+              className="mx-auto aspect-[686/240] w-full max-w-[343px]"
             />
             {op === "mint" ? (
               <div className="flex flex-col gap-2 text-center">

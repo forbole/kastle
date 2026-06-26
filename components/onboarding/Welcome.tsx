@@ -17,7 +17,11 @@ export default function Welcome() {
             <img alt="bank" className="h-[20px] w-[112px]" src={kastleBanner} />
           </div>
 
-          <img alt="castle" className="h-[229px] w-[229px]" src={castleImage} />
+          <img
+            alt="castle"
+            className="mx-auto aspect-[686/456] w-full max-w-[343px]"
+            src={castleImage}
+          />
           <div className="flex flex-col items-center gap-3">
             <div className="text-center text-lg font-semibold text-daintree-400">
               Welcome to Kastle

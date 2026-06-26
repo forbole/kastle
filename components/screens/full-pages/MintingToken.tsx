@@ -114,7 +114,7 @@ export default function MintingToken() {
         <div className="mt-10 flex h-full flex-col gap-10">
           <img
             alt="castle"
-            className="h-[120px] w-[299px] self-center"
+            className="aspect-[686/240] w-full max-w-[343px] self-center"
             src={carriageImage}
           />
 

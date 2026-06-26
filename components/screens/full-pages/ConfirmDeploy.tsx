@@ -47,7 +47,7 @@ export default function ConfirmDeploy() {
         <div className="flex h-full flex-col gap-2">
           <img
             alt="castle"
-            className="h-[120px] w-[134px] self-center"
+            className="aspect-[686/240] w-full max-w-[343px] self-center"
             src={signImage}
           />
 
