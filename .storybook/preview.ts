@@ -1,4 +1,5 @@
 import type { Preview } from '@storybook/react';
+import '@hackernoon/pixel-icon-library/fonts/iconfont.css';
 import '../ui/globals.css';
 
 const preview: Preview = {
