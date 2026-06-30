@@ -5,22 +5,15 @@ export type PasswordStrength = 0 | 1 | 2 | 3 | 4 | 5;
 
 function calcStrength(password: string): PasswordStrength {
   if (!password) return 0;
-  let score = 0;
+  let score = 1;
   if (password.length >= 8) score++;
   if (password.length >= 12) score++;
   if (/[A-Z]/.test(password)) score++;
-  if (/[0-9]/.test(password)) score++;
   if (/[^A-Za-z0-9]/.test(password)) score++;
-  return score as PasswordStrength;
+  return Math.min(score, 5) as PasswordStrength;
 }
 
-const STRENGTH_COLORS: Record<number, string> = {
-  1: "bg-red-500",
-  2: "bg-orange-400",
-  3: "bg-yellow-400",
-  4: "bg-teal-400",
-  5: "bg-teal-400",
-};
+const STRENGTH_COLOR = "bg-teal-500";
 
 export interface CreatePasswordPageProps {
   title?: string;
@@ -64,7 +57,7 @@ export default function CreatePasswordPage({
   const disabled = !password || password !== confirm || !termsChecked;
 
   return (
-    <div className="flex h-full w-full items-center justify-center bg-icy-blue-900">
+    <div className="flex w-full items-center justify-center bg-icy-blue-900">
       <div className="flex h-[752px] w-[624px] flex-col justify-between overflow-clip rounded-3xl bg-icy-blue-950">
         <div className="flex flex-col gap-4">
           <PageHeader
@@ -145,7 +138,7 @@ export default function CreatePasswordPage({
                     >
                       {i <= strength && (
                         <div
-                          className={`h-full w-full rounded-full ${STRENGTH_COLORS[strength]}`}
+                          className={`h-full w-full rounded-full ${STRENGTH_COLOR}`}
                         />
                       )}
                     </div>

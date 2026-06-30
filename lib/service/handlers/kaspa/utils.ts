@@ -32,7 +32,7 @@ export async function getSigner(
       return factory.createFromPrivateKey(walletSecret.value);
 
     case "mnemonic":
-      return factory.createFromMnemonic(walletSecret.value, accountIndex);
+      return factory.createFromMnemonic(walletSecret.value, accountIndex, walletSecret.passphrase);
 
     default:
       throw new Error(`Unsupported wallet type: ${walletSecret.type}`);

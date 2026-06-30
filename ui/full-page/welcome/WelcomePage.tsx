@@ -19,7 +19,7 @@ export default function WelcomePage({
   onSecondaryClick,
 }: WelcomePageProps) {
   return (
-    <div className="flex h-full w-full items-center justify-center bg-icy-blue-900">
+    <div className="flex w-full items-center justify-center bg-icy-blue-900">
       <div className="flex h-[752px] w-[624px] flex-col items-center justify-between rounded-3xl bg-icy-blue-950 pt-16">
         <div className="flex w-full flex-col items-center gap-10">
           <img alt="Kastle" className="h-5 w-[111px]" src={kastleBanner} />

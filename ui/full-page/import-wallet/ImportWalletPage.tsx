@@ -86,7 +86,7 @@ export default function ImportWalletPage({
   createWalletLabel = "No wallet? Create one now",
 }: ImportWalletPageProps) {
   return (
-    <div className="flex h-full w-full items-start justify-center bg-icy-blue-900 py-10">
+    <div className="flex w-full items-start justify-center bg-icy-blue-900">
       <div className="flex w-[624px] flex-col overflow-clip rounded-3xl bg-icy-blue-950">
         <PageHeader
           onBack={onBack}

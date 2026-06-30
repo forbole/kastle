@@ -91,7 +91,7 @@ export default function ImportPassphrasePage({
   const disabled = !passphrase || isLoading;
 
   return (
-    <div className="flex h-full w-full items-start justify-center bg-icy-blue-900 py-6">
+    <div className="flex w-full items-start justify-center bg-icy-blue-900">
       <div
         className="relative flex w-[624px] flex-col justify-between overflow-clip rounded-3xl bg-icy-blue-950"
         style={{ minHeight: 794 }}

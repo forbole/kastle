@@ -42,6 +42,7 @@ export default function useWalletImporter() {
     mnemonic: string,
     defaultAccountName = "Account 0",
     backed = true,
+    passphrase?: string,
   ) => {
     if (!walletSettings) throw new Error("Wallet manager not initialized");
     if (!rpcClient || !networkId)
@@ -50,17 +51,19 @@ export default function useWalletImporter() {
     const kaspaWallet = new KaspaAccountFactory().createFromMnemonic(
       mnemonic,
       0,
+      passphrase,
     );
 
     const address = (await kaspaWallet.getPublicKey())
       .toAddress(networkId)
       .toString();
-    const evmWallet = new EvmAccountFactory().createFromMnemonic(mnemonic, 0);
+    const evmWallet = new EvmAccountFactory().createFromMnemonic(mnemonic, 0, false, passphrase);
 
     await keyring.addWalletSecret({
       id,
       type: "mnemonic",
       value: mnemonic,
+      passphrase,
     });
 
     await addWallet({

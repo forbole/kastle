@@ -20,8 +20,8 @@ export class LegacyAccountFactory {
     return new LegacyLedgerAccount(transport, accountIndex);
   }
 
-  createFromMnemonic(mnemonic: string, accountIndex: number = 0): IWallet {
-    const seed = new Mnemonic(mnemonic).toSeed();
+  createFromMnemonic(mnemonic: string, accountIndex: number = 0, passphrase?: string): IWallet {
+    const seed = new Mnemonic(mnemonic).toSeed(passphrase);
 
     return new LegacyHotWalletAccount(seed, accountIndex);
   }
@@ -42,8 +42,8 @@ export class AccountFactory {
     return new LedgerAccount(transport, accountIndex);
   }
 
-  createFromMnemonic(mnemonic: string, accountIndex: number = 0): IWallet {
-    const seed = new Mnemonic(mnemonic).toSeed();
+  createFromMnemonic(mnemonic: string, accountIndex: number = 0, passphrase?: string): IWallet {
+    const seed = new Mnemonic(mnemonic).toSeed(passphrase);
 
     return new HotWalletAccount(seed, accountIndex);
   }
