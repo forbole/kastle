@@ -1,6 +1,6 @@
-import type { Preview } from '@storybook/react';
-import '@hackernoon/pixel-icon-library/fonts/iconfont.css';
-import '../ui/globals.css';
+import type { Preview } from "@storybook/react";
+import "@hackernoon/pixel-icon-library/fonts/iconfont.css";
+import "../ui/globals.css";
 
 const preview: Preview = {
   parameters: {
@@ -10,21 +10,21 @@ const preview: Preview = {
         date: /Date$/i,
       },
     },
-    layout: 'fullscreen',
+    layout: "fullscreen",
     viewport: {
       viewports: {
         extension: {
-          name: 'Extension',
-          styles: { width: '375px', height: '600px' },
-          type: 'mobile',
+          name: "Extension",
+          styles: { width: "375px", height: "600px" },
+          type: "mobile",
         },
         fullscreen: {
-          name: 'Fullscreen',
-          styles: { width: '1280px', height: '800px' },
-          type: 'desktop',
+          name: "Fullscreen",
+          styles: { width: "1280px", height: "800px" },
+          type: "desktop",
         },
       },
-      defaultViewport: 'extension',
+      defaultViewport: "extension",
     },
   },
 };

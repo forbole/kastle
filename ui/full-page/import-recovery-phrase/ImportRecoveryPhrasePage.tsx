@@ -1,0 +1,232 @@
+import { useState } from "react";
+import { twMerge } from "tailwind-merge";
+import PageHeader from "@/ui/general/PageHeader";
+
+type PhraseLength = 12 | 24;
+
+export interface ImportRecoveryPhrasePageProps {
+  title?: string;
+  subtitle?: string;
+  buttonLabel?: string;
+  passphraseInfoLabel?: string;
+  hasPassphrase?: boolean;
+  isLoading?: boolean;
+  error?: string;
+  onBack?: () => void;
+  onSubmit?: (words: string[], phraseLength: PhraseLength) => void;
+}
+
+function PassphraseInfoModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/60 p-6">
+      <div className="relative w-full max-w-[390px] rounded-2xl bg-icy-blue-950 p-10">
+        {/* X button */}
+        <button
+          className="absolute right-2.5 top-2.5 flex size-[38px] items-center justify-center rounded-lg text-daintree-400 hover:bg-daintree-800"
+          onClick={onClose}
+          type="button"
+        >
+          <i className="hn hn-times text-sm" />
+        </button>
+
+        <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-2.5">
+            <h2 className="text-center text-xl font-bold tracking-[0.1px] text-gray-200">
+              What is a passphrase?
+            </h2>
+            <div className="text-sm leading-5 tracking-[0.07px] text-daintree-400">
+              <p>{`An optional "25th word" added to your recovery phrase. Each passphrase opens a different wallet.`}</p>
+              <p className="mt-4 font-semibold text-gray-200">Use this if:</p>
+              <ul className="mt-1 list-disc pl-5">
+                <li>
+                  You created your wallet with a passphrase on another app
+                </li>
+                <li>{`You're importing a hidden wallet`}</li>
+              </ul>
+              <p className="mt-4">
+                <span className="font-semibold text-gray-200">{`Skip this if you're unsure`}</span>
+                {` — use "Recovery Phrase or Private Key" instead.`}
+              </p>
+              <p className="mt-4 font-semibold text-gray-200">⚠️ Important:</p>
+              <ul className="mt-1 list-disc pl-5">
+                <li>
+                  Kastle never stores your passphrase — lose it, lose access
+                  forever
+                </li>
+                <li>
+                  A wrong passphrase silently opens a different wallet (no error
+                  shown)
+                </li>
+                <li>{`Case-sensitive: "Hello" ≠ "hello"`}</li>
+              </ul>
+            </div>
+          </div>
+
+          <button
+            className="w-full rounded-full border border-daintree-400 py-3.5 text-[15px] font-semibold tracking-[0.075px] text-[#c1d5de] hover:bg-daintree-800"
+            onClick={onClose}
+            type="button"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function ImportRecoveryPhrasePage({
+  title = "Recovery phrase with passphrase",
+  subtitle = "Please fill in the recovery phrase",
+  buttonLabel = "Import Wallet",
+  passphraseInfoLabel = "What is a passphrase?",
+  hasPassphrase = true,
+  isLoading = false,
+  error,
+  onBack,
+  onSubmit,
+}: ImportRecoveryPhrasePageProps) {
+  const [phraseLength, setPhraseLength] = useState<PhraseLength>(12);
+  const [words, setWords] = useState<string[]>(Array(24).fill(""));
+  const [isHidden, setIsHidden] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+
+  const setWord = (index: number, value: string) => {
+    setWords((prev) => {
+      const next = [...prev];
+      next[index] = value;
+      return next;
+    });
+  };
+
+  const handlePasteAll = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      const parsed = text.trim().split(/\s+/);
+      if (parsed.length === 12 || parsed.length === 24) {
+        setPhraseLength(parsed.length as PhraseLength);
+        setWords([...parsed, ...Array(24 - parsed.length).fill("")]);
+      }
+    } catch {}
+  };
+
+  const currentWords = words.slice(0, phraseLength);
+  const allFilled = currentWords.every((w) => w.trim().length > 0);
+  const disabled = !allFilled || !!error || isLoading;
+
+  return (
+    <div className="flex h-full w-full items-start justify-center bg-icy-blue-900 py-6">
+      <div
+        className="relative flex w-[624px] flex-col justify-between overflow-clip rounded-3xl bg-icy-blue-950"
+        style={{ minHeight: 794 }}
+      >
+        {showModal && (
+          <PassphraseInfoModal onClose={() => setShowModal(false)} />
+        )}
+
+        <div className="flex flex-col gap-4">
+          <PageHeader
+            onBack={onBack}
+            showBack
+            showClose={false}
+            subtitle={subtitle}
+            title={title}
+          />
+
+          <div className="flex flex-col gap-4 px-10">
+            {/* Tab switcher */}
+            <nav className="flex gap-x-2 rounded-xl bg-daintree-800 p-1">
+              {([12, 24] as PhraseLength[]).map((len) => (
+                <button
+                  className={twMerge(
+                    "inline-flex flex-grow items-center justify-center gap-2 rounded-lg px-4 py-3 text-center text-sm font-medium text-daintree-200 focus:outline-none",
+                    phraseLength === len ? "bg-daintree-700" : "bg-transparent",
+                  )}
+                  key={len}
+                  onClick={() => setPhraseLength(len)}
+                  type="button"
+                >
+                  {len} Words
+                </button>
+              ))}
+            </nav>
+
+            {/* Hide / Paste all */}
+            <div className="flex justify-between">
+              <button
+                className="inline-flex items-center gap-x-2 rounded-lg border border-transparent px-4 py-3 text-sm font-medium text-icy-blue-400 hover:bg-daintree-700"
+                onClick={() => setIsHidden((v) => !v)}
+                type="button"
+              >
+                <i
+                  className={`hn ${isHidden ? "hn-eye" : "hn-eye-cross"} text-[14px]`}
+                />
+                <span>{isHidden ? "Show words" : "Hide words"}</span>
+              </button>
+              <button
+                className="inline-flex items-center gap-x-2 rounded-lg border border-transparent px-4 py-3 text-sm font-medium text-icy-blue-400 hover:bg-daintree-700"
+                onClick={handlePasteAll}
+                type="button"
+              >
+                Paste all
+              </button>
+            </div>
+
+            {/* Word grid */}
+            <div className="grid grid-cols-3 gap-4">
+              {currentWords.map((word, index) => (
+                <div className="relative" key={index}>
+                  <input
+                    autoComplete="off"
+                    className={twMerge(
+                      "peer block w-full rounded-lg border border-daintree-700 bg-daintree-800 py-3 pe-0 text-base text-white focus:ring-0",
+                      index >= 9 ? "ps-8" : "ps-7",
+                    )}
+                    onChange={(e) => setWord(index, e.target.value)}
+                    type={isHidden ? "password" : "text"}
+                    value={word}
+                  />
+                  <div className="pointer-events-none absolute inset-y-0 start-0 flex items-center ps-2 text-base text-[#7B9AAA]">
+                    {index + 1}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {error && (
+              <span className="text-sm font-semibold text-red-500">
+                {error}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Bottom */}
+        <div className="flex flex-col gap-3 px-4 py-6">
+          {hasPassphrase && (
+            <button
+              className="inline-flex items-center justify-center gap-2 py-4 text-sm font-medium text-icy-blue-400"
+              onClick={() => setShowModal(true)}
+              type="button"
+            >
+              <i className="hn hn-info-circle text-base" />
+              {passphraseInfoLabel}
+            </button>
+          )}
+          <button
+            className="mt-auto inline-flex items-center justify-center gap-x-2 rounded-full border border-transparent bg-icy-blue-400 py-5 text-base text-white hover:bg-icy-blue-600 disabled:bg-daintree-800 disabled:text-[#4B5563]"
+            disabled={disabled}
+            onClick={() => !disabled && onSubmit?.(currentWords, phraseLength)}
+            type="button"
+          >
+            {isLoading ? (
+              <i className="hn hn-spinner animate-spin text-xl" />
+            ) : (
+              buttonLabel
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
