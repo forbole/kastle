@@ -96,6 +96,12 @@ export function setPopupPath(path?: `/${string}`, cb: () => void = () => {}) {
   );
 }
 
+export function openFullPage(path: `/${string}`) {
+  const url = new URL(browser.runtime.getURL("/popup.html"));
+  url.hash = path;
+  browser.tabs.create({ url: url.toString() });
+}
+
 export function convertIPFStoHTTP(url: string) {
   return url.replace("ipfs://", "https://ipfs.io/ipfs/");
 }

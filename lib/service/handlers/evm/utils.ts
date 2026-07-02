@@ -32,6 +32,7 @@ export async function getSigner(
         walletSecret.value,
         accountIndex,
         isKastleLegacy,
+        walletSecret.passphrase,
       );
     default:
       throw new Error(`Unsupported wallet secret type: ${walletSecret.type}`);

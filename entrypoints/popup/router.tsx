@@ -14,6 +14,7 @@ import Settings from "@/components/screens/Settings.tsx";
 import Onboarding from "@/components/screens/Onboarding.tsx";
 import AddWallet from "@/components/screens/AddWallet.tsx";
 import ImportRecoveryPhrase from "@/components/screens/full-pages/ImportRecoveryPhrase";
+import ImportRecoveryPhraseWithPassphrase from "@/components/screens/full-pages/ImportRecoveryPhraseWithPassphrase";
 import ImportPrivateKey from "@/components/screens/full-pages/ImportPrivateKey";
 import ResetWallet from "@/components/screens/ResetWallet.tsx";
 import FullscreenLayout from "@/components/layouts/FullscreenLayout.tsx";
@@ -430,6 +431,10 @@ export const router = createHashRouter([
               {
                 path: "import-recovery-phrase",
                 element: <ImportRecoveryPhrase />,
+              },
+              {
+                path: "import-recovery-phrase-with-passphrase",
+                element: <ImportRecoveryPhraseWithPassphrase />,
               },
               { path: "import-private-key", element: <ImportPrivateKey /> },
               {

@@ -7,8 +7,9 @@ export class LegacyAccountFactory {
     mnemonic: string,
     accountIndex: number,
     isKastleLegacy = false,
+    passphrase?: string,
   ): EthereumPrivateKeyAccount {
-    const seed = new Mnemonic(mnemonic).toSeed();
+    const seed = new Mnemonic(mnemonic).toSeed(passphrase);
     const xprv = new XPrv(seed);
     const path = isKastleLegacy
       ? `m/44'/111111'/${accountIndex}'/0/0`
@@ -29,8 +30,9 @@ export class AccountFactory extends LegacyAccountFactory {
     mnemonic: string,
     accountIndex: number,
     isKastleLegacy = false,
+    passphrase?: string,
   ): EthereumPrivateKeyAccount {
-    const seed = new Mnemonic(mnemonic).toSeed();
+    const seed = new Mnemonic(mnemonic).toSeed(passphrase);
     const xprv = new XPrv(seed);
     const path = isKastleLegacy
       ? `m/44'/60'/${accountIndex}'/0/0`
