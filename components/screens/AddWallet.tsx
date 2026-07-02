@@ -1,15 +1,15 @@
-import React from "react";
 import { useNavigate } from "react-router-dom";
 import internalToast from "@/components/Toast.tsx";
 import { v4 as uuid } from "uuid";
 import useWalletImporter from "@/hooks/wallet/useWalletImporter";
 import useAnalytics from "@/hooks/useAnalytics";
+import AddWalletPage from "@/ui/popup/add-wallet/AddWalletPage";
+import { openFullPage } from "@/lib/utils";
 
 export default function AddWallet() {
   const { createNewWallet } = useWalletImporter();
   const navigate = useNavigate();
   const { emitWalletCreated } = useAnalytics();
-  const onClose = () => navigate("/dashboard");
 
   const newWallet = async () => {
     try {
@@ -17,65 +17,46 @@ export default function AddWallet() {
       emitWalletCreated({ method: "new", sender: address ?? undefined });
       internalToast.success("Wallet has been created successfully !");
       navigate("/dashboard");
-    } catch (error) {
+    } catch {
       internalToast.error("Failed to create wallet");
     }
   };
 
   return (
-    <div className="flex h-full flex-col gap-6 p-4 text-white">
-      <div className="flex items-center justify-between">
-        {/* Placeholder */}
-        <div className="w-[40px]" />
-
-        <h1 className="text-xl font-bold">Create/Import Wallet</h1>
-
-        <button
-          onClick={onClose}
-          className="flex h-12 w-12 items-center justify-center"
-        >
-          <i className="hn hn-times text-xl"></i>
-        </button>
-      </div>
-
-      <div className="flex flex-col gap-4">
-        <button
-          className="flex w-full items-center justify-between rounded-xl border border-daintree-700 bg-[#1E343D] p-5 hover:border-white"
-          onClick={newWallet}
-        >
-          <span className="text-base">Create new recovery phrase</span>
-          <i className="hn hn-arrow-right flex-none text-[14px]"></i>
-        </button>
-        <button
-          className="flex w-full items-center justify-between rounded-xl border border-daintree-700 bg-[#1E343D] p-5 hover:border-white"
-          onClick={() =>
-            browser.tabs.create({ url: "/popup.html#/import-recovery-phrase" })
-          }
-        >
-          <span className="text-base">Import with Recovery phrase</span>
-          <i className="hn hn-arrow-right flex-none text-[14px]"></i>
-        </button>
-        <button
-          className="flex w-full items-center justify-between rounded-xl border border-daintree-700 bg-[#1E343D] p-5 hover:border-white"
-          onClick={() =>
-            browser.tabs.create({ url: "/popup.html#/import-private-key" })
-          }
-        >
-          <span className="text-base">Import with Private Key</span>
-          <i className="hn hn-arrow-right flex-none text-[14px]"></i>
-        </button>
-
-        {/* Ledger */}
-        <button
-          className="flex w-full items-center justify-between rounded-xl border border-daintree-700 bg-[#1E343D] p-5 hover:border-white"
-          onClick={() => {
-            browser.tabs.create({ url: "/popup.html#/import-ledger" });
-          }}
-        >
-          <span className="text-base">Import with Ledger</span>
-          <i className="hn hn-arrow-right flex-none text-[14px]"></i>
-        </button>
-      </div>
-    </div>
+    <AddWalletPage
+      options={[
+        {
+          label: "Create new wallet",
+          description: "Create a 12-word recovery phrase",
+          onClick: newWallet,
+        },
+        {
+          label: "Import Recovery phrase",
+          description: "Use a 12- or 24-word recovery phrase",
+          onClick: () => openFullPage("/import-recovery-phrase"),
+        },
+        {
+          label: "Import Private Key",
+          description: "Use a private key.",
+          onClick: () => openFullPage("/import-private-key"),
+        },
+        {
+          label: "Import Ledger",
+          description: "Connect a Ledger device via USB",
+          onClick: () => openFullPage("/import-ledger"),
+        },
+      ]}
+      advancedOptions={[
+        {
+          label: "Import Recovery phrase with passphrase",
+          description:
+            "Advanced. Only if you set a passphrase when creating your wallet.",
+          onClick: () =>
+            openFullPage("/import-recovery-phrase-with-passphrase"),
+        },
+      ]}
+      onBack={() => navigate(-1)}
+      onClose={() => navigate("/dashboard")}
+    />
   );
 }
