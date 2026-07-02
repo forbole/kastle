@@ -57,7 +57,12 @@ export default function useWalletImporter() {
     const address = (await kaspaWallet.getPublicKey())
       .toAddress(networkId)
       .toString();
-    const evmWallet = new EvmAccountFactory().createFromMnemonic(mnemonic, 0, false, passphrase);
+    const evmWallet = new EvmAccountFactory().createFromMnemonic(
+      mnemonic,
+      0,
+      false,
+      passphrase,
+    );
 
     await keyring.addWalletSecret({
       id,

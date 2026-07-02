@@ -36,7 +36,9 @@ export default function ImportRecoveryPhraseWithPassphrase() {
       try {
         new Mnemonic(mnemonic);
       } catch {
-        setPassphraseError("The recovery phrase is invalid. Please go back and check it.");
+        setPassphraseError(
+          "The recovery phrase is invalid. Please go back and check it.",
+        );
         return;
       }
 

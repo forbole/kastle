@@ -91,9 +91,11 @@ export default function ImportWalletPage({
         <PageHeader
           onBack={onBack}
           onClose={onClose}
+          paddingX="px-8"
           showBack={true}
           showClose={false}
           title={title}
+          paddingBottom="pb-8"
         />
 
         <div className="flex flex-col gap-10 px-10 pb-6">
@@ -104,7 +106,7 @@ export default function ImportWalletPage({
 
             {advancedMethods.length > 0 && (
               <>
-                <div className="px-2 pt-3">
+                <div className="px-2">
                   <span className="text-sm font-semibold leading-5 tracking-[0.07px] text-daintree-400">
                     Advanced
                   </span>

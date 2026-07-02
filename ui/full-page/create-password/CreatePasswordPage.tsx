@@ -62,10 +62,12 @@ export default function CreatePasswordPage({
         <div className="flex flex-col gap-4">
           <PageHeader
             onBack={onBack}
+            paddingX="px-8"
             showBack
             showClose={false}
             subtitle={subtitle}
             title={title}
+            paddingBottom="pb-6"
           />
 
           <div className="flex flex-col gap-14 px-10">

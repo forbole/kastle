@@ -37,7 +37,9 @@ export default function Onboarding() {
       {step === "password" && <SetupPassword />}
       {step === "choose" && <ChooseImport />}
       {step === "recovery-phrase" && <ImportRecoveryPhrase />}
-      {step === "recovery-phrase-with-passphrase" && <ImportRecoveryPhraseWithPassphrase />}
+      {step === "recovery-phrase-with-passphrase" && (
+        <ImportRecoveryPhraseWithPassphrase />
+      )}
       {step === "private-key" && <ImportPrivateKey />}
       {step === "ledger" && <ImportLedger />}
     </FormProvider>

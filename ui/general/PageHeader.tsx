@@ -5,6 +5,8 @@ export interface PageHeaderProps {
   showClose?: boolean;
   onBack?: () => void;
   onClose?: () => void;
+  paddingX?: string;
+  paddingBottom?: string;
 }
 
 export default function PageHeader({
@@ -14,10 +16,12 @@ export default function PageHeader({
   showClose = false,
   onBack,
   onClose,
+  paddingX = "px-4",
+  paddingBottom = "pb-0",
 }: PageHeaderProps) {
   return (
-    <div className="flex flex-col bg-icy-blue-950 pb-6">
-      <div className="flex h-[78px] items-center px-8">
+    <div className={`flex flex-col bg-icy-blue-950 ${paddingBottom}`}>
+      <div className={`flex h-[78px] items-center ${paddingX}`}>
         <div className="w-[46px]">
           {showBack && (
             <button
@@ -28,9 +32,16 @@ export default function PageHeader({
             </button>
           )}
         </div>
-        <h1 className="flex-1 text-center text-xl font-bold tracking-[0.1px] text-gray-200">
-          {title}
-        </h1>
+        <div className="relative flex flex-1 flex-col items-center">
+          <h1 className="text-center text-xl font-bold tracking-[0.1px] text-gray-200">
+            {title}
+          </h1>
+          {subtitle && (
+            <p className="absolute top-full w-full pt-1 text-center text-xs text-daintree-400">
+              {subtitle}
+            </p>
+          )}
+        </div>
         <div className="w-[46px]">
           {showClose && (
             <button
@@ -42,11 +53,6 @@ export default function PageHeader({
           )}
         </div>
       </div>
-      {subtitle && (
-        <p className="px-8 pb-4 text-center text-xs text-daintree-400">
-          {subtitle}
-        </p>
-      )}
     </div>
   );
 }

@@ -124,13 +124,15 @@ export default function ImportRecoveryPhrasePage({
           <PassphraseInfoModal onClose={() => setShowModal(false)} />
         )}
 
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col">
           <PageHeader
             onBack={onBack}
+            paddingX="px-8"
             showBack
             showClose={false}
             subtitle={subtitle}
             title={title}
+            paddingBottom="pb-4"
           />
 
           <div className="flex flex-col gap-4 px-10">

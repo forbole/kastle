@@ -40,7 +40,8 @@ export default function ChooseImport() {
           label: "Recovery phrase with passphrase",
           description:
             "Use this if you protected your wallet with an extra passphrase during setup.",
-          onClick: () => form.setValue("step", "recovery-phrase-with-passphrase"),
+          onClick: () =>
+            form.setValue("step", "recovery-phrase-with-passphrase"),
         },
       ]}
       onCreateWallet={async () => {

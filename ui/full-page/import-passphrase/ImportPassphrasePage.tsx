@@ -103,10 +103,12 @@ export default function ImportPassphrasePage({
         <div className="flex flex-col gap-4">
           <PageHeader
             onBack={onBack}
+            paddingX="px-8"
             showBack
             showClose={false}
             subtitle={subtitle}
             title={title}
+            paddingBottom="pb-4"
           />
 
           <div className="flex flex-col gap-6 px-10">
