@@ -99,6 +99,25 @@ export default function ImportRecoveryPhrasePage({
     });
   };
 
+  const handlePaste = (
+    index: number,
+    e: React.ClipboardEvent<HTMLInputElement>,
+  ) => {
+    const text = e.clipboardData.getData("text");
+    const parsed = text.trim().split(/\s+/);
+    if (parsed.length <= 1) return;
+    e.preventDefault();
+    const newLen = parsed.length >= 24 ? 24 : parsed.length >= 12 ? 12 : phraseLength;
+    setWords((prev) => {
+      const next = [...prev];
+      parsed.forEach((word, i) => {
+        if (index + i < 24) next[index + i] = word;
+      });
+      return next;
+    });
+    if (index === 0) setPhraseLength(newLen as PhraseLength);
+  };
+
   const handlePasteAll = async () => {
     try {
       const text = await navigator.clipboard.readText();
@@ -185,6 +204,7 @@ export default function ImportRecoveryPhrasePage({
                       index >= 9 ? "ps-8" : "ps-7",
                     )}
                     onChange={(e) => setWord(index, e.target.value)}
+                    onPaste={(e) => handlePaste(index, e)}
                     type={isHidden ? "password" : "text"}
                     value={word}
                   />
