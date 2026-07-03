@@ -107,7 +107,8 @@ export default function ImportRecoveryPhrasePage({
     const parsed = text.trim().split(/\s+/);
     if (parsed.length <= 1) return;
     e.preventDefault();
-    const newLen = parsed.length >= 24 ? 24 : parsed.length >= 12 ? 12 : phraseLength;
+    const newLen =
+      parsed.length >= 24 ? 24 : parsed.length >= 12 ? 12 : phraseLength;
     setWords((prev) => {
       const next = [...prev];
       parsed.forEach((word, i) => {
