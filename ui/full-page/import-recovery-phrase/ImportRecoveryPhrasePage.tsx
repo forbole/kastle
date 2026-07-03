@@ -127,7 +127,7 @@ export default function ImportRecoveryPhrasePage({
                 type="button"
               >
                 <i
-                  className={`hn ${isHidden ? "hn-eye" : "hn-eye-cross"} text-[14px]`}
+                  className={`hn ${isHidden ? "hn-eye-cross" : "hn-eye"} text-[14px]`}
                 />
                 <span>{isHidden ? "Show words" : "Hide words"}</span>
               </button>

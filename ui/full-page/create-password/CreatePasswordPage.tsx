@@ -51,10 +51,22 @@ export default function CreatePasswordPage({
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [termsChecked, setTermsChecked] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const strength = calcStrength(password);
   const mismatch = confirm.length > 0 && password !== confirm;
-  const disabled = !password || password !== confirm || !termsChecked;
+  const disabled =
+    !password || password !== confirm || !termsChecked || isLoading;
+
+  const handleSubmit = async () => {
+    if (disabled) return;
+    setIsLoading(true);
+    try {
+      await onSubmit?.(password);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="flex w-full items-center justify-center bg-icy-blue-900">
@@ -194,10 +206,14 @@ export default function CreatePasswordPage({
                   : "bg-icy-blue-400 text-white"
               }`}
               disabled={disabled}
-              onClick={() => !disabled && onSubmit?.(password)}
+              onClick={handleSubmit}
               type="button"
             >
-              {buttonLabel}
+              {isLoading ? (
+                <i className="hn hn-spinner animate-spin text-xl" />
+              ) : (
+                buttonLabel
+              )}
             </button>
           </div>
         </div>
