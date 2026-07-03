@@ -92,7 +92,11 @@ export default function SwitchNetwork({
           <div>
             <Header showPrevious={false} showClose={false} title="Confirm" />
             <div className="relative">
-              <img src={signImage} alt="Sign" className="mx-auto" />
+              <img
+                src={signImage}
+                alt="Sign"
+                className="mx-auto aspect-[686/240] w-full max-w-[343px]"
+              />
               <div
                 className={twMerge(
                   "absolute right-0 top-0 flex items-center gap-2 rounded-full px-2",

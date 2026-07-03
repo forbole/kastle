@@ -26,7 +26,7 @@ export default function WelcomePage({
           <div className="flex w-full flex-col items-center gap-6">
             <img
               alt="castle"
-              className="h-[228px] w-[228px]"
+              className="mx-auto aspect-[686/456] w-full max-w-[343px]"
               src={castleImage}
             />
             <div className="flex flex-col items-center gap-2 text-center">
