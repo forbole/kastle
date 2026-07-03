@@ -16,7 +16,7 @@ const meta: Meta<typeof ImportRecoveryPhrasePage> = {
     isLoading: { control: "boolean" },
     error: { control: "text" },
     onBack: { action: "back" },
-    onPassphraseInfo: { action: "passphraseInfo" },
+    onErrorClear: { action: "errorClear" },
     onSubmit: { action: "submit" },
   },
 };
