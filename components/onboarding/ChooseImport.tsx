@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { useFormContext } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { v4 as uuid } from "uuid";
@@ -6,6 +7,7 @@ import useWalletImporter from "@/hooks/wallet/useWalletImporter";
 import useAnalytics from "@/hooks/useAnalytics";
 import { OnboardingData } from "@/components/screens/Onboarding.tsx";
 import ImportWalletPage from "@/ui/full-page/import-wallet/ImportWalletPage";
+import internalToast from "@/components/Toast.tsx";
 
 export default function ChooseImport() {
   const form = useFormContext<OnboardingData>();
@@ -14,6 +16,7 @@ export default function ChooseImport() {
   const { createNewWallet } = useWalletImporter();
   const { emitWalletCreated } = useAnalytics();
   const password = form.watch("password");
+  const isCreating = useRef(false);
 
   return (
     <ImportWalletPage
@@ -45,10 +48,18 @@ export default function ChooseImport() {
         },
       ]}
       onCreateWallet={async () => {
-        await keyringInitialize(password);
-        const address = await createNewWallet(uuid());
-        emitWalletCreated({ method: "new", sender: address ?? undefined });
-        navigate("/onboarding-success/create");
+        if (isCreating.current) return;
+        isCreating.current = true;
+        try {
+          await keyringInitialize(password);
+          const address = await createNewWallet(uuid());
+          emitWalletCreated({ method: "new", sender: address ?? undefined });
+          navigate("/onboarding-success/create");
+        } catch {
+          internalToast.error("Failed to create wallet");
+        } finally {
+          isCreating.current = false;
+        }
       }}
     />
   );

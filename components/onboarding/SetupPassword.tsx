@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { useFormContext } from "react-hook-form";
 import { useLocation } from "react-router";
 import { useNavigate } from "react-router-dom";
@@ -8,6 +9,7 @@ import useAnalytics from "@/hooks/useAnalytics.ts";
 import useWalletImporter from "@/hooks/wallet/useWalletImporter";
 import { OnboardingData } from "@/components/screens/Onboarding.tsx";
 import CreatePasswordPage from "@/ui/full-page/create-password/CreatePasswordPage";
+import internalToast from "@/components/Toast.tsx";
 
 export default function SetupPassword() {
   const { keyringInitialize } = useKeyring();
@@ -17,6 +19,7 @@ export default function SetupPassword() {
   const navigate = useNavigate();
   const form = useFormContext<OnboardingData>();
   const method = form.watch("method");
+  const isCreating = useRef(false);
 
   useResetPreline([location.pathname]);
 
@@ -24,10 +27,18 @@ export default function SetupPassword() {
     form.setValue("password", password);
 
     if (method === "create") {
-      await keyringInitialize(password);
-      const address = await createNewWallet(uuid());
-      emitWalletCreated({ method: "new", sender: address ?? undefined });
-      navigate("/onboarding-success/create");
+      if (isCreating.current) return;
+      isCreating.current = true;
+      try {
+        await keyringInitialize(password);
+        const address = await createNewWallet(uuid());
+        emitWalletCreated({ method: "new", sender: address ?? undefined });
+        navigate("/onboarding-success/create");
+      } catch {
+        internalToast.error("Failed to create wallet");
+      } finally {
+        isCreating.current = false;
+      }
     } else {
       form.setValue("step", "choose");
     }
