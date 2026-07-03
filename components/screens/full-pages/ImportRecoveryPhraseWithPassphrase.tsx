@@ -96,6 +96,7 @@ export default function ImportRecoveryPhraseWithPassphrase() {
       buttonLabel="Next"
       hasPassphrase
       error={phraseError}
+      onErrorClear={() => setPhraseError(undefined)}
       onBack={handlePhraseBack}
       onSubmit={handlePhraseSubmit}
     />

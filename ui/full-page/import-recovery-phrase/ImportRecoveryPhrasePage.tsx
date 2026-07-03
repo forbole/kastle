@@ -14,6 +14,7 @@ export interface ImportRecoveryPhrasePageProps {
   isLoading?: boolean;
   error?: string;
   onBack?: () => void;
+  onErrorClear?: () => void;
   onSubmit?: (words: string[], phraseLength: PhraseLength) => void;
 }
 
@@ -26,6 +27,7 @@ export default function ImportRecoveryPhrasePage({
   isLoading = false,
   error,
   onBack,
+  onErrorClear,
   onSubmit,
 }: ImportRecoveryPhrasePageProps) {
   const [phraseLength, setPhraseLength] = useState<PhraseLength>(12);
@@ -34,6 +36,7 @@ export default function ImportRecoveryPhrasePage({
   const [showModal, setShowModal] = useState(false);
 
   const setWord = (index: number, value: string) => {
+    onErrorClear?.();
     setWords((prev) => {
       const next = [...prev];
       next[index] = value;
@@ -49,6 +52,7 @@ export default function ImportRecoveryPhrasePage({
     const parsed = text.trim().split(/\s+/);
     if (parsed.length <= 1) return;
     e.preventDefault();
+    onErrorClear?.();
     const newLen =
       parsed.length >= 24 ? 24 : parsed.length >= 12 ? 12 : phraseLength;
     setWords((prev) => {
@@ -62,15 +66,13 @@ export default function ImportRecoveryPhrasePage({
   };
 
   const handlePasteAll = async () => {
-    try {
-      const text = await navigator.clipboard.readText();
-      const parsed = text.trim().split(/\s+/);
-      if (parsed.length === 12 || parsed.length === 24) {
-        setPhraseLength(parsed.length as PhraseLength);
-        setWords([...parsed, ...Array(24 - parsed.length).fill("")]);
-      }
-    } catch (_) {
-      // clipboard read not permitted — silently ignore
+    const text = await navigator.clipboard.readText().catch(() => null);
+    if (!text) return;
+    const parsed = text.trim().split(/\s+/);
+    if (parsed.length === 12 || parsed.length === 24) {
+      onErrorClear?.();
+      setPhraseLength(parsed.length as PhraseLength);
+      setWords([...parsed, ...Array(24 - parsed.length).fill("")]);
     }
   };
 
