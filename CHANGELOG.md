@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.58.0](https://github.com/forbole/kastle/compare/v2.57.0...v2.58.0) (2026-07-03)
+
+
+### Features
+
+* passphrase support ([#292](https://github.com/forbole/kastle/issues/292)) ([ab9b50a](https://github.com/forbole/kastle/commit/ab9b50a905b8c3ff0b709aa57b8c98615835c522))
+* refresh illustration assets to v2 ([#291](https://github.com/forbole/kastle/issues/291)) ([4aba3e4](https://github.com/forbole/kastle/commit/4aba3e478bf167479b2818401317bf562450aeab))
+
+
+### Bug Fixes
+
+* fix find max on kas send ([0d78571](https://github.com/forbole/kastle/commit/0d785712c67fad192302e05ac71c8ca747634bb3))
+
 ## [2.57.0](https://github.com/forbole/kastle/compare/v2.56.0...v2.57.0) (2026-06-18)
 
 
