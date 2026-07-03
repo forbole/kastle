@@ -96,7 +96,7 @@ export const ConfirmTokenOperationStep = ({
       <div className="flex min-h-0 flex-col gap-2">
         <img
           alt="castle"
-          className="h-[120px] w-[134px] self-center"
+          className="aspect-[686/240] w-full max-w-[343px] self-center"
           src={signImage}
         />
 
