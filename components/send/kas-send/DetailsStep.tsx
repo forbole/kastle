@@ -8,6 +8,7 @@ import Header from "@/components/GeneralHeader";
 import { Tooltip } from "react-tooltip";
 import { Address, sompiToKaspaString } from "@/wasm/core/kaspa";
 import { useKasFeeEstimate } from "@/hooks/useKasFeeEstimate";
+import { useFindMax } from "@/hooks/useFindMax";
 import { MIN_KAS_AMOUNT } from "@/lib/kaspa.ts";
 import { useFormContext } from "react-hook-form";
 import { twMerge } from "tailwind-merge";
@@ -56,12 +57,20 @@ export function DetailsStep({
 
   const { userInput, address, amount, domain, priority, priorityFee } = watch();
   const priorityFeeEstimate = usePriorityFeeEstimate();
-  const { fee: baseFee } = useKasFeeEstimate();
+  const { fee: baseFee } = useKasFeeEstimate({ extraOutputCount: 1 });
 
   const { kaspaPrice: tokenPrice } = useKaspaPrice();
   const { amount: tokenCurrency } = useCurrencyValue(tokenPrice);
   const kasBalance = useKaspaBalance(account?.address) ?? 0;
   const currentBalance = kasBalance;
+
+  const feeSompi = BigInt(baseFee ?? 0) + priorityFee;
+  const feeKas = parseFloat(sompiToKaspaString(feeSompi));
+  const findMax = useFindMax({
+    balance: currentBalance,
+    subtrahend: feeKas,
+    minSubtrahend: 0.3,
+  });
 
   const amountValidator = async (value: string | undefined) => {
     const amountNumber = parseFloat(value ?? "0");
@@ -74,11 +83,10 @@ export function DetailsStep({
       return "Oh, the minimum sending amount has to be greater than 0.2 KAS";
     }
 
-    const estimatedFeeKas = parseFloat(
-      sompiToKaspaString(BigInt(baseFee ?? 0) + priorityFee),
-    );
-    if (amountNumber + estimatedFeeKas > currentBalance) {
-      return "Oh, you don't have enough funds to cover the estimated fees";
+    const amountSompi = BigInt(Math.round(amountNumber * 1e8));
+    const balanceSompi = BigInt(Math.round(currentBalance * 1e8));
+    if (amountSompi + feeSompi > balanceSompi) {
+      return "Oh, you don’t have enough funds to cover the estimated fees";
     }
 
     return true;
@@ -128,17 +136,8 @@ export function DetailsStep({
     }
   };
 
-  const selectMaxAmount = async () => {
-    if (!currentBalance) {
-      return;
-    }
-
-    const maxAmount =
-      currentBalance -
-      parseFloat(sompiToKaspaString(BigInt(baseFee ?? 0) + priorityFee));
-    setValue("amount", maxAmount > 0 ? maxAmount.toFixed(8) : "0", {
-      shouldValidate: true,
-    });
+  const selectMaxAmount = () => {
+    setValue("amount", findMax(), { shouldValidate: true });
   };
 
   const navigateToNextStep = () => onNext();

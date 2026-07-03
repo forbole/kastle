@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import useSWR from "swr";
 import { createTransactions, kaspaToSompi } from "@/wasm/core/kaspa";
 import { calcRevealInputFee } from "@/lib/kaspaFee";
@@ -7,24 +8,31 @@ const BASE_FEE = "0.004";
 
 export interface KasFeeEstimateOptions {
   scriptsHexes?: string[];
+  extraOutputCount?: number;
 }
 
-export function useKasFeeEstimateHelper() {
+export function useKasFeeEstimateHelper(options: KasFeeEstimateOptions = {}) {
+  const { scriptsHexes, extraOutputCount = 0 } = options;
   const { account } = useWalletManager();
   const { rpcClient, networkId, isConnected } = useRpcClientStateful();
 
-  const estimate = async (opts?: KasFeeEstimateOptions): Promise<number> => {
+  return useCallback(async (): Promise<number> => {
     if (!isConnected || !rpcClient || !networkId || !account?.address) return 0;
 
     const address = account.address;
     const { entries } = await rpcClient.getUtxosByAddresses([address]);
     if (!entries.length) return 0;
 
+    const dummyOutputs = Array.from({ length: extraOutputCount }, () => ({
+      address,
+      amount: kaspaToSompi("1")!,
+    }));
+
     let baseFee: bigint;
     try {
       const { transactions } = await createTransactions({
         entries,
-        outputs: [{ address, amount: kaspaToSompi("0.2")! }],
+        outputs: dummyOutputs,
         priorityFee: 0n,
         changeAddress: address,
         networkId,
@@ -34,8 +42,8 @@ export function useKasFeeEstimateHelper() {
       baseFee = kaspaToSompi(BASE_FEE) ?? 0n;
     }
 
-    if (opts?.scriptsHexes?.length) {
-      const scriptExtra = opts.scriptsHexes.reduce(
+    if (scriptsHexes?.length) {
+      const scriptExtra = scriptsHexes.reduce(
         (sum, hex) => sum + calcRevealInputFee(hex),
         0n,
       );
@@ -43,20 +51,32 @@ export function useKasFeeEstimateHelper() {
     }
 
     return Number(baseFee);
-  };
-
-  return { estimate };
+  }, [
+    account?.address,
+    extraOutputCount,
+    isConnected,
+    networkId,
+    rpcClient,
+    scriptsHexes,
+  ]);
 }
 
-export function useKasFeeEstimate(opts?: KasFeeEstimateOptions) {
-  const { estimate } = useKasFeeEstimateHelper();
+export function useKasFeeEstimate(options: KasFeeEstimateOptions = {}) {
+  const { scriptsHexes, extraOutputCount = 0 } = options;
+  const estimate = useKasFeeEstimateHelper(options);
   const { account } = useWalletManager();
   const { isConnected, networkId } = useRpcClientStateful();
 
-  const scriptsKey = opts?.scriptsHexes?.join(",") ?? "";
+  const scriptsKey = scriptsHexes?.join(",") ?? "";
   const key =
     isConnected && account?.address
-      ? ["kasFeeEstimate", account.address, networkId, scriptsKey]
+      ? [
+          "kasFeeEstimate",
+          account.address,
+          networkId,
+          scriptsKey,
+          extraOutputCount,
+        ]
       : null;
 
   const {
@@ -64,7 +84,7 @@ export function useKasFeeEstimate(opts?: KasFeeEstimateOptions) {
     isLoading: loading,
     error,
     mutate: refetch,
-  } = useSWR(key, () => estimate(opts), {
+  } = useSWR(key, estimate, {
     revalidateOnFocus: false,
     revalidateOnReconnect: false,
   });
