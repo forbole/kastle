@@ -1,13 +1,13 @@
-import Header from "@/components/GeneralHeader.tsx";
-import React from "react";
+import { useRef } from "react";
 import { useFormContext } from "react-hook-form";
-import { OnboardingData } from "@/components/screens/Onboarding.tsx";
-import useKeyring from "@/hooks/useKeyring.ts";
-import useWalletManager from "@/hooks/wallet/useWalletManager";
-import { v4 as uuid } from "uuid";
 import { useNavigate } from "react-router-dom";
+import { v4 as uuid } from "uuid";
+import useKeyring from "@/hooks/useKeyring.ts";
 import useWalletImporter from "@/hooks/wallet/useWalletImporter";
 import useAnalytics from "@/hooks/useAnalytics";
+import { OnboardingData } from "@/components/screens/Onboarding.tsx";
+import ImportWalletPage from "@/ui/full-page/import-wallet/ImportWalletPage";
+import internalToast from "@/components/Toast.tsx";
 
 export default function ChooseImport() {
   const form = useFormContext<OnboardingData>();
@@ -16,58 +16,51 @@ export default function ChooseImport() {
   const { createNewWallet } = useWalletImporter();
   const { emitWalletCreated } = useAnalytics();
   const password = form.watch("password");
+  const isCreating = useRef(false);
 
   return (
-    <div className="flex h-[35rem] w-[41rem] flex-col items-stretch gap-4 rounded-3xl bg-icy-blue-950">
-      <div className="flex h-full w-full flex-col items-center px-10 py-4">
-        <Header
-          title="Import wallet with"
-          onBack={() => form.setValue("step", "password")}
-          showClose={false}
-        />
-
-        <div className="flex w-[16rem] flex-col items-center gap-4">
-          <button
-            type="button"
-            className="flex w-full items-center justify-center gap-4 rounded-xl border border-daintree-700 bg-[#1E343D] p-5 hover:border-white"
-            onClick={() => form.setValue("step", "recovery-phrase")}
-          >
-            <span className="text-base">Recovery phrase</span>
-            <i className="hn hn-arrow-right flex-none text-[14px]"></i>
-          </button>
-          <button
-            type="button"
-            className="flex w-full items-center justify-center gap-4 rounded-xl border border-daintree-700 bg-[#1E343D] p-5 hover:border-white"
-            onClick={() => form.setValue("step", "private-key")}
-          >
-            <span className="text-base">Private key</span>
-            <i className="hn hn-arrow-right flex-none text-[14px]"></i>
-          </button>
-          <button
-            type="button"
-            className="flex w-full items-center justify-center gap-4 rounded-xl border border-daintree-700 bg-[#1E343D] p-5 hover:border-white"
-            onClick={() => form.setValue("step", "ledger")}
-          >
-            <span className="text-base">Ledger</span>
-            <i className="hn hn-arrow-right flex-none text-[14px]"></i>
-          </button>
-          <button
-            type="button"
-            className="mt-14 p-4 text-base font-semibold text-white"
-            onClick={async () => {
-              await keyringInitialize(password);
-              const address = await createNewWallet(uuid());
-              emitWalletCreated({
-                method: "new",
-                sender: address ?? undefined,
-              });
-              navigate("/onboarding-success/create");
-            }}
-          >
-            No wallet? Create one now
-          </button>
-        </div>
-      </div>
-    </div>
+    <ImportWalletPage
+      onBack={() => form.setValue("step", "password")}
+      methods={[
+        {
+          label: "Recovery phrase",
+          description: "Use a 12- or 24-word recovery phrase.",
+          onClick: () => form.setValue("step", "recovery-phrase"),
+        },
+        {
+          label: "Private Key",
+          description: "Use a private key.",
+          onClick: () => form.setValue("step", "private-key"),
+        },
+        {
+          label: "Ledger",
+          description: "Connect a Ledger device via USB.",
+          onClick: () => form.setValue("step", "ledger"),
+        },
+      ]}
+      advancedMethods={[
+        {
+          label: "Recovery phrase with passphrase",
+          description:
+            "Use this if you protected your wallet with an extra passphrase during setup.",
+          onClick: () =>
+            form.setValue("step", "recovery-phrase-with-passphrase"),
+        },
+      ]}
+      onCreateWallet={async () => {
+        if (isCreating.current) return;
+        isCreating.current = true;
+        try {
+          await keyringInitialize(password);
+          const address = await createNewWallet(uuid());
+          emitWalletCreated({ method: "new", sender: address ?? undefined });
+          navigate("/onboarding-success/create");
+        } catch {
+          internalToast.error("Failed to create wallet");
+        } finally {
+          isCreating.current = false;
+        }
+      }}
+    />
   );
 }
