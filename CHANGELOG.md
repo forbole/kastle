@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.58.1](https://github.com/forbole/kastle/compare/v2.58.0...v2.58.1) (2026-07-07)
+
+
+### Bug Fixes
+
+* migrate krc721 backend provider ([fbd3da2](https://github.com/forbole/kastle/commit/fbd3da20d8c4a2f332a322eb87677db9e193aa4f))
+
 ## [2.58.0](https://github.com/forbole/kastle/compare/v2.57.0...v2.58.0) (2026-07-03)
 
 
