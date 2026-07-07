@@ -59,15 +59,7 @@ export const KNS_API_URLS = {
   [NetworkType.TestnetT10]: "https://api.knsdomains.org/tn10",
 };
 
-export const KRC721_API_URLS = {
-  [NetworkType.Mainnet]: "https://mainnet.krc721.stream",
-  [NetworkType.TestnetT10]: "https://testnet-10.krc721.stream",
-};
-
-export const KRC721_CACHE_URLS = {
-  [NetworkType.Mainnet]: "https://cache.krc721.stream/krc721/mainnet",
-  [NetworkType.TestnetT10]: "https://cache.krc721.stream/krc721/testnet-10",
-};
+export const KRC721_INDEXER_BASE_URL = "https://krc721-indexer.kaspa.com";
 
 export const initialSettings = {
   networkId: NetworkType.Mainnet,

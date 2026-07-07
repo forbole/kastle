@@ -24,7 +24,7 @@ export default function NftList() {
   const krc721HasNextPage = data && data[size - 1]?.next;
   const hasNextPage = pagingErc721
     ? hasErc721NextPage
-    : krc721HasNextPage || !pagingErc721;
+    : krc721HasNextPage || hasErc721NextPage;
 
   const isCurrentlyLoading = pagingErc721 ? isErc721Loading : isLoading;
   const firstLoading = !data && isLoading;
@@ -65,6 +65,13 @@ export default function NftList() {
   ]);
 
   // Intersection Observer for infinite scroll
+  const hasNextPageRef = useRef(hasNextPage);
+  hasNextPageRef.current = hasNextPage;
+  const isCurrentlyLoadingRef = useRef(isCurrentlyLoading);
+  isCurrentlyLoadingRef.current = isCurrentlyLoading;
+  const loadMoreRef = useRef(loadMore);
+  loadMoreRef.current = loadMore;
+
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -72,11 +79,11 @@ export default function NftList() {
 
         if (
           entry.isIntersecting &&
-          hasNextPage &&
-          !isCurrentlyLoading &&
+          hasNextPageRef.current &&
+          !isCurrentlyLoadingRef.current &&
           !isLoadingRef.current
         ) {
-          loadMore();
+          loadMoreRef.current();
         }
       },
       {
@@ -85,12 +92,13 @@ export default function NftList() {
       },
     );
 
-    if (observerRef.current) {
-      observer.observe(observerRef.current);
+    const target = observerRef.current;
+    if (target) {
+      observer.observe(target);
     }
 
     return () => observer.disconnect();
-  }, [hasNextPage, isCurrentlyLoading, loadMore]);
+  }, [hasNextPage]);
 
   return (
     <>

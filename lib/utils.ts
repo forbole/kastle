@@ -103,7 +103,7 @@ export function openFullPage(path: `/${string}`) {
 }
 
 export function convertIPFStoHTTP(url: string) {
-  return url.replace("ipfs://", "https://ipfs.io/ipfs/");
+  return url.replace("ipfs://", "https://gateway.pinata.cloud/ipfs/");
 }
 
 export function toLegacyEvmAddress(publicKey: string) {
