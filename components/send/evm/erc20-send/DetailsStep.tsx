@@ -19,8 +19,9 @@ import useFeeEstimate from "@/hooks/evm/useFeeEstimate";
 import { formatToken, truncToDecimals } from "@/lib/utils";
 import useCurrencyValue from "@/hooks/useCurrencyValue";
 import Layer2AssetImage from "@/components/Layer2AssetImage";
-import { getChainImage } from "@/lib/layer2";
+import { getChainImage, isIgraChain } from "@/lib/layer2";
 import useEvmAddress from "@/hooks/evm/useEvmAddress";
+import { useIns } from "@/hooks/ins/useIns";
 import useErc20Balance from "@/hooks/evm/useErc20Balance";
 import { Erc20Asset } from "@/contexts/EvmAssets";
 import useEvmKasBalance from "@/hooks/evm/useEvmKasBalance";
@@ -55,8 +56,10 @@ export default function DetailsStep({
   const { balance } = balanceInfo ?? {};
   const currentBalance = balance ?? 0;
   const evmAddress = useEvmAddress();
+  const { fetchDomainOwner } = useIns();
+  const insEnabled = isIgraChain(asset.chainId);
 
-  const { userInput, address, amount } = watch();
+  const { userInput, address, domain, amount } = watch();
 
   const payload =
     isAddress(address ?? "") && evmAddress
@@ -92,16 +95,28 @@ export default function DetailsStep({
   const { amount: tokenCurrency } = useCurrencyValue(price);
 
   const addressValidator = async (value: string | undefined) => {
-    const genericErrorMessage = "Invalid address";
+    const genericErrorMessage = `Invalid EVM address${insEnabled ? " or INS domain" : ""}`;
     if (!value) return undefined;
 
     try {
-      if (!isAddress(value)) {
-        return genericErrorMessage;
+      if (isAddress(value)) {
+        setValue("address", value);
+        setValue("domain", undefined);
+        return true;
       }
 
-      setValue("address", value);
-      return true;
+      if (insEnabled && value.includes(".")) {
+        const resolved = await fetchDomainOwner(value);
+        if (resolved && isAddress(resolved)) {
+          setValue("address", resolved);
+          setValue("domain", value);
+          return true;
+        }
+      }
+
+      setValue("address", undefined);
+      setValue("domain", undefined);
+      return genericErrorMessage;
     } catch (error) {
       console.error(error);
       return genericErrorMessage;
@@ -131,6 +146,7 @@ export default function DetailsStep({
   useEffect(() => {
     if (userInput === "") {
       setValue("address", undefined, { shouldValidate: true });
+      setValue("domain", undefined, { shouldValidate: true });
     }
   }, [userInput]);
 
@@ -202,7 +218,11 @@ export default function DetailsStep({
               errors.userInput &&
                 "ring ring-red-500/25 focus:ring focus:ring-red-500/25",
             )}
-            placeholder="Enter EVM wallet address"
+            placeholder={
+              insEnabled
+                ? "Enter EVM wallet address or INS domain"
+                : "Enter EVM wallet address"
+            }
           />
 
           <div className="pointer-events-none absolute end-0 top-10 flex h-16 items-center pe-3">
@@ -214,6 +234,11 @@ export default function DetailsStep({
               />
             )}
           </div>
+          {domain && (
+            <span className="inline-block break-all text-sm text-daintree-400">
+              {address}
+            </span>
+          )}
           {errors.userInput && (
             <span className="inline-block text-sm text-red-500">
               {errors.userInput.message}

@@ -18,6 +18,7 @@ import z from "zod";
 export const EvmKasSendFormSchema = z.object({
   userInput: z.string().optional(),
   address: z.string().optional(),
+  domain: z.string().optional(),
   amount: z.string().optional(),
   amountFiat: z.string().optional(),
 });

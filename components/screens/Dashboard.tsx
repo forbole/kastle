@@ -10,7 +10,7 @@ import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import { Tooltip } from "react-tooltip";
 import Assets from "@/components/dashboard/Assets";
-import KNS from "@/components/dashboard/KNS";
+import Names from "@/components/dashboard/Names";
 import NftList from "@/components/dashboard/NftList";
 import useTotalBalance from "@/hooks/kasplex/useTotalBalance";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
@@ -33,7 +33,7 @@ export default function Dashboard() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isAddressesMenuOpen, setIsAddressesMenuOpen] = useState(false);
 
-  const tabs = ["Assets", "NFT", "KNS", "Text"] as const;
+  const tabs = ["Assets", "NFT", "Names", "Text"] as const;
   const [activeTab, setActiveTab] = useState<(typeof tabs)[number]>("Assets");
   const segmenter = new Intl.Segmenter("en", { granularity: "grapheme" });
   const segments = Array.from(segmenter.segment(account?.name ?? ""));
@@ -402,7 +402,7 @@ export default function Dashboard() {
           {/* Tab Content */}
           {activeTab === "Assets" && <Assets />}
           {activeTab === "NFT" && <NftList />}
-          {activeTab === "KNS" && <KNS />}
+          {activeTab === "Names" && <Names />}
           {activeTab === "Text" && <KNSText />}
         </div>
       </div>
