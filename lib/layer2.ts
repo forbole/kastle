@@ -122,6 +122,16 @@ export const getChainName = (chainId: `0x${string}`) => {
   return "Unknown Chain";
 };
 
+export const isIgraChain = (chainId?: `0x${string}`): boolean => {
+  if (!chainId) return false;
+  try {
+    const chainIdNumber = hexToNumber(chainId);
+    return chainIdNumber === igraMainnet.id || chainIdNumber === igraTestnet.id;
+  } catch {
+    return false;
+  }
+};
+
 export const getChainTokenSymbol = (chainId: `0x${string}`) => {
   const chainIdNumber = hexToNumber(chainId);
   const chain = ALL_SUPPORTED_EVM_L2_CHAINS.find((c) => c.id === chainIdNumber);

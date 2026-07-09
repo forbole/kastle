@@ -17,6 +17,7 @@ import { useErc20Price } from "@/hooks/evm/useErc20Prices";
 export const Erc20SendFormSchema = z.object({
   userInput: z.string().optional(),
   address: z.string().optional(),
+  domain: z.string().optional(),
   amount: z.string().optional(),
   amountFiat: z.string().optional(),
 });
