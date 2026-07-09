@@ -1,7 +1,7 @@
 import { Hex } from "viem";
 import { useNavigate } from "react-router-dom";
 import NFTPlaceholderImage from "@/components/NFTPlaceholderImage.tsx";
-import { NftAsset } from "@/lib/nft/erc721";
+import { NftAsset, getNftImageUrl } from "@/lib/nft/erc721";
 
 const NAME_LIMIT = 14;
 
@@ -27,7 +27,7 @@ export default function ERC721Item({
         onClick={onClick}
       >
         <NFTPlaceholderImage
-          src={asset.image_url}
+          src={getNftImageUrl(asset)}
           alt={asset.metadata?.name}
           className="m-auto max-h-28 rounded-xl"
         />

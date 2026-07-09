@@ -9,6 +9,7 @@ import TransferButton from "../nft/TransferButton";
 import InfoImage from "../nft/InfoImage";
 import Name from "../nft/Name";
 import useEvmAddress from "@/hooks/evm/useEvmAddress";
+import { getNftImageUrl } from "@/lib/nft/erc721";
 
 export default function Erc721() {
   const { chainId, contractAddress, tokenId } = useParams<{
@@ -41,7 +42,7 @@ export default function Erc721() {
       <InfoImage
         isLoading={isLoading}
         downloadedName={data?.metadata?.name ?? "ERC721"}
-        imageUrl={data?.image_url ?? ""}
+        imageUrl={getNftImageUrl(data) ?? ""}
       />
 
       <div className="mt-6 flex flex-col gap-2">

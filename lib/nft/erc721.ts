@@ -1,4 +1,5 @@
 import { Address } from "viem";
+import { convertIPFStoHTTP } from "@/lib/utils";
 
 type Attribute = {
   trait_type: string;
@@ -8,10 +9,12 @@ type Attribute = {
 export type NftAsset = {
   id: string;
   image_url?: string;
+  media_url?: string;
   metadata?: {
     attributes?: Attribute[];
     description?: string;
     name?: string;
+    image?: string;
   };
   token: {
     address_hash: Address;
@@ -24,3 +27,10 @@ export type NftAsset = {
     hash: Address;
   };
 };
+
+// Blockscout's image_url is pre-rewritten to its own gateway; prefer raw metadata.image so we control the gateway/cache path.
+export function getNftImageUrl(asset?: NftAsset): string | undefined {
+  const raw = asset?.metadata?.image ?? asset?.media_url ?? asset?.image_url;
+  if (!raw) return undefined;
+  return raw.startsWith("ipfs://") ? convertIPFStoHTTP(raw) : raw;
+}
