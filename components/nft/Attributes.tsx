@@ -4,13 +4,15 @@ import Copy from "@/components/Copy";
 type AttributesProps = {
   attributes: Array<{
     trait_type: string;
-    value: string;
+    value: unknown;
   }>;
 };
 
 const SHOW_ATTRIBUTES_LIMIT = 4;
 
-function toSentenceCase(sentence: string) {
+function toSentenceCase(value: unknown) {
+  if (value === null || value === undefined) return "";
+  const sentence = String(value);
   if (!sentence) return "";
   return sentence.charAt(0).toUpperCase() + sentence.slice(1).toLowerCase();
 }
