@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.59.0](https://github.com/forbole/kastle/compare/v2.58.1...v2.59.0) (2026-07-10)
+
+
+### Features
+
+* implement IPFS caching and update NFT image retrieval logic ([#295](https://github.com/forbole/kastle/issues/295)) ([e61f9e0](https://github.com/forbole/kastle/commit/e61f9e00c3167c81a71f7225c9da1025cc754812))
+* integrate ins ([#297](https://github.com/forbole/kastle/issues/297)) ([7524a7e](https://github.com/forbole/kastle/commit/7524a7e5cdb6f813410aca14a8ca1e3bf839392f))
+
+
+### Bug Fixes
+
+* update value type in AttributesProps to unknown ([f9ea674](https://github.com/forbole/kastle/commit/f9ea67455d4b7e4c230e36ece62526dfa0d129fc))
+
 ## [2.58.1](https://github.com/forbole/kastle/compare/v2.58.0...v2.58.1) (2026-07-07)
 
 
