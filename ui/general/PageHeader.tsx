@@ -5,6 +5,9 @@ export interface PageHeaderProps {
   showClose?: boolean;
   onBack?: () => void;
   onClose?: () => void;
+  /** Icon class for a right-side action button (e.g. "hn hn-pencil"). Takes precedence over showClose. */
+  rightIcon?: string;
+  onRightAction?: () => void;
   paddingX?: string;
   paddingBottom?: string;
 }
@@ -16,6 +19,8 @@ export default function PageHeader({
   showClose = false,
   onBack,
   onClose,
+  rightIcon,
+  onRightAction,
   paddingX = "px-4",
   paddingBottom = "pb-0",
 }: PageHeaderProps) {
@@ -43,13 +48,22 @@ export default function PageHeader({
           )}
         </div>
         <div className="w-[46px]">
-          {showClose && (
+          {rightIcon ? (
             <button
               className="flex size-[46px] items-center justify-center rounded-lg text-white hover:bg-daintree-800"
-              onClick={onClose}
+              onClick={onRightAction}
             >
-              <i className="hn hn-times text-xl" />
+              <i className={`${rightIcon} text-xl`} />
             </button>
+          ) : (
+            showClose && (
+              <button
+                className="flex size-[46px] items-center justify-center rounded-lg text-white hover:bg-daintree-800"
+                onClick={onClose}
+              >
+                <i className="hn hn-times text-xl" />
+              </button>
+            )
           )}
         </div>
       </div>

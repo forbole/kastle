@@ -17,6 +17,7 @@ const meta: Meta<typeof PageHeader> = {
     showClose: { control: "boolean" },
     onBack: { action: "back" },
     onClose: { action: "close" },
+    onRightAction: { action: "rightAction" },
   },
 };
 
@@ -53,5 +54,14 @@ export const TitleOnly: Story = {
     title: "Page Title",
     showBack: false,
     showClose: false,
+  },
+};
+
+export const WithRightAction: Story = {
+  args: {
+    title: "Custom RPC",
+    subtitle: "The node Kastle uses to reach Kaspa.",
+    showBack: true,
+    rightIcon: "hn hn-pencil",
   },
 };
