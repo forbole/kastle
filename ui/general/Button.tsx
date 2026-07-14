@@ -36,7 +36,7 @@ export default function Button({
         <span
           role="status"
           aria-label="loading"
-          className="inline-block size-5 animate-spin self-center rounded-full border-[3px] border-current border-t-[#A2F5FF] text-icy-blue-600"
+          className="inline-block size-5 animate-spin self-center rounded-full border-[3px] border-current border-t-icy-blue-200 text-icy-blue-600"
         />
       ) : (
         children

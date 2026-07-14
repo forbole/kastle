@@ -19,7 +19,7 @@ export default {
         "icy-blue": {
           50: "#ebffef",
           100: "#cefbf",
-          200: "#a2f5f",
+          200: "#a2f5ff",
           300: "#63eafd",
           400: "#00b1d0",
           500: "#0a7694",
