@@ -1,7 +1,7 @@
-import PageHeader from "../../general/PageHeader";
-import SegmentedControl from "../../general/SegmentedControl";
-import ActionSheet from "../../general/ActionSheet";
-import Button from "../../general/Button";
+import PageHeader from "@/ui/general/PageHeader";
+import SegmentedControl from "@/ui/general/SegmentedControl";
+import ActionSheet from "@/ui/general/ActionSheet";
+import Button from "@/ui/general/Button";
 import NodeListItem from "./NodeListItem";
 import AddCustomNodeForm from "./AddCustomNodeForm";
 

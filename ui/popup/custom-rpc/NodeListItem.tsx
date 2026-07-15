@@ -26,7 +26,18 @@ export default function NodeListItem({
   return (
     <div
       onClick={canSelect ? onSelect : undefined}
+      onKeyDown={
+        canSelect
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onSelect?.();
+              }
+            }
+          : undefined
+      }
       role={canSelect ? "button" : undefined}
+      tabIndex={canSelect ? 0 : undefined}
       className="flex w-full items-center gap-3 rounded-lg py-3.5"
     >
       <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-icy-blue-900">
