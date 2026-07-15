@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
-import ActionSheet from "../../general/ActionSheet";
+import ActionSheet from "@/ui/general/ActionSheet";
 import AddCustomNodeForm from "./AddCustomNodeForm";
 
 const meta: Meta<typeof AddCustomNodeForm> = {

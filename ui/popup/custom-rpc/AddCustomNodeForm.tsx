@@ -1,5 +1,5 @@
 import { twMerge } from "tailwind-merge";
-import Button from "../../general/Button";
+import Button from "@/ui/general/Button";
 
 export interface AddCustomNodeFormProps {
   name: string;
@@ -32,8 +32,11 @@ export default function AddCustomNodeForm({
       <div className="mt-3 h-px bg-daintree-700" />
 
       <div className="mt-4 flex flex-col gap-1.5">
-        <label className="text-sm font-semibold text-gray-200">Node Name</label>
+        <label htmlFor="node-name" className="text-sm font-semibold text-gray-200">
+          Node Name
+        </label>
         <input
+          id="node-name"
           type="text"
           value={name}
           onChange={(e) => onNameChange(e.target.value)}
@@ -44,8 +47,11 @@ export default function AddCustomNodeForm({
       </div>
 
       <div className="mt-4 flex flex-col gap-1.5">
-        <label className="text-sm font-semibold text-gray-200">RPC URL</label>
+        <label htmlFor="rpc-url" className="text-sm font-semibold text-gray-200">
+          RPC URL
+        </label>
         <input
+          id="rpc-url"
           type="text"
           value={url}
           onChange={(e) => onUrlChange(e.target.value)}

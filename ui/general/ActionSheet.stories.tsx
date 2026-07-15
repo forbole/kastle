@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 import ActionSheet from "./ActionSheet";
-import AddCustomNodeForm from "../popup/custom-rpc/AddCustomNodeForm";
+import AddCustomNodeForm from "@/ui/popup/custom-rpc/AddCustomNodeForm";
 
 const meta: Meta<typeof ActionSheet> = {
   title: "General/ActionSheet",
