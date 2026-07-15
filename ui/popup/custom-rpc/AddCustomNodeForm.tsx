@@ -21,7 +21,8 @@ export default function AddCustomNodeForm({
   submitting = false,
   onSubmit,
 }: AddCustomNodeFormProps) {
-  const canSubmit = name.trim().length > 0 && url.trim().length > 0 && !submitting;
+  const canSubmit =
+    name.trim().length > 0 && url.trim().length > 0 && !submitting;
 
   return (
     <div className="flex flex-col pt-3">
@@ -32,7 +33,10 @@ export default function AddCustomNodeForm({
       <div className="mt-3 h-px bg-daintree-700" />
 
       <div className="mt-4 flex flex-col gap-1.5">
-        <label htmlFor="node-name" className="text-sm font-semibold text-gray-200">
+        <label
+          htmlFor="node-name"
+          className="text-sm font-semibold text-gray-200"
+        >
           Node Name
         </label>
         <input
@@ -47,7 +51,10 @@ export default function AddCustomNodeForm({
       </div>
 
       <div className="mt-4 flex flex-col gap-1.5">
-        <label htmlFor="rpc-url" className="text-sm font-semibold text-gray-200">
+        <label
+          htmlFor="rpc-url"
+          className="text-sm font-semibold text-gray-200"
+        >
           RPC URL
         </label>
         <input
@@ -66,7 +73,13 @@ export default function AddCustomNodeForm({
       </div>
 
       <div className="mt-5">
-        <Button variant="primary" size="lg" disabled={!canSubmit} loading={submitting} onClick={onSubmit}>
+        <Button
+          variant="primary"
+          size="lg"
+          disabled={!canSubmit}
+          loading={submitting}
+          onClick={onSubmit}
+        >
           Add
         </Button>
       </div>
