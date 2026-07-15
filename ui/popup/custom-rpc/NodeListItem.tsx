@@ -45,7 +45,9 @@ export default function NodeListItem({
       </div>
       <div className="flex flex-1 flex-col gap-0.5 text-left">
         <div className="flex items-center gap-2">
-          <span className="truncate text-sm font-semibold text-white">{name}</span>
+          <span className="truncate text-sm font-semibold text-white">
+            {name}
+          </span>
           {isDefault && (
             <span className="shrink-0 rounded-full bg-daintree-700 px-2 py-0.5 text-xs text-daintree-300">
               Default

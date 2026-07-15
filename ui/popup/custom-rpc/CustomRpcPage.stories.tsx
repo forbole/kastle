@@ -56,17 +56,23 @@ function InteractiveTemplate({
   const [network, setNetwork] = useState<RpcNetwork>("mainnet");
   const [mainnetNodes, setMainnetNodes] = useState(initialMainnetNodes);
   const [testnetNodes, setTestnetNodes] = useState(initialTestnetNodes);
-  const [mainnetSelected, setMainnetSelected] = useState(initialMainnetNodes[0]?.id ?? "");
-  const [testnetSelected, setTestnetSelected] = useState(initialTestnetNodes[0]?.id ?? "");
+  const [mainnetSelected, setMainnetSelected] = useState(
+    initialMainnetNodes[0]?.id ?? "",
+  );
+  const [testnetSelected, setTestnetSelected] = useState(
+    initialTestnetNodes[0]?.id ?? "",
+  );
   const [editMode, setEditMode] = useState(initialEditMode);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [addName, setAddName] = useState("");
   const [addUrl, setAddUrl] = useState("");
 
   const nodes = network === "mainnet" ? mainnetNodes : testnetNodes;
-  const selectedNodeId = network === "mainnet" ? mainnetSelected : testnetSelected;
+  const selectedNodeId =
+    network === "mainnet" ? mainnetSelected : testnetSelected;
   const setNodes = network === "mainnet" ? setMainnetNodes : setTestnetNodes;
-  const setSelectedNodeId = network === "mainnet" ? setMainnetSelected : setTestnetSelected;
+  const setSelectedNodeId =
+    network === "mainnet" ? setMainnetSelected : setTestnetSelected;
 
   return (
     <CustomRpcPage
@@ -86,7 +92,10 @@ function InteractiveTemplate({
       onAddNameChange={setAddName}
       onAddUrlChange={setAddUrl}
       onAddSubmit={() => {
-        setNodes((prev) => [...prev, { id: addUrl, name: addName, url: addUrl }]);
+        setNodes((prev) => [
+          ...prev,
+          { id: addUrl, name: addName, url: addUrl },
+        ]);
         setAddName("");
         setAddUrl("");
         setIsAddOpen(false);
@@ -101,7 +110,9 @@ export const DefaultOnly: Story = {
 
 export const WithCustomNodes: Story = {
   render: () => (
-    <InteractiveTemplate initialMainnetNodes={[mainnetDefault, mainnetCommunity]} />
+    <InteractiveTemplate
+      initialMainnetNodes={[mainnetDefault, mainnetCommunity]}
+    />
   ),
 };
 

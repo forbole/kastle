@@ -4,7 +4,11 @@ export interface ActionSheetProps {
   children: React.ReactNode;
 }
 
-export default function ActionSheet({ isOpen, onClose, children }: ActionSheetProps) {
+export default function ActionSheet({
+  isOpen,
+  onClose,
+  children,
+}: ActionSheetProps) {
   if (!isOpen) return null;
 
   return (
