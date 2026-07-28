@@ -1,11 +1,13 @@
-name: Lint code
+name: CI
 
 on:
   pull_request:
     branches: main
+  push:
+    branches: main
 
 jobs:
-  submit:
+  lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,3 +28,43 @@ jobs:
 
       - name: Compile
         run: npm run compile
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build
+        run: npm run build
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build extension
+        run: npm run build
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      # ponytail: fixtures launch headed Chrome (MV3 extension), xvfb provides the display
+      - name: Run e2e tests
+        run: xvfb-run npm run e2e
