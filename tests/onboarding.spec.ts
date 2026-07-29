@@ -10,7 +10,7 @@ test("can reach password setup", async ({ page, extensionId }) => {
   await onboarding.navigate();
   await onboarding.pass();
 
-  const setupPassword = await SetupPasswordScreen(page, extensionId);
+  const setupPassword = await SetupPasswordScreen(page);
 
   expect(await setupPassword.navigate()).toBeDefined();
 });

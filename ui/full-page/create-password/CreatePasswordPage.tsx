@@ -69,7 +69,10 @@ export default function CreatePasswordPage({
   };
 
   return (
-    <div className="flex w-full items-center justify-center bg-icy-blue-900">
+    <div
+      id="setup-password-screen"
+      className="flex w-full items-center justify-center bg-icy-blue-900"
+    >
       <div className="flex h-[752px] w-[624px] flex-col justify-between overflow-clip rounded-3xl bg-icy-blue-950">
         <div className="flex flex-col gap-4">
           <PageHeader

@@ -1,10 +1,9 @@
 import { Page } from "@playwright/test";
 
-export async function SetupPasswordScreen(page: Page, extensionId: string) {
+export async function SetupPasswordScreen(page: Page) {
   return {
     navigate: async () => {
-      await page.goto(`chrome-extension://${extensionId}/popup.html#/setup`);
-
+      // ponytail: password setup is now an in-place onboarding step, no own route
       return await page.waitForSelector("#setup-password-screen");
     },
   };
