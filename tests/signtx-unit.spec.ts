@@ -106,13 +106,15 @@ test.describe("signTx covenant repro (kaspa.com fixture)", () => {
     const sparse = [null, undefined, ...scripts];
 
     const signed = await signTxWithScriptOptions(tx, sparse as any, TEST_KEY);
-    expect(JSON.parse(signed.serializeToSafeJSON()).inputs[1].signatureScript).not.toBe("");
+    expect(
+      JSON.parse(signed.serializeToSafeJSON()).inputs[1].signatureScript,
+    ).not.toBe("");
   });
 
   test("accepts `script` as an alias for `scriptHex`", async () => {
-    expect(
-      normalizeScriptOptions([{ inputIndex: 1, script: "aabb" }]),
-    ).toEqual([{ inputIndex: 1, scriptHex: "aabb", signType: "All" }]);
+    expect(normalizeScriptOptions([{ inputIndex: 1, script: "aabb" }])).toEqual(
+      [{ inputIndex: 1, scriptHex: "aabb", signType: "All" }],
+    );
     // documented key wins when both are present
     expect(
       normalizeScriptOptions([
@@ -148,7 +150,11 @@ test.describe("signTx covenant repro (kaspa.com fixture)", () => {
     });
 
     const objectFormTx = deserializeTransaction(JSON.stringify(tx));
-    const signed = await signTxWithScriptOptions(objectFormTx, scripts, TEST_KEY);
+    const signed = await signTxWithScriptOptions(
+      objectFormTx,
+      scripts,
+      TEST_KEY,
+    );
     expect(
       JSON.parse(signed.serializeToSafeJSON()).inputs[1].signatureScript,
     ).not.toBe("");
@@ -248,8 +254,10 @@ test.describe("signTx covenant repro (kaspa.com fixture)", () => {
   test("pushDataHex matches the SDK encoder below its 520-byte cap and uses OpPushData2 above it", () => {
     const sig = "ab".repeat(66);
     for (const redeem of ["515253", "52".repeat(80), "53".repeat(300)]) {
-      const sdk = ScriptBuilder.fromScript(redeem)
-        .encodePayToScriptHashSignatureScript(sig);
+      const sdk =
+        ScriptBuilder.fromScript(redeem).encodePayToScriptHashSignatureScript(
+          sig,
+        );
       expect(sig + pushDataHex(redeem)).toBe(sdk);
     }
 
@@ -294,9 +302,15 @@ test.describe("sighash payload coverage (KIP-12)", () => {
   // SigHashAll preimage per rusty-kaspa's TransactionSigningHash
   function sighashAll(tx: any, inputIndex: number) {
     const prevouts = keyedHash(
-      cat(...tx.inputs.map((i: any) => cat(hex2b(i.transactionId), new Uint8Array(4)))),
+      cat(
+        ...tx.inputs.map((i: any) =>
+          cat(hex2b(i.transactionId), new Uint8Array(4)),
+        ),
+      ),
     );
-    const sequences = keyedHash(cat(...tx.inputs.map((i: any) => u64le(i.sequence))));
+    const sequences = keyedHash(
+      cat(...tx.inputs.map((i: any) => u64le(i.sequence))),
+    );
     const sigOpCounts = keyedHash(
       cat(...tx.inputs.map((i: any) => Uint8Array.of(i.sigOpCount))),
     );

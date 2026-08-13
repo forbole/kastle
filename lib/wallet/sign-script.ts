@@ -20,7 +20,11 @@ export function normalizeScriptOptions(
     .filter((option): option is RawScriptOption => option != null)
     .map((option) => {
       const { inputIndex } = option;
-      if (typeof inputIndex !== "number" || !Number.isInteger(inputIndex) || inputIndex < 0) {
+      if (
+        typeof inputIndex !== "number" ||
+        !Number.isInteger(inputIndex) ||
+        inputIndex < 0
+      ) {
         throw new Error(
           `signTx: sign option has invalid inputIndex ${JSON.stringify(inputIndex)}`,
         );
