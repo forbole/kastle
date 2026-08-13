@@ -63,11 +63,12 @@ export const SIGN_TYPE = {
 } as const;
 
 export function toSignType(signType: SignType): SighashType {
-  const sighashType = SIGN_TYPE[signType];
-  if (sighashType === undefined) {
+  // own-property check: bare indexing would resolve inherited keys like
+  // "toString" or "__proto__" to functions instead of rejecting them
+  if (!Object.prototype.hasOwnProperty.call(SIGN_TYPE, signType)) {
     throw new Error(`signTx: unsupported signType "${signType}"`);
   }
-  return sighashType;
+  return SIGN_TYPE[signType];
 }
 
 export function toKaspaPaymentOutput(output: PaymentOutput): IPaymentOutput {

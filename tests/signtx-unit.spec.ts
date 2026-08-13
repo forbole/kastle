@@ -10,14 +10,14 @@ import init, {
   ScriptBuilder,
   SighashType,
   Transaction,
-} from "../wasm/core/kaspa";
-import { deserializeTransaction } from "../lib/kaspa-compat";
+} from "@/wasm/core/kaspa";
+import { deserializeTransaction } from "@/lib/kaspa-compat";
 import {
   normalizeScriptOptions,
   pushDataHex,
   signTxWithScriptOptions,
   type RawScriptOption,
-} from "../lib/wallet/sign-script";
+} from "@/lib/wallet/sign-script";
 
 // Throwaway key — unit tests only, never funded.
 const TEST_KEY =
@@ -188,6 +188,46 @@ test.describe("signTx covenant repro (kaspa.com fixture)", () => {
         TEST_KEY,
       ),
     ).rejects.toThrow('signTx: unsupported signType "Bogus"');
+
+    // inherited object keys must not resolve to sighash types
+    for (const protoKey of ["toString", "constructor", "__proto__"]) {
+      await expect(
+        signTxWithScriptOptions(
+          deserializeTransaction(txJson),
+          [{ inputIndex: 1, scriptHex: "aa", signType: protoKey as any }],
+          TEST_KEY,
+        ),
+      ).rejects.toThrow(`signTx: unsupported signType "${protoKey}"`);
+    }
+
+    await expect(
+      signTxWithScriptOptions(
+        deserializeTransaction(txJson),
+        [
+          { inputIndex: 1, scriptHex: "aa" },
+          { inputIndex: 1, scriptHex: "aa" },
+        ],
+        TEST_KEY,
+      ),
+    ).rejects.toThrow("signTx: duplicate sign option for input 1");
+
+    // a bad option must fail the call before any input is mutated
+    {
+      const tx = deserializeTransaction(txJson);
+      await expect(
+        signTxWithScriptOptions(
+          tx,
+          [
+            { inputIndex: 1, scriptHex: scripts[0].scriptHex },
+            { inputIndex: 99, scriptHex: "aa" },
+          ],
+          TEST_KEY,
+        ),
+      ).rejects.toThrow("signTx: sign option references non-existent input 99");
+      expect(
+        JSON.parse(tx.serializeToSafeJSON()).inputs[1].signatureScript,
+      ).toBe("");
+    }
 
     // option targeting the pre-filled covenant input must not mutate it
     const tx = deserializeTransaction(txJson);

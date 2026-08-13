@@ -67,14 +67,16 @@ export function signTxInputWithScriptOption(
   option: ScriptOption,
   privateKeyString: string,
 ) {
-  if (option.inputIndex >= tx.inputs.length) {
+  // each tx.inputs access crosses the WASM boundary; read it once
+  const inputs = tx.inputs;
+  if (option.inputIndex >= inputs.length) {
     throw new Error(
       `signTx: sign option references non-existent input ${option.inputIndex}`,
     );
   }
 
   // never mutate an input that already carries a signatureScript
-  if (tx.inputs[option.inputIndex].signatureScript) {
+  if (inputs[option.inputIndex].signatureScript) {
     throw new Error(
       `signTx: input ${option.inputIndex} already carries a signatureScript`,
     );
@@ -89,7 +91,7 @@ export function signTxInputWithScriptOption(
 
   // `signature` is already a push-encoded script element; for P2SH append
   // the canonical push of the supplied redeem script.
-  tx.inputs[option.inputIndex].signatureScript = option.scriptHex
+  inputs[option.inputIndex].signatureScript = option.scriptHex
     ? signature + pushDataHex(option.scriptHex)
     : signature;
 }
@@ -100,7 +102,32 @@ export async function signTxWithScriptOptions(
   scripts: RawScriptOption[] | undefined,
   privateKeyString: string,
 ): Promise<Transaction> {
-  for (const option of normalizeScriptOptions(scripts)) {
+  const options = normalizeScriptOptions(scripts);
+
+  // validate every option before the first mutation so a bad one can't
+  // leave the transaction partially signed
+  const inputs = tx.inputs;
+  const seen = new Set<number>();
+  for (const option of options) {
+    if (option.inputIndex >= inputs.length) {
+      throw new Error(
+        `signTx: sign option references non-existent input ${option.inputIndex}`,
+      );
+    }
+    if (inputs[option.inputIndex].signatureScript) {
+      throw new Error(
+        `signTx: input ${option.inputIndex} already carries a signatureScript`,
+      );
+    }
+    if (seen.has(option.inputIndex)) {
+      throw new Error(
+        `signTx: duplicate sign option for input ${option.inputIndex}`,
+      );
+    }
+    seen.add(option.inputIndex);
+  }
+
+  for (const option of options) {
     signTxInputWithScriptOption(tx, option, privateKeyString);
   }
 
