@@ -95,10 +95,13 @@ export class ExtensionService {
       const handler = this.handlers[message.method];
 
       // FIXME improve typings
-      handler(message, sendResponse).catch((error: Error) => {
+      handler(message, sendResponse).catch((error: unknown) => {
         console.error(`Error handling message ${message.method}:`, error);
+        // WASM errors are thrown as plain strings; `error.message` on those is
+        // undefined, which JSON-strips from the response and makes the caller
+        // treat the failure as success. Always send a string.
         sendResponse({
-          error: error.message,
+          error: error instanceof Error ? error.message : String(error),
         } as ErrorMessage);
       });
       return true;

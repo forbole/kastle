@@ -63,7 +63,11 @@ export const SIGN_TYPE = {
 } as const;
 
 export function toSignType(signType: SignType): SighashType {
-  return SIGN_TYPE[signType];
+  const sighashType = SIGN_TYPE[signType];
+  if (sighashType === undefined) {
+    throw new Error(`signTx: unsupported signType "${signType}"`);
+  }
+  return sighashType;
 }
 
 export function toKaspaPaymentOutput(output: PaymentOutput): IPaymentOutput {
