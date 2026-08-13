@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.59.1](https://github.com/forbole/kastle/compare/v2.59.0...v2.59.1) (2026-08-13)
+
+
+### Bug Fixes
+
+* sign covenant P2SH inputs with large redeem scripts in signTx ([#301](https://github.com/forbole/kastle/issues/301)) ([6ce725f](https://github.com/forbole/kastle/commit/6ce725fb93bbf13c43ae662d8d52b804fd5e247d))
+
 ## [2.59.0](https://github.com/forbole/kastle/compare/v2.58.1...v2.59.0) (2026-07-10)
 
 
