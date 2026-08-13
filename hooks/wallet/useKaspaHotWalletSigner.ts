@@ -47,7 +47,12 @@ export default function useKaspaHotWalletSigner() {
       isLegacy: isKastleLegacy,
     });
 
-    const { signedTransactionJSON } = signedTransaction;
+    const { signedTransactionJSON } = signedTransaction ?? {};
+    if (!signedTransactionJSON) {
+      throw new Error(
+        "signTx: background signer returned no signed transaction",
+      );
+    }
     // Background service always returns new-WASM serialised JSON
     return Transaction.deserializeFromSafeJSON(signedTransactionJSON);
   };

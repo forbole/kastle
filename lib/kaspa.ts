@@ -63,6 +63,11 @@ export const SIGN_TYPE = {
 } as const;
 
 export function toSignType(signType: SignType): SighashType {
+  // own-property check: bare indexing would resolve inherited keys like
+  // "toString" or "__proto__" to functions instead of rejecting them
+  if (!Object.prototype.hasOwnProperty.call(SIGN_TYPE, signType)) {
+    throw new Error(`signTx: unsupported signType "${signType}"`);
+  }
   return SIGN_TYPE[signType];
 }
 
