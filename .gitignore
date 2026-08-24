@@ -36,3 +36,11 @@ web-ext.config.ts
 .serena/
 graphify-out/
 handover-output/
+
+data/test_docs
+data/teachings.json
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
