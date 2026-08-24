@@ -13,11 +13,14 @@ import init, {
 } from "@/wasm/core/kaspa";
 import { deserializeTransaction } from "@/lib/kaspa-compat";
 import {
+  hasPartialOutputCommitment,
   normalizeScriptOptions,
   pushDataHex,
   signTxWithScriptOptions,
   type RawScriptOption,
 } from "@/lib/wallet/sign-script";
+import { SIGN_TYPE, toSignType } from "@/lib/kaspa";
+import type { SignType } from "@/lib/wallet/wallet-interface";
 
 // Throwaway key — unit tests only, never funded.
 const TEST_KEY =
@@ -299,33 +302,63 @@ test.describe("sighash payload coverage (KIP-12)", () => {
     return out;
   };
 
-  // SigHashAll preimage per rusty-kaspa's TransactionSigningHash
-  function sighashAll(tx: any, inputIndex: number) {
-    const prevouts = keyedHash(
-      cat(
-        ...tx.inputs.map((i: any) =>
-          cat(hex2b(i.transactionId), new Uint8Array(4)),
-        ),
-      ),
+  // Consensus wire byte per sighash type (rusty-kaspa SigHashType bits); the
+  // SIGN_TYPE enum values are just indices into this set. Note AllAnyOneCanPay
+  // is the bare ANY_ONE_CAN_PAY bit, not ALL|ANY_ONE_CAN_PAY — the type-name
+  // arithmetic would give 0x81. Every byte here is asserted against the byte
+  // the WASM signer actually emits, below.
+  const HASH_TYPE_BYTE: Record<SignType, number> = {
+    All: 0b0000_0001,
+    None: 0b0000_0010,
+    Single: 0b0000_0100,
+    AllAnyOneCanPay: 0b1000_0000,
+    NoneAnyOneCanPay: 0b1000_0010,
+    SingleAnyOneCanPay: 0b1000_0100,
+  };
+
+  const ZERO32 = new Uint8Array(32);
+  const hashOutput = (o: any) =>
+    cat(
+      u64le(o.value),
+      u16le(parseInt(o.scriptPublicKey.slice(0, 4), 16)),
+      u64le((o.scriptPublicKey.length - 4) / 2),
+      hex2b(o.scriptPublicKey.slice(4)),
     );
-    const sequences = keyedHash(
-      cat(...tx.inputs.map((i: any) => u64le(i.sequence))),
-    );
-    const sigOpCounts = keyedHash(
-      cat(...tx.inputs.map((i: any) => Uint8Array.of(i.sigOpCount))),
-    );
-    const outputs = keyedHash(
-      cat(
-        ...tx.outputs.map((o: any) =>
+
+  // Signing preimage per rusty-kaspa's TransactionSigningHash, including the
+  // field masking each sighash type applies. This is what makes the
+  // output-commitment claims below verifiable rather than assumed.
+  function sighashFor(tx: any, inputIndex: number, type: SignType = "All") {
+    const anyoneCanPay = type.endsWith("AnyOneCanPay");
+    const isNone = type.startsWith("None");
+    const isSingle = type.startsWith("Single");
+
+    const prevouts = anyoneCanPay
+      ? ZERO32
+      : keyedHash(
           cat(
-            u64le(o.value),
-            u16le(parseInt(o.scriptPublicKey.slice(0, 4), 16)),
-            u64le((o.scriptPublicKey.length - 4) / 2),
-            hex2b(o.scriptPublicKey.slice(4)),
+            ...tx.inputs.map((i: any) =>
+              cat(hex2b(i.transactionId), new Uint8Array(4)),
+            ),
           ),
-        ),
-      ),
-    );
+        );
+    const sequences =
+      anyoneCanPay || isNone || isSingle
+        ? ZERO32
+        : keyedHash(cat(...tx.inputs.map((i: any) => u64le(i.sequence))));
+    const sigOpCounts = anyoneCanPay
+      ? ZERO32
+      : keyedHash(
+          cat(...tx.inputs.map((i: any) => Uint8Array.of(i.sigOpCount))),
+        );
+    // None commits no outputs at all; Single commits only the same-index one.
+    const outputs = isNone
+      ? ZERO32
+      : isSingle
+        ? inputIndex >= tx.outputs.length
+          ? ZERO32
+          : keyedHash(hashOutput(tx.outputs[inputIndex]))
+        : keyedHash(cat(...tx.outputs.map(hashOutput)));
     // KIP-12: payload committed as keyed hash of length-prefixed payload bytes
     const payloadHash =
       tx.payload && tx.payload.length > 0
@@ -353,10 +386,98 @@ test.describe("sighash payload coverage (KIP-12)", () => {
         hex2b(tx.subnetworkId),
         u64le(tx.gas),
         payloadHash,
-        Uint8Array.of(1), // SigHashAll
+        Uint8Array.of(HASH_TYPE_BYTE[type]),
       ),
     );
   }
+
+  // The claim the None* block and the Single* warning rest on: how much of the
+  // output set each sighash type actually commits to. Proven against the WASM
+  // signer rather than assumed — a signature only verifies if our preimage,
+  // including its output masking, matches what the WASM signed.
+  test("output commitment per sighash type matches the masking we gate on", () => {
+    const priv = new PrivateKey(TEST_KEY);
+    const pubX = priv.toPublicKey().toXOnlyPublicKey().toString();
+    const spk = "0000" + "20" + pubX + "ac";
+    const mkTx = (out0: string, out1: string) => ({
+      id: "00".repeat(32),
+      version: 0,
+      inputs: [
+        {
+          transactionId: "11".repeat(32),
+          index: 0,
+          sequence: "0",
+          sigOpCount: 1,
+          computeBudget: 0,
+          signatureScript: "",
+          utxo: {
+            address: null,
+            amount: "100000000",
+            scriptPublicKey: spk,
+            blockDaaScore: "1000",
+            isCoinbase: false,
+          },
+        },
+      ],
+      outputs: [
+        { value: out0, scriptPublicKey: spk },
+        { value: out1, scriptPublicKey: spk },
+      ],
+      lockTime: "0",
+      subnetworkId: "00".repeat(20),
+      gas: "0",
+      payload: "",
+    });
+
+    const base = mkTx("40000000", "40000000");
+    const sameIndexChanged = mkTx("10000000", "40000000"); // output 0 rewritten
+    const otherIndexChanged = mkTx("40000000", "10000000"); // output 1 rewritten
+
+    // outputs the signature is expected to bind, per type
+    const commits: Record<
+      SignType,
+      { sameIndex: boolean; otherIndex: boolean }
+    > = {
+      All: { sameIndex: true, otherIndex: true },
+      AllAnyOneCanPay: { sameIndex: true, otherIndex: true },
+      Single: { sameIndex: true, otherIndex: false },
+      SingleAnyOneCanPay: { sameIndex: true, otherIndex: false },
+      None: { sameIndex: false, otherIndex: false },
+      NoneAnyOneCanPay: { sameIndex: false, otherIndex: false },
+    };
+
+    for (const type of Object.keys(SIGN_TYPE) as SignType[]) {
+      const wasmTx = Transaction.deserializeFromSafeJSON(JSON.stringify(base));
+      const sigScript = createInputSignature(wasmTx, 0, priv, toSignType(type));
+      const sig64 = hex2b(sigScript.slice(2, 2 + 128));
+
+      // the trailing byte of the signature is the consensus hash-type byte
+      expect(sigScript.slice(2 + 128)).toBe(
+        HASH_TYPE_BYTE[type].toString(16).padStart(2, "0"),
+      );
+
+      // our masked preimage reproduces exactly what the WASM signed
+      expect(
+        schnorr.verify(sig64, sighashFor(base, 0, type), hex2b(pubX)),
+      ).toBe(true);
+
+      // a signature that commits an output cannot survive that output changing
+      expect(
+        schnorr.verify(
+          sig64,
+          sighashFor(sameIndexChanged, 0, type),
+          hex2b(pubX),
+        ),
+      ).toBe(!commits[type].sameIndex);
+      expect(
+        schnorr.verify(
+          sig64,
+          sighashFor(otherIndexChanged, 0, type),
+          hex2b(pubX),
+        ),
+      ).toBe(!commits[type].otherIndex);
+    }
+  });
 
   test("a payload-bearing tx signs a different sighash than the same tx with empty payload", () => {
     const priv = new PrivateKey(TEST_KEY);
@@ -392,8 +513,8 @@ test.describe("sighash payload coverage (KIP-12)", () => {
     const withPayload = mkTx("beef1234");
     const withoutPayload = mkTx("");
 
-    const hashWith = sighashAll(withPayload, 0);
-    const hashWithout = sighashAll(withoutPayload, 0);
+    const hashWith = sighashFor(withPayload, 0);
+    const hashWithout = sighashFor(withoutPayload, 0);
     expect(Buffer.from(hashWith).toString("hex")).not.toBe(
       Buffer.from(hashWithout).toString("hex"),
     );
@@ -405,13 +526,156 @@ test.describe("sighash payload coverage (KIP-12)", () => {
       const sig64 = hex2b(sigScript.slice(2, 2 + 128));
 
       // WASM signature verifies against OUR sighash for the same payload...
-      expect(schnorr.verify(sig64, sighashAll(tx, 0), hex2b(pubX))).toBe(true);
+      expect(schnorr.verify(sig64, sighashFor(tx, 0), hex2b(pubX))).toBe(true);
       // ...and NOT against the sighash with the payload flipped — so the
       // signed message really commits to tx.payload.
       const flipped = tx === withPayload ? withoutPayload : withPayload;
-      expect(schnorr.verify(sig64, sighashAll(flipped, 0), hex2b(pubX))).toBe(
+      expect(schnorr.verify(sig64, sighashFor(flipped, 0), hex2b(pubX))).toBe(
         false,
       );
+    }
+  });
+});
+
+test.describe("sighash safety policy (U1)", () => {
+  const fixtureTx = () => deserializeTransaction(loadFixture().txJson);
+
+  test("refuses sighash types that commit no outputs", async () => {
+    for (const signType of ["None", "NoneAnyOneCanPay"] as const) {
+      expect(() =>
+        normalizeScriptOptions([
+          { inputIndex: 1, scriptHex: "aabb", signType },
+        ]),
+      ).toThrow(
+        `signTx: signType "${signType}" commits no outputs, so every output could be rewritten after signing; refusing to sign input 1`,
+      );
+
+      await expect(
+        signTxWithScriptOptions(
+          fixtureTx(),
+          [{ inputIndex: 1, scriptHex: "aabb", signType }],
+          TEST_KEY,
+        ),
+      ).rejects.toThrow(`signTx: signType "${signType}" commits no outputs`);
+    }
+  });
+
+  test("a blocked option fails the call before any input is mutated", async () => {
+    const { txJson, scripts } = loadFixture();
+    const tx = deserializeTransaction(txJson);
+    await expect(
+      signTxWithScriptOptions(
+        tx,
+        [
+          { inputIndex: 1, scriptHex: scripts[0].scriptHex },
+          { inputIndex: 2, scriptHex: "aabb", signType: "None" },
+        ],
+        TEST_KEY,
+      ),
+    ).rejects.toThrow('signTx: signType "None" commits no outputs');
+    expect(JSON.parse(tx.serializeToSafeJSON()).inputs[1].signatureScript).toBe(
+      "",
+    );
+  });
+
+  test("partial-commitment sighash types stay signable (KaspaCom PSKT listings)", async () => {
+    const { txJson, scripts } = loadFixture();
+    for (const signType of ["Single", "SingleAnyOneCanPay"] as const) {
+      expect(
+        normalizeScriptOptions([
+          { inputIndex: 1, scriptHex: "aabb", signType },
+        ]),
+      ).toEqual([{ inputIndex: 1, scriptHex: "aabb", signType }]);
+
+      const tx = deserializeTransaction(txJson);
+      const signed = await signTxWithScriptOptions(
+        tx,
+        [{ inputIndex: 1, scriptHex: scripts[0].scriptHex, signType }],
+        TEST_KEY,
+      );
+      expect(
+        JSON.parse(signed.serializeToSafeJSON()).inputs[1].signatureScript,
+      ).not.toBe("");
+    }
+  });
+
+  test("full-commitment sighash types stay signable and default to All", async () => {
+    const { txJson, scripts } = loadFixture();
+    for (const signType of ["All", "AllAnyOneCanPay"] as const) {
+      expect(
+        normalizeScriptOptions([
+          { inputIndex: 1, scriptHex: "aabb", signType },
+        ]),
+      ).toEqual([{ inputIndex: 1, scriptHex: "aabb", signType }]);
+    }
+
+    // absent signType resolves to All
+    expect(
+      normalizeScriptOptions([{ inputIndex: 1, scriptHex: "aabb" }]),
+    ).toEqual([{ inputIndex: 1, scriptHex: "aabb", signType: "All" }]);
+
+    const signed = await signTxWithScriptOptions(
+      deserializeTransaction(txJson),
+      scripts,
+      TEST_KEY,
+    );
+    expect(
+      JSON.parse(signed.serializeToSafeJSON()).inputs[1].signatureScript,
+    ).not.toBe("");
+  });
+
+  test("warns only for sighash types that commit part of the outputs", () => {
+    for (const signType of ["Single", "SingleAnyOneCanPay"] as const) {
+      expect(hasPartialOutputCommitment([{ inputIndex: 0, signType }])).toBe(
+        true,
+      );
+      // one flagged option among safe ones is enough to warn
+      expect(
+        hasPartialOutputCommitment([
+          { inputIndex: 0, signType: "All" },
+          { inputIndex: 1, signType },
+        ]),
+      ).toBe(true);
+    }
+
+    for (const signType of ["All", "AllAnyOneCanPay"] as const) {
+      expect(hasPartialOutputCommitment([{ inputIndex: 0, signType }])).toBe(
+        false,
+      );
+    }
+    expect(hasPartialOutputCommitment([{ inputIndex: 0 }])).toBe(false);
+    expect(hasPartialOutputCommitment([null, undefined])).toBe(false);
+    expect(hasPartialOutputCommitment([])).toBe(false);
+    expect(hasPartialOutputCommitment(undefined)).toBe(false);
+  });
+
+  test("toSignType keeps its prototype-pollution guard", () => {
+    for (const protoKey of ["__proto__", "toString", "constructor"]) {
+      expect(() => toSignType(protoKey as any)).toThrow(
+        `signTx: unsupported signType "${protoKey}"`,
+      );
+    }
+    for (const signType of Object.keys(SIGN_TYPE) as SignType[]) {
+      expect(toSignType(signType)).toBe(SIGN_TYPE[signType]);
+    }
+  });
+});
+
+// F7: the address the user is shown and the key that signs must come from the
+// same derivation index. Driving a real Ledger needs a Transport, so this is a
+// source-level assertion on the hook that builds both.
+test.describe("ledger signer index parity (F7)", () => {
+  test("every createFromLedger call in useKaspaLedgerSigner passes an index", () => {
+    const source = fs.readFileSync(
+      path.join(TESTS_DIR, "../hooks/wallet/useKaspaLedgerSigner.ts"),
+      "utf8",
+    );
+    const calls = [...source.matchAll(/createFromLedger\(([^)]*)\)/g)].map(
+      (m) => m[1].split(",").map((a) => a.trim()),
+    );
+    expect(calls.length).toBeGreaterThan(1);
+    for (const args of calls) {
+      expect(args).toEqual(["transport", "accountIndex"]);
     }
   });
 });

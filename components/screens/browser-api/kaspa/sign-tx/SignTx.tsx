@@ -6,6 +6,10 @@ import SignConfirm from "@/components/screens/browser-api/kaspa/sign/SignConfirm
 import { ApiUtils } from "@/api/background/utils";
 import useAnalytics from "@/hooks/useAnalytics";
 import { deserializeTransaction } from "@/lib/kaspa-compat";
+import { hasPartialOutputCommitment } from "@/lib/wallet/sign-script.ts";
+
+const PARTIAL_OUTPUT_WARNING =
+  "This request signs with a sighash type that commits to only part of the transaction outputs. The outputs it does not cover are not protected by your signature and can still be changed after you approve.";
 
 type SignTxProps = {
   wallet: IWallet;
@@ -65,6 +69,11 @@ export default function SignTx({
         confirm={handleConfirm}
         cancel={handleCancel}
         payload={payload}
+        warning={
+          hasPartialOutputCommitment(payload.scripts)
+            ? PARTIAL_OUTPUT_WARNING
+            : undefined
+        }
       />
     </>
   );
