@@ -13,6 +13,7 @@ from uuid import uuid4
 
 
 DEFAULT_PATH = Path(os.getenv("TEACHINGS_PATH", "data/teachings.json"))
+MIN_PATTERN_IDENTIFIER_LENGTH = 4
 _LOCK = Lock()
 
 
@@ -89,6 +90,10 @@ def delete_teaching(identifier: str) -> bool:
     if not identifier:
         return False
 
+    # An exact id always matches. A pattern snippet must be long enough that a
+    # stray "/teach_delete a" cannot wipe every stored teaching.
+    match_pattern = len(identifier) >= MIN_PATTERN_IDENTIFIER_LENGTH
+
     removed = False
     with _LOCK:
         data = _load()
@@ -96,7 +101,7 @@ def delete_teaching(identifier: str) -> bool:
         for entry in data:
             entry_id = entry.get("id", "").lower()
             pattern = entry.get("pattern", "").lower()
-            if entry_id == identifier or identifier in pattern:
+            if entry_id == identifier or (match_pattern and identifier in pattern):
                 removed = True
                 continue
             filtered.append(entry)

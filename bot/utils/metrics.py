@@ -77,14 +77,19 @@ class Metrics:
         now = time.time()
         cutoff = now - self._FALLBACK_WINDOW_SECONDS
         with self._lock:
+            # ponytail: full sweep is O(users); bucket by time if user count ever grows.
+            for stale_id in [uid for uid, ev in self._fallback_events.items() if uid != user_id]:
+                events = self._fallback_events[stale_id]
+                while events and events[0] < cutoff:
+                    events.popleft()
+                if not events:
+                    self._fallback_events.pop(stale_id, None)
+
             queue = self._fallback_events[user_id]
             while queue and queue[0] < cutoff:
                 queue.popleft()
             queue.append(now)
-            repeated = len(queue) >= 2
-            if not queue:
-                self._fallback_events.pop(user_id, None)
-            return repeated
+            return len(queue) >= 2
 
     # ------------------------------------------------------------------ snapshots
     def snapshot(self) -> MetricsSnapshot:

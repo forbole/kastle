@@ -4,8 +4,7 @@ from __future__ import annotations
 
 import os
 import re
-import time
-from datetime import datetime, timezone
+from datetime import timezone
 from typing import Iterable, Optional
 
 from telegram import Update
@@ -58,7 +57,7 @@ async def _require_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         raise RuntimeError("Handler dependencies not initialised on application")
     if not is_admin(update, deps.auth):
         if update.message:
-            update.message.reply_text(
+            await update.message.reply_text(
                 format_plain_text("You're not authorised to use this command."),
                 parse_mode=DEFAULT_PARSE_MODE,
                 disable_web_page_preview=True,
@@ -68,7 +67,7 @@ async def _require_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 
 async def _command_help_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    deps = _require_admin(update, context)
+    deps = await _require_admin(update, context)
     if not deps or not update.message:
         return
 
@@ -84,7 +83,7 @@ async def _command_help_admin(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 
 async def _command_ping(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    deps = _require_admin(update, context)
+    deps = await _require_admin(update, context)
     if not deps or not update.message:
         return
 
@@ -98,7 +97,7 @@ async def _command_ping(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
 
 async def _command_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    deps = _require_admin(update, context)
+    deps = await _require_admin(update, context)
     if not deps or not update.message:
         return
 
@@ -134,7 +133,7 @@ async def _command_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 
 async def _command_mode(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    deps = _require_admin(update, context)
+    deps = await _require_admin(update, context)
     if not deps or not update.message:
         return
 
@@ -162,7 +161,7 @@ async def _command_mode(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
 
 async def _command_set_threshold(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    deps = _require_admin(update, context)
+    deps = await _require_admin(update, context)
     if not deps or not update.message:
         return
 
@@ -203,7 +202,7 @@ async def _command_set_threshold(update: Update, context: ContextTypes.DEFAULT_T
 
 
 async def _command_stop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    deps = _require_admin(update, context)
+    deps = await _require_admin(update, context)
     if not deps or not update.message:
         return
 
