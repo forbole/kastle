@@ -30,3 +30,9 @@ web-ext.config.ts
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# Local agent/tooling state
+.claude/
+.serena/
+graphify-out/
+handover-output/
