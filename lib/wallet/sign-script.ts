@@ -58,6 +58,18 @@ export function hasPartialOutputCommitment(
   );
 }
 
+/**
+ * True when the request carries at least one actual script option. The dApp
+ * payload schema defaults `scripts` to [], so callers must not use a bare
+ * existence check — an empty (or all-null sparse) array means "no scripts".
+ * Non-throwing: safe to call from render paths.
+ */
+export function hasScriptOptions(
+  scripts?: (RawScriptOption | null | undefined)[],
+): boolean {
+  return (scripts ?? []).some((option) => option != null);
+}
+
 export function normalizeScriptOptions(
   scripts?: (RawScriptOption | null | undefined)[],
 ): ScriptOption[] {

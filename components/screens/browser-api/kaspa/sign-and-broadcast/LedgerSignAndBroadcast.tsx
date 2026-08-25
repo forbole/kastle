@@ -6,6 +6,7 @@ import { ApiExtensionUtils } from "@/api/extension";
 import { ApiUtils } from "@/api/background/utils";
 import LedgerConnectForSign from "@/components/screens/ledger-connect/LedgerConnectForSign";
 import useKaspaLedgerSigner from "@/hooks/wallet/useKaspaLedgerSigner";
+import { hasScriptOptions } from "@/lib/wallet/sign-script.ts";
 
 type LedgerSignAndBroadcastProps = {
   requestId: string;
@@ -21,7 +22,7 @@ export default function LedgerSignAndBroadcast({
   const { transport, isAppOpen } = useLedgerTransport();
   const walletSigner = useKaspaLedgerSigner();
 
-  if (payload.scripts?.length) {
+  if (hasScriptOptions(payload.scripts)) {
     ApiExtensionUtils.sendMessage(
       requestId,
       ApiUtils.createApiResponse(

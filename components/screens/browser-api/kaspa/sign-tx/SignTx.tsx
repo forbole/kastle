@@ -6,7 +6,10 @@ import SignConfirm from "@/components/screens/browser-api/kaspa/sign/SignConfirm
 import { ApiUtils } from "@/api/background/utils";
 import useAnalytics from "@/hooks/useAnalytics";
 import { deserializeTransaction } from "@/lib/kaspa-compat";
-import { hasPartialOutputCommitment } from "@/lib/wallet/sign-script.ts";
+import {
+  hasPartialOutputCommitment,
+  hasScriptOptions,
+} from "@/lib/wallet/sign-script.ts";
 
 export const PARTIAL_OUTPUT_WARNING =
   "This request signs with a sighash type that commits to only part of the transaction outputs. The outputs it does not cover are not protected by your signature and can still be changed after you approve.";
@@ -34,7 +37,12 @@ export default function SignTx({
 
     try {
       const tx = deserializeTransaction(payload.txJson);
-      const signed = await wallet.signTx(tx, payload.scripts);
+      // The Ledger signer refuses any truthy `scripts` value, so the schema's
+      // empty default must reach it as undefined (script-free signing).
+      const signed = await wallet.signTx(
+        tx,
+        hasScriptOptions(payload.scripts) ? payload.scripts : undefined,
+      );
       await ApiExtensionUtils.sendMessage(
         requestId,
         ApiUtils.createApiResponse(requestId, signed.serializeToSafeJSON()),

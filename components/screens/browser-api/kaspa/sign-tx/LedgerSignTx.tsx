@@ -7,6 +7,7 @@ import LedgerConnectForSign from "@/components/screens/ledger-connect/LedgerConn
 import { ApiUtils } from "@/api/background/utils";
 import useKaspaLedgerSigner from "@/hooks/wallet/useKaspaLedgerSigner";
 import useLedgerTransport from "@/hooks/useLedgerTransport";
+import { hasScriptOptions } from "@/lib/wallet/sign-script.ts";
 
 type LedgerSignTxProps = {
   requestId: string;
@@ -22,7 +23,9 @@ export default function LedgerSignTx({
   const { transport, isAppOpen } = useLedgerTransport();
   const walletSigner = useKaspaLedgerSigner();
 
-  if (payload.scripts) {
+  // scripts defaults to [] in the payload schema, so gate on actual script
+  // options — a bare truthy check would refuse every Ledger request.
+  if (hasScriptOptions(payload.scripts)) {
     ApiExtensionUtils.sendMessage(
       requestId,
       ApiUtils.createApiResponse(
