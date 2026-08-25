@@ -8,7 +8,7 @@ type LedgerNotSupportedProps = {
 };
 
 export default function LedgerNotSupported({
-  subtitle = "Advanced Script Transaction are not supported on Ledger.",
+  subtitle = "Advanced Script Transactions are not supported on Ledger.",
   detail = "Ledger currently does not support Advanced Script Transactions (e.g. KRC20). To proceed, please switch to a non-Ledger account.",
 }: LedgerNotSupportedProps) {
   const onClose = () => {

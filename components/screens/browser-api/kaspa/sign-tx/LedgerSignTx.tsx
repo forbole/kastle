@@ -28,10 +28,18 @@ export default function LedgerSignTx({
     ? "Ledger does not support advanced scripts signing"
     : "Ledger cannot complete sign-only requests yet. Use a dApp flow that signs and broadcasts.";
 
-  ApiExtensionUtils.sendMessage(
-    requestId,
-    ApiUtils.createApiResponse(requestId, null, message),
-  );
+  // Dispatch outside the render phase and once per mount: React can render
+  // this component more than once, and each requestId must produce exactly
+  // one rejection response.
+  const sentRef = useRef(false);
+  useEffect(() => {
+    if (sentRef.current) return;
+    sentRef.current = true;
+    ApiExtensionUtils.sendMessage(
+      requestId,
+      ApiUtils.createApiResponse(requestId, null, message),
+    );
+  }, [requestId, message]);
 
   return scripted ? (
     <LedgerNotSupported />
