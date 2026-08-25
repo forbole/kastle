@@ -8,7 +8,7 @@ import useAnalytics from "@/hooks/useAnalytics";
 import { deserializeTransaction } from "@/lib/kaspa-compat";
 import { hasPartialOutputCommitment } from "@/lib/wallet/sign-script.ts";
 
-const PARTIAL_OUTPUT_WARNING =
+export const PARTIAL_OUTPUT_WARNING =
   "This request signs with a sighash type that commits to only part of the transaction outputs. The outputs it does not cover are not protected by your signature and can still be changed after you approve.";
 
 type SignTxProps = {

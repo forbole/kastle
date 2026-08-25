@@ -207,7 +207,7 @@ export default function SignConfirm({
         {!networkMismatched && (
           <>
             {warning && (
-              <div className="mt-3 rounded-lg border border-yellow-600 bg-yellow-900/30 px-4 py-2 text-xs text-yellow-400">
+              <div className="mt-3 whitespace-pre-line rounded-lg border border-yellow-600 bg-yellow-900/30 px-4 py-2 text-xs text-yellow-400">
                 {warning}
               </div>
             )}
