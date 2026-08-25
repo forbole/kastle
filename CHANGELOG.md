@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.59.4](https://github.com/forbole/kastle/compare/v2.59.3...v2.59.4) (2026-08-25)
+
+
+### Bug Fixes
+
+* refuse Ledger transactions carrying fields the device cannot sign over ([#310](https://github.com/forbole/kastle/issues/310)) ([8b597b9](https://github.com/forbole/kastle/commit/8b597b919c9e3d53643012cdeedd5b6b605d9dad))
+
 ## [2.59.3](https://github.com/forbole/kastle/compare/v2.59.2...v2.59.3) (2026-08-25)
 
 
