@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.59.2](https://github.com/forbole/kastle/compare/v2.59.1...v2.59.2) (2026-08-25)
+
+
+### Bug Fixes
+
+* **sign:** refuse sighash types that commit no outputs, warn on partial ones; derive the legacy Ledger signer from the selected account index ([#306](https://github.com/forbole/kastle/issues/306)) ([6920e1c](https://github.com/forbole/kastle/commit/6920e1cf0a44116f4f6fdd4469b9d8d2e8d829ee))
+
 ## [2.59.1](https://github.com/forbole/kastle/compare/v2.59.0...v2.59.1) (2026-08-13)
 
 
