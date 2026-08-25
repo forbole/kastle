@@ -16,6 +16,7 @@ import {
   hasPartialOutputCommitment,
   normalizeScriptOptions,
   pushDataHex,
+  signTxInputWithScriptOption,
   signTxWithScriptOptions,
   type RawScriptOption,
 } from "@/lib/wallet/sign-script";
@@ -198,15 +199,29 @@ test.describe("signTx covenant repro (kaspa.com fixture)", () => {
       ),
     ).rejects.toThrow('signTx: unsupported signType "Bogus"');
 
-    // inherited object keys must not resolve to sighash types
-    for (const protoKey of ["toString", "constructor", "__proto__"]) {
+    // inherited object keys must not resolve to sighash types, and neither
+    // may near-miss evasions of the refused names: lowercase, trailing
+    // whitespace, or the raw numeric enum value (2 = SighashType.None).
+    // Each must throw before any signature is produced.
+    for (const badType of [
+      "toString",
+      "constructor",
+      "__proto__",
+      "none",
+      "None ",
+      2,
+    ]) {
+      const evasionTx = deserializeTransaction(txJson);
       await expect(
         signTxWithScriptOptions(
-          deserializeTransaction(txJson),
-          [{ inputIndex: 1, scriptHex: "aa", signType: protoKey as any }],
+          evasionTx,
+          [{ inputIndex: 1, scriptHex: "aa", signType: badType as any }],
           TEST_KEY,
         ),
-      ).rejects.toThrow(`signTx: unsupported signType "${protoKey}"`);
+      ).rejects.toThrow(`signTx: unsupported signType "${badType}"`);
+      expect(
+        JSON.parse(evasionTx.serializeToSafeJSON()).inputs[1].signatureScript,
+      ).toBe("");
     }
 
     await expect(
@@ -557,6 +572,24 @@ test.describe("sighash safety policy (U1)", () => {
           TEST_KEY,
         ),
       ).rejects.toThrow(`signTx: signType "${signType}" commits no outputs`);
+    }
+  });
+
+  test("signTxInputWithScriptOption refuses None* when called directly, bypassing normalization", () => {
+    for (const signType of ["None", "NoneAnyOneCanPay"] as const) {
+      const tx = fixtureTx();
+      expect(() =>
+        signTxInputWithScriptOption(
+          tx,
+          { inputIndex: 1, scriptHex: "aabb", signType },
+          TEST_KEY,
+        ),
+      ).toThrow(
+        `signTx: signType "${signType}" commits no outputs, so every output could be rewritten after signing; refusing to sign input 1`,
+      );
+      expect(
+        JSON.parse(tx.serializeToSafeJSON()).inputs[1].signatureScript,
+      ).toBe("");
     }
   });
 
