@@ -2,7 +2,15 @@ import React from "react";
 import alertImage from "@/assets/images/alert.png";
 import Header from "@/components/GeneralHeader";
 
-export default function LedgerNotSupported() {
+type LedgerNotSupportedProps = {
+  subtitle?: string;
+  detail?: string;
+};
+
+export default function LedgerNotSupported({
+  subtitle = "Advanced Script Transactions are not supported on Ledger.",
+  detail = "Ledger currently does not support Advanced Script Transactions (e.g. KRC20). To proceed, please switch to a non-Ledger account.",
+}: LedgerNotSupportedProps) {
   const onClose = () => {
     window.close();
   };
@@ -22,14 +30,8 @@ export default function LedgerNotSupported() {
             <span className="text-xl font-semibold text-red-500">
               Sorry, Your Majesty.
             </span>
-            <span className="px-2 text-sm text-gray-500">
-              {"Advanced Script Transaction are not supported on Ledger."}
-            </span>
-            <div className="rounded bg-[#203C49] p-2 text-sm">
-              {
-                "Ledger currently does not support Advanced Script Transactions (e.g. KRC20). To proceed, please switch to a non-Ledger account."
-              }
-            </div>
+            <span className="px-2 text-sm text-gray-500">{subtitle}</span>
+            <div className="rounded bg-[#203C49] p-2 text-sm">{detail}</div>
           </div>
         </div>
 

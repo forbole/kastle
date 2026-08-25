@@ -13,7 +13,10 @@ import {
   TransactionOutput,
 } from "@/wasm/core/kaspa";
 import { calcRevealInputMass } from "@/lib/kaspaFee";
-import { hasPartialOutputCommitment } from "@/lib/wallet/sign-script.ts";
+import {
+  hasPartialOutputCommitment,
+  hasScriptOptions,
+} from "@/lib/wallet/sign-script.ts";
 import { PARTIAL_OUTPUT_WARNING } from "@/components/screens/browser-api/kaspa/sign-tx/SignTx";
 
 type SignAndBroadcastProps = {
@@ -94,7 +97,12 @@ export default function SignAndBroadcast({
     }
 
     try {
-      const signedTx = await wallet.signTx(transaction, payload.scripts);
+      // The Ledger signer refuses any truthy `scripts` value, so the schema's
+      // empty default must reach it as undefined (script-free signing).
+      const signedTx = await wallet.signTx(
+        transaction,
+        hasScriptOptions(payload.scripts) ? payload.scripts : undefined,
+      );
 
       const MAX_RETRIES = 5;
       let txId: string | undefined;

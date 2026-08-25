@@ -14,6 +14,7 @@ import init, {
 import { deserializeTransaction } from "@/lib/kaspa-compat";
 import {
   hasPartialOutputCommitment,
+  hasScriptOptions,
   normalizeScriptOptions,
   pushDataHex,
   signTxInputWithScriptOption,
@@ -21,6 +22,7 @@ import {
   type RawScriptOption,
 } from "@/lib/wallet/sign-script";
 import { SIGN_TYPE, toSignType } from "@/lib/kaspa";
+import { SignTxPayloadSchema } from "@/api/background/handlers/kaspa/utils";
 import type { SignType } from "@/lib/wallet/wallet-interface";
 
 // Throwaway key — unit tests only, never funded.
@@ -710,5 +712,42 @@ test.describe("ledger signer index parity (F7)", () => {
     for (const args of calls) {
       expect(args).toEqual(["transport", "accountIndex"]);
     }
+  });
+});
+
+// L1: the payload schema defaults `scripts` to [], so consumers must gate on
+// actual script options — a bare existence check is always truthy and refused
+// every dApp signTx routed to a Ledger account (the v2.59.1 outage).
+// hasScriptOptions drives: the LedgerSignAndBroadcast gate, the
+// wallet.signTx call-site normalization ([] -> undefined) in both confirm
+// screens, and the refusal-message selection in LedgerSignTx (sign-only is
+// always refused on Ledger until KAS-002 items 2 and 3, but script-bearing
+// and script-free requests must get different reasons).
+test.describe("ledger script gate (L1)", () => {
+  test("empty scripts array is not a script-bearing request", () => {
+    expect(hasScriptOptions([])).toBe(false);
+  });
+
+  test("absent scripts gets the schema default and is not refused", () => {
+    const parsed = SignTxPayloadSchema.parse({ txJson: "{}" });
+    expect(parsed.scripts).toEqual([]);
+    expect(hasScriptOptions(parsed.scripts)).toBe(false);
+  });
+
+  test("script-bearing requests still trip the gate", () => {
+    expect(hasScriptOptions([{ inputIndex: 0, scriptHex: "aabb" }])).toBe(true);
+    const parsed = SignTxPayloadSchema.parse({
+      txJson: "{}",
+      scripts: [{ inputIndex: 0, scriptHex: "aabb" }],
+    });
+    expect(hasScriptOptions(parsed.scripts)).toBe(true);
+  });
+
+  test("sparse arrays count only real options", () => {
+    expect(hasScriptOptions([null, undefined] as any)).toBe(false);
+    expect(hasScriptOptions(undefined)).toBe(false);
+    expect(
+      hasScriptOptions([null, { inputIndex: 1, scriptHex: "aabb" }] as any),
+    ).toBe(true);
   });
 });
