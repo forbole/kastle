@@ -70,6 +70,56 @@ export function hasScriptOptions(
   return (scripts ?? []).some((option) => option != null);
 }
 
+// The all-zero "native" subnetwork — the only value the Ledger app can sign
+// over (and the one its sighash hardcodes). Same literal the Ledger account
+// rebuilds broadcast transactions with (lib/wallet/account/ledger-account.ts).
+const NATIVE_SUBNETWORK_ID = "00".repeat(20);
+
+// Payload values that mean "no payload". The WASM getter returns plain hex
+// ("" when empty), but be tolerant of undefined/null and a bare "0x" prefix.
+function isEmptyPayload(payload: unknown): boolean {
+  return payload == null || payload === "" || payload === "0x";
+}
+
+/**
+ * KAS-002 defect A1 — fields the Ledger device provably does not sign over.
+ *
+ * hw-app-kaspa v1.2.1 serialises each input as a fixed 46-byte frame
+ * (value / prevTxId / outpointIndex / addressType / addressIndex), so
+ * `sequence`, `lockTime`, `gas`, `subnetworkId` and `payload` never cross the
+ * APDU wire, and the Ledger app's sighash hardcodes them all to zero (and
+ * `version`, and forces SIGHASH_ALL). A transaction carrying any non-default
+ * value still produces a VALID signature — over the zeroed rewrite, not over
+ * what the user inspected — so the user approves one transaction and a
+ * different one broadcasts. Refuse before any device interaction.
+ * Unblock: KAS-002 A2 (Ledger app support for these fields).
+ *
+ * Field types and zero values per wasm/core/kaspa.d.ts (class Transaction):
+ * version: number, lockTime: bigint, gas: bigint, subnetworkId: string,
+ * payload: string, inputs[].sequence: bigint.
+ *
+ * Fail closed: malformed or ambiguous values count as unsignable.
+ * Non-throwing: safe to call from render paths.
+ */
+export function hasUnsignableFields(tx: Transaction): boolean {
+  try {
+    if (tx.version !== 0) return true;
+    if (tx.lockTime !== 0n) return true;
+    if (tx.gas !== 0n) return true;
+    if (!isEmptyPayload(tx.payload)) return true;
+    if (tx.subnetworkId !== NATIVE_SUBNETWORK_ID) return true;
+    // read tx.inputs once — each access crosses the WASM boundary
+    const inputs = tx.inputs ?? [];
+    for (const input of inputs) {
+      if (input?.sequence !== 0n) return true;
+    }
+    return false;
+  } catch {
+    // a transaction whose fields cannot even be read cannot be proven safe
+    return true;
+  }
+}
+
 export function normalizeScriptOptions(
   scripts?: (RawScriptOption | null | undefined)[],
 ): ScriptOption[] {
