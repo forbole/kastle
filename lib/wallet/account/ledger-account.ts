@@ -42,6 +42,27 @@ type LedgerDerivation = {
   addressIndex: number;
 };
 
+/**
+ * hw-app-kaspa marshals sompi as a JS `number` — `TransactionInput.value` and
+ * `TransactionOutput.value` are typed `number` and serialized via
+ * `toBigEndianHex`, which calls `.toString(16)` on it. Anything above
+ * `Number.MAX_SAFE_INTEGER` would be silently rounded on the way to the device,
+ * so refuse it instead.
+ */
+const MAX_LEDGER_SOMPI = BigInt(Number.MAX_SAFE_INTEGER);
+
+function toLedgerSompi(value: bigint | undefined, what: string): number {
+  if (value === undefined || value === null) {
+    throw new Error(`Cannot sign on Ledger: ${what} has no amount.`);
+  }
+  if (value < 0n || value > MAX_LEDGER_SOMPI) {
+    throw new Error(
+      `Cannot sign on Ledger: ${what} is ${value} sompi, which is outside the range the Ledger app can be given exactly (0 to ${MAX_LEDGER_SOMPI} sompi).`,
+    );
+  }
+  return Number(value);
+}
+
 export class LegacyLedgerAccount implements IWallet {
   private readonly app: KaspaApp;
 
@@ -102,21 +123,27 @@ export class LegacyLedgerAccount implements IWallet {
     // the same key as the account itself. Sending the derivation per input
     // rather than a hardcoded 0/0 keeps that an explicit consequence of
     // getDerivationFields() instead of a coincidence.
-    const inputs = transaction.inputs.map(
-      (input) =>
-        new LedgerTransactionInput({
-          value: Number(input.utxo?.amount),
-          prevTxId: input.utxo?.outpoint.transactionId ?? "",
-          outpointIndex: input.utxo?.outpoint.index ?? 0,
-          addressType,
-          addressIndex,
-        }),
-    );
+    const inputs = transaction.inputs.map((input, index) => {
+      const utxo = input.utxo;
+      if (!utxo) {
+        throw new Error(
+          `Cannot sign on Ledger: input ${index} is missing its UTXO entry, so its amount and outpoint are unknown.`,
+        );
+      }
+
+      return new LedgerTransactionInput({
+        value: toLedgerSompi(utxo.amount, `input ${index}`),
+        prevTxId: utxo.outpoint.transactionId,
+        outpointIndex: utxo.outpoint.index,
+        addressType,
+        addressIndex,
+      });
+    });
 
     const outputs = transaction.outputs.map(
-      (output) =>
+      (output, index) =>
         new LedgerTransactionOutput({
-          value: Number(output.value),
+          value: toLedgerSompi(output.value, `output ${index}`),
           scriptPublicKey:
             typeof output.scriptPublicKey === "string"
               ? output.scriptPublicKey
