@@ -6,6 +6,8 @@ import { blake2b } from "@noble/hashes/blake2b";
 import { schnorr } from "@noble/curves/secp256k1";
 import init, {
   createInputSignature,
+  createTransactions,
+  payToAddressScript,
   PrivateKey,
   ScriptBuilder,
   SighashType,
@@ -15,6 +17,7 @@ import { deserializeTransaction } from "@/lib/kaspa-compat";
 import {
   hasPartialOutputCommitment,
   hasScriptOptions,
+  hasUnsignableFields,
   normalizeScriptOptions,
   pushDataHex,
   signTxInputWithScriptOption,
@@ -749,5 +752,134 @@ test.describe("ledger script gate (L1)", () => {
     expect(
       hasScriptOptions([null, { inputIndex: 1, scriptHex: "aabb" }] as any),
     ).toBe(true);
+  });
+});
+
+// A1: fields the Ledger device provably does not sign over. hw-app-kaspa's
+// APDU frame carries only value/prevTxId/outpointIndex/addressType/
+// addressIndex per input, and the Ledger app hardcodes version, lockTime,
+// gas, subnetworkId, payload and every input sequence to zero in its sighash
+// (and forces SIGHASH_ALL). Any non-default value still yields a VALID
+// signature — over the zeroed rewrite — so LedgerSignAndBroadcast refuses
+// these upfront via hasUnsignableFields. The React screens have no component
+// harness, so the predicate is what gets covered here. Unblock: KAS-002 A2.
+test.describe("ledger unsignable-field gate (A1)", () => {
+  const NATIVE_SUBNETWORK = "00".repeat(20);
+  const SPK = "0000" + "20" + "ab".repeat(32) + "ac";
+
+  const mkTxJson = (
+    overrides: Record<string, unknown> = {},
+    inputOverrides: Record<string, unknown> = {},
+  ) =>
+    JSON.stringify({
+      id: "00".repeat(32),
+      version: 0,
+      inputs: [
+        {
+          transactionId: "11".repeat(32),
+          index: 0,
+          sequence: "0",
+          sigOpCount: 1,
+          computeBudget: 0,
+          signatureScript: "",
+          utxo: {
+            address: null,
+            amount: "100000000",
+            scriptPublicKey: SPK,
+            blockDaaScore: "1000",
+            isCoinbase: false,
+          },
+          ...inputOverrides,
+        },
+      ],
+      outputs: [{ value: "90000000", scriptPublicKey: SPK }],
+      lockTime: "0",
+      subnetworkId: NATIVE_SUBNETWORK,
+      gas: "0",
+      payload: "",
+      ...overrides,
+    });
+
+  const txWith = (
+    overrides: Record<string, unknown> = {},
+    inputOverrides: Record<string, unknown> = {},
+  ) => Transaction.deserializeFromSafeJSON(mkTxJson(overrides, inputOverrides));
+
+  test("a fully-default transaction is signable", () => {
+    expect(hasUnsignableFields(txWith())).toBe(false);
+  });
+
+  test("every field the device zeroes trips the gate", () => {
+    expect(hasUnsignableFields(txWith({ lockTime: "5" }))).toBe(true);
+    expect(hasUnsignableFields(txWith({ gas: "1" }))).toBe(true);
+    expect(hasUnsignableFields(txWith({ payload: "beef" }))).toBe(true);
+    expect(
+      hasUnsignableFields(txWith({ subnetworkId: "01" + "00".repeat(19) })),
+    ).toBe(true);
+    expect(hasUnsignableFields(txWith({ version: 1 }))).toBe(true);
+    expect(hasUnsignableFields(txWith({}, { sequence: "1" }))).toBe(true);
+    expect(
+      hasUnsignableFields(txWith({}, { sequence: "18446744073709551615" })),
+    ).toBe(true);
+  });
+
+  test("empty payload variants are signable", () => {
+    const base = {
+      version: 0,
+      lockTime: 0n,
+      gas: 0n,
+      subnetworkId: NATIVE_SUBNETWORK,
+      inputs: [{ sequence: 0n }],
+    };
+    for (const payload of [undefined, null, "", "0x"]) {
+      expect(hasUnsignableFields({ ...base, payload } as any)).toBe(false);
+    }
+  });
+
+  test("malformed transactions do not throw and fail closed", () => {
+    const base = {
+      version: 0,
+      lockTime: 0n,
+      gas: 0n,
+      payload: "",
+      subnetworkId: NATIVE_SUBNETWORK,
+    };
+    // sparse inputs: a hole is an input whose sequence cannot be proven zero
+    expect(
+      hasUnsignableFields({ ...base, inputs: [null, undefined] } as any),
+    ).toBe(true);
+    // non-iterable inputs cannot be proven safe either
+    expect(hasUnsignableFields({ ...base, inputs: 5 } as any)).toBe(true);
+    expect(hasUnsignableFields(null as any)).toBe(true);
+    expect(hasUnsignableFields({} as any)).toBe(true);
+    // no inputs at all: nothing carries a sequence, nothing to refuse
+    expect(hasUnsignableFields({ ...base, inputs: [] } as any)).toBe(false);
+  });
+
+  // S3: the internal Send flow (ConfirmStep) builds its transaction with the
+  // WASM Generator and sets none of the guarded fields — prove the gate is a
+  // no-op for Generator output so it can never brick internal Send.
+  test("a Generator-built transaction (internal Send flow shape) passes the gate", async () => {
+    const address = new PrivateKey(TEST_KEY).toPublicKey().toAddress("mainnet");
+    const { transactions } = await createTransactions({
+      entries: [
+        {
+          address,
+          outpoint: { transactionId: "11".repeat(32), index: 0 },
+          amount: 500_000_000n,
+          scriptPublicKey: payToAddressScript(address),
+          blockDaaScore: 1_000n,
+          isCoinbase: false,
+        },
+      ],
+      outputs: [{ address, amount: 100_000_000n }],
+      priorityFee: 0n,
+      changeAddress: address,
+      networkId: "mainnet",
+    });
+    expect(transactions.length).toBeGreaterThan(0);
+    for (const pending of transactions) {
+      expect(hasUnsignableFields(pending.transaction)).toBe(false);
+    }
   });
 });
