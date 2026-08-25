@@ -15,6 +15,10 @@ import init, {
 } from "@/wasm/core/kaspa";
 import { deserializeTransaction } from "@/lib/kaspa-compat";
 import {
+  LedgerAccount,
+  LegacyLedgerAccount,
+} from "@/lib/wallet/account/ledger-account";
+import {
   hasPartialOutputCommitment,
   hasScriptOptions,
   hasUnsignableFields,
@@ -881,5 +885,280 @@ test.describe("ledger unsignable-field gate (A1)", () => {
     for (const pending of transactions) {
       expect(hasUnsignableFields(pending.transaction)).toBe(false);
     }
+  });
+});
+
+// B2/C/D: the Ledger derivation. app-kaspa builds the signing path per input as
+// 44'/111111'/<account>'/<addressType>/<addressIndex> (src/crypto.c,
+// bip32_path[2..4]) and validates change against the same account with
+// change_address_type/change_address_index (src/transaction/tx_validate.c).
+// Before this fix LedgerAccount overrode only `path`, so its addresses came
+// from .../0'/0/{i} while the inherited signTx told the device .../{i}'/0/0 —
+// equal only at i=0, and a wrong-key signature at every other index. These
+// assert the emitted numbers directly, because a source-regex test cannot see
+// an inherited method. Driving a real device needs a Transport, so the
+// hw-app-kaspa client is stubbed.
+test.describe("ledger derivation unification (B2/C/D)", () => {
+  const NATIVE_SUBNETWORK = "00".repeat(20);
+  const SPK = "0000" + "20" + "ab".repeat(32) + "ac";
+  // BIP-340 test-vector public key, so `new PublicKey(...)` accepts it.
+  const STUB_PUBKEY =
+    "dff1d77f2a671c5f36183726db2341be58feae1da2deced843240f7b502ba659";
+
+  const mkTxJson = (
+    inputOverrides: Record<string, unknown> = {},
+    outputValue = "90000000",
+    inputCount = 1,
+  ) =>
+    JSON.stringify({
+      id: "00".repeat(32),
+      version: 0,
+      inputs: Array.from({ length: inputCount }, (_unused, i) => ({
+        transactionId: `${i.toString(16).padStart(2, "0")}`.repeat(32),
+        index: i,
+        sequence: "0",
+        sigOpCount: 1,
+        computeBudget: 0,
+        signatureScript: "",
+        utxo: {
+          address: null,
+          amount: "100000000",
+          scriptPublicKey: SPK,
+          blockDaaScore: "1000",
+          isCoinbase: false,
+        },
+        ...inputOverrides,
+      })),
+      outputs: [{ value: outputValue, scriptPublicKey: SPK }],
+      lockTime: "0",
+      subnetworkId: NATIVE_SUBNETWORK,
+      gas: "0",
+      payload: "",
+    });
+
+  type Captured = {
+    account: number;
+    changeAddressType: number;
+    changeAddressIndex: number;
+    inputs: {
+      addressType: number;
+      addressIndex: number;
+      value: number;
+      prevTxId: string;
+      outpointIndex: number;
+    }[];
+    outputs: { value: number }[];
+  };
+
+  const instrument = (account: LegacyLedgerAccount) => {
+    const paths: string[] = [];
+    const signed: Captured[] = [];
+    const messageArgs: unknown[][] = [];
+
+    (account as unknown as { app: unknown }).app = {
+      getPublicKey: async (p: string) => {
+        paths.push(p);
+        return Buffer.concat([
+          Buffer.from([32]),
+          Buffer.from(STUB_PUBKEY, "hex"),
+        ]);
+      },
+      signTransaction: async (tx: Captured) => {
+        signed.push(tx);
+        for (const input of tx.inputs) {
+          (input as { signature?: string }).signature = "ab".repeat(64);
+        }
+      },
+      signMessage: async (...args: unknown[]) => {
+        messageArgs.push(args);
+        return { signature: "ab".repeat(64) };
+      },
+    };
+
+    return { paths, signed, messageArgs };
+  };
+
+  const signAndCapture = async (
+    account: LegacyLedgerAccount,
+    json = mkTxJson(),
+  ) => {
+    const stub = instrument(account);
+    await account.signTx(deserializeTransaction(json));
+    return stub.signed[0];
+  };
+
+  // The constructor only wires up the hw-app-kaspa client, which `instrument`
+  // replaces anyway, and its default export is not callable under the test
+  // loader. Build the instance off the prototype so method dispatch — the thing
+  // under test, since the bug was an inherited signTx — stays real.
+  const accountAt = <T extends LegacyLedgerAccount>(
+    ctor: { prototype: T },
+    index: number,
+  ): T => {
+    const account = Object.create(ctor.prototype) as T;
+    (account as unknown as { accountIndex: number }).accountIndex = index;
+    return account;
+  };
+
+  const legacyAt = (index: number) => accountAt(LegacyLedgerAccount, index);
+  const nonLegacyAt = (index: number) => accountAt(LedgerAccount, index);
+
+  // G5: LegacyLedgerAccount must stay bit-identical to main. These are the
+  // exact numbers main emits — account = index + 0x80000000, addressType 0,
+  // addressIndex 0 — for the indices #306's F7 fix made work.
+  for (const index of [0, 1, 3]) {
+    test(`legacy account ${index} signs from 44'/111111'/${index}'/0/0`, async () => {
+      const tx = await signAndCapture(legacyAt(index));
+
+      expect(tx.account).toBe(index + 0x80000000);
+      expect(tx.changeAddressType).toBe(0);
+      expect(tx.changeAddressIndex).toBe(0);
+      expect(tx.inputs.map((i) => [i.addressType, i.addressIndex])).toEqual([
+        [0, 0],
+      ]);
+    });
+  }
+
+  // B2: the fix. The device must derive from the address path, so the index
+  // moves to the addressIndex position and account stays 0'.
+  for (const index of [0, 1, 3]) {
+    test(`non-legacy account ${index} signs from 44'/111111'/0'/0/${index}`, async () => {
+      const tx = await signAndCapture(nonLegacyAt(index));
+
+      expect(tx.account).toBe(0x80000000);
+      expect(tx.changeAddressType).toBe(0);
+      expect(tx.changeAddressIndex).toBe(index);
+      expect(tx.inputs.map((i) => [i.addressType, i.addressIndex])).toEqual([
+        [0, index],
+      ]);
+    });
+  }
+
+  // G6: the address path is what users see and what their funds are locked to.
+  // These literals are what main derives for the same (class, index) pairs; any
+  // change here would move an existing account's address.
+  for (const index of [0, 1, 3]) {
+    test(`address path is unchanged for both classes at index ${index}`, async () => {
+      const legacy = legacyAt(index);
+      const legacyStub = instrument(legacy);
+      await legacy.getPublicKey();
+      await legacy.getPublicKeys();
+
+      const nonLegacy = nonLegacyAt(index);
+      const nonLegacyStub = instrument(nonLegacy);
+      await nonLegacy.getPublicKey();
+      await nonLegacy.getPublicKeys();
+
+      expect(legacyStub.paths).toEqual([
+        `m/44'/111111'/${index}'/0/0`,
+        `m/44'/111111'/${index}'/0/0`,
+      ]);
+      expect(nonLegacyStub.paths).toEqual([
+        `m/44'/111111'/0'/0/${index}`,
+        `m/44'/111111'/0'/0/${index}`,
+      ]);
+    });
+  }
+
+  // C: the derivation goes on every input, not just the first.
+  test("every input carries the account's derivation, not a hardcoded 0/0", async () => {
+    const tx = await signAndCapture(
+      nonLegacyAt(3),
+      mkTxJson({}, "90000000", 3),
+    );
+
+    expect(tx.inputs).toHaveLength(3);
+    expect(tx.inputs.map((i) => [i.addressType, i.addressIndex])).toEqual([
+      [0, 3],
+      [0, 3],
+      [0, 3],
+    ]);
+  });
+
+  // signMessage reads the same accessor, so a message signed by a non-legacy
+  // account at index >= 1 now verifies against the address it is shown under.
+  test("signMessage uses the same derivation as the address path", async () => {
+    const legacy = legacyAt(3);
+    const legacyStub = instrument(legacy);
+    await legacy.signMessage("hello");
+    expect(legacyStub.messageArgs[0]).toEqual(["hello", 0, 0, 3 + 0x80000000]);
+
+    const nonLegacy = nonLegacyAt(3);
+    const nonLegacyStub = instrument(nonLegacy);
+    await nonLegacy.signMessage("hello");
+    expect(nonLegacyStub.messageArgs[0]).toEqual(["hello", 0, 3, 0x80000000]);
+  });
+
+  // D: hw-app-kaspa marshals sompi as a JS number, so anything the Number
+  // domain cannot hold exactly must be refused rather than rounded.
+  test("refuses input amounts above the safe-integer boundary", async () => {
+    const account = nonLegacyAt(0);
+    instrument(account);
+    const tooBig = (BigInt(Number.MAX_SAFE_INTEGER) + 1n).toString();
+
+    await expect(
+      account.signTx(
+        deserializeTransaction(
+          mkTxJson({
+            utxo: {
+              address: null,
+              amount: tooBig,
+              scriptPublicKey: SPK,
+              blockDaaScore: "1000",
+              isCoinbase: false,
+            },
+          }),
+        ),
+      ),
+    ).rejects.toThrow(/outside the range/);
+  });
+
+  test("refuses output amounts above the safe-integer boundary", async () => {
+    const account = nonLegacyAt(0);
+    instrument(account);
+    const tooBig = (BigInt(Number.MAX_SAFE_INTEGER) + 1n).toString();
+
+    await expect(
+      account.signTx(deserializeTransaction(mkTxJson({}, tooBig))),
+    ).rejects.toThrow(/outside the range/);
+  });
+
+  test("an amount at the safe-integer boundary still signs", async () => {
+    const atMax = BigInt(Number.MAX_SAFE_INTEGER).toString();
+    const tx = await signAndCapture(
+      nonLegacyAt(0),
+      mkTxJson({
+        utxo: {
+          address: null,
+          amount: atMax,
+          scriptPublicKey: SPK,
+          blockDaaScore: "1000",
+          isCoinbase: false,
+        },
+      }),
+    );
+
+    expect(tx.inputs[0].value).toBe(Number.MAX_SAFE_INTEGER);
+  });
+
+  test("refuses an input with no UTXO entry instead of sending NaN", async () => {
+    const account = nonLegacyAt(0);
+    instrument(account);
+
+    // The wasm deserializer will not accept a null utxo, so reach the same
+    // state the way production does: an input whose UTXO entry was never
+    // attached.
+    const tx = deserializeTransaction(mkTxJson());
+    tx.inputs = [
+      {
+        previousOutpoint: { transactionId: "11".repeat(32), index: 0 },
+        signatureScript: "",
+        sequence: 0n,
+        sigOpCount: 1,
+      },
+    ];
+    expect(tx.inputs[0].utxo).toBeUndefined();
+
+    await expect(account.signTx(tx)).rejects.toThrow(/missing its UTXO entry/);
   });
 });
