@@ -57,13 +57,14 @@ export default function LedgerSignAndBroadcast({
       ? LEDGER_UNSIGNABLE_FIELDS_MESSAGE
       : undefined;
 
-  // Dispatch outside the render phase and once per mount: React can render
-  // this component more than once, and each requestId must produce exactly
-  // one rejection response.
-  const sentRef = useRef(false);
+  // Dispatch outside the render phase, exactly once per requestId: React can
+  // render this component more than once, and a still-mounted screen could in
+  // principle be handed a new requestId via query-param navigation — each
+  // requestId must produce exactly one rejection response.
+  const sentForRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!refusalMessage || sentRef.current) return;
-    sentRef.current = true;
+    if (!refusalMessage || sentForRef.current === requestId) return;
+    sentForRef.current = requestId;
     ApiExtensionUtils.sendMessage(
       requestId,
       ApiUtils.createApiResponse(requestId, null, refusalMessage),
