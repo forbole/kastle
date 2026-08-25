@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.59.3](https://github.com/forbole/kastle/compare/v2.59.2...v2.59.3) (2026-08-25)
+
+
+### Bug Fixes
+
+* allow script-free dApp signing on Ledger; refuse sign-only requests upfront with an accurate reason ([#308](https://github.com/forbole/kastle/issues/308)) ([b11b9d3](https://github.com/forbole/kastle/commit/b11b9d33dd6c8395d1324b8859e9046f1a236908))
+
 ## [2.59.2](https://github.com/forbole/kastle/compare/v2.59.1...v2.59.2) (2026-08-25)
 
 
