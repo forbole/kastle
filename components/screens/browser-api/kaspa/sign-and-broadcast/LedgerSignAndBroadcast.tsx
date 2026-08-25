@@ -18,6 +18,12 @@ type LedgerSignAndBroadcastProps = {
   origin: string;
 };
 
+// Approved refusal copy for unsignable-field requests (A1 addendum). ONE
+// constant feeds BOTH the dApp rejection and the on-screen detail so the two
+// reasons can never drift apart.
+export const LEDGER_UNSIGNABLE_FIELDS_MESSAGE =
+  "Ledger can't verify this transaction's memo, time lock, or other advanced fields yet. Try a hot wallet account instead.";
+
 export default function LedgerSignAndBroadcast({
   requestId,
   payload,
@@ -48,7 +54,7 @@ export default function LedgerSignAndBroadcast({
   const refusalMessage = scripted
     ? "Ledger does not support advanced scripts signing"
     : unsignable
-      ? "This transaction uses features your Ledger cannot verify (time locks, sequence numbers, or payload data)."
+      ? LEDGER_UNSIGNABLE_FIELDS_MESSAGE
       : undefined;
 
   // Dispatch outside the render phase and once per mount: React can render
@@ -72,7 +78,7 @@ export default function LedgerSignAndBroadcast({
     return (
       <LedgerNotSupported
         subtitle="This transaction can't be verified on your Ledger."
-        detail="This transaction uses features your Ledger cannot verify (time locks, sequence numbers, or payload data). To proceed, please switch to a non-Ledger account."
+        detail={LEDGER_UNSIGNABLE_FIELDS_MESSAGE}
       />
     );
   }
