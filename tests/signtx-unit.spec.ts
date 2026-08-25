@@ -715,9 +715,14 @@ test.describe("ledger signer index parity (F7)", () => {
   });
 });
 
-// L1: the payload schema defaults `scripts` to [], so the Ledger screens must
-// gate on actual script options. A bare existence check is always truthy and
-// refused every dApp signTx routed to a Ledger account (the v2.59.1 outage).
+// L1: the payload schema defaults `scripts` to [], so consumers must gate on
+// actual script options — a bare existence check is always truthy and refused
+// every dApp signTx routed to a Ledger account (the v2.59.1 outage).
+// hasScriptOptions drives: the LedgerSignAndBroadcast gate, the
+// wallet.signTx call-site normalization ([] -> undefined) in both confirm
+// screens, and the refusal-message selection in LedgerSignTx (sign-only is
+// always refused on Ledger until KAS-002 items 2 and 3, but script-bearing
+// and script-free requests must get different reasons).
 test.describe("ledger script gate (L1)", () => {
   test("empty scripts array is not a script-bearing request", () => {
     expect(hasScriptOptions([])).toBe(false);
