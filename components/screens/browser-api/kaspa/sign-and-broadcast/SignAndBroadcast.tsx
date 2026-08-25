@@ -13,6 +13,8 @@ import {
   TransactionOutput,
 } from "@/wasm/core/kaspa";
 import { calcRevealInputMass } from "@/lib/kaspaFee";
+import { hasPartialOutputCommitment } from "@/lib/wallet/sign-script.ts";
+import { PARTIAL_OUTPUT_WARNING } from "@/components/screens/browser-api/kaspa/sign-tx/SignTx";
 
 type SignAndBroadcastProps = {
   wallet: IWallet;
@@ -156,9 +158,16 @@ export default function SignAndBroadcast({
       cancel={handleCancel}
       confirm={handleConfirm}
       warning={
-        feeAdjusted
-          ? "Transaction fee was insufficient. Network fee has been automatically adjusted."
-          : undefined
+        [
+          hasPartialOutputCommitment(payload.scripts)
+            ? PARTIAL_OUTPUT_WARNING
+            : undefined,
+          feeAdjusted
+            ? "Transaction fee was insufficient. Network fee has been automatically adjusted."
+            : undefined,
+        ]
+          .filter(Boolean)
+          .join("\n\n") || undefined
       }
     />
   );

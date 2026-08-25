@@ -13,6 +13,51 @@ export type RawScriptOption = Partial<ScriptOption> & { script?: string };
 
 const HEX_RE = /^(?:[0-9a-fA-F]{2})*$/;
 
+// Sighash types split on one axis: how much of the output set the signature
+// commits to.
+//   All / AllAnyOneCanPay        -> every output committed        (safe)
+//   Single / SingleAnyOneCanPay  -> only the same-index output     (partial)
+//   None / NoneAnyOneCanPay      -> no outputs committed at all    (unsafe)
+// With None*, the amount and destination the confirm screen showed are not
+// bound by the signature and can be rewritten after approval, so they are
+// refused outright.
+// TODO: allow per-request opt-in from an advanced setting instead of a
+// hardcoded constant, once that setting exists.
+const ALLOW_UNSAFE_OUTPUT_SIGHASH = false;
+
+const UNSAFE_OUTPUT_SIGN_TYPES = ["None", "NoneAnyOneCanPay"] as const;
+const PARTIAL_OUTPUT_SIGN_TYPES = ["Single", "SingleAnyOneCanPay"] as const;
+
+// Chokepoint for the None* refusal: called from normalizeScriptOptions (fails
+// the whole request early, before any mutation) AND from
+// signTxInputWithScriptOption itself, so a future caller that skips
+// normalization cannot silently reintroduce unsafe signing.
+function assertSafeOutputSighash(signType: string, inputIndex: number): void {
+  if (
+    !ALLOW_UNSAFE_OUTPUT_SIGHASH &&
+    (UNSAFE_OUTPUT_SIGN_TYPES as readonly string[]).includes(signType)
+  ) {
+    throw new Error(
+      `signTx: signType "${signType}" commits no outputs, so every output could be rewritten after signing; refusing to sign input ${inputIndex}`,
+    );
+  }
+}
+
+/**
+ * True when any option signs with a sighash type that commits only part of the
+ * outputs, so the rest can still change after the user approves. Non-throwing:
+ * safe to call from render paths that also display invalid requests.
+ */
+export function hasPartialOutputCommitment(
+  scripts?: (RawScriptOption | null | undefined)[],
+): boolean {
+  return (scripts ?? []).some((option) =>
+    (PARTIAL_OUTPUT_SIGN_TYPES as readonly string[]).includes(
+      option?.signType ?? "All",
+    ),
+  );
+}
+
 export function normalizeScriptOptions(
   scripts?: (RawScriptOption | null | undefined)[],
 ): ScriptOption[] {
@@ -38,7 +83,10 @@ export function normalizeScriptOptions(
         throw new Error(`signTx: invalid scriptHex for input ${inputIndex}`);
       }
 
-      return { inputIndex, scriptHex, signType: option.signType ?? "All" };
+      const signType = option.signType ?? "All";
+      assertSafeOutputSighash(signType, inputIndex);
+
+      return { inputIndex, scriptHex, signType };
     });
 }
 
@@ -71,6 +119,8 @@ export function signTxInputWithScriptOption(
   option: ScriptOption,
   privateKeyString: string,
 ) {
+  assertSafeOutputSighash(option.signType ?? "All", option.inputIndex);
+
   // each tx.inputs access crosses the WASM boundary; read it once
   const inputs = tx.inputs;
   if (option.inputIndex >= inputs.length) {
