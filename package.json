@@ -79,7 +79,7 @@
     "eslint": "^9.32.0",
     "eslint-plugin-react": "^7.37.3",
     "globals": "^15.14.0",
-    "postcss": "^8.4.49",
+    "postcss": "^8.5.26",
     "prettier": "^3.4.2",
     "prettier-plugin-tailwindcss": "^0.6.9",
     "storybook": "^10.4.6",
