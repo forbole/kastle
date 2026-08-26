@@ -34,7 +34,11 @@ export default function KNSTransferSuccess({
       <Header title="Transferred" showPrevious={false} showClose={false} />
       <div className="mt-20 flex flex-1 flex-col justify-between">
         <div className="flex flex-col items-center gap-4">
-          <img src={successImage} alt="Success" className="mx-auto h-24 w-24" />
+          <img
+            src={successImage}
+            alt="Success"
+            className="mx-auto aspect-[686/240] w-full max-w-[343px]"
+          />
           <div className="flex flex-col gap-2 text-center">
             <span className="text-xl font-semibold text-[#14B8A6]">
               Success

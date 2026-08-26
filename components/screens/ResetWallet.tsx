@@ -1,7 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
-import warningImage from "@/assets/images/warning.png";
+import alertImage from "@/assets/images/alert.png";
 import Header from "@/components/GeneralHeader";
 import { forceOnboarding } from "@/entrypoints/popup/router.tsx";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
@@ -32,9 +32,9 @@ export default function ResetWallet() {
 
       <div className="flex h-full flex-col items-stretch gap-4">
         <img
-          src={warningImage}
+          src={alertImage}
           alt="Warning"
-          className="mx-auto mb-6 h-20 w-20"
+          className="mx-auto mb-6 aspect-[686/255] w-full max-w-[343px]"
         />
 
         <p className="text-sm">

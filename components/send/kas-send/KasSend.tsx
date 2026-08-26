@@ -9,6 +9,8 @@ import useWalletManager from "@/hooks/wallet/useWalletManager";
 import HotWalletConfirm from "@/components/send/kas-send/HotWalletConfirm";
 import LedgerConfirm from "@/components/send/kas-send/LedgerConfirm";
 import z from "zod";
+import useAnalytics from "@/hooks/useAnalytics";
+import useKaspaPrice from "@/hooks/useKaspaPrice";
 
 const steps = ["details", "confirm", "broadcast", "success", "fail"] as const;
 
@@ -43,7 +45,9 @@ export default function KasSend() {
     };
   };
   const [step, setStep] = useState<Step>(state?.step ?? "details");
-  const { wallet } = useWalletManager();
+  const { wallet, account } = useWalletManager();
+  const { emitSendCompleted } = useAnalytics();
+  const { kaspaPrice } = useKaspaPrice();
 
   const form = useForm<KasSendForm>({
     defaultValues: {
@@ -78,7 +82,15 @@ export default function KasSend() {
             onNext={() => setStep("broadcast")}
             onBack={onBack}
             setOutTxs={setOutTxs}
-            onFail={() => setStep("fail")}
+            onFail={() => {
+              emitSendCompleted({
+                type: "KAS",
+                id: "KAS",
+                status: "failed",
+                sender: account?.address,
+              });
+              setStep("fail");
+            }}
           />
         )}
         {step === "confirm" && wallet?.type === "ledger" && (
@@ -86,11 +98,37 @@ export default function KasSend() {
             onNext={() => setStep("broadcast")}
             onBack={onBack}
             setOutTxs={setOutTxs}
-            onFail={() => setStep("fail")}
+            onFail={() => {
+              emitSendCompleted({
+                type: "KAS",
+                id: "KAS",
+                status: "failed",
+                sender: account?.address,
+              });
+              setStep("fail");
+            }}
           />
         )}
         {step === "broadcast" && (
-          <Broadcasting onSuccess={() => setStep("success")} />
+          <Broadcasting
+            onSuccess={() => {
+              const amount = form.getValues("amount");
+              const value_native = amount ? parseFloat(amount) : undefined;
+              emitSendCompleted({
+                type: "KAS",
+                id: "KAS",
+                status: "success",
+                sender: account?.address,
+                value_native,
+                native_asset: value_native !== undefined ? "KAS" : undefined,
+                value_usd:
+                  value_native && kaspaPrice
+                    ? value_native * kaspaPrice
+                    : undefined,
+              });
+              setStep("success");
+            }}
+          />
         )}
         {step === "success" && <SuccessStatus transactionIds={outTxs} />}
         {step === "fail" && <FailStatus transactionIds={outTxs} />}

@@ -39,7 +39,7 @@ export default function useAccountManager() {
     const lastAccount = wallet.accounts[wallet.accounts.length - 1];
     const nextIndex = lastAccount.index + 1;
 
-    const walletIsLegacy = wallet.isLegacyWalletEnabled ?? true;
+    const walletIsLegacy = wallet.isLegacyWalletEnabled ?? false;
 
     const { publicKeys: kaspaPublicKeys } =
       await kaspaBackgroundSigner.getPublicKeys({
@@ -51,10 +51,12 @@ export default function useAccountManager() {
       .toAddress(networkId)
       .toString();
 
+    const shouldUseLegacy = settings?.isLegacyEvmAddressEnabled ?? false;
+
     const { publicKey: evmPublicKey } = await evmBackgroundSigner.getPublicKey({
       walletId,
       accountIndex: nextIndex,
-      isLegacy: settings?.isLegacyEvmAddressEnabled ?? false,
+      isLegacy: shouldUseLegacy,
       isKastleLegacy: walletIsLegacy,
     });
 
@@ -73,6 +75,8 @@ export default function useAccountManager() {
     await setWalletSettings({
       ...walletSettings,
     });
+
+    return kaspaAddress;
   };
 
   // Function to select an account in the wallet
@@ -238,7 +242,7 @@ export default function useAccountManager() {
       throw new Error(`Wallet ${walletId} not found`);
     }
 
-    const isLegacyEnabled = wallet.isLegacyWalletEnabled ?? true; // Default to true if not specified
+    const isLegacyEnabled = wallet.isLegacyWalletEnabled ?? false;
     const factory = isLegacyEnabled
       ? new KaspaLegacyAccountFactory()
       : new KaspaAccountFactory();

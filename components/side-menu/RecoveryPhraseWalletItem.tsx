@@ -3,6 +3,7 @@ import { WalletInfo } from "@/contexts/WalletManagerContext.tsx";
 import AccountItem from "./AccountItem";
 import WalletHeader from "./WalletHeader";
 import useAccountManager from "@/hooks/wallet/useAccountManager";
+import useAnalytics from "@/hooks/useAnalytics";
 
 interface RecoveryPhraseWalletItemProps {
   wallet: WalletInfo;
@@ -15,6 +16,7 @@ export const RecoveryPhraseWalletItem = ({
 }: RecoveryPhraseWalletItemProps) => {
   const navigate = useNavigate();
   const { addAccount } = useAccountManager();
+  const { emitAccountCreated } = useAnalytics();
 
   const menuItems = [
     {
@@ -60,7 +62,14 @@ export const RecoveryPhraseWalletItem = ({
             {/* Add account */}
             <button
               className="flex items-center justify-stretch gap-2 rounded-xl border border-daintree-700 bg-white/5 p-3 hover:border-white"
-              onClick={() => addAccount(wallet.id, true)}
+              onClick={async () => {
+                try {
+                  const address = await addAccount(wallet.id, true);
+                  emitAccountCreated({ sender: address });
+                } catch {
+                  // ignore analytics errors
+                }
+              }}
             >
               <span className="flex size-9 items-center justify-center rounded-lg bg-white/5 text-white">
                 <i className="hn hn-plus text-[16px]"></i>

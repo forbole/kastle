@@ -20,6 +20,7 @@ import { twMerge } from "tailwind-merge";
 import useFeeEstimate from "@/hooks/evm/useFeeEstimate";
 import placeholderImage from "@/assets/images/nft-placeholder.png";
 import { textEllipsis } from "@/lib/utils";
+import { getNftImageUrl } from "@/lib/nft/erc721";
 import { useEffect } from "react";
 
 type Erc721TransferDetailsProps = {
@@ -114,7 +115,7 @@ export default function Erc721TransferDetails({
         <div className="relative mx-auto max-h-28 max-w-48 rounded-xl bg-daintree-800">
           {!!data && (
             <img
-              src={data.image_url ?? placeholderImage}
+              src={getNftImageUrl(data) ?? placeholderImage}
               alt={data.metadata?.name ?? "ERC721"}
               className="m-auto max-h-28 max-w-48 rounded-xl"
             />

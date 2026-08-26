@@ -18,17 +18,20 @@ import { useBoolean } from "usehooks-ts";
 import ledgerSignImage from "@/assets/images/ledger-on-sign.svg";
 import { formatCurrency } from "@/lib/utils.ts";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
+import { deserializeTransaction } from "@/lib/kaspa-compat";
 
 type SignConfirmProps = {
   payload: SignTxPayload;
   confirm: () => void;
   cancel: () => void;
+  warning?: string;
 };
 
 export default function SignConfirm({
   payload,
   confirm,
   cancel,
+  warning,
 }: SignConfirmProps) {
   const kaspaPrice = useKaspaPrice();
   const { account, wallet } = useWalletManager();
@@ -36,7 +39,7 @@ export default function SignConfirm({
   const [settings, setSettings] = useSettings();
   const { value: isSigning, toggle: toggleIsSigning } = useBoolean(false);
 
-  const transaction = Transaction.deserializeFromSafeJSON(payload.txJson);
+  const transaction = deserializeTransaction(payload.txJson);
 
   const inputsAmount = transaction.inputs.reduce(
     (acc, input) => acc + (input.utxo?.amount ?? 0n),
@@ -134,7 +137,8 @@ export default function SignConfirm({
 
   const networkId = settings?.networkId;
 
-  const networkMismatched = networkId?.toString() !== payload.networkId;
+  const networkMismatched =
+    !!payload.networkId && networkId?.toString() !== payload.networkId;
   const switchNetwork = () => {
     setSettings((prev) => ({
       ...prev,
@@ -158,7 +162,11 @@ export default function SignConfirm({
         <Header showPrevious={false} showClose={false} title="Confirm" />
         <div className="relative">
           {wallet?.type !== "ledger" && (
-            <img src={signImage} alt="Sign" className="mx-auto" />
+            <img
+              src={signImage}
+              alt="Sign"
+              className="mx-auto aspect-[686/240] w-full max-w-[343px]"
+            />
           )}
           {wallet?.type === "ledger" && (
             <img src={ledgerSignImage} alt="Sign" className="mx-auto" />
@@ -198,6 +206,11 @@ export default function SignConfirm({
         {/* Confirm Content */}
         {!networkMismatched && (
           <>
+            {warning && (
+              <div className="mt-3 whitespace-pre-line rounded-lg border border-yellow-600 bg-yellow-900/30 px-4 py-2 text-xs text-yellow-400">
+                {warning}
+              </div>
+            )}
             <ul className="mt-3 flex flex-col rounded-lg bg-daintree-800">
               <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
                 <div className="flex w-full items-start justify-between">

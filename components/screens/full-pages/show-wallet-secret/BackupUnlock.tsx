@@ -55,7 +55,7 @@ export default function BackupUnlock({
           <img
             src={keyImage}
             alt="key"
-            className="mx-auto h-[120px] w-[120px]"
+            className="mx-auto aspect-[686/240] w-full max-w-[343px]"
           />
           <div className="mt-5 px-4 text-center">
             <h1 className="text-xl font-bold">

@@ -2,7 +2,7 @@ import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import useKaspaBackgroundSigner from "./useKaspaBackgroundSigner";
 import { Transaction, PublicKey } from "@/wasm/core/kaspa";
-import { ScriptOption } from "@/lib/wallet/wallet-interface";
+import type { ScriptOption } from "@/lib/wallet/wallet-interface";
 
 export default function useKaspaHotWalletSigner() {
   const { wallet: walletInfo, account } = useWalletManager();
@@ -13,12 +13,15 @@ export default function useKaspaHotWalletSigner() {
     return undefined;
   }
 
+  const isKastleLegacy = walletInfo.isLegacyWalletEnabled ?? false;
+
   const getPublicKeys = async () => {
     const walletId = walletInfo.id;
     const accountIndex = account.index;
     const { publicKeys } = await signer.getPublicKeys({
       walletId,
       accountIndex,
+      isLegacy: isKastleLegacy,
     });
     return publicKeys;
   };
@@ -40,11 +43,18 @@ export default function useKaspaHotWalletSigner() {
       scripts,
       walletId,
       accountIndex,
+      networkId,
+      isLegacy: isKastleLegacy,
     });
 
-    const { signedTransactionJSON } = signedTransaction;
-    const tx = Transaction.deserializeFromSafeJSON(signedTransactionJSON);
-    return tx;
+    const { signedTransactionJSON } = signedTransaction ?? {};
+    if (!signedTransactionJSON) {
+      throw new Error(
+        "signTx: background signer returned no signed transaction",
+      );
+    }
+    // Background service always returns new-WASM serialised JSON
+    return Transaction.deserializeFromSafeJSON(signedTransactionJSON);
   };
 
   const signMessage = async (message: string) => {
@@ -54,6 +64,8 @@ export default function useKaspaHotWalletSigner() {
       message,
       walletId,
       accountIndex,
+      networkId,
+      isLegacy: isKastleLegacy,
     });
     return signedMessage;
   };

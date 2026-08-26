@@ -1,4 +1,5 @@
 import { PostHogWrapperContext } from "@/contexts/PostHogWrapperProvider.tsx";
+import { hashAddress } from "@/lib/utils";
 
 const ANALYTICS_KEY = "local:analytics";
 
@@ -8,12 +9,117 @@ const defaultValues = {
   hasFirstTransaction: false,
 };
 
+export type SendInitiatedProperties =
+  | { type: "KAS"; id: "KAS" }
+  | { type: "KRC20"; id: string }
+  | { type: "EVM_KAS"; id: string; chainId: number }
+  | { type: "ERC20"; id: string; chainId: number };
+
+type CommonSendCompleted = { sender?: string };
+type FungibleSendCompleted = CommonSendCompleted & {
+  value_native?: number;
+  native_asset?: string;
+  value_usd?: number;
+};
+
+export type SendCompletedProperties =
+  | ({
+      type: "KAS";
+      id: "KAS";
+      status: "success" | "failed";
+    } & FungibleSendCompleted)
+  | ({
+      type: "KRC20";
+      id: string;
+      status: "success" | "failed";
+    } & FungibleSendCompleted)
+  | ({
+      type: "EVM_KAS";
+      id: string;
+      chainId: number;
+      status: "success" | "failed";
+    } & FungibleSendCompleted)
+  | ({
+      type: "ERC20";
+      id: string;
+      chainId: number;
+      status: "success" | "failed";
+    } & FungibleSendCompleted)
+  | ({
+      type: "KRC721";
+      id: string;
+      status: "success" | "failed";
+    } & CommonSendCompleted)
+  | ({
+      type: "KNS";
+      id: string;
+      status: "success" | "failed";
+    } & CommonSendCompleted)
+  | ({
+      type: "ERC721";
+      id: string;
+      chainId: number;
+      status: "success" | "failed";
+    } & CommonSendCompleted);
+
 export default function useAnalytics() {
   const { postHog } = useContext(PostHogWrapperContext);
   const [cachedAnalytics, setCachedAnalytics] = useState<Analytics>();
 
+  const PLATFORM = { platform: "extension" } as const;
+
+  const capture = (event: string, properties?: Record<string, unknown>) =>
+    postHog?.capture(event, { ...properties, ...PLATFORM });
+
+  const captureWithSender = (
+    event: string,
+    properties: Record<string, unknown>,
+  ) => {
+    const { sender, ...rest } = properties;
+    const senderStr = typeof sender === "string" ? sender : undefined;
+    if (senderStr) {
+      void hashAddress(senderStr)
+        .then((hashedSender) => capture(event, { ...rest, hashedSender }))
+        .catch(() => capture(event, rest));
+    } else {
+      capture(event, rest);
+    }
+  };
+
   return {
-    emitOnboardingComplete: () => postHog?.capture("onboarding_complete"),
+    emitExtensionUnlocked: () => {
+      const manifest = browser.runtime.getManifest();
+      capture("extension_unlocked", {
+        $app_version: manifest.version,
+        $app_name: manifest.name,
+      });
+    },
+    emitOnboardingCompleted: () => capture("onboarding_completed"),
+    emitWalletCreated: (properties: {
+      method: "new" | "import";
+      sender?: string;
+    }) => captureWithSender("wallet_created", properties),
+    emitAccountCreated: (properties: { sender?: string }) =>
+      captureWithSender("account_created", properties),
+    emitSendInitiated: (properties: SendInitiatedProperties) =>
+      capture("send_initiated", properties),
+    emitSendCompleted: (properties: SendCompletedProperties) =>
+      captureWithSender(
+        "send_completed",
+        properties as Record<string, unknown>,
+      ),
+    emitKasSignTx: (properties: {
+      origin: string;
+      status: "success" | "failed";
+    }) => capture("kas:sign_tx", properties),
+    emitKasSignAndBroadcastTx: (properties: {
+      origin: string;
+      status: "success" | "failed";
+    }) => capture("kas:sign_and_broadcast_tx", properties),
+    emitEthSendTransaction: (properties: {
+      origin: string;
+      status: "success" | "failed";
+    }) => capture("eth_sendTransaction", properties),
     emitFirstTransaction: async (properties: {
       direction: "send" | "receive";
       amount: string;
@@ -35,9 +141,7 @@ export default function useAnalytics() {
         hasFirstTransaction: true,
       });
 
-      return postHog?.capture("first_transaction", properties);
+      return capture("first_transaction", properties);
     },
-    emitWalletImported: () => postHog?.capture("wallet_imported"),
-    emitPrivateKeyImported: () => postHog?.capture("key_imported"),
   };
 }

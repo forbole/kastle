@@ -100,7 +100,7 @@ export const ConfirmStep = ({
 
       setOutTxs([transactionId]);
       // Don't await, analytics should not crash the app
-      emitFirstTransaction({
+      void emitFirstTransaction({
         amount,
         coin: "KAS",
         direction: "send",
@@ -131,7 +131,7 @@ export const ConfirmStep = ({
         {wallet?.type !== "ledger" && (
           <img
             alt="castle"
-            className="h-[120px] w-[134px] self-center"
+            className="aspect-[686/240] w-full max-w-[343px] self-center"
             src={signImage}
           />
         )}

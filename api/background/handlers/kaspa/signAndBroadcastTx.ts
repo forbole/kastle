@@ -48,6 +48,7 @@ export const signAndBroadcastTxHandler: Handler = async (
   url.hash = "/sign-and-broadcast-tx";
   url.searchParams.set("requestId", message.id);
   url.searchParams.set("payload", JSON.stringify(result.data));
+  url.searchParams.set("origin", message.host);
 
   // Open the popup and wait for the response
   const response = await ApiUtils.openPopupAndListenForResponse(

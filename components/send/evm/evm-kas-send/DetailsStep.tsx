@@ -15,8 +15,9 @@ import { formatToken, truncToDecimals } from "@/lib/utils";
 import useKaspaPrice from "@/hooks/useKaspaPrice";
 import useCurrencyValue from "@/hooks/useCurrencyValue";
 import Layer2AssetImage from "@/components/Layer2AssetImage";
-import { getChainImage } from "@/lib/layer2";
+import { getChainImage, getChainTokenSymbol, isIgraChain } from "@/lib/layer2";
 import useEvmAddress from "@/hooks/evm/useEvmAddress";
+import { useIns } from "@/hooks/ins/useIns";
 
 export default function DetailsStep({
   chainId,
@@ -41,8 +42,10 @@ export default function DetailsStep({
   const { rawBalance, balance } = balanceInfo ?? {};
   const currentBalance = rawBalance ?? 0n;
   const evmAddress = useEvmAddress();
+  const { fetchDomainOwner } = useIns();
+  const insEnabled = isIgraChain(chainId);
 
-  const { userInput, address, amount } = watch();
+  const { userInput, address, domain, amount } = watch();
   const { data: estimatedFee } = useFeeEstimate(
     chainId,
     evmAddress
@@ -67,18 +70,31 @@ export default function DetailsStep({
 
   const { kaspaPrice: tokenPrice } = useKaspaPrice();
   const { amount: tokenCurrency } = useCurrencyValue(tokenPrice);
+  const tokenSymbol = getChainTokenSymbol(chainId);
 
   const addressValidator = async (value: string | undefined) => {
-    const genericErrorMessage = "Invalid address";
+    const genericErrorMessage = `Invalid EVM address${insEnabled ? " or INS domain" : ""}`;
     if (!value) return undefined;
 
     try {
-      if (!isAddress(value)) {
-        return genericErrorMessage;
+      if (isAddress(value)) {
+        setValue("address", value);
+        setValue("domain", undefined);
+        return true;
       }
 
-      setValue("address", value);
-      return true;
+      if (insEnabled && value.includes(".")) {
+        const resolved = await fetchDomainOwner(value);
+        if (resolved && isAddress(resolved)) {
+          setValue("address", resolved);
+          setValue("domain", value);
+          return true;
+        }
+      }
+
+      setValue("address", undefined);
+      setValue("domain", undefined);
+      return genericErrorMessage;
     } catch (error) {
       console.error(error);
       return genericErrorMessage;
@@ -103,6 +119,7 @@ export default function DetailsStep({
   useEffect(() => {
     if (userInput === "") {
       setValue("address", undefined, { shouldValidate: true });
+      setValue("domain", undefined, { shouldValidate: true });
     }
   }, [userInput]);
 
@@ -177,7 +194,11 @@ export default function DetailsStep({
               errors.userInput &&
                 "ring ring-red-500/25 focus:ring focus:ring-red-500/25",
             )}
-            placeholder="Enter EVM wallet address"
+            placeholder={
+              insEnabled
+                ? "Enter EVM wallet address or INS domain"
+                : "Enter EVM wallet address"
+            }
           />
 
           <div className="pointer-events-none absolute end-0 top-10 flex h-16 items-center pe-3">
@@ -189,6 +210,11 @@ export default function DetailsStep({
               />
             )}
           </div>
+          {domain && (
+            <span className="inline-block break-all text-sm text-daintree-400">
+              {address}
+            </span>
+          )}
           {errors.userInput && (
             <span className="inline-block text-sm text-red-500">
               {errors.userInput.message}
@@ -201,7 +227,7 @@ export default function DetailsStep({
           <div className="flex items-center gap-3 text-sm">
             <span className="font-semibold">Balance</span>
             <span className="flex-grow">
-              {formatToken(parseFloat(balance ?? "0"))} KAS
+              {formatToken(parseFloat(balance ?? "0"))} {tokenSymbol}
             </span>
             <button
               className="inline-flex items-center gap-x-2 rounded border border-transparent bg-icy-blue-400 px-3 py-2 text-sm text-white disabled:pointer-events-none disabled:opacity-50"
@@ -231,7 +257,7 @@ export default function DetailsStep({
                   chainImageBottomPosition={-2}
                   chainImageRightPosition={-12}
                 />
-                KAS
+                {tokenSymbol}
               </button>
               <input
                 {...register("amount", {
@@ -327,12 +353,13 @@ export default function DetailsStep({
             <i
               className="hn hn-info-circle text-[16px]"
               data-tooltip-id="fee-estimation-tooltip"
-              data-tooltip-content={`${formatToken(parseFloat(formatEther(estimatedFee ?? 0n)))} KAS for EVM miner fees.`}
+              data-tooltip-content={`${formatToken(parseFloat(formatEther(estimatedFee ?? 0n)))} ${tokenSymbol} for EVM miner fees.`}
             ></i>
 
             <span>Estimated</span>
             <span>
-              {formatToken(parseFloat(formatEther(estimatedFee ?? 0n)))} KAS
+              {formatToken(parseFloat(formatEther(estimatedFee ?? 0n)))}{" "}
+              {tokenSymbol}
             </span>
           </div>
         </div>

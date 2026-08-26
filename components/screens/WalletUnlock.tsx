@@ -6,6 +6,7 @@ import { useBoolean } from "usehooks-ts";
 import kastleBanner from "@/assets/images/kastle-banner.svg";
 import { twMerge } from "tailwind-merge";
 import useKeyring from "@/hooks/useKeyring.ts";
+import useAnalytics from "@/hooks/useAnalytics.ts";
 
 type FormValues = {
   password: string;
@@ -14,6 +15,7 @@ type FormValues = {
 export default function WalletUnlock() {
   const [searchParams] = useSearchParams();
   const { keyringUnlock } = useKeyring();
+  const { emitExtensionUnlocked } = useAnalytics();
   const navigate = useNavigate();
   const { value: showPassword, toggle } = useBoolean(false);
 
@@ -36,6 +38,8 @@ export default function WalletUnlock() {
         return;
       }
 
+      emitExtensionUnlocked();
+
       const redirect = searchParams.get("redirect");
 
       return navigate(redirect ?? "/dashboard");
@@ -55,7 +59,11 @@ export default function WalletUnlock() {
           <div className="flex items-center justify-center gap-2">
             <img alt="bank" className="h-[20px] w-[112px]" src={kastleBanner} />
           </div>
-          <img alt="castle" className="h-[229px] w-[229px]" src={castleImage} />
+          <img
+            alt="castle"
+            className="mx-auto aspect-[686/456] w-full max-w-[343px]"
+            src={castleImage}
+          />
           <h3 className="text-center text-lg text-gray-200">Welcome back</h3>
         </div>
         {/** Form */}

@@ -1,4 +1,4 @@
-import { createContext, ReactNode, useState } from "react";
+import { createContext, ReactNode, useEffect, useRef, useState } from "react";
 import { PostHog } from "posthog-js-lite";
 import { isProduction } from "@/lib/utils.ts";
 
@@ -15,22 +15,23 @@ export function PostHogWrapperProvider({ children }: { children: ReactNode }) {
   const [postHog, setPostHog] = useState<PostHog>();
 
   useEffect(() => {
-    if (!isProduction) {
-      return;
-    }
-
     if (calledOnce.current) return;
     calledOnce.current = true;
 
-    const postHogInstance = new PostHog(
-      "phc_cnYLzCi1iYgXbHycArgvgabG1VhNEOSjCZpFhJiirH1",
-      {
-        host: "https://eu.i.posthog.com",
-        autocapture: false,
-      },
-    );
+    try {
+      const postHogInstance = new PostHog(
+        "phc_9GNofpiXuB3oDxjJes4K2VaTgM33mwCNt8ZoOoTgyon",
+        {
+          host: "https://eu.i.posthog.com",
+          autocapture: false,
+          defaultOptIn: isProduction,
+        },
+      );
 
-    setPostHog(postHogInstance);
+      setPostHog(postHogInstance);
+    } catch {
+      // Analytics init failure must not affect the app
+    }
   }, []);
 
   return (

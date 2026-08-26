@@ -1,5 +1,237 @@
 # Changelog
 
+## [2.59.5](https://github.com/forbole/kastle/compare/v2.59.4...v2.59.5) (2026-08-26)
+
+
+### Bug Fixes
+
+* **ledger:** unify the derivation path so non-legacy accounts can spend ([#312](https://github.com/forbole/kastle/issues/312)) ([6c66e88](https://github.com/forbole/kastle/commit/6c66e888f58738417096a3c4d09bb01315323b2b))
+
+## [2.59.4](https://github.com/forbole/kastle/compare/v2.59.3...v2.59.4) (2026-08-25)
+
+
+### Bug Fixes
+
+* refuse Ledger transactions carrying fields the device cannot sign over ([#310](https://github.com/forbole/kastle/issues/310)) ([8b597b9](https://github.com/forbole/kastle/commit/8b597b919c9e3d53643012cdeedd5b6b605d9dad))
+
+## [2.59.3](https://github.com/forbole/kastle/compare/v2.59.2...v2.59.3) (2026-08-25)
+
+
+### Bug Fixes
+
+* allow script-free dApp signing on Ledger; refuse sign-only requests upfront with an accurate reason ([#308](https://github.com/forbole/kastle/issues/308)) ([b11b9d3](https://github.com/forbole/kastle/commit/b11b9d33dd6c8395d1324b8859e9046f1a236908))
+
+## [2.59.2](https://github.com/forbole/kastle/compare/v2.59.1...v2.59.2) (2026-08-25)
+
+
+### Bug Fixes
+
+* **sign:** refuse sighash types that commit no outputs, warn on partial ones; derive the legacy Ledger signer from the selected account index ([#306](https://github.com/forbole/kastle/issues/306)) ([6920e1c](https://github.com/forbole/kastle/commit/6920e1cf0a44116f4f6fdd4469b9d8d2e8d829ee))
+
+## [2.59.1](https://github.com/forbole/kastle/compare/v2.59.0...v2.59.1) (2026-08-13)
+
+
+### Bug Fixes
+
+* sign covenant P2SH inputs with large redeem scripts in signTx ([#301](https://github.com/forbole/kastle/issues/301)) ([6ce725f](https://github.com/forbole/kastle/commit/6ce725fb93bbf13c43ae662d8d52b804fd5e247d))
+
+## [2.59.0](https://github.com/forbole/kastle/compare/v2.58.1...v2.59.0) (2026-07-10)
+
+
+### Features
+
+* implement IPFS caching and update NFT image retrieval logic ([#295](https://github.com/forbole/kastle/issues/295)) ([e61f9e0](https://github.com/forbole/kastle/commit/e61f9e00c3167c81a71f7225c9da1025cc754812))
+* integrate ins ([#297](https://github.com/forbole/kastle/issues/297)) ([7524a7e](https://github.com/forbole/kastle/commit/7524a7e5cdb6f813410aca14a8ca1e3bf839392f))
+
+
+### Bug Fixes
+
+* update value type in AttributesProps to unknown ([f9ea674](https://github.com/forbole/kastle/commit/f9ea67455d4b7e4c230e36ece62526dfa0d129fc))
+
+## [2.58.1](https://github.com/forbole/kastle/compare/v2.58.0...v2.58.1) (2026-07-07)
+
+
+### Bug Fixes
+
+* migrate krc721 backend provider ([fbd3da2](https://github.com/forbole/kastle/commit/fbd3da20d8c4a2f332a322eb87677db9e193aa4f))
+
+## [2.58.0](https://github.com/forbole/kastle/compare/v2.57.0...v2.58.0) (2026-07-03)
+
+
+### Features
+
+* passphrase support ([#292](https://github.com/forbole/kastle/issues/292)) ([ab9b50a](https://github.com/forbole/kastle/commit/ab9b50a905b8c3ff0b709aa57b8c98615835c522))
+* refresh illustration assets to v2 ([#291](https://github.com/forbole/kastle/issues/291)) ([4aba3e4](https://github.com/forbole/kastle/commit/4aba3e478bf167479b2818401317bf562450aeab))
+
+
+### Bug Fixes
+
+* fix find max on kas send ([0d78571](https://github.com/forbole/kastle/commit/0d785712c67fad192302e05ac71c8ca747634bb3))
+
+## [2.57.0](https://github.com/forbole/kastle/compare/v2.56.0...v2.57.0) (2026-06-18)
+
+
+### Features
+
+* remove all legacy ([8c57eec](https://github.com/forbole/kastle/commit/8c57eec545f1e06f288ee95ffddb89379b1c6c1e))
+
+
+### Bug Fixes
+
+* dynamic fee estimation for commit-reveal transactions ([822451a](https://github.com/forbole/kastle/commit/822451a7284dadc52dd0db31366fb707b664f228))
+
+## [2.56.0](https://github.com/forbole/kastle/compare/v2.55.0...v2.56.0) (2026-06-15)
+
+
+### Features
+
+* improve scrolling for kns and add retry for commit reveal ([ca18bbf](https://github.com/forbole/kastle/commit/ca18bbfcb43543d799c054b22b56ea12b591e54c))
+* integrate toccata to testnet ([#287](https://github.com/forbole/kastle/issues/287)) ([2c84efc](https://github.com/forbole/kastle/commit/2c84efc528cb608cb8b59f847c170d4ad64bfb44))
+
+## [2.55.0](https://github.com/forbole/kastle/compare/v2.54.2...v2.55.0) (2026-06-05)
+
+
+### Features
+
+* add more mainnet rpc urls as fallback ([6485b78](https://github.com/forbole/kastle/commit/6485b781c1ed198d4dca34555e9a5d3bb1c51afd))
+* enhance PostHog analytics tracking ([018bd07](https://github.com/forbole/kastle/commit/018bd07fc31937bced378b477c479b74e519ae12))
+* **posthog:** add unlock event ([273d9f0](https://github.com/forbole/kastle/commit/273d9f01679d8b43ebb91e7a2c27b9d4d936f80c))
+
+
+### Bug Fixes
+
+* update rpcs ([39291bb](https://github.com/forbole/kastle/commit/39291bbad8b647037401bffb61486fb4383b491a))
+
+## [2.54.2](https://github.com/forbole/kastle/compare/v2.54.1...v2.54.2) (2026-05-29)
+
+
+### Bug Fixes
+
+* add RPC fallback URLs for testnet-10 ([8e7f44e](https://github.com/forbole/kastle/commit/8e7f44eb98f0e61e36946af9906532d55542ff27))
+
+## [2.54.1](https://github.com/forbole/kastle/compare/v2.54.0...v2.54.1) (2026-05-20)
+
+
+### Bug Fixes
+
+* add nft list empty check ([466deb9](https://github.com/forbole/kastle/commit/466deb94d9a02b3f9951a772e97bb37835a3aa92))
+
+## [2.54.0](https://github.com/forbole/kastle/compare/v2.53.0...v2.54.0) (2026-05-06)
+
+
+### Features
+
+* add origin parameter to transaction handlers and analytics tracking ([c206d36](https://github.com/forbole/kastle/commit/c206d3617b21bd4ac42ece8744343ee32fa03228))
+* implement caching for Evm KAS, ERC20 and KRC20 token balances and prices ([5fd36d7](https://github.com/forbole/kastle/commit/5fd36d7725f529a25a8d3feac0db16bd0f6da054))
+
+
+### Bug Fixes
+
+* lint ([8a1efac](https://github.com/forbole/kastle/commit/8a1efac9ccfdd0f4e73c421281ac8f5d03a473a5))
+
+## [2.53.0](https://github.com/forbole/kastle/compare/v2.52.0...v2.53.0) (2026-04-23)
+
+
+### Features
+
+* refactor legacy features handling ([ae1e859](https://github.com/forbole/kastle/commit/ae1e8591baed2c48de9105a9061934ac773c67f3))
+
+## [2.52.0](https://github.com/forbole/kastle/compare/v2.51.0...v2.52.0) (2026-04-20)
+
+
+### Features
+
+* add compound UTXOs functionality and update API documentation ([4ea7ae2](https://github.com/forbole/kastle/commit/4ea7ae2e9aba8075d0a827d5feaf7242872f85db))
+* add igra erc20 price support and improve codes ([9ce03f6](https://github.com/forbole/kastle/commit/9ce03f609b5a01a658da86968727e5416dea5cf5))
+
+## [2.51.0](https://github.com/forbole/kastle/compare/v2.50.0...v2.51.0) (2026-04-17)
+
+
+### Features
+
+* update analytics settings UI for clarity and improved user experience ([92c7ac1](https://github.com/forbole/kastle/commit/92c7ac19a7a00f387c8fbc444c90d8b2a778d070))
+
+## [2.50.0](https://github.com/forbole/kastle/compare/v2.49.0...v2.50.0) (2026-04-16)
+
+
+### Features
+
+* integrate PostHog analytics with toggle option in settings ([c447b47](https://github.com/forbole/kastle/commit/c447b47a2a5fcac63f10feb1b00d2a05a9dc330b))
+* mask Analytics ID for improved privacy in settings ([f69303d](https://github.com/forbole/kastle/commit/f69303d6d1c5ae35018eb590ff1f64001209eacc))
+
+## [2.49.0](https://github.com/forbole/kastle/compare/v2.48.0...v2.49.0) (2026-04-14)
+
+
+### Features
+
+* enhance analytics tracking for onboarding and asset transfers ([#277](https://github.com/forbole/kastle/issues/277)) ([1d5c796](https://github.com/forbole/kastle/commit/1d5c79689d9729fa02f55139176c9602f5e84926))
+* migrate rpcs to new endpoints ([#275](https://github.com/forbole/kastle/issues/275)) ([dca7297](https://github.com/forbole/kastle/commit/dca7297a0e50866b7a2c335b2220aabdce238884))
+* remove duplicated posthog events ([3a274a7](https://github.com/forbole/kastle/commit/3a274a7a955da8fe56a4d0adc345d9bb8022043d))
+
+## [2.48.0](https://github.com/forbole/kastle/compare/v2.47.0...v2.48.0) (2026-04-08)
+
+
+### Features
+
+* add getVersion handler ([73a9bd0](https://github.com/forbole/kastle/commit/73a9bd0dcc00a54d67cf391f6d6c90a1a97ceabe))
+* add proper error for buildTransaction api ([a8eae7d](https://github.com/forbole/kastle/commit/a8eae7dee40528f1f470fc47f4fa0cef736de6de))
+* inject window.ethereum ([664a0c3](https://github.com/forbole/kastle/commit/664a0c333cc01b9318346ba3d586e782432a65eb))
+
+
+### Bug Fixes
+
+* add payload validation to sendSompi ([337a2e6](https://github.com/forbole/kastle/commit/337a2e6b975001e9cd9ffae946778e6d61119fc7))
+* align legacy EVM address in useEvmAddress with background API ([b05e32a](https://github.com/forbole/kastle/commit/b05e32ad15f02f96d490f9721cb3afe7ef57819d))
+
+## [2.47.0](https://github.com/forbole/kastle/compare/v2.46.0...v2.47.0) (2026-03-30)
+
+
+### Features
+
+* add handlers for getBalance, getUtxoEntries, and buildTransaction actions ([b4a7dd4](https://github.com/forbole/kastle/commit/b4a7dd45ede4793b5d1e8c4766b39a7c1bde9d59))
+* add kas:connect action and implement getNetwork and commitReveal methods ([61fab2c](https://github.com/forbole/kastle/commit/61fab2c8b9707af76585addd1a67d47e4238127d))
+
+## [2.46.0](https://github.com/forbole/kastle/compare/v2.45.0...v2.46.0) (2026-03-27)
+
+
+### Features
+
+* add getChainTokenSymbol function and update components to use dynamic token symbol ([5e37a64](https://github.com/forbole/kastle/commit/5e37a6400b224c1a11b3737a70d6a75bb50e45fa))
+
+
+### Bug Fixes
+
+* modify kasplex kas symbol to kas ([1a9a18d](https://github.com/forbole/kastle/commit/1a9a18d2e967990c161d392a5d0e99c45b2baae2))
+
+## [2.45.0](https://github.com/forbole/kastle/compare/v2.44.0...v2.45.0) (2026-03-06)
+
+
+### Features
+
+* update igra mainnet config ([f80fe48](https://github.com/forbole/kastle/commit/f80fe48ad1780c5beaa2b99a08999b6a267567bc))
+
+## [2.44.0](https://github.com/forbole/kastle/compare/v2.43.2...v2.44.0) (2026-03-02)
+
+
+### Features
+
+* force to use non legacy addresses ([#268](https://github.com/forbole/kastle/issues/268)) ([02ab360](https://github.com/forbole/kastle/commit/02ab360d53a8672b9794e3026c9f05cdb81f6ab1))
+* implement wallet settings migration for versioning ([#270](https://github.com/forbole/kastle/issues/270)) ([7d81fdc](https://github.com/forbole/kastle/commit/7d81fdca8b98ae671f63b5605bd370f94c6bcda7))
+
+## [2.43.2](https://github.com/forbole/kastle/compare/v2.43.1...v2.43.2) (2026-02-26)
+
+
+### Bug Fixes
+
+* use kaspa price for currency formatting and format amount correctly ([#266](https://github.com/forbole/kastle/issues/266)) ([1e52a41](https://github.com/forbole/kastle/commit/1e52a410a93c18461ed4973550f6b01b5204aee9))
+
+## [2.43.1](https://github.com/forbole/kastle/compare/v2.43.0...v2.43.1) (2026-02-10)
+
+
+### Bug Fixes
+
+* igra timeout issue and qr code ui ([#264](https://github.com/forbole/kastle/issues/264)) ([ccbf860](https://github.com/forbole/kastle/commit/ccbf8600639605b3081d1a76814807a285b31a83))
+
 ## [2.43.0](https://github.com/forbole/kastle/compare/v2.42.0...v2.43.0) (2026-02-09)
 
 

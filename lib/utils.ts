@@ -3,6 +3,7 @@ import { CURRENCIES } from "@/contexts/SettingsContext.tsx";
 import * as secp from "@noble/secp256k1";
 import { bytesToHex } from "viem";
 import { publicKeyToAddress } from "viem/accounts";
+import { sha256 } from "hash-wasm";
 
 export const isProduction = process.env.NODE_ENV === "production";
 
@@ -95,8 +96,14 @@ export function setPopupPath(path?: `/${string}`, cb: () => void = () => {}) {
   );
 }
 
+export function openFullPage(path: `/${string}`) {
+  const url = new URL(browser.runtime.getURL("/popup.html"));
+  url.hash = path;
+  browser.tabs.create({ url: url.toString() });
+}
+
 export function convertIPFStoHTTP(url: string) {
-  return url.replace("ipfs://", "https://ipfs.io/ipfs/");
+  return url.replace("ipfs://", "https://gateway.pinata.cloud/ipfs/");
 }
 
 export function toLegacyEvmAddress(publicKey: string) {
@@ -104,4 +111,8 @@ export function toLegacyEvmAddress(publicKey: string) {
     secp.ProjectivePoint.fromHex(publicKey).toRawBytes(false);
   const uncompressedHex = bytesToHex(uncompressed);
   return publicKeyToAddress(uncompressedHex);
+}
+
+export function hashAddress(address: string): Promise<string> {
+  return sha256(address);
 }

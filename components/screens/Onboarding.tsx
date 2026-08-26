@@ -3,6 +3,7 @@ import Welcome from "@/components/onboarding/Welcome.tsx";
 import SetupPassword from "@/components/onboarding/SetupPassword.tsx";
 import ChooseImport from "@/components/onboarding/ChooseImport.tsx";
 import ImportRecoveryPhrase from "@/components/screens/full-pages/ImportRecoveryPhrase.tsx";
+import ImportRecoveryPhraseWithPassphrase from "@/components/screens/full-pages/ImportRecoveryPhraseWithPassphrase.tsx";
 import ImportPrivateKey from "@/components/screens/full-pages/ImportPrivateKey.tsx";
 import ImportLedger from "@/components/screens/full-pages/ledger/ImportLedger.tsx";
 
@@ -12,6 +13,7 @@ export type OnboardingData = {
     | "password"
     | "choose"
     | "recovery-phrase"
+    | "recovery-phrase-with-passphrase"
     | "private-key"
     | "ledger";
   method: "create" | "import";
@@ -35,6 +37,9 @@ export default function Onboarding() {
       {step === "password" && <SetupPassword />}
       {step === "choose" && <ChooseImport />}
       {step === "recovery-phrase" && <ImportRecoveryPhrase />}
+      {step === "recovery-phrase-with-passphrase" && (
+        <ImportRecoveryPhraseWithPassphrase />
+      )}
       {step === "private-key" && <ImportPrivateKey />}
       {step === "ledger" && <ImportLedger />}
     </FormProvider>

@@ -1,9 +1,15 @@
 import useSWR from "swr";
+import { useEffect, useState } from "react";
 import { createPublicClient, http, erc20Abi, Hex, Address } from "viem";
 import { numberToHex, formatUnits } from "viem";
 import { ALL_SUPPORTED_EVM_L2_CHAINS } from "@/lib/layer2";
 import useEvmAddress from "./useEvmAddress";
-import useErc20Assets from "./useErc20Assets";
+import useErc20TokensFromApi from "./useErc20TokensFromApi";
+import { useSettings } from "@/hooks/useSettings";
+import {
+  erc20BalanceCache,
+  type Erc20BalanceCacheItem,
+} from "@/lib/cache/erc20BalanceCache";
 
 export default function useErc20Balance(tokenAddress: string, chainId: string) {
   const balancesResult = useErc20Balances();
@@ -42,17 +48,35 @@ export default function useErc20Balance(tokenAddress: string, chainId: string) {
 }
 
 export function useErc20BalancesByAddress(evmAddress?: Address) {
-  const { assets } = useErc20Assets();
+  const [settings] = useSettings();
+  const [cacheReady, setCacheReady] = useState(false);
+  const { data: erc20TokensData } = useErc20TokensFromApi();
 
-  // Use all tokens from useErc20Tokens
+  const cacheKey = evmAddress
+    ? `${settings?.networkId ?? "mainnet"}:${evmAddress}`
+    : null;
+
+  useEffect(() => {
+    if (!cacheKey) return;
+    erc20BalanceCache.load(cacheKey).then(() => setCacheReady(true));
+  }, [cacheKey]);
+
+  const cachedRaw = cacheKey ? erc20BalanceCache.read(cacheKey) : null;
+  // Reconstruct full shape: rawBalance placeholder 0n
+  const fallbackData: ReturnType<typeof buildFallback> | undefined =
+    cacheReady && cachedRaw != null ? buildFallback(cachedRaw) : undefined;
+
+  // Use all tokens from useErc20TokensFromApi
   const tokensToFetch =
-    assets?.map((asset) => {
-      return {
-        tokenAddress: asset.address,
-        decimals: asset.decimals,
-        chainId: asset.chainId,
-      };
-    }) ?? [];
+    erc20TokensData
+      ?.filter((chain) => chain.success)
+      .flatMap((chain) =>
+        chain.tokens.map((token) => ({
+          tokenAddress: token.token.address_hash as Address,
+          decimals: parseInt(token.token.decimals || "18", 10),
+          chainId: chain.chainId,
+        })),
+      ) ?? [];
 
   const fetcher = async () => {
     if (!evmAddress || tokensToFetch.length === 0) {
@@ -102,16 +126,52 @@ export function useErc20BalancesByAddress(evmAddress?: Address) {
   };
 
   const key =
-    evmAddress && tokensToFetch && tokensToFetch.length > 0
+    evmAddress && erc20TokensData && erc20TokensData.length > 0
       ? `erc-20-balances:${evmAddress}`
       : null;
 
   return useSWR(key, evmAddress ? fetcher : null, {
+    fallbackData,
+    keepPreviousData: true,
     refreshInterval: 5_000,
     revalidateOnFocus: false,
     revalidateOnReconnect: false,
     dedupingInterval: 2_000,
+    onSuccess: (items) => {
+      if (!cacheKey || !items) return;
+      // Only cache successful items — avoid persisting failed fetches as 0
+      const successful: Erc20BalanceCacheItem[] = items
+        .filter(
+          (
+            item,
+          ): item is {
+            tokenAddress: Address;
+            chainId: Hex;
+            decimals: number;
+            rawBalance: bigint;
+            balance: number;
+          } =>
+            !("error" in item) &&
+            item.tokenAddress != null &&
+            item.chainId != null,
+        )
+        .map(({ tokenAddress, chainId, decimals, balance }) => ({
+          tokenAddress,
+          chainId,
+          decimals,
+          balance,
+        }));
+      erc20BalanceCache.write(cacheKey, successful);
+    },
   });
+}
+
+function buildFallback(cached: Erc20BalanceCacheItem[]) {
+  return cached.map((item) => ({
+    ...item,
+    chainId: item.chainId as Hex,
+    rawBalance: 0n,
+  }));
 }
 
 export function useErc20Balances() {

@@ -53,7 +53,7 @@ export default function FullscreenLayout({
   }, [unlockTime]);
 
   return (
-    <div className="no-scrollbar flex h-screen justify-center overflow-y-scroll bg-icy-blue-900 py-10 font-sans text-white">
+    <div className="no-scrollbar flex min-h-screen justify-center overflow-y-scroll bg-icy-blue-900 py-10 font-sans text-white">
       <Toaster position="top-center" containerStyle={{ top: 35 }} />
       {navigation.state === "loading" || !isConnected ? <Splash /> : <Outlet />}
     </div>

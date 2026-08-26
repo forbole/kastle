@@ -15,7 +15,13 @@ export const sendSompiPayloadSchema = z.object({
         .number()
         .min(0, "priorityFee must be greater than or equal to 0")
         .default(0),
-      payload: z.string().optional(),
+      payload: z
+        .string()
+        .refine(
+          (v) => /^[0-9a-fA-F]*$/.test(v) && v.length % 2 === 0,
+          "payload must be a valid hex string (even length, 0-9 a-f only)",
+        )
+        .optional(),
     })
     .default({}),
 });
@@ -60,7 +66,11 @@ export async function sendSompiHandler(
   const result = sendSompiPayloadSchema.safeParse(message.payload);
   if (!result.success) {
     sendResponse(
-      ApiUtils.createApiResponse(message.id, null, "Invalid transaction data"),
+      ApiUtils.createApiResponse(
+        message.id,
+        null,
+        `Invalid payload: ${result.error.message}`,
+      ),
     );
     return;
   }

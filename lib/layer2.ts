@@ -9,7 +9,7 @@ export const kasplexTestnet = {
   nativeCurrency: {
     decimals: 18,
     name: "Bridged KAS",
-    symbol: "WKAS",
+    symbol: "KAS",
   },
   rpcUrls: {
     default: { http: ["https://rpc.kasplextest.xyz"] },
@@ -33,7 +33,7 @@ export const kasplexMainnet = {
   nativeCurrency: {
     decimals: 18,
     name: "Bridged KAS",
-    symbol: "WKAS",
+    symbol: "KAS",
   },
   rpcUrls: {
     default: { http: ["https://evmrpc.kasplex.org"] },
@@ -51,7 +51,7 @@ export const kasplexMainnet = {
 
 export const igraTestnet = {
   id: 38_836,
-  name: "IGRA Galleon Testnet",
+  name: "IGRA Testnet",
   nativeCurrency: {
     decimals: 18,
     name: "iKAS",
@@ -73,25 +73,25 @@ export const igraTestnet = {
 };
 
 export const igraMainnet = {
-  id: 38_837,
-  name: "IGRA Galleon Mainnet",
+  id: 38_833,
+  name: "IGRA",
   nativeCurrency: {
     decimals: 18,
     name: "iKAS",
     symbol: "iKAS",
   },
   rpcUrls: {
-    default: { http: ["https://galleon.igralabs.com:8545"] },
+    default: { http: ["https://rpc.igralabs.com:8545"] },
   },
   blockExplorers: {
     default: {
       name: "IGRA Galleon Explorer",
-      url: "https://explorer.galleon.igralabs.com",
+      url: "https://explorer.igralabs.com",
     },
   },
 
   icon: igraIcon,
-  apiUrl: "https://explorer.galleon.igralabs.com",
+  apiUrl: "https://explorer.igralabs.com",
 };
 
 export const TESTNET_SUPPORTED_EVM_L2_CHAINS = [kasplexTestnet, igraTestnet];
@@ -120,4 +120,24 @@ export const getChainName = (chainId: `0x${string}`) => {
   }
 
   return "Unknown Chain";
+};
+
+export const isIgraChain = (chainId?: `0x${string}`): boolean => {
+  if (!chainId) return false;
+  try {
+    const chainIdNumber = hexToNumber(chainId);
+    return chainIdNumber === igraMainnet.id || chainIdNumber === igraTestnet.id;
+  } catch {
+    return false;
+  }
+};
+
+export const getChainTokenSymbol = (chainId: `0x${string}`) => {
+  const chainIdNumber = hexToNumber(chainId);
+  const chain = ALL_SUPPORTED_EVM_L2_CHAINS.find((c) => c.id === chainIdNumber);
+  if (chain?.nativeCurrency?.symbol) {
+    return chain.nativeCurrency.symbol;
+  }
+
+  return "KAS";
 };

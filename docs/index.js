@@ -40,7 +40,7 @@ document
 
 function getRpc() {
   return (rpc = new kaspaWasm.RpcClient({
-    url: "wss://kaspa-testnet.forbole.com/borsh",
+    url: "wss://testnet10-wrpc.kasia.fyi",
     networkId: network,
   }));
 }
@@ -86,6 +86,33 @@ document
       rpc.disconnect();
     }
   });
+
+document.getElementById("buildTxButton").addEventListener("click", async () => {
+  try {
+    const toAddress = document.getElementById("buildTxToAddress").value;
+    if (!toAddress) {
+      throw new Error("Please enter a to address");
+    }
+    const amount = document.getElementById("buildTxAmount").value;
+    const priorityFee = document.getElementById("buildTxPriorityFee").value;
+    const payload =
+      document.getElementById("buildTxPayload").value || undefined;
+
+    const result = await kastle.buildTransaction(
+      [{ address: toAddress, amount }],
+      { priorityFee, payload },
+    );
+    document.getElementById("buildTxResult").innerText = JSON.stringify(
+      result,
+      null,
+      2,
+    );
+    document.getElementById("buildTxError").innerText = "None";
+  } catch (error) {
+    document.getElementById("buildTxError").innerText = error.message;
+    document.getElementById("buildTxResult").innerText = "";
+  }
+});
 
 document.getElementById("signMessage").addEventListener("click", async () => {
   try {
@@ -156,14 +183,21 @@ async function commitTransaction(P2SHAddress) {
   }
 }
 
-async function revealTransaction(p2shEntry, outputs, scripts, priorityFee) {
+async function revealTransaction(
+  p2shEntry,
+  outputs,
+  scripts,
+  priorityFee,
+  existingRpc,
+) {
   const address = document.getElementById("address").innerText;
   if (!address) {
     throw new Error("Please get the account first");
   }
 
-  const rpc = getRpc();
-  await rpc.connect();
+  const rpc = existingRpc ?? getRpc();
+  const shouldDisconnect = !existingRpc;
+  if (shouldDisconnect) await rpc.connect();
 
   try {
     const { entries } = await rpc.getUtxosByAddresses([address]);
@@ -190,7 +224,7 @@ async function revealTransaction(p2shEntry, outputs, scripts, priorityFee) {
     );
     return revealTxId;
   } finally {
-    rpc.disconnect();
+    if (shouldDisconnect) rpc.disconnect();
   }
 }
 
@@ -228,10 +262,7 @@ document
 document
   .getElementById("krcDeployReveal")
   .addEventListener("click", async () => {
-    const rpc = new kaspaWasm.RpcClient({
-      url: "wss://kaspa-testnet.forbole.com/borsh",
-      networkId: network,
-    });
+    const rpc = getRpc();
     await rpc.connect();
 
     try {
@@ -264,6 +295,7 @@ document
           },
         ],
         "1000",
+        rpc,
       );
       document.getElementById("deployRevealTxId").innerText = revealTxId;
       document.getElementById("deployErrorKRC20").innerText = "";
@@ -303,10 +335,7 @@ document.getElementById("krcMintCommit").addEventListener("click", async () => {
 });
 
 document.getElementById("krcMintReveal").addEventListener("click", async () => {
-  const rpc = new kaspaWasm.RpcClient({
-    url: "wss://kaspa-testnet.forbole.com/borsh",
-    networkId: network,
-  });
+  const rpc = getRpc();
   await rpc.connect();
 
   try {
@@ -336,6 +365,7 @@ document.getElementById("krcMintReveal").addEventListener("click", async () => {
         },
       ],
       "1",
+      rpc,
     );
     document.getElementById("mintRevealTxId").innerText = revealTxId;
     document.getElementById("mintErrorKRC20").innerText = "";
@@ -383,10 +413,7 @@ document
 document
   .getElementById("krcTransferReveal")
   .addEventListener("click", async () => {
-    const rpc = new kaspaWasm.RpcClient({
-      url: "wss://kaspa-testnet.forbole.com/borsh",
-      networkId: network,
-    });
+    const rpc = getRpc();
     await rpc.connect();
 
     try {
@@ -420,6 +447,7 @@ document
           },
         ],
         "0.1",
+        rpc,
       );
       document.getElementById("transferRevealTxId").innerText = revealTxId;
       document.getElementById("transferErrorKRC20").innerText = "";
@@ -523,10 +551,7 @@ document.getElementById("krcListCommit").addEventListener("click", async () => {
 });
 
 document.getElementById("krcListReveal").addEventListener("click", async () => {
-  const rpc = new kaspaWasm.RpcClient({
-    url: "wss://kaspa-testnet.forbole.com/borsh",
-    networkId: network,
-  });
+  const rpc = getRpc();
   await rpc.connect();
 
   try {
@@ -579,6 +604,7 @@ document.getElementById("krcListReveal").addEventListener("click", async () => {
         },
       ],
       "1",
+      rpc,
     );
 
     document.getElementById("listRevealTxId").innerText = revealTxId;
@@ -593,10 +619,7 @@ document.getElementById("krcListReveal").addEventListener("click", async () => {
 document
   .getElementById("preparedSendTx")
   .addEventListener("click", async () => {
-    const rpc = new kaspaWasm.RpcClient({
-      url: "wss://kaspa-testnet.forbole.com/borsh",
-      networkId: network,
-    });
+    const rpc = getRpc();
     await rpc.connect();
 
     try {
@@ -641,10 +664,7 @@ document
 document
   .getElementById("krcCancelReveal")
   .addEventListener("click", async () => {
-    const rpc = new kaspaWasm.RpcClient({
-      url: "wss://kaspa-testnet.forbole.com/borsh",
-      networkId: network,
-    });
+    const rpc = getRpc();
     await rpc.connect();
 
     try {
@@ -676,6 +696,7 @@ document
           },
         ],
         "0.02",
+        rpc,
       );
 
       document.getElementById("cancelTradeTxId").innerText = revealTxId;
@@ -692,10 +713,7 @@ document.getElementById("krcBuyReveal").addEventListener("click", async () => {
   const tx = kaspaWasm.Transaction.deserializeFromSafeJSON(txJson);
 
   const address = document.getElementById("address").innerText;
-  const rpc = new kaspaWasm.RpcClient({
-    url: "wss://kaspa-testnet.forbole.com/borsh",
-    networkId: network,
-  });
+  const rpc = getRpc();
   await rpc.connect();
 
   try {
@@ -780,10 +798,7 @@ document
 document
   .getElementById("krcDeployIssueReveal")
   .addEventListener("click", async () => {
-    const rpc = new kaspaWasm.RpcClient({
-      url: "wss://kaspa-testnet.forbole.com/borsh",
-      networkId: network,
-    });
+    const rpc = getRpc();
     await rpc.connect();
 
     try {
@@ -817,6 +832,7 @@ document
           },
         ],
         "1000",
+        rpc,
       );
       document.getElementById("deployIssueRevealTxId").innerText = revealTxId;
       document.getElementById("deployIssueErrorKRC20").innerText = "";
@@ -865,10 +881,7 @@ document
 document
   .getElementById("krcIssueReveal")
   .addEventListener("click", async () => {
-    const rpc = new kaspaWasm.RpcClient({
-      url: "wss://kaspa-testnet.forbole.com/borsh",
-      networkId: network,
-    });
+    const rpc = getRpc();
     await rpc.connect();
 
     try {
@@ -900,6 +913,7 @@ document
           },
         ],
         "1",
+        rpc,
       );
       document.getElementById("issueRevealTxId").innerText = revealTxId;
       document.getElementById("issueErrorKRC20").innerText = "";
@@ -907,6 +921,126 @@ document
       document.getElementById("issueErrorKRC20").innerText = error.message;
     } finally {
       rpc.disconnect();
+    }
+  });
+
+document
+  .getElementById("krcListCommitReveal")
+  .addEventListener("click", async () => {
+    const rpc = getRpc();
+    await rpc.connect();
+
+    try {
+      const tick = document.getElementById("tradeListTick").value;
+      const amt = document.getElementById("tradeListAmount").value;
+      const listPayload = {
+        p: "krc-20",
+        op: "list",
+        tick: tick.toLowerCase(),
+        amt,
+      };
+      const listScriptBuilder = createKRC20ScriptBuilder(listPayload);
+      const listScriptPublicKey =
+        listScriptBuilder.createPayToScriptHashScript();
+      const listP2SHAddress = kaspaWasm.addressFromScriptPublicKey(
+        listScriptPublicKey,
+        network,
+      );
+
+      const sendPayload = {
+        p: "krc-20",
+        op: "send",
+        tick: tick.toLowerCase(),
+      };
+      const sendScriptBuilder = createKRC20ScriptBuilder(sendPayload);
+      const sendScriptPublicKey =
+        sendScriptBuilder.createPayToScriptHashScript();
+      const sendP2SHAddress = kaspaWasm.addressFromScriptPublicKey(
+        sendScriptPublicKey,
+        network,
+      );
+
+      // Commit
+      const commitTxId = await commitTransaction(listP2SHAddress.toString());
+      document.getElementById("listCommitTxId").innerText = commitTxId;
+      document.getElementById("P2SHListAddress").innerText =
+        listP2SHAddress.toString();
+      document.getElementById("listScript").innerText =
+        listScriptBuilder.toString();
+
+      // Wait for P2SH UTXO
+      let P2SHEntries = [];
+      while (P2SHEntries.length === 0) {
+        const P2SHUTXOs = await rpc.getUtxosByAddresses([
+          listP2SHAddress.toString(),
+        ]);
+        P2SHEntries = P2SHUTXOs.entries;
+        if (P2SHEntries.length === 0) {
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
+      }
+
+      // Reveal
+      const revealTxId = await revealTransaction(
+        P2SHEntries[0],
+        [
+          {
+            amount: kaspaWasm.kaspaToSompi("0.3"),
+            address: sendP2SHAddress.toString(),
+          },
+        ],
+        [{ scriptHex: listScriptBuilder.toString(), inputIndex: 0 }],
+        "1",
+        rpc,
+      );
+      document.getElementById("listRevealTxId").innerText = revealTxId;
+      document.getElementById("sendP2SHAddress").innerText =
+        sendP2SHAddress.toString();
+      document.getElementById("sendScript").innerText =
+        sendScriptBuilder.toString();
+      document.getElementById("listErrorKRC20").innerText = "";
+    } catch (error) {
+      document.getElementById("listErrorKRC20").innerText = error.message;
+    } finally {
+      rpc.disconnect();
+    }
+  });
+
+document
+  .getElementById("signAndBroadcastCommitReveal")
+  .addEventListener("click", async () => {
+    try {
+      const commitTxJson = document
+        .getElementById("commitRevealCommitTxJson")
+        .value.trim();
+      const revealTxJson = document
+        .getElementById("commitRevealRevealTxJson")
+        .value.trim();
+      const scriptsRaw = document
+        .getElementById("commitRevealScripts")
+        .value.trim();
+
+      if (!commitTxJson || !revealTxJson) {
+        throw new Error("Commit and reveal txJson are required");
+      }
+
+      const scripts = scriptsRaw ? JSON.parse(scriptsRaw) : undefined;
+
+      document.getElementById("commitRevealCommitTxId").innerText = "";
+      document.getElementById("commitRevealRevealTxId").innerText = "";
+      document.getElementById("commitRevealError").innerText = "None";
+
+      const commitTxId = await kastle.signAndBroadcastTx(network, commitTxJson);
+      document.getElementById("commitRevealCommitTxId").innerText = commitTxId;
+
+      const revealTxId = await kastle.signAndBroadcastTx(
+        network,
+        revealTxJson,
+        scripts,
+      );
+      document.getElementById("commitRevealRevealTxId").innerText = revealTxId;
+    } catch (error) {
+      document.getElementById("commitRevealError").innerText = error.message;
     }
   });
 

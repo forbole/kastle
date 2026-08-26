@@ -15,13 +15,16 @@ export default function useKaspaLedgerSigner() {
     return undefined;
   }
 
-  const isLegacyEnabled = walletInfo.isLegacyWalletEnabled ?? true; // Default to true if not specified
+  const isLegacyEnabled = walletInfo.isLegacyWalletEnabled ?? false;
   const factory = isLegacyEnabled
     ? new LegacyAccountFactory()
     : new AccountFactory();
 
+  // the signer and getAddress must derive from the same index, otherwise the
+  // address shown to the user is not the key that signs
+  const accountIndex = account?.index ?? 0;
+
   const getAddress = async () => {
-    const accountIndex = account?.index ?? 0;
     const publicKey = await factory
       .createFromLedger(transport, accountIndex)
       .getPublicKey();
@@ -29,7 +32,7 @@ export default function useKaspaLedgerSigner() {
     return address;
   };
 
-  const signer = factory.createFromLedger(transport);
+  const signer = factory.createFromLedger(transport, accountIndex);
 
   return {
     getAddress,

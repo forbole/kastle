@@ -16,16 +16,75 @@ import KaspaApp, {
 
 const LEDGER_ACCOUNT_INDEX_OFFSET = 0x80000000;
 
+/**
+ * The three numbers the Ledger app turns into a BIP-32 path.
+ *
+ * app-kaspa derives, for every input it signs:
+ *
+ *   44' / 111111' / <account>' / <addressType> / <addressIndex>
+ *
+ * (src/crypto.c: `bip32_path[2] = transaction.account`,
+ * `bip32_path[3] = txin->address_type`, `bip32_path[4] = txin->address_index`),
+ * and validates the change output against the same account using
+ * `change_address_type` / `change_address_index`
+ * (src/transaction/tx_validate.c). `account` is sent already hardened, the
+ * other two are not hardened.
+ *
+ * These must describe exactly the key that `this.path` derives, because that
+ * is the key `getPublicKey` shows the user as their address. If they diverge,
+ * the device signs with a key the funds are not locked to and the network
+ * rejects the transaction.
+ */
+type LedgerDerivation = {
+  /** Unhardened account-level index; hardened at the hw-app-kaspa boundary. */
+  account: number;
+  addressType: 0 | 1;
+  addressIndex: number;
+};
+
+/**
+ * hw-app-kaspa marshals sompi as a JS `number` — `TransactionInput.value` and
+ * `TransactionOutput.value` are typed `number` and serialized via
+ * `toBigEndianHex`, which calls `.toString(16)` on it. Anything above
+ * `Number.MAX_SAFE_INTEGER` would be silently rounded on the way to the device,
+ * so refuse it instead.
+ */
+const MAX_LEDGER_SOMPI = BigInt(Number.MAX_SAFE_INTEGER);
+
+function toLedgerSompi(value: bigint | undefined, what: string): number {
+  if (value === undefined || value === null) {
+    throw new Error(`Cannot sign on Ledger: ${what} has no amount.`);
+  }
+  if (value < 0n || value > MAX_LEDGER_SOMPI) {
+    throw new Error(
+      `Cannot sign on Ledger: ${what} is ${value} sompi, which is outside the range the Ledger app can be given exactly (0 to ${MAX_LEDGER_SOMPI} sompi).`,
+    );
+  }
+  return Number(value);
+}
+
 export class LegacyLedgerAccount implements IWallet {
   private readonly app: KaspaApp;
-  protected path: string;
 
   constructor(
     transport: Transport,
-    private readonly accountIndex: number,
+    protected readonly accountIndex: number,
   ) {
     this.app = new KaspaApp(transport);
-    this.path = `m/44'/111111'/${accountIndex}'/0/0`;
+  }
+
+  /**
+   * The single source of truth for this account's derivation. Both `this.path`
+   * (what addresses are derived from) and the fields sent to the device read
+   * this, so the two cannot silently drift apart.
+   */
+  protected getDerivationFields(): LedgerDerivation {
+    return { account: this.accountIndex, addressType: 0, addressIndex: 0 };
+  }
+
+  protected get path(): string {
+    const { account, addressType, addressIndex } = this.getDerivationFields();
+    return `m/44'/111111'/${account}'/${addressType}/${addressIndex}`;
   }
 
   public getPrivateKeyString(): string {
@@ -55,24 +114,36 @@ export class LegacyLedgerAccount implements IWallet {
     scripts?: ScriptOption[],
   ): Promise<Transaction> {
     if (scripts) {
-      throw new Error("Method not implemented.");
+      throw new Error("Ledger does not support advanced scripts signing");
     }
+    const transaction = tx as Transaction;
+    const { account, addressType, addressIndex } = this.getDerivationFields();
 
-    const inputs = tx.inputs.map(
-      (input) =>
-        new LedgerTransactionInput({
-          value: Number(input.utxo?.amount),
-          prevTxId: input.utxo?.outpoint.transactionId ?? "",
-          outpointIndex: input.utxo?.outpoint.index ?? 0,
-          addressType: 0,
-          addressIndex: 0,
-        }),
-    );
+    // Kastle is single-address-per-account today, so every input is locked to
+    // the same key as the account itself. Sending the derivation per input
+    // rather than a hardcoded 0/0 keeps that an explicit consequence of
+    // getDerivationFields() instead of a coincidence.
+    const inputs = transaction.inputs.map((input, index) => {
+      const utxo = input.utxo;
+      if (!utxo) {
+        throw new Error(
+          `Cannot sign on Ledger: input ${index} is missing its UTXO entry, so its amount and outpoint are unknown.`,
+        );
+      }
 
-    const outputs = tx.outputs.map(
-      (output) =>
+      return new LedgerTransactionInput({
+        value: toLedgerSompi(utxo.amount, `input ${index}`),
+        prevTxId: utxo.outpoint.transactionId,
+        outpointIndex: utxo.outpoint.index,
+        addressType,
+        addressIndex,
+      });
+    });
+
+    const outputs = transaction.outputs.map(
+      (output, index) =>
         new LedgerTransactionOutput({
-          value: Number(output.value),
+          value: toLedgerSompi(output.value, `output ${index}`),
           scriptPublicKey:
             typeof output.scriptPublicKey === "string"
               ? output.scriptPublicKey
@@ -84,9 +155,9 @@ export class LegacyLedgerAccount implements IWallet {
       version: 0,
       inputs,
       outputs,
-      changeAddressType: 0,
-      changeAddressIndex: 0,
-      account: this.accountIndex + LEDGER_ACCOUNT_INDEX_OFFSET,
+      changeAddressType: addressType,
+      changeAddressIndex: addressIndex,
+      account: account + LEDGER_ACCOUNT_INDEX_OFFSET,
     });
 
     await this.app.signTransaction(ledgerTx);
@@ -95,12 +166,14 @@ export class LegacyLedgerAccount implements IWallet {
   }
 
   async signMessage(message: string): Promise<string> {
+    const { account, addressType, addressIndex } = this.getDerivationFields();
+
     return (
       await this.app.signMessage(
         message,
-        0,
-        0,
-        this.accountIndex + LEDGER_ACCOUNT_INDEX_OFFSET,
+        addressType,
+        addressIndex,
+        account + LEDGER_ACCOUNT_INDEX_OFFSET,
       )
     ).signature;
   }
@@ -140,8 +213,7 @@ export class LegacyLedgerAccount implements IWallet {
 }
 
 export class LedgerAccount extends LegacyLedgerAccount {
-  constructor(transport: Transport, accountIndex: number) {
-    super(transport, accountIndex);
-    this.path = `m/44'/111111'/0'/0/${accountIndex}`;
+  protected override getDerivationFields(): LedgerDerivation {
+    return { account: 0, addressType: 0, addressIndex: this.accountIndex };
   }
 }

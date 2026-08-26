@@ -23,7 +23,7 @@ export default function LedgerManageAccounts() {
   const wallet = walletSettings?.wallets.find(({ id }) => id === walletId);
 
   const [isLegacyEnabled, setIsLegacyEnabled] = useState(
-    wallet?.isLegacyWalletEnabled ?? true,
+    wallet?.isLegacyWalletEnabled ?? false,
   );
 
   const listAccounts =

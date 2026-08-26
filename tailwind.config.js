@@ -7,6 +7,7 @@ export default {
   content: [
     "./entrypoints/**/*.{js,jsx,ts,tsx}",
     "components/**/*.{ts,tsx}",
+    "ui/**/*.{ts,tsx}",
     "./node_modules/preline/preline.js",
   ],
   theme: {

@@ -2,7 +2,7 @@ import { z } from "zod";
 import { ScriptOption } from "@/lib/wallet/wallet-interface.ts";
 
 export const SignTxPayloadSchema = z.object({
-  networkId: z.string(),
+  networkId: z.string().optional(),
   txJson: z.string(),
   scripts: z.array(z.custom<ScriptOption>()).default([]),
 });

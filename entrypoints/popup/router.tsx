@@ -14,6 +14,7 @@ import Settings from "@/components/screens/Settings.tsx";
 import Onboarding from "@/components/screens/Onboarding.tsx";
 import AddWallet from "@/components/screens/AddWallet.tsx";
 import ImportRecoveryPhrase from "@/components/screens/full-pages/ImportRecoveryPhrase";
+import ImportRecoveryPhraseWithPassphrase from "@/components/screens/full-pages/ImportRecoveryPhraseWithPassphrase";
 import ImportPrivateKey from "@/components/screens/full-pages/ImportPrivateKey";
 import ResetWallet from "@/components/screens/ResetWallet.tsx";
 import FullscreenLayout from "@/components/layouts/FullscreenLayout.tsx";
@@ -35,6 +36,7 @@ import { WalletManagerProvider } from "@/contexts/WalletManagerContext.tsx";
 import RootLayout from "@/components/layouts/RootLayout.tsx";
 import WalletUnlock from "@/components/screens/WalletUnlock.tsx";
 import DevMode from "@/components/screens/DevMode.tsx";
+import LegacyFeatures from "@/components/screens/LegacyFeatures.tsx";
 import DeployToken from "@/components/screens/full-pages/DeployToken.tsx";
 import Krc20Transfer from "@/components/send/krc20-send/Krc20Transfer";
 import MintToken from "@/components/screens/full-pages/MintToken.tsx";
@@ -49,6 +51,7 @@ import ConfirmDeploy from "@/components/screens/full-pages/ConfirmDeploy.tsx";
 import DeployingToken from "@/components/screens/full-pages/DeployingToken.tsx";
 import { RecentAddressesProvider } from "@/contexts/RecentAddressesContext.tsx";
 import KNSAsset from "@/components/screens/KNSAsset";
+import INSAsset from "@/components/screens/INSAsset";
 import KRC721 from "@/components/screens/KRC721";
 import OnboardingSuccess from "@/components/onboarding/OnboardingSuccess.tsx";
 import ChangePassword from "@/components/screens/ChangePassword.tsx";
@@ -252,6 +255,10 @@ export const router = createHashRouter([
                     element: <ConnectedApps />,
                   },
                   {
+                    path: "legacy-features",
+                    element: <LegacyFeatures />,
+                  },
+                  {
                     path: "dev-mode",
                     element: <DevMode />,
                   },
@@ -280,6 +287,10 @@ export const router = createHashRouter([
                         <KNSAsset />
                       </KNSRecentTransferProvider>
                     ),
+                  },
+                  {
+                    path: "ins/:name",
+                    element: <INSAsset />,
                   },
                   {
                     path: "kns-text/:assetId",
@@ -425,6 +436,10 @@ export const router = createHashRouter([
               {
                 path: "import-recovery-phrase",
                 element: <ImportRecoveryPhrase />,
+              },
+              {
+                path: "import-recovery-phrase-with-passphrase",
+                element: <ImportRecoveryPhraseWithPassphrase />,
               },
               { path: "import-private-key", element: <ImportPrivateKey /> },
               {

@@ -19,9 +19,8 @@ export default function RecoveryPhraseManageAccounts() {
   const evmSigner = useEvmBackgroundSigner();
   const [settings] = useSettings();
 
-  const [isLegacyEnabled, setIsLegacyEnabled] = useState(
-    wallet?.isLegacyWalletEnabled ?? true,
-  );
+  const defaultLegacy = wallet?.isLegacyWalletEnabled ?? false;
+  const [isLegacyEnabled, setIsLegacyEnabled] = useState(defaultLegacy);
 
   const listAccounts =
     rpcClient && networkId
@@ -36,10 +35,13 @@ export default function RecoveryPhraseManageAccounts() {
               isLegacy: isLegacyEnabled,
             });
 
+            const shouldUseEvmOldLegacy =
+              settings?.isLegacyEvmAddressEnabled ?? false;
+
             const { publicKey: evmPublicKey } = await evmSigner.getPublicKey({
               walletId,
               accountIndex: i,
-              isLegacy: settings?.isLegacyEvmAddressEnabled ?? false,
+              isLegacy: shouldUseEvmOldLegacy,
               isKastleLegacy: isLegacyEnabled,
             });
 

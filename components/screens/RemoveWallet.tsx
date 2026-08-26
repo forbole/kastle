@@ -1,7 +1,7 @@
 import React from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
-import warningImage from "@/assets/images/warning.png";
+import alertImage from "@/assets/images/alert.png";
 import Header from "@/components/GeneralHeader";
 import { forceOnboarding } from "@/entrypoints/popup/router.tsx";
 import useWalletEditor from "@/hooks/wallet/useWalletEditor";
@@ -39,8 +39,8 @@ export default function RemoveWallet() {
         <div className="flex h-full flex-col items-stretch justify-center gap-6">
           <img
             alt="warning"
-            className="h-24 w-24 self-center"
-            src={warningImage}
+            className="aspect-[686/255] w-full max-w-[343px] self-center"
+            src={alertImage}
           />
 
           <p className="text-center text-sm">

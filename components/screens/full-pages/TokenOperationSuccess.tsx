@@ -34,7 +34,7 @@ export const TokenOperationSuccess = () => {
             <img
               src={successImage}
               alt="Success"
-              className="mx-auto h-24 w-24"
+              className="mx-auto aspect-[686/240] w-full max-w-[343px]"
             />
             <div className="flex flex-col gap-2 text-center">
               <span className="text-xl font-semibold text-[#14B8A6]">

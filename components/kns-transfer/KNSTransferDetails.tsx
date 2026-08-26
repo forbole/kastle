@@ -1,16 +1,18 @@
 import { useFormContext } from "react-hook-form";
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/GeneralHeader.tsx";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
-import { Address } from "@/wasm/core/kaspa";
+import { Address, PublicKey } from "@/wasm/core/kaspa";
 import { twMerge } from "tailwind-merge";
 import { useBoolean } from "usehooks-ts";
 import spinner from "@/assets/images/spinner.svg";
 import { useAssetDetails, useKns } from "@/hooks/kns/useKns";
+import { formatToken } from "@/lib/utils.ts";
 import { Tooltip } from "react-tooltip";
 import { KNSTransferFormData } from "@/components/screens/KNSTransfer.tsx";
-import { Fee } from "@/lib/kns.ts";
+import { buildKnsTransferScript } from "@/lib/kns.ts";
+import { useKasFeeEstimate } from "@/hooks/useKasFeeEstimate";
 import RecentAddresses from "@/components/send/RecentAddresses.tsx";
 import useKaspaBalance from "@/hooks/wallet/useKaspaBalance";
 
@@ -35,6 +37,28 @@ export const KNSTransferDetails = ({
   } = useFormContext<KNSTransferFormData>();
   const { assetId, userInput, address, domain } = watch();
 
+  const scriptHex = useMemo(() => {
+    const pubKeyHex = account?.publicKeys?.[0];
+    if (!pubKeyHex || !assetId || !address) return undefined;
+    try {
+      return buildKnsTransferScript(new PublicKey(pubKeyHex), {
+        id: assetId,
+        to: address,
+      }).toString();
+    } catch {
+      return undefined;
+    }
+  }, [account?.publicKeys?.[0], assetId, address]);
+
+  const { fee: commitFee } = useKasFeeEstimate();
+  const { fee: revealFee } = useKasFeeEstimate(
+    scriptHex ? { scriptsHexes: [scriptHex] } : undefined,
+  );
+  const estimatedFeeKas = formatToken(
+    ((commitFee ?? 0) + (revealFee ?? 0)) / 1e8,
+    3,
+  );
+
   const {
     value: isRecentAddressShown,
     setFalse: hideRecentAddress,
@@ -56,7 +80,7 @@ export const KNSTransferDetails = ({
     const genericErrorMessage = "Invalid address or KNS domain";
     if (!value) return false;
 
-    if (currentBalance < Fee.Base) {
+    if (currentBalance < ((commitFee ?? 0) + (revealFee ?? 0)) / 1e8) {
       return "Oh, you don’t have enough funds";
     }
 
@@ -243,11 +267,11 @@ export const KNSTransferDetails = ({
             <i
               className="hn hn-info-circle text-[16px]"
               data-tooltip-id="fee-estimation-tooltip"
-              data-tooltip-content={`${Fee.Base} KAS for miner fees.`}
+              data-tooltip-content={`~${estimatedFeeKas} KAS for miner fees.`}
             ></i>
 
             <span>Estimated</span>
-            <span>{Fee.Base} KAS</span>
+            <span>~{estimatedFeeKas} KAS</span>
           </div>
         </div>
 

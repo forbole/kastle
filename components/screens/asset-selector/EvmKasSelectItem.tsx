@@ -2,11 +2,13 @@ import Layer2AssetImage from "@/components/Layer2AssetImage";
 import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import useEvmKasBalance from "@/hooks/evm/useEvmKasBalance";
 import { useNavigate } from "react-router-dom";
-import { getChainImage, getChainName } from "@/lib/layer2";
+import { getChainImage, getChainName, getChainTokenSymbol } from "@/lib/layer2";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { twMerge } from "tailwind-merge";
 import { formatToken } from "@/lib/utils.ts";
 import HoverTooltip from "@/components/HoverTooltip";
+import useAnalytics from "@/hooks/useAnalytics";
+import { hexToNumber } from "viem";
 
 export default function EvmKasSelectItem({
   chainId,
@@ -15,12 +17,18 @@ export default function EvmKasSelectItem({
 }) {
   const { wallet } = useWalletManager();
   const navigate = useNavigate();
+  const { emitSendInitiated } = useAnalytics();
   const { data } = useEvmKasBalance(chainId);
   const kasBalance = data?.balance ?? "0";
 
   const isLedger = wallet?.type === "ledger";
   const onClick = () => {
     if (isLedger) return;
+    emitSendInitiated({
+      type: "EVM_KAS",
+      id: chainId,
+      chainId: hexToNumber(chainId),
+    });
     navigate(`/evm-kas/send/${chainId}`);
   };
 
@@ -46,7 +54,7 @@ export default function EvmKasSelectItem({
                 chainImageBottomPosition={-2}
               />
             </HoverTooltip>
-            <span>KAS</span>
+            <span>{getChainTokenSymbol(chainId)}</span>
           </div>
           {!isLedger && <span>{formatToken(parseFloat(kasBalance))}</span>}
           {isLedger && (

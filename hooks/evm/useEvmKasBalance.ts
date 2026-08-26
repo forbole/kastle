@@ -8,11 +8,13 @@ import {
 } from "viem";
 import useEvmAddress from "./useEvmAddress";
 import useSWR from "swr";
+import { useEffect, useState } from "react";
 import {
   MAINNET_SUPPORTED_EVM_L2_CHAINS,
   TESTNET_SUPPORTED_EVM_L2_CHAINS,
 } from "@/lib/layer2";
 import { useSettings } from "../useSettings";
+import { evmKasBalanceCache } from "@/lib/cache/evmKasBalanceCache";
 
 export default function useEvmKasBalance(chainId?: Hex) {
   const balancesResult = useEvmKasBalances();
@@ -40,11 +42,34 @@ export default function useEvmKasBalance(chainId?: Hex) {
 
 export function useEvmKasBalancesByAddress(evmAddress?: Address) {
   const [settings] = useSettings();
+  const [cacheReady, setCacheReady] = useState(false);
 
   const chains =
     settings?.networkId === "mainnet"
       ? MAINNET_SUPPORTED_EVM_L2_CHAINS
       : TESTNET_SUPPORTED_EVM_L2_CHAINS;
+
+  const cacheKey = evmAddress
+    ? `${settings?.networkId ?? "mainnet"}:${evmAddress}`
+    : null;
+
+  useEffect(() => {
+    if (!cacheKey) return;
+    evmKasBalanceCache.load(cacheKey).then(() => setCacheReady(true));
+  }, [cacheKey]);
+
+  const cachedRaw = cacheKey ? evmKasBalanceCache.read(cacheKey) : null;
+  // Reconstruct full shape: rawBalance is placeholder 0n (callers using only
+  // `balance` string are unaffected)
+  const fallbackData =
+    cacheReady && cachedRaw != null
+      ? Object.fromEntries(
+          Object.entries(cachedRaw).map(([chainId, balance]) => [
+            chainId,
+            { rawBalance: 0n, balance },
+          ]),
+        )
+      : undefined;
 
   const fetcher = async () => {
     if (!evmAddress || chains.length === 0) {
@@ -87,9 +112,21 @@ export function useEvmKasBalancesByAddress(evmAddress?: Address) {
       : null,
     evmAddress ? fetcher : null,
     {
+      fallbackData,
+      keepPreviousData: true,
       refreshInterval: 10000, // Refresh every 10 seconds
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
+      onSuccess: (data) => {
+        if (!cacheKey || !data) return;
+        const serialisable = Object.fromEntries(
+          Object.entries(data).map(([chainId, { balance }]) => [
+            chainId,
+            balance,
+          ]),
+        );
+        evmKasBalanceCache.write(cacheKey, serialisable);
+      },
     },
   );
 }

@@ -78,7 +78,7 @@ export default function DeployingToken() {
         <div className="mt-10 flex h-full flex-col items-center gap-4">
           <img
             alt="castle"
-            className="h-[120px] w-[299px] self-center"
+            className="aspect-[686/240] w-full max-w-[343px] self-center"
             src={carriageImage}
           />
           <span className="text-xl font-semibold capitalize text-daintree-400">

@@ -5,6 +5,7 @@ import React, { useState } from "react";
 import EvmKasInfo from "@/components//evm-kas-asset/EvmKasInfo";
 import { useParams } from "react-router-dom";
 import EvmKasHistory from "../evm-kas-asset/EvmKasHistory";
+import { getChainTokenSymbol } from "@/lib/layer2";
 
 export default function EvmKasAsset() {
   const navigate = useNavigate();
@@ -14,7 +15,7 @@ export default function EvmKasAsset() {
   return (
     <div className="flex h-full flex-col px-4 py-6">
       <Header
-        title={"KAS"}
+        title={getChainTokenSymbol(chainId ?? "0x0")}
         onBack={() => navigate("/dashboard")}
         onClose={() => navigate("/dashboard")}
       />

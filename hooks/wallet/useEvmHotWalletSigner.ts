@@ -21,7 +21,7 @@ export default function useEvmHotWalletSigner() {
 
   const walletId = walletInfo.id;
   const accountIndex = account.index;
-  const isKastleLegacy = walletInfo.isLegacyWalletEnabled ?? true;
+  const isKastleLegacy = walletInfo.isLegacyWalletEnabled ?? false;
 
   const getPublicKey = async () => {
     const { publicKey } = await signer.getPublicKey({

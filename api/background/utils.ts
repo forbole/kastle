@@ -230,7 +230,7 @@ export class ApiUtils {
   static async getKaspaRpcClient(): Promise<RpcClient> {
     const settings = await this.getSettings();
     const networkId = settings.networkId;
-    const rpcUrl = RPC_URLS[networkId];
+    const rpcUrl = RPC_URLS[networkId][0];
     const rpcClient = new RpcClient({
       url: rpcUrl,
       resolver: rpcUrl ? undefined : new Resolver(),
@@ -238,6 +238,54 @@ export class ApiUtils {
       networkId,
     });
     return rpcClient;
+  }
+
+  static async connectKaspaRpcClient(): Promise<RpcClient> {
+    const settings = await this.getSettings();
+    const networkId = settings.networkId;
+    const rpcUrls = RPC_URLS[networkId];
+    let lastError: unknown;
+
+    for (const rpcUrl of rpcUrls) {
+      const rpcClient = new RpcClient({
+        url: rpcUrl,
+        resolver: rpcUrl ? undefined : new Resolver(),
+        encoding: Encoding.Borsh,
+        networkId,
+      });
+      try {
+        await rpcClient.connect();
+        const { isSynced } = await rpcClient.getServerInfo();
+        if (!isSynced) {
+          await rpcClient.disconnect();
+          throw new Error(`RPC client at ${rpcUrl} is not synced`);
+        }
+
+        return rpcClient;
+      } catch (e) {
+        await rpcClient.disconnect();
+        lastError = e;
+      }
+    }
+
+    throw new Error("Failed to connect to any RPC endpoint: " + lastError);
+  }
+
+  static async getServerSyncInfo(): Promise<{
+    isSynced: boolean;
+    virtualDaaScore: bigint;
+  }> {
+    const rpcClient = await this.getKaspaRpcClient();
+    await rpcClient.connect();
+    try {
+      const serverInfo = await rpcClient.getServerInfo();
+      return {
+        isSynced: serverInfo.isSynced,
+        virtualDaaScore: serverInfo.virtualDaaScore,
+      };
+    } finally {
+      await rpcClient.disconnect();
+    }
   }
 }
 

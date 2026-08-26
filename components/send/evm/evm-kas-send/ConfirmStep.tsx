@@ -16,7 +16,11 @@ import useEvmAddress from "@/hooks/evm/useEvmAddress";
 import useFeeEstimate from "@/hooks/evm/useFeeEstimate";
 import useAnalytics from "@/hooks/useAnalytics.ts";
 import { formatEther, parseEther } from "viem";
-import { ALL_SUPPORTED_EVM_L2_CHAINS, getChainName } from "@/lib/layer2";
+import {
+  ALL_SUPPORTED_EVM_L2_CHAINS,
+  getChainName,
+  getChainTokenSymbol,
+} from "@/lib/layer2";
 import { createPublicClient, http, hexToNumber } from "viem";
 import { formatToken } from "@/lib/utils.ts";
 import { sendEvmTransaction } from "@/lib/ethereum/transaction";
@@ -69,6 +73,8 @@ export const ConfirmStep = ({
     (chain) => chain.id === hexToNumber(chainId),
   );
 
+  const tokenSymbol = getChainTokenSymbol(chainId);
+
   const ethClient = createPublicClient({
     chain: selectedChain,
     transport: http(),
@@ -105,7 +111,7 @@ export const ConfirmStep = ({
 
       setOutTxs([txId]);
       // Don't await, analytics should not crash the app
-      emitFirstTransaction({
+      void emitFirstTransaction({
         amount,
         coin: "KAS",
         direction: "send",
@@ -136,7 +142,7 @@ export const ConfirmStep = ({
         {wallet?.type !== "ledger" && (
           <img
             alt="castle"
-            className="h-[120px] w-[134px] self-center"
+            className="aspect-[686/240] w-full max-w-[343px] self-center"
             src={signImage}
           />
         )}
@@ -173,7 +179,7 @@ export const ConfirmStep = ({
               <span className="font-medium">Sending amount</span>
               <div className="flex flex-col text-right">
                 <span className="font-medium">
-                  {amountNumber.toFixed(3)} KAS
+                  {amountNumber.toFixed(3)} {tokenSymbol}
                 </span>
                 <span className="text-xs text-daintree-400">
                   {formatCurrency(amountCurrency, amountCurrencyCode)}
@@ -185,7 +191,9 @@ export const ConfirmStep = ({
             <div className="flex w-full items-start justify-between">
               <span className="font-medium">Fee</span>
               <div className="flex flex-col text-right">
-                <span className="font-medium">{formatToken(fiatFees)} KAS</span>
+                <span className="font-medium">
+                  {formatToken(fiatFees)} {tokenSymbol}
+                </span>
                 <span className="text-xs text-daintree-400">
                   {formatCurrency(feesCurrency, feesCurrencyCode)}
                 </span>

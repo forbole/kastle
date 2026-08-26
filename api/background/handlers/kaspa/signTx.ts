@@ -41,6 +41,9 @@ export const signTxHandler: Handler = async (
   url.hash = "/sign-tx";
   url.searchParams.set("requestId", message.id);
   url.searchParams.set("payload", JSON.stringify(result.data));
+  if (message.host) {
+    url.searchParams.set("origin", message.host);
+  }
 
   // Open the popup and wait for the response
   const response = await ApiUtils.openPopupAndListenForResponse(

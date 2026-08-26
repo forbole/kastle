@@ -21,16 +21,26 @@ export default function SignTxConfirm() {
     : null;
 
   const parsedPayload = SignTxPayloadSchema.parse(payload);
+  const origin =
+    new URLSearchParams(window.location.search).get("origin") ?? "";
   const loading = !wallet || !requestId || !payload;
 
   return (
     <div className="no-scrollbar h-screen overflow-y-scroll p-4">
       {loading && <Splash />}
       {!loading && wallet.type !== "ledger" && (
-        <HotWalletSignTx requestId={requestId} payload={parsedPayload} />
+        <HotWalletSignTx
+          requestId={requestId}
+          payload={parsedPayload}
+          origin={origin}
+        />
       )}
       {!loading && wallet.type === "ledger" && (
-        <LedgerSignTx requestId={requestId} payload={parsedPayload} />
+        <LedgerSignTx
+          requestId={requestId}
+          payload={parsedPayload}
+          origin={origin}
+        />
       )}
     </div>
   );

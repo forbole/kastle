@@ -15,7 +15,11 @@ export default function AccountsImported() {
         />
         <div className="mt-16 flex flex-grow flex-col justify-between">
           <div className="space-y-4">
-            <img src={successImage} alt="Success" className="mx-auto" />
+            <img
+              src={successImage}
+              alt="Success"
+              className="mx-auto aspect-[686/240] w-full max-w-[343px]"
+            />
             <div className="items-center space-y-2">
               <h3 className="text-center text-xl font-semibold text-teal-500">
                 Success

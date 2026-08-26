@@ -2,7 +2,7 @@ import React from "react";
 import { formatCurrency } from "@/lib/utils.ts";
 import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
-import { getChainName, getChainImage } from "@/lib/layer2";
+import { getChainName, getChainImage, getChainTokenSymbol } from "@/lib/layer2";
 import Layer2AssetImage from "../Layer2AssetImage";
 
 export default function EvmKasInfo({ chainId }: { chainId: `0x${string}` }) {
@@ -20,7 +20,7 @@ export default function EvmKasInfo({ chainId }: { chainId: `0x${string}` }) {
         />
         <div className="flex flex-grow flex-col gap-1">
           <div className="flex items-center justify-between text-base text-white">
-            <span className="capitalize">KAS</span>
+            <span className="capitalize">{getChainTokenSymbol(chainId)}</span>
           </div>
           <div className="flex items-center justify-start text-sm text-daintree-400">
             <span>≈ {formatCurrency(kaspaCurrency, kaspaCurrencyCode)} </span>

@@ -47,7 +47,7 @@ export default function ConnectedApps() {
             <img
               src={emptyImage}
               alt="empty"
-              className="mx-auto h-[120px] w-[152px]"
+              className="mx-auto aspect-[686/288] w-full max-w-[343px]"
             />
             <div className="text-center text-sm text-[#7B9AAA]">
               Looks like no apps are connected yet

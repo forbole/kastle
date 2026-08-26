@@ -1,5 +1,5 @@
 import Header from "@/components/GeneralHeader";
-import warningImage from "@/assets/images/warning.png";
+import alertImage from "@/assets/images/alert.png";
 import { ApiUtils } from "@/api/background/utils";
 import { ApiExtensionUtils } from "@/api/extension";
 import { RPC_ERRORS } from "@/api/message";
@@ -24,7 +24,11 @@ export default function UnsupportedNetwork({
         showClose={false}
         title="Unsupported Network"
       />
-      <img src={warningImage} alt="Warning" className="mx-auto" />
+      <img
+        src={alertImage}
+        alt="Warning"
+        className="mx-auto aspect-[686/255] w-full max-w-[343px]"
+      />
       <div className="mt-12 space-y-16 text-center">
         <h3 className="text-xl font-semibold">
           The selected evm layer2 network is not supported by Kastle.

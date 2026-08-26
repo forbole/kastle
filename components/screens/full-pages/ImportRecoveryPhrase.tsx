@@ -20,7 +20,7 @@ type SeedPhraseFormValues = {
 };
 
 export default function ImportRecoveryPhrase() {
-  const { emitWalletImported } = useAnalytics();
+  const { emitWalletCreated } = useAnalytics();
   const navigate = useNavigate();
   const { keyringInitialize } = useKeyring();
   const { importWalletByMnemonic } = useWalletImporter();
@@ -86,9 +86,8 @@ export default function ImportRecoveryPhrase() {
     }
 
     const walletId = uuid();
-    await importWalletByMnemonic(walletId, words.join(" "));
-
-    emitWalletImported();
+    const address = await importWalletByMnemonic(walletId, words.join(" "));
+    emitWalletCreated({ method: "import", sender: address ?? undefined });
     navigate(`/manage-accounts/recovery-phrase/${walletId}/import`, {
       state: {
         ...(onboardingForm && { redirect: "/onboarding-success/import" }),

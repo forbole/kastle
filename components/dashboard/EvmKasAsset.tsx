@@ -1,5 +1,5 @@
 import Layer2AssetImage from "../Layer2AssetImage";
-import { getChainImage } from "@/lib/layer2";
+import { getChainImage, getChainTokenSymbol } from "@/lib/layer2";
 import { useNavigate } from "react-router-dom";
 import {
   formatCurrency,
@@ -16,10 +16,10 @@ export default function EvmKasAsset({ chainId }: { chainId: `0x${string}` }) {
   const navigate = useNavigate();
   const kaspaPrice = useKaspaPrice();
   const { data } = useEvmKasBalance(chainId);
-  const balance = formatToken(parseFloat(data?.balance ?? "0"));
+  const balance = parseFloat(data?.balance ?? "0");
 
   const fiatKaspaPrice = kaspaPrice.kaspaPrice;
-  const fiatBalance = parseFloat(balance ?? "0") * kaspaPrice.kaspaPrice;
+  const fiatBalance = balance * kaspaPrice.kaspaPrice;
 
   const { amount: tokenPriceCurrency, code: tokenPriceCurrencyCode } =
     useCurrencyValue(fiatKaspaPrice);
@@ -27,6 +27,7 @@ export default function EvmKasAsset({ chainId }: { chainId: `0x${string}` }) {
     useCurrencyValue(fiatBalance);
 
   const showBalance = !settings?.hideBalances;
+  const tokenSymbol = getChainTokenSymbol(chainId);
 
   return (
     <div
@@ -40,9 +41,9 @@ export default function EvmKasAsset({ chainId }: { chainId: `0x${string}` }) {
       <div className="flex flex-grow flex-col gap-1">
         <div className="flex items-start justify-between text-base text-white">
           <div className="flex flex-col gap-1">
-            <span>KAS</span>
+            <span>{tokenSymbol}</span>
           </div>
-          <span>{showBalance ? balance : "*****"}</span>
+          <span>{showBalance ? formatToken(balance) : "*****"}</span>
         </div>
         <div className="flex items-center justify-between text-sm text-daintree-400">
           <span>

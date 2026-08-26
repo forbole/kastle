@@ -3,11 +3,8 @@ import { useTokenListByAddress } from "@/hooks/kasplex/useTokenListByAddress";
 import { Account } from "@/contexts/WalletManagerContext.tsx";
 import useKaspaPrice from "@/hooks/useKaspaPrice";
 import useKaspaBalance from "@/hooks/wallet/useKaspaBalance";
-import { useErc20Prices } from "@/hooks/evm/useZealousSwapMetadata";
-import {
-  useEvmKasBalances,
-  useEvmKasBalancesByAddress,
-} from "@/hooks/evm/useEvmKasBalance";
+import { useErc20Prices } from "@/hooks/evm/useErc20Prices";
+import { useEvmKasBalancesByAddress } from "@/hooks/evm/useEvmKasBalance";
 import { useErc20BalancesByAddress } from "@/hooks/evm/useErc20Balance";
 import { publicKeyToAddress } from "viem/utils";
 
@@ -36,8 +33,9 @@ export default function useTotalBalanceByAccount(account?: Account) {
           if ("error" in balanceItem) return acc;
           const priceToken = priceTokens.find(
             (t) =>
+              t.chainId === balanceItem.chainId &&
               t.address.toLowerCase() ===
-              balanceItem.tokenAddress.toLowerCase(),
+                balanceItem.tokenAddress.toLowerCase(),
           );
           if (!priceToken?.price) return acc;
           return acc + balanceItem.balance * priceToken.price;

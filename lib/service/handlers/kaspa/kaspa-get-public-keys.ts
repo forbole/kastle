@@ -1,10 +1,10 @@
 import { ExtensionService, Message } from "@/lib/service/extension-service.ts";
-import { getSigner, getCurrentSigner } from "./utils";
+import { getSigner } from "./utils";
 
 export type KaspaGetPublicKeysRequest = {
   walletId: string;
   accountIndex: number;
-  isLegacy?: boolean;
+  isLegacy: boolean; // Required to ensure correct key derivation
 };
 
 export type KaspaGetPublicKeysResponse = {
@@ -25,10 +25,7 @@ export async function kaspaGetPublicKeysHandler(
     throw new Error("Keyring not initialized or locked");
   }
 
-  const signer =
-    isLegacy !== undefined
-      ? await getSigner(walletId, accountIndex, isLegacy)
-      : await getCurrentSigner(walletId, accountIndex);
+  const signer = await getSigner(walletId, accountIndex, isLegacy);
 
   const publicKeys = await signer.getPublicKeys();
   sendResponse({ publicKeys });

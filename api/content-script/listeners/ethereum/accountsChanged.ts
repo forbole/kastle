@@ -15,12 +15,36 @@ export class EthereumAccountsChangedListener {
         oldSettings: WalletSettings | null,
       ) => {
         if (newSettings) {
+          // Check if wallet legacy mode changed for the selected wallet
+          const oldSelectedWallet = oldSettings?.wallets.find(
+            (w) => w.id === oldSettings.selectedWalletId,
+          );
+          const newSelectedWallet = newSettings.wallets.find(
+            (w) => w.id === newSettings.selectedWalletId,
+          );
+          const isLegacyChanged =
+            oldSelectedWallet?.isLegacyWalletEnabled !==
+            newSelectedWallet?.isLegacyWalletEnabled;
+
+          // Check if EVM public key changed for the selected account
+          const oldSelectedAccount = oldSelectedWallet?.accounts.find(
+            (a) => a.index === oldSettings?.selectedAccountIndex,
+          );
+          const newSelectedAccount = newSelectedWallet?.accounts.find(
+            (a) => a.index === newSettings.selectedAccountIndex,
+          );
+          const isEvmPublicKeyChanged =
+            oldSelectedAccount?.evmPublicKey !==
+            newSelectedAccount?.evmPublicKey;
+
           if (
             oldSettings?.selectedAccountIndex ===
               newSettings.selectedAccountIndex &&
-            oldSettings?.selectedWalletId === newSettings.selectedWalletId
+            oldSettings?.selectedWalletId === newSettings.selectedWalletId &&
+            !isLegacyChanged &&
+            !isEvmPublicKeyChanged
           ) {
-            // No change in selected account, no need to update
+            // No change in selected account, legacy mode, or EVM public key, no need to update
             return;
           }
 
