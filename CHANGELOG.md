@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.59.5](https://github.com/forbole/kastle/compare/v2.59.4...v2.59.5) (2026-08-26)
+
+
+### Bug Fixes
+
+* **ledger:** unify the derivation path so non-legacy accounts can spend ([#312](https://github.com/forbole/kastle/issues/312)) ([6c66e88](https://github.com/forbole/kastle/commit/6c66e888f58738417096a3c4d09bb01315323b2b))
+
 ## [2.59.4](https://github.com/forbole/kastle/compare/v2.59.3...v2.59.4) (2026-08-25)
 
 
