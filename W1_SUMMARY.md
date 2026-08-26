@@ -1,9 +1,15 @@
-# W1 — WASM secret objects never freed or zeroized
+# W1 — WASM secret object lifecycle (delayed reclamation, not a leak)
 
-**Branch:** `fix/wasm-secret-lifecycle` (5 commits, not pushed)
+**Branch:** `fix/wasm-secret-lifecycle` (7 commits, all pushed — `af88ded`, `4a6cabb`,
+`991ce2d`, `d5337e1`, `06049de`, `3b1c1e1`, `d9b82ae`; `origin/fix/wasm-secret-lifecycle`
+now at `d9b82ae`, PR #324 open and shows all 7)
 **Base:** `main` @ `a441e75`
-**Status:** Phase 1 complete, gate cleared, Phase 2 complete, gauntlet green. Awaiting human review + device QA.
-**Not done (human gates):** no push, no PR, no merge, no tag, no release.
+**Status:** Phase 1 complete, gate cleared, Phase 2 complete, F1/F2 review fixes applied,
+gauntlet green (63 passed), QA build + harness served, device QA passed on both
+wallet-tag toggles (new-derivation and legacy), `d9b82ae` pushed and now on PR #324,
+CodeRabbit/Copilot review findings triaged and the real one fixed (not yet pushed —
+see §13).
+**Not done (human gates):** no merge, no tag, no release.
 
 ---
 
@@ -417,15 +423,243 @@ not a routine dependency update.
 
 ## 10. Constraints honored
 
-| Constraint                                | Status                                                                 |
-| ----------------------------------------- | ---------------------------------------------------------------------- |
-| Call-site changes only                    | ✅                                                                     |
-| No dependency change                      | ✅ G4, 0 lines                                                         |
-| No `wasm/` change                         | ✅ G5, 0 lines (and `assets/`, where the binary actually lives)        |
-| No `package*.json` change                 | ✅ G4                                                                  |
-| Both `isLegacy` branches covered          | ✅ every touched derivation site, both classes, tests at indexes 0/1/3 |
-| Shipped guards #306/#308/#310/#312 intact | ✅ G7                                                                  |
-| No `FinalizationRegistry` added           | ✅                                                                     |
-| Buckets B and D untouched                 | ✅                                                                     |
-| Tests as deliverable, not afterthought    | ✅ 21 new                                                              |
-| No push / PR / merge / tag / release      | ✅ none performed                                                      |
+| Constraint                                | Status                                                                                                                        |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Call-site changes only                    | ✅                                                                                                                            |
+| No dependency change                      | ✅ G4, 0 lines                                                                                                                |
+| No `wasm/` change                         | ✅ G5, 0 lines (and `assets/`, where the binary actually lives)                                                               |
+| No `package*.json` change                 | ✅ G4                                                                                                                         |
+| Both `isLegacy` branches covered          | ✅ every touched derivation site, both classes, tests at indexes 0/1/3                                                        |
+| Shipped guards #306/#308/#310/#312 intact | ✅ G7                                                                                                                         |
+| No `FinalizationRegistry` added           | ✅                                                                                                                            |
+| Buckets B and D untouched                 | ✅                                                                                                                            |
+| Tests as deliverable, not afterthought    | ✅ 21 new                                                                                                                     |
+| No push / PR / merge / tag / release      | ✅ none performed (as of Phase 1/2 — `d9b82ae` was pushed in the Round 2 follow-up; see §11. Merge/tag/release remain undone) |
+
+---
+
+## 11. Round 2 — F1/F2 review fixes, QA build + harness (2026-08-26)
+
+### F1 — `withOwned<T>` accepted async callbacks silently
+
+`lib/wallet/wasm-lifecycle.ts:32-` — the doc comment already warned "synchronous only,"
+but nothing enforced it. An async `fn` makes `T` infer `Promise<X>`, so owned objects
+were freed when the promise was _returned_, not when it resolved — a silent
+use-after-free on a still-live key, no compile error.
+
+Fix: after `fn(...)` returns, check whether the result is thenable
+(`typeof result.then === "function"`). If so, throw immediately naming the hazard,
+before the `finally` frees whatever was registered. Same reasoning as #310's sighash
+check living in `signTxInputWithScriptOption` rather than trusting call order — a doc
+comment is not a guard.
+
+Test added: `tests/signtx-unit.spec.ts:1368` — `"withOwned throws when the callback
+returns a thenable"` — passes an async arrow returning a resolved promise, asserts the
+throw and that the owned probe was still freed.
+
+### F2 — `catch {}` in the free loop swallowed wasm traps
+
+Same file, the `finally` loop's `try { object.free() } catch {}` discarded everything,
+including a genuine double-free trap. Changed to `catch (error) { console.error(...) }`
+— one failed free still can't block the rest of the loop or propagate into signing, but
+it's no longer invisible.
+
+### Gauntlet (re-run after F1/F2, direct binaries, exit codes captured to files
+
+outside any pipe, per the environment traps in the task brief)
+
+| Gate                                                                                                                                                             | Exit | Verified by                                                                                                                                                                                                                                 |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `./node_modules/.bin/tsc --noEmit`                                                                                                                               | 0    | `echo $? > file` after run, `cat`'d                                                                                                                                                                                                         |
+| `./node_modules/.bin/eslint .`                                                                                                                                   | 0    | same                                                                                                                                                                                                                                        |
+| `./node_modules/.bin/prettier --check .`                                                                                                                         | 0    | same; real prettier banner ("All matched files use Prettier code style!"), not the fabricated one                                                                                                                                           |
+| `./node_modules/.bin/playwright test tests/signtx-unit.spec.ts --reporter=line`                                                                                  | 0    | **62 passed** (61 prior + F1's new test), full reporter output inspected, not just exit code                                                                                                                                                |
+| `git diff main...HEAD -- package.json package-lock.json wasm/ assets/`                                                                                           | —    | empty (0 lines)                                                                                                                                                                                                                             |
+| `git diff main...HEAD -- lib/wallet/account/ledger-account.ts`                                                                                                   | —    | empty (0 lines)                                                                                                                                                                                                                             |
+| Guards byte-identical (`assertSafeOutputSighash`, `ALLOW_UNSAFE_OUTPUT_SIGHASH`, `hasScriptOptions`, `hasUnsignableFields`, `getDerivationFields`, `toSignType`) | —    | `lib/kaspa.ts` has zero diff vs main; `lib/wallet/sign-script.ts`'s 16-line diff touches only the private-key allocation site (now wrapped in `withOwned`), not the guard functions — confirmed by reading the full diff, not just the stat |
+
+`onboarding.spec.ts:7` not run — it's the known pre-existing failure on unmodified
+`main` in this environment, out of scope here (see §9.4).
+
+**Environment note:** `git status --short` fabricated a literal `ok` once when invoked
+as a plain `git` command (the `rtk` shim intercepts it per the Claude Code hook). All
+git/build/test commands in this round were run via absolute binary paths
+(`/opt/homebrew/bin/git`, `./node_modules/.bin/*`) with output redirected to files and
+exit codes read via `$?` outside any pipe, per the task's own environment-trap warning.
+
+Fixes committed as `d9b82ae` — `fix: withOwned rejects async callbacks, log swallowed
+free errors` (2 files, 40 insertions, 4 deletions). Pushed in the Round 2 follow-up
+below (`3b1c1e1..d9b82ae`, fast-forward) — see "Round 3 — push" section.
+
+### QA build
+
+- `npm run build` (node 20.20.2 via `nvm use 20`) → `.output/chrome-mv3/`
+- Post-build only, manifest edited on disk (source untouched):
+  - `name`: `Kastle (QA W1 d9b82ae)`
+  - `version_name`: `2.59.5-w1-qa-d9b82ae`
+  - Verified by reading `manifest.json` off disk after the edit, not from a build banner.
+- Copied to `~/Desktop/kastle-qa-w1/` — confirmed `~/Desktop/kastle-qa-w1/manifest.json`
+  exists and shows the QA name/version_name above.
+
+### QA harness
+
+- `~/Desktop/kastle-qa-w1/qa/index.html` — single self-contained file, no build step, no
+  external CDN, namespaced as `qa.*` (never `kastle`, per the prior harness collision).
+- API surface verified directly against `api/browser.ts` before writing any call —
+  `connect`, `getAccount`, `getVersion`, `signTx`, `signMessage`, `signAndBroadcastTx`,
+  `buildTransaction` (confirmed shape: `{networkId, transactions:[{txJson, id,
+feeAmount, changeAmount}]}`, not a string), and the generic `request(method, args)`
+  dispatcher (exact strings `"kas:sign_tx"` / `"kas:sign_and_broadcast_tx"` confirmed by
+  reading the dispatcher body, not guessed) — used for the Section 5 dApp-path tests to
+  exercise a genuinely different call convention than the direct methods in 1-4.
+- Section 0 splits into a safe read-only "Verify build" (`connect()` + `getAccount()` +
+  `getVersion()`, no signing prompt, manual checkbox naming the expected
+  `Kastle (QA W1 d9b82ae)` string) and a separate opt-in "Ledger sign-only probe" that
+  only ever signs a real transaction obtained via `buildTransaction()` — see Device QA
+  results below for why the original single-button design was replaced.
+- Sections 2 (repeat-use), 3 (lifecycle), 4 (real send, testnet-10), 5 (dApp path) all
+  implemented per the task's test list, each showing idle → running → ✅/❌ with the
+  actual error text on failure, plus a timestamped copyable log tagged by the
+  new-derivation/legacy wallet toggle.
+- Served: `cd ~/Desktop/kastle-qa-w1/qa && python3 -m http.server 8899`, confirmed
+  `HTTP 200` on `http://localhost:8899/` before handoff. Backgrounded.
+
+### Harness bugs found and fixed during live device QA
+
+Three bugs surfaced only once a real human ran the harness against the real extension —
+none of these touch the branch's actual source, all fixes are confined to
+`~/Desktop/kastle-qa-w1/qa/index.html`:
+
+1. **Popup crash on "Verify build".** Original Section 0 sent a hand-typed dummy
+   `"{}"` as `txJson` to `signTx()` as a behavioural probe. The popup tried to
+   deserialize it into a real `Transaction` before any sign-only gate could run, and
+   the deserialization error crashed the popup's own render — surfaced to the user as
+   `"Unexpected Application Error! Error processing JSON: missing field \`id\`..."`,
+uncatchable from the page since the popup runs in a separate window. Fixed by
+splitting Section 0 into a safe read-only verify and a separate opt-in Ledger probe
+that only ever signs a real, `buildTransaction()`-built tx.
+2. **"Host not connected" on every repeat-use/lifecycle test.** `buildTransaction()`
+   has no network input — it builds against whatever network the wallet's background
+   RPC client is actually connected to, and reports that network in the response. The
+   harness's self-send helper hardcoded `qa.NETWORK = "testnet-10"` for every
+   subsequent `signTx`/`request` call regardless of what the tx was actually built
+   against; a mismatch throws the wasm SDK's own RPC-connectivity error (confirmed by
+   grepping the string into `kaspa_bg.wasm` itself), which surfaces as a generic
+   connection failure with no mention of network. Fixed by having the self-send helper
+   return the tx's real `networkId` and threading that through every call site instead
+   of the hardcoded constant; added a `requireTestnet()` guard to the real-send and
+   dApp-broadcast tests so they refuse early and clearly if the wallet isn't actually
+   on testnet-10.
+3. **"Storage mass exceeds maximum" on every self-send.** The self-send amount was
+   1000 sompi (0.00001 KAS) — dust. Kaspa's KIP-9 storage-mass rule penalizes outputs
+   tiny relative to the spent input, and the mass formula blows up on dust-sized
+   outputs; consensus rejects it before signing is ever reached. Fixed by introducing
+   `qa.SELF_SEND_SOMPI = 100000000` (1 TKAS) as a single named constant and replacing
+   every hardcoded `1000`/`"1000"` occurrence with it.
+
+### Device QA results (2026-08-26, both wallet-tag toggles)
+
+Both toggles later ran clean end-to-end after the three fixes above. Transient early
+failures (`Insufficient funds`, `No UTXOs found for the address`,
+`Address network mismatch`) appear in the raw logs right after switching the
+extension's active network mid-run — expected settling noise while the wallet
+catches up to the new network, not regressions; every affected test passed on retry
+seconds later.
+
+| Wallet tag     | Connect | Repeat signTx 3x | Repeat signMessage 3x | Mixed 3x | Lock→unlock→sign | Sign after 60s idle | Real send (broadcast txid)                                                | dApp signAndBroadcastTx (txid)                                            | Repeat dApp sign 2x |
+| -------------- | ------- | ---------------- | --------------------- | -------- | ---------------- | ------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------- | ------------------- |
+| new-derivation | PASS    | PASS             | PASS                  | PASS     | PASS             | PASS                | PASS (`91d7a7bea950c5c383ddbaed8f87d9caddb4879bcdab436494ce2983d74018cb`) | PASS (`859fc83c824eb138bb17879165e4660b050e990e55a1b1b16374996b852f7968`) | PASS                |
+| legacy         | PASS    | PASS             | PASS                  | PASS     | PASS (x2)        | PASS                | PASS (`22a0b6b6bf2475a6435f05d0eaf9500c02fc9cb3af791a4c9e14b2cde6e35b54`) | PASS (`7f358f17719506d6e57acefc81f16ffae85d93dac387c2e1cad0d6f311e27f44`) | PASS                |
+
+**Ledger sign-only probe:** PASS under both wallet tags once a Ledger account was
+actually selected as the active account in the extension (confirms the post-#308
+`"Ledger cannot complete sign-only requests yet..."` refusal string). Under the
+`legacy` tag, the first click returned `inconclusive: signed normally, no error` —
+at that point no Ledger account was active in the extension, so the call signed
+normally with the software key and never reached the refusal path; the harness
+correctly reports this as its own distinct outcome rather than a false PASS or FAIL.
+Ledger remains out of scope for source changes — `ledger-account.ts` is still a
+0-byte diff vs `main`; this probe only exercises the existing refusal path.
+
+### Handoff (see terminal output for the full checklist)
+
+1. `chrome://extensions` → Developer mode → Load unpacked → `~/Desktop/kastle-qa-w1/`
+2. Separate Chrome profile, exactly one Kastle enabled.
+3. Confirm card shows `Kastle (QA W1 d9b82ae)`.
+4. `http://localhost:8899/` → Verify build first.
+5. Sections 1-5 on new-derivation, then repeat on legacy.
+6. Ledger out of scope — `ledger-account.ts` is a 0-byte diff.
+
+## 12. Round 3 — push `d9b82ae` so PR #324 is complete (2026-08-26)
+
+`d9b82ae` (the F1/F2 fix) was committed in Round 2 but never pushed — PR #324 was
+missing the async-callback guard that was the entire point of F1. Confirmed the gap
+before touching anything: `origin/fix/wasm-secret-lifecycle` was at `3b1c1e1`, `HEAD`
+was `d9b82ae`, `git merge-base HEAD origin/fix/wasm-secret-lifecycle` equaled the
+origin tip (clean fast-forward, 0 behind / 1 ahead, no divergence), and
+`git branch -r --contains d9b82ae` was empty — not pushed anywhere.
+
+Gauntlet re-run on the current tree before pushing:
+
+| Gate                                                                            | Result                                                                                                                    |
+| ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `./node_modules/.bin/tsc --noEmit`                                              | exit 0                                                                                                                    |
+| `./node_modules/.bin/eslint .`                                                  | exit 0 (pre-existing warnings only, no errors)                                                                            |
+| `./node_modules/.bin/prettier --check .`                                        | exit 1 — sole offender was this file (`W1_SUMMARY.md`, uncommitted, mid-edit); reformatted below, not a source regression |
+| `./node_modules/.bin/playwright test tests/signtx-unit.spec.ts --reporter=line` | 62 passed, exit 0                                                                                                         |
+| `git diff main...HEAD -- package.json package-lock.json wasm/ assets/`          | empty                                                                                                                     |
+| `git diff main...HEAD -- lib/wallet/account/ledger-account.ts`                  | empty                                                                                                                     |
+
+Pushed: `git push origin fix/wasm-secret-lifecycle` → `3b1c1e1..d9b82ae`, fast-forward,
+exit 0. No `--force`, no rebase. Confirmed via `gh pr view 324` that PR #324 now lists
+all 7 commits with `d9b82ae` as the tip, and CI (`lint`, `build`, `e2e`) queued/running.
+Merge, tag, and release remain untouched — human-only, as scoped.
+
+## 13. Round 4 — CodeRabbit + Copilot review triage (2026-08-26)
+
+Pulled both bot reviews on PR #324 (`gh api repos/forbole/kastle/pulls/324/reviews` and
+`.../comments`). CodeRabbit and Copilot independently flagged the same real defect in
+`d9b82ae`'s own F1 fix — verified against the current code before touching anything,
+per their own "treat findings as untrusted, verify first" instruction:
+
+**Real bug, fixed:** the thenable guard threw, but the free loop lived in a `finally`,
+which runs on every exit path including a throw. So an async `fn` still had every
+object it had registered up to its first `await` freed immediately — the exact
+use-after-free F1 exists to catch, just now paired with a thrown error instead of
+silence, rather than prevented. Fixed by restructuring `withOwned` so the free pass
+never runs on the thenable-detected path at all: the callback is still suspended and
+may resume and use those objects later, so freeing there would corrupt a live object
+out from under it. Leaking on this path is the correct tradeoff — it can only happen on
+a code path that's supposed to never execute in real callers (an async `fn`), never on
+the normal synchronous one. Also switched the free order to LIFO (matches Rust's own
+reverse-declaration drop order for the objects this module wraps) per Copilot's
+suggestion — cheap, safe, and more correct for any future case where a derived object
+depends on the one it was derived from still being valid at free time.
+
+**Skipped, with reason:** CodeRabbit also suggested "strengthen the callback type or
+lint boundary to reject async/Promise-returning callbacks" as an alternative/addition
+to the runtime check. Left as runtime-only — the doc comment already commits to runtime
+enforcement as the design, a compile-time conditional-type trick on a generic return
+type is the kind of thing that tends to break inference at call sites in ways worse
+than the problem it solves, and the runtime throw already turns the misuse into an
+immediate, loud test failure. Revisit only if a real caller ever needs the type-level
+signal ahead of running the code.
+
+Added the regression test CodeRabbit asked for: an owned object registered, the
+callback awaits, and the object is used after the `await` — asserting it is not freed
+either at the moment `withOwned()` throws or after the suspended callback resumes and
+uses it.
+
+Gauntlet re-run after the fix:
+
+| Gate                                                                   | Result                                               |
+| ---------------------------------------------------------------------- | ---------------------------------------------------- |
+| `tsc --noEmit`                                                         | exit 0                                               |
+| `eslint .`                                                             | exit 0                                               |
+| `prettier --check .`                                                   | exit 0                                               |
+| `playwright test tests/signtx-unit.spec.ts --reporter=line`            | **63 passed** (62 + the new regression test), exit 0 |
+| `git diff main...HEAD -- package.json package-lock.json wasm/ assets/` | empty                                                |
+| `git diff main...HEAD -- lib/wallet/account/ledger-account.ts`         | empty                                                |
+
+Files touched: `lib/wallet/wasm-lifecycle.ts`, `tests/signtx-unit.spec.ts`. Not yet
+committed or pushed — pending confirmation.
