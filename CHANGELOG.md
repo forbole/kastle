@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.59.6](https://github.com/forbole/kastle/compare/v2.59.5...v2.59.6) (2026-08-26)
+
+
+### Bug Fixes
+
+* free WASM secret objects at last use ([#324](https://github.com/forbole/kastle/issues/324)) ([6637ad9](https://github.com/forbole/kastle/commit/6637ad92bdb5099d5334ab80a0ace7210a4b21a9))
+
 ## [2.59.5](https://github.com/forbole/kastle/compare/v2.59.4...v2.59.5) (2026-08-26)
 
 
