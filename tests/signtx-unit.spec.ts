@@ -30,6 +30,11 @@ import {
 } from "@/lib/wallet/sign-script";
 import { SIGN_TYPE, toSignType } from "@/lib/kaspa";
 import { SignTxPayloadSchema } from "@/api/background/handlers/kaspa/utils";
+import {
+  AccountFactory,
+  LegacyAccountFactory,
+} from "@/lib/wallet/account-factory";
+import { withOwned } from "@/lib/wallet/wasm-lifecycle";
 import type { SignType } from "@/lib/wallet/wallet-interface";
 
 // Throwaway key — unit tests only, never funded.
@@ -1160,5 +1165,203 @@ test.describe("ledger derivation unification (B2/C/D)", () => {
     expect(tx.inputs[0].utxo).toBeUndefined();
 
     await expect(account.signTx(tx)).rejects.toThrow(/missing its UTXO entry/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// W1 — explicit lifetimes for secret-bearing WASM objects (wasm-lifecycle.ts).
+// These objects are now freed at last use, which means a misplaced free shows
+// up as "null pointer passed to rust" on the signing path. The derivation
+// vectors below were captured from `main` BEFORE any free() was introduced and
+// are hardcoded on purpose: comparing the two branches to each other would pass
+// even if both were wrong, and at accountIndex 0 the two derivation paths
+// coincide, so only indexes 1 and 3 can catch a branch swap.
+// ---------------------------------------------------------------------------
+
+const W1_MNEMONIC =
+  "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+
+const W1_VECTORS = [
+  {
+    branch: "legacy",
+    accountIndex: 0,
+    address:
+      "kaspa:qqd6e65yefepe9wk0m9vuxdufxd80sphy67gwwd0vdaumzdt4tc9s3qt0lqeh",
+    firstPublicKey:
+      "031bacea84ca721c95d67ecace19bc499a77c03726bc8739af637bcd89abaaf058",
+  },
+  {
+    branch: "legacy",
+    accountIndex: 1,
+    address:
+      "kaspa:qzyqe0y64jqvx043jd0mpgugrd00y39zp0t7j64854k7r0ln2eu3vck8n7p07",
+    firstPublicKey:
+      "03880cbc9aac80c33eb1935fb0a3881b5ef244a20bd7e96aa7a56de1bff3567916",
+  },
+  {
+    branch: "legacy",
+    accountIndex: 3,
+    address:
+      "kaspa:qrgg2k6l7r96x8ckw64rncttgsxs0zgdm2jsz20x4p4392ypjejsgx38gqhvj",
+    firstPublicKey:
+      "02d0855b5ff0cba31f1676aa39e16b440d07890ddaa50129e6a86b12a881966504",
+  },
+  {
+    branch: "new",
+    accountIndex: 0,
+    address:
+      "kaspa:qqd6e65yefepe9wk0m9vuxdufxd80sphy67gwwd0vdaumzdt4tc9s3qt0lqeh",
+    firstPublicKey:
+      "031bacea84ca721c95d67ecace19bc499a77c03726bc8739af637bcd89abaaf058",
+  },
+  {
+    branch: "new",
+    accountIndex: 1,
+    address:
+      "kaspa:qp6r0d88yj4fazlj057wc35245jfgs87n9jn6nahfg223996dfukvgpgq6pcp",
+    firstPublicKey:
+      "027437b4e724aa9e8bf27d3cec468aad249440fe99653d4fb74a14a894ba6a7966",
+  },
+  {
+    branch: "new",
+    accountIndex: 3,
+    address:
+      "kaspa:qqwn552u0tdqgcggarzeh2x5nh8lmkgzfg4nqay8vtl9pf975aw3ww9w4xy35",
+    firstPublicKey:
+      "021d3a515c7ada046108e8c59ba8d49dcffdd9024a2b30748762fe50a4bea75d17",
+  },
+] as const;
+
+function w1Factory(branch: string) {
+  return branch === "legacy"
+    ? new LegacyAccountFactory()
+    : new AccountFactory();
+}
+
+// a P2PK script paying the wallet's own derived key, so signTransaction can
+// actually satisfy the input it is handed
+function w1TxFor(xOnlyPublicKey: string) {
+  const spk = "0000" + "20" + xOnlyPublicKey + "ac";
+
+  return Transaction.deserializeFromSafeJSON(
+    JSON.stringify({
+      id: "00".repeat(32),
+      version: 0,
+      inputs: [
+        {
+          transactionId: "11".repeat(32),
+          index: 0,
+          sequence: "0",
+          sigOpCount: 1,
+          computeBudget: 0,
+          signatureScript: "",
+          utxo: {
+            address: null,
+            amount: "100000000",
+            scriptPublicKey: spk,
+            blockDaaScore: "1000",
+            isCoinbase: false,
+          },
+        },
+      ],
+      outputs: [{ value: "90000000", scriptPublicKey: spk }],
+      lockTime: "0",
+      subnetworkId: "00".repeat(20),
+      gas: "0",
+      payload: "",
+    }),
+  );
+}
+
+test.describe("WASM secret lifecycle (W1)", () => {
+  for (const v of W1_VECTORS) {
+    test(`${v.branch} branch derives unchanged addresses at index ${v.accountIndex}`, async () => {
+      const wallet = w1Factory(v.branch).createFromMnemonic(
+        W1_MNEMONIC,
+        v.accountIndex,
+      );
+
+      expect((await wallet.getPublicKeys())[0]).toBe(v.firstPublicKey);
+      expect(
+        (await wallet.getPublicKey()).toAddress("mainnet").toString(),
+      ).toBe(v.address);
+    });
+
+    test(`${v.branch} branch survives repeated use at index ${v.accountIndex}`, async () => {
+      // a use-after-free surfaces as "null pointer passed to rust" on the
+      // second iteration, so repetition is the cheap detector here
+      const wallet = w1Factory(v.branch).createFromMnemonic(
+        W1_MNEMONIC,
+        v.accountIndex,
+      );
+
+      for (let i = 0; i < 20; i++) {
+        expect((await wallet.getPublicKeys())[0]).toBe(v.firstPublicKey);
+        expect(
+          (await wallet.getPublicKey()).toAddress("mainnet").toString(),
+        ).toBe(v.address);
+        expect(await wallet.signMessage("kastle-w1")).toMatch(
+          /^[0-9a-f]{128}$/,
+        );
+      }
+    });
+  }
+
+  test("the two derivation branches stay distinct away from index 0", () => {
+    // guards the isLegacy landmine itself: if the paths were ever swapped or
+    // unified, these would collide
+    const legacy = W1_VECTORS.filter((v) => v.branch === "legacy");
+    const modern = W1_VECTORS.filter((v) => v.branch === "new");
+
+    for (const index of [1, 3]) {
+      const l = legacy.find((v) => v.accountIndex === index)!;
+      const m = modern.find((v) => v.accountIndex === index)!;
+      expect(l.address).not.toBe(m.address);
+    }
+  });
+
+  for (const v of W1_VECTORS) {
+    test(`${v.branch} branch still signs a transaction at index ${v.accountIndex}`, async () => {
+      const wallet = w1Factory(v.branch).createFromMnemonic(
+        W1_MNEMONIC,
+        v.accountIndex,
+      );
+      const xOnly = (await wallet.getPublicKey()).toXOnlyPublicKey().toString();
+
+      // repeated on purpose: the per-input PrivateKey in sign-script.ts is now
+      // freed, so a use-after-free shows up on the second pass as
+      // "null pointer passed to rust" rather than a wrong signature
+      for (let i = 0; i < 5; i++) {
+        const signed = await wallet.signTx(w1TxFor(xOnly), []);
+        expect(signed.inputs[0].signatureScript).toBeTruthy();
+      }
+    });
+  }
+
+  test("free() really deallocates, so reuse throws rather than silently succeeding", () => {
+    // documents the semantics every other test in this block relies on
+    const key = new PrivateKey(TEST_KEY);
+    expect(key.toString()).toBe(TEST_KEY);
+
+    key.free();
+
+    expect(() => key.toString()).toThrow();
+  });
+
+  test("withOwned frees what it owns even when the body throws", () => {
+    let freed = false;
+    const probe = {
+      free() {
+        freed = true;
+      },
+    };
+
+    expect(() =>
+      withOwned((own) => {
+        own(probe);
+        throw new Error("boom");
+      }),
+    ).toThrow("boom");
+    expect(freed).toBe(true);
   });
 });
