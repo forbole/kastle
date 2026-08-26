@@ -27,7 +27,9 @@ type Freeable = { free: () => void };
  * the scope hands back to its caller; the caller owns that one.
  *
  * Synchronous only: with an async `fn` the `finally` would fire at the first
- * `await`, freeing objects still in use. Every current caller is sync.
+ * `await`, freeing objects still in use. Every current caller is sync. This is
+ * enforced at runtime below — an async/thenable `fn` throws instead of
+ * silently freeing a live object.
  */
 export function withOwned<T>(
   fn: (own: <O extends Freeable>(object: O) => O) => T,
@@ -35,17 +37,34 @@ export function withOwned<T>(
   const owned: Freeable[] = [];
 
   try {
-    return fn((object) => {
+    const result = fn((object) => {
       owned.push(object);
       return object;
     });
+
+    if (
+      result !== null &&
+      (typeof result === "object" || typeof result === "function") &&
+      typeof (result as { then?: unknown }).then === "function"
+    ) {
+      throw new Error(
+        "withOwned() callback returned a thenable — withOwned is synchronous-only. " +
+          "An async fn would free owned objects when the promise is *returned*, not " +
+          "when it resolves: a silent use-after-free on a still-live object.",
+      );
+    }
+
+    return result;
   } finally {
     for (const object of owned) {
       // this runs in a `finally`: a throw here would mask the real error
       try {
         object.free();
-      } catch {
-        // already freed, or never fully constructed
+      } catch (error) {
+        // Don't discard this: a genuine double-free raises a wasm trap here,
+        // and silently swallowing it hides real bugs. One failed free must
+        // not block freeing the rest, so log and keep going.
+        console.error("withOwned: object.free() threw", error);
       }
     }
   }

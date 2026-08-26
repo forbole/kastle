@@ -1364,4 +1364,21 @@ test.describe("WASM secret lifecycle (W1)", () => {
     ).toThrow("boom");
     expect(freed).toBe(true);
   });
+
+  test("withOwned throws when the callback returns a thenable", () => {
+    let freed = false;
+    const probe = {
+      free() {
+        freed = true;
+      },
+    };
+
+    expect(() =>
+      withOwned((own) => {
+        own(probe);
+        return (async () => undefined)();
+      }),
+    ).toThrow(/synchronous-only/);
+    expect(freed).toBe(true);
+  });
 });
