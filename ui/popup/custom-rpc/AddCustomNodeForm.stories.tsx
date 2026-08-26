@@ -71,7 +71,7 @@ export const Error: Story = {
     <InteractiveTemplate
       initialName="Community node"
       initialUrl="Community-node37814791hdsahdvcxvjsahk2.c"
-      urlError="Enter a valid WebSocket address (ws:// or wss://)"
+      urlError="Enter a valid wss:// address (ws:// only for localhost)"
     />
   ),
 };

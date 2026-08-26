@@ -6,7 +6,7 @@ export interface AddCustomNodeFormProps {
   url: string;
   onNameChange: (value: string) => void;
   onUrlChange: (value: string) => void;
-  /** Error message shown under the RPC URL field, e.g. "Enter a valid WebSocket address (ws:// or wss://)". */
+  /** Error message shown under the RPC URL field, e.g. "Enter a valid wss:// address (ws:// only for localhost)". */
   urlError?: string;
   submitting?: boolean;
   onSubmit: () => void;
@@ -22,7 +22,7 @@ export default function AddCustomNodeForm({
   onSubmit,
 }: AddCustomNodeFormProps) {
   const canSubmit =
-    name.trim().length > 0 && url.trim().length > 0 && !submitting;
+    name.trim().length > 0 && url.trim().length > 0 && !submitting && !urlError;
 
   return (
     <div className="flex flex-col pt-3">
@@ -63,7 +63,7 @@ export default function AddCustomNodeForm({
           value={url}
           onChange={(e) => onUrlChange(e.target.value)}
           disabled={submitting}
-          placeholder="ws:// or wss://"
+          placeholder="wss://"
           className={twMerge(
             "h-[46px] rounded-lg border bg-icy-blue-950 px-4 text-sm font-medium text-white placeholder:text-daintree-400 focus:outline-none",
             urlError ? "border-red-500" : "border-daintree-700",
