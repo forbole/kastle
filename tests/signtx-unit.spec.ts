@@ -1379,6 +1379,45 @@ test.describe("WASM secret lifecycle (W1)", () => {
         return (async () => undefined)();
       }),
     ).toThrow(/synchronous-only/);
-    expect(freed).toBe(true);
+    // Must NOT be freed: the thrown error aborts withOwned(), but the async
+    // callback is still suspended and may resume later. Freeing here would
+    // be the exact use-after-free this guard exists to catch.
+    expect(freed).toBe(false);
+  });
+
+  test("withOwned does not free an owned object out from under a still-running async callback", async () => {
+    let freed = false;
+    const probe = {
+      free() {
+        freed = true;
+      },
+    };
+    let usedWhileStillUnfreed = false;
+    let pending: Promise<void> | undefined;
+    let sawError: unknown;
+
+    try {
+      withOwned((own) => {
+        own(probe);
+        pending = (async () => {
+          await Promise.resolve();
+          // If withOwned had freed `probe` synchronously (the old bug), this
+          // would be a use-after-free in real wasm code.
+          usedWhileStillUnfreed = !freed;
+        })();
+        return pending;
+      });
+    } catch (error) {
+      sawError = error;
+    }
+
+    expect(sawError).toBeInstanceOf(Error);
+    expect(freed).toBe(false);
+
+    await pending;
+    expect(usedWhileStillUnfreed).toBe(true);
+    // withOwned() never frees on this path — the object leaks rather than
+    // being corrupted out from under the still-suspended callback.
+    expect(freed).toBe(false);
   });
 });
