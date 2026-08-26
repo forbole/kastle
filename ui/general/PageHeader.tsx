@@ -5,6 +5,11 @@ export interface PageHeaderProps {
   showClose?: boolean;
   onBack?: () => void;
   onClose?: () => void;
+  /** Icon class for a right-side action button (e.g. "hn hn-pencil"). Takes precedence over showClose. */
+  rightIcon?: string;
+  /** Accessible name for the right-side action button. Icon-only buttons have no text for screen readers. */
+  rightLabel?: string;
+  onRightAction?: () => void;
   paddingX?: string;
   paddingBottom?: string;
 }
@@ -16,6 +21,9 @@ export default function PageHeader({
   showClose = false,
   onBack,
   onClose,
+  rightIcon,
+  rightLabel = "More options",
+  onRightAction,
   paddingX = "px-4",
   paddingBottom = "pb-0",
 }: PageHeaderProps) {
@@ -25,10 +33,12 @@ export default function PageHeader({
         <div className="w-[46px]">
           {showBack && (
             <button
+              type="button"
+              aria-label="Back"
               className="flex size-[46px] items-center justify-center rounded-lg text-white hover:bg-daintree-800"
               onClick={onBack}
             >
-              <i className="hn hn-angle-left text-xl" />
+              <i aria-hidden="true" className="hn hn-angle-left text-xl" />
             </button>
           )}
         </div>
@@ -43,13 +53,26 @@ export default function PageHeader({
           )}
         </div>
         <div className="w-[46px]">
-          {showClose && (
+          {rightIcon ? (
             <button
+              type="button"
+              aria-label={rightLabel}
               className="flex size-[46px] items-center justify-center rounded-lg text-white hover:bg-daintree-800"
-              onClick={onClose}
+              onClick={onRightAction}
             >
-              <i className="hn hn-times text-xl" />
+              <i aria-hidden="true" className={`${rightIcon} text-xl`} />
             </button>
+          ) : (
+            showClose && (
+              <button
+                type="button"
+                aria-label="Close"
+                className="flex size-[46px] items-center justify-center rounded-lg text-white hover:bg-daintree-800"
+                onClick={onClose}
+              >
+                <i aria-hidden="true" className="hn hn-times text-xl" />
+              </button>
+            )
           )}
         </div>
       </div>
