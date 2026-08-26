@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { v4 as uuid } from "uuid";
 import useAnalytics from "@/hooks/useAnalytics.ts";
 import { PrivateKey } from "@/wasm/core/kaspa";
+import { withOwned } from "@/lib/wallet/wasm-lifecycle.ts";
 import { useBoolean } from "usehooks-ts";
 import { OnboardingData } from "@/components/screens/Onboarding.tsx";
 import Header from "@/components/GeneralHeader.tsx";
@@ -96,7 +97,10 @@ export default function ImportPrivateKey() {
                   required: "Private key is required",
                   validate: (privateKey) => {
                     try {
-                      new PrivateKey(privateKey);
+                      // validation only — the key object is dead immediately
+                      withOwned((own) => {
+                        own(new PrivateKey(privateKey));
+                      });
                       // eslint-disable-next-line @typescript-eslint/no-unused-vars
                     } catch (_) {
                       return "Oh, the private key is invalid";

@@ -2,6 +2,7 @@ import { PublicKey, Transaction, XPrv, signMessage } from "@/wasm/core/kaspa";
 
 import { IWallet, ScriptOption } from "@/lib/wallet/wallet-interface.ts";
 import { signTxWithScriptOptions } from "@/lib/wallet/sign-script.ts";
+import { withOwned } from "@/lib/wallet/wasm-lifecycle.ts";
 
 export class LegacyHotWalletAccount implements IWallet {
   private readonly MAX_DERIVATION_INDEXES = 50;
@@ -12,24 +13,35 @@ export class LegacyHotWalletAccount implements IWallet {
   ) {}
 
   public getPrivateKeyString() {
-    const privateKey = this.getPrivateKey();
-    return privateKey.toKeypair().privateKey;
+    // getPrivateKey hands ownership to us, and `.privateKey` is a plain JS
+    // string, so nothing WASM-side outlives this call
+    return withOwned(
+      (own) => own(own(this.getPrivateKey()).toKeypair()).privateKey,
+    );
   }
 
   public getPublicKeys() {
-    const xprv = new XPrv(this.seed);
+    return withOwned((own) => {
+      const xprv = own(new XPrv(this.seed));
+      const publicKeys: string[] = [];
 
-    const publicKeys: string[] = [];
+      for (let index = 0; index < this.MAX_DERIVATION_INDEXES; index++) {
+        // free per iteration: one scope around the whole loop would hold 150
+        // live WASM objects at peak
+        publicKeys.push(
+          withOwned((ownIndex) => {
+            const derived = ownIndex(
+              xprv.derivePath(`m/44'/111111'/${this.accountIndex}'/0/${index}`),
+            );
+            const privateKey = ownIndex(derived.toPrivateKey());
 
-    for (let index = 0; index < this.MAX_DERIVATION_INDEXES; index++) {
-      const privateKey = xprv
-        .derivePath(`m/44'/111111'/${this.accountIndex}'/0/${index}`)
-        .toPrivateKey();
+            return ownIndex(privateKey.toPublicKey()).toString();
+          }),
+        );
+      }
 
-      publicKeys.push(privateKey.toPublicKey().toString());
-    }
-
-    return publicKeys;
+      return publicKeys;
+    });
   }
 
   // NOTE: This method does not support signing with multiple keys
@@ -38,7 +50,9 @@ export class LegacyHotWalletAccount implements IWallet {
   }
 
   getPublicKey(): PublicKey {
-    return this.getPrivateKey().toPublicKey();
+    // the PublicKey is returned, so it belongs to the caller — only the
+    // PrivateKey is ours to free
+    return withOwned((own) => own(this.getPrivateKey()).toPublicKey());
   }
 
   signMessage(message: string): string {
@@ -46,25 +60,32 @@ export class LegacyHotWalletAccount implements IWallet {
   }
 
   protected getPrivateKey() {
-    const xprv = new XPrv(this.seed);
-    return xprv
-      .derivePath(`m/44'/111111'/${this.accountIndex}'/0/0`)
-      .toPrivateKey();
+    // the PrivateKey is returned to the caller, who owns it; the XPrv and the
+    // intermediate derivation are ours
+    return withOwned((own) =>
+      own(
+        own(new XPrv(this.seed)).derivePath(
+          `m/44'/111111'/${this.accountIndex}'/0/0`,
+        ),
+      ).toPrivateKey(),
+    );
   }
 
   protected getPrivateKeys(indexes: number[]) {
-    const xprv = new XPrv(this.seed);
-    const privateKeys = [];
+    return withOwned((own) => {
+      const xprv = own(new XPrv(this.seed));
 
-    for (const index of indexes) {
-      const address = xprv
-        .derivePath(`m/44'/111111'/${this.accountIndex}'/0/${index}`)
-        .toPrivateKey();
+      return indexes.map((index) =>
+        withOwned((ownIndex) => {
+          const derived = ownIndex(
+            xprv.derivePath(`m/44'/111111'/${this.accountIndex}'/0/${index}`),
+          );
 
-      privateKeys.push(address.toKeypair().privateKey);
-    }
-
-    return privateKeys;
+          return ownIndex(ownIndex(derived.toPrivateKey()).toKeypair())
+            .privateKey;
+        }),
+      );
+    });
   }
 }
 
@@ -74,22 +95,32 @@ export class HotWalletAccount extends LegacyHotWalletAccount {
   }
 
   override getPublicKeys() {
-    const xprv = new XPrv(this.seed);
-    const privateKey = xprv
-      .derivePath(`m/44'/111111'/0'/0/${this.accountIndex}`)
-      .toPrivateKey();
+    return withOwned((own) => {
+      const derived = own(
+        own(new XPrv(this.seed)).derivePath(
+          `m/44'/111111'/0'/0/${this.accountIndex}`,
+        ),
+      );
+      const privateKey = own(derived.toPrivateKey());
 
-    return [privateKey.toPublicKey().toString()];
+      return [own(privateKey.toPublicKey()).toString()];
+    });
   }
 
   override getPrivateKey() {
-    const xprv = new XPrv(this.seed);
-    return xprv
-      .derivePath(`m/44'/111111'/0'/0/${this.accountIndex}`)
-      .toPrivateKey();
+    // as above: the returned PrivateKey is the caller's
+    return withOwned((own) =>
+      own(
+        own(new XPrv(this.seed)).derivePath(
+          `m/44'/111111'/0'/0/${this.accountIndex}`,
+        ),
+      ).toPrivateKey(),
+    );
   }
 
   override getPrivateKeys(indexes: number[]) {
-    return [this.getPrivateKey().toKeypair().privateKey];
+    return withOwned((own) => [
+      own(own(this.getPrivateKey()).toKeypair()).privateKey,
+    ]);
   }
 }

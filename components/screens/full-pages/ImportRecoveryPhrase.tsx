@@ -5,6 +5,7 @@ import { twMerge } from "tailwind-merge";
 import { v4 as uuid } from "uuid";
 import useAnalytics from "@/hooks/useAnalytics.ts";
 import { Mnemonic } from "@/wasm/core/kaspa";
+import { withOwned } from "@/lib/wallet/wasm-lifecycle.ts";
 import { useBoolean } from "usehooks-ts";
 import { OnboardingData } from "@/components/screens/Onboarding.tsx";
 import useKeyring from "@/hooks/useKeyring.ts";
@@ -107,7 +108,10 @@ export default function ImportRecoveryPhrase() {
 
   useEffect(() => {
     try {
-      new Mnemonic(joinRecoveryPhrase());
+      // validation only, and this effect re-runs on every keystroke
+      withOwned((own) => {
+        own(new Mnemonic(joinRecoveryPhrase()));
+      });
 
       setRecoveryPhraseError(undefined);
       // eslint-disable-next-line @typescript-eslint/no-unused-vars

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useFormContext } from "react-hook-form";
 import { v4 as uuid } from "uuid";
 import { Mnemonic } from "@/wasm/core/kaspa";
+import { withOwned } from "@/lib/wallet/wasm-lifecycle.ts";
 import { OnboardingData } from "@/components/screens/Onboarding.tsx";
 import useKeyring from "@/hooks/useKeyring.ts";
 import useAnalytics from "@/hooks/useAnalytics.ts";
@@ -30,7 +31,10 @@ export default function ImportRecoveryPhraseWithPassphrase() {
   const handlePhraseSubmit = (words: string[]) => {
     const joined = words.join(" ");
     try {
-      new Mnemonic(joined);
+      // validation only — the mnemonic object is dead immediately
+      withOwned((own) => {
+        own(new Mnemonic(joined));
+      });
     } catch {
       setPhraseError("The recovery phrase is invalid. Please check it.");
       return;

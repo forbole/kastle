@@ -6,6 +6,7 @@ import {
 } from "@/wasm/core/kaspa";
 import { ScriptOption } from "@/lib/wallet/wallet-interface.ts";
 import { toSignType } from "@/lib/kaspa.ts";
+import { withOwned } from "@/lib/wallet/wasm-lifecycle.ts";
 
 // dApps send the documented `scriptHex`, but some send `script` instead —
 // accept both. Arrays may also be sparse (holes / null entries).
@@ -198,11 +199,16 @@ export function signTxInputWithScriptOption(
     );
   }
 
-  const signature = createInputSignature(
-    tx,
-    option.inputIndex,
-    new PrivateKey(privateKeyString),
-    toSignType(option.signType ?? "All"),
+  // called once per input, so this allocation is per-input too.
+  // createInputSignature borrows the key (the wasm-bindgen glue type-checks it
+  // but never takes ownership), so freeing it here is safe.
+  const signature = withOwned((own) =>
+    createInputSignature(
+      tx,
+      option.inputIndex,
+      own(new PrivateKey(privateKeyString)),
+      toSignType(option.signType ?? "All"),
+    ),
   );
 
   // `signature` is already a push-encoded script element; for P2SH append
