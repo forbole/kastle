@@ -318,31 +318,44 @@ No new failures. Every Ledger-related spec passes.
 
 ---
 
-## Device QA checklist
+## Device QA — run 2026-08-26, all 9 items pass
 
-Build the QA extension, load **into a Chrome profile with no other Kastle build**: two
-builds both inject `window.kastle` and fight, and the failures look exactly like broken
-code.
+Ledger Nano, testnet-10, build `2.59.4-qa-b2-ledger-derivation`, loaded with every other
+Kastle disabled. Harness: `qa/index.html` (untracked), served over http.
 
-Item 4 is the fix. Item 5 is the one that protects funds visibility — do it side by side
-against the previous build, not from memory.
+**Build identification.** Both builds report `2.59.4`, so the version string cannot tell
+them apart. #308 reworded one refusal into two, so a script-free sign-only `signTx` names
+the build for free, without the device: post-fix answers `cannot complete sign-only
+requests`, pre-fix answers `advanced scripts signing` / `Method not implemented.`. The
+first QA run of this branch produced four results that all turned out to be a stale
+pre-#308 build answering; the harness now gates on this fingerprint.
 
-1. ☐ **Legacy, index 0** — internal Send → device signs → broadcasts (regression)
-2. ☐ **Legacy, index ≥ 1** — internal Send → broadcasts (#306's F7 win, must not regress)
-3. ☐ **Non-legacy, index 0** — internal Send → broadcasts (regression)
-4. ☐ **Non-legacy, index ≥ 1** — internal Send → **broadcasts (THE FIX** — previously
-   rejected by the network; stranded funds now spendable)
-5. ☐ Addresses shown for all four combos are **unchanged** from the previous build —
-   compare side by side
-6. ☐ dApp `signAndBroadcastTx` on Ledger, default fields → still works (#308's win)
-7. ☐ dApp request with `lockTime` / `payload` → still refused upfront (#310's win)
-8. ☐ Hot wallet unaffected throughout
+| # | Item | Result |
+|---|------|--------|
+| 1 | Legacy 0 — Send broadcasts | ✅ `2cb3895923096337c52cae71937f0e89f10a6b85851fae3e68ae0cb20701ae5d` |
+| 2 | Legacy ≥1 — Send broadcasts | ✅ `c6e1ef27f39e94ced3b51890935ba6281abaad11cbfebc79b8b94cfd7b563773` |
+| 3 | Non-legacy 0 — Send broadcasts | ✅ `46e45a1f957ba52525a27756bbc84a9c5d6b8bf21e09eaceef56597b6bc90ef7` |
+| 4 | **Non-legacy ≥1 — Send broadcasts (THE FIX)** | ✅ `69a4f07baf05d199e9cd77da227a056ef2959746ae0d0d54e23bc8dbf1aa3d6c` |
+| 5 | Addresses unchanged from the previous build | ✅ 4/4 identical, legacy and non-legacy both |
+| 6 | dApp `signAndBroadcastTx`, default fields | ✅ same broadcast as item 4 |
+| 7 | dApp `lockTime` / `payload` refused upfront | ✅ both, exact A1 wording, no device prompt |
+| 8 | Hot wallet unaffected | ✅ `6fc3786bc7b3413dafdf447fce86912d032422cf6aabc31ce5b8f247eb645da1` |
+| 9 | Non-legacy ≥1 `signMessage` verifies | ✅ `verifyMessage` true, and the signing key re-derives that account's own address |
 
-Worth adding while a device is in hand, since `signMessage`'s derivation moved:
+Item 5 was checked on the x-only public key, not the address string: bech32 checksums
+over the network prefix, so one account renders differently on mainnet and testnet and a
+network switch looks like a moved address when it is not.
 
-9. ☐ **Non-legacy, index ≥ 1** — sign a message, verify the signature against the
-   address shown for that account. This was signing with the legacy key before, so the
-   signature did not verify; it should now.
+Legacy 0 and non-legacy 0 are the same path by construction
+(`m/44'/111111'/0'/0/0`), so items 1 and 3 bind to one key wearing two labels. Both were
+spent separately anyway.
+
+### Found while testing, not part of B2/C/D
+
+After `switchNetwork`, `getAccount()` kept returning the previous network's address:
+`ApiUtils.getCurrentAccount()` reads the stored `account.address`, which is only
+re-derived (`useAccountManager.ts:152`) while the popup is mounted. Opening the popup
+heals it. Pre-existing, unrelated to this branch — needs its own ticket.
 
 ---
 
