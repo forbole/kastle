@@ -44,7 +44,7 @@ change output is validated against the same `tx->account` with
 
 So:
 
-```
+```text
 path = m / 44' / 111111' / <account, already hardened> / <addressType> / <addressIndex>
 ```
 
@@ -263,7 +263,7 @@ callable under the Playwright loader. On `main`'s shape the constructor never ru
 Both `this.path` assignments were extracted from `main`'s source by regex and expanded,
 then compared against the literals the branch's test pins:
 
-```
+```text
 main LegacyLedgerAccount  this.path = m/44'/111111'/${accountIndex}'/0/0
 main LedgerAccount        this.path = m/44'/111111'/0'/0/${accountIndex}
 
@@ -308,7 +308,7 @@ still passing in G3.
 
 The single failure is the known pre-existing one, unchanged:
 
-```
+```text
 1) [chromium] › tests/onboarding.spec.ts:7:1 › can reach password setup
    Test timeout of 30000ms exceeded while setting up "context".
    Worker teardown timeout of 30000ms exceeded.
@@ -330,17 +330,17 @@ requests`, pre-fix answers `advanced scripts signing` / `Method not implemented.
 first QA run of this branch produced four results that all turned out to be a stale
 pre-#308 build answering; the harness now gates on this fingerprint.
 
-| # | Item | Result |
-|---|------|--------|
-| 1 | Legacy 0 — Send broadcasts | ✅ `2cb3895923096337c52cae71937f0e89f10a6b85851fae3e68ae0cb20701ae5d` |
-| 2 | Legacy ≥1 — Send broadcasts | ✅ `c6e1ef27f39e94ced3b51890935ba6281abaad11cbfebc79b8b94cfd7b563773` |
-| 3 | Non-legacy 0 — Send broadcasts | ✅ `46e45a1f957ba52525a27756bbc84a9c5d6b8bf21e09eaceef56597b6bc90ef7` |
-| 4 | **Non-legacy ≥1 — Send broadcasts (THE FIX)** | ✅ `69a4f07baf05d199e9cd77da227a056ef2959746ae0d0d54e23bc8dbf1aa3d6c` |
-| 5 | Addresses unchanged from the previous build | ✅ 4/4 identical, legacy and non-legacy both |
-| 6 | dApp `signAndBroadcastTx`, default fields | ✅ same broadcast as item 4 |
-| 7 | dApp `lockTime` / `payload` refused upfront | ✅ both, exact A1 wording, no device prompt |
-| 8 | Hot wallet unaffected | ✅ `6fc3786bc7b3413dafdf447fce86912d032422cf6aabc31ce5b8f247eb645da1` |
-| 9 | Non-legacy ≥1 `signMessage` verifies | ✅ `verifyMessage` true, and the signing key re-derives that account's own address |
+| #   | Item                                          | Result                                                                             |
+| --- | --------------------------------------------- | ---------------------------------------------------------------------------------- |
+| 1   | Legacy 0 — Send broadcasts                    | ✅ `2cb3895923096337c52cae71937f0e89f10a6b85851fae3e68ae0cb20701ae5d`              |
+| 2   | Legacy ≥1 — Send broadcasts                   | ✅ `c6e1ef27f39e94ced3b51890935ba6281abaad11cbfebc79b8b94cfd7b563773`              |
+| 3   | Non-legacy 0 — Send broadcasts                | ✅ `46e45a1f957ba52525a27756bbc84a9c5d6b8bf21e09eaceef56597b6bc90ef7`              |
+| 4   | **Non-legacy ≥1 — Send broadcasts (THE FIX)** | ✅ `69a4f07baf05d199e9cd77da227a056ef2959746ae0d0d54e23bc8dbf1aa3d6c`              |
+| 5   | Addresses unchanged from the previous build   | ✅ 4/4 identical, legacy and non-legacy both                                       |
+| 6   | dApp `signAndBroadcastTx`, default fields     | ✅ same broadcast as item 4                                                        |
+| 7   | dApp `lockTime` / `payload` refused upfront   | ✅ both, exact A1 wording, no device prompt                                        |
+| 8   | Hot wallet unaffected                         | ✅ `6fc3786bc7b3413dafdf447fce86912d032422cf6aabc31ce5b8f247eb645da1`              |
+| 9   | Non-legacy ≥1 `signMessage` verifies          | ✅ `verifyMessage` true, and the signing key re-derives that account's own address |
 
 Item 5 was checked on the x-only public key, not the address string: bech32 checksums
 over the network prefix, so one account renders differently on mainnet and testnet and a

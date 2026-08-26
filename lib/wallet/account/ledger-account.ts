@@ -114,7 +114,7 @@ export class LegacyLedgerAccount implements IWallet {
     scripts?: ScriptOption[],
   ): Promise<Transaction> {
     if (scripts) {
-      throw new Error("Method not implemented.");
+      throw new Error("Ledger does not support advanced scripts signing");
     }
     const transaction = tx as Transaction;
     const { account, addressType, addressIndex } = this.getDerivationFields();
