@@ -1,6 +1,7 @@
 import { EthereumPrivateKeyAccount } from "./account/private-key-account";
 import { Mnemonic } from "@/wasm/core/kaspa";
 import { XPrv } from "@/wasm/core/kaspa";
+import { withOwned } from "@/lib/wallet/wasm-lifecycle.ts";
 
 export class LegacyAccountFactory {
   createFromMnemonic(
@@ -9,15 +10,18 @@ export class LegacyAccountFactory {
     isKastleLegacy = false,
     passphrase?: string,
   ): EthereumPrivateKeyAccount {
-    const seed = new Mnemonic(mnemonic).toSeed(passphrase);
-    const xprv = new XPrv(seed);
-    const path = isKastleLegacy
-      ? `m/44'/111111'/${accountIndex}'/0/0`
-      : `m/44'/111111'/0'/0/${accountIndex}`;
+    // both derivation branches allocate identically, so one scope covers each
+    const privateKey = withOwned((own) => {
+      const seed = own(new Mnemonic(mnemonic)).toSeed(passphrase);
+      const xprv = own(new XPrv(seed));
+      const path = isKastleLegacy
+        ? `m/44'/111111'/${accountIndex}'/0/0`
+        : `m/44'/111111'/0'/0/${accountIndex}`;
 
-    const privateKey = xprv.derivePath(path).toPrivateKey();
+      return own(own(xprv.derivePath(path)).toPrivateKey()).toString();
+    });
 
-    return new EthereumPrivateKeyAccount(privateKey.toString());
+    return new EthereumPrivateKeyAccount(privateKey);
   }
 
   createFromPrivateKey(privateKey: string): EthereumPrivateKeyAccount {
@@ -32,13 +36,17 @@ export class AccountFactory extends LegacyAccountFactory {
     isKastleLegacy = false,
     passphrase?: string,
   ): EthereumPrivateKeyAccount {
-    const seed = new Mnemonic(mnemonic).toSeed(passphrase);
-    const xprv = new XPrv(seed);
-    const path = isKastleLegacy
-      ? `m/44'/60'/${accountIndex}'/0/0`
-      : `m/44'/60'/0'/0/${accountIndex}`;
+    // both derivation branches allocate identically, so one scope covers each
+    const privateKey = withOwned((own) => {
+      const seed = own(new Mnemonic(mnemonic)).toSeed(passphrase);
+      const xprv = own(new XPrv(seed));
+      const path = isKastleLegacy
+        ? `m/44'/60'/${accountIndex}'/0/0`
+        : `m/44'/60'/0'/0/${accountIndex}`;
 
-    const privateKey = xprv.derivePath(path).toPrivateKey();
-    return new EthereumPrivateKeyAccount(privateKey.toString());
+      return own(own(xprv.derivePath(path)).toPrivateKey()).toString();
+    });
+
+    return new EthereumPrivateKeyAccount(privateKey);
   }
 }

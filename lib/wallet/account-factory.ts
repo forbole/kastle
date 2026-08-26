@@ -10,10 +10,11 @@ import {
   LedgerAccount,
 } from "@/lib/wallet/account/ledger-account.ts";
 import Transport from "@ledgerhq/hw-transport";
+import { withOwned } from "@/lib/wallet/wasm-lifecycle.ts";
 
 export class LegacyAccountFactory {
   static generateMnemonic(): string {
-    return Mnemonic.random(12).phrase;
+    return withOwned((own) => own(Mnemonic.random(12)).phrase);
   }
 
   createFromLedger(transport: Transport, accountIndex: number = 0): IWallet {
@@ -25,7 +26,10 @@ export class LegacyAccountFactory {
     accountIndex: number = 0,
     passphrase?: string,
   ): IWallet {
-    const seed = new Mnemonic(mnemonic).toSeed(passphrase);
+    // `.toSeed()` returns a plain JS string, so the Mnemonic is dead here
+    const seed = withOwned((own) =>
+      own(new Mnemonic(mnemonic)).toSeed(passphrase),
+    );
 
     return new LegacyHotWalletAccount(seed, accountIndex);
   }
@@ -39,7 +43,7 @@ export class AccountFactory {
   constructor() {}
 
   static generateMnemonic(): string {
-    return Mnemonic.random(12).phrase;
+    return withOwned((own) => own(Mnemonic.random(12)).phrase);
   }
 
   createFromLedger(transport: Transport, accountIndex: number = 0): IWallet {
@@ -51,7 +55,10 @@ export class AccountFactory {
     accountIndex: number = 0,
     passphrase?: string,
   ): IWallet {
-    const seed = new Mnemonic(mnemonic).toSeed(passphrase);
+    // `.toSeed()` returns a plain JS string, so the Mnemonic is dead here
+    const seed = withOwned((own) =>
+      own(new Mnemonic(mnemonic)).toSeed(passphrase),
+    );
 
     return new HotWalletAccount(seed, accountIndex);
   }
