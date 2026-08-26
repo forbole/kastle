@@ -37,6 +37,7 @@ export default function NodeListItem({
           : undefined
       }
       role={canSelect ? "button" : undefined}
+      aria-pressed={canSelect ? selected : undefined}
       tabIndex={canSelect ? 0 : undefined}
       className="flex w-full items-center gap-3 rounded-lg py-3.5"
     >
@@ -60,10 +61,16 @@ export default function NodeListItem({
         !isDefault && (
           <button
             type="button"
+            aria-label={`Remove ${name}`}
             onClick={onRemove}
             className="flex size-4 shrink-0 items-center justify-center rounded-full bg-red-500"
           >
-            <Minus size={10} className="text-white" strokeWidth={3} />
+            <Minus
+              size={10}
+              aria-hidden="true"
+              className="text-white"
+              strokeWidth={3}
+            />
           </button>
         )
       ) : selected ? (

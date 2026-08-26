@@ -1,7 +1,7 @@
 export interface SettingRowProps {
   label: string;
   value?: string;
-  /** Override the value text color (e.g. teal-500 for an active network). Defaults to white. */
+  /** Override the value text color class (e.g. "text-teal-500" for an active network). Defaults to "text-white". */
   valueColor?: string;
   showChevron?: boolean;
   onClick?: () => void;
@@ -28,7 +28,10 @@ export default function SettingRow({
           </span>
         )}
         {showChevron && (
-          <i className="hn hn-angle-right shrink-0 text-xl text-daintree-400" />
+          <i
+            aria-hidden="true"
+            className="hn hn-angle-right shrink-0 text-xl text-daintree-400"
+          />
         )}
       </div>
     </button>

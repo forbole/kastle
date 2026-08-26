@@ -26,20 +26,20 @@ type Story = StoryObj<typeof CustomRpcPage>;
 const mainnetDefault: RpcNode = {
   id: "mainnet-default",
   name: "Kastle node",
-  url: "kastle-mainnet-borsh.rhyzome.co",
+  url: "wss://kastle-mainnet-borsh.rhyzome.co",
   isDefault: true,
 };
 
 const mainnetCommunity: RpcNode = {
   id: "mainnet-community",
   name: "Community node",
-  url: "community-node.com",
+  url: "wss://community-node.com",
 };
 
 const testnetDefault: RpcNode = {
   id: "testnet-default",
   name: "Kastle node",
-  url: "kastle-testnet-borsh.rhyzome.co",
+  url: "wss://kastle-testnet-borsh.rhyzome.co",
   isDefault: true,
 };
 

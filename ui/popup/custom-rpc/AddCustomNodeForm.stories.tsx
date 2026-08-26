@@ -61,7 +61,7 @@ export const Filled: Story = {
   render: () => (
     <InteractiveTemplate
       initialName="Community node"
-      initialUrl="community-node37814791hdsahdvcxvjsahk2.com"
+      initialUrl="wss://community-node37814791hdsahdvcxvjsahk2.com"
     />
   ),
 };
@@ -80,7 +80,7 @@ export const Submitting: Story = {
   render: () => (
     <InteractiveTemplate
       initialName="Community node"
-      initialUrl="community-node37814791hdsahdvcxvjsahk2.com"
+      initialUrl="wss://community-node37814791hdsahdvcxvjsahk2.com"
       submitting
     />
   ),

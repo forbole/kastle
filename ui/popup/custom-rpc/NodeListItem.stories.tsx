@@ -23,7 +23,7 @@ type Story = StoryObj<typeof NodeListItem>;
 export const DefaultSelected: Story = {
   args: {
     name: "Kastle node",
-    url: "kastle-mainnet-borsh.rhyzome.co",
+    url: "wss://kastle-mainnet-borsh.rhyzome.co",
     isDefault: true,
     selected: true,
   },
@@ -32,7 +32,7 @@ export const DefaultSelected: Story = {
 export const CustomUnselected: Story = {
   args: {
     name: "Community node",
-    url: "community-node.com",
+    url: "wss://community-node.com",
     selected: false,
   },
 };
@@ -40,7 +40,7 @@ export const CustomUnselected: Story = {
 export const EditModeCustom: Story = {
   args: {
     name: "Community node",
-    url: "community-node.com",
+    url: "wss://community-node.com",
     editMode: true,
   },
 };
@@ -48,7 +48,7 @@ export const EditModeCustom: Story = {
 export const EditModeDefault: Story = {
   args: {
     name: "Kastle node",
-    url: "kastle-mainnet-borsh.rhyzome.co",
+    url: "wss://kastle-mainnet-borsh.rhyzome.co",
     isDefault: true,
     editMode: true,
   },

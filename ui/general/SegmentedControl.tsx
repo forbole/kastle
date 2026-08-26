@@ -23,6 +23,7 @@ export default function SegmentedControl<T extends string>({
           <button
             key={opt.value}
             type="button"
+            aria-pressed={value === opt.value}
             onClick={() => onChange(opt.value)}
             className={twMerge(
               "h-9 rounded-full px-3.5 text-sm font-medium text-gray-200",

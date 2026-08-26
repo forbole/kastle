@@ -12,7 +12,8 @@ export interface RpcNode {
   isDefault?: boolean;
 }
 
-export type RpcNetwork = "mainnet" | "testnet";
+/** Mirrors the app's NetworkType so a caller can pass it straight through. */
+export type RpcNetwork = "mainnet" | "testnet-10";
 
 export interface CustomRpcPageProps {
   network: RpcNetwork;
@@ -68,13 +69,14 @@ export default function CustomRpcPage({
         paddingBottom="pb-4"
         onBack={onBack}
         rightIcon={editMode ? undefined : "hn hn-pencil"}
+        rightLabel="Edit nodes"
         onRightAction={onToggleEdit}
       />
       <div className="flex flex-1 flex-col gap-5 px-4">
         <SegmentedControl
           options={[
             { label: "Mainnet", value: "mainnet" as const },
-            { label: "Testnet", value: "testnet" as const },
+            { label: "Testnet", value: "testnet-10" as const },
           ]}
           value={network}
           onChange={onNetworkChange}
