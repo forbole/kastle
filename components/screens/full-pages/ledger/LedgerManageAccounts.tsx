@@ -12,7 +12,8 @@ import LedgerConnectForImport from "@/components/screens/full-pages/ledger/Ledge
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { useParams } from "react-router-dom";
 import Splash from "../../Splash";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { createSingleFlightGuard } from "@/lib/single-flight-guard";
 
 export default function LedgerManageAccounts() {
   const navigate = useNavigate();
@@ -26,9 +27,18 @@ export default function LedgerManageAccounts() {
     wallet?.isLegacyWalletEnabled ?? false,
   );
 
+  // Guards against toggling "Legacy" while a listAccounts call is still in
+  // flight: a Ledger device can only service one APDU exchange at a time,
+  // so toggling mid-load would remount ManageAccounts and start a second,
+  // colliding call against the same transport (see B1 fix notes).
+  const [isListingAccounts, setIsListingAccounts] = useState(false);
+  const listAccountsGuard = useRef(
+    createSingleFlightGuard(setIsListingAccounts),
+  ).current;
+
   const listAccounts =
     rpcClient && networkId
-      ? async ({ start, end }: ListAccountsRequest) => {
+      ? listAccountsGuard.track(async ({ start, end }: ListAccountsRequest) => {
           if (!transport) return [];
 
           const accountFactory = isLegacyEnabled
@@ -52,8 +62,12 @@ export default function LedgerManageAccounts() {
               "Failed to list accounts, please unlock and open Kaspa app and try again",
             );
           }
-        }
+        })
       : undefined;
+
+  const toggleLegacyWallet = listAccountsGuard.guard(() =>
+    setIsLegacyEnabled((prev) => !prev),
+  );
 
   return (
     <>
@@ -67,7 +81,8 @@ export default function LedgerManageAccounts() {
           wallet={wallet}
           listAccounts={listAccounts}
           isLegacyWalletEnabled={isLegacyEnabled}
-          toggleLegacyWallet={() => setIsLegacyEnabled((prev) => !prev)}
+          toggleLegacyWallet={toggleLegacyWallet}
+          isLegacyToggleDisabled={isListingAccounts}
         />
       )}
     </>

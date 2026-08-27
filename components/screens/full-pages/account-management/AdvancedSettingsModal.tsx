@@ -5,6 +5,7 @@ type AdvancedSettingsModalProps = {
   onClose: () => void;
   isLegacyWalletEnabled: boolean;
   toggleLegacyWallet: () => void;
+  isLegacyToggleDisabled?: boolean;
 };
 
 export default function AdvancedSettingsModal({
@@ -12,6 +13,7 @@ export default function AdvancedSettingsModal({
   onClose,
   isLegacyWalletEnabled,
   toggleLegacyWallet,
+  isLegacyToggleDisabled = false,
 }: AdvancedSettingsModalProps) {
   if (!isOpen) return null;
 
@@ -63,7 +65,14 @@ export default function AdvancedSettingsModal({
               </div>
 
               {/* Toggle Switch */}
-              <div className="ml-4 flex-shrink-0">
+              <div
+                className="ml-4 flex-shrink-0"
+                title={
+                  isLegacyToggleDisabled
+                    ? "Please wait for accounts to finish loading"
+                    : undefined
+                }
+              >
                 <input
                   onClick={(e) => {
                     toggleLegacyWallet();
@@ -73,6 +82,7 @@ export default function AdvancedSettingsModal({
                   )}
                   type="checkbox"
                   checked={isLegacyWalletEnabled}
+                  disabled={isLegacyToggleDisabled}
                 ></input>
               </div>
             </div>

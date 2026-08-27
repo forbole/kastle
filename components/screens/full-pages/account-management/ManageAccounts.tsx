@@ -39,6 +39,13 @@ type ManageAccountsProps = {
   wallet: WalletInfo;
   isLegacyWalletEnabled: boolean;
   toggleLegacyWallet: () => void;
+  /**
+   * When true, the Legacy toggle rendered in AdvancedSettingsModal is
+   * disabled. Defaults to false so callers that don't have an in-flight
+   * concept to guard against (e.g. RecoveryPhraseManageAccounts) are
+   * unaffected.
+   */
+  isLegacyToggleDisabled?: boolean;
 };
 
 export default function ManageAccounts({
@@ -46,6 +53,7 @@ export default function ManageAccounts({
   listAccounts,
   isLegacyWalletEnabled,
   toggleLegacyWallet,
+  isLegacyToggleDisabled = false,
 }: ManageAccountsProps) {
   const calledOnce = useRef(false);
 
@@ -237,6 +245,7 @@ export default function ManageAccounts({
           onClose={() => setShowAdvancedSettings(false)}
           isLegacyWalletEnabled={isLegacyWalletEnabled}
           toggleLegacyWallet={() => toggleLegacyWallet()}
+          isLegacyToggleDisabled={isLegacyToggleDisabled}
         />
 
         {/* List */}
