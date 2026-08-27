@@ -65,7 +65,14 @@ export default function AdvancedSettingsModal({
               </div>
 
               {/* Toggle Switch */}
-              <div className="ml-4 flex-shrink-0">
+              <div
+                className="ml-4 flex-shrink-0"
+                title={
+                  isLegacyToggleDisabled
+                    ? "Please wait for accounts to finish loading"
+                    : undefined
+                }
+              >
                 <input
                   onClick={(e) => {
                     toggleLegacyWallet();
@@ -76,11 +83,6 @@ export default function AdvancedSettingsModal({
                   type="checkbox"
                   checked={isLegacyWalletEnabled}
                   disabled={isLegacyToggleDisabled}
-                  title={
-                    isLegacyToggleDisabled
-                      ? "Please wait for accounts to finish loading"
-                      : undefined
-                  }
                 ></input>
               </div>
             </div>
