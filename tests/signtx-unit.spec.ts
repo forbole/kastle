@@ -1476,17 +1476,40 @@ test.describe("sentry secret scrubbing", () => {
     );
   });
 
-  test("leaves a longer hex blob alone", () => {
-    // A 128-char hex run is not a 32-byte key; only adjacent hex suppresses the
-    // match, so this stays intact rather than being half-redacted.
-    const blob = `${HEX_KEY}${HEX_KEY}`;
-    expect(scrubPayload({ message: blob })?.message).toBe(blob);
-  });
-
-  test("redacts a value under a kprv-named key", () => {
-    expect(scrubPayload({ kprv: "whatever shape this is" })?.kprv).toBe(
+  test("redacts a hex run longer than one key", () => {
+    // Two concatenated keys are 128 characters. An exact `{64}` pattern skips
+    // the run entirely, so the whole thing goes rather than nothing.
+    expect(scrubPayload({ message: `${HEX_KEY}${HEX_KEY}` })?.message).toBe(
       REDACTED,
     );
+    expect(scrubPayload({ message: `${HEX_KEY}a` })?.message).toBe(REDACTED);
+    // Still bounded: a run too short to hold a key is left alone.
+    const short = HEX_KEY.slice(0, 63);
+    expect(scrubPayload({ message: short })?.message).toBe(short);
+  });
+
+  test("redacts secret keys however they are spelled", () => {
+    for (const key of [
+      "kprv",
+      "privateKey",
+      "private_key",
+      "private-key",
+      "private key",
+      "x_prv",
+    ]) {
+      expect(scrubPayload({ [key]: "whatever shape this is" })?.[key]).toBe(
+        REDACTED,
+      );
+    }
+  });
+
+  test("redacts a secret-named key whatever its value type", () => {
+    const payload = scrubPayload({
+      private_key: { nested: ["deep", 1] },
+      mnemonic: ["a", "b"],
+    });
+    expect(payload?.private_key).toBe(REDACTED);
+    expect(payload?.mnemonic).toBe(REDACTED);
   });
 
   test("redacts a 64-char hex private key, bare and 0x-prefixed", () => {

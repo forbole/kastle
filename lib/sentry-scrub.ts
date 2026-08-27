@@ -26,15 +26,31 @@ const SECRET_KEY_PATTERN =
   /seed|mnemonic|privatekey|phrase|passphrase|password|secret|[xk]prv/i;
 
 /**
- * 32-byte hex — secp256k1 / Kaspa private keys, with or without `0x`.
+ * Separators are stripped before the key is tested, so `private_key`,
+ * `private-key` and `private key` all reduce to `privatekey`. Without this only
+ * the camelCase spelling matched, and `secret_key` passed by accident because
+ * `secret` happens to be an alternative of its own.
+ */
+const isSecretKey = (key: string) =>
+  SECRET_KEY_PATTERN.test(key.replace(/[^A-Za-z0-9]/g, ""));
+
+/**
+ * Any hex run long enough to contain a 32-byte key — secp256k1 / Kaspa private
+ * keys, with or without `0x`.
  *
  * Deliberately not `\b`-anchored: `\b` needs a non-word character on each side,
  * so `key${hex}` — plain string concatenation, which is exactly how a key ends
  * up in a log line — would not match. The lookarounds reject only adjacent *hex*
- * characters, so a longer hex blob is still left alone.
+ * characters, so the match still stops at the end of the run.
+ *
+ * `{64,}` rather than `{64}`: two concatenated keys are 128 characters and an
+ * exact-length pattern skips them entirely. Redacting the whole run costs
+ * serialised transactions and signatures in crash reports, which is the cheaper
+ * side of the trade — a 32-byte hash is indistinguishable from a 32-byte key, so
+ * every txid and block hash was already being redacted at exactly 64.
  */
 const HEX_KEY_PATTERN =
-  /(?<![0-9a-fA-F])(?:0x)?[0-9a-fA-F]{64}(?![0-9a-fA-F])/g;
+  /(?<![0-9a-fA-F])(?:0x)?[0-9a-fA-F]{64,}(?![0-9a-fA-F])/g;
 
 /**
  * BIP-32 extended private keys (`xprv…`) and their Kaspa variant (`kprv…`).
@@ -108,7 +124,7 @@ function scrub(value: unknown, seen: WeakSet<object>): unknown {
 
   const scrubbed: Record<string, unknown> = {};
   for (const [key, item] of entries) {
-    scrubbed[key] = SECRET_KEY_PATTERN.test(key) ? REDACTED : scrub(item, seen);
+    scrubbed[key] = isSecretKey(key) ? REDACTED : scrub(item, seen);
   }
   return scrubbed;
 }
