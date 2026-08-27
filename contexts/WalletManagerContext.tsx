@@ -9,6 +9,7 @@ import {
   sompiToKaspaString,
   UtxoEntryReference,
 } from "@/wasm/core/kaspa";
+import { deriveKaspaAddress } from "@/lib/kaspa";
 import internalToast from "@/components/Toast.tsx";
 import { explorerTxLinks } from "@/components/screens/Settings.tsx";
 import useKaspaBackgroundSigner from "@/hooks/wallet/useKaspaBackgroundSigner";
@@ -170,15 +171,13 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
 
     for (const wallet of wallets) {
       for (const account of wallet.accounts) {
+        const address = deriveKaspaAddress(account.publicKeys, networkId);
         // hotfix for missing public keys
-        if (!account.publicKeys?.length) {
+        if (!address) {
           continue;
         }
 
-        account.address = new PublicKey(account.publicKeys[0])
-          .toAddress(networkId)
-          .toString();
-
+        account.address = address;
         isUpdated = true;
       }
     }

@@ -3,10 +3,26 @@ import {
   IPaymentOutput,
   IUtxoEntry,
   kaspaToSompi,
+  PublicKey,
   RpcClient,
   SighashType,
 } from "@/wasm/core/kaspa";
 import { PaymentOutput, SignType } from "@/lib/wallet/wallet-interface.ts";
+import type { NetworkType } from "@/contexts/SettingsContext";
+
+// Single source of truth for deriving a Kaspa address from an account's
+// stored public key, used both when caching addresses on network switch
+// (WalletManagerContext.refreshKaspaAddresses) and when reading an account
+// (ApiUtils.getSelectedAccountFromSettings), so the two can't drift.
+export function deriveKaspaAddress(
+  publicKeys: string[] | undefined,
+  networkId: NetworkType,
+): string | undefined {
+  if (!publicKeys?.length) {
+    return undefined;
+  }
+  return new PublicKey(publicKeys[0]).toAddress(networkId).toString();
+}
 
 /**
  * Patches a serialized transaction JSON to ensure all inputs have the
