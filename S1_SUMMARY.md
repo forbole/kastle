@@ -12,7 +12,7 @@ Two commits:
 | SHA       | Subject                                                                            |
 | --------- | ---------------------------------------------------------------------------------- |
 | `6d8aaeb` | `fix: scrub secret material from Sentry events and breadcrumbs`                    |
-| `2bcd44a` | `fix: drop dead getPrivateKeys and stop materialising keys as hex for signMessage` |
+| `56f8264` | `fix: drop dead getPrivateKeys and stop materialising keys as hex for signMessage` |
 
 ```
  lib/instrument.ts                            |   9 ++
@@ -384,9 +384,9 @@ read back off disk to verify:
 
 ```json
 {
-  "name": "Kastle (QA S1 2bcd44a)",
+  "name": "Kastle (QA S1 56f8264)",
   "version": "2.59.6",
-  "version_name": "2.59.6-s1-qa-2bcd44a"
+  "version_name": "2.59.6-s1-qa-56f8264"
 }
 ```
 
@@ -403,7 +403,7 @@ The unit tests prove the redactor. This proves the **wiring** — that the redac
 actually on the path to the network.
 
 1. **Load the QA build.** `chrome://extensions` → Developer mode → Load unpacked →
-   `~/Desktop/kastle-qa-s1/`. Confirm the tile reads `Kastle (QA S1 2bcd44a)`.
+   `~/Desktop/kastle-qa-s1/`. Confirm the tile reads `Kastle (QA S1 56f8264)`.
 
 2. **Import a known throwaway phrase.** Use a phrase you can grep for and would never
    fund, e.g.
