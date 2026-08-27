@@ -465,6 +465,78 @@ That envelope **should** contain `QA-CANARY benign network timeout` verbatim.
 
 ---
 
+## Canary / negative-control verification (Part A + Part B)
+
+### Part A — automated, `tests/signtx-unit.spec.ts`
+
+`test.describe("sentry scrubbing wired into a real client")`, 4 tests. These
+drive a **real `@sentry/react` client** — same SDK, same event pipeline as
+production — differing only in a fake DSN (`https://abc123@o0.ingest.sentry.io/0`)
+and an in-memory `transport` that pushes envelopes into an array. **Nothing
+touches the network.** The hooks are `sentryScrubHooks` imported from
+`lib/sentry-scrub.ts`, not a copy: the redaction under test is the redaction
+that ships.
+
+| Test                                                                   | What it proves                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| canary: a phrase, a hex key and an xprv are all gone from the envelope | A 12-word phrase, a 64-hex key and an `xprv…` planted in a breadcrumb message, breadcrumb `data.arguments`, the error message, `extra.mnemonic`, `extra.nested.xprv` and `contexts.wallet.imported[0].raw` are all absent from the serialised envelope. Checked by recursing the **whole** envelope — headers, item headers, event body, arrays, any depth — not just top-level keys. Also asserts the fragments `abandon` and `xprv9s21` are absent, so a partial redaction cannot pass.                                                                                                                                                   |
+| negative control: a benign event arrives unchanged                     | An error message, a URL, a Kaspa address and a breadcrumb all arrive **verbatim**, and `[REDACTED]` appears nowhere. Without this, "nothing came through" and "scrubbing worked" are indistinguishable.                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| each captureException produces exactly one envelope                    | One `captureException` → exactly one envelope, for both a secret-bearing and a benign error. A fail-closed scrubber that ate everything would show 0.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| lib/instrument.ts actually applies these hooks to Sentry.init          | Source-level drift guard: `lib/instrument.ts` contains `Sentry.init(` and `...sentryScrubHooks`. It is source-level because `instrument.ts` cannot be imported into the Playwright runner — it pulls `lib/utils.ts` and with it the app's asset graph, which the test transform cannot load (`SyntaxError: … '@/assets/images/network-logos/igra.svg' does not provide an export named 'default'`). That import failure is why `sentryScrubHooks` lives in `lib/sentry-scrub.ts` behind a **type-only** `@sentry/react` import (erased at compile time, so the module stays runtime-independent of the SDK) and `instrument.ts` spreads it. |
+
+One wrinkle worth recording: Sentry's scopes are module-global and survive
+`init`/`close`, so the canary's breadcrumbs initially rode along inside the
+control envelope and failed the negative control. `withIsolationScope` did not
+fix it; the helper now calls `clearBreadcrumbs()` on the global, isolation and
+current scopes before each capture.
+
+### Part B — manual, Settings → Experimental features (dev builds only)
+
+**There is no existing build-time debug gate in this repo.** The only debug-ish
+UI is the `/dev-mode` screen, and it is gated on the _runtime_ `settings.preview`
+checkbox — it ships in production. So the trigger uses `import.meta.env.DEV`,
+and the stripping is proven below rather than assumed (`wxt.config.ts` sets
+`minify: false`, so dead-code elimination, not minification, has to do the work).
+
+Steps for Leo:
+
+1. `nvm use 20 && npm run dev`, load `.output/chrome-mv3` in a profile with no
+   other Kastle build.
+2. Popup → **Settings** → **Experimental features**.
+3. Open the popup devtools console (right-click the popup → Inspect).
+4. Click **Trigger canary error** → the console prints
+   `[sentry-canary] { … }` — the full envelope JSON. Search it for `abandon`,
+   for the hex key, for `xprv9s21`: all absent, `[REDACTED]` in their place.
+5. Click **Trigger control error** → `[sentry-control] { … }` — the URL, the
+   status and the error text are all there, untouched, and `[REDACTED]` appears
+   nowhere.
+
+Why it prints instead of sending: the app's client is `enabled: isProduction`,
+so in a dev build `captureException` emits nothing at all and there would be
+nothing to look at. The trigger therefore builds its own client from the same
+`sentryScrubHooks` with a stub transport, and logs what would have gone on the
+wire. Nothing leaves the machine, and no event reaches the real Sentry project.
+
+### Production build is clean
+
+```
+npm run build            → exit 0
+grep -rl "Trigger canary error" .output/   → exit 1 (no matches)
+grep -rl "abandon abandon" .output/        → exit 1 (no matches)
+grep -rl "emitCanaryEnvelope" .output/     → exit 1 (no matches)
+```
+
+The button text, the test phrase and the handler are all absent from the
+production bundle. The `import.meta.env.DEV` gate strips the block.
+
+### Gauntlet, re-run after Part A + B
+
+- `tsc --noEmit` → 0
+- `eslint .` → 39 warnings, identical to the baseline
+- `prettier --check .` → 0
+- `playwright test tests/signtx-unit.spec.ts` → **80 passed** (76 existing + 4 new)
+- `git diff main...HEAD -- package.json package-lock.json wasm/ assets/ ledger-account.ts` → 0 bytes
+
 ## Human gates — nothing done past the working tree
 
 No push, no PR, no tag, no merge, no release. Two local commits on

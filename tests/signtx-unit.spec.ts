@@ -15,7 +15,9 @@ import init, {
   signMessage,
 } from "@/wasm/core/kaspa";
 import { deserializeTransaction } from "@/lib/kaspa-compat";
-import { REDACTED, scrubPayload } from "@/lib/sentry-scrub";
+import * as Sentry from "@sentry/react";
+import { REDACTED, scrubPayload, sentryScrubHooks } from "@/lib/sentry-scrub";
+
 import {
   LedgerAccount,
   LegacyLedgerAccount,
@@ -1595,4 +1597,173 @@ test("HotWalletPrivateKey.signMessage survives repeated use and matches the stri
       noAuxRand: true,
     }),
   ).toBe(viaString);
+});
+
+// ---------------------------------------------------------------------------
+// S1 Part A — the scrubber wired into a REAL Sentry client.
+//
+// The 12 tests above prove the redactor. These prove the *wiring*: that a real
+// Sentry.captureException, going through the real beforeSend/beforeBreadcrumb
+// from lib/instrument.ts, emits an envelope with the secrets gone and the
+// benign data intact. A stub transport captures the envelope in memory — no
+// network, no real DSN.
+//
+// The hooks are imported from lib/sentry-scrub.ts rather than re-declared, so
+// they cannot drift from production. lib/instrument.ts cannot be imported here
+// — it pulls lib/utils.ts and with it the app's asset graph, which the test
+// transform cannot load — so the last test asserts at source level that
+// instrument.ts really does spread them into Sentry.init.
+// ---------------------------------------------------------------------------
+
+test.describe("sentry scrubbing wired into a real client", () => {
+  const CANARY_PHRASE =
+    "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+  const CANARY_HEX =
+    "b7e2c1a3d4f50698abcdef0123456789b7e2c1a3d4f50698abcdef0123456789";
+  const CANARY_XPRV =
+    "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi";
+
+  /** Every string anywhere in the structure, at any depth. */
+  function allStrings(value: unknown, found: string[] = []): string[] {
+    if (typeof value === "string") found.push(value);
+    else if (Array.isArray(value))
+      value.forEach((item) => allStrings(item, found));
+    else if (value && typeof value === "object")
+      Object.entries(value).forEach(([key, item]) => {
+        found.push(key);
+        allStrings(item, found);
+      });
+    return found;
+  }
+
+  /**
+   * Run `emit` against a real Sentry client whose only difference from
+   * production is a fake DSN and an in-memory transport. Returns every envelope
+   * the SDK tried to send.
+   */
+  async function captureWithStubTransport(emit: () => void) {
+    const envelopes: unknown[] = [];
+
+    Sentry.init({
+      ...sentryScrubHooks,
+      // Fake DSN: valid shape, points nowhere. The stub transport means nothing
+      // is ever dispatched regardless.
+      dsn: "https://abc123@o0.ingest.sentry.io/0",
+      // Production gates on isProduction, which is false under test; force it on
+      // so the client actually builds and sends an envelope.
+      enabled: true,
+      transport: () => ({
+        send: async (envelope: unknown) => {
+          envelopes.push(envelope);
+          return {};
+        },
+        flush: async () => true,
+      }),
+    });
+
+    // Scopes are module-global and survive init/close, so breadcrumbs from an
+    // earlier call would otherwise ride along in this envelope.
+    Sentry.getGlobalScope().clearBreadcrumbs();
+    Sentry.getIsolationScope().clearBreadcrumbs();
+    Sentry.getCurrentScope().clearBreadcrumbs();
+
+    emit();
+    await Sentry.flush(5000);
+    await Sentry.close(5000);
+
+    return envelopes;
+  }
+
+  test("canary: a phrase, a hex key and an xprv are all gone from the envelope", async () => {
+    const envelopes = await captureWithStubTransport(() => {
+      // Breadcrumb first: exercises beforeBreadcrumb, and the crumb rides along
+      // inside the event that follows.
+      Sentry.addBreadcrumb({
+        category: "console",
+        level: "log",
+        message: `user pasted ${CANARY_PHRASE}`,
+        data: { arguments: [CANARY_XPRV] },
+      });
+
+      const error = new Error(`import failed for key ${CANARY_HEX}`);
+      Sentry.captureException(error, {
+        extra: { mnemonic: CANARY_PHRASE, nested: { xprv: CANARY_XPRV } },
+        contexts: { wallet: { imported: [{ raw: CANARY_HEX }] } },
+      });
+    });
+
+    expect(envelopes).toHaveLength(1);
+
+    // Recurse the whole envelope — headers, item headers, event body,
+    // breadcrumbs, extra, contexts, arrays, any depth.
+    const strings = allStrings(envelopes[0]);
+    expect(strings.length).toBeGreaterThan(0);
+
+    const haystack = strings.join("\n");
+    expect(haystack).not.toContain(CANARY_PHRASE);
+    expect(haystack).not.toContain(CANARY_HEX);
+    expect(haystack).not.toContain(CANARY_XPRV);
+    // Fragments, not just the whole strings.
+    expect(haystack).not.toContain("abandon");
+    expect(haystack).not.toContain("xprv9s21");
+
+    // The event still went out, and it is still recognisably the same error.
+    expect(haystack).toContain("import failed for key");
+    expect(haystack).toContain(REDACTED);
+  });
+
+  test("negative control: a benign event arrives unchanged", async () => {
+    const benignUrl = "https://api.kaspa.org/info/price";
+    const benignAddress =
+      "kaspa:qzrq7v5jhsc5znvtfdg6vxg7dz5x8dqe4wrh3wfnsdwmpvxwqpqjqx0hfvhwd";
+    const benignMessage = "Failed to fetch the Kaspa price: request timed out";
+
+    const envelopes = await captureWithStubTransport(() => {
+      Sentry.addBreadcrumb({
+        category: "console",
+        level: "log",
+        message: "refreshing balances",
+      });
+      Sentry.captureException(new Error(benignMessage), {
+        extra: { url: benignUrl, status: 504, address: benignAddress },
+      });
+    });
+
+    expect(envelopes).toHaveLength(1);
+
+    const haystack = allStrings(envelopes[0]).join("\n");
+    // Without this the canary test is meaningless — "nothing came through" and
+    // "scrubbing worked" would look identical.
+    expect(haystack).toContain(benignMessage);
+    expect(haystack).toContain(benignUrl);
+    expect(haystack).toContain(benignAddress);
+    expect(haystack).toContain("refreshing balances");
+    expect(haystack).not.toContain(REDACTED);
+  });
+
+  test("each captureException produces exactly one envelope", async () => {
+    const canary = await captureWithStubTransport(() => {
+      Sentry.captureException(new Error(`key ${CANARY_HEX}`));
+    });
+    const control = await captureWithStubTransport(() => {
+      Sentry.captureException(new Error("plain failure"));
+    });
+
+    // Events are not being dropped wholesale — only secret-bearing fields are
+    // redacted. A fail-closed scrubber that ate everything would show 0 here.
+    expect(canary).toHaveLength(1);
+    expect(control).toHaveLength(1);
+  });
+
+  test("lib/instrument.ts actually applies these hooks to Sentry.init", () => {
+    // The tests above prove the hooks scrub. This proves production uses them.
+    // It is a source-level check because instrument.ts cannot be imported into
+    // the test runner (see the note at the top of this block).
+    const source = fs.readFileSync(
+      path.join(TESTS_DIR, "../lib/instrument.ts"),
+      "utf8",
+    );
+    expect(source).toContain("Sentry.init(");
+    expect(source).toContain("...sentryScrubHooks");
+  });
 });

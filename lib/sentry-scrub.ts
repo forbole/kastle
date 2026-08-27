@@ -1,3 +1,4 @@
+import type { Breadcrumb, BrowserOptions, ErrorEvent } from "@sentry/react";
 import { english } from "viem/accounts";
 
 /**
@@ -110,3 +111,26 @@ export function scrubPayload<T>(payload: T): T | null {
     return null;
   }
 }
+
+/**
+ * The privacy half of `Sentry.init`, kept here rather than inline in
+ * lib/instrument.ts so tests can drive a real Sentry client with the exact
+ * hooks production uses. instrument.ts spreads this object; importing it from
+ * there instead would drag the whole app asset graph into the test runner.
+ *
+ * The Sentry import above is type-only and erases at compile time, so this
+ * module stays runtime-independent of the SDK.
+ */
+export const sentryScrubHooks = {
+  // Never rely on the SDK's default here — the popup holds recovery phrases and
+  // private keys in memory.
+  sendDefaultPii: false,
+  // Console breadcrumbs and `globalHandlers` are on by default, so both the
+  // event and every breadcrumb are redacted before they leave the device.
+  // `scrubPayload` returns null on failure, which drops the payload.
+  beforeSend: (event: ErrorEvent) => scrubPayload(event),
+  beforeBreadcrumb: (breadcrumb: Breadcrumb) => scrubPayload(breadcrumb),
+} satisfies Pick<
+  BrowserOptions,
+  "sendDefaultPii" | "beforeSend" | "beforeBreadcrumb"
+>;
