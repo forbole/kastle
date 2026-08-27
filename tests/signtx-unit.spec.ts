@@ -12,8 +12,12 @@ import init, {
   ScriptBuilder,
   SighashType,
   Transaction,
+  signMessage,
 } from "@/wasm/core/kaspa";
 import { deserializeTransaction } from "@/lib/kaspa-compat";
+import * as Sentry from "@sentry/react";
+import { REDACTED, scrubPayload, sentryScrubHooks } from "@/lib/sentry-scrub";
+
 import {
   LedgerAccount,
   LegacyLedgerAccount,
@@ -35,6 +39,7 @@ import {
   LegacyAccountFactory,
 } from "@/lib/wallet/account-factory";
 import { withOwned } from "@/lib/wallet/wasm-lifecycle";
+import { HotWalletPrivateKey } from "@/lib/wallet/account/hot-wallet-private-key";
 import type { SignType } from "@/lib/wallet/wallet-interface";
 
 // Throwaway key — unit tests only, never funded.
@@ -1419,5 +1424,393 @@ test.describe("WASM secret lifecycle (W1)", () => {
     // withOwned() never frees on this path — the object leaks rather than
     // being corrupted out from under the still-suspended callback.
     expect(freed).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// S1 — Sentry secret scrubbing
+//
+// The popup holds raw recovery phrases and private keys in React state, and
+// Sentry's default browser integrations capture console arguments as
+// breadcrumbs plus unhandled errors via globalHandlers. `scrubPayload` is the
+// single control that stops any of that leaving the device, so it is tested
+// directly — it is pure and needs no Sentry client.
+// ---------------------------------------------------------------------------
+
+test.describe("sentry secret scrubbing", () => {
+  const PHRASE_12 =
+    "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+  const PHRASE_24 =
+    "legal winner thank year wave sausage worth useful legal winner thank year wave sausage worth useful legal winner thank year wave sausage worth title";
+  const HEX_KEY =
+    "b7e2c1a3d4f50698abcdef0123456789b7e2c1a3d4f50698abcdef0123456789";
+  const XPRV =
+    "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi";
+
+  test("redacts a 12-word BIP-39 phrase in a message", () => {
+    const scrubbed = scrubPayload({ message: `import failed: ${PHRASE_12}` });
+    expect(scrubbed?.message).not.toContain("abandon");
+    expect(scrubbed?.message).toBe(`import failed: ${REDACTED}`);
+  });
+
+  test("redacts a 24-word BIP-39 phrase in a message", () => {
+    const scrubbed = scrubPayload({ message: PHRASE_24 });
+    expect(scrubbed?.message).toBe(REDACTED);
+    expect(scrubbed?.message).not.toContain("sausage");
+  });
+
+  test("redacts a phrase pasted with punctuation and newlines", () => {
+    const noisy = PHRASE_12.split(" ").join(",\n");
+    const scrubbed = scrubPayload({ message: noisy });
+    expect(scrubbed?.message).not.toContain("abandon");
+  });
+
+  test("redacts secrets concatenated straight onto adjacent text", () => {
+    // `\b` needs a non-word character on each side, so these were missed before:
+    // string concatenation is exactly how a key reaches a log line.
+    expect(scrubPayload({ message: `key${HEX_KEY}` })?.message).toBe(
+      `key${REDACTED}`,
+    );
+    expect(scrubPayload({ message: `seed${XPRV}` })?.message).toBe(
+      `seed${REDACTED}`,
+    );
+  });
+
+  test("redacts a hex run longer than one key", () => {
+    // Two concatenated keys are 128 characters. An exact `{64}` pattern skips
+    // the run entirely, so the whole thing goes rather than nothing.
+    expect(scrubPayload({ message: `${HEX_KEY}${HEX_KEY}` })?.message).toBe(
+      REDACTED,
+    );
+    expect(scrubPayload({ message: `${HEX_KEY}a` })?.message).toBe(REDACTED);
+    // Still bounded: a run too short to hold a key is left alone.
+    const short = HEX_KEY.slice(0, 63);
+    expect(scrubPayload({ message: short })?.message).toBe(short);
+  });
+
+  test("redacts secret keys however they are spelled", () => {
+    for (const key of [
+      "kprv",
+      "privateKey",
+      "private_key",
+      "private-key",
+      "private key",
+      "x_prv",
+    ]) {
+      expect(scrubPayload({ [key]: "whatever shape this is" })?.[key]).toBe(
+        REDACTED,
+      );
+    }
+  });
+
+  test("redacts a secret-named key whatever its value type", () => {
+    const payload = scrubPayload({
+      private_key: { nested: ["deep", 1] },
+      mnemonic: ["a", "b"],
+    });
+    expect(payload?.private_key).toBe(REDACTED);
+    expect(payload?.mnemonic).toBe(REDACTED);
+  });
+
+  test("redacts a 64-char hex private key, bare and 0x-prefixed", () => {
+    expect(scrubPayload({ message: `key=${HEX_KEY}` })?.message).toBe(
+      `key=${REDACTED}`,
+    );
+    expect(scrubPayload({ message: `key=0x${HEX_KEY}` })?.message).toBe(
+      `key=${REDACTED}`,
+    );
+  });
+
+  test("redacts an xprv extended key", () => {
+    const scrubbed = scrubPayload({ message: `derive from ${XPRV}` });
+    expect(scrubbed?.message).toBe(`derive from ${REDACTED}`);
+  });
+
+  test("redacts secrets nested in extra, contexts and breadcrumb data", () => {
+    const scrubbed = scrubPayload({
+      message: "wallet error",
+      extra: { detail: { note: `phrase was ${PHRASE_12}` } },
+      contexts: { wallet: { imported: [{ key: HEX_KEY }] } },
+      breadcrumbs: [{ category: "console", data: { arguments: [XPRV] } }],
+    });
+
+    const serialised = JSON.stringify(scrubbed);
+    expect(serialised).not.toContain("abandon");
+    expect(serialised).not.toContain(HEX_KEY);
+    expect(serialised).not.toContain("xprv9s21");
+  });
+
+  test("redacts a breadcrumb payload the same way as an event", () => {
+    const scrubbed = scrubPayload({
+      category: "console",
+      level: "log",
+      message: `seed is ${PHRASE_12}`,
+      data: { arguments: [HEX_KEY] },
+    });
+    expect(scrubbed?.message).toBe(`seed is ${REDACTED}`);
+    expect(JSON.stringify(scrubbed?.data)).not.toContain(HEX_KEY);
+  });
+
+  test("redacts by field name even when the value looks harmless", () => {
+    const scrubbed = scrubPayload({
+      extra: {
+        mnemonic: "hello",
+        privateKey: 42,
+        passphrase: "",
+        password: null,
+        seedSource: { nested: "still gone" },
+        walletName: "my wallet",
+      },
+    });
+
+    const extra = scrubbed?.extra as Record<string, unknown>;
+    expect(extra.mnemonic).toBe(REDACTED);
+    expect(extra.privateKey).toBe(REDACTED);
+    expect(extra.passphrase).toBe(REDACTED);
+    expect(extra.password).toBe(REDACTED);
+    expect(extra.seedSource).toBe(REDACTED);
+    // Non-secret keys are untouched, otherwise Sentry stops being useful.
+    expect(extra.walletName).toBe("my wallet");
+  });
+
+  test("passes a benign event through unchanged", () => {
+    const benign = {
+      message: "Failed to fetch the Kaspa price: request timed out after 30s",
+      level: "error",
+      extra: {
+        url: "https://api.kaspa.org/info/price",
+        status: 504,
+        retries: 3,
+        address:
+          "kaspa:qzrq7v5jhsc5znvtfdg6vxg7dz5x8dqe4wrh3wfnsdwmpvxwqpqjqx0hfvhwd",
+      },
+      contexts: { app: { app_version: "2.59.6" } },
+    };
+    expect(scrubPayload(benign)).toEqual(benign);
+  });
+
+  test("leaves ordinary prose alone (no over-redaction)", () => {
+    // Long, entirely English, but not 12 dictionary words in a row.
+    const prose =
+      "Unable to sign the transaction because the connected hardware wallet " +
+      "returned an unexpected status code while deriving the account address.";
+    expect(scrubPayload({ message: prose })?.message).toBe(prose);
+  });
+
+  test("drops the payload instead of sending it when scrubbing throws", () => {
+    const exploding = {
+      get message(): string {
+        throw new Error("boom");
+      },
+    };
+    expect(scrubPayload(exploding)).toBeNull();
+  });
+
+  test("does not hang or leak on a cyclic payload", () => {
+    const cyclic: Record<string, unknown> = { message: `key ${HEX_KEY}` };
+    cyclic.self = cyclic;
+    const scrubbed = scrubPayload(cyclic) as Record<string, unknown>;
+    expect(scrubbed.message).toBe(`key ${REDACTED}`);
+    expect(scrubbed.self).toBe(REDACTED);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// S3 — HotWalletPrivateKey.signMessage now passes the PrivateKey object rather
+// than materialising a hex string. signMessage borrows (it does not null the
+// pointer), and the instance owns the key for its whole lifetime, so repeated
+// use must keep working and must agree with the old string path.
+// ---------------------------------------------------------------------------
+
+test("HotWalletPrivateKey.signMessage survives repeated use and matches the string path", () => {
+  const account = new HotWalletPrivateKey(new PrivateKey(TEST_KEY));
+
+  const viaString = signMessage({
+    message: "kastle-s3",
+    privateKey: TEST_KEY,
+    noAuxRand: true,
+  });
+
+  for (let i = 0; i < 20; i++) {
+    expect(account.signMessage("kastle-s3")).toMatch(/^[0-9a-f]{128}$/);
+  }
+
+  // Same key, same message, deterministic nonce => byte-identical signature,
+  // which is what proves the object hop is equivalent to the string hop.
+  expect(
+    signMessage({
+      message: "kastle-s3",
+      privateKey: account["privateKey"],
+      noAuxRand: true,
+    }),
+  ).toBe(viaString);
+});
+
+// ---------------------------------------------------------------------------
+// S1 Part A — the scrubber wired into a REAL Sentry client.
+//
+// The 12 tests above prove the redactor. These prove the *wiring*: that a real
+// Sentry.captureException, going through the real beforeSend/beforeBreadcrumb
+// from lib/instrument.ts, emits an envelope with the secrets gone and the
+// benign data intact. A stub transport captures the envelope in memory — no
+// network, no real DSN.
+//
+// The hooks are imported from lib/sentry-scrub.ts rather than re-declared, so
+// they cannot drift from production. lib/instrument.ts cannot be imported here
+// — it pulls lib/utils.ts and with it the app's asset graph, which the test
+// transform cannot load — so the last test asserts at source level that
+// instrument.ts really does spread them into Sentry.init.
+// ---------------------------------------------------------------------------
+
+test.describe("sentry scrubbing wired into a real client", () => {
+  const CANARY_PHRASE =
+    "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+  const CANARY_HEX =
+    "b7e2c1a3d4f50698abcdef0123456789b7e2c1a3d4f50698abcdef0123456789";
+  const CANARY_XPRV =
+    "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi";
+
+  /** Every string anywhere in the structure, at any depth. */
+  function allStrings(value: unknown, found: string[] = []): string[] {
+    if (typeof value === "string") found.push(value);
+    else if (Array.isArray(value))
+      value.forEach((item) => allStrings(item, found));
+    else if (value && typeof value === "object")
+      Object.entries(value).forEach(([key, item]) => {
+        found.push(key);
+        allStrings(item, found);
+      });
+    return found;
+  }
+
+  /**
+   * Run `emit` against a real Sentry client whose only difference from
+   * production is a fake DSN and an in-memory transport. Returns every envelope
+   * the SDK tried to send.
+   */
+  async function captureWithStubTransport(emit: () => void) {
+    const envelopes: unknown[] = [];
+
+    Sentry.init({
+      ...sentryScrubHooks,
+      // Fake DSN: valid shape, points nowhere. The stub transport means nothing
+      // is ever dispatched regardless.
+      dsn: "https://abc123@o0.ingest.sentry.io/0",
+      // Production gates on isProduction, which is false under test; force it on
+      // so the client actually builds and sends an envelope.
+      enabled: true,
+      transport: () => ({
+        send: async (envelope: unknown) => {
+          envelopes.push(envelope);
+          return {};
+        },
+        flush: async () => true,
+      }),
+    });
+
+    // Scopes are module-global and survive init/close, so breadcrumbs from an
+    // earlier call would otherwise ride along in this envelope.
+    Sentry.getGlobalScope().clearBreadcrumbs();
+    Sentry.getIsolationScope().clearBreadcrumbs();
+    Sentry.getCurrentScope().clearBreadcrumbs();
+
+    emit();
+    await Sentry.flush(5000);
+    await Sentry.close(5000);
+
+    return envelopes;
+  }
+
+  test("canary: a phrase, a hex key and an xprv are all gone from the envelope", async () => {
+    const envelopes = await captureWithStubTransport(() => {
+      // Breadcrumb first: exercises beforeBreadcrumb, and the crumb rides along
+      // inside the event that follows.
+      Sentry.addBreadcrumb({
+        category: "console",
+        level: "log",
+        message: `user pasted ${CANARY_PHRASE}`,
+        data: { arguments: [CANARY_XPRV] },
+      });
+
+      const error = new Error(`import failed for key ${CANARY_HEX}`);
+      Sentry.captureException(error, {
+        extra: { mnemonic: CANARY_PHRASE, nested: { xprv: CANARY_XPRV } },
+        contexts: { wallet: { imported: [{ raw: CANARY_HEX }] } },
+      });
+    });
+
+    expect(envelopes).toHaveLength(1);
+
+    // Recurse the whole envelope — headers, item headers, event body,
+    // breadcrumbs, extra, contexts, arrays, any depth.
+    const strings = allStrings(envelopes[0]);
+    expect(strings.length).toBeGreaterThan(0);
+
+    const haystack = strings.join("\n");
+    expect(haystack).not.toContain(CANARY_PHRASE);
+    expect(haystack).not.toContain(CANARY_HEX);
+    expect(haystack).not.toContain(CANARY_XPRV);
+    // Fragments, not just the whole strings.
+    expect(haystack).not.toContain("abandon");
+    expect(haystack).not.toContain("xprv9s21");
+
+    // The event still went out, and it is still recognisably the same error.
+    expect(haystack).toContain("import failed for key");
+    expect(haystack).toContain(REDACTED);
+  });
+
+  test("negative control: a benign event arrives unchanged", async () => {
+    const benignUrl = "https://api.kaspa.org/info/price";
+    const benignAddress =
+      "kaspa:qzrq7v5jhsc5znvtfdg6vxg7dz5x8dqe4wrh3wfnsdwmpvxwqpqjqx0hfvhwd";
+    const benignMessage = "Failed to fetch the Kaspa price: request timed out";
+
+    const envelopes = await captureWithStubTransport(() => {
+      Sentry.addBreadcrumb({
+        category: "console",
+        level: "log",
+        message: "refreshing balances",
+      });
+      Sentry.captureException(new Error(benignMessage), {
+        extra: { url: benignUrl, status: 504, address: benignAddress },
+      });
+    });
+
+    expect(envelopes).toHaveLength(1);
+
+    const haystack = allStrings(envelopes[0]).join("\n");
+    // Without this the canary test is meaningless — "nothing came through" and
+    // "scrubbing worked" would look identical.
+    expect(haystack).toContain(benignMessage);
+    expect(haystack).toContain(benignUrl);
+    expect(haystack).toContain(benignAddress);
+    expect(haystack).toContain("refreshing balances");
+    expect(haystack).not.toContain(REDACTED);
+  });
+
+  test("each captureException produces exactly one envelope", async () => {
+    const canary = await captureWithStubTransport(() => {
+      Sentry.captureException(new Error(`key ${CANARY_HEX}`));
+    });
+    const control = await captureWithStubTransport(() => {
+      Sentry.captureException(new Error("plain failure"));
+    });
+
+    // Events are not being dropped wholesale — only secret-bearing fields are
+    // redacted. A fail-closed scrubber that ate everything would show 0 here.
+    expect(canary).toHaveLength(1);
+    expect(control).toHaveLength(1);
+  });
+
+  test("lib/instrument.ts actually applies these hooks to Sentry.init", () => {
+    // The tests above prove the hooks scrub. This proves production uses them.
+    // It is a source-level check because instrument.ts cannot be imported into
+    // the test runner (see the note at the top of this block).
+    const source = fs.readFileSync(
+      path.join(TESTS_DIR, "../lib/instrument.ts"),
+      "utf8",
+    );
+    expect(source).toContain("Sentry.init(");
+    expect(source).toContain("...sentryScrubHooks");
   });
 });
