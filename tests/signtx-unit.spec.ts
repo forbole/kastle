@@ -9,6 +9,7 @@ import init, {
   createTransactions,
   payToAddressScript,
   PrivateKey,
+  PublicKey,
   ScriptBuilder,
   SighashType,
   Transaction,
@@ -32,7 +33,8 @@ import {
   signTxWithScriptOptions,
   type RawScriptOption,
 } from "@/lib/wallet/sign-script";
-import { SIGN_TYPE, toSignType } from "@/lib/kaspa";
+import { SIGN_TYPE, toSignType, deriveKaspaAddress } from "@/lib/kaspa";
+import type { NetworkType } from "@/contexts/SettingsContext";
 import { SignTxPayloadSchema } from "@/api/background/handlers/kaspa/utils";
 import {
   AccountFactory,
@@ -1812,5 +1814,63 @@ test.describe("sentry scrubbing wired into a real client", () => {
     );
     expect(source).toContain("Sentry.init(");
     expect(source).toContain("...sentryScrubHooks");
+  });
+});
+
+test.describe("stale address after switchNetwork (N1)", () => {
+  // switchKaspaNetwork writes settings.networkId and refreshes cached
+  // account.address in two separate, non-atomic storage writes. A read
+  // landing between them must not trust the cached address. These vectors
+  // simulate exactly that: publicKeys is real, address is deliberately the
+  // OLD network's value (as if refreshKaspaAddresses never ran), and
+  // resolution must still return the CURRENT network's address, for both
+  // isLegacy branches (W1_VECTORS covers "legacy" and "new").
+  for (const v of W1_VECTORS) {
+    test(`${v.branch} branch resolves testnet-10 correctly from a mainnet-stale cache (index ${v.accountIndex})`, () => {
+      const staleAccount = {
+        publicKeys: [v.firstPublicKey],
+        address: v.address, // mainnet address, deliberately stale
+      };
+
+      const resolved = deriveKaspaAddress(
+        staleAccount.publicKeys,
+        "testnet-10" as NetworkType,
+      );
+
+      expect(resolved).not.toBe(staleAccount.address);
+      expect(resolved).toBe(
+        new PublicKey(v.firstPublicKey).toAddress("testnet-10").toString(),
+      );
+    });
+  }
+
+  test("resolution carries no state across calls — alternating networks always match the network just asked for, with no refresh step in between", () => {
+    const [legacy, modern] = [
+      W1_VECTORS.find((v) => v.branch === "legacy")!,
+      W1_VECTORS.find((v) => v.branch === "new")!,
+    ];
+
+    for (let i = 0; i < 10; i++) {
+      for (const v of [legacy, modern]) {
+        const mainnet = deriveKaspaAddress(
+          [v.firstPublicKey],
+          "mainnet" as NetworkType,
+        );
+        const testnet = deriveKaspaAddress(
+          [v.firstPublicKey],
+          "testnet-10" as NetworkType,
+        );
+
+        expect(mainnet).toBe(v.address);
+        expect(testnet).not.toBe(mainnet);
+      }
+    }
+  });
+
+  test("missing publicKeys resolves to undefined instead of throwing (hotfix account shape)", () => {
+    expect(
+      deriveKaspaAddress(undefined, "mainnet" as NetworkType),
+    ).toBeUndefined();
+    expect(deriveKaspaAddress([], "mainnet" as NetworkType)).toBeUndefined();
   });
 });

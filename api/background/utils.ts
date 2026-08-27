@@ -24,6 +24,7 @@ import * as conn from "@/lib/settings/connection";
 import { kasplexTestnet, kasplexMainnet } from "@/lib/layer2";
 import { publicKeyToAddress } from "viem/accounts";
 import { RpcClient, Encoding, Resolver } from "@/wasm/core/kaspa";
+import { deriveKaspaAddress } from "@/lib/kaspa";
 
 export class ApiUtils {
   static openPopup(tabId: number, url: string) {
@@ -75,7 +76,15 @@ export class ApiUtils {
     });
 
     if (!selectedAccount) return null;
-    return selectedAccount;
+
+    // Re-derive the address from the current network on every read instead
+    // of trusting the cached value. switchKaspaNetwork writes networkId and
+    // refreshes cached addresses in two separate, non-atomic storage writes,
+    // so a read landing in that window would otherwise see a stale address.
+    const { networkId } = await ApiUtils.getSettings();
+    const address = deriveKaspaAddress(selectedAccount.publicKeys, networkId);
+
+    return address ? { ...selectedAccount, address } : selectedAccount;
   }
 
   static async getCurrentWallet() {
