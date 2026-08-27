@@ -507,6 +507,21 @@ Steps for Leo:
 4. Click **Trigger canary error** → the console prints
    `[sentry-canary] { … }` — the full envelope JSON. Search it for `abandon`,
    for the hex key, for `xprv9s21`: all absent, `[REDACTED]` in their place.
+   Three of the plants are deliberately concatenation-shaped, since that is what
+   the review fix addressed:
+
+   | Field                                 | Planted                                                          | Expected                           |
+   | ------------------------------------- | ---------------------------------------------------------------- | ---------------------------------- |
+   | `exception…value`                     | `key=<hex>` (`=` is a non-word character, so this always worked) | `import failed for key=[REDACTED]` |
+   | breadcrumb `data.noSeparator`         | `privkey<hex>` — **no separator**                                | `privkey[REDACTED]`                |
+   | breadcrumb `data.noSeparatorExtended` | `seed<xprv>` — **no separator**                                  | `seed[REDACTED]`                   |
+
+   The prefix surviving matters as much as the redaction: `privkey[REDACTED]`
+   rather than a bare `[REDACTED]` shows the lookarounds cut exactly at the hex
+   run. Note the field is named `noSeparatorExtended`, not `noSeparatorXprv` —
+   the latter would be redacted by _key name_ and would prove nothing about the
+   value pattern.
+
 5. Click **Trigger control error** → `[sentry-control] { … }` — the URL, the
    status and the error text are all there, untouched, and `[REDACTED]` appears
    nowhere.
@@ -567,6 +582,12 @@ stating that ownership transfers.
 
 Three regression tests added: concatenated hex and xprv, a 128-char hex blob
 left intact, and a `kprv`-named key. 83 tests pass.
+
+Verified on device 2026-08-27 with the concatenated plants above: the envelope
+came back with `key=[REDACTED]`, `privkey[REDACTED]` and `seed[REDACTED]`, and
+zero occurrences of `b7e1516`, `xprv9s21` or `abandon`. On the pre-review build
+that middle line would have printed the key in full — the first device pass did
+not catch it because the original canary planted its secrets after a space.
 
 ## Human gates — nothing done past the working tree
 

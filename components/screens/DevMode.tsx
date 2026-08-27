@@ -60,9 +60,19 @@ async function emitCanaryEnvelope(kind: "canary" | "control") {
       category: "console",
       level: "log",
       message: `user pasted ${PHRASE}`,
-      data: { arguments: [XPRV] },
+      data: {
+        arguments: [XPRV],
+        // No separator at all before the hex. This is the case `\b` anchoring
+        // used to miss: `\b` needs a non-word character on each side, and `y`
+        // is a word character.
+        noSeparator: `privkey${HEX}`,
+        // Same shape for the extended key.
+        noSeparatorExtended: `seed${XPRV}`,
+      },
     });
-    Sentry.captureException(new Error(`import failed for key ${HEX}`), {
+    // `key=` — a real log line's shape. `=` is a non-word character, so this
+    // one was always caught; it is here as the boundary control.
+    Sentry.captureException(new Error(`import failed for key=${HEX}`), {
       extra: { mnemonic: PHRASE, nested: { xprv: XPRV } },
     });
   } else {
