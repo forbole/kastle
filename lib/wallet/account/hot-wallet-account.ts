@@ -56,7 +56,12 @@ export class LegacyHotWalletAccount implements IWallet {
   }
 
   signMessage(message: string): string {
-    return signMessage({ message, privateKey: this.getPrivateKeyString() });
+    // signMessage borrows the PrivateKey — it does not null the pointer — so
+    // getPrivateKey's ownership stays with us and withOwned frees it. Passing
+    // the object avoids materialising the key as a hex string.
+    return withOwned((own) =>
+      signMessage({ message, privateKey: own(this.getPrivateKey()) }),
+    );
   }
 
   protected getPrivateKey() {
@@ -69,23 +74,6 @@ export class LegacyHotWalletAccount implements IWallet {
         ),
       ).toPrivateKey(),
     );
-  }
-
-  protected getPrivateKeys(indexes: number[]) {
-    return withOwned((own) => {
-      const xprv = own(new XPrv(this.seed));
-
-      return indexes.map((index) =>
-        withOwned((ownIndex) => {
-          const derived = ownIndex(
-            xprv.derivePath(`m/44'/111111'/${this.accountIndex}'/0/${index}`),
-          );
-
-          return ownIndex(ownIndex(derived.toPrivateKey()).toKeypair())
-            .privateKey;
-        }),
-      );
-    });
   }
 }
 
@@ -116,11 +104,5 @@ export class HotWalletAccount extends LegacyHotWalletAccount {
         ),
       ).toPrivateKey(),
     );
-  }
-
-  override getPrivateKeys(indexes: number[]) {
-    return withOwned((own) => [
-      own(own(this.getPrivateKey()).toKeypair()).privateKey,
-    ]);
   }
 }

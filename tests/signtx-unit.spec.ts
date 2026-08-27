@@ -12,6 +12,7 @@ import init, {
   ScriptBuilder,
   SighashType,
   Transaction,
+  signMessage,
 } from "@/wasm/core/kaspa";
 import { deserializeTransaction } from "@/lib/kaspa-compat";
 import { REDACTED, scrubPayload } from "@/lib/sentry-scrub";
@@ -36,6 +37,7 @@ import {
   LegacyAccountFactory,
 } from "@/lib/wallet/account-factory";
 import { withOwned } from "@/lib/wallet/wasm-lifecycle";
+import { HotWalletPrivateKey } from "@/lib/wallet/account/hot-wallet-private-key";
 import type { SignType } from "@/lib/wallet/wallet-interface";
 
 // Throwaway key — unit tests only, never funded.
@@ -1562,4 +1564,35 @@ test.describe("sentry secret scrubbing", () => {
     expect(scrubbed.message).toBe(`key ${REDACTED}`);
     expect(scrubbed.self).toBe(REDACTED);
   });
+});
+
+// ---------------------------------------------------------------------------
+// S3 — HotWalletPrivateKey.signMessage now passes the PrivateKey object rather
+// than materialising a hex string. signMessage borrows (it does not null the
+// pointer), and the instance owns the key for its whole lifetime, so repeated
+// use must keep working and must agree with the old string path.
+// ---------------------------------------------------------------------------
+
+test("HotWalletPrivateKey.signMessage survives repeated use and matches the string path", () => {
+  const account = new HotWalletPrivateKey(new PrivateKey(TEST_KEY));
+
+  const viaString = signMessage({
+    message: "kastle-s3",
+    privateKey: TEST_KEY,
+    noAuxRand: true,
+  });
+
+  for (let i = 0; i < 20; i++) {
+    expect(account.signMessage("kastle-s3")).toMatch(/^[0-9a-f]{128}$/);
+  }
+
+  // Same key, same message, deterministic nonce => byte-identical signature,
+  // which is what proves the object hop is equivalent to the string hop.
+  expect(
+    signMessage({
+      message: "kastle-s3",
+      privateKey: account["privateKey"],
+      noAuxRand: true,
+    }),
+  ).toBe(viaString);
 });

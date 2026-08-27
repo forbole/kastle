@@ -34,6 +34,9 @@ export class HotWalletPrivateKey implements IWallet {
   }
 
   signMessage(message: string): string {
-    return signMessage({ message, privateKey: this.getPrivateKeyString() });
+    // signMessage borrows the PrivateKey — it does not null the pointer — and
+    // this one is owned by the instance, so pass the object straight through
+    // instead of materialising the key as a hex string.
+    return signMessage({ message, privateKey: this.privateKey });
   }
 }
