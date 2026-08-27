@@ -537,6 +537,37 @@ production bundle. The `import.meta.env.DEV` gate strips the block.
 - `playwright test tests/signtx-unit.spec.ts` → **80 passed** (76 existing + 4 new)
 - `git diff main...HEAD -- package.json package-lock.json wasm/ assets/ ledger-account.ts` → 0 bytes
 
+## Review follow-ups (CodeRabbit / Copilot on PR #326)
+
+Three findings, all verified against the code before acting — two were real
+holes in the scrubber, one was a documentation request.
+
+**1. `\b` anchors let concatenated secrets through.** Confirmed empirically:
+`` `key${hex}` `` was **not** redacted, because `\b` needs a non-word character
+on each side and `y` is a word character. String concatenation is exactly how a
+key reaches a log line, so this was a real gap. `HEX_KEY_PATTERN` now uses
+lookarounds that reject only adjacent _hex_ characters
+(`/(?<![0-9a-fA-F])(?:0x)?[0-9a-fA-F]{64}(?![0-9a-fA-F])/g`), which keeps a
+longer hex blob intact while catching the concatenated case.
+
+`EXTENDED_KEY_PATTERN` had the same hole, unflagged. A lookbehind cannot fix it
+— the key body is alphanumeric, so "not preceded by an alphanumeric" would
+reject `` `seed${xprv}` `` too — so it is simply unanchored:
+`/[xk]prv[0-9A-Za-z]{20,}/g`. Over-matching is the safe direction.
+
+**2. `kprv` missing from `SECRET_KEY_PATTERN`.** The _value_ pattern already
+covered `kprv`, the _key-name_ pattern did not, so a field literally named
+`kprv` holding a non-string was missed. Now `[xk]prv`.
+
+**3. `HotWalletPrivateKey` constructor ownership undocumented.** Checked all
+three call sites (`account-factory.ts` ×2, the unit test): every one constructs
+`new PrivateKey(...)` inline and hands it over, so no caller can free it out
+from under the instance. No behaviour change needed; added a constructor comment
+stating that ownership transfers.
+
+Three regression tests added: concatenated hex and xprv, a 128-char hex blob
+left intact, and a `kprv`-named key. 83 tests pass.
+
 ## Human gates — nothing done past the working tree
 
 No push, no PR, no tag, no merge, no release. Two local commits on

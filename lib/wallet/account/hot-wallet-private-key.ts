@@ -12,6 +12,9 @@ import { signTxWithScriptOptions } from "@/lib/wallet/sign-script.ts";
 export class HotWalletPrivateKey implements IWallet {
   keypair: Keypair;
 
+  // Takes ownership of the PrivateKey: it is retained for the lifetime of this
+  // instance and borrowed by every signing call, so the caller must not free it.
+  // Every call site constructs one inline for exactly this reason.
   constructor(private privateKey: PrivateKey) {
     this.keypair = privateKey.toKeypair();
   }

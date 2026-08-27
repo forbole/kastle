@@ -23,13 +23,28 @@ const BIP39_WORDS = new Set(english);
 
 /** Keys whose value is redacted whatever it looks like. */
 const SECRET_KEY_PATTERN =
-  /seed|mnemonic|privatekey|phrase|passphrase|password|secret|xprv/i;
+  /seed|mnemonic|privatekey|phrase|passphrase|password|secret|[xk]prv/i;
 
-/** 32-byte hex — secp256k1 / Kaspa private keys, with or without `0x`. */
-const HEX_KEY_PATTERN = /\b(?:0x)?[0-9a-fA-F]{64}\b/g;
+/**
+ * 32-byte hex — secp256k1 / Kaspa private keys, with or without `0x`.
+ *
+ * Deliberately not `\b`-anchored: `\b` needs a non-word character on each side,
+ * so `key${hex}` — plain string concatenation, which is exactly how a key ends
+ * up in a log line — would not match. The lookarounds reject only adjacent *hex*
+ * characters, so a longer hex blob is still left alone.
+ */
+const HEX_KEY_PATTERN =
+  /(?<![0-9a-fA-F])(?:0x)?[0-9a-fA-F]{64}(?![0-9a-fA-F])/g;
 
-/** BIP-32 extended private keys (`xprv…`) and their Kaspa variant (`kprv…`). */
-const EXTENDED_KEY_PATTERN = /\b[xk]prv[0-9A-Za-z]{20,}\b/g;
+/**
+ * BIP-32 extended private keys (`xprv…`) and their Kaspa variant (`kprv…`).
+ *
+ * Unanchored for the same reason. A leading lookbehind cannot help here: the key
+ * body is alphanumeric, so "not preceded by an alphanumeric" would reject
+ * `seed${xprv}` too. Over-matching is the safe direction — a word that happens
+ * to contain `xprv` followed by 20+ alphanumerics is not a real string.
+ */
+const EXTENDED_KEY_PATTERN = /[xk]prv[0-9A-Za-z]{20,}/g;
 
 const WORD_PATTERN = /[A-Za-z]+/g;
 

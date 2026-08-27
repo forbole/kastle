@@ -1465,6 +1465,30 @@ test.describe("sentry secret scrubbing", () => {
     expect(scrubbed?.message).not.toContain("abandon");
   });
 
+  test("redacts secrets concatenated straight onto adjacent text", () => {
+    // `\b` needs a non-word character on each side, so these were missed before:
+    // string concatenation is exactly how a key reaches a log line.
+    expect(scrubPayload({ message: `key${HEX_KEY}` })?.message).toBe(
+      `key${REDACTED}`,
+    );
+    expect(scrubPayload({ message: `seed${XPRV}` })?.message).toBe(
+      `seed${REDACTED}`,
+    );
+  });
+
+  test("leaves a longer hex blob alone", () => {
+    // A 128-char hex run is not a 32-byte key; only adjacent hex suppresses the
+    // match, so this stays intact rather than being half-redacted.
+    const blob = `${HEX_KEY}${HEX_KEY}`;
+    expect(scrubPayload({ message: blob })?.message).toBe(blob);
+  });
+
+  test("redacts a value under a kprv-named key", () => {
+    expect(scrubPayload({ kprv: "whatever shape this is" })?.kprv).toBe(
+      REDACTED,
+    );
+  });
+
   test("redacts a 64-char hex private key, bare and 0x-prefixed", () => {
     expect(scrubPayload({ message: `key=${HEX_KEY}` })?.message).toBe(
       `key=${REDACTED}`,
