@@ -14,6 +14,7 @@ import init, {
   Transaction,
 } from "@/wasm/core/kaspa";
 import { deserializeTransaction } from "@/lib/kaspa-compat";
+import { REDACTED, scrubPayload } from "@/lib/sentry-scrub";
 import {
   LedgerAccount,
   LegacyLedgerAccount,
@@ -1419,5 +1420,146 @@ test.describe("WASM secret lifecycle (W1)", () => {
     // withOwned() never frees on this path — the object leaks rather than
     // being corrupted out from under the still-suspended callback.
     expect(freed).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// S1 — Sentry secret scrubbing
+//
+// The popup holds raw recovery phrases and private keys in React state, and
+// Sentry's default browser integrations capture console arguments as
+// breadcrumbs plus unhandled errors via globalHandlers. `scrubPayload` is the
+// single control that stops any of that leaving the device, so it is tested
+// directly — it is pure and needs no Sentry client.
+// ---------------------------------------------------------------------------
+
+test.describe("sentry secret scrubbing", () => {
+  const PHRASE_12 =
+    "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+  const PHRASE_24 =
+    "legal winner thank year wave sausage worth useful legal winner thank year wave sausage worth useful legal winner thank year wave sausage worth title";
+  const HEX_KEY =
+    "b7e2c1a3d4f50698abcdef0123456789b7e2c1a3d4f50698abcdef0123456789";
+  const XPRV =
+    "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi";
+
+  test("redacts a 12-word BIP-39 phrase in a message", () => {
+    const scrubbed = scrubPayload({ message: `import failed: ${PHRASE_12}` });
+    expect(scrubbed?.message).not.toContain("abandon");
+    expect(scrubbed?.message).toBe(`import failed: ${REDACTED}`);
+  });
+
+  test("redacts a 24-word BIP-39 phrase in a message", () => {
+    const scrubbed = scrubPayload({ message: PHRASE_24 });
+    expect(scrubbed?.message).toBe(REDACTED);
+    expect(scrubbed?.message).not.toContain("sausage");
+  });
+
+  test("redacts a phrase pasted with punctuation and newlines", () => {
+    const noisy = PHRASE_12.split(" ").join(",\n");
+    const scrubbed = scrubPayload({ message: noisy });
+    expect(scrubbed?.message).not.toContain("abandon");
+  });
+
+  test("redacts a 64-char hex private key, bare and 0x-prefixed", () => {
+    expect(scrubPayload({ message: `key=${HEX_KEY}` })?.message).toBe(
+      `key=${REDACTED}`,
+    );
+    expect(scrubPayload({ message: `key=0x${HEX_KEY}` })?.message).toBe(
+      `key=${REDACTED}`,
+    );
+  });
+
+  test("redacts an xprv extended key", () => {
+    const scrubbed = scrubPayload({ message: `derive from ${XPRV}` });
+    expect(scrubbed?.message).toBe(`derive from ${REDACTED}`);
+  });
+
+  test("redacts secrets nested in extra, contexts and breadcrumb data", () => {
+    const scrubbed = scrubPayload({
+      message: "wallet error",
+      extra: { detail: { note: `phrase was ${PHRASE_12}` } },
+      contexts: { wallet: { imported: [{ key: HEX_KEY }] } },
+      breadcrumbs: [{ category: "console", data: { arguments: [XPRV] } }],
+    });
+
+    const serialised = JSON.stringify(scrubbed);
+    expect(serialised).not.toContain("abandon");
+    expect(serialised).not.toContain(HEX_KEY);
+    expect(serialised).not.toContain("xprv9s21");
+  });
+
+  test("redacts a breadcrumb payload the same way as an event", () => {
+    const scrubbed = scrubPayload({
+      category: "console",
+      level: "log",
+      message: `seed is ${PHRASE_12}`,
+      data: { arguments: [HEX_KEY] },
+    });
+    expect(scrubbed?.message).toBe(`seed is ${REDACTED}`);
+    expect(JSON.stringify(scrubbed?.data)).not.toContain(HEX_KEY);
+  });
+
+  test("redacts by field name even when the value looks harmless", () => {
+    const scrubbed = scrubPayload({
+      extra: {
+        mnemonic: "hello",
+        privateKey: 42,
+        passphrase: "",
+        password: null,
+        seedSource: { nested: "still gone" },
+        walletName: "my wallet",
+      },
+    });
+
+    const extra = scrubbed?.extra as Record<string, unknown>;
+    expect(extra.mnemonic).toBe(REDACTED);
+    expect(extra.privateKey).toBe(REDACTED);
+    expect(extra.passphrase).toBe(REDACTED);
+    expect(extra.password).toBe(REDACTED);
+    expect(extra.seedSource).toBe(REDACTED);
+    // Non-secret keys are untouched, otherwise Sentry stops being useful.
+    expect(extra.walletName).toBe("my wallet");
+  });
+
+  test("passes a benign event through unchanged", () => {
+    const benign = {
+      message: "Failed to fetch the Kaspa price: request timed out after 30s",
+      level: "error",
+      extra: {
+        url: "https://api.kaspa.org/info/price",
+        status: 504,
+        retries: 3,
+        address:
+          "kaspa:qzrq7v5jhsc5znvtfdg6vxg7dz5x8dqe4wrh3wfnsdwmpvxwqpqjqx0hfvhwd",
+      },
+      contexts: { app: { app_version: "2.59.6" } },
+    };
+    expect(scrubPayload(benign)).toEqual(benign);
+  });
+
+  test("leaves ordinary prose alone (no over-redaction)", () => {
+    // Long, entirely English, but not 12 dictionary words in a row.
+    const prose =
+      "Unable to sign the transaction because the connected hardware wallet " +
+      "returned an unexpected status code while deriving the account address.";
+    expect(scrubPayload({ message: prose })?.message).toBe(prose);
+  });
+
+  test("drops the payload instead of sending it when scrubbing throws", () => {
+    const exploding = {
+      get message(): string {
+        throw new Error("boom");
+      },
+    };
+    expect(scrubPayload(exploding)).toBeNull();
+  });
+
+  test("does not hang or leak on a cyclic payload", () => {
+    const cyclic: Record<string, unknown> = { message: `key ${HEX_KEY}` };
+    cyclic.self = cyclic;
+    const scrubbed = scrubPayload(cyclic) as Record<string, unknown>;
+    expect(scrubbed.message).toBe(`key ${REDACTED}`);
+    expect(scrubbed.self).toBe(REDACTED);
   });
 });
