@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.59.7](https://github.com/forbole/kastle/compare/v2.59.6...v2.59.7) (2026-08-27)
+
+
+### Bug Fixes
+
+* scrub secret material from Sentry events and breadcrumbs ([#326](https://github.com/forbole/kastle/issues/326)) ([674ad2c](https://github.com/forbole/kastle/commit/674ad2c2b5f40e18fa137b9a26cd9fc419b52142))
+
 ## [2.59.6](https://github.com/forbole/kastle/compare/v2.59.5...v2.59.6) (2026-08-26)
 
 
