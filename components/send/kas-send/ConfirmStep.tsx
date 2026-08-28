@@ -16,6 +16,7 @@ import { formatCurrency } from "@/lib/utils.ts";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 import { createTransactions } from "@/wasm/core/kaspa";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
+import { signAndSubmitBatch } from "@/lib/wallet/transaction-batch";
 
 export const ConfirmStep = ({
   onNext,
@@ -35,6 +36,10 @@ export const ConfirmStep = ({
   const { emitFirstTransaction } = useAnalytics();
   const { addRecentAddress } = useRecentAddresses();
   const [isSigning, setIsSigning] = useState(false);
+  const [batchProgress, setBatchProgress] = useState<{
+    current: number;
+    total: number;
+  } | null>(null);
   const { rpcClient, networkId } = useRpcClientStateful();
 
   const { wallet, account } = useWalletManager();
@@ -86,10 +91,11 @@ export const ConfirmStep = ({
         changeAddress: await signer.getAddress(),
         networkId: networkId,
       });
-      const transaction = transactions[0].transaction;
-      const signedTransaction = await signer.signTx(transaction);
-      const { transactionId } = await rpcClient.submitTransaction({
-        transaction: signedTransaction,
+      // A fragmented UTXO set makes the Generator return a batch: consolidating
+      // transactions first, the payment last. All of them must go out, in order.
+      await signAndSubmitBatch(transactions, signer, rpcClient, {
+        onSigning: (current, total) => setBatchProgress({ current, total }),
+        onSubmitted: setOutTxs,
       });
 
       await addRecentAddress({
@@ -98,7 +104,6 @@ export const ConfirmStep = ({
         domain,
       });
 
-      setOutTxs([transactionId]);
       // Don't await, analytics should not crash the app
       void emitFirstTransaction({
         amount,
@@ -113,6 +118,7 @@ export const ConfirmStep = ({
       onFail();
     } finally {
       setIsSigning(false);
+      setBatchProgress(null);
     }
   };
 
@@ -212,6 +218,17 @@ export const ConfirmStep = ({
                 />
                 {wallet?.type === "ledger" && (
                   <span>Please approve on Ledger</span>
+                )}
+                {/* A fragmented UTXO set needs consolidating before the payment
+                    fits in one transaction, so several go out in sequence — on
+                    Ledger that is one device approval each. */}
+                {batchProgress && batchProgress.total > 1 && (
+                  <span>
+                    {batchProgress.current < batchProgress.total
+                      ? "Optimizing your wallet"
+                      : "Sending"}{" "}
+                    ({batchProgress.current}/{batchProgress.total})
+                  </span>
                 )}
               </div>
             ) : (
