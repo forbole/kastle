@@ -1,4 +1,4 @@
-# B2 — KAS send near full balance broadcasts wrong transaction
+# B2 — KAS send near-full-balance broadcasts wrong transaction
 
 **Base:** `forbole/kastle` `main` @ `344e63f`
 **Date:** 2026-08-27
@@ -83,9 +83,10 @@ The scratch script that produced the table below was a sweep over UTXO counts; i
 assertions are now folded into `tests/kas-send-batch-unit.spec.ts`, which ships with
 the fix.
 
-Verbatim output (`./node_modules/.bin/playwright test tests/b2-repro.spec.ts --reporter=line`, exit 0):
+Verbatim output from that sweep, captured before the fold. The equivalent assertions
+now run via `./node_modules/.bin/playwright test tests/kas-send-batch-unit.spec.ts --reporter=line` (exit 0):
 
-```
+```text
 count=1    each=3,005          transactions.length=1  summary.transactions=1
   tx[0] inputs=1   outputs=[3,000KAS->DEST | 4.997964KAS->SENDER]
 
@@ -143,7 +144,7 @@ Six call sites outside `wasm/` and the test suite:
 
 | File                                                        | Handling                                                                                                                                           | Same bug?                                                                                                                                                        |
 | ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `api/background/handlers/kaspa/buildTransaction.ts:167-197` | `pendingTxs.map(...)` — serialises **all** of them, with the comment _"Serialize all pending transactions (may be multiple for UTXO compounding)"_ | **No.** Correct.                                                                                                                                                 |
+| `api/background/handlers/kaspa/buildTransaction.ts:167-197` | `pendingTxs.map(...)` — serializes **all** of them, with the comment _"Serialize all pending transactions (may be multiple for UTXO compounding)"_ | **No.** Correct.                                                                                                                                                 |
 | `api/background/handlers/kaspa/sendSompi.ts:126-155`        | `const pendingTx = pendingTxs[0]`                                                                                                                  | **Yes**, same index-0 truncation.                                                                                                                                |
 | `api/background/handlers/kaspa/compoundUtxos.ts:104-128`    | `const pendingTx = pendingTxs[0]`                                                                                                                  | **Yes**, same index-0 truncation.                                                                                                                                |
 | `components/send/kas-send/ConfirmStep.tsx:77-92`            | `transactions[0].transaction`                                                                                                                      | **Yes** — this is the reported bug.                                                                                                                              |
@@ -156,9 +157,9 @@ it is the only one that already carries a comment showing the author knew about 
 compounding. So the intended pattern exists in the codebase; it just wasn't applied to
 the internal Send path.
 
-**Why the three background handlers are not fixed in the same pass** (despite sharing
+**Why the two single-transaction popup handlers are not fixed in the same pass** (despite sharing
 the `[0]` index): their _shape_ differs from ConfirmStep's, so it is not the same fix.
-All three do not sign anything themselves — they serialise **one** transaction into
+Neither handler signs anything itself — each serializes **one** transaction into
 `SignTxPayloadSchema` and hand it to the `/sign-and-broadcast-tx` popup, which is a
 single-transaction UI and protocol. Fixing them means changing the popup payload
 schema, the popup UI, and the dApp-facing API response shape — a cross-cutting change
