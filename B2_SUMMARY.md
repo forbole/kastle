@@ -191,8 +191,8 @@ stay empty.
 
 ## Manual QA — the short path
 
-Real money, real network. **Step 1, the reported failure, has now been run end-to-end on
-testnet-10 and passed** (details below). Steps 2 and 3 remain. Two of the four originally-listed items have
+Real money, real network. **Steps 1 and 2 have now been run end-to-end on testnet-10 and
+passed** (details below). Only the Ledger pass remains. Two of the four originally-listed items have
 since been answered offline; what is left is **one funded testnet-10 address and about
 fifteen minutes**, plus the Ledger pass if a device is available.
 
@@ -245,12 +245,17 @@ index 1. 93 of the 95 inputs were consumed, total fee 0.108752 TKAS.
 On `main` this same send broadcasts `transactions[0]` — a compound transfer to the
 sender's own change address — and the destination stays at 0 while a real fee is paid.
 
-### Step 2 — regression, ordinary wallet — ready, not yet run
+### Step 2 — regression, ordinary wallet — **PASSED on testnet-10**
 
-The source wallet is now down to **3 UTXOs**, which is exactly the unfragmented case.
-Sending 1–2.5 TKAS from it pre-flights as **1 transaction** (`txs=1`, fee 0.0031–0.0043
-TKAS), so the expected result is one transaction, no progress counter, unchanged
-behaviour. Two minutes.
+Sent 1 TKAS from the source wallet, by then down to 3 UTXOs — the unfragmented case.
+
+|             | before                 | after                  |
+| ----------- | ---------------------- | ---------------------- |
+| source      | 2.725582 TKAS, 3 UTXOs | 1.722428 TKAS, 2 UTXOs |
+| destination | 45 TKAS, 1 UTXO        | **46 TKAS**, 2 UTXOs   |
+
+**Exactly one transaction**: `cd895a9c63bea70e…` carries both the 1 TKAS payment (index 0) and the change (index 1). No batch, no progress counter. Fee 0.003154 TKAS — the
+pre-flight figure to the sompi. Unfragmented sends are unchanged by this fix.
 
 ### Step 3 — Ledger, only if a device is to hand
 
