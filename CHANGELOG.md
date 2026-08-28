@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.59.8](https://github.com/forbole/kastle/compare/v2.59.7...v2.59.8) (2026-08-28)
+
+
+### Bug Fixes
+
+* getAccount() returns stale address after switchNetwork ([#328](https://github.com/forbole/kastle/issues/328)) ([cd0a433](https://github.com/forbole/kastle/commit/cd0a433a54b82bbda253ca293754fd0a98324f0e))
+* Legacy toggle race during Ledger account list load ([#330](https://github.com/forbole/kastle/issues/330)) ([344e63f](https://github.com/forbole/kastle/commit/344e63ff6d26f343e938e4394a792fc8d69d39a1))
+* **send:** broadcast every transaction the Generator returns ([#331](https://github.com/forbole/kastle/issues/331)) ([3a828d8](https://github.com/forbole/kastle/commit/3a828d8ccc2eae67d581388bc21380f299cf7ed7))
+
 ## [2.59.7](https://github.com/forbole/kastle/compare/v2.59.6...v2.59.7) (2026-08-27)
 
 
