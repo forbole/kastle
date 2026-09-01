@@ -1,9 +1,10 @@
 import { useNavigate, useParams } from "react-router-dom";
 import Header from "@/components/GeneralHeader";
-import igraIcon from "@/assets/images/network-logos/igra.svg";
+import NameCard from "@/components/dashboard/NameCard";
+import { DetailList, DetailRow, ExplorerLink } from "@/components/DetailList";
+import { igraMainnet } from "@/lib/layer2";
 import { useInsResolve } from "@/hooks/ins/useIns";
 import { textEllipsis } from "@/lib/utils";
-import Copy from "@/components/Copy";
 import HoverShowAllCopy from "@/components/HoverShowAllCopy";
 
 export default function INSAsset() {
@@ -14,73 +15,67 @@ export default function INSAsset() {
   return (
     <div className="flex h-full flex-col p-4">
       <Header
-        title="INS Asset"
+        title={name ?? ""}
+        titleClassName="min-w-0 flex-1 break-words text-center tracking-[0.1px] text-[#e5e7eb]"
         showClose={false}
         onBack={() => navigate("/dashboard")}
       />
 
       {detail && (
-        <div className="flex flex-1 flex-col justify-between">
-          <div className="flex-1 space-y-3">
-            <div className="inline-flex w-full items-center gap-x-4 rounded-xl border border-daintree-700 bg-daintree-800 px-4 py-3 text-sm">
-              <img alt="ins" className="h-[40px] w-[40px]" src={igraIcon} />
-              <div className="flex flex-grow flex-col gap-2">
-                <div className="flex items-center gap-2 text-base leading-none text-white">
-                  <span>{name}</span>
-                  <Copy textToCopy={name ?? ""} id="copy-ins-name" place="top">
-                    <i className="hn hn-copy cursor-pointer text-[#7B9AAA]" />
-                  </Copy>
-                </div>
-              </div>
-            </div>
-            <ul className="mt-3 flex flex-col rounded-xl bg-daintree-800">
-              <li className="-mt-px inline-flex items-center gap-x-2 rounded-t-xl border border-daintree-700 px-4 py-3 text-sm">
-                <div className="flex w-full items-start justify-between">
-                  <span className="font-medium">Owner</span>
-                  <span className="cursor-pointer font-medium">
-                    <HoverShowAllCopy
-                      text={detail.owner ?? ""}
-                      id="hover-show-all-copy-ins-owner"
-                      tooltipWidth="20rem"
-                      place="bottom-end"
-                    >
-                      {textEllipsis(detail.owner ?? "")}
-                    </HoverShowAllCopy>
-                  </span>
-                </div>
-              </li>
-              <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm">
-                <div className="flex w-full items-start justify-between">
-                  <span className="font-medium">Tenure</span>
-                  <span className="font-medium">{detail.tenure ?? "-"}</span>
-                </div>
-              </li>
-              <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm">
-                <div className="flex w-full items-start justify-between">
-                  <span className="font-medium">Registry Version</span>
-                  <span className="font-medium">
-                    {detail.registry_version ?? "-"}
-                  </span>
-                </div>
-              </li>
-              <li className="-mt-px inline-flex items-center gap-x-2 rounded-b-xl border border-daintree-700 px-4 py-3 text-sm">
-                <div className="flex w-full items-start justify-between">
-                  <span className="font-medium">Expires At</span>
-                  <span className="font-medium">
-                    {detail.expires_at
-                      ? new Date(detail.expires_at).toLocaleString("en-GB", {
-                          month: "short",
-                          day: "2-digit",
-                          year: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                          timeZoneName: "short",
-                        })
-                      : "-"}
-                  </span>
-                </div>
-              </li>
-            </ul>
+        <div className="flex flex-1 flex-col items-center gap-4 pb-6">
+          {/* No isVerified: INS exposes no verification flag, so the badge must
+              stay absent rather than assert "verified" for every INS name. */}
+          <NameCard
+            size="lg"
+            name={name ?? ""}
+            source="igra"
+            onClick={() => {}}
+          />
+
+          <div className="w-full">
+            <DetailList>
+              <DetailRow label="Owner">
+                {/* INS resolves against a hardcoded mainnet API, so the Igra
+                    mainnet explorer is the only matching destination. */}
+                <ExplorerLink
+                  label="View owner in explorer"
+                  url={`${igraMainnet.blockExplorers.default.url}/address/${detail.owner ?? ""}`}
+                />
+                <span className="cursor-pointer">
+                  <HoverShowAllCopy
+                    text={detail.owner ?? ""}
+                    id="hover-show-all-copy-ins-owner"
+                    tooltipWidth="20rem"
+                    place="bottom-end"
+                  >
+                    {textEllipsis(detail.owner ?? "")}
+                  </HoverShowAllCopy>
+                </span>
+              </DetailRow>
+
+              <DetailRow label="Tenure">
+                <span>{detail.tenure ?? "-"}</span>
+              </DetailRow>
+
+              <DetailRow label="Registry Version">
+                <span>{detail.registry_version ?? "-"}</span>
+              </DetailRow>
+
+              <DetailRow label="Expires At">
+                <span>
+                  {detail.expires_at
+                    ? new Date(detail.expires_at).toLocaleString("en-GB", {
+                        month: "short",
+                        day: "2-digit",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        timeZoneName: "short",
+                      })
+                    : "-"}
+                </span>
+              </DetailRow>
+            </DetailList>
           </div>
         </div>
       )}

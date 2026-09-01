@@ -4,6 +4,7 @@ import { twMerge } from "tailwind-merge";
 
 type Props = {
   title: string;
+  titleClassName?: string;
   subtitle?: string;
   showPrevious?: boolean;
   showClose?: boolean;
@@ -13,6 +14,7 @@ type Props = {
 
 export default function GeneralHeader({
   title,
+  titleClassName,
   subtitle,
   showPrevious = true,
   showClose = true,
@@ -43,7 +45,9 @@ export default function GeneralHeader({
             <div className="h-5 w-5"></div>
           </div>
         )}
-        <h1 className="text-xl font-bold text-white">{title}</h1>
+        <h1 className={twMerge("text-xl font-bold text-white", titleClassName)}>
+          {title}
+        </h1>
         {showClose ? (
           <button
             className="rounded-lg p-3 text-white hover:bg-gray-800"
