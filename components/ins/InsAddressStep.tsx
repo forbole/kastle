@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useFormContext } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
-import { Hex, isAddress } from "viem";
+import { Hex, isAddress, zeroAddress } from "viem";
 import { Tooltip } from "react-tooltip";
 import { twMerge } from "tailwind-merge";
 import Header from "@/components/GeneralHeader";
@@ -65,6 +65,13 @@ export default function InsAddressStep({
     if (!isAddress(trimmed)) {
       setValue("address", undefined);
       return trimmed ? "Invalid address" : false;
+    }
+
+    // setTarget(name, 0x0) is accepted by both registries and black-holes every
+    // incoming send to the name. Nothing here has a legitimate zero recipient.
+    if (trimmed.toLowerCase() === zeroAddress) {
+      setValue("address", undefined);
+      return "Invalid address";
     }
 
     const rejection = extraValidate?.(trimmed);

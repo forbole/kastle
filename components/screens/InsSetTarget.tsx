@@ -2,6 +2,7 @@ import { useState } from "react";
 import { FormProvider, useForm, useFormContext } from "react-hook-form";
 import { useNavigate, useParams } from "react-router-dom";
 import {
+  WaitForTransactionReceiptTimeoutError,
   createPublicClient,
   encodeFunctionData,
   formatEther,
@@ -28,6 +29,7 @@ import { formatCurrency, textEllipsis } from "@/lib/utils";
 import useCurrencyValue from "@/hooks/useCurrencyValue";
 import useKaspaPrice from "@/hooks/useKaspaPrice";
 import signImage from "@/assets/images/sign.png";
+import failImage from "@/assets/images/fail.png";
 
 // INS only exists on Igra mainnet, so unlike the ERC-721 screens the chain is
 // not a route parameter -- it is fixed and every client here is built for it.
@@ -35,8 +37,53 @@ export const INS_CHAIN_ID = numberToHex(igraMainnet.id);
 
 export const insEthClient = createPublicClient({
   chain: igraMainnet,
-  transport: http(igraMainnet.rpcUrls.default.http[0]),
+  // Same opt-out as insRegistry: viem's http transport retries 3 times by
+  // default, so a blackholed RPC turns one estimateGas into 4 attempts (~41s)
+  // with nothing on screen but "Sending...". One attempt, bounded.
+  transport: http(igraMainnet.rpcUrls.default.http[0], {
+    retryCount: 0,
+    timeout: 10_000,
+  }),
 });
+
+// A receipt on Igra normally lands in a few seconds. This only bounds the wait
+// so a stalled node cannot leave the screen spinning forever -- a timeout here
+// means "unknown", never "failed".
+export const RECEIPT_TIMEOUT_MS = 90_000;
+
+export type ReceiptOutcome = "success" | "reverted" | "unknown";
+
+/**
+ * Wait for a receipt and say which of the three things actually happened.
+ *
+ * "unknown" is the one that matters: the transaction is already broadcast, so
+ * it may still mine. Reporting it as failure tells the user nothing was sent
+ * when the name is about to change hands; reporting it as success is worse.
+ */
+export async function awaitReceipt(
+  hash: `0x${string}`,
+): Promise<ReceiptOutcome> {
+  try {
+    const receipt = await insEthClient.waitForTransactionReceipt({
+      hash,
+      timeout: RECEIPT_TIMEOUT_MS,
+    });
+    return receipt.status === "success" ? "success" : "reverted";
+  } catch (error) {
+    if (!(error instanceof WaitForTransactionReceiptTimeoutError)) {
+      // The wait itself broke (RPC down mid-poll). The transaction is out
+      // there either way, so this is unknown for the same reason.
+      console.error("INS receipt wait failed", error);
+    }
+    return "unknown";
+  }
+}
+
+/** Explorer link for an INS-chain transaction, if the chain exposes one. */
+export function igraExplorerTx(txId: string | undefined) {
+  const base = insEthClient.chain?.blockExplorers?.default?.url;
+  return base && txId ? `${base}/tx/${txId}` : undefined;
+}
 
 /** setTarget takes the bare label, not the token id. */
 export function encodeSetTarget(label: string, target: `0x${string}`) {
@@ -47,7 +94,14 @@ export function encodeSetTarget(label: string, target: `0x${string}`) {
   });
 }
 
-const steps = ["details", "confirm", "broadcast", "success", "fail"] as const;
+const steps = [
+  "details",
+  "confirm",
+  "broadcast",
+  "success",
+  "pending",
+  "fail",
+] as const;
 type Step = (typeof steps)[number];
 
 export default function InsSetTarget() {
@@ -70,17 +124,25 @@ export default function InsSetTarget() {
     !!evmAddress &&
     record.owner.toLowerCase() === evmAddress.toLowerCase();
 
-  const blocked = !name
-    ? "This name is missing from the address."
-    : wallet?.type === "ledger"
-      ? "Ledger doesn’t support this function currently."
-      : isLoading
-        ? "Verifying this name on-chain…"
-        : !record
-          ? (reason ?? "Could not verify this name on-chain. Try again.")
-          : !isOwner
-            ? "Only the owner of this name can change where it routes."
-            : undefined;
+  // Entry gate, not a live one. useInsOnChain fails closed and SWR revalidates
+  // on reconnect, so keeping this live past the signature would let one failed
+  // revalidation swap the broadcast/pending screen -- the only place the hash
+  // is shown -- for "Could not verify this name on-chain."
+  const gateActive = step === "details" || step === "confirm";
+
+  const blocked = !gateActive
+    ? undefined
+    : !name
+      ? "This name is missing from the address."
+      : wallet?.type === "ledger"
+        ? "Ledger doesn’t support this function currently."
+        : isLoading
+          ? "Verifying this name on-chain…"
+          : !record
+            ? (reason ?? "Could not verify this name on-chain. Try again.")
+            : !isOwner
+              ? "Only the owner of this name can change where it routes."
+              : undefined;
 
   const onBack = () => {
     const idx = steps.indexOf(step);
@@ -120,14 +182,19 @@ export default function InsSetTarget() {
         {step === "confirm" && (
           <SetTargetConfirm
             name={name!}
-            onNext={() => setStep("broadcast")}
             onBack={onBack}
             setOutTxs={setOutTxs}
-            onFail={() => setStep("fail")}
+            setStep={setStep}
           />
         )}
         {step === "broadcast" && (
-          <Broadcasting onSuccess={() => setStep("success")} />
+          // No auto-advance: onConfirm owns the step machine now and is still
+          // waiting on the receipt. Broadcasting's own 1s timer would call the
+          // update done a second after it was broadcast.
+          <Broadcasting onSuccess={() => {}} />
+        )}
+        {step === "pending" && (
+          <PendingStatus name={name!} txId={outTxs?.[0]} />
         )}
         {step === "success" && (
           <SuccessStatus
@@ -147,6 +214,65 @@ export default function InsSetTarget() {
           />
         )}
       </FormProvider>
+    </div>
+  );
+}
+
+/**
+ * Broadcast, no receipt inside the timeout. Not success and not failure: the
+ * transaction is out there and may still mine, so this screen says exactly that
+ * and hands over the hash instead of guessing.
+ */
+function PendingStatus({
+  name,
+  txId,
+}: {
+  name: string;
+  txId: string | undefined;
+}) {
+  const navigate = useNavigate();
+  const explorer = igraExplorerTx(txId);
+
+  return (
+    <div className="flex h-full flex-col">
+      <Header title="Still confirming" showPrevious={false} showClose={false} />
+      <div className="mt-10 flex flex-1 flex-col justify-between gap-4">
+        <div className="flex flex-col items-center gap-4">
+          <img
+            src={failImage}
+            alt="Warning"
+            className="mx-auto aspect-[686/240] w-full max-w-[343px]"
+          />
+          <div className="flex flex-col gap-2 px-4 text-center">
+            <span className="text-xl font-semibold text-white">
+              Kastle could not confirm this in time
+            </span>
+            <span className="text-sm text-gray-400">
+              The routing update for {name} was sent and may still confirm.
+              Check the transaction before sending another one.
+            </span>
+          </div>
+          {explorer && (
+            <button
+              type="button"
+              className="flex items-center gap-2"
+              onClick={() => browser.tabs.create({ url: explorer })}
+            >
+              <span className="text-sm font-semibold text-icy-blue-400">
+                View in explorer
+              </span>
+              <i className="hn hn-external-link text-icy-blue-400"></i>
+            </button>
+          )}
+        </div>
+
+        <button
+          onClick={() => navigate(`/ins/${name}`)}
+          className="w-full rounded-full bg-icy-blue-400 py-4 text-base font-medium text-white"
+        >
+          Back to the name
+        </button>
+      </div>
     </div>
   );
 }
@@ -207,20 +333,19 @@ function SetTargetDetails({
 
 function SetTargetConfirm({
   name,
-  onNext,
   onBack,
   setOutTxs,
-  onFail,
+  setStep,
 }: {
   name: string;
-  onNext: () => void;
   onBack: () => void;
   setOutTxs: (txs: string[]) => void;
-  onFail: () => void;
+  setStep: (step: Step) => void;
 }) {
   const navigate = useNavigate();
   const sender = useEvmAddress();
   const signer = useEvmHotWalletSigner();
+  const { refresh } = useInsOnChain(name);
   const [isSigning, setIsSigning] = useState(false);
   const { watch } = useFormContext<InsAddressFormData>();
   const { address } = watch();
@@ -244,6 +369,9 @@ function SetTargetConfirm({
     if (isSigning || !payload || !sender || !signer) return;
     setIsSigning(true);
 
+    // Broadcast and confirmation are separate outcomes. Up to here nothing has
+    // left the wallet, so a throw genuinely means nothing was sent.
+    let txId: `0x${string}`;
     try {
       const gas = await insEthClient.estimateGas({
         account: sender,
@@ -251,7 +379,7 @@ function SetTargetConfirm({
         data: payload.data,
       });
 
-      const txId = await sendEvmTransaction({
+      txId = await sendEvmTransaction({
         ethClient: insEthClient,
         signer,
         sender,
@@ -260,15 +388,34 @@ function SetTargetConfirm({
         chainId: INS_CHAIN_ID,
         data: payload.data,
       });
-
-      setOutTxs([txId]);
-      onNext();
     } catch (sendError) {
-      console.error("INS setTarget failed", sendError);
-      onFail();
-    } finally {
+      console.error("INS setTarget broadcast failed", sendError);
+      setStep("fail");
       setIsSigning(false);
+      return;
     }
+
+    // Past this line the hash exists, so every outcome below can show it.
+    setOutTxs([txId]);
+    setStep("broadcast");
+
+    // This is the screen the half-done transfer sends people to in order to
+    // un-point their name from a stranger, so it does not get to assert
+    // success on a broadcast alone.
+    const outcome = await awaitReceipt(txId);
+    if (outcome === "success") {
+      // The cached target is now stale, and the transfer flow reads it to
+      // decide whether the routing leg is needed at all.
+      await refresh();
+    }
+    setStep(
+      outcome === "success"
+        ? "success"
+        : outcome === "reverted"
+          ? "fail"
+          : "pending",
+    );
+    setIsSigning(false);
   };
 
   return (

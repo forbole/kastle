@@ -87,6 +87,9 @@ export default function Names() {
         Array.from({ length: 2 }).map((_, index) => (
           <div
             key={`skeleton-${index}`}
+            // Announced once, on the first card only: the pair is one loading
+            // state, not two things to read out.
+            {...(index === 0 && { role: "status", "aria-label": "loading" })}
             className="h-[120px] w-[104px] shrink-0 animate-pulse rounded-[12px] border border-daintree-700 bg-daintree-800"
           />
         ))}

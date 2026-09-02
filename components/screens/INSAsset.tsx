@@ -169,6 +169,22 @@ export default function INSAsset() {
                 }}
               />
             )}
+            {/* The only durable way into set-target. The transfer's Half-done
+              screen also links here, but that screen is ephemeral: closing the
+              popup, going back to the name, or a receipt timeout that never
+              reaches Half-done all lose it -- and "Routes To" above would then
+              show a stranger with nothing the owner could do about it. */}
+            <button
+              type="button"
+              onClick={() => navigate(`/ins/${name}/set-target`)}
+              disabled={ownerActionDisabledMessage !== undefined}
+              data-tooltip-id="ins-owner-action"
+              data-tooltip-content={ownerActionDisabledMessage}
+              className="w-full rounded-full py-2 text-sm font-medium text-icy-blue-400 disabled:text-[#0E7490]"
+            >
+              Set routing target
+            </button>
+
             <TransferButton
               disabledMessage={ownerActionDisabledMessage}
               redirectTo={`/ins/${name}/transfer`}
