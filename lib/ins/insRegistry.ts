@@ -1,4 +1,4 @@
-import { createPublicClient, http, parseAbi } from "viem";
+import { createPublicClient, http, parseAbi, zeroAddress } from "viem";
 import { igraMainnet } from "@/lib/layer2";
 
 // INS registries on Igra mainnet (38833). Both are verified on
@@ -26,18 +26,34 @@ const V1_ABI = parseAbi([
   "function ownerOf(uint256) view returns (address)",
 ]);
 
-// 10s: these reads are sub-second in practice. The ceiling is here so a dead
-// or hanging RPC blocks the send instead of leaving the validator pending
-// forever. Multicall3 is NOT deployed on 38833 (checked: no bytecode at
-// 0xcA11...CA11), so the reads are sequential round trips.
+// targetOf/setTarget are the routing pointer, separate from ownership. Both
+// are present and behave identically on V1 and V2 (gas-estimated against both:
+// setTarget from the owner succeeds, from a non-owner it reverts), so unlike
+// the expiry getters they do not need per-version ABIs.
+export const TARGET_ABI = parseAbi([
+  "function targetOf(uint256) view returns (address)",
+  "function setTarget(string,address)",
+]);
+
+// Per-request ceiling. viem's http transport defaults to retryCount: 3, which
+// would turn this into 4 attempts (~41s) on a blackholed RPC, so retries are
+// off and the overall deadline below is what actually bounds the lookup.
 const RPC_TIMEOUT_MS = 10_000;
+
+// Whole-lookup ceiling. A lookup is up to 4 sequential round trips (Multicall3
+// is NOT deployed on 38833 -- no bytecode at 0xcA11...CA11), and the per-call
+// timeout alone cannot bound the total, so the deadline is enforced here.
+const LOOKUP_DEADLINE_MS = 15_000;
 
 const client = createPublicClient({
   chain: igraMainnet,
   transport: http(igraMainnet.rpcUrls.default.http[0], {
     timeout: RPC_TIMEOUT_MS,
+    retryCount: 0,
   }),
 });
+
+export { client as insRpcClient };
 
 /**
  * Contract calls key off the bare label -- tokenIdOf("satoshi") returns 39
@@ -90,6 +106,13 @@ async function lookupIn(
     args: [tokenId],
   });
 
+  // ownerOf reverts for a burned id in practice, so this is belt-and-braces --
+  // but it is one line on a send path and the zero address is never a
+  // destination anyone means to fund.
+  if (address === zeroAddress) {
+    return { ok: false, reason: `${label}.igra has no owner.` };
+  }
+
   let inGrace = false;
   if (version === "v2") {
     const [expired, grace] = [
@@ -138,19 +161,56 @@ export async function lookupInsNameOnChain(
   const label = toInsLabel(name);
   if (!label) return { ok: false, reason: "Enter a name." };
 
+  const deadline = new Promise<InsOnChainResult>((resolve) =>
+    setTimeout(
+      () =>
+        resolve({
+          ok: false,
+          reason: "Could not verify this name on-chain. Try again.",
+        }),
+      LOOKUP_DEADLINE_MS,
+    ),
+  );
+
+  const lookup = (async (): Promise<InsOnChainResult> => {
+    try {
+      const v2 = await lookupIn(INS_V2_REGISTRY, "v2", label);
+      if (v2) return v2;
+
+      const v1 = await lookupIn(INS_V1_REGISTRY, "v1", label);
+      if (v1) return v1;
+
+      return { ok: false, reason: `${label}.igra is not registered.` };
+    } catch (error) {
+      console.error("INS on-chain lookup failed", error);
+      return {
+        ok: false,
+        reason: "Could not verify this name on-chain. Try again.",
+      };
+    }
+  })();
+
+  return Promise.race([lookup, deadline]);
+}
+
+/**
+ * The address a name currently routes funds to. Separate from ownership:
+ * transferFrom never touches it, so after a transfer it still points at the
+ * previous owner until someone calls setTarget.
+ */
+export async function getInsTarget(
+  registry: `0x${string}`,
+  tokenId: bigint,
+): Promise<`0x${string}` | undefined> {
   try {
-    const v2 = await lookupIn(INS_V2_REGISTRY, "v2", label);
-    if (v2) return v2;
-
-    const v1 = await lookupIn(INS_V1_REGISTRY, "v1", label);
-    if (v1) return v1;
-
-    return { ok: false, reason: `${label}.igra is not registered.` };
+    return await client.readContract({
+      address: registry,
+      abi: TARGET_ABI,
+      functionName: "targetOf",
+      args: [tokenId],
+    });
   } catch (error) {
-    console.error("INS on-chain lookup failed", error);
-    return {
-      ok: false,
-      reason: "Could not verify this name on-chain. Try again.",
-    };
+    console.error("INS targetOf failed", error);
+    return undefined;
   }
 }
