@@ -40,13 +40,18 @@ export default function KNSAsset() {
       {asset && (
         <div className="flex flex-1 flex-col justify-between">
           <div className="flex flex-1 flex-col items-center gap-4 pb-6">
-            <NameCard
-              size="lg"
-              name={asset.asset}
-              source="kas"
-              isVerified={asset.isVerifiedDomain}
-              onClick={() => {}}
-            />
+            {/* Clicking the hero copies the domain. Copy owns the click and
+                the "Copied" tooltip, so the card's own handler stays empty --
+                this replaces the copy glyph the old avatar hero carried. */}
+            <Copy textToCopy={asset.asset} id="copy-asset" place="top">
+              <NameCard
+                size="lg"
+                name={asset.asset}
+                source="kas"
+                isVerified={asset.isVerifiedDomain}
+                onClick={() => {}}
+              />
+            </Copy>
 
             <div className="w-full">
               <DetailList>

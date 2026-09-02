@@ -5,6 +5,7 @@ import { DetailList, DetailRow, ExplorerLink } from "@/components/DetailList";
 import { igraMainnet } from "@/lib/layer2";
 import { useInsResolve } from "@/hooks/ins/useIns";
 import { textEllipsis } from "@/lib/utils";
+import Copy from "@/components/Copy";
 import HoverShowAllCopy from "@/components/HoverShowAllCopy";
 
 export default function INSAsset() {
@@ -23,14 +24,18 @@ export default function INSAsset() {
 
       {detail && (
         <div className="flex flex-1 flex-col items-center gap-4 pb-6">
-          {/* No isVerified: INS exposes no verification flag, so the badge must
+          {/* Clicking the hero copies the domain. Copy owns the click and the
+              "Copied" tooltip, so the card's own handler stays empty.
+              No isVerified: INS exposes no verification flag, so the badge must
               stay absent rather than assert "verified" for every INS name. */}
-          <NameCard
-            size="lg"
-            name={name ?? ""}
-            source="igra"
-            onClick={() => {}}
-          />
+          <Copy textToCopy={name ?? ""} id="copy-ins-name" place="top">
+            <NameCard
+              size="lg"
+              name={name ?? ""}
+              source="igra"
+              onClick={() => {}}
+            />
+          </Copy>
 
           <div className="w-full">
             <DetailList>

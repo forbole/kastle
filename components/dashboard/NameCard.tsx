@@ -53,9 +53,7 @@ export default function NameCard({
         height: box.height,
         borderRadius: box.radius,
       }}
-      // Hover feedback belongs to the grid card, which navigates. The lg hero
-      // sits on the detail screen it would navigate to, so it stays static.
-      className={`relative shrink-0 overflow-hidden border border-daintree-700 bg-[linear-gradient(201.32deg,#4ADCEF_14.46%,#00D7FF_31.38%,#0095F1_91.32%)] text-left ${size === "sm" ? "hover:border-white" : ""}`}
+      className="relative shrink-0 overflow-hidden border border-daintree-700 bg-[linear-gradient(201.32deg,#4ADCEF_14.46%,#00D7FF_31.38%,#0095F1_91.32%)] text-left hover:border-white"
     >
       {isVerified && (
         <img
