@@ -4,6 +4,10 @@ import NameCard from "@/components/dashboard/NameCard";
 import { DetailList, DetailRow, ExplorerLink } from "@/components/DetailList";
 import { igraMainnet } from "@/lib/layer2";
 import { useInsResolve } from "@/hooks/ins/useIns";
+import { lookupInsNameOnChain } from "@/lib/ins/insRegistry";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
+import TransferButton from "@/components/nft/TransferButton";
+import { numberToHex } from "viem";
 import { textEllipsis } from "@/lib/utils";
 import Copy from "@/components/Copy";
 import HoverShowAllCopy from "@/components/HoverShowAllCopy";
@@ -12,6 +16,44 @@ export default function INSAsset() {
   const navigate = useNavigate();
   const { name } = useParams();
   const { detail } = useInsResolve(name);
+
+  // The transfer target is taken from the on-chain lookup, never from the REST
+  // record: it returns the registry and the token id together, so the pair is
+  // guaranteed to match. V1 and V2 namespace ids separately, so pairing a v2
+  // id with the v1 address (or vice versa) would transfer a different asset.
+  const [transferTarget, setTransferTarget] = useState<{
+    registry: `0x${string}`;
+    tokenId: bigint;
+  }>();
+
+  // The generic ERC-721 flow only gates Ledger at its entry point
+  // (ERC721.tsx), so nothing is inherited by linking to the route -- this
+  // screen has to carry the same guard itself.
+  const { wallet } = useWalletManager();
+  const transferDisabledMessage =
+    wallet?.type === "ledger"
+      ? "Ledger doesn’t support transfer function currently."
+      : !transferTarget
+        ? "Verifying this name on-chain…"
+        : undefined;
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!name) return;
+
+    lookupInsNameOnChain(name).then((result) => {
+      if (cancelled) return;
+      setTransferTarget(
+        result.ok
+          ? { registry: result.registry, tokenId: result.tokenId }
+          : undefined,
+      );
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [name]);
 
   return (
     <div className="flex h-full flex-col p-4">
@@ -68,19 +110,47 @@ export default function INSAsset() {
 
               <DetailRow label="Expires At">
                 <span>
-                  {detail.expires_at
-                    ? new Date(detail.expires_at).toLocaleString("en-GB", {
-                        month: "short",
-                        day: "2-digit",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        timeZoneName: "short",
-                      })
-                    : "-"}
+                  {/* A Forever name reports tenure "forever" and a null
+                      expires_at; everything else is unix SECONDS, so it needs
+                      *1000 before Date sees it or every name renders as 1970. */}
+                  {detail.tenure === "forever" || detail.expires_at === 0
+                    ? "Never"
+                    : detail.expires_at
+                      ? new Date(detail.expires_at * 1000).toLocaleString(
+                          "en-GB",
+                          {
+                            month: "short",
+                            day: "2-digit",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            timeZoneName: "short",
+                          },
+                        )
+                      : "-"}
                 </span>
               </DetailRow>
             </DetailList>
+          </div>
+
+          {/* The recipient receives the name, but NOT its routing target:
+              transferFrom never touches targetOf, so resolve() keeps pointing
+              at the sender until someone calls setTarget. Say so before they
+              sign rather than shipping a name that silently misroutes. */}
+          <div className="w-full rounded-xl bg-[#102831] p-3 text-sm text-yellow-500">
+            Transferring sends the name only. It will keep routing funds to you
+            until the new owner sets their own target on it.
+          </div>
+
+          <div className="w-full">
+            <TransferButton
+              disabledMessage={transferDisabledMessage}
+              redirectTo={
+                transferTarget
+                  ? `/erc721/${numberToHex(igraMainnet.id)}/${transferTarget.registry}/${transferTarget.tokenId}/transfer`
+                  : ""
+              }
+            />
           </div>
         </div>
       )}
