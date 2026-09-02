@@ -111,13 +111,14 @@ export default function InsTransfer() {
           />
         )}
         {(phase.step === "routing" || phase.step === "transferring") && (
-          <Progress step={phase.step} />
+          <Progress />
         )}
         {phase.step === "success" && (
           <SuccessStatus
             chainId={INS_CHAIN_ID}
             transactionIds={phase.txs}
             tokenName={name!}
+            title=""
           />
         )}
         {phase.step === "partial" && (
@@ -213,27 +214,17 @@ function TransferDetails({
   return (
     <InsAddressStep
       title="Transfer"
-      inputLabel="Transfer to ..."
+      name={name}
+      sender={sender}
+      action="Transfer"
       feeInKas={feeInKas}
       extraValidate={(address) =>
         sender && address.toLowerCase() === sender.toLowerCase()
-          ? "You already own this name"
+          ? "You cannot send this name to yourself"
           : undefined
       }
       onNext={onNext}
       onBack={onBack}
-      intro={
-        <div className="flex flex-col gap-2 rounded-lg border border-daintree-700 bg-daintree-800 p-4 text-sm">
-          <span className="text-base font-medium text-white">
-            {textEllipsis(name, 20)}
-          </span>
-          <span className="text-daintree-400">
-            Transferring a .igra name takes two transactions: one to point the
-            name at the new owner, one to hand over the name itself. You review
-            both before signing anything.
-          </span>
-        </div>
-      }
     />
   );
 }
@@ -394,51 +385,6 @@ function TransferConfirm({
             </span>
           </div>
 
-          {/* The two-transaction breakdown lives on the confirm screen rather
-            than the detail screen: this is the last thing between the owner and
-            a signature, and it is the only place where the consequence of the
-            second transaction failing is still actionable. */}
-          <div className="flex flex-col gap-3 rounded-lg border border-daintree-700 bg-daintree-800 p-4 text-xs text-daintree-400">
-            <span className="text-sm font-medium text-white">
-              {setTargetPayload
-                ? "This takes two transactions"
-                : "This takes one transaction"}
-            </span>
-            {setTargetPayload && (
-              <div>
-                <span className="font-medium text-white">
-                  1. Point the name
-                </span>
-                <br />
-                Funds sent to {name} start going to the new owner instead of
-                you.
-              </div>
-            )}
-            <div>
-              <span className="font-medium text-white">
-                {setTargetPayload
-                  ? "2. Hand over the name"
-                  : "1. Hand over the name"}
-              </span>
-              <br />
-              The name leaves your wallet. This cannot be undone.
-            </div>
-            {setTargetPayload && (
-              <span>
-                If the first succeeds and the second does not, you keep the name
-                but it routes to {textEllipsis(recipient ?? "", 12)}. Kastle
-                will tell you and take you to the screen where you can point it
-                back.
-              </span>
-            )}
-            {!setTargetPayload && (
-              <span>
-                {name} already routes to this address, so only the transfer is
-                needed.
-              </span>
-            )}
-          </div>
-
           <div className="flex justify-between gap-2 rounded-lg border border-daintree-700 bg-daintree-800 p-4">
             <span className="text-base font-medium">Fee</span>
             <div className="flex flex-col items-end break-all">
@@ -474,7 +420,7 @@ function TransferConfirm({
             className="flex w-full items-center justify-center gap-2 rounded-full bg-icy-blue-400 py-4 text-base font-medium text-white transition-colors hover:bg-icy-blue-600 disabled:cursor-not-allowed disabled:bg-icy-blue-800"
             disabled={isSigning || isInsufficientFunds || !!error}
           >
-            {setTargetPayload ? "Confirm both transactions" : "Confirm"}
+            Confirm
           </button>
         </div>
       </div>
@@ -482,7 +428,7 @@ function TransferConfirm({
   );
 }
 
-function Progress({ step }: { step: "routing" | "transferring" }) {
+function Progress() {
   return (
     <>
       <Header title="Sending" showPrevious={false} showClose={false} />
@@ -493,12 +439,7 @@ function Progress({ step }: { step: "routing" | "transferring" }) {
           src={carriageImage}
         />
         <span className="text-xl font-semibold text-daintree-400">
-          {step === "routing"
-            ? "Pointing the name (1 of 2)…"
-            : "Handing over the name…"}
-        </span>
-        <span className="px-10 text-center text-sm text-daintree-400">
-          Keep this window open until both transactions confirm.
+          Sending...
         </span>
       </div>
     </>

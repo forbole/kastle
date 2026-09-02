@@ -169,17 +169,6 @@ export default function INSAsset() {
                 }}
               />
             )}
-            <button
-              type="button"
-              onClick={() => navigate(`/ins/${name}/set-target`)}
-              disabled={ownerActionDisabledMessage !== undefined}
-              data-tooltip-id="ins-owner-action"
-              data-tooltip-content={ownerActionDisabledMessage}
-              className="w-full rounded-full py-2 text-sm font-medium text-icy-blue-400 disabled:text-[#0E7490]"
-            >
-              Set routing target
-            </button>
-
             <TransferButton
               disabledMessage={ownerActionDisabledMessage}
               redirectTo={`/ins/${name}/transfer`}

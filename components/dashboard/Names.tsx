@@ -55,14 +55,6 @@ export default function Names() {
       )}
 
       {/* KNS domains */}
-      {knsFirstLoading &&
-        Array.from({ length: 2 }).map((_, index) => (
-          <div
-            key={index}
-            className="h-[120px] w-[104px] shrink-0 animate-pulse rounded-[12px] border border-daintree-700 bg-daintree-800"
-          />
-        ))}
-
       {knsData?.flatMap((page) =>
         page.data.assets.map((asset) => (
           <NameCard
@@ -75,8 +67,7 @@ export default function Names() {
         )),
       )}
 
-      {/* INS domains — no skeletons: most users own no .igra name, and the
-          30s owner lookup would otherwise promise cards that never arrive */}
+      {/* INS domains */}
       {insDomains.map((name) => (
         // No isVerified: INS exposes no verification flag, so the badge must
         // stay absent rather than assert "verified" for every INS name.
@@ -88,17 +79,19 @@ export default function Names() {
         />
       ))}
 
-      <div ref={sentinelRef} className="h-1 w-full" />
-
-      {((isKnsLoading && !knsFirstLoading) || isInsLoading) && (
-        <div className="flex w-full justify-center py-2">
+      {/* Placeholder cards, not a spinner: they sit in the grid flow so the
+          row keeps its shape and nothing jumps as pages land. Rendered after
+          the real cards, which puts them at the start on a first load (there
+          are none yet) and at the end while a further page resolves. */}
+      {(isKnsLoading || isInsLoading) &&
+        Array.from({ length: 2 }).map((_, index) => (
           <div
-            className="inline-block size-6 animate-spin rounded-full border-[6px] border-current border-t-[#A2F5FF] text-icy-blue-600"
-            role="status"
-            aria-label="loading"
+            key={`skeleton-${index}`}
+            className="h-[120px] w-[104px] shrink-0 animate-pulse rounded-[12px] border border-daintree-700 bg-daintree-800"
           />
-        </div>
-      )}
+        ))}
+
+      <div ref={sentinelRef} className="h-1 w-full" />
     </div>
   );
 }

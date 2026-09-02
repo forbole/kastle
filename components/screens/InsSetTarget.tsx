@@ -133,14 +133,17 @@ export default function InsSetTarget() {
           <SuccessStatus
             chainId={INS_CHAIN_ID}
             transactionIds={outTxs}
-            tokenName={`${name} routing update`}
+            tokenName={name!}
+            title=""
+            description="This name now routes funds to the new address."
           />
         )}
         {step === "fail" && (
           <FailStatus
             chainId={INS_CHAIN_ID}
             transactionIds={outTxs}
-            tokenName={`${name} routing update`}
+            tokenName={name!}
+            description="Kastle could not update where this name routes. Please try again."
           />
         )}
       </FormProvider>
@@ -191,27 +194,13 @@ function SetTargetDetails({
   return (
     <InsAddressStep
       title="Routing target"
+      name={name}
+      sender={currentTarget}
+      action="Route"
       inputLabel="Route to ..."
       feeInKas={feeInKas}
       onNext={onNext}
       onBack={onBack}
-      intro={
-        <div className="flex flex-col gap-2 rounded-lg border border-daintree-700 bg-daintree-800 p-4 text-sm">
-          <span className="text-base font-medium text-white">
-            {textEllipsis(name, 20)}
-          </span>
-          <span className="text-daintree-400">
-            The routing target is where anyone sending to this name has their
-            funds delivered. Owning the name and routing it are separate: this
-            changes only the routing.
-          </span>
-          <span className="break-all text-xs text-daintree-400">
-            {currentTarget
-              ? `Currently routes to ${currentTarget}`
-              : "Kastle could not read the current target."}
-          </span>
-        </div>
-      }
     />
   );
 }

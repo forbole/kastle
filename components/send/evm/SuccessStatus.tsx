@@ -8,12 +8,21 @@ interface SuccessProps {
   chainId: `0x${string}`;
   transactionIds?: string[] | undefined;
   tokenName?: string;
+  /**
+   * Overrides the "<tokenName> Dispatched!" heading. Pass "" to drop it: a long
+   * asset name wraps the heading onto two lines and says nothing the body copy
+   * below does not already say.
+   */
+  title?: string;
+  description?: string;
 }
 
 export default function SuccessStatus({
   chainId,
   transactionIds,
   tokenName = "KAS",
+  title: titleOverride,
+  description: descriptionOverride,
 }: SuccessProps) {
   const navigate = useNavigate();
   const selectChain = ALL_SUPPORTED_EVM_L2_CHAINS.find(
@@ -27,8 +36,10 @@ export default function SuccessStatus({
     navigate("/dashboard");
   };
 
-  const title = `${tokenName} Dispatched!`;
-  const description = `Your ${tokenName} has been sent to the recipient's address`;
+  const title = titleOverride ?? `${tokenName} Dispatched!`;
+  const description =
+    descriptionOverride ??
+    `Your ${tokenName} has been sent to the recipient's address`;
 
   const openTransactions = () => {
     for (const transactionId of transactionIds ?? []) {
