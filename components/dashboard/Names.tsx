@@ -24,7 +24,6 @@ export default function Names() {
   const hasNextPage =
     pagination && pagination.currentPage < pagination.totalPages;
   const knsFirstLoading = !knsData && isKnsLoading;
-  const insFirstLoading = !insDomains.length && isInsLoading;
 
   const sentinelRef = useRef<HTMLDivElement>(null);
 
@@ -40,9 +39,10 @@ export default function Names() {
     return () => observer.disconnect();
   }, [hasNextPage, isKnsLoading, setKnsSize]);
 
+  // Decided on KNS alone — INS's 30s owner lookup must not hold the empty
+  // state hostage. insDomains.length still self-corrects once INS resolves.
   const isEmpty =
     !knsFirstLoading &&
-    !insFirstLoading &&
     insDomains.length === 0 &&
     (knsData?.[0]?.data?.assets?.length ?? 0) === 0;
 
@@ -75,15 +75,8 @@ export default function Names() {
         )),
       )}
 
-      {/* INS domains */}
-      {insFirstLoading &&
-        Array.from({ length: 2 }).map((_, index) => (
-          <div
-            key={index}
-            className="h-[120px] w-[104px] shrink-0 animate-pulse rounded-[12px] border border-daintree-700 bg-daintree-800"
-          />
-        ))}
-
+      {/* INS domains — no skeletons: most users own no .igra name, and the
+          30s owner lookup would otherwise promise cards that never arrive */}
       {insDomains.map((name) => (
         // No isVerified: INS exposes no verification flag, so the badge must
         // stay absent rather than assert "verified" for every INS name.
@@ -97,7 +90,7 @@ export default function Names() {
 
       <div ref={sentinelRef} className="h-1 w-full" />
 
-      {isKnsLoading && !knsFirstLoading && (
+      {((isKnsLoading && !knsFirstLoading) || isInsLoading) && (
         <div className="flex w-full justify-center py-2">
           <div
             className="inline-block size-6 animate-spin rounded-full border-[6px] border-current border-t-[#A2F5FF] text-icy-blue-600"

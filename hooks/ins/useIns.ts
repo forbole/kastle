@@ -1,5 +1,7 @@
 import useSWR from "swr";
+import { useEffect, useState } from "react";
 import { fetcher } from "@/lib/utils";
+import { insDomainsCache } from "@/lib/cache/insDomainsCache";
 
 export const INS_API_URL = "https://insdomains.org/api";
 
@@ -56,9 +58,25 @@ export function useIns() {
 }
 
 export function useInsDomainsByAddress(address?: string) {
+  const [cacheReady, setCacheReady] = useState(false);
+
+  useEffect(() => {
+    if (!address) return;
+    insDomainsCache.load(address).then(() => setCacheReady(true));
+  }, [address]);
+
+  const cached = address ? insDomainsCache.read(address) : null;
+
   const { data, isLoading, error, mutate } = useSWR<unknown, Error>(
     address ? `${INS_API_URL}/names/by-owner?address=${address}` : null,
     fetcher,
+    {
+      fallbackData: cacheReady && cached != null ? cached : undefined,
+      keepPreviousData: true,
+      onSuccess: (raw) => {
+        if (address) insDomainsCache.write(address, extractDomainNames(raw));
+      },
+    },
   );
 
   return { domains: extractDomainNames(data), isLoading, error, mutate };
