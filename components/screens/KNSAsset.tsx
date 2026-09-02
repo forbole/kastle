@@ -9,7 +9,6 @@ import { textEllipsis } from "@/lib/utils";
 import Copy from "@/components/Copy";
 import HoverShowAllCopy from "@/components/HoverShowAllCopy";
 import { Tooltip } from "react-tooltip";
-import { twMerge } from "tailwind-merge";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import useKNSRecentTransfer from "@/hooks/kns/useKNSRecentTransfer";
 
@@ -38,8 +37,12 @@ export default function KNSAsset() {
       />
 
       {asset && (
-        <div className="flex flex-1 flex-col justify-between">
-          <div className="flex flex-1 flex-col items-center gap-4 pb-6">
+        <div className="flex min-h-0 flex-1 flex-col justify-between gap-4">
+          {/* The design pins the button bar to the bottom and scrolls the
+              content behind it -- its own render hides the Timestamp row. A
+              plain flex column overflowed the 600px popup and pushed both
+              pills off screen. */}
+          <div className="flex min-h-0 flex-1 flex-col items-center gap-4 overflow-y-auto">
             {/* Clicking the hero copies the domain. Copy owns the click and
                 the "Copied" tooltip, so the card's own handler stays empty --
                 this replaces the copy glyph the old avatar hero carried. */}
@@ -124,64 +127,51 @@ export default function KNSAsset() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-2">
-            <>
-              {isTransferDisabled && (
-                <Tooltip
-                  id="transfer-disabled"
-                  style={{
-                    backgroundColor: "#203C49",
-                    fontSize: "12px",
-                    fontWeight: 600,
-                    padding: "8px",
-                    width: "60%",
-                  }}
-                  opacity={1}
-                  place="top"
-                />
-              )}
-              <button
-                type="button"
-                data-tooltip-id="transfer-disabled"
-                data-tooltip-content={
-                  isLedger
-                    ? "Ledger doesn’t support deploy function currently."
-                    : "This domain is listed for sale and must be unlisted before transferring."
-                }
-                className="inline-flex w-full items-center justify-center rounded-full border border-white px-4 py-[14px] text-[15px] font-semibold text-white disabled:border-[#093446] disabled:text-[#083344]"
-                disabled={isTransferDisabled}
-                onClick={() => navigate(`/kns-transfer/${assetId}`)}
-              >
-                <span>Transfer</span>
-                {/* Zero-width so the badge does not shift the centred label --
-                    this is what the design does, and it replaces the old
-                    ml-[120px] hack that only centred at one string length. */}
-                <div className="w-0 pl-[10px]">
-                  <div
-                    className={twMerge(
-                      "rounded-full px-[5.5px] py-px text-[10px] font-medium leading-4",
-                      !isTransferDisabled
-                        ? "bg-icy-blue-400 text-white"
-                        : "bg-[#164E63] bg-opacity-30 text-[#0E7490]",
-                    )}
-                  >
-                    New
-                  </div>
-                </div>
-              </button>
-            </>
+          <div className="flex shrink-0 flex-col gap-2">
+            {isTransferDisabled && (
+              <Tooltip
+                id="transfer-disabled"
+                style={{
+                  backgroundColor: "#203C49",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  padding: "8px",
+                  width: "60%",
+                }}
+                opacity={1}
+                place="top"
+              />
+            )}
+            <button
+              type="button"
+              data-tooltip-id="transfer-disabled"
+              data-tooltip-content={
+                isLedger
+                  ? "Ledger doesn’t support deploy function currently."
+                  : "This domain is listed for sale and must be unlisted before transferring."
+              }
+              className="inline-flex w-full items-center justify-center rounded-full border border-white px-4 py-[14px] text-[15px] font-semibold text-white disabled:border-[#093446] disabled:text-[#083344]"
+              disabled={isTransferDisabled}
+              onClick={() => navigate(`/kns-transfer/${assetId}`)}
+            >
+              Transfer
+            </button>
 
             <button
               type="button"
-              className="inline-flex w-full items-center justify-center rounded-full border border-icy-blue-800 px-4 py-[14px] text-[15px] font-semibold text-icy-blue-800"
+              className="relative inline-flex w-full items-center justify-center rounded-full border border-icy-blue-800 px-4 py-[14px] text-[15px] font-semibold text-icy-blue-800"
               disabled
             >
               <span>List</span>
-              <div className="w-0 pl-[10px]">
-                <div className="rounded-full bg-icy-blue-700/30 px-[5.5px] py-px text-[10px] font-medium leading-4 text-icy-blue-500">
+              {/* Zero-width slot so the badge never shifts the centred label.
+                  The design's own is a flex item; as a plain block the inner
+                  pill inherited width 0 and squashed, so it is absolutely
+                  positioned off the slot instead. */}
+              <span className="relative w-0">
+                <span className="absolute left-[10px] top-1/2 -translate-y-1/2 whitespace-nowrap rounded-full bg-icy-blue-700/30 px-[5.5px] py-px text-[10px] font-medium leading-4 text-icy-blue-500">
                   Coming soon
-                </div>
-              </div>
+                </span>
+              </span>
             </button>
           </div>
         </div>

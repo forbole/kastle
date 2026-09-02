@@ -43,6 +43,14 @@ export default function NameCard({
   const box = BOX[size];
   const px = (value: number) => `${value * SCALE[size]}px`;
 
+  // "kastlewallet.kas" -> label "kastlewallet." + tld "kas". A label short
+  // enough that "name.tld" fits the 88px text box stays on one line; every
+  // other name drops the TLD to line two.
+  const dotIndex = name.lastIndexOf(".");
+  const label = dotIndex === -1 ? name : name.slice(0, dotIndex + 1);
+  const tld = dotIndex === -1 ? "" : name.slice(dotIndex + 1);
+  const tldOnOwnLine = label.length > 7;
+
   return (
     <button
       type="button"
@@ -83,9 +91,15 @@ export default function NameCard({
             fontSize: px(baseNameSize(name.length)),
             textShadow: `0px 0px ${px(4)} rgba(0,19,58,0.4)`,
           }}
-          className="overflow-hidden font-bold leading-normal tracking-[-0.02em] text-white [overflow-wrap:anywhere]"
+          className="overflow-hidden font-bold leading-normal tracking-[-0.02em] text-white"
         >
-          {name}
+          {/* Label keeps the dot; the TLD is atomic. A single
+              [overflow-wrap:anywhere] span broke mid-TLD ("kastlewallet.k" /
+              "as"). Anything but a short label puts the TLD on its own line so
+              every card reads the same regardless of name length -- this
+              diverges from the Figma render, which breaks before the dot. */}
+          <span className="[overflow-wrap:anywhere]">{label}</span>
+          <span className={tldOnOwnLine ? "block" : "inline-block"}>{tld}</span>
         </span>
 
         {source === "kas" ? (
