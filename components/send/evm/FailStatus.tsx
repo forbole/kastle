@@ -65,7 +65,10 @@ export default function FailStatus({
               )}
             </span>
           </div>
-          {transactionIds?.length !== 0 && (
+          {/* Undefined is "no hash to show", not "some hash": a broadcast that
+              threw never set the ids, and `!== 0` rendered a button whose
+              handler iterates `?? []` and does nothing. */}
+          {(transactionIds?.length ?? 0) > 0 && (
             <button
               type="button"
               onClick={openTransactions}

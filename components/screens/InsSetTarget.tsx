@@ -299,7 +299,9 @@ function useSetTargetFee(name: string, target: `0x${string}` | undefined) {
     payload,
     estimatedFee,
     error,
-    feeInKas: formatEther(estimatedFee ?? 0n),
+    // No estimate yet is not a zero fee: quoting 0 next to a $0.00 fiat value
+    // reads as a free transaction. Show nothing until the estimate lands.
+    feeInKas: estimatedFee === undefined ? "—" : formatEther(estimatedFee),
   };
 }
 
@@ -406,8 +408,17 @@ function SetTargetConfirm({
     const outcome = await awaitReceipt(txId);
     if (outcome === "success") {
       // The cached target is now stale, and the transfer flow reads it to
-      // decide whether the routing leg is needed at all.
-      await refresh();
+      // decide whether the routing leg is needed at all. Not awaited: nothing
+      // below reads the result, and a rejected mutate would strand this
+      // function on a screen with no back or close button.
+      void refresh();
+    } else if (outcome === "unknown") {
+      // Broadcast but unconfirmed. If it mines later the cached target is
+      // silently wrong, and needsSetTarget in the transfer flow reads exactly
+      // that value to decide whether to re-point the name -- a stale match
+      // there skips the routing leg and hands the name over routed elsewhere.
+      // Drop the record so the next read refetches instead of trusting it.
+      void refresh(undefined, { revalidate: false });
     }
     setStep(
       outcome === "success"
@@ -471,7 +482,15 @@ function SetTargetConfirm({
         <button
           onClick={onConfirm}
           className="flex w-full items-center justify-center gap-2 rounded-full bg-icy-blue-400 py-4 text-base font-medium text-white transition-colors hover:bg-icy-blue-600 disabled:cursor-not-allowed disabled:bg-icy-blue-800"
-          disabled={isSigning || isInsufficientFunds || !!error}
+          // estimatedFee undefined means the balance check above did not run:
+          // while the estimate is in flight both data and error are undefined,
+          // so nothing gates the spend until one of them lands.
+          disabled={
+            isSigning ||
+            isInsufficientFunds ||
+            !!error ||
+            estimatedFee === undefined
+          }
         >
           Confirm
         </button>

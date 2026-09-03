@@ -16,9 +16,13 @@ export default function Names() {
     size: knsSize,
     setSize: setKnsSize,
     isLoading: isKnsLoading,
+    error: knsError,
   } = useAssetsByAddress("domain", account?.address ?? "");
-  const { domains: insDomains, isLoading: isInsLoading } =
-    useInsDomainsByAddress(evmAddress);
+  const {
+    domains: insDomains,
+    isLoading: isInsLoading,
+    error: insError,
+  } = useInsDomainsByAddress(evmAddress);
 
   const pagination = knsData && knsData[knsSize - 1]?.data?.pagination;
   const hasNextPage =
@@ -46,12 +50,23 @@ export default function Names() {
     insDomains.length === 0 &&
     (knsData?.[0]?.data?.assets?.length ?? 0) === 0;
 
+  // A failed fetch is not an empty wallet. Telling someone they own no names
+  // when the request never landed is the one wrong answer here, so the error
+  // takes the empty state's place whenever either source failed.
+  const failed = !!knsError || !!insError;
+
   return (
     <div className="flex flex-wrap gap-[12px] pb-4">
       {/* isEmpty itself stays KNS-only (see above) -- this extra gate just
           keeps the message from rendering underneath the skeletons below,
           which key off both sources. */}
-      {isEmpty && !isKnsLoading && !isInsLoading && (
+      {failed && isEmpty && !isKnsLoading && !isInsLoading && (
+        <div className="flex w-full justify-center py-6 text-center text-sm text-daintree-400">
+          Couldn’t load your names. Check your connection and try again.
+        </div>
+      )}
+
+      {!failed && isEmpty && !isKnsLoading && !isInsLoading && (
         <div className="flex w-full justify-center py-6 text-sm text-daintree-400">
           No names found
         </div>
@@ -59,7 +74,9 @@ export default function Names() {
 
       {/* KNS domains */}
       {knsData?.flatMap((page) =>
-        page.data.assets.map((asset) => (
+        // Same optional chaining as the isEmpty check above: a page whose
+        // fetch resolved to an error envelope has no `data`.
+        (page?.data?.assets ?? []).map((asset) => (
           <NameCard
             key={asset.assetId}
             name={asset.asset}

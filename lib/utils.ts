@@ -7,7 +7,17 @@ import { sha256 } from "hash-wasm";
 
 export const isProduction = process.env.NODE_ENV === "production";
 
-export const fetcher = (url: string) => fetch(url).then((r) => r.json());
+// A non-ok response is an error, not data. Without this a 500 whose body is
+// JSON resolves as data -- SWR reports success and the caller reads fields off
+// an error envelope (KNS returns `{success:false,data:null}`, so `page.data.assets`
+// throws with no ErrorBoundary to catch it).
+export const fetcher = async (url: string) => {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Request failed: ${response.status} ${url}`);
+  }
+  return response.json();
+};
 export const emptyFetcher = (_: string) => Promise.resolve(undefined);
 
 export const multiFetcher = (urls: string[]) =>

@@ -226,7 +226,13 @@ function useTransferFees(record: InsOnChainRecord, name: string) {
     error: transfer.error ?? setTarget.error,
     estimatedFee:
       transfer.data === undefined || setTargetUnpriced ? undefined : total,
-    feeInKas: formatEther(total),
+    // `total` silently collapses to whichever legs did price, so quoting it
+    // while a leg is unpriced shows the transfer fee alone as the total (next
+    // to a $0.00 fiat value). Show nothing rather than an understated number.
+    feeInKas:
+      transfer.data === undefined || setTargetUnpriced
+        ? "—"
+        : formatEther(total),
   };
 }
 
@@ -384,8 +390,12 @@ function TransferConfirm({
       }
 
       // Confirmed: the cached target is stale from here on, and a retry reads
-      // it to decide whether this leg is needed at all.
-      await refresh();
+      // it to decide whether this leg is needed at all. Not awaited -- nothing
+      // below reads the result, and the refetch (a 15s lookup plus a 10s
+      // targetOf outside that deadline) would otherwise sit between tx1 and
+      // tx2, widening the exact window where closing the popup strands the
+      // name routed to the recipient while still owned by the sender.
+      void refresh();
     }
 
     setPhase({ step: "transferring", setTargetTx });
@@ -407,8 +417,9 @@ function TransferConfirm({
     const transferOutcome = await awaitReceipt(transferTx);
     if (transferOutcome === "success") {
       // Confirmed: the cached owner is now stale, same as the setTarget leg
-      // above.
-      await refresh();
+      // above. Not awaited -- everything has already confirmed, so awaiting
+      // only holds the success screen back for the length of the refetch.
+      void refresh();
       setPhase({
         step: "success",
         txs: setTargetTx ? [setTargetTx, transferTx] : [transferTx],
@@ -503,7 +514,15 @@ function TransferConfirm({
           <button
             onClick={onConfirm}
             className="flex w-full items-center justify-center gap-2 rounded-full bg-icy-blue-400 py-4 text-base font-medium text-white transition-colors hover:bg-icy-blue-600 disabled:cursor-not-allowed disabled:bg-icy-blue-800"
-            disabled={isSigning || isInsufficientFunds || !!error}
+            // estimatedFee undefined means the balance check above did not
+            // run: while the estimate is in flight both data and error are
+            // undefined, so nothing gates the spend until one of them lands.
+            disabled={
+              isSigning ||
+              isInsufficientFunds ||
+              !!error ||
+              estimatedFee === undefined
+            }
           >
             Confirm
           </button>

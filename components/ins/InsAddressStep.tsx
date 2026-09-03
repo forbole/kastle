@@ -103,10 +103,12 @@ export default function InsAddressStep({
   }, [userInput]);
 
   useEffect(() => {
-    if (!checkContractRecipient || !address) {
-      setIsContractRecipient(false);
-      return;
-    }
+    // Cleared on every address change, not just on an empty one. Pasting over
+    // a whole valid address fires one change event, so A -> B never passes
+    // through undefined and A's verdict would otherwise stay on screen against
+    // B for the round trip -- a false warning, or worse, none at all.
+    setIsContractRecipient(false);
+    if (!checkContractRecipient || !address) return;
     let cancelled = false;
     insRpcClient
       .getBytecode({ address })
