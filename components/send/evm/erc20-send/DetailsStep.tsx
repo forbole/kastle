@@ -19,9 +19,10 @@ import useFeeEstimate from "@/hooks/evm/useFeeEstimate";
 import { formatToken, truncToDecimals } from "@/lib/utils";
 import useCurrencyValue from "@/hooks/useCurrencyValue";
 import Layer2AssetImage from "@/components/Layer2AssetImage";
-import { getChainImage, isIgraChain } from "@/lib/layer2";
+import { getChainImage, isInsSupportedChain } from "@/lib/layer2";
 import useEvmAddress from "@/hooks/evm/useEvmAddress";
 import { useIns } from "@/hooks/ins/useIns";
+import { lookupInsNameOnChain } from "@/lib/ins/insRegistry";
 import useErc20Balance from "@/hooks/evm/useErc20Balance";
 import { Erc20Asset } from "@/contexts/EvmAssets";
 import useEvmKasBalance from "@/hooks/evm/useEvmKasBalance";
@@ -56,8 +57,8 @@ export default function DetailsStep({
   const { balance } = balanceInfo ?? {};
   const currentBalance = balance ?? 0;
   const evmAddress = useEvmAddress();
-  const { fetchDomainOwner } = useIns();
-  const insEnabled = isIgraChain(asset.chainId);
+  const { fetchInsRecord } = useIns();
+  const insEnabled = isInsSupportedChain(asset.chainId);
 
   const { userInput, address, domain, amount } = watch();
 
@@ -87,6 +88,10 @@ export default function DetailsStep({
   const { value: isAddressFieldFocused, setValue: setAddressFieldFocused } =
     useBoolean(false);
 
+  // Guards against a slow lookup landing after the input already moved on.
+  const resolutionSeq = useRef(0);
+  const [insNotice, setInsNotice] = useState<string | undefined>();
+
   const onClose = () => {
     navigate("/dashboard");
   };
@@ -96,26 +101,58 @@ export default function DetailsStep({
 
   const addressValidator = async (value: string | undefined) => {
     const genericErrorMessage = `Invalid EVM address${insEnabled ? " or INS domain" : ""}`;
+
+    // Nothing resolved for a previous input may survive into this one. Without
+    // this, editing alice.igra -> bob.igra left Alice's address in the form,
+    // valid-looking and submittable, while Bob's lookup was still in flight.
+    const seq = ++resolutionSeq.current;
+    setValue("address", undefined);
+    setValue("domain", undefined);
+    setInsNotice(undefined);
+
     if (!value) return undefined;
 
     try {
       if (isAddress(value)) {
         setValue("address", value);
-        setValue("domain", undefined);
         return true;
       }
 
+      // NOTE: `includes(".")` is a catch-all -- "foo.bar" enters this branch
+      // too. Left as-is by scope; the on-chain check below fails closed on
+      // anything that is not actually registered.
       if (insEnabled && value.includes(".")) {
-        const resolved = await fetchDomainOwner(value);
-        if (resolved && isAddress(resolved)) {
-          setValue("address", resolved);
-          setValue("domain", value);
-          return true;
+        // REST stays the fast display layer while the user types...
+        const record = await fetchInsRecord(value);
+        // ...but the destination is only ever the on-chain owner. resolve()
+        // is a routing pointer that transferFrom never updates, so it keeps
+        // returning the previous owner after a transfer.
+        const onChain = await lookupInsNameOnChain(value);
+
+        // A newer keystroke superseded this run -- let that one own the form.
+        if (seq !== resolutionSeq.current) return genericErrorMessage;
+
+        if (!onChain.ok) return onChain.reason;
+
+        setValue("address", onChain.address);
+        setValue("domain", value);
+
+        if (
+          record?.address &&
+          record.address.toLowerCase() !== onChain.address.toLowerCase()
+        ) {
+          setInsNotice(
+            "This name changed hands recently. Sending to its current on-chain owner.",
+          );
+        } else if (onChain.inGrace) {
+          setInsNotice(
+            "Heads up: this name is expired but still in its grace period.",
+          );
         }
+
+        return true;
       }
 
-      setValue("address", undefined);
-      setValue("domain", undefined);
       return genericErrorMessage;
     } catch (error) {
       console.error(error);
@@ -226,7 +263,7 @@ export default function DetailsStep({
           />
 
           <div className="pointer-events-none absolute end-0 top-10 flex h-16 items-center pe-3">
-            {validatingFields.address && (
+            {validatingFields.userInput && (
               <img
                 alt="spinner"
                 className="size-5 animate-spin"
@@ -237,6 +274,11 @@ export default function DetailsStep({
           {domain && (
             <span className="inline-block break-all text-sm text-daintree-400">
               {address}
+            </span>
+          )}
+          {insNotice && (
+            <span className="inline-block text-sm text-yellow-500">
+              {insNotice}
             </span>
           )}
           {errors.userInput && (

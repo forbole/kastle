@@ -19,7 +19,7 @@ import spinner from "@/assets/images/spinner.svg";
 import { twMerge } from "tailwind-merge";
 import useFeeEstimate from "@/hooks/evm/useFeeEstimate";
 import placeholderImage from "@/assets/images/nft-placeholder.png";
-import { textEllipsis } from "@/lib/utils";
+import { formatToken, textEllipsis } from "@/lib/utils";
 import { getNftImageUrl } from "@/lib/nft/erc721";
 import { useEffect } from "react";
 
@@ -64,7 +64,7 @@ export default function Erc721TransferDetails({
       : undefined;
 
   const { data: estimatedFee } = useFeeEstimate(chainId, payload);
-  const feeInKas = formatEther(estimatedFee ?? 0n);
+  const feeInKas = formatToken(parseFloat(formatEther(estimatedFee ?? 0n)));
 
   const { data: kasBalanceData } = useEvmKasBalance(chainId) ?? 0;
   const currentBalance = kasBalanceData?.rawBalance ?? 0n;

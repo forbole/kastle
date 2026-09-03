@@ -52,6 +52,8 @@ import DeployingToken from "@/components/screens/full-pages/DeployingToken.tsx";
 import { RecentAddressesProvider } from "@/contexts/RecentAddressesContext.tsx";
 import KNSAsset from "@/components/screens/KNSAsset";
 import INSAsset from "@/components/screens/INSAsset";
+import InsSetTarget from "@/components/screens/InsSetTarget";
+import InsTransfer from "@/components/screens/InsTransfer";
 import KRC721 from "@/components/screens/KRC721";
 import OnboardingSuccess from "@/components/onboarding/OnboardingSuccess.tsx";
 import ChangePassword from "@/components/screens/ChangePassword.tsx";
@@ -291,6 +293,14 @@ export const router = createHashRouter([
                   {
                     path: "ins/:name",
                     element: <INSAsset />,
+                  },
+                  {
+                    path: "ins/:name/set-target",
+                    element: <InsSetTarget />,
+                  },
+                  {
+                    path: "ins/:name/transfer",
+                    element: <InsTransfer />,
                   },
                   {
                     path: "kns-text/:assetId",

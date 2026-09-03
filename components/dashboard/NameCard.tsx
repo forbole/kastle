@@ -7,30 +7,61 @@ type NameCardProps = {
   name: string;
   source: "kas" | "igra";
   isVerified?: boolean;
+  size?: "sm" | "lg";
   onClick: () => void;
 };
 
+// The design gives the outer box and the corner radius at both sizes, and
+// neither follows the other's ratio (104 -> 166.05 is 1.597x, 12 -> 16 is
+// 1.33x), so both stay literal. Everything *inside* the card is only ever
+// designed at sm -- the lg hero in Figma is a flattened image fill with no
+// layer tree -- so it is derived from the one box ratio, 192/120 = 1.6.
+const BOX = {
+  sm: { width: 104, height: 120, radius: 12 },
+  lg: { width: 166.05, height: 192, radius: 16 },
+};
+const SCALE = { sm: 1, lg: 1.6 };
+
 // Design steps the name down through four sizes so long names still fit the
-// 88px text box. Tracking is -2% at every step.
-const nameSize = (length: number) => {
-  if (length <= 12) return "text-[16px]";
-  if (length <= 24) return "text-[14px]";
-  if (length <= 40) return "text-[12px]";
-  return "text-[10px]";
+// text box. The buckets are length thresholds, so they hold at both sizes: the
+// text box scales by the same 1.6, so a name wraps to the same line count.
+// Tracking is -2% throughout, which scales for free.
+const baseNameSize = (length: number) => {
+  if (length <= 12) return 16;
+  if (length <= 24) return 14;
+  if (length <= 40) return 12;
+  return 10;
 };
 
 export default function NameCard({
   name,
   source,
   isVerified,
+  size = "sm",
   onClick,
 }: NameCardProps) {
+  const box = BOX[size];
+  const px = (value: number) => `${value * SCALE[size]}px`;
+
+  // "kastlewallet.kas" -> label "kastlewallet." + tld "kas". A label short
+  // enough that "name.tld" fits the 88px text box stays on one line; every
+  // other name drops the TLD to line two.
+  const dotIndex = name.lastIndexOf(".");
+  const label = dotIndex === -1 ? name : name.slice(0, dotIndex + 1);
+  const tld = dotIndex === -1 ? "" : name.slice(dotIndex + 1);
+  const tldOnOwnLine = label.length > 7;
+
   return (
     <button
       type="button"
       onClick={onClick}
       title={name}
-      className="relative h-[120px] w-[104px] shrink-0 overflow-hidden rounded-[12px] border border-daintree-700 bg-[linear-gradient(201.32deg,#4ADCEF_14.46%,#00D7FF_31.38%,#0095F1_91.32%)] text-left hover:border-white"
+      style={{
+        width: box.width,
+        height: box.height,
+        borderRadius: box.radius,
+      }}
+      className="relative shrink-0 overflow-hidden border border-daintree-700 bg-[linear-gradient(201.32deg,#4ADCEF_14.46%,#00D7FF_31.38%,#0095F1_91.32%)] text-left hover:border-white"
     >
       {isVerified && (
         <img
@@ -38,39 +69,73 @@ export default function NameCard({
           alt="verified"
           // Badge box is 8x8 at right/top 10px; the asset is 14x14 because it
           // carries the drop shadow as a 37.5% bleed on every side. Insetting
-          // by 7px lands the 8px glyph back on its designed position.
-          className="absolute right-[7px] top-[7px] size-[14px]"
+          // by 7px lands the 8px glyph back on its designed position, and the
+          // bleed is proportional, so scaling the whole box keeps it there.
+          style={{
+            right: px(7),
+            top: px(7),
+            width: px(14),
+            height: px(14),
+          }}
+          className="absolute"
         />
       )}
 
-      <div className="absolute bottom-[8px] left-1/2 flex w-[88px] -translate-x-1/2 flex-col gap-[10px]">
+      <div
+        style={{ bottom: px(8), width: px(88), gap: px(10) }}
+        className="absolute left-1/2 flex -translate-x-1/2 flex-col"
+      >
         <span
-          className={`h-[50.98px] overflow-hidden font-bold leading-normal tracking-[-0.02em] text-white [overflow-wrap:anywhere] ${nameSize(name.length)}`}
-          style={{ textShadow: "0px 0px 4px rgba(0,19,58,0.4)" }}
+          style={{
+            height: px(50.98),
+            fontSize: px(baseNameSize(name.length)),
+            textShadow: `0px 0px ${px(4)} rgba(0,19,58,0.4)`,
+          }}
+          className="overflow-hidden font-bold leading-normal tracking-[-0.02em] text-white"
         >
-          {name}
+          {/* Label keeps the dot; the TLD is atomic. A single
+              [overflow-wrap:anywhere] span broke mid-TLD ("kastlewallet.k" /
+              "as"). Anything but a short label puts the TLD on its own line so
+              every card reads the same regardless of name length -- this
+              diverges from the Figma render, which breaks before the dot. */}
+          <span className="[overflow-wrap:anywhere]">{label}</span>
+          <span className={tldOnOwnLine ? "block" : "inline-block"}>{tld}</span>
         </span>
 
         {source === "kas" ? (
-          // ponytail: two exported leaves rather than one merged file — the
+          // ponytail: two exported leaves rather than one merged file -- the
           // combined Figma export is a padded 39x18 box that would misalign.
-          <span className="relative block h-[10px] w-[30.8px]">
+          <span
+            style={{ height: px(10), width: px(30.8) }}
+            className="relative block"
+          >
             <img
               src={kaspaLockupMark}
               alt=""
-              className="absolute left-0 top-0 h-[10px] w-[10.0125px]"
+              style={{ height: px(10), width: px(10.0125) }}
+              className="absolute left-0 top-0"
             />
             <img
               src={kaspaLockupText}
               alt=""
-              className="absolute left-[13.05px] top-[2.51px] h-[6.73626px] w-[17.7516px]"
+              style={{
+                left: px(13.05),
+                top: px(2.51),
+                height: px(6.73626),
+                width: px(17.7516),
+              }}
+              className="absolute"
             />
           </span>
         ) : (
           <img
             src={igraLockup}
             alt=""
-            className="h-[10px] w-[31.4px] [filter:drop-shadow(0_0_4px_rgba(0,19,58,0.4))]"
+            style={{
+              height: px(10),
+              width: px(31.4),
+              filter: `drop-shadow(0 0 ${px(4)} rgba(0,19,58,0.4))`,
+            }}
           />
         )}
       </div>

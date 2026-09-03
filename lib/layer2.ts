@@ -122,11 +122,15 @@ export const getChainName = (chainId: `0x${string}`) => {
   return "Unknown Chain";
 };
 
-export const isIgraChain = (chainId?: `0x${string}`): boolean => {
+// INS (.igra names) is deployed on Igra mainnet only: the REST API has no
+// testnet host and the registry contract is not deployed on 38836. Gating on
+// mainnet alone makes the send path fail closed on testnet -- a name typed
+// there is rejected as an invalid address rather than resolved against the
+// wrong chain.
+export const isInsSupportedChain = (chainId?: `0x${string}`): boolean => {
   if (!chainId) return false;
   try {
-    const chainIdNumber = hexToNumber(chainId);
-    return chainIdNumber === igraMainnet.id || chainIdNumber === igraTestnet.id;
+    return hexToNumber(chainId) === igraMainnet.id;
   } catch {
     return false;
   }

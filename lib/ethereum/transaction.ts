@@ -24,8 +24,13 @@ export async function sendEvmTransaction({
   data,
 }: SendEvmTransactionParams): Promise<Hex> {
   const estimatedGas = await ethClient.estimateFeesPerGas();
+  // 'pending' counts the sender's unmined transactions too. On 'latest' (viem's
+  // default) a retry issued while an earlier transaction is still pending
+  // reuses that nonce: the retry is rejected as a replacement and the original
+  // mines anyway, so the user retries a transaction that then lands twice over.
   const nonce = await ethClient.getTransactionCount({
     address: sender,
+    blockTag: "pending",
   });
 
   // Get the minimum gas price from the network

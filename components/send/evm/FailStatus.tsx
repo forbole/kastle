@@ -10,12 +10,14 @@ interface FailProps {
   chainId: `0x${string}`;
   transactionIds?: string[] | undefined;
   tokenName?: string;
+  description?: string;
 }
 
 export default function FailStatus({
   chainId,
   transactionIds,
   tokenName = "KAS",
+  description,
 }: FailProps) {
   const navigate = useNavigate();
   const selectChain = ALL_SUPPORTED_EVM_L2_CHAINS.find(
@@ -54,12 +56,19 @@ export default function FailStatus({
             </span>
 
             <span className="px-2 text-sm text-gray-500">
-              {`The carriage couldn't deliver your ${tokenName} this time.`}
-              <br />
-              {"Please check the recipient's address or try again later."}
+              {description ?? (
+                <>
+                  {`The carriage couldn't deliver your ${tokenName} this time.`}
+                  <br />
+                  {"Please check the recipient's address or try again later."}
+                </>
+              )}
             </span>
           </div>
-          {transactionIds?.length !== 0 && (
+          {/* Undefined is "no hash to show", not "some hash": a broadcast that
+              threw never set the ids, and `!== 0` rendered a button whose
+              handler iterates `?? []` and does nothing. */}
+          {(transactionIds?.length ?? 0) > 0 && (
             <button
               type="button"
               onClick={openTransactions}
