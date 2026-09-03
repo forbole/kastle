@@ -1,12 +1,13 @@
 import { useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import useEvmAddress from "@/hooks/evm/useEvmAddress";
 import { useAssetsByAddress } from "@/hooks/kns/useKns";
 import { useInsDomainsByAddress } from "@/hooks/ins/useIns";
-import KNSItem from "@/components/dashboard/KNSItem.tsx";
-import INSItem from "@/components/dashboard/INSItem";
+import NameCard from "@/components/dashboard/NameCard";
 
 export default function Names() {
+  const navigate = useNavigate();
   const { account } = useWalletManager();
   const evmAddress = useEvmAddress();
 
@@ -46,9 +47,9 @@ export default function Names() {
     (knsData?.[0]?.data?.assets?.length ?? 0) === 0;
 
   return (
-    <div className="space-y-2 pb-4">
+    <div className="flex flex-wrap gap-[12px] pb-4">
       {isEmpty && (
-        <div className="flex justify-center py-6 text-sm text-daintree-400">
+        <div className="flex w-full justify-center py-6 text-sm text-daintree-400">
           No names found
         </div>
       )}
@@ -58,13 +59,19 @@ export default function Names() {
         Array.from({ length: 2 }).map((_, index) => (
           <div
             key={index}
-            className="min-h-[72px] animate-pulse cursor-pointer rounded-xl border border-daintree-700 bg-daintree-800 p-3"
+            className="h-[120px] w-[104px] shrink-0 animate-pulse rounded-[12px] border border-daintree-700 bg-daintree-800"
           />
         ))}
 
       {knsData?.flatMap((page) =>
         page.data.assets.map((asset) => (
-          <KNSItem key={asset.assetId} asset={asset} />
+          <NameCard
+            key={asset.assetId}
+            name={asset.asset}
+            source="kas"
+            isVerified={asset.isVerifiedDomain}
+            onClick={() => navigate(`/kns/${asset.assetId}`)}
+          />
         )),
       )}
 
@@ -73,18 +80,25 @@ export default function Names() {
         Array.from({ length: 2 }).map((_, index) => (
           <div
             key={index}
-            className="min-h-[72px] animate-pulse cursor-pointer rounded-xl border border-daintree-700 bg-daintree-800 p-3"
+            className="h-[120px] w-[104px] shrink-0 animate-pulse rounded-[12px] border border-daintree-700 bg-daintree-800"
           />
         ))}
 
       {insDomains.map((name) => (
-        <INSItem key={name} name={name} />
+        // No isVerified: INS exposes no verification flag, so the badge must
+        // stay absent rather than assert "verified" for every INS name.
+        <NameCard
+          key={name}
+          name={name}
+          source="igra"
+          onClick={() => navigate(`/ins/${name}`)}
+        />
       ))}
 
-      <div ref={sentinelRef} className="h-1" />
+      <div ref={sentinelRef} className="h-1 w-full" />
 
       {isKnsLoading && !knsFirstLoading && (
-        <div className="flex justify-center py-2">
+        <div className="flex w-full justify-center py-2">
           <div
             className="inline-block size-6 animate-spin rounded-full border-[6px] border-current border-t-[#A2F5FF] text-icy-blue-600"
             role="status"
