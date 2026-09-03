@@ -256,6 +256,7 @@ function TransferDetails({
           ? "You cannot send this name to yourself"
           : undefined
       }
+      checkContractRecipient
       onNext={onNext}
       onBack={onBack}
     />
@@ -405,6 +406,9 @@ function TransferConfirm({
 
     const transferOutcome = await awaitReceipt(transferTx);
     if (transferOutcome === "success") {
+      // Confirmed: the cached owner is now stale, same as the setTarget leg
+      // above.
+      await refresh();
       setPhase({
         step: "success",
         txs: setTargetTx ? [setTargetTx, transferTx] : [transferTx],

@@ -48,7 +48,10 @@ export default function Names() {
 
   return (
     <div className="flex flex-wrap gap-[12px] pb-4">
-      {isEmpty && (
+      {/* isEmpty itself stays KNS-only (see above) -- this extra gate just
+          keeps the message from rendering underneath the skeletons below,
+          which key off both sources. */}
+      {isEmpty && !isKnsLoading && !isInsLoading && (
         <div className="flex w-full justify-center py-6 text-sm text-daintree-400">
           No names found
         </div>

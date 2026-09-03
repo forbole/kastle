@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useFormContext } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { Hex, isAddress, zeroAddress } from "viem";
@@ -6,6 +6,7 @@ import { Tooltip } from "react-tooltip";
 import { twMerge } from "tailwind-merge";
 import Header from "@/components/GeneralHeader";
 import { textEllipsis } from "@/lib/utils";
+import { insRpcClient } from "@/lib/ins/insRegistry";
 
 export interface InsAddressFormData {
   userInput: string | undefined;
@@ -26,6 +27,12 @@ type InsAddressStepProps = {
   feeInKas: string;
   /** Screen-specific rejection, e.g. transferring a name to yourself. */
   extraValidate?: (address: Hex) => string | undefined;
+  /**
+   * Warn (not block) when the resolved address is a contract. Transfer-only:
+   * a transfer moves ownership and can be unrecoverable, a set-target only
+   * repoints routing and the owner can always set it again.
+   */
+  checkContractRecipient?: boolean;
   onNext: () => void;
   onBack: () => void;
 };
@@ -45,6 +52,7 @@ export default function InsAddressStep({
   placeholder = "Enter wallet address",
   feeInKas,
   extraValidate,
+  checkContractRecipient = false,
   onNext,
   onBack,
 }: InsAddressStepProps) {
@@ -55,7 +63,8 @@ export default function InsAddressStep({
     setValue,
     formState: { isValid, errors },
   } = useFormContext<InsAddressFormData>();
-  const { userInput } = watch();
+  const { userInput, address } = watch();
+  const [isContractRecipient, setIsContractRecipient] = useState(false);
 
   const addressValidator = (value: string | undefined) => {
     const trimmed = value?.trim() ?? "";
@@ -89,6 +98,25 @@ export default function InsAddressStep({
       setValue("address", undefined, { shouldValidate: true });
     }
   }, [userInput]);
+
+  useEffect(() => {
+    if (!checkContractRecipient || !address) {
+      setIsContractRecipient(false);
+      return;
+    }
+    let cancelled = false;
+    insRpcClient
+      .getBytecode({ address })
+      .then((bytecode) => {
+        if (!cancelled) setIsContractRecipient(!!bytecode);
+      })
+      .catch(() => {
+        if (!cancelled) setIsContractRecipient(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [checkContractRecipient, address]);
 
   return (
     <>
@@ -154,6 +182,13 @@ export default function InsAddressStep({
             </span>
           )}
         </div>
+
+        {isContractRecipient && (
+          <div className="rounded-lg border border-yellow-600 bg-yellow-900/30 px-4 py-2 text-xs text-yellow-400">
+            This address belongs to a contract. {name} will be sent there, and
+            may not be recoverable if the contract cannot handle it.
+          </div>
+        )}
 
         {/* Fee segment */}
         <div className="flex items-center justify-between gap-2 text-sm">
