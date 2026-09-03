@@ -324,6 +324,7 @@ function SetTargetDetails({
       sender={currentTarget}
       action="Route"
       inputLabel="Route to ..."
+      description={`Routing ${name} to another address means funds sent to it will be delivered there instead.`}
       feeInKas={feeInKas}
       onNext={onNext}
       onBack={onBack}

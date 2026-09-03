@@ -23,6 +23,8 @@ type InsAddressStepProps = {
   action: string;
   inputLabel?: string;
   placeholder?: string;
+  /** Neutral explainer shown above the "<action> <name> from" row. */
+  description?: string;
   /** Formatted KAS, already estimated by the caller for its own payload. */
   feeInKas: string;
   /** Screen-specific rejection, e.g. transferring a name to yourself. */
@@ -50,6 +52,7 @@ export default function InsAddressStep({
   action,
   inputLabel = "To ...",
   placeholder = "Enter wallet address",
+  description,
   feeInKas,
   extraValidate,
   checkContractRecipient = false,
@@ -127,6 +130,11 @@ export default function InsAddressStep({
       />
 
       <div className="relative flex h-full flex-col gap-4">
+        {description && (
+          <p className="text-sm leading-relaxed text-daintree-400">
+            {description}
+          </p>
+        )}
         <div className="flex items-center justify-between">
           <label className="flex gap-1 text-base font-medium">
             <span>{action}</span>
