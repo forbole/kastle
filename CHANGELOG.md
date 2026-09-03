@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.60.0](https://github.com/forbole/kastle/compare/v2.59.8...v2.60.0) (2026-09-03)
+
+
+### Features
+
+* **ins:** verify .igra names on-chain and transfer them without stranding the routing target ([#334](https://github.com/forbole/kastle/issues/334)) ([cc9b5e4](https://github.com/forbole/kastle/commit/cc9b5e41435ff288aeb7f2cd489ce1eb7800920f))
+* **names:** render KNS and INS names as design-spec cards ([#332](https://github.com/forbole/kastle/issues/332)) ([63dbc49](https://github.com/forbole/kastle/commit/63dbc49a6716d6e24a672b4b174f571f13e5fbac))
+
 ## [2.59.8](https://github.com/forbole/kastle/compare/v2.59.7...v2.59.8) (2026-08-28)
 
 
