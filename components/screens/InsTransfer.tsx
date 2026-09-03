@@ -16,7 +16,7 @@ import useEvmHotWalletSigner from "@/hooks/wallet/useEvmHotWalletSigner";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { sendEvmTransaction } from "@/lib/ethereum/transaction";
 import { toInsLabel } from "@/lib/ins/insRegistry";
-import { formatCurrency, textEllipsis } from "@/lib/utils";
+import { formatCurrency, formatFeeInKas, textEllipsis } from "@/lib/utils";
 import useCurrencyValue from "@/hooks/useCurrencyValue";
 import useKaspaPrice from "@/hooks/useKaspaPrice";
 import carriageImage from "@/assets/images/carriage.png";
@@ -232,7 +232,7 @@ function useTransferFees(record: InsOnChainRecord, name: string) {
     feeInKas:
       transfer.data === undefined || setTargetUnpriced
         ? "—"
-        : formatEther(total),
+        : formatFeeInKas(Number(formatEther(total))),
   };
 }
 

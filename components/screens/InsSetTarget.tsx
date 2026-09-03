@@ -25,7 +25,7 @@ import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { sendEvmTransaction } from "@/lib/ethereum/transaction";
 import { TARGET_ABI, toInsLabel } from "@/lib/ins/insRegistry";
 import { igraMainnet } from "@/lib/layer2";
-import { formatCurrency, textEllipsis } from "@/lib/utils";
+import { formatCurrency, formatFeeInKas, textEllipsis } from "@/lib/utils";
 import useCurrencyValue from "@/hooks/useCurrencyValue";
 import useKaspaPrice from "@/hooks/useKaspaPrice";
 import signImage from "@/assets/images/sign.png";
@@ -301,7 +301,10 @@ function useSetTargetFee(name: string, target: `0x${string}` | undefined) {
     error,
     // No estimate yet is not a zero fee: quoting 0 next to a $0.00 fiat value
     // reads as a free transaction. Show nothing until the estimate lands.
-    feeInKas: estimatedFee === undefined ? "—" : formatEther(estimatedFee),
+    feeInKas:
+      estimatedFee === undefined
+        ? "—"
+        : formatFeeInKas(Number(formatEther(estimatedFee))),
   };
 }
 

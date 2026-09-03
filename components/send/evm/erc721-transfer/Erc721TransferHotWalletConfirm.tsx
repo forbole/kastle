@@ -8,7 +8,7 @@ import { encodeFunctionData, erc721Abi, isAddress } from "viem";
 import useFeeEstimate from "@/hooks/evm/useFeeEstimate";
 import signImage from "@/assets/images/sign.png";
 import useErc721Info from "@/hooks/evm/useErc721Info";
-import { formatCurrency, textEllipsis } from "@/lib/utils";
+import { formatCurrency, formatToken, textEllipsis } from "@/lib/utils";
 import useCurrencyValue from "@/hooks/useCurrencyValue";
 import useKaspaPrice from "@/hooks/useKaspaPrice";
 import { useState } from "react";
@@ -66,7 +66,7 @@ export default function Erc721TransferHotWalletConfirm({
     chainId,
     payload,
   );
-  const feeInKas = formatEther(estimatedFee ?? 0n);
+  const feeInKas = formatToken(parseFloat(formatEther(estimatedFee ?? 0n)));
   const kaspaPrice = useKaspaPrice().kaspaPrice;
   const { amount: feesCurrency, code: feesCurrencyCode } = useCurrencyValue(
     estimatedFee ? parseFloat(feeInKas) * kaspaPrice : 0,

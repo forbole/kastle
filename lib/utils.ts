@@ -79,6 +79,19 @@ export function formatToken(number: number, maximumFractionDigits: number = 8) {
   return formatter.format(number);
 }
 
+// Rounding to maximumFractionDigits alone turns a nonzero fee below that
+// resolution into "0", which reads as free. Floor it to "<0.00001" instead.
+export function formatFeeInKas(
+  amount: number,
+  maximumFractionDigits: number = 5,
+) {
+  const floor = 1 / 10 ** maximumFractionDigits;
+  if (amount > 0 && amount < floor) {
+    return `<${floor}`;
+  }
+  return formatToken(amount, maximumFractionDigits);
+}
+
 export function truncToDecimals(number: number, decimals: number) {
   const factor = Math.pow(10, decimals);
   return Math.floor(number * factor) / factor;
