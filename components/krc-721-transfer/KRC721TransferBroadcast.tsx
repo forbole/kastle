@@ -62,7 +62,7 @@ export default function KRC721TransferBroadcast({
         },
       )) {
         if (result.status === "completed") {
-          setOutTxs([result.commitTxId!, result.revealTxId!]);
+          setOutTxs([result.commitTxId, ...result.revealTxIds]);
         }
       }
 

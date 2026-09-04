@@ -93,12 +93,14 @@ export default function HotWalletCommitReveal({
       let response: {
         commitTxId?: string;
         revealTxId?: string;
+        revealTxIds?: string[];
       } = {};
       for await (const result of commitResultPerform) {
         setStep(result.status);
         response = {
           commitTxId: result.commitTxId,
           revealTxId: result.revealTxId,
+          revealTxIds: result.revealTxIds,
         };
       }
 
