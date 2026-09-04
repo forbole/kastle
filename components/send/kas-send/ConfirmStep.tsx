@@ -17,6 +17,12 @@ import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 import { createTransactions } from "@/wasm/core/kaspa";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import { signAndSubmitBatch } from "@/lib/wallet/transaction-batch";
+import { isFragmentationError } from "@/lib/kaspa.ts";
+
+// Shown on the fail screen instead of the generic copy. The Generator cannot
+// build the transfer at all (see isFragmentationError); nothing was broadcast.
+export const FRAGMENTATION_FAIL_REASON =
+  "This amount plus the network fee doesn't fit your balance — usually because it is spread across many small UTXOs. Try a smaller amount.";
 
 export const ConfirmStep = ({
   onNext,
@@ -27,7 +33,7 @@ export const ConfirmStep = ({
 }: {
   onNext: () => void;
   onBack: () => void;
-  onFail: () => void;
+  onFail: (reason?: string) => void;
   setOutTxs: (value: string[] | undefined) => void;
   walletSigner?: IWalletWithGetAddress;
 }) => {
@@ -87,7 +93,9 @@ export const ConfirmStep = ({
             amount: kaspaToSompi(amount) ?? BigInt(0),
           },
         ],
-        priorityFee: 0n,
+        // The Generator adds this once, on the final (payment) transaction of a
+        // batch — measured, not multiplied per transaction.
+        priorityFee,
         changeAddress: await signer.getAddress(),
         networkId: networkId,
       });
@@ -115,7 +123,7 @@ export const ConfirmStep = ({
     } catch (e) {
       captureException(e);
       console.error(e);
-      onFail();
+      onFail(isFragmentationError(e) ? FRAGMENTATION_FAIL_REASON : undefined);
     } finally {
       setIsSigning(false);
       setBatchProgress(null);

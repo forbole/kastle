@@ -42,6 +42,7 @@ export enum RpcErrorCode {
   INTERNAL_ERROR = 5000,
   INVALID_PARAMS = -32602,
   TIMEOUT = -320603,
+  BATCH_REQUIRED = 4300,
 }
 
 export const RPC_ERRORS = {
@@ -73,6 +74,15 @@ export const RPC_ERRORS = {
   INVALID_PARAMS: RpcErrorSchema.parse({
     code: RpcErrorCode.INVALID_PARAMS,
     message: "Invalid params",
+  }),
+  // A fragmented UTXO set makes the Generator return a daisy-chained batch
+  // (compounding transactions first, the payment last). sendKaspa and
+  // compoundUtxos can sign exactly one transaction and return one id, so they
+  // refuse the batch rather than broadcast only its first, non-paying element.
+  BATCH_REQUIRED: RpcErrorSchema.parse({
+    code: RpcErrorCode.BATCH_REQUIRED,
+    message:
+      "This transfer needs more than one transaction because the account's UTXOs are fragmented, and this method signs exactly one. Call kastle.buildTransaction() and pass each returned transaction, in order, to kastle.signAndBroadcastTx().",
   }),
 };
 

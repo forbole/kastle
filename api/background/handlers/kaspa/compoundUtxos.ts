@@ -1,5 +1,5 @@
 import { ApiUtils, Handler } from "@/api/background/utils";
-import { ApiRequestWithHost } from "@/api/message";
+import { ApiRequestWithHost, RPC_ERRORS } from "@/api/message";
 import { z } from "zod";
 import { createTransactions } from "@/wasm/core/kaspa";
 import { SignTxPayloadSchema } from "./utils";
@@ -116,6 +116,15 @@ export const compoundUtxosHandler: Handler = async (
           null,
           "Failed to build compound transaction",
         ),
+      );
+      return;
+    }
+
+    // Fail closed: the popup signs one transaction, and [0] of a batch is only
+    // a partial compaction reported as the whole.
+    if (pendingTxs.length > 1) {
+      sendResponse(
+        ApiUtils.createApiResponse(message.id, null, RPC_ERRORS.BATCH_REQUIRED),
       );
       return;
     }

@@ -5,7 +5,7 @@ type HotWalletConfirmProps = {
   onNext: () => void;
   onBack: () => void;
   setOutTxs: (value: string[] | undefined) => void;
-  onFail: () => void;
+  onFail: (reason?: string) => void;
 };
 
 export default function HotWalletConfirm({

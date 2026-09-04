@@ -1,4 +1,4 @@
-import { ApiRequestWithHost } from "@/api/message";
+import { ApiRequestWithHost, RPC_ERRORS } from "@/api/message";
 import { z } from "zod";
 import { ApiUtils } from "@/api/background/utils";
 import { Address, kaspaToSompi, createTransactions } from "@/wasm/core/kaspa";
@@ -143,6 +143,15 @@ export async function sendSompiHandler(
           null,
           "Failed to create transaction",
         ),
+      );
+      return;
+    }
+
+    // Fail closed: the popup signs one transaction, and [0] of a batch is a
+    // compounding transaction that pays the recipient nothing.
+    if (pendingTxs.length > 1) {
+      sendResponse(
+        ApiUtils.createApiResponse(message.id, null, RPC_ERRORS.BATCH_REQUIRED),
       );
       return;
     }
