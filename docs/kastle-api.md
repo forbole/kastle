@@ -441,6 +441,7 @@ const result = await kastle.commitReveal(
 );
 console.log("Commit Tx ID:", result.commitTxId);
 console.log("Reveal Tx ID:", result.revealTxId);
+console.log("All reveal Tx IDs:", result.revealTxIds);
 ```
 
 **KIP-style**
@@ -461,6 +462,14 @@ const result = await kastle.request("kas:commit_reveal", {
 console.log("Commit Tx ID:", result.commitTxId);
 console.log("Reveal Tx ID:", result.revealTxId);
 ```
+
+**Return value**
+
+| Field         | Type       | Description                                                                                                                                                                                                        |
+| ------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `commitTxId`  | `string`   | The commit transaction.                                                                                                                                                                                            |
+| `revealTxId`  | `string`   | The reveal transaction that carries the inscription payment and `revealPriorityFee`. When the wallet's UTXO set is fragmented the reveal is broadcast as a chain of transactions; this is always the **last** one. |
+| `revealTxIds` | `string[]` | Every reveal transaction in broadcast order, ending with `revealTxId`. Usually one element. **Available since:** Extension `2.61.0` · Mobile — not yet (absent on older versions, so treat it as optional).        |
 
 ---
 
@@ -543,7 +552,7 @@ kastle.removeListener("accountsChanged", myHandler);
 | `kastle.signAndBroadcastTx(networkId, txJson, scripts?)` | `kas:sign_and_broadcast_tx`  | `string` (txId)                                     |
 | `kastle.signTx(networkId, txJson, scripts?)`             | `kas:sign_tx`                | `string` (signed txJson)                            |
 | `kastle.signMessage(message)`                            | `kas:sign_message`           | `string` (signature)                                |
-| `kastle.commitReveal(networkId, namespace, data, opts?)` | `kas:commit_reveal`          | `{ commitTxId, revealTxId }`                        |
+| `kastle.commitReveal(networkId, namespace, data, opts?)` | `kas:commit_reveal`          | `{ commitTxId, revealTxId, revealTxIds? }`          |
 | `kastle.compoundUtxos(opts?)`                            | `kas:compound_utxos`         | `string` (txId)                                     |
 
 ---

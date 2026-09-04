@@ -256,7 +256,13 @@ export class KastleBrowserAPI {
     namespace: string,
     data: string,
     options?: { revealPriorityFee?: string },
-  ): Promise<{ commitTxId: string; revealTxId: string }> {
+  ): Promise<{
+    commitTxId: string;
+    // The last reveal transaction. The reveal is a batch when the wallet's
+    // UTXO set is fragmented; `revealTxIds` lists every one, in order.
+    revealTxId: string;
+    revealTxIds?: string[];
+  }> {
     const requestId = uuid();
     const request = createApiRequest(Action.COMMIT_REVEAL, requestId, {
       networkId,
