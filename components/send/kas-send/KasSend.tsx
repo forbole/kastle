@@ -59,6 +59,7 @@ export default function KasSend() {
     mode: "onChange",
   });
   const [outTxs, setOutTxs] = useState<string[]>();
+  const [failReason, setFailReason] = useState<string>();
 
   const onBack = () => {
     setStep((prevState) => {
@@ -82,7 +83,8 @@ export default function KasSend() {
             onNext={() => setStep("broadcast")}
             onBack={onBack}
             setOutTxs={setOutTxs}
-            onFail={() => {
+            onFail={(reason) => {
+              setFailReason(reason);
               emitSendCompleted({
                 type: "KAS",
                 id: "KAS",
@@ -98,7 +100,8 @@ export default function KasSend() {
             onNext={() => setStep("broadcast")}
             onBack={onBack}
             setOutTxs={setOutTxs}
-            onFail={() => {
+            onFail={(reason) => {
+              setFailReason(reason);
               emitSendCompleted({
                 type: "KAS",
                 id: "KAS",
@@ -131,7 +134,9 @@ export default function KasSend() {
           />
         )}
         {step === "success" && <SuccessStatus transactionIds={outTxs} />}
-        {step === "fail" && <FailStatus transactionIds={outTxs} />}
+        {step === "fail" && (
+          <FailStatus transactionIds={outTxs} reason={failReason} />
+        )}
       </FormProvider>
     </div>
   );

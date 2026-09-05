@@ -75,10 +75,14 @@ document
         networkId: network,
       });
 
-      const transaction = pending.transactions[0];
-      const txJson = transaction.serializeToSafeJSON();
-
-      const txId = await kastle.signAndBroadcastTx(network, txJson);
+      // A fragmented UTXO set makes createTransactions return a batch:
+      // compounding transactions first, the payment last. Every one must be
+      // signed and broadcast, in order — [0] alone pays the recipient nothing.
+      let txId;
+      for (const transaction of pending.transactions) {
+        const txJson = transaction.serializeToSafeJSON();
+        txId = await kastle.signAndBroadcastTx(network, txJson);
+      }
       document.getElementById("txId").innerText = txId;
     } catch (error) {
       document.getElementById("error").innerText = error.message;
@@ -173,10 +177,12 @@ async function commitTransaction(P2SHAddress) {
       networkId: network,
     });
 
-    const transaction = pending.transactions[0];
-    const txJson = transaction.serializeToSafeJSON();
-
-    const commitTxId = await kastle.signAndBroadcastTx(network, txJson);
+    // Sign and broadcast the whole batch, in order; the commit is the last one.
+    let commitTxId;
+    for (const transaction of pending.transactions) {
+      const txJson = transaction.serializeToSafeJSON();
+      commitTxId = await kastle.signAndBroadcastTx(network, txJson);
+    }
     return commitTxId;
   } finally {
     rpc.disconnect();
@@ -214,14 +220,18 @@ async function revealTransaction(
       networkId: network,
     });
 
-    const transaction = pending.transactions[0];
-    const txJson = transaction.serializeToSafeJSON();
-
-    const revealTxId = await kastle.signAndBroadcastTx(
-      network,
-      txJson,
-      scripts,
-    );
+    // The pinned P2SH entry is always input 0 of the FIRST transaction, so only
+    // that one is signed with the redeem script; any further transactions in
+    // the batch spend plain wallet UTXOs and are signed normally.
+    let revealTxId;
+    for (const [i, transaction] of pending.transactions.entries()) {
+      const txJson = transaction.serializeToSafeJSON();
+      revealTxId = await kastle.signAndBroadcastTx(
+        network,
+        txJson,
+        i === 0 ? scripts : undefined,
+      );
+    }
     return revealTxId;
   } finally {
     if (shouldDisconnect) rpc.disconnect();
