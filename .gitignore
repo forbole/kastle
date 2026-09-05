@@ -44,3 +44,6 @@ data/teachings.json
 __pycache__/
 *.py[cod]
 .pytest_cache/
+
+# Untracked scratch mirror (breaks tsc if left unignored)
+prtriage/
