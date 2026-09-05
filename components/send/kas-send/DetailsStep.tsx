@@ -9,7 +9,7 @@ import { Tooltip } from "react-tooltip";
 import { Address, sompiToKaspaString } from "@/wasm/core/kaspa";
 import { useKasFeeEstimate } from "@/hooks/useKasFeeEstimate";
 import { useFindMax } from "@/hooks/useFindMax";
-import { MIN_KAS_AMOUNT } from "@/lib/kaspa.ts";
+import { MAX_SEND_RESERVE_KAS, MIN_KAS_AMOUNT } from "@/lib/kaspa.ts";
 import { useFormContext } from "react-hook-form";
 import { twMerge } from "tailwind-merge";
 import spinner from "@/assets/images/spinner.svg";
@@ -66,11 +66,25 @@ export function DetailsStep({
 
   const feeSompi = BigInt(baseFee ?? 0) + priorityFee;
   const feeKas = parseFloat(sompiToKaspaString(feeSompi));
+  const priorityFeeKas = parseFloat(sompiToKaspaString(priorityFee));
+  // Max sends balance − floor. `baseFee` is the estimate for a one-input send
+  // and does not grow with the wallet; the real Max send spends every UTXO.
+  // Measured against assets/kaspa_bg.wasm (2.0.1): the Generator charges up
+  // to 0.19931 KAS for that at 174 UTXOs (the most it builds at all,
+  // rusty-kaspa#701) and needs ≥0.1 KAS of change to stay under the storage
+  // mass limit, at every wallet size tried (100 KAS … 30,050 KAS). 0.3 KAS
+  // covers both with ~70,000 sompi to spare, so the priority fee has to sit
+  // on top of the floor, not inside it: at 0.3 flat the largest priority fee
+  // that still builds at 174 UTXOs is 69,955 sompi (feerate ~22 of the
+  // 1 … 1000 the buckets span); the high bucket fails from ~150 UTXOs.
   const findMax = useFindMax({
     balance: currentBalance,
     subtrahend: feeKas,
-    minSubtrahend: 0.3,
+    minSubtrahend: MAX_SEND_RESERVE_KAS + priorityFeeKas,
   });
+  // ponytail: local state, so Back from Confirm forgets that Max was tapped;
+  // put it on KasSendForm if that ever matters.
+  const [isMaxSelected, setIsMaxSelected] = useState(false);
 
   const amountValidator = async (value: string | undefined) => {
     const amountNumber = parseFloat(value ?? "0");
@@ -137,8 +151,21 @@ export function DetailsStep({
   };
 
   const selectMaxAmount = () => {
+    setIsMaxSelected(true);
     setValue("amount", findMax(), { shouldValidate: true });
   };
+
+  // `findMax` changes with the balance, the fee estimate and the priority
+  // bucket. A Max amount follows it; a typed amount is re-checked against the
+  // new fee (setValue(priorityFee, { shouldValidate }) would only validate the
+  // priorityFee field, which has no rules).
+  useEffect(() => {
+    if (isMaxSelected) {
+      setValue("amount", findMax(), { shouldValidate: true });
+    } else if (amount) {
+      void trigger("amount");
+    }
+  }, [findMax]);
 
   const navigateToNextStep = () => onNext();
 
@@ -299,6 +326,7 @@ export function DetailsStep({
                   required: true,
                   validate: amountValidator,
                   onChange: (event) => {
+                    setIsMaxSelected(false);
                     const [int, dec] = event.target.value.split(".");
 
                     if (!!dec && dec !== "") {
@@ -336,6 +364,7 @@ export function DetailsStep({
               <input
                 {...register("amountFiat", {
                   onChange: async (event) => {
+                    setIsMaxSelected(false);
                     const amountUsdNumber = parseFloat(
                       event.target.value ?? "0",
                     );

@@ -76,6 +76,12 @@ export const isFragmentationError = (error: unknown) =>
     String(error),
   );
 
+// What a Max send keeps back, before the priority fee: the Generator's fee for
+// spending every UTXO (0.19931 KAS at 174, the most it builds) plus the ~0.1 KAS
+// of change the storage mass limit demands. Measured against
+// assets/kaspa_bg.wasm; tests/generator-errors-unit.spec.ts pins it.
+export const MAX_SEND_RESERVE_KAS = 0.3;
+
 // Sending amount must be greater than 0.2 KAS as KIP-0009 standard requires
 // https://github.com/kaspanet/kips/blob/master/kip-0009.md
 export const MIN_KAS_AMOUNT = 0.2;

@@ -7,7 +7,7 @@ import init, {
   createTransactions,
   payToAddressScript,
 } from "@/wasm/core/kaspa";
-import { isFragmentationError } from "@/lib/kaspa";
+import { isFragmentationError, MAX_SEND_RESERVE_KAS } from "@/lib/kaspa";
 
 const TESTS_DIR = path.dirname(fileURLToPath(import.meta.url));
 
@@ -29,9 +29,18 @@ test.describe("Generator fragmentation errors (B3)", () => {
   const KEY_B =
     "c90fdaa22168c234c4c6628b80dc1cd129024e088a67cc74020bbea63b14e5c9";
   const TOTAL = 300_500_000_000n; // 3005 KAS
-  const MIN_SUBTRAHEND = 30_000_000n; // 0.3 KAS, useFindMax's floor
+  const RESERVE = BigInt(Math.round(MAX_SEND_RESERVE_KAS * 1e8));
+  // DetailsStep: priorityFee = feerate × baseFee / 100, baseFee measured at
+  // 315,400 sompi for the estimate's one-input shape; feerate 1 … 1000.
+  const LOW_PRIORITY_FEE = 3_154n;
+  const HIGH_PRIORITY_FEE = 3_154_000n;
 
-  const sendMax = async (utxoCount: number) => {
+  // What DetailsStep's Max produces: amount = balance − (reserve + priorityFee).
+  const sendMax = async (
+    utxoCount: number,
+    priorityFee = 0n,
+    subtrahend = RESERVE + priorityFee,
+  ) => {
     const sender = new PrivateKey(KEY_A).toPublicKey().toAddress("mainnet");
     const dest = new PrivateKey(KEY_B).toPublicKey().toAddress("mainnet");
     const each = TOTAL / BigInt(utxoCount);
@@ -45,8 +54,8 @@ test.describe("Generator fragmentation errors (B3)", () => {
         blockDaaScore: 1_000n,
         isCoinbase: false,
       })),
-      outputs: [{ address: dest.toString(), amount: TOTAL - MIN_SUBTRAHEND }],
-      priorityFee: 0n,
+      outputs: [{ address: dest.toString(), amount: TOTAL - subtrahend }],
+      priorityFee,
       changeAddress: sender.toString(),
       networkId: "mainnet",
     });
@@ -55,6 +64,32 @@ test.describe("Generator fragmentation errors (B3)", () => {
   test("174 UTXOs still builds", async () => {
     const { transactions } = await sendMax(174);
     expect(transactions.length).toBeGreaterThan(0);
+  });
+
+  // The reserve alone covers the Generator's fee for 174 inputs (19,931,000
+  // sompi) plus the ≥0.1 KAS change the storage mass limit needs, with
+  // ~70,000 sompi to spare. A priority fee inside the reserve eats that.
+  test("Max at 174 UTXOs builds with the priority fee on top of the reserve", async () => {
+    for (const priorityFee of [LOW_PRIORITY_FEE, HIGH_PRIORITY_FEE]) {
+      const { transactions, summary } = await sendMax(174, priorityFee);
+      expect(transactions.length).toBeGreaterThan(0);
+      // The priority fee is paid, once, by the final (payment) transaction.
+      expect(transactions[transactions.length - 1].feeAmount).toBeGreaterThan(
+        priorityFee,
+      );
+      expect(summary.fees).toBeGreaterThanOrEqual(19_931_000n + priorityFee);
+    }
+  });
+
+  test("Max at 174 UTXOs fails with the priority fee inside the reserve (the cliff)", async () => {
+    const error = await sendMax(174, HIGH_PRIORITY_FEE, RESERVE).then(
+      () => undefined,
+      (e: unknown) => e,
+    );
+    // Measured: 69,955 sompi is the last priority fee that builds at 0.3 flat;
+    // 69,956 throws "Mass calculation error", the high bucket this.
+    expect(String(error)).toContain("Storage mass exceeds maximum");
+    expect(isFragmentationError(error)).toBe(true);
   });
 
   for (const [utxoCount, expected] of [
