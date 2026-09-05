@@ -469,7 +469,7 @@ console.log("Reveal Tx ID:", result.revealTxId);
 | ------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `commitTxId`  | `string`   | The commit transaction.                                                                                                                                                                                            |
 | `revealTxId`  | `string`   | The reveal transaction that carries the inscription payment and `revealPriorityFee`. When the wallet's UTXO set is fragmented the reveal is broadcast as a chain of transactions; this is always the **last** one. |
-| `revealTxIds` | `string[]` | Every reveal transaction in broadcast order, ending with `revealTxId`. Usually one element. **Available since:** Extension `2.61.0` · Mobile — not yet (absent on older versions, so treat it as optional).        |
+| `revealTxIds` | `string[]` | Every reveal transaction in broadcast order, ending with `revealTxId`. Usually one element. **Available since:** Extension `2.60.1` · Mobile — not yet (absent on older versions, so treat it as optional).        |
 
 ---
 

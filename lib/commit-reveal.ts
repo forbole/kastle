@@ -44,6 +44,19 @@ export class RevealBroadcastError extends Error {
   }
 }
 
+/**
+ * What is on-chain, and paid for, when `perform` throws: the commit once the
+ * "revealing" status was seen, plus any reveal transactions a
+ * `RevealBroadcastError` reports. Empty means nothing was broadcast.
+ */
+export const broadcastBeforeFailure = (
+  commitTxId: string | undefined,
+  error: unknown,
+): string[] => [
+  ...(commitTxId ? [commitTxId] : []),
+  ...(error instanceof RevealBroadcastError ? error.transactionIds : []),
+];
+
 export class CommitRevealHelper {
   constructor(
     private readonly signer: IWallet,
@@ -69,14 +82,18 @@ export class CommitRevealHelper {
     // Pre-flight: prove the reveal is buildable BEFORE anything is broadcast.
     // Every reveal-leg throw after the commit strands the 0.3 KAS script UTXO
     // at a P2SH the wallet keeps no record of.
-    await this.preflightReveal(p2SHAddress, revealPriorityFee, extraOutputs);
+    const commit = await this.preflightReveal(
+      p2SHAddress,
+      revealPriorityFee,
+      extraOutputs,
+    );
 
     yield {
       status: "committing" as const,
     };
 
     const { transactionId: commitTxId, confirm: commitTxIdConfirm } =
-      await this.commitScript(p2SHAddress.toString());
+      await this.commitScript(p2SHAddress.toString(), commit);
 
     // Wait for the commit transaction to be added to the UTXO set of the address
     // TODO: yield failed status and retry if timeout
@@ -148,12 +165,17 @@ export class CommitRevealHelper {
    * ("Insufficient funds", "Mass calculation error", "Storage mass exceeds
    * maximum", …) or the mass-headroom error, so the caller fails before the
    * commit instead of after it.
+   *
+   * Returns the commit it modeled. That exact transaction is what gets
+   * broadcast: rebuilding it from a fresh UTXO snapshot could yield a batch
+   * (whose [0] pays the P2SH nothing) or a different id than the one the
+   * predicted reveal entries were derived from.
    */
   private async preflightReveal(
     p2SHAddress: Address,
     priorityFee: string,
     extraOutputs: PaymentOutput[],
-  ) {
+  ): Promise<PendingTransaction> {
     const address = await this.userAddress();
     const { entries } = await this.rpcClient.getUtxosByAddresses([address]);
 
@@ -235,6 +257,8 @@ export class CommitRevealHelper {
         `Reveal transaction cannot be built, nothing was committed: ${errorMessage(e)}`,
       );
     }
+
+    return commitTxs[0];
   }
 
   private async findScriptUtxo(p2SHAddress: string, commitTxId: string) {
@@ -258,22 +282,9 @@ export class CommitRevealHelper {
     throw new Error("Could not find script UTXO");
   }
 
-  private async commitScript(p2SHAddress: string) {
-    const address = (await this.signer.getPublicKey()).toAddress(
-      this.networkId,
-    );
-
-    // Create the commit transaction
-    const { entries } = await this.rpcClient.getUtxosByAddresses({
-      addresses: [address.toString()],
-    });
-    const { transactions: pendingTxs } = await this.createCommitTransactions(
-      entries,
-      address.toString(),
-      p2SHAddress,
-    );
-
-    const pending = pendingTxs[0];
+  // Signs and submits the commit the pre-flight built. If the UTXO set moved
+  // in between, the node rejects it (spent outpoint) and nothing has landed.
+  private async commitScript(p2SHAddress: string, pending: PendingTransaction) {
     const signedTx = await this.signer.signTx(pending.transaction);
 
     // Register the waiting callback for the transaction confirmation

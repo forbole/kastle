@@ -10,6 +10,7 @@ import useWalletManager from "@/hooks/wallet/useWalletManager";
 import Header from "@/components/GeneralHeader.tsx";
 import carriageImage from "@/assets/images/carriage.png";
 import useKaspaHotWalletSigner from "@/hooks/wallet/useKaspaHotWalletSigner";
+import { broadcastBeforeFailure } from "@/lib/commit-reveal";
 
 interface KNSTransferBroadcastProps {
   setOutTxs: (value: string[] | undefined) => void;
@@ -32,6 +33,7 @@ export default function KNSTransferBroadcast({
   const walletSigner = useKaspaHotWalletSigner();
 
   const broadcastOperation = async () => {
+    let commitTxId: string | undefined;
     try {
       if (!walletSigner) {
         throw new Error("Wallet signer is not initialized");
@@ -61,6 +63,7 @@ export default function KNSTransferBroadcast({
           to: address,
         },
       )) {
+        commitTxId = result.commitTxId ?? commitTxId;
         if (result.status === "completed") {
           setOutTxs([result.commitTxId, ...result.revealTxIds]);
         }
@@ -82,6 +85,10 @@ export default function KNSTransferBroadcast({
     } catch (e) {
       captureException(e);
       console.error(e);
+      // A mid-batch failure leaves real, paid-for transactions on-chain; the
+      // fail screen lists them.
+      const landed = broadcastBeforeFailure(commitTxId, e);
+      if (landed.length) setOutTxs(landed);
       onFail();
     }
   };

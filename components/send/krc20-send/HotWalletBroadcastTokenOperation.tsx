@@ -8,6 +8,7 @@ import { transfer } from "@/lib/krc20.ts";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { IWallet } from "@/lib/wallet/wallet-interface";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
+import { broadcastBeforeFailure } from "@/lib/commit-reveal";
 
 type HotWalletSendingProps = {
   walletSigner: IWallet;
@@ -35,6 +36,7 @@ export default function HotWalletBroadcastTokenOperation({
       return;
     }
 
+    let commitTxId: string | undefined;
     try {
       const accountIndex = walletSettings?.selectedAccountIndex;
       if (accountIndex === null || accountIndex === undefined) {
@@ -51,6 +53,7 @@ export default function HotWalletBroadcastTokenOperation({
           to: opData.to,
         },
       )) {
+        commitTxId = result.commitTxId ?? commitTxId;
         if (result.status === "completed") {
           setOutTxs([result.commitTxId, ...result.revealTxIds]);
         }
@@ -69,6 +72,10 @@ export default function HotWalletBroadcastTokenOperation({
     } catch (e) {
       captureException(e);
       console.error(e);
+      // A mid-batch failure leaves real, paid-for transactions on-chain; the
+      // fail screen lists them.
+      const landed = broadcastBeforeFailure(commitTxId, e);
+      if (landed.length) setOutTxs(landed);
       onFail();
     }
   };

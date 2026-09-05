@@ -16,7 +16,12 @@ import init, {
 } from "@/wasm/core/kaspa";
 import { HotWalletPrivateKey } from "@/lib/wallet/account/hot-wallet-private-key";
 import { buildCommitRevealScript } from "@/lib/krc20";
-import { CommitRevealHelper, SCRIPT_UTXO_AMOUNT } from "@/lib/commit-reveal";
+import {
+  CommitRevealHelper,
+  RevealBroadcastError,
+  SCRIPT_UTXO_AMOUNT,
+  broadcastBeforeFailure,
+} from "@/lib/commit-reveal";
 import { PaymentOutput } from "@/lib/wallet/wallet-interface";
 
 const TESTS_DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -73,8 +78,11 @@ test.describe("commit-reveal over a fragmented UTXO set (B3 reveal)", () => {
       }
     }
 
+    reads: string[][] = [];
+
     async getUtxosByAddresses(arg: string[] | { addresses: string[] }) {
       const addresses = Array.isArray(arg) ? arg : arg.addresses;
+      this.reads.push(addresses);
       return {
         entries: [...this.utxos.values()].filter((entry) =>
           addresses.includes(entry.address!.toString()),
@@ -287,6 +295,57 @@ test.describe("commit-reveal over a fragmented UTXO set (B3 reveal)", () => {
           ),
       ).toBe(true);
     }
+  });
+
+  test("the commit that is broadcast is the one pre-flight modeled", async () => {
+    const { node, helper, payee, user } = setup(BATCHING_COUNT, BATCHING_TOTAL);
+
+    const yielded = await run(helper, "1000", [
+      { address: payee.toString(), amount: "20" },
+    ]);
+    const completed = completedOf(yielded);
+
+    // The wallet is read once before the commit (pre-flight) and once for
+    // the reveal; the commit leg no longer re-fetches, so it cannot build
+    // from a snapshot other than the one the reveal was pre-flighted on.
+    const userReads = node.reads.filter((a) => a.includes(user.toString()));
+    expect(userReads.length).toBe(2);
+    expect(node.submitted[0].id).toBe(completed.commitTxId);
+    expect(paidTo(node.submitted, payee)).toBe(kaspaToSompi("20")!);
+  });
+
+  test("a mid-batch broadcast failure reports what landed", async () => {
+    const { node, helper, payee } = setup(BATCHING_COUNT, BATCHING_TOTAL);
+    node.rejectOnce = () =>
+      node.submitted.length === 2
+        ? new Error("Rejected transaction: bad-txns-inputs-missingorspent")
+        : undefined;
+
+    let commitTxId: string | undefined;
+    const error = await (async () => {
+      for await (const result of helper.perform("1000", [
+        { address: payee.toString(), amount: "20" },
+      ])) {
+        commitTxId = result.commitTxId ?? commitTxId;
+      }
+    })().then(
+      () => undefined,
+      (e: unknown) => e,
+    );
+
+    expect(error).toBeInstanceOf(RevealBroadcastError);
+    const broadcastError = error as RevealBroadcastError;
+    const [commit, firstReveal] = node.submitted;
+    expect(node.submitted.length).toBe(2);
+    expect(broadcastError.transactionIds).toEqual([firstReveal.id]);
+    expect(broadcastError.total).toBeGreaterThan(1);
+    // What the fail screens and the dApp error name: commit first, then the
+    // reveals that landed.
+    expect(broadcastBeforeFailure(commitTxId, error)).toEqual([
+      commit.id,
+      firstReveal.id,
+    ]);
+    expect(broadcastBeforeFailure(undefined, new Error("x"))).toEqual([]);
   });
 
   test("an orphan reject resumes at the same transaction, never rebuilds", async () => {
