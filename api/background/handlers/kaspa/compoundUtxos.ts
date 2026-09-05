@@ -98,9 +98,12 @@ export const compoundUtxosHandler: Handler = async (
       return;
     }
 
-    // Build a compounding transaction with no explicit outputs.
-    // createTransactions will consolidate all UTXOs and return the net
-    // amount (total minus fees) to changeAddress automatically.
+    // This does not compound. Measured against assets/kaspa_bg.wasm at 2 to
+    // 1000 UTXOs: with `outputs: []` and a priorityFee the Generator selects
+    // ONE input and pays it back to changeAddress minus the fee, every time.
+    // True sweep mode (omit both `outputs` and `priorityFee`) spends every
+    // UTXO and batches (90 UTXOs -> 3 transactions). Filed separately; not
+    // changed here.
     const { transactions: pendingTxs } = await createTransactions({
       entries,
       outputs: [],
@@ -120,8 +123,10 @@ export const compoundUtxosHandler: Handler = async (
       return;
     }
 
-    // Fail closed: the popup signs one transaction, and [0] of a batch is only
-    // a partial compaction reported as the whole.
+    // Unreachable with the call shape above (always one transaction, see the
+    // measurement). Kept because the popup signs exactly one transaction, and
+    // the sweep-mode fix that makes this handler compound will batch; [0] of a
+    // batch is a partial compaction reported as the whole.
     if (pendingTxs.length > 1) {
       sendResponse(
         ApiUtils.createApiResponse(message.id, null, RPC_ERRORS.BATCH_REQUIRED),
