@@ -55,7 +55,15 @@ export function DetailsStep({
     formState: { isValid, errors, validatingFields },
   } = useFormContext<KasSendForm>();
 
-  const { userInput, address, amount, domain, priority, priorityFee } = watch();
+  const {
+    userInput,
+    address,
+    amount,
+    domain,
+    priority,
+    priorityFee,
+    isMaxSelected,
+  } = watch();
   const priorityFeeEstimate = usePriorityFeeEstimate();
   const { fee: baseFee } = useKasFeeEstimate({ extraOutputCount: 1 });
 
@@ -67,24 +75,29 @@ export function DetailsStep({
   const feeSompi = BigInt(baseFee ?? 0) + priorityFee;
   const feeKas = parseFloat(sompiToKaspaString(feeSompi));
   const priorityFeeKas = parseFloat(sompiToKaspaString(priorityFee));
-  // Max sends balance − floor. `baseFee` is the estimate for a one-input send
-  // and does not grow with the wallet; the real Max send spends every UTXO.
-  // Measured against assets/kaspa_bg.wasm (2.0.1): the Generator charges up
-  // to 0.19931 KAS for that at 174 UTXOs (the most it builds at all,
-  // rusty-kaspa#701) and needs ≥0.1 KAS of change to stay under the storage
-  // mass limit, at every wallet size tried (100 KAS … 30,050 KAS). 0.3 KAS
-  // covers both with ~70,000 sompi to spare, so the priority fee has to sit
-  // on top of the floor, not inside it: at 0.3 flat the largest priority fee
-  // that still builds at 174 UTXOs is 69,955 sompi (feerate ~22 of the
-  // 1 … 1000 the buckets span); the high bucket fails from ~150 UTXOs.
+  // Max sends balance − floor. `baseFee` is useKasFeeEstimate's fee for a
+  // 1 KAS self-send built over the current UTXO set, so it does grow with
+  // fragmentation, but only with how many inputs 1 KAS takes: measured
+  // against assets/kaspa_bg.wasm (2.0.1), 203,600 sompi with one input,
+  // 315,400 with two (UTXOs of ~0.6 KAS and up, at every count tried up to
+  // 50,000), 539,000 at 0.3 KAS UTXOs, 762,600 at 0.2. The real Max send
+  // spends every UTXO: the Generator charges 19,931,000 sompi for 174 inputs
+  // (the most it builds at all, rusty-kaspa#701) and needs ~0.1 KAS of change
+  // to stay under the storage mass limit, at every wallet size tried
+  // (100 KAS … 30,050 KAS). 0.3 KAS covers both with 69,000 sompi to spare,
+  // so the priority fee has to sit on top of the floor, not inside it: at 0.3
+  // flat the largest priority fee that still builds at 174 UTXOs is 69,999
+  // sompi (feerate ~22 of the 1 … 1000 the buckets span); the high bucket
+  // fails from 147 UTXOs.
   const findMax = useFindMax({
     balance: currentBalance,
     subtrahend: feeKas,
     minSubtrahend: MAX_SEND_RESERVE_KAS + priorityFeeKas,
   });
-  // ponytail: local state, so Back from Confirm forgets that Max was tapped;
-  // put it on KasSendForm if that ever matters.
-  const [isMaxSelected, setIsMaxSelected] = useState(false);
+  // `isMaxSelected` is a form field (KasSendForm): this step unmounts on
+  // Confirm, and a Max amount built at one priority bucket must be rebuilt,
+  // not re-validated, when the user comes Back and changes the bucket.
+  const setIsMaxSelected = (value: boolean) => setValue("isMaxSelected", value);
 
   const amountValidator = async (value: string | undefined) => {
     const amountNumber = parseFloat(value ?? "0");

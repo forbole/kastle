@@ -31,7 +31,8 @@ test.describe("Generator fragmentation errors (B3)", () => {
   const TOTAL = 300_500_000_000n; // 3005 KAS
   const RESERVE = BigInt(Math.round(MAX_SEND_RESERVE_KAS * 1e8));
   // DetailsStep: priorityFee = feerate × baseFee / 100, baseFee measured at
-  // 315,400 sompi for the estimate's one-input shape; feerate 1 … 1000.
+  // 315,400 sompi for the estimate's 1 KAS self-send (two inputs at this
+  // wallet shape); feerate 1 … 1000.
   const LOW_PRIORITY_FEE = 3_154n;
   const HIGH_PRIORITY_FEE = 3_154_000n;
 
@@ -44,16 +45,20 @@ test.describe("Generator fragmentation errors (B3)", () => {
     const sender = new PrivateKey(KEY_A).toPublicKey().toAddress("mainnet");
     const dest = new PrivateKey(KEY_B).toPublicKey().toAddress("mainnet");
     const each = TOTAL / BigInt(utxoCount);
+    const entries = Array.from({ length: utxoCount }, (_unused, i) => ({
+      address: sender,
+      outpoint: { transactionId: i.toString(16).padStart(64, "0"), index: 0 },
+      amount: each,
+      scriptPublicKey: payToAddressScript(sender),
+      blockDaaScore: 1_000n,
+      isCoinbase: false,
+    }));
+    // The wallet must hold exactly TOTAL: integer division drops up to n−1
+    // sompi (44 at n=174), which would under-fund every amount derived from it.
+    entries[0].amount += TOTAL - each * BigInt(utxoCount);
 
     return createTransactions({
-      entries: Array.from({ length: utxoCount }, (_unused, i) => ({
-        address: sender,
-        outpoint: { transactionId: i.toString(16).padStart(64, "0"), index: 0 },
-        amount: each,
-        scriptPublicKey: payToAddressScript(sender),
-        blockDaaScore: 1_000n,
-        isCoinbase: false,
-      })),
+      entries,
       outputs: [{ address: dest.toString(), amount: TOTAL - subtrahend }],
       priorityFee,
       changeAddress: sender.toString(),
@@ -67,8 +72,8 @@ test.describe("Generator fragmentation errors (B3)", () => {
   });
 
   // The reserve alone covers the Generator's fee for 174 inputs (19,931,000
-  // sompi) plus the ≥0.1 KAS change the storage mass limit needs, with
-  // ~70,000 sompi to spare. A priority fee inside the reserve eats that.
+  // sompi) plus the ~0.1 KAS change the storage mass limit needs, with
+  // 69,000 sompi to spare. A priority fee inside the reserve eats that.
   test("Max at 174 UTXOs builds with the priority fee on top of the reserve", async () => {
     for (const priorityFee of [LOW_PRIORITY_FEE, HIGH_PRIORITY_FEE]) {
       const { transactions, summary } = await sendMax(174, priorityFee);
@@ -86,8 +91,8 @@ test.describe("Generator fragmentation errors (B3)", () => {
       () => undefined,
       (e: unknown) => e,
     );
-    // Measured: 69,955 sompi is the last priority fee that builds at 0.3 flat;
-    // 69,956 throws "Mass calculation error", the high bucket this.
+    // Measured: 69,999 sompi is the last priority fee that builds at 0.3 flat;
+    // 70,000 throws "Mass calculation error", the high bucket this.
     expect(String(error)).toContain("Storage mass exceeds maximum");
     expect(isFragmentationError(error)).toBe(true);
   });

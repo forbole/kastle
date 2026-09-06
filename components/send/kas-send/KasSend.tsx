@@ -24,6 +24,9 @@ export const kasSendFormSchema = z.object({
   domain: z.string().optional(),
   priority: z.enum(["low", "medium", "high"]).default("medium"),
   priorityFee: z.bigint().default(0n),
+  // Lives on the form, not in DetailsStep: DetailsStep unmounts on Confirm,
+  // and a Max amount has to keep following the fee after Back.
+  isMaxSelected: z.boolean().default(false),
 });
 
 export type KasSendForm = z.infer<typeof kasSendFormSchema>;
@@ -55,6 +58,7 @@ export default function KasSend() {
       priorityFee: 0n,
       priority: "medium",
       amount: state?.form?.amount ?? "",
+      isMaxSelected: false,
     },
     mode: "onChange",
   });

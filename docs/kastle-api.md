@@ -474,6 +474,8 @@ Consolidates all UTXOs in the current account into a single UTXO by sending the 
 
 Useful for reducing future transaction fees caused by having many small UTXOs.
 
+> **Current behaviour (Extension):** the handler builds the self-send with the Generator's default input selection, which picks only as many UTXOs as the payment needs — in practice one input moved to the same address minus the fee. The account's UTXOs are **not** consolidated. To compound today, build the sweep yourself with [Build Transaction](#10-build-transaction) and broadcast it with [Sign & Broadcast Transaction](#11-sign--broadcast-transaction). A sweep-mode fix is tracked separately.
+
 > **Since Extension `2.60.1`:** when compounding would take more than one transaction, the call rejects with `{ code: 4300, message }` (`BATCH_REQUIRED`) instead of broadcasting only the first one. Build the batch with [Build Transaction](#10-build-transaction) and pass each transaction, in order, to [Sign & Broadcast Transaction](#11-sign--broadcast-transaction).
 
 **Parameters**
