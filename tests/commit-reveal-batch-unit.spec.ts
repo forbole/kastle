@@ -371,7 +371,7 @@ test.describe("commit-reveal over a fragmented UTXO set (B3 reveal)", () => {
     expect(paidTo(node.submitted, payee)).toBe(kaspaToSompi("20")!);
   });
 
-  test("completion is not reported when only the compaction is confirmed", async () => {
+  test("a reveal confirmation timeout still reports every broadcast transaction", async () => {
     const { node, helper, payee } = setup(
       BATCHING_COUNT,
       BATCHING_TOTAL,
@@ -379,16 +379,41 @@ test.describe("commit-reveal over a fragmented UTXO set (B3 reveal)", () => {
       300,
     );
     // The node accepts everything but never reports the final transaction.
+    // The batch is on-chain regardless, so the ids must not be lost.
     const payeeScript = payToAddressScript(payee).toString();
     node.silence = (tx) =>
       tx.outputs.some((o) => o.scriptPublicKey.toString() === payeeScript);
 
-    const yielded: { status: string }[] = [];
+    const yielded = await run(helper, "1000", [
+      { address: payee.toString(), amount: "20" },
+    ]);
+    const completed = completedOf(yielded);
+    const [commit, ...reveals] = node.submitted;
+
+    expect(reveals.length).toBeGreaterThan(1);
+    expect(completed.commitTxId).toBe(commit.id);
+    expect(completed.revealTxIds).toEqual(reveals.map((tx) => tx.id));
+    expect(paidTo(node.submitted, payee)).toBe(kaspaToSompi("20")!);
+  });
+
+  test("a commit that broadcasts but never confirms still reports its id", async () => {
+    const { node, helper, payee, p2sh } = setup(
+      BATCHING_COUNT,
+      BATCHING_TOTAL,
+      DEPLOY,
+      300,
+    );
+    // The node accepts the commit but the watcher never sees it.
+    node.silence = () => node.submitted.length === 1;
+
+    let commitTxId: string | undefined;
+    const statuses: string[] = [];
     const error = await (async () => {
       for await (const result of helper.perform("1000", [
         { address: payee.toString(), amount: "20" },
       ])) {
-        yielded.push(result);
+        statuses.push(result.status);
+        commitTxId = result.commitTxId ?? commitTxId;
       }
     })().then(
       () => undefined,
@@ -396,7 +421,17 @@ test.describe("commit-reveal over a fragmented UTXO set (B3 reveal)", () => {
     );
 
     expect(String(error)).toContain("Timeout");
-    expect(yielded.map((r) => r.status)).not.toContain("completed");
+    expect(statuses).toEqual(["committing", "committing"]);
+    // 0.3 KAS sits at the P2SH; the caller must be told which transaction.
+    expect(node.submitted.length).toBe(1);
+    expect(commitTxId).toBe(node.submitted[0].id);
+    expect(broadcastBeforeFailure(commitTxId, error)).toEqual([
+      node.submitted[0].id,
+    ]);
+    const { entries } = await node.getUtxosByAddresses([p2sh]);
+    expect(entries.map((entry) => entry.amount)).toEqual([
+      kaspaToSompi(SCRIPT_UTXO_AMOUNT)!,
+    ]);
   });
 
   test("a wallet that cannot fund the reveal is refused before the commit", async () => {

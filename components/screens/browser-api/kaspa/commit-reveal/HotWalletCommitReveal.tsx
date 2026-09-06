@@ -100,8 +100,10 @@ export default function HotWalletCommitReveal({
 
       for await (const result of commitResultPerform) {
         setStep(result.status);
+        // Sticky: the commit id arrives on an early yield and must survive
+        // later ones (and a throw) so the error path can name it.
         response = {
-          commitTxId: result.commitTxId,
+          commitTxId: result.commitTxId ?? response.commitTxId,
           revealTxId: result.revealTxId,
           revealTxIds: result.revealTxIds,
         };

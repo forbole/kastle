@@ -45,9 +45,10 @@ export class RevealBroadcastError extends Error {
 }
 
 /**
- * What is on-chain, and paid for, when `perform` throws: the commit once the
- * "revealing" status was seen, plus any reveal transactions a
- * `RevealBroadcastError` reports. Empty means nothing was broadcast.
+ * What is on-chain, and paid for, when `perform` throws: the commit once a
+ * yield carried its id (the "committing" yield right after broadcast), plus
+ * any reveal transactions a `RevealBroadcastError` reports. Empty means
+ * nothing was broadcast.
  */
 export const broadcastBeforeFailure = (
   commitTxId: string | undefined,
@@ -95,6 +96,14 @@ export class CommitRevealHelper {
     const { transactionId: commitTxId, confirm: commitTxIdConfirm } =
       await this.commitScript(p2SHAddress.toString(), commit);
 
+    // The commit is on the network from here. Report its id before waiting on
+    // confirmation: if the watcher misses it (subscription miss, node lag,
+    // timeout) the caller still learns that 0.3 KAS sits at the P2SH.
+    yield {
+      status: "committing" as const,
+      commitTxId,
+    };
+
     // Wait for the commit transaction to be added to the UTXO set of the address
     // TODO: yield failed status and retry if timeout
     await commitTxIdConfirm;
@@ -118,9 +127,12 @@ export class CommitRevealHelper {
         extraOutputs,
       );
 
-    // Wait for the final reveal transaction to be accepted
-    // TODO: yield failed status and retry if timeout
-    await revealConfirm;
+    // Every reveal transaction was accepted by the node at submit; the watcher
+    // only rejects with "Timeout" (or an RPC error of its own). Neither undoes
+    // the broadcast, so still report every id rather than lose them.
+    await revealConfirm.catch((e: unknown) =>
+      console.warn("Reveal confirmation not observed", errorMessage(e)),
+    );
 
     yield {
       status: "completed" as const,
@@ -167,9 +179,11 @@ export class CommitRevealHelper {
    * commit instead of after it.
    *
    * Returns the commit it modeled. That exact transaction is what gets
-   * broadcast: rebuilding it from a fresh UTXO snapshot could yield a batch
-   * (whose [0] pays the P2SH nothing) or a different id than the one the
-   * predicted reveal entries were derived from.
+   * broadcast: rebuilding it from a fresh UTXO snapshot could spend a
+   * different set of inputs, or split into a batch whose [0] pays the P2SH
+   * nothing, so the reveal would run against an entry set other than the one
+   * that was just proven buildable. (The commit id itself only seeds the
+   * synthetic script outpoint, whose size is fixed.)
    */
   private async preflightReveal(
     p2SHAddress: Address,
@@ -289,7 +303,12 @@ export class CommitRevealHelper {
 
     // Register the waiting callback for the transaction confirmation
     // This must be executed before submitting the transaction then awaiting for the confirmation after submitting to avoid missing the event
-    const confirm = waitTxForAddress(this.rpcClient, p2SHAddress, signedTx.id);
+    const confirm = waitTxForAddress(
+      this.rpcClient,
+      p2SHAddress,
+      signedTx.id,
+      this.options.confirmationTimeoutMs,
+    );
 
     const { transactionId } = await this.rpcClient.submitTransaction({
       transaction: signedTx,
@@ -501,6 +520,7 @@ export const waitTxForAddress = (
   rpcClient: RpcClient,
   address: string,
   txId: string,
+  timeoutMs?: number,
 ) => {
   const byId = (entry: IUtxoEntry) => entry.outpoint.transactionId === txId;
   // `.some`, not `.find`: one event can carry several entries for the address
@@ -509,5 +529,6 @@ export const waitTxForAddress = (
     rpcClient,
     [address],
     (added, removed) => added.some(byId) || removed.some(byId),
+    timeoutMs,
   );
 };
