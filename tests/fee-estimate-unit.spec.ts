@@ -65,6 +65,28 @@ test.describe("priority fee derivation (Defects 2 and 3)", () => {
     ).toBe(0n);
   });
 
+  // krc20-send/DetailsStep derives the "miner fees" tooltip from the commit's
+  // base fee with the same function; it used to apply the whole-feerate
+  // formula (feerate × commitFee / 100), which at the floor equals commitFee
+  // itself — the 2× the KAS send path was fixed for.
+  test("the KRC-20 send tooltip shows 0 at the floor, not the commit fee", () => {
+    const COMMIT_FEE = 203_600; // useKasFeeEstimate, one input
+    const wholeFeerate = (100 * COMMIT_FEE) / 100;
+    expect(wholeFeerate).toBe(COMMIT_FEE);
+    for (const priority of ["low", "medium", "high"] as const) {
+      expect(priorityFeeFromEstimate(IDLE_MAINNET, priority, COMMIT_FEE)).toBe(
+        0n,
+      );
+    }
+    expect(
+      priorityFeeFromEstimate(estimateAt(100, 200, 1000), "high", COMMIT_FEE),
+    ).toBe(1_832_400n);
+    // While either input is loading the form keeps its value (0n default).
+    expect(priorityFeeFromEstimate(undefined, "low", COMMIT_FEE)).toBe(
+      undefined,
+    );
+  });
+
   test("is the excess over the floor, as a share of the base fee", () => {
     const congested = estimateAt(100, 200, 1000);
     expect(priorityFeeFromEstimate(congested, "low", BASE_FEE)).toBe(0n);
