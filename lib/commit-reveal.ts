@@ -26,6 +26,20 @@ const REVEAL_CONFIRMATION_TIMEOUT_MS = 120_000;
 const errorMessage = (e: unknown) =>
   e instanceof Error ? e.message : String(e);
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const outpointKey = (outpoint: { transactionId: string; index: number }) =>
+  `${outpoint.transactionId}:${outpoint.index}`;
+
+// Every outpoint a helper on this connection has broadcast a spend of. The
+// node's UTXO index lags its mempool, and on a busy DAG the virtual state
+// flips a just-accepted transaction out and back in (testnet-10, 2026-09-07:
+// 5,163 outpoints removed then re-added in 150 s), so a read taken right
+// after a confirmation can still list what the previous operation spent.
+// Building on such a read double-spends the wallet's own unconfirmed
+// transaction. ponytail: never pruned — a few keys per operation.
+const spentByClient = new WeakMap<RpcClient, Set<string>>();
+
 /**
  * Thrown when a reveal batch is only partially broadcast. `transactionIds` are
  * the reveal transactions that did land, in order — they are paid for and
@@ -150,6 +164,50 @@ export class CommitRevealHelper {
       .toString();
   }
 
+  private spent() {
+    let spent = spentByClient.get(this.rpcClient);
+    if (!spent) {
+      spent = new Set();
+      spentByClient.set(this.rpcClient, spent);
+    }
+    return spent;
+  }
+
+  private recordSpent(tx: Transaction) {
+    for (const input of tx.inputs) {
+      this.spent().add(outpointKey(input.previousOutpoint));
+    }
+  }
+
+  /**
+   * The wallet's UTXO set as the node reports it, re-read until it no longer
+   * lists an outpoint this connection already spent. Throws once the
+   * confirmation timeout passes with the spend still unreflected: the caller
+   * fails closed instead of broadcasting a double spend.
+   */
+  private async readWalletEntries(address: string): Promise<IUtxoEntry[]> {
+    const deadline =
+      Date.now() +
+      (this.options.confirmationTimeoutMs ?? CONFIRMATION_TIMEOUT_MS);
+    for (;;) {
+      const { entries } = await this.rpcClient.getUtxosByAddresses([address]);
+      const stale = entries.filter((entry) =>
+        this.spent().has(outpointKey(entry.outpoint)),
+      );
+      if (stale.length === 0) {
+        return entries;
+      }
+      if (Date.now() >= deadline) {
+        throw new Error(
+          `A previous transaction is still unconfirmed; the wallet still holds ${stale
+            .map((entry) => outpointKey(entry.outpoint))
+            .join(", ")}`,
+        );
+      }
+      await sleep(500);
+    }
+  }
+
   private createCommitTransactions(
     entries: IUtxoEntry[],
     address: string,
@@ -191,7 +249,7 @@ export class CommitRevealHelper {
     extraOutputs: PaymentOutput[],
   ): Promise<PendingTransaction> {
     const address = await this.userAddress();
-    const { entries } = await this.rpcClient.getUtxosByAddresses([address]);
+    const entries = await this.readWalletEntries(address);
 
     const { transactions: commitTxs } = await this.createCommitTransactions(
       entries,
@@ -313,6 +371,7 @@ export class CommitRevealHelper {
     const { transactionId } = await this.rpcClient.submitTransaction({
       transaction: signedTx,
     });
+    this.recordSpent(signedTx);
 
     return {
       transactionId,
@@ -384,7 +443,7 @@ export class CommitRevealHelper {
     extraOutputs: PaymentOutput[] = [],
   ) {
     const address = await this.userAddress();
-    const { entries } = await this.rpcClient.getUtxosByAddresses([address]);
+    const entries = await this.readWalletEntries(address);
 
     const transactions = await this.buildReveal(
       script,
@@ -411,26 +470,25 @@ export class CommitRevealHelper {
     }
 
     // Success means the FINAL transaction was accepted. Its outputs may fold
-    // entirely into fee, so also accept the node reporting any of its inputs
-    // as spent — those outpoints are known now, before broadcast.
+    // entirely into fee, so also accept the node reporting its inputs as
+    // spent — but only in an event that adds nothing of ours: a virtual flip
+    // that un-applies the COMMIT reports the same outpoints (the commit's
+    // outputs) as removed while handing the commit's own inputs back, and
+    // the reveal is still in the mempool at that point.
     const final = signed[signed.length - 1];
     const finalId = final.id;
-    const finalInputs = final.inputs.map((input) => ({
-      transactionId: input.previousOutpoint.transactionId,
-      index: input.previousOutpoint.index,
-    }));
+    const finalInputs = new Set(
+      final.inputs.map((input) => outpointKey(input.previousOutpoint)),
+    );
     const confirm = waitForUtxosChanged(
       this.rpcClient,
       [address, p2SHAddress],
       (added, removed) =>
         added.some((entry) => entry.outpoint.transactionId === finalId) ||
-        removed.some((entry) =>
-          finalInputs.some(
-            (outpoint) =>
-              outpoint.transactionId === entry.outpoint.transactionId &&
-              outpoint.index === entry.outpoint.index,
-          ),
-        ),
+        (added.length === 0 &&
+          removed.some((entry) =>
+            finalInputs.has(outpointKey(entry.outpoint)),
+          )),
       this.options.confirmationTimeoutMs ?? REVEAL_CONFIRMATION_TIMEOUT_MS,
     );
 
@@ -448,6 +506,7 @@ export class CommitRevealHelper {
           transaction: signed[transactionIds.length],
         });
         transactionIds.push(transactionId);
+        this.recordSpent(signed[transactionIds.length - 1]);
         orphanRetries = 0;
       } catch (e) {
         const isOrphan = errorMessage(e).toLowerCase().includes("orphan");
