@@ -9,7 +9,11 @@ import { Tooltip } from "react-tooltip";
 import { Address, sompiToKaspaString } from "@/wasm/core/kaspa";
 import { useKasFeeEstimate } from "@/hooks/useKasFeeEstimate";
 import { useFindMax } from "@/hooks/useFindMax";
-import { MAX_SEND_RESERVE_KAS, MIN_KAS_AMOUNT } from "@/lib/kaspa.ts";
+import {
+  MAX_SEND_RESERVE_KAS,
+  MIN_KAS_AMOUNT,
+  priorityFeeFromEstimate,
+} from "@/lib/kaspa.ts";
 import { useFormContext } from "react-hook-form";
 import { twMerge } from "tailwind-merge";
 import spinner from "@/assets/images/spinner.svg";
@@ -72,6 +76,8 @@ export function DetailsStep({
   const kasBalance = useKaspaBalance(account?.address) ?? 0;
   const currentBalance = kasBalance;
 
+  // What the Generator charges: its own fee for this UTXO set plus the priority
+  // fee on top. This is the "Estimated" fee, not priorityFee alone.
   const feeSompi = BigInt(baseFee ?? 0) + priorityFee;
   const feeKas = parseFloat(sompiToKaspaString(feeSompi));
   const priorityFeeKas = parseFloat(sompiToKaspaString(priorityFee));
@@ -87,7 +93,7 @@ export function DetailsStep({
   // (100 KAS … 30,050 KAS). 0.3 KAS covers both with 69,000 sompi to spare,
   // so the priority fee has to sit on top of the floor, not inside it: at 0.3
   // flat the largest priority fee that still builds at 174 UTXOs is 69,999
-  // sompi (feerate ~22 of the 1 … 1000 the buckets span); the high bucket
+  // sompi (feerate ~122, the buckets report 100 … 1000); the high bucket
   // fails from 147 UTXOs.
   const findMax = useFindMax({
     balance: currentBalance,
@@ -210,30 +216,17 @@ export function DetailsStep({
     }
   }, [userInput]);
 
+  // undefined until both the fee estimate and baseFee have loaded — on every
+  // mount, including Back from Confirm, where usePriorityFeeEstimate starts
+  // over. Writing 0n in that window showed "0 KAS" and rebuilt a Max amount
+  // around it until the RPC answered.
   useEffect(() => {
-    const selectedPriorityFee = (() => {
-      if (priority === "low") {
-        return (
-          ((priorityFeeEstimate?.estimate?.lowBuckets?.[0]?.feerate ?? 0) *
-            (baseFee ?? 0)) /
-          100
-        );
-      }
-      if (priority === "medium") {
-        return (
-          ((priorityFeeEstimate?.estimate?.normalBuckets?.[0]?.feerate ?? 0) *
-            (baseFee ?? 0)) /
-          100
-        );
-      }
-      return (
-        ((priorityFeeEstimate?.estimate?.priorityBucket?.feerate ?? 0) *
-          (baseFee ?? 0)) /
-        100
-      );
-    })();
-
-    setValue("priorityFee", BigInt(Math.round(selectedPriorityFee)));
+    const next = priorityFeeFromEstimate(
+      priorityFeeEstimate,
+      priority,
+      baseFee,
+    );
+    if (next !== undefined) setValue("priorityFee", next);
   }, [baseFee, priorityFeeEstimate, priority]);
 
   useEffect(() => {
@@ -445,11 +438,11 @@ export function DetailsStep({
             <i
               className="hn hn-info-circle text-[16px]"
               data-tooltip-id="fee-estimation-tooltip"
-              data-tooltip-content={`${sompiToKaspaString(priorityFee)} KAS for miner fees.`}
+              data-tooltip-content={`${sompiToKaspaString(feeSompi)} KAS for miner fees.`}
             ></i>
 
             <span>Estimated</span>
-            <span>{sompiToKaspaString(priorityFee)} KAS</span>
+            <span>{sompiToKaspaString(feeSompi)} KAS</span>
           </div>
         </div>
 

@@ -18,6 +18,7 @@ import { createTransactions } from "@/wasm/core/kaspa";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import { signAndSubmitBatch } from "@/lib/wallet/transaction-batch";
 import { isFragmentationError } from "@/lib/kaspa.ts";
+import { useKasFeeEstimate } from "@/hooks/useKasFeeEstimate";
 
 // Shown on the fail screen instead of the generic copy. The Generator cannot
 // build the transfer at all (see isFragmentationError); nothing was broadcast.
@@ -53,9 +54,12 @@ export const ConfirmStep = ({
   const { address, amount, domain, priorityFee } = watch();
   const kaspaPrice = useKaspaPrice();
   const amountNumber = parseFloat(amount ?? "0");
-  const priorityFeeKas = sompiToKaspaString(priorityFee);
+  // Same SWR key as DetailsStep, so this is the cached estimate. The Generator
+  // charges its own fee plus priorityFee; show that total, not priorityFee.
+  const { fee: baseFee } = useKasFeeEstimate({ extraOutputCount: 1 });
+  const feeKas = sompiToKaspaString(BigInt(baseFee ?? 0) + priorityFee);
   const fiatAmount = amountNumber * kaspaPrice.kaspaPrice;
-  const fiatFees = parseFloat(priorityFeeKas);
+  const fiatFees = parseFloat(feeKas);
   const { amount: amountCurrency, code: amountCurrencyCode } =
     useCurrencyValue(fiatAmount);
   const { amount: feesCurrency, code: feesCurrencyCode } =
@@ -198,7 +202,7 @@ export const ConfirmStep = ({
               <div className="flex w-full items-start justify-between">
                 <span className="font-medium">Fee</span>
                 <div className="flex flex-col text-right">
-                  <span className="font-medium">{priorityFeeKas} KAS</span>
+                  <span className="font-medium">{feeKas} KAS</span>
                   <span className="text-xs text-daintree-400">
                     {formatCurrency(feesCurrency, feesCurrencyCode)}
                   </span>

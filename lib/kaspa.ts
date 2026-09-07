@@ -6,6 +6,7 @@ import {
   PublicKey,
   RpcClient,
   SighashType,
+  IGetFeeEstimateResponse,
 } from "@/wasm/core/kaspa";
 import { PaymentOutput, SignType } from "@/lib/wallet/wallet-interface.ts";
 import type { NetworkType } from "@/contexts/SettingsContext";
@@ -151,4 +152,38 @@ export const waitTxForAddress = async (
   } finally {
     await rpcClient.unsubscribeUtxosChanged([address]);
   }
+};
+
+// getFeeEstimate reports feerate in sompi/gram and, on an idle network, 100 on
+// every bucket (mainnet, 2026-09-07). The Generator's own fee already pays
+// exactly that floor (measured against assets/kaspa_bg.wasm 2.0.1: a 3,154
+// gram send is charged 315,400 sompi with priorityFee 0n), so only the excess
+// above the floor is a priority fee. Treating the whole feerate as priority
+// charged base + base — twice the "Estimated" fee — at the floor.
+export const FEE_ESTIMATE_FLOOR_FEERATE = 100;
+
+export type FeePriority = "low" | "medium" | "high";
+
+// undefined while either input is still loading: the caller keeps the form's
+// current priorityFee instead of writing 0n, which on Back would rebuild a Max
+// amount around a fee that is about to change.
+export const priorityFeeFromEstimate = (
+  estimate: IGetFeeEstimateResponse | undefined,
+  priority: FeePriority,
+  baseFee: number | undefined,
+): bigint | undefined => {
+  if (!estimate || baseFee === undefined) return undefined;
+
+  const feerate =
+    priority === "low"
+      ? estimate.estimate.lowBuckets?.[0]?.feerate
+      : priority === "medium"
+        ? estimate.estimate.normalBuckets?.[0]?.feerate
+        : estimate.estimate.priorityBucket?.feerate;
+  const excess = Math.max(
+    0,
+    (feerate ?? FEE_ESTIMATE_FLOOR_FEERATE) - FEE_ESTIMATE_FLOOR_FEERATE,
+  );
+
+  return BigInt(Math.round((excess * baseFee) / 100));
 };
