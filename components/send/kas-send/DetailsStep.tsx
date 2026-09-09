@@ -9,7 +9,11 @@ import { Tooltip } from "react-tooltip";
 import { Address, sompiToKaspaString } from "@/wasm/core/kaspa";
 import { useKasFeeEstimate } from "@/hooks/useKasFeeEstimate";
 import { useFindMax } from "@/hooks/useFindMax";
-import { MIN_KAS_AMOUNT } from "@/lib/kaspa.ts";
+import {
+  MAX_SEND_RESERVE_KAS,
+  MIN_KAS_AMOUNT,
+  priorityFeeFromEstimate,
+} from "@/lib/kaspa.ts";
 import { useFormContext } from "react-hook-form";
 import { twMerge } from "tailwind-merge";
 import spinner from "@/assets/images/spinner.svg";
@@ -55,7 +59,15 @@ export function DetailsStep({
     formState: { isValid, errors, validatingFields },
   } = useFormContext<KasSendForm>();
 
-  const { userInput, address, amount, domain, priority, priorityFee } = watch();
+  const {
+    userInput,
+    address,
+    amount,
+    domain,
+    priority,
+    priorityFee,
+    isMaxSelected,
+  } = watch();
   const priorityFeeEstimate = usePriorityFeeEstimate();
   const { fee: baseFee } = useKasFeeEstimate({ extraOutputCount: 1 });
 
@@ -64,13 +76,34 @@ export function DetailsStep({
   const kasBalance = useKaspaBalance(account?.address) ?? 0;
   const currentBalance = kasBalance;
 
+  // What the Generator charges: its own fee for this UTXO set plus the priority
+  // fee on top. This is the "Estimated" fee, not priorityFee alone.
   const feeSompi = BigInt(baseFee ?? 0) + priorityFee;
   const feeKas = parseFloat(sompiToKaspaString(feeSompi));
+  const priorityFeeKas = parseFloat(sompiToKaspaString(priorityFee));
+  // Max sends balance − floor. `baseFee` is useKasFeeEstimate's fee for a
+  // 1 KAS self-send built over the current UTXO set, so it does grow with
+  // fragmentation, but only with how many inputs 1 KAS takes: measured
+  // against assets/kaspa_bg.wasm (2.0.1), 203,600 sompi with one input,
+  // 315,400 with two (UTXOs of ~0.6 KAS and up, at every count tried up to
+  // 50,000), 539,000 at 0.3 KAS UTXOs, 762,600 at 0.2. The real Max send
+  // spends every UTXO: the Generator charges 19,931,000 sompi for 174 inputs
+  // (the most it builds at all, rusty-kaspa#701) and needs ~0.1 KAS of change
+  // to stay under the storage mass limit, at every wallet size tried
+  // (100 KAS … 30,050 KAS). 0.3 KAS covers both with 69,000 sompi to spare,
+  // so the priority fee has to sit on top of the floor, not inside it: at 0.3
+  // flat the largest priority fee that still builds at 174 UTXOs is 69,999
+  // sompi (feerate ~122, the buckets report 100 … 1000); the high bucket
+  // fails from 147 UTXOs.
   const findMax = useFindMax({
     balance: currentBalance,
     subtrahend: feeKas,
-    minSubtrahend: 0.3,
+    minSubtrahend: MAX_SEND_RESERVE_KAS + priorityFeeKas,
   });
+  // `isMaxSelected` is a form field (KasSendForm): this step unmounts on
+  // Confirm, and a Max amount built at one priority bucket must be rebuilt,
+  // not re-validated, when the user comes Back and changes the bucket.
+  const setIsMaxSelected = (value: boolean) => setValue("isMaxSelected", value);
 
   const amountValidator = async (value: string | undefined) => {
     const amountNumber = parseFloat(value ?? "0");
@@ -137,8 +170,21 @@ export function DetailsStep({
   };
 
   const selectMaxAmount = () => {
+    setIsMaxSelected(true);
     setValue("amount", findMax(), { shouldValidate: true });
   };
+
+  // `findMax` changes with the balance, the fee estimate and the priority
+  // bucket. A Max amount follows it; a typed amount is re-checked against the
+  // new fee (setValue(priorityFee, { shouldValidate }) would only validate the
+  // priorityFee field, which has no rules).
+  useEffect(() => {
+    if (isMaxSelected) {
+      setValue("amount", findMax(), { shouldValidate: true });
+    } else if (amount) {
+      void trigger("amount");
+    }
+  }, [findMax]);
 
   const navigateToNextStep = () => onNext();
 
@@ -170,30 +216,17 @@ export function DetailsStep({
     }
   }, [userInput]);
 
+  // undefined until both the fee estimate and baseFee have loaded — on every
+  // mount, including Back from Confirm, where usePriorityFeeEstimate starts
+  // over. Writing 0n in that window showed "0 KAS" and rebuilt a Max amount
+  // around it until the RPC answered.
   useEffect(() => {
-    const selectedPriorityFee = (() => {
-      if (priority === "low") {
-        return (
-          ((priorityFeeEstimate?.estimate?.lowBuckets?.[0]?.feerate ?? 0) *
-            (baseFee ?? 0)) /
-          100
-        );
-      }
-      if (priority === "medium") {
-        return (
-          ((priorityFeeEstimate?.estimate?.normalBuckets?.[0]?.feerate ?? 0) *
-            (baseFee ?? 0)) /
-          100
-        );
-      }
-      return (
-        ((priorityFeeEstimate?.estimate?.priorityBucket?.feerate ?? 0) *
-          (baseFee ?? 0)) /
-        100
-      );
-    })();
-
-    setValue("priorityFee", BigInt(Math.round(selectedPriorityFee)));
+    const next = priorityFeeFromEstimate(
+      priorityFeeEstimate,
+      priority,
+      baseFee,
+    );
+    if (next !== undefined) setValue("priorityFee", next);
   }, [baseFee, priorityFeeEstimate, priority]);
 
   useEffect(() => {
@@ -299,6 +332,7 @@ export function DetailsStep({
                   required: true,
                   validate: amountValidator,
                   onChange: (event) => {
+                    setIsMaxSelected(false);
                     const [int, dec] = event.target.value.split(".");
 
                     if (!!dec && dec !== "") {
@@ -336,6 +370,7 @@ export function DetailsStep({
               <input
                 {...register("amountFiat", {
                   onChange: async (event) => {
+                    setIsMaxSelected(false);
                     const amountUsdNumber = parseFloat(
                       event.target.value ?? "0",
                     );
@@ -403,11 +438,11 @@ export function DetailsStep({
             <i
               className="hn hn-info-circle text-[16px]"
               data-tooltip-id="fee-estimation-tooltip"
-              data-tooltip-content={`${sompiToKaspaString(priorityFee)} KAS for miner fees.`}
+              data-tooltip-content={`${sompiToKaspaString(feeSompi)} KAS for miner fees.`}
             ></i>
 
             <span>Estimated</span>
-            <span>{sompiToKaspaString(priorityFee)} KAS</span>
+            <span>{sompiToKaspaString(feeSompi)} KAS</span>
           </div>
         </div>
 

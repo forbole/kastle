@@ -11,9 +11,11 @@ import { NetworkType } from "@/contexts/SettingsContext.tsx"; // Types for props
 // Types for props
 interface FailProps {
   transactionIds?: string[] | undefined;
+  // Replaces the generic copy when the caller knows why the send failed.
+  reason?: string;
 }
 
-export const FailStatus = ({ transactionIds }: FailProps) => {
+export const FailStatus = ({ transactionIds, reason }: FailProps) => {
   const navigate = useNavigate();
   const { watch } = useFormContext<KasSendForm | TokenOperationFormData>();
   const { networkId } = useRpcClientStateful();
@@ -50,7 +52,9 @@ export const FailStatus = ({ transactionIds }: FailProps) => {
             <span className="text-xl font-semibold text-red-500">
               Sorry, Your Majesty.
             </span>
-            {isKrc20Operation ? (
+            {reason ? (
+              <span className="px-2 text-sm text-gray-500">{reason}</span>
+            ) : isKrc20Operation ? (
               <span className="px-2 text-sm text-gray-500">
                 {
                   "It seems the alchemists have faltered in their craft, and your token could not be forged."

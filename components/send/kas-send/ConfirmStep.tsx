@@ -17,6 +17,13 @@ import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 import { createTransactions } from "@/wasm/core/kaspa";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import { signAndSubmitBatch } from "@/lib/wallet/transaction-batch";
+import { isFragmentationError } from "@/lib/kaspa.ts";
+import { useKasFeeEstimate } from "@/hooks/useKasFeeEstimate";
+
+// Shown on the fail screen instead of the generic copy. The Generator cannot
+// build the transfer at all (see isFragmentationError); nothing was broadcast.
+export const FRAGMENTATION_FAIL_REASON =
+  "This amount plus the network fee doesn't fit your balance — usually because it is spread across many small UTXOs. Try a smaller amount.";
 
 export const ConfirmStep = ({
   onNext,
@@ -27,7 +34,7 @@ export const ConfirmStep = ({
 }: {
   onNext: () => void;
   onBack: () => void;
-  onFail: () => void;
+  onFail: (reason?: string) => void;
   setOutTxs: (value: string[] | undefined) => void;
   walletSigner?: IWalletWithGetAddress;
 }) => {
@@ -47,9 +54,12 @@ export const ConfirmStep = ({
   const { address, amount, domain, priorityFee } = watch();
   const kaspaPrice = useKaspaPrice();
   const amountNumber = parseFloat(amount ?? "0");
-  const priorityFeeKas = sompiToKaspaString(priorityFee);
+  // Same SWR key as DetailsStep, so this is the cached estimate. The Generator
+  // charges its own fee plus priorityFee; show that total, not priorityFee.
+  const { fee: baseFee } = useKasFeeEstimate({ extraOutputCount: 1 });
+  const feeKas = sompiToKaspaString(BigInt(baseFee ?? 0) + priorityFee);
   const fiatAmount = amountNumber * kaspaPrice.kaspaPrice;
-  const fiatFees = parseFloat(priorityFeeKas);
+  const fiatFees = parseFloat(feeKas);
   const { amount: amountCurrency, code: amountCurrencyCode } =
     useCurrencyValue(fiatAmount);
   const { amount: feesCurrency, code: feesCurrencyCode } =
@@ -87,7 +97,9 @@ export const ConfirmStep = ({
             amount: kaspaToSompi(amount) ?? BigInt(0),
           },
         ],
-        priorityFee: 0n,
+        // The Generator adds this once, on the final (payment) transaction of a
+        // batch — measured, not multiplied per transaction.
+        priorityFee,
         changeAddress: await signer.getAddress(),
         networkId: networkId,
       });
@@ -115,7 +127,7 @@ export const ConfirmStep = ({
     } catch (e) {
       captureException(e);
       console.error(e);
-      onFail();
+      onFail(isFragmentationError(e) ? FRAGMENTATION_FAIL_REASON : undefined);
     } finally {
       setIsSigning(false);
       setBatchProgress(null);
@@ -190,7 +202,7 @@ export const ConfirmStep = ({
               <div className="flex w-full items-start justify-between">
                 <span className="font-medium">Fee</span>
                 <div className="flex flex-col text-right">
-                  <span className="font-medium">{priorityFeeKas} KAS</span>
+                  <span className="font-medium">{feeKas} KAS</span>
                   <span className="text-xs text-daintree-400">
                     {formatCurrency(feesCurrency, feesCurrencyCode)}
                   </span>
