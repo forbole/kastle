@@ -239,7 +239,9 @@ test.describe("commit-reveal over a fragmented UTXO set (B3 reveal)", () => {
     expect(reveals.length).toBeGreaterThan(1);
     // The old code stopped after the first reveal transaction and never paid.
     expect(node.submitted.length).toBe(1 + completed.revealTxIds!.length);
-    expect(paidTo(node.submitted, payee)).toBe(kaspaToSompi("20")!);
+    expect(String(paidTo(node.submitted, payee))).toBe(
+      String(kaspaToSompi("20")),
+    );
     expect(completed.commitTxId).toBe(commit.id);
     expect(completed.revealTxIds).toEqual(reveals.map((tx) => tx.id));
     // The reported reveal id is the payment, not the compaction.
@@ -311,7 +313,9 @@ test.describe("commit-reveal over a fragmented UTXO set (B3 reveal)", () => {
     const userReads = node.reads.filter((a) => a.includes(user.toString()));
     expect(userReads.length).toBe(2);
     expect(node.submitted[0].id).toBe(completed.commitTxId);
-    expect(paidTo(node.submitted, payee)).toBe(kaspaToSompi("20")!);
+    expect(String(paidTo(node.submitted, payee))).toBe(
+      String(kaspaToSompi("20")),
+    );
   });
 
   test("a mid-batch broadcast failure reports what landed", async () => {
@@ -372,7 +376,9 @@ test.describe("commit-reveal over a fragmented UTXO set (B3 reveal)", () => {
     expect(orphaned).toBeDefined();
     expect(node.submitted[2].id).toBe(orphaned);
     expect(completed.revealTxIds).toContain(orphaned);
-    expect(paidTo(node.submitted, payee)).toBe(kaspaToSompi("20")!);
+    expect(String(paidTo(node.submitted, payee))).toBe(
+      String(kaspaToSompi("20")),
+    );
   });
 
   test("a reveal confirmation timeout still reports every broadcast transaction", async () => {
@@ -388,16 +394,34 @@ test.describe("commit-reveal over a fragmented UTXO set (B3 reveal)", () => {
     node.silence = (tx) =>
       tx.outputs.some((o) => o.scriptPublicKey.toString() === payeeScript);
 
-    const yielded = await run(helper, "1000", [
-      { address: payee.toString(), amount: "20" },
-    ]);
+    // The compactions ARE reported, and each pays the user's own address. A
+    // watcher that accepted any transaction paying the user (the old one)
+    // would resolve on the first of them, well inside the timeout, and never
+    // warn; the whole run would still end in `completed`.
+    const warnings: string[] = [];
+    const warn = console.warn;
+    console.warn = (...args: unknown[]) =>
+      warnings.push(args.map(String).join(" "));
+    const started = Date.now();
+    let yielded: Yielded[];
+    try {
+      yielded = await run(helper, "1000", [
+        { address: payee.toString(), amount: "20" },
+      ]);
+    } finally {
+      console.warn = warn;
+    }
     const completed = completedOf(yielded);
     const [commit, ...reveals] = node.submitted;
 
+    expect(Date.now() - started).toBeGreaterThanOrEqual(300);
+    expect(warnings).toEqual(["Reveal confirmation not observed Timeout"]);
     expect(reveals.length).toBeGreaterThan(1);
     expect(completed.commitTxId).toBe(commit.id);
     expect(completed.revealTxIds).toEqual(reveals.map((tx) => tx.id));
-    expect(paidTo(node.submitted, payee)).toBe(kaspaToSompi("20")!);
+    expect(String(paidTo(node.submitted, payee))).toBe(
+      String(kaspaToSompi("20")),
+    );
   });
 
   test("a commit that broadcasts but never confirms still reports its id", async () => {
@@ -433,9 +457,39 @@ test.describe("commit-reveal over a fragmented UTXO set (B3 reveal)", () => {
       node.submitted[0].id,
     ]);
     const { entries } = await node.getUtxosByAddresses([p2sh]);
-    expect(entries.map((entry) => entry.amount)).toEqual([
-      kaspaToSompi(SCRIPT_UTXO_AMOUNT)!,
+    expect(entries.map((entry) => String(entry.amount))).toEqual([
+      String(kaspaToSompi(SCRIPT_UTXO_AMOUNT)),
     ]);
+  });
+
+  test("a reveal watcher whose subscription fails neither blocks nor leaks a rejection", async () => {
+    const { node, helper, payee } = setup(BATCHING_COUNT, BATCHING_TOTAL);
+    // The watcher is created before the first reveal submit and nobody awaits
+    // it until the whole batch is out. If its subscription rejects in that
+    // window the rejection must already be handled (Playwright fails the
+    // test on an unhandled one) and the broadcast must still complete.
+    let subscriptions = 0;
+    node.subscribeUtxosChanged = async () => {
+      if (++subscriptions === 2) throw "RPC disconnected";
+    };
+    // A real submit is a network round trip. With microtask-only submits the
+    // caller's late `.catch` attaches before Node checks for unhandled
+    // rejections and the leak is invisible.
+    const submit = node.submitTransaction.bind(node);
+    node.submitTransaction = async (request) => {
+      await new Promise((resolve) => setTimeout(resolve, 1));
+      return submit(request);
+    };
+
+    const yielded = await run(helper, "1000", [
+      { address: payee.toString(), amount: "20" },
+    ]);
+    const completed = completedOf(yielded);
+    const [, ...reveals] = node.submitted;
+
+    expect(subscriptions).toBe(2);
+    expect(reveals.length).toBeGreaterThan(1);
+    expect(completed.revealTxIds).toEqual(reveals.map((tx) => tx.id));
   });
 
   test("a wallet that cannot fund the reveal is refused before the commit", async () => {

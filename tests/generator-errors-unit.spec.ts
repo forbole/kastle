@@ -91,8 +91,11 @@ test.describe("Generator fragmentation errors (B3)", () => {
       () => undefined,
       (e: unknown) => e,
     );
-    // Measured: 69,999 sompi is the last priority fee that builds at 0.3 flat;
-    // 70,000 throws "Mass calculation error", the high bucket this.
+    // Measured: 69,999 sompi is the last priority fee that builds at 0.3 flat.
+    // Two different errors past that point: at 70,000 the Generator throws
+    // "Mass calculation error"; at the high bucket's 3,154,000
+    // (HIGH_PRIORITY_FEE) it throws "Storage mass exceeds maximum", which is
+    // what is asserted here.
     expect(String(error)).toContain("Storage mass exceeds maximum");
     expect(isFragmentationError(error)).toBe(true);
   });

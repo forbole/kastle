@@ -1,7 +1,6 @@
 export type TokenOperationFailureKind =
   | "disconnected"
   | "commit_timeout"
-  | "reveal_timeout"
   | "default";
 
 export interface TokenOperationFailure {
@@ -27,11 +26,9 @@ export const describeTokenOperationError = (
   if (message.includes("disconnected")) {
     return { kind: "disconnected", message };
   }
-  if (message === "Reveal transaction did not mature within 2 minutes") {
-    return { kind: "reveal_timeout", message };
-  }
   // waitTxForAddress rejects with "Timeout"; on the commit leg that is the
-  // only timeout perform() still throws (reveal confirmation is only warned).
+  // only timeout perform() still throws (a reveal confirmation timeout is
+  // caught and warned in lib/commit-reveal.ts, so there is no reveal kind).
   if (
     message === "Timeout" ||
     message === "Commit transaction did not mature within 2 minutes"

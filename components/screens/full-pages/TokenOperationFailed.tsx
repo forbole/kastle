@@ -34,15 +34,6 @@ export const TokenOperationFailed = () => {
         </div>
       ),
     },
-    reveal_timeout: {
-      title: "Minting Incomplete: Mempool timeout",
-      message: (
-        <div>
-          Timeout occurred, the reveal transaction have been rejected, please
-          try again later
-        </div>
-      ),
-    },
     commit_timeout: {
       title: "Minting Incomplete: Mempool timeout",
       message: (

@@ -37,8 +37,47 @@ const outpointKey = (outpoint: { transactionId: string; index: number }) =>
 // 5,163 outpoints removed then re-added in 150 s), so a read taken right
 // after a confirmation can still list what the previous operation spent.
 // Building on such a read double-spends the wallet's own unconfirmed
-// transaction. ponytail: never pruned — a few keys per operation.
-const spentByClient = new WeakMap<RpcClient, Set<string>>();
+// transaction. Keyed by outpoint, valued by the id of the transaction that
+// spent it, so a record can be dropped once the mempool no longer knows that
+// transaction (see readWalletEntries). Otherwise never pruned — a few keys
+// per operation.
+const spentByClient = new WeakMap<RpcClient, Map<string, string>>();
+
+// Kaspa's utxos-changed subscription is a set of addresses with no per-caller
+// count: one watcher's unsubscribe drops an address every other watcher on the
+// connection still needs. Count the holders here and only unsubscribe what
+// nobody holds any more.
+const holdersByClient = new WeakMap<RpcClient, Map<string, number>>();
+
+const holders = (rpcClient: RpcClient) => {
+  let held = holdersByClient.get(rpcClient);
+  if (!held) {
+    held = new Map();
+    holdersByClient.set(rpcClient, held);
+  }
+  return held;
+};
+
+const retain = (rpcClient: RpcClient, addresses: string[]) => {
+  const held = holders(rpcClient);
+  for (const address of addresses) {
+    held.set(address, (held.get(address) ?? 0) + 1);
+  }
+};
+
+// Returns the addresses this caller was the last holder of.
+const release = (rpcClient: RpcClient, addresses: string[]) => {
+  const held = holders(rpcClient);
+  return addresses.filter((address) => {
+    const left = (held.get(address) ?? 1) - 1;
+    if (left > 0) {
+      held.set(address, left);
+      return false;
+    }
+    held.delete(address);
+    return true;
+  });
+};
 
 /**
  * Thrown when a reveal batch is only partially broadcast. `transactionIds` are
@@ -172,7 +211,7 @@ export class CommitRevealHelper {
   private spent() {
     let spent = spentByClient.get(this.rpcClient);
     if (!spent) {
-      spent = new Set();
+      spent = new Map();
       spentByClient.set(this.rpcClient, spent);
     }
     return spent;
@@ -180,15 +219,50 @@ export class CommitRevealHelper {
 
   private recordSpent(tx: Transaction) {
     for (const input of tx.inputs) {
-      this.spent().add(outpointKey(input.previousOutpoint));
+      this.spent().set(outpointKey(input.previousOutpoint), tx.id);
+    }
+  }
+
+  /**
+   * Drops the spent records of every transaction among `stale`'s spenders
+   * that the node's mempool no longer knows. Such a transaction left the
+   * mempool unmined (node restart, full-mempool eviction, the 24 h expiry),
+   * so the node will list its inputs as unspent forever and a record of them
+   * would refuse every retry until the tab is reloaded.
+   */
+  private async forgetDropped(stale: IUtxoEntry[]) {
+    const spent = this.spent();
+    const spenders = new Set(
+      stale.map((entry) => spent.get(outpointKey(entry.outpoint))!),
+    );
+    for (const transactionId of spenders) {
+      // ponytail: any rejection counts as "not in the mempool". The UTXO read
+      // that found `stale` just succeeded on this connection, so a transport
+      // failure here is unlikely, and a wedged wallet is the alternative.
+      const known = await this.rpcClient
+        .getMempoolEntry({
+          transactionId,
+          includeOrphanPool: true,
+          filterTransactionPool: false,
+        })
+        .then(
+          () => true,
+          () => false,
+        );
+      if (known) continue;
+      for (const [key, id] of spent) {
+        if (id === transactionId) spent.delete(key);
+      }
     }
   }
 
   /**
    * The wallet's UTXO set as the node reports it, re-read until it no longer
-   * lists an outpoint this connection already spent. Throws once the
-   * confirmation timeout passes with the spend still unreflected: the caller
-   * fails closed instead of broadcasting a double spend.
+   * lists an outpoint this connection already spent. Once the confirmation
+   * timeout passes with a spend still unreflected, records of transactions
+   * the mempool has dropped are forgotten (their inputs really are spendable
+   * again); if any spend is still pending this throws and the caller fails
+   * closed instead of broadcasting a double spend.
    */
   private async readWalletEntries(address: string): Promise<IUtxoEntry[]> {
     const deadline =
@@ -196,15 +270,21 @@ export class CommitRevealHelper {
       (this.options.confirmationTimeoutMs ?? CONFIRMATION_TIMEOUT_MS);
     for (;;) {
       const { entries } = await this.rpcClient.getUtxosByAddresses([address]);
-      const stale = entries.filter((entry) =>
-        this.spent().has(outpointKey(entry.outpoint)),
-      );
+      const spent = this.spent();
+      const isStale = (entry: IUtxoEntry) =>
+        spent.has(outpointKey(entry.outpoint));
+      const stale = entries.filter(isStale);
       if (stale.length === 0) {
         return entries;
       }
       if (Date.now() >= deadline) {
+        await this.forgetDropped(stale);
+        const pending = stale.filter(isStale);
+        if (pending.length === 0) {
+          return entries;
+        }
         throw new Error(
-          `A previous transaction is still unconfirmed; the wallet still holds ${stale
+          `A previous transaction is still unconfirmed; the wallet still holds ${pending
             .map((entry) => outpointKey(entry.outpoint))
             .join(", ")}`,
         );
@@ -499,6 +579,11 @@ export class CommitRevealHelper {
           )),
       this.options.confirmationTimeoutMs ?? REVEAL_CONFIRMATION_TIMEOUT_MS,
     );
+    // Nobody awaits the watcher until the whole batch is submitted. If the
+    // subscription rejects, or a submit throws and the watcher is orphaned,
+    // its rejection must not surface as an unhandled one. The caller's own
+    // await still sees it.
+    confirm.catch(() => undefined);
 
     // Submit in order: later transactions spend the outputs of earlier ones.
     // An orphan error means the node has not seen a parent yet, so retry
@@ -525,8 +610,6 @@ export class CommitRevealHelper {
           );
           continue;
         }
-        // Nobody awaits the watcher now; let its own timeout end it quietly.
-        confirm.catch(() => undefined);
         throw new RevealBroadcastError(e, transactionIds, signed.length);
       }
     }
@@ -554,7 +637,9 @@ export const waitForUtxosChanged = async (
   const forAddresses = (entries: IUtxoEntry[] = []) =>
     entries.filter((entry) => payloads.has(entry.address?.payload ?? ""));
 
+  retain(rpcClient, addresses);
   try {
+    // Set semantics on the node: re-subscribing a held address is a no-op.
     await rpcClient.subscribeUtxosChanged(addresses);
 
     await new Promise<void>((resolve, reject) => {
@@ -578,7 +663,12 @@ export const waitForUtxosChanged = async (
       }, timeoutMs);
     });
   } finally {
-    await rpcClient.unsubscribeUtxosChanged(addresses);
+    // An orphaned watcher (a retry started while the previous one's watcher
+    // was still timing out) must not drop the addresses the live one holds.
+    const idle = release(rpcClient, addresses);
+    if (idle.length > 0) {
+      await rpcClient.unsubscribeUtxosChanged(idle);
+    }
   }
 };
 

@@ -42,13 +42,18 @@ test.describe("priority fee derivation (Defects 2 and 3)", () => {
   // Defect 3: on Back from Confirm, usePriorityFeeEstimate starts over and
   // DetailsStep's effect used to write 0n until the RPC answered, moving a Max
   // amount twice. While either input is loading the form's value must stand.
+  // bigint results are asserted via String(): a failing expect(bigint).toBe()
+  // cannot be reported by Playwright 1.51 and restarts the worker forever.
+  const feeOf = (...args: Parameters<typeof priorityFeeFromEstimate>) =>
+    String(priorityFeeFromEstimate(...args));
+
   test("is undefined until both the estimate and the base fee have loaded", () => {
-    expect(priorityFeeFromEstimate(undefined, "medium", BASE_FEE)).toBe(
-      undefined,
-    );
-    expect(priorityFeeFromEstimate(IDLE_MAINNET, "medium", undefined)).toBe(
-      undefined,
-    );
+    expect(
+      priorityFeeFromEstimate(undefined, "medium", BASE_FEE),
+    ).toBeUndefined();
+    expect(
+      priorityFeeFromEstimate(IDLE_MAINNET, "medium", undefined),
+    ).toBeUndefined();
   });
 
   // Defect 2: the whole feerate was treated as priority, so at the floor the
@@ -56,13 +61,9 @@ test.describe("priority fee derivation (Defects 2 and 3)", () => {
   // fee shown.
   test("is 0 at the feerate floor, on every bucket", () => {
     for (const priority of ["low", "medium", "high"] as const) {
-      expect(priorityFeeFromEstimate(IDLE_MAINNET, priority, BASE_FEE)).toBe(
-        0n,
-      );
+      expect(feeOf(IDLE_MAINNET, priority, BASE_FEE)).toBe("0");
     }
-    expect(
-      priorityFeeFromEstimate(estimateAt(50, 50, 50), "low", BASE_FEE),
-    ).toBe(0n);
+    expect(feeOf(estimateAt(50, 50, 50), "low", BASE_FEE)).toBe("0");
   });
 
   // krc20-send/DetailsStep derives the "miner fees" tooltip from the commit's
@@ -74,28 +75,22 @@ test.describe("priority fee derivation (Defects 2 and 3)", () => {
     const wholeFeerate = (100 * COMMIT_FEE) / 100;
     expect(wholeFeerate).toBe(COMMIT_FEE);
     for (const priority of ["low", "medium", "high"] as const) {
-      expect(priorityFeeFromEstimate(IDLE_MAINNET, priority, COMMIT_FEE)).toBe(
-        0n,
-      );
+      expect(feeOf(IDLE_MAINNET, priority, COMMIT_FEE)).toBe("0");
     }
-    expect(
-      priorityFeeFromEstimate(estimateAt(100, 200, 1000), "high", COMMIT_FEE),
-    ).toBe(1_832_400n);
-    // While either input is loading the form keeps its value (0n default).
-    expect(priorityFeeFromEstimate(undefined, "low", COMMIT_FEE)).toBe(
-      undefined,
+    expect(feeOf(estimateAt(100, 200, 1000), "high", COMMIT_FEE)).toBe(
+      "1832400",
     );
+    // While either input is loading the form keeps its value (0n default).
+    expect(
+      priorityFeeFromEstimate(undefined, "low", COMMIT_FEE),
+    ).toBeUndefined();
   });
 
   test("is the excess over the floor, as a share of the base fee", () => {
     const congested = estimateAt(100, 200, 1000);
-    expect(priorityFeeFromEstimate(congested, "low", BASE_FEE)).toBe(0n);
-    expect(priorityFeeFromEstimate(congested, "medium", BASE_FEE)).toBe(
-      315_400n,
-    );
-    expect(priorityFeeFromEstimate(congested, "high", BASE_FEE)).toBe(
-      2_838_600n,
-    );
+    expect(feeOf(congested, "low", BASE_FEE)).toBe("0");
+    expect(feeOf(congested, "medium", BASE_FEE)).toBe("315400");
+    expect(feeOf(congested, "high", BASE_FEE)).toBe("2838600");
   });
 
   // The fee DetailsStep and ConfirmStep show is baseFee + priorityFee. Assert
@@ -155,8 +150,8 @@ test.describe("priority fee derivation (Defects 2 and 3)", () => {
         0n,
       );
       const shown = BigInt(baseFee) + priorityFee;
-      expect(paid.feeAmount).toBe(shown);
-      expect(inputs - outputs).toBe(shown);
+      expect(String(paid.feeAmount)).toBe(String(shown));
+      expect(String(inputs - outputs)).toBe(String(shown));
     }
   });
 });

@@ -85,7 +85,7 @@ export function DetailsStep({
   // 1 KAS self-send built over the current UTXO set, so it does grow with
   // fragmentation, but only with how many inputs 1 KAS takes: measured
   // against assets/kaspa_bg.wasm (2.0.1), 203,600 sompi with one input,
-  // 315,400 with two (UTXOs of ~0.6 KAS and up, at every count tried up to
+  // 315,400 with two (UTXOs of 0.541 KAS and up, at every count tried up to
   // 50,000), 539,000 at 0.3 KAS UTXOs, 762,600 at 0.2. The real Max send
   // spends every UTXO: the Generator charges 19,931,000 sompi for 174 inputs
   // (the most it builds at all, rusty-kaspa#701) and needs ~0.1 KAS of change
