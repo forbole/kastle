@@ -121,7 +121,7 @@ export const DetailsStep = () => {
   };
 
   const addressValidator = async (value: string | undefined) => {
-    const genericErrorMessage = "Invalid address or KNS domain";
+    const genericErrorMessage = "Invalid Kaspa address or .kas domain";
     if (!value) return undefined;
 
     if (value === account?.address) {
