@@ -6,6 +6,10 @@ import { ConnectPayloadSchema } from "@/api/background/handlers/kaspa/connect";
 import { SignTxPayloadSchema } from "@/api/background/handlers/kaspa/utils";
 import { SignMessagePayloadSchema } from "@/api/background/handlers/kaspa/signMessage";
 import { sendSompiPayloadSchema } from "./background/handlers/kaspa/sendSompi";
+import {
+  CommitRevealResponse,
+  CommitRevealResponseSchema,
+} from "@/api/background/handlers/kaspa/commitReveal";
 
 function createApiRequest(
   action: Action,
@@ -256,7 +260,7 @@ export class KastleBrowserAPI {
     namespace: string,
     data: string,
     options?: { revealPriorityFee?: string },
-  ): Promise<{ commitTxId: string; revealTxId: string }> {
+  ): Promise<CommitRevealResponse> {
     const requestId = uuid();
     const request = createApiRequest(Action.COMMIT_REVEAL, requestId, {
       networkId,
@@ -266,7 +270,9 @@ export class KastleBrowserAPI {
     });
     window.postMessage(request, "*");
 
-    return await this.receiveMessageWithTimeout(requestId);
+    return CommitRevealResponseSchema.parse(
+      await this.receiveMessageWithTimeout(requestId),
+    );
   }
 
   async getBalance(): Promise<{ balance: string }> {

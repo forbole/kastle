@@ -14,6 +14,16 @@ export const CommitRevealPayloadSchema = z.object({
 
 export type CommitRevealPayload = z.infer<typeof CommitRevealPayloadSchema>;
 
+export const CommitRevealResponseSchema = z.object({
+  commitTxId: z.string(),
+  // The last reveal transaction. The reveal is a batch when the wallet's
+  // UTXO set is fragmented; `revealTxIds` lists every one, in order.
+  revealTxId: z.string(),
+  revealTxIds: z.array(z.string()).optional(),
+});
+
+export type CommitRevealResponse = z.infer<typeof CommitRevealResponseSchema>;
+
 export const commitRevealHandler: Handler = async (
   tabId: number,
   message: ApiRequestWithHost,

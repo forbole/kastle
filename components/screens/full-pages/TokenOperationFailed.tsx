@@ -7,6 +7,7 @@ import { useTokenInfo } from "@/hooks/kasplex/useTokenInfo";
 import { applyDecimal } from "@/lib/krc20.ts";
 import { setPopupPath } from "@/lib/utils.ts";
 import useExtensionUtils from "@/hooks/useExtensionUtils.ts";
+import { describeTokenOperationError } from "@/lib/token-operation-error";
 
 export const TokenOperationFailed = () => {
   const { reopenPopup } = useExtensionUtils();
@@ -19,25 +20,9 @@ export const TokenOperationFailed = () => {
   const { toFloat } = applyDecimal(tokenInfo?.dec);
   const mintAmount = toFloat(parseInt(tokenInfo?.lim ?? "0", 10));
 
-  const getErrorType = () => {
-    if (error instanceof Error) {
-      if (error.message.includes("disconnected")) {
-        return "disconnected";
-      }
-      if (
-        error.message === "Reveal transaction did not mature within 2 minutes"
-      ) {
-        return "reveal_timeout";
-      }
-      if (
-        error.message === "Commit transaction did not mature within 2 minutes"
-      ) {
-        return "commit_timeout";
-      }
-    }
-
-    return "default";
-  };
+  // `error` is whatever perform() rejected with (Error, string, ...); only
+  // its string form may reach JSX.
+  const failure = describeTokenOperationError(error);
 
   const reason = {
     disconnected: {
@@ -70,10 +55,12 @@ export const TokenOperationFailed = () => {
     default: {
       title: "Minting Incomplete",
       message: (
-        <div>Something unexpected happened during the mint: {error}</div>
+        <div>
+          Something unexpected happened during the mint: {failure.message}
+        </div>
       ),
     },
-  }[getErrorType()];
+  }[failure.kind];
 
   const onClose = () => {
     switch (op) {

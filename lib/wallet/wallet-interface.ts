@@ -16,6 +16,7 @@ export type CommitRevealResult = {
   status: "committing" | "revealing" | "completed";
   commitTxId?: string;
   revealTxId?: string;
+  revealTxIds?: string[];
 };
 
 export type SignType = keyof typeof SIGN_TYPE;

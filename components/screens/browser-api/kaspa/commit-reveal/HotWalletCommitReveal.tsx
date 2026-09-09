@@ -14,7 +14,10 @@ import { NetworkType } from "@/contexts/SettingsContext";
 import ScriptDetailsBox from "./ScriptDetailsBox";
 import useCurrencyValue from "@/hooks/useCurrencyValue";
 import { useState } from "react";
-import { CommitRevealHelper } from "@/lib/commit-reveal";
+import {
+  CommitRevealHelper,
+  broadcastBeforeFailure,
+} from "@/lib/commit-reveal";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import { PublicKey } from "@/wasm/core/kaspa";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
@@ -72,6 +75,11 @@ export default function HotWalletCommitReveal({
     if (isPerforming) return;
 
     setIsPerforming(true);
+    let response: {
+      commitTxId?: string;
+      revealTxId?: string;
+      revealTxIds?: string[];
+    } = {};
     try {
       const script = buildCommitRevealScript(
         await walletSigner.getPublicKey(),
@@ -90,15 +98,14 @@ export default function HotWalletCommitReveal({
         [],
       );
 
-      let response: {
-        commitTxId?: string;
-        revealTxId?: string;
-      } = {};
       for await (const result of commitResultPerform) {
         setStep(result.status);
+        // Sticky: the commit id arrives on an early yield and must survive
+        // later ones (and a throw) so the error path can name it.
         response = {
-          commitTxId: result.commitTxId,
+          commitTxId: result.commitTxId ?? response.commitTxId,
           revealTxId: result.revealTxId,
+          revealTxIds: result.revealTxIds,
         };
       }
 
@@ -106,10 +113,23 @@ export default function HotWalletCommitReveal({
         requestId,
         ApiUtils.createApiResponse(requestId, response),
       );
-    } catch {
+    } catch (e) {
+      // The dApp gets a string; name what did land so a mid-batch failure is
+      // not mistaken for "nothing happened".
+      const landed = broadcastBeforeFailure(
+        response.commitTxId,
+        e,
+        response.revealTxIds,
+      );
       await ApiExtensionUtils.sendMessage(
         requestId,
-        ApiUtils.createApiResponse(requestId, null, "Commit/Reveal failed"),
+        ApiUtils.createApiResponse(
+          requestId,
+          null,
+          landed.length
+            ? `Commit/Reveal failed after broadcasting ${landed.join(", ")}: ${e instanceof Error ? e.message : String(e)}`
+            : "Commit/Reveal failed",
+        ),
       );
     } finally {
       setIsPerforming(false);
