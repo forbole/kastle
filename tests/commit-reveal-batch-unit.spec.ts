@@ -346,6 +346,10 @@ test.describe("commit-reveal over a fragmented UTXO set (B3 reveal)", () => {
       firstReveal.id,
     ]);
     expect(broadcastBeforeFailure(undefined, new Error("x"))).toEqual([]);
+    // A failure after perform() completed keeps every landed reveal id.
+    expect(
+      broadcastBeforeFailure("commit", new Error("x"), ["r1", "r2"]),
+    ).toEqual(["commit", "r1", "r2"]);
   });
 
   test("an orphan reject resumes at the same transaction, never rebuilds", async () => {

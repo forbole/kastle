@@ -116,7 +116,11 @@ export default function HotWalletCommitReveal({
     } catch (e) {
       // The dApp gets a string; name what did land so a mid-batch failure is
       // not mistaken for "nothing happened".
-      const landed = broadcastBeforeFailure(response.commitTxId, e);
+      const landed = broadcastBeforeFailure(
+        response.commitTxId,
+        e,
+        response.revealTxIds,
+      );
       await ApiExtensionUtils.sendMessage(
         requestId,
         ApiUtils.createApiResponse(

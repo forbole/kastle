@@ -37,6 +37,7 @@ export default function HotWalletBroadcastTokenOperation({
     }
 
     let commitTxId: string | undefined;
+    let revealTxIds: string[] = [];
     try {
       const accountIndex = walletSettings?.selectedAccountIndex;
       if (accountIndex === null || accountIndex === undefined) {
@@ -55,6 +56,7 @@ export default function HotWalletBroadcastTokenOperation({
       )) {
         commitTxId = result.commitTxId ?? commitTxId;
         if (result.status === "completed") {
+          revealTxIds = result.revealTxIds;
           setOutTxs([result.commitTxId, ...result.revealTxIds]);
         }
       }
@@ -74,7 +76,7 @@ export default function HotWalletBroadcastTokenOperation({
       console.error(e);
       // A mid-batch failure leaves real, paid-for transactions on-chain; the
       // fail screen lists them.
-      const landed = broadcastBeforeFailure(commitTxId, e);
+      const landed = broadcastBeforeFailure(commitTxId, e, revealTxIds);
       if (landed.length) setOutTxs(landed);
       onFail();
     }

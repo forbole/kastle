@@ -61,15 +61,20 @@ export class RevealBroadcastError extends Error {
 /**
  * What is on-chain, and paid for, when `perform` throws: the commit once a
  * yield carried its id (the "committing" yield right after broadcast), plus
- * any reveal transactions a `RevealBroadcastError` reports. Empty means
- * nothing was broadcast.
+ * any reveal transactions a `RevealBroadcastError` reports, or every reveal
+ * transaction when `perform` already completed and the failure came after
+ * (response delivery, persistence, `onSuccess`). Empty means nothing was
+ * broadcast.
  */
 export const broadcastBeforeFailure = (
   commitTxId: string | undefined,
   error: unknown,
+  completedRevealTxIds: string[] = [],
 ): string[] => [
   ...(commitTxId ? [commitTxId] : []),
-  ...(error instanceof RevealBroadcastError ? error.transactionIds : []),
+  ...(error instanceof RevealBroadcastError
+    ? error.transactionIds
+    : completedRevealTxIds),
 ];
 
 export class CommitRevealHelper {
@@ -367,6 +372,9 @@ export class CommitRevealHelper {
       signedTx.id,
       this.options.confirmationTimeoutMs,
     );
+    // If submit rejects nobody awaits the watcher; keep its timeout from
+    // surfacing as an unhandled rejection. The caller's own await still sees it.
+    confirm.catch(() => undefined);
 
     const { transactionId } = await this.rpcClient.submitTransaction({
       transaction: signedTx,

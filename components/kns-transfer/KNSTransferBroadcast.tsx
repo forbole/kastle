@@ -34,6 +34,7 @@ export default function KNSTransferBroadcast({
 
   const broadcastOperation = async () => {
     let commitTxId: string | undefined;
+    let revealTxIds: string[] = [];
     try {
       if (!walletSigner) {
         throw new Error("Wallet signer is not initialized");
@@ -65,6 +66,7 @@ export default function KNSTransferBroadcast({
       )) {
         commitTxId = result.commitTxId ?? commitTxId;
         if (result.status === "completed") {
+          revealTxIds = result.revealTxIds;
           setOutTxs([result.commitTxId, ...result.revealTxIds]);
         }
       }
@@ -87,7 +89,7 @@ export default function KNSTransferBroadcast({
       console.error(e);
       // A mid-batch failure leaves real, paid-for transactions on-chain; the
       // fail screen lists them.
-      const landed = broadcastBeforeFailure(commitTxId, e);
+      const landed = broadcastBeforeFailure(commitTxId, e, revealTxIds);
       if (landed.length) setOutTxs(landed);
       onFail();
     }
