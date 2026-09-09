@@ -26,6 +26,7 @@ import { useTokenInfo } from "@/hooks/kasplex/useTokenInfo";
 import { KRC20SendForm } from "./Krc20Send";
 import Layer2AssetImage from "@/components/Layer2AssetImage";
 import useKaspaBalance from "@/hooks/wallet/useKaspaBalance";
+import { priorityFeeFromEstimate } from "@/lib/kaspa";
 
 export const DetailsStep = () => {
   const { tick: ticker } = useParams<{ tick: string }>();
@@ -120,7 +121,7 @@ export const DetailsStep = () => {
   };
 
   const addressValidator = async (value: string | undefined) => {
-    const genericErrorMessage = "Invalid address or KNS domain";
+    const genericErrorMessage = "Invalid Kaspa address or .kas domain";
     if (!value) return undefined;
 
     if (value === account?.address) {
@@ -217,30 +218,17 @@ export const DetailsStep = () => {
     }
   }, [userInput]);
 
+  // Same derivation as the KAS send: only the excess over the feerate floor is
+  // a priority fee. The whole-feerate formula showed the commit's own base fee
+  // as "miner fees" (2× at the floor). This field only feeds the tooltip — the
+  // transfer is broadcast at Krc20Fee.Transfer, not at this value.
   useEffect(() => {
-    const selectedPriorityFee = (() => {
-      if (priority === "low") {
-        return (
-          ((priorityFeeEstimate?.estimate?.lowBuckets?.[0]?.feerate ?? 0) *
-            (commitFee ?? 0)) /
-          100
-        );
-      }
-      if (priority === "medium") {
-        return (
-          ((priorityFeeEstimate?.estimate?.normalBuckets?.[0]?.feerate ?? 0) *
-            (commitFee ?? 0)) /
-          100
-        );
-      }
-      return (
-        ((priorityFeeEstimate?.estimate?.priorityBucket?.feerate ?? 0) *
-          (commitFee ?? 0)) /
-        100
-      );
-    })();
-
-    setValue("priorityFee", BigInt(Math.round(selectedPriorityFee)));
+    const next = priorityFeeFromEstimate(
+      priorityFeeEstimate,
+      priority,
+      commitFee,
+    );
+    if (next !== undefined) setValue("priorityFee", next);
   }, [commitFee, priorityFeeEstimate, priority]);
 
   useEffect(() => {

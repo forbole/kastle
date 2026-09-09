@@ -6,6 +6,7 @@ import {
   PublicKey,
   RpcClient,
   SighashType,
+  IGetFeeEstimateResponse,
 } from "@/wasm/core/kaspa";
 import { PaymentOutput, SignType } from "@/lib/wallet/wallet-interface.ts";
 import type { NetworkType } from "@/contexts/SettingsContext";
@@ -64,6 +65,23 @@ export function stripTransactionJSON(txJson: string): string {
     return txJson;
   }
 }
+
+// The Generator aborts instead of retrying with fewer inputs once a fragmented
+// UTXO set pushes a transaction past KIP-9 storage mass (rusty-kaspa#701, still
+// open in the vendored 2.0.1). Measured against assets/kaspa_bg.wasm, sending
+// balance − 0.3 KAS: 175–176 UTXOs → "Mass calculation error", 177–~265 →
+// "Storage mass exceeds maximum", ≳268 → "Insufficient funds". Three strings,
+// one user-facing condition, one remedy: send less.
+export const isFragmentationError = (error: unknown) =>
+  /Mass calculation error|Storage mass exceeds maximum|Insufficient funds/.test(
+    String(error),
+  );
+
+// What a Max send keeps back, before the priority fee: the Generator's fee for
+// spending every UTXO (0.19931 KAS at 174, the most it builds) plus the ~0.1 KAS
+// of change the storage mass limit demands. Measured against
+// assets/kaspa_bg.wasm; tests/generator-errors-unit.spec.ts pins it.
+export const MAX_SEND_RESERVE_KAS = 0.3;
 
 // Sending amount must be greater than 0.2 KAS as KIP-0009 standard requires
 // https://github.com/kaspanet/kips/blob/master/kip-0009.md
@@ -134,4 +152,38 @@ export const waitTxForAddress = async (
   } finally {
     await rpcClient.unsubscribeUtxosChanged([address]);
   }
+};
+
+// getFeeEstimate reports feerate in sompi/gram and, on an idle network, 100 on
+// every bucket (mainnet, 2026-09-07). The Generator's own fee already pays
+// exactly that floor (measured against assets/kaspa_bg.wasm 2.0.1: a 3,154
+// gram send is charged 315,400 sompi with priorityFee 0n), so only the excess
+// above the floor is a priority fee. Treating the whole feerate as priority
+// charged base + base — twice the "Estimated" fee — at the floor.
+export const FEE_ESTIMATE_FLOOR_FEERATE = 100;
+
+export type FeePriority = "low" | "medium" | "high";
+
+// undefined while either input is still loading: the caller keeps the form's
+// current priorityFee instead of writing 0n, which on Back would rebuild a Max
+// amount around a fee that is about to change.
+export const priorityFeeFromEstimate = (
+  estimate: IGetFeeEstimateResponse | undefined,
+  priority: FeePriority,
+  baseFee: number | undefined,
+): bigint | undefined => {
+  if (!estimate || baseFee === undefined) return undefined;
+
+  const feerate =
+    priority === "low"
+      ? estimate.estimate.lowBuckets?.[0]?.feerate
+      : priority === "medium"
+        ? estimate.estimate.normalBuckets?.[0]?.feerate
+        : estimate.estimate.priorityBucket?.feerate;
+  const excess = Math.max(
+    0,
+    (feerate ?? FEE_ESTIMATE_FLOOR_FEERATE) - FEE_ESTIMATE_FLOOR_FEERATE,
+  );
+
+  return BigInt(Math.round((excess * baseFee) / 100));
 };

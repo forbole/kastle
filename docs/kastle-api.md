@@ -209,6 +209,8 @@ const { entries } = await kastle.request("kas:get_utxo_entries");
 
 Builds, signs, and broadcasts a KAS transfer in one call. No RPC or WASM needed.
 
+> **Since Extension `2.60.1`:** when the account's UTXOs are fragmented enough that the transfer needs more than one transaction, the call rejects with `{ code: 4300, message }` (`BATCH_REQUIRED`) instead of broadcasting only the first, non-paying transaction. Build the batch with [Build Transaction](#10-build-transaction) and pass each transaction, in order, to [Sign & Broadcast Transaction](#11-sign--broadcast-transaction) — `docs/index.js` shows the loop.
+
 **Parameters**
 
 | Parameter             | Type     | Required | Description                                                                                                       |
@@ -480,6 +482,10 @@ console.log("Reveal Tx ID:", result.revealTxId);
 Consolidates all UTXOs in the current account into a single UTXO by sending the full balance back to the sender's own address. Opens a confirmation popup.
 
 Useful for reducing future transaction fees caused by having many small UTXOs.
+
+> **Current behaviour (Extension):** the handler builds the self-send with the Generator's default input selection, which picks only as many UTXOs as the payment needs — in practice one input moved to the same address minus the fee. The account's UTXOs are **not** consolidated. To compound today, build the sweep yourself with [Build Transaction](#10-build-transaction) and broadcast it with [Sign & Broadcast Transaction](#11-sign--broadcast-transaction). A sweep-mode fix is tracked separately.
+
+> **Since Extension `2.60.1`:** when compounding would take more than one transaction, the call rejects with `{ code: 4300, message }` (`BATCH_REQUIRED`) instead of broadcasting only the first one. Build the batch with [Build Transaction](#10-build-transaction) and pass each transaction, in order, to [Sign & Broadcast Transaction](#11-sign--broadcast-transaction).
 
 **Parameters**
 
