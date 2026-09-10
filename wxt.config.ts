@@ -10,17 +10,28 @@ import { readFileSync } from "node:fs";
 // manual manifest edit. No new env var: ADR-003 already names CI.
 const qaVersionName = () => {
   if (process.env.CI) return undefined;
-  const { version } = JSON.parse(readFileSync("package.json", "utf8"));
-  const sha = execSync("git rev-parse --short=12 HEAD").toString().trim();
-  return `${version}-qa-${sha}`;
+  try {
+    const sha = execSync("git rev-parse --short=12 HEAD", {
+      stdio: ["ignore", "pipe", "ignore"],
+    })
+      .toString()
+      .trim();
+    const { version } = JSON.parse(readFileSync("package.json", "utf8"));
+    return `${version}-qa-${sha}`;
+  } catch {
+    // Not a git tree (a source zip, a reviewer's download). This runs at
+    // config load, so throwing would break every wxt command: skip the stamp.
+    return undefined;
+  }
 };
+const versionName = qaVersionName();
 
 // See https://wxt.dev/api/config.html
 export default defineConfig({
   extensionApi: "chrome",
   modules: ["@wxt-dev/module-react"],
   manifest: {
-    ...(qaVersionName() && { version_name: qaVersionName() }),
+    ...(versionName && { version_name: versionName }),
     permissions: ["storage", "alarms", "clipboardRead"],
     content_security_policy: {
       extension_pages:

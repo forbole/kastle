@@ -108,7 +108,7 @@ test.describe("KAS send over a fragmented UTXO set (B2)", () => {
     expect(broadcast.length).toBe(transactions.length);
     expect(ids.length).toBe(transactions.length);
     // The point of the fix: the recipient is paid the whole 3000 KAS.
-    expect(paidTo(broadcast, destScript)).toBe(REQUEST);
+    expect(String(paidTo(broadcast, destScript))).toBe(String(REQUEST));
   });
 
   test("the batch is broadcast in generator order, payment last", async () => {
@@ -145,7 +145,9 @@ test.describe("KAS send over a fragmented UTXO set (B2)", () => {
     await signAndSubmitBatch(transactions, signer, rpcClient);
 
     expect(transactions.length).toBeGreaterThan(1);
-    expect(paidTo(broadcast, destScript)).toBe(TOTAL - MIN_SUBTRAHEND);
+    expect(String(paidTo(broadcast, destScript))).toBe(
+      String(TOTAL - MIN_SUBTRAHEND),
+    );
   });
 
   test("an unfragmented wallet still sends exactly one transaction", async () => {
@@ -156,7 +158,7 @@ test.describe("KAS send over a fragmented UTXO set (B2)", () => {
 
     expect(transactions.length).toBe(1);
     expect(ids.length).toBe(1);
-    expect(paidTo(broadcast, destScript)).toBe(REQUEST);
+    expect(String(paidTo(broadcast, destScript))).toBe(String(REQUEST));
   });
 
   test("progress and incremental ids are reported for every transaction", async () => {

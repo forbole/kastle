@@ -174,6 +174,26 @@ test.describe("mint loop UTXO bookkeeping across iterations", () => {
       this.emitLast();
     }
 
+    // The mempool dropped `tx` unmined (node restart, eviction, the 24 h
+    // expiry): nothing spends its inputs any more and the UTXO index, which
+    // never reflected the mempool, keeps listing them.
+    evict(tx: Transaction) {
+      this.mempool.delete(tx.id);
+      for (const input of tx.inputs)
+        this.spentInMempool.delete(outpointKey(input.previousOutpoint));
+    }
+
+    mempoolQueryFailure: string | undefined;
+
+    async getMempoolEntry({ transactionId }: { transactionId: string }) {
+      if (this.mempoolQueryFailure) throw this.mempoolQueryFailure;
+      if (!this.mempool.has(transactionId)) {
+        // RpcError::TransactionNotFound
+        throw `RPC Server (remote error) -> Transaction ${transactionId} not found`;
+      }
+      return { mempoolEntry: { transactionId } };
+    }
+
     async subscribeUtxosChanged() {}
     async unsubscribeUtxosChanged() {}
     addEventListener(_: string, listener: (event: unknown) => void) {
@@ -288,5 +308,63 @@ test.describe("mint loop UTXO bookkeeping across iterations", () => {
     await new Promise((resolve) => setTimeout(resolve, 1_600));
     await run(0, 2);
     expectDisjointInputs(node, 6);
+  });
+
+  test("a broadcast the mempool dropped does not wedge every retry", async () => {
+    const { node, run } = setup(200);
+    // Iteration 0's reveal is accepted, never reported, and evicted unmined.
+    // The node lists its inputs as unspent from then on, so a spent record
+    // that is never re-checked refuses every later iteration until the tab
+    // is reloaded.
+    node.silence = () => node.submitted.length === 2;
+    node.onSubmit = (tx) => {
+      if (node.submitted.length === 2) node.evict(tx);
+    };
+    await run(0, 1);
+    const dropped = node.submitted[1];
+    expect(node.mempool.has(dropped.id)).toBe(false);
+
+    // The next iteration still waits the timeout out (the spend could be a
+    // lagging index), then builds on what the dropped reveal had spent.
+    const started = Date.now();
+    await run(1, 3);
+    expect(Date.now() - started).toBeGreaterThanOrEqual(200);
+    expect(node.submitted.length).toBe(6);
+
+    const droppedInputs = dropped.inputs.map((i) =>
+      outpointKey(i.previousOutpoint),
+    );
+    const later = node.submitted
+      .slice(2)
+      .flatMap((tx) => tx.inputs.map((i) => outpointKey(i.previousOutpoint)));
+    expect(later.some((key) => droppedInputs.includes(key))).toBe(true);
+    // Everything the mempool still knows is spent exactly once.
+    expect(new Set(later).size).toBe(later.length);
+  });
+
+  test("a mempool query that fails for any other reason keeps failing closed", async () => {
+    const { node, run } = setup(200);
+    // Same eviction as above, but the node cannot answer the mempool query
+    // (transport error, not "not found"). The record must survive: reusing
+    // the outpoint on a guess is the double spend the set exists to prevent.
+    node.silence = () => node.submitted.length === 2;
+    node.onSubmit = (tx) => {
+      if (node.submitted.length === 2) node.evict(tx);
+    };
+    await run(0, 1);
+    node.mempoolQueryFailure =
+      "RPC Server (remote error) -> RPC call timed out";
+
+    const error = await run(1, 2).then(
+      () => undefined,
+      (e: unknown) => e,
+    );
+    expect(String(error)).toContain("still unconfirmed");
+    expect(node.submitted.length).toBe(2);
+
+    // Once the node answers again the retry goes through.
+    node.mempoolQueryFailure = undefined;
+    await run(1, 2);
+    expect(node.submitted.length).toBe(4);
   });
 });
