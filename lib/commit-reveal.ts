@@ -236,20 +236,22 @@ export class CommitRevealHelper {
       stale.map((entry) => spent.get(outpointKey(entry.outpoint))!),
     );
     for (const transactionId of spenders) {
-      // ponytail: any rejection counts as "not in the mempool". The UTXO read
-      // that found `stale` just succeeded on this connection, so a transport
-      // failure here is unlikely, and a wedged wallet is the alternative.
-      const known = await this.rpcClient
+      // Only the node's own "Transaction … not found" answer
+      // (RpcError::TransactionNotFound) means the mempool dropped it. A
+      // transport or server error keeps the record: failing closed for one
+      // more attempt beats reusing an outpoint a live transaction still
+      // spends.
+      const dropped = await this.rpcClient
         .getMempoolEntry({
           transactionId,
           includeOrphanPool: true,
           filterTransactionPool: false,
         })
         .then(
-          () => true,
           () => false,
+          (e: unknown) => /not found/i.test(errorMessage(e)),
         );
-      if (known) continue;
+      if (!dropped) continue;
       for (const [key, id] of spent) {
         if (id === transactionId) spent.delete(key);
       }

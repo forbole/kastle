@@ -183,9 +183,13 @@ test.describe("mint loop UTXO bookkeeping across iterations", () => {
         this.spentInMempool.delete(outpointKey(input.previousOutpoint));
     }
 
+    mempoolQueryFailure: string | undefined;
+
     async getMempoolEntry({ transactionId }: { transactionId: string }) {
+      if (this.mempoolQueryFailure) throw this.mempoolQueryFailure;
       if (!this.mempool.has(transactionId)) {
-        throw `RPC Server (remote error) -> Transaction ${transactionId} not found in mempool`;
+        // RpcError::TransactionNotFound
+        throw `RPC Server (remote error) -> Transaction ${transactionId} not found`;
       }
       return { mempoolEntry: { transactionId } };
     }
@@ -336,5 +340,31 @@ test.describe("mint loop UTXO bookkeeping across iterations", () => {
     expect(later.some((key) => droppedInputs.includes(key))).toBe(true);
     // Everything the mempool still knows is spent exactly once.
     expect(new Set(later).size).toBe(later.length);
+  });
+
+  test("a mempool query that fails for any other reason keeps failing closed", async () => {
+    const { node, run } = setup(200);
+    // Same eviction as above, but the node cannot answer the mempool query
+    // (transport error, not "not found"). The record must survive: reusing
+    // the outpoint on a guess is the double spend the set exists to prevent.
+    node.silence = () => node.submitted.length === 2;
+    node.onSubmit = (tx) => {
+      if (node.submitted.length === 2) node.evict(tx);
+    };
+    await run(0, 1);
+    node.mempoolQueryFailure =
+      "RPC Server (remote error) -> RPC call timed out";
+
+    const error = await run(1, 2).then(
+      () => undefined,
+      (e: unknown) => e,
+    );
+    expect(String(error)).toContain("still unconfirmed");
+    expect(node.submitted.length).toBe(2);
+
+    // Once the node answers again the retry goes through.
+    node.mempoolQueryFailure = undefined;
+    await run(1, 2);
+    expect(node.submitted.length).toBe(4);
   });
 });
