@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.60.1](https://github.com/forbole/kastle/compare/v2.60.0...v2.60.1) (2026-09-10)
+
+
+### Bug Fixes
+
+* **commit-reveal:** broadcast the whole reveal batch and pre-flight it before the commit ([#340](https://github.com/forbole/kastle/issues/340)) ([eb254ad](https://github.com/forbole/kastle/commit/eb254ad774b1b5fa28c0d58a3a9d010c3cc6ff8b))
+* **commit-reveal:** forget spends the mempool dropped, refcount shared subscriptions, cleanup pass ([#342](https://github.com/forbole/kastle/issues/342)) ([5458724](https://github.com/forbole/kastle/commit/54587246516176a859e0cb0fdea822fe19f6e4ff))
+* **send:** pass the priority fee, fail closed on dApp batches, surface fragmentation ([#339](https://github.com/forbole/kastle/issues/339)) ([4a47878](https://github.com/forbole/kastle/commit/4a47878f165c9ca1ce2219009ca892c3c5b5b87b))
+
 ## [2.60.0](https://github.com/forbole/kastle/compare/v2.59.8...v2.60.0) (2026-09-03)
 
 
