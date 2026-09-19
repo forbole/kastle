@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import type { Settings } from "@/contexts/SettingsContext";
 import type { WalletSettings } from "@/contexts/WalletManagerContext";
-import { attachZKasSeed, getSelectedZKasAccount, getZKasMnemonic, getZKasSecretSource, loadSelectedZKasAccount, sameZKasSelection } from "@/lib/zkas/selection";
+import { attachZKasSeed, getSelectedZKasAccount, getZKasMnemonic, getZKasSecretSource, listZKasSwitchAccounts, loadSelectedZKasAccount, sameZKasSelection } from "@/lib/zkas/selection";
 import { getZKasDaemonOriginPattern } from "@/lib/zkas/client";
 import { isTrustedZKasSender } from "@/lib/service/zkas-sender";
 
@@ -80,6 +80,47 @@ test("a Kaspa private key is never silently treated as a ZKas seed", () => {
   expect(() => attachZKasSeed([
     { id: "wallet-1", type: "privateKey", value: "02".repeat(32) },
   ], selected, "not-a-seed")).toThrow(/seed/i);
+});
+
+test("wallet switcher lists real ZKas addresses only for supported account secrets", async () => {
+  const seed = "01".repeat(32);
+  const wallets = {
+    ...walletSettings,
+    wallets: [
+      { ...walletSettings.wallets[0], accounts: [
+        { index: 0, name: "First", address: "kaspa:first" },
+        { index: 2, name: "Third", address: "kaspa:third" },
+      ] },
+      { id: "seed-wallet", name: "Seed wallet", type: "privateKey" as const, backed: true,
+        accounts: [{ index: 0, name: "Imported", address: "kaspa:imported" }] },
+      { id: "kaspa-only", name: "Kaspa only", type: "privateKey" as const, backed: true,
+        accounts: [{ index: 0, name: "Kaspa", address: "kaspa:only" }] },
+      { id: "passphrase", name: "Passphrase", type: "mnemonic" as const, backed: true,
+        accounts: [{ index: 0, name: "Passphrase", address: "kaspa:passphrase" }] },
+      { id: "ledger", name: "Ledger", type: "ledger" as const, backed: true,
+        accounts: [{ index: 0, name: "Ledger", address: "kaspa:ledger" }] },
+    ],
+  } satisfies WalletSettings;
+  const secrets = [
+    { id: "wallet-1", type: "mnemonic" as const, value: "phrase" },
+    { id: "seed-wallet", type: "privateKey" as const, value: "02".repeat(32), zkasSeedHex: seed },
+    { id: "kaspa-only", type: "privateKey" as const, value: "03".repeat(32) },
+    { id: "passphrase", type: "mnemonic" as const, value: "other phrase", passphrase: "secret" },
+    { id: "ledger", type: "ledger" as const, value: "ledger-secret" },
+  ];
+  const derivations: string[] = [];
+  const entries = await listZKasSwitchAccounts(wallets, secrets, async (source, index) => {
+    derivations.push(`${source.type}:${index}`);
+    return `zkas:${source.type}-${index}`;
+  });
+
+  expect(entries).toEqual([
+    { walletId: "wallet-1", accountIndex: 0, address: "zkas:mnemonic-0", source: "recoveryPhrase" },
+    { walletId: "wallet-1", accountIndex: 2, address: "zkas:mnemonic-2", source: "recoveryPhrase" },
+    { walletId: "seed-wallet", accountIndex: 0, address: "zkas:seed-0", source: "importedSeed" },
+  ]);
+  expect(derivations).toEqual(["mnemonic:0", "mnemonic:2", "seed:0"]);
+  expect(JSON.stringify(entries)).not.toContain(seed);
 });
 
 test("daemon permission pattern matches the selected host and refuses plaintext remote URLs", () => {

@@ -10,6 +10,44 @@ export type ZKasSelection = {
   network: ZKasNetwork;
 };
 
+export type ZKasSwitchAccount = {
+  walletId: string;
+  accountIndex: number;
+  address: string;
+  source: "recoveryPhrase" | "importedSeed";
+};
+
+export async function listZKasSwitchAccounts(
+  walletSettings: WalletSettings,
+  walletSecrets: WalletSecret[],
+  deriveAddress: (source: { type: "mnemonic" | "seed"; value: string }, accountIndex: number) => Promise<string>,
+): Promise<ZKasSwitchAccount[]> {
+  const accounts: ZKasSwitchAccount[] = [];
+  for (const wallet of walletSettings.wallets) {
+    const secret = walletSecrets.find((item) => item.id === wallet.id);
+    if (!secret || secret.type !== wallet.type) continue;
+    if (secret.type === "mnemonic" && !secret.passphrase) {
+      for (const account of wallet.accounts) {
+        accounts.push({
+          walletId: wallet.id,
+          accountIndex: account.index,
+          address: await deriveAddress({ type: "mnemonic", value: secret.value }, account.index),
+          source: "recoveryPhrase",
+        });
+      }
+    } else if (secret.type === "privateKey" && secret.zkasSeedHex &&
+      wallet.accounts.some((account) => account.index === 0)) {
+      accounts.push({
+        walletId: wallet.id,
+        accountIndex: 0,
+        address: await deriveAddress({ type: "seed", value: normalizeZKasSeedHex(secret.zkasSeedHex) }, 0),
+        source: "importedSeed",
+      });
+    }
+  }
+  return accounts;
+}
+
 export async function loadSelectedZKasAccount(
   keyring: { isUnlocked(): boolean; getSessionVersion(): number },
   readWalletSettings: () => Promise<WalletSettings | null>,

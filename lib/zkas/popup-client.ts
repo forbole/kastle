@@ -4,6 +4,7 @@ import { parseZkasAmount } from "./amount";
 import { getZKasDaemonOriginPattern, ZKasClient, type ZKasHistory, type ZKasSigner, type ZKasState } from "./client";
 import type { ZKasCredentials, ZKasSignRequest } from "./key-service";
 import type { ZKasSelection } from "./selection";
+import type { ZKasSwitchAccount } from "./selection";
 import type { ZKasPaymentRecord } from "./payment-journal";
 import { ZKasPreSubmitError, ZKasSubmissionUncertainError } from "./client";
 
@@ -62,6 +63,10 @@ function assertExpectedAccount(credentials: ZKasCredentials, expectedAccount?: P
 
 export async function getZKasPublicAccount(): Promise<PublicZKasAccount> {
   return internal(Method.ZKAS_GET_ACCOUNT);
+}
+
+export async function getZKasSwitchAccounts(): Promise<ZKasSwitchAccount[]> {
+  return internal(Method.ZKAS_LIST_ACCOUNTS);
 }
 
 export async function previewZKasSeed(seedHex: string): Promise<PublicZKasAccount> {

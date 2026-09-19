@@ -8,11 +8,13 @@ import useAnalytics from "@/hooks/useAnalytics";
 interface RecoveryPhraseWalletItemProps {
   wallet: WalletInfo;
   onClose: () => void;
+  onSelectAccount?: (walletId: string, accountIndex: number) => Promise<void>;
 }
 
 export const RecoveryPhraseWalletItem = ({
   wallet,
   onClose,
+  onSelectAccount,
 }: RecoveryPhraseWalletItemProps) => {
   const navigate = useNavigate();
   const { addAccount } = useAccountManager();
@@ -56,6 +58,7 @@ export const RecoveryPhraseWalletItem = ({
                 walletId={wallet.id}
                 account={account}
                 onClose={onClose}
+                onSelectAccount={onSelectAccount}
               />
             ))}
 
