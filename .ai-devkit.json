@@ -1,0 +1,113 @@
+{
+  "version": "0.62.2",
+  "environments": [
+    "claude"
+  ],
+  "phases": [
+    "requirements",
+    "design",
+    "planning",
+    "implementation",
+    "testing",
+    "deployment",
+    "monitoring"
+  ],
+  "memory": {
+    "semantic": false
+  },
+  "createdAt": "2026-09-19T06:23:43.932Z",
+  "skills": [
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "agent-communication"
+    },
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "agent-management"
+    },
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "ai-devkit-setup"
+    },
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "remote-from-slack"
+    },
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "remote-from-telegram"
+    },
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "dev-commit"
+    },
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "dev-lifecycle"
+    },
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "dev-worktree"
+    },
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "dev-requirements"
+    },
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "dev-design"
+    },
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "dev-planning"
+    },
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "dev-implementation"
+    },
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "dev-testing"
+    },
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "dev-review"
+    },
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "dev-pr"
+    },
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "structured-debug"
+    },
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "document-code"
+    },
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "memory"
+    },
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "task"
+    },
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "simplify-implementation"
+    },
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "brainstorm"
+    },
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "verify"
+    },
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "tdd"
+    }
+  ]
+}

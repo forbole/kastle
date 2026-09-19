@@ -10,7 +10,13 @@
   "scripts": {
     "dev": "wxt",
     "dev:firefox": "wxt -b firefox",
+    "prebuild": "npm run check:zkas-signer",
     "build": "wxt build",
+    "prebuild:firefox": "npm run check:zkas-signer",
+    "prezip": "npm run check:zkas-signer",
+    "prezip:firefox": "npm run check:zkas-signer",
+    "presubmit": "npm run check:zkas-signer",
+    "check:zkas-signer": "node scripts/check-zkas-signer.mjs",
     "build:firefox": "wxt build -b firefox",
     "zip": "wxt zip",
     "zip:firefox": "wxt zip -b firefox",
