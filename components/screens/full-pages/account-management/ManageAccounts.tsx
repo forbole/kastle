@@ -198,6 +198,7 @@ export default function ManageAccounts({
     ledger:
       "These accounts are generated from your Ledger device. They support both Kaspa and EVM Networks (such as Kasplex and Igra).",
     privateKey: "", // Not used in this context
+    zkasSeed: "ZKas spending seed wallets support only account 0.",
   }[wallet.type];
 
   return (
