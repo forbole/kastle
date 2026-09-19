@@ -79,6 +79,28 @@ test("watch-only state registers only the viewing key and returns exact balance"
   expect(JSON.stringify(calls)).not.toContain("seed");
 });
 
+test("history reads bounded rows and rejects imprecise amounts", async () => {
+  const { daemonFetch } = fakeDaemon({
+    "/api/wallet/history": {
+      recoverableHistory: true,
+      total: 1,
+      rows: [{ kind: "sent", txid, amountSompi: 100, feeSompi: 10, timestamp: 0 }],
+      pendingOutgoing: [],
+    },
+  });
+  const client = new ZKasClient({ baseUrl: "https://wallet.example", token: "b".repeat(32), network: "mainnet", fetch: daemonFetch });
+  expect((await client.history()).rows[0].amountSompi).toBe(100);
+  const unsafe = fakeDaemon({
+    "/api/wallet/history": {
+      recoverableHistory: true,
+      total: 1,
+      rows: [{ kind: "sent", txid, amountSompi: Number.MAX_SAFE_INTEGER + 1, feeSompi: 10, timestamp: 0 }],
+    },
+  });
+  const unsafeClient = new ZKasClient({ baseUrl: "https://wallet.example", token: "b".repeat(32), network: "mainnet", fetch: unsafe.daemonFetch });
+  await expect(unsafeClient.history()).rejects.toThrow();
+});
+
 test("read-only state exposes incomplete sync without presenting it as final", async () => {
   const { daemonFetch } = fakeDaemon({
     "/api/status": {
@@ -232,6 +254,30 @@ test("testnet payment fails before a daemon request because signer cannot verify
     maxFeeSompi: 20n,
   })).rejects.toThrow(/testnet/i);
   expect(calls).toHaveLength(0);
+});
+
+test("account changes before submit prevent signature delivery to daemon", async () => {
+  const { daemonFetch, calls } = fakeDaemon({
+    "/api/status": goodStatus,
+    "/api/wallet/balance": { balance_sompi: "1000" },
+    "/api/wallet/prepare": goodPrepare,
+  });
+  const client = new ZKasClient({
+    baseUrl: "https://wallet.example",
+    token: "b".repeat(32),
+    network: "mainnet",
+    fetch: daemonFetch,
+  });
+  const { signer, verified } = fakeSigner();
+  await expect(client.send({
+    signer,
+    to: "zkas:recipient",
+    amountSompi: 100n,
+    maxFeeSompi: 20n,
+    beforeSubmit: async () => { throw new Error("Selected account changed"); },
+  })).rejects.toThrow(/account changed/i);
+  expect(verified).toHaveLength(1);
+  expect(calls.some((call) => call.path.endsWith("/submit"))).toBe(false);
 });
 
 test("daemon configuration rejects remote plaintext and malformed tokens", () => {

@@ -41,6 +41,22 @@ const submitSchema = z.object({
   amount_sompi_exact: z.string(),
   fee_sompi_exact: z.string(),
 });
+const historyRowSchema = z.object({
+  kind: z.enum(["coinbase", "received", "sent"]),
+  txid: z.string().regex(/^[0-9a-fA-F]{64}$/),
+  amountSompi: z.number().int().nonnegative().safe(),
+  feeSompi: z.number().int().nonnegative().safe(),
+  timestamp: z.number().int().nonnegative().safe(),
+});
+const historySchema = z.object({
+  recoverableHistory: z.boolean(),
+  total: z.number().int().nonnegative().safe(),
+  rows: z.array(historyRowSchema).max(30),
+  pendingOutgoing: z.array(z.object({
+    txid: z.string().regex(/^[0-9a-fA-F]{64}$/),
+    amountSompi: z.number().int().nonnegative().safe(),
+  })).max(30).optional(),
+});
 
 export type ZKasState = {
   address: string;
@@ -48,6 +64,7 @@ export type ZKasState = {
   synced: boolean;
   missingHistory: boolean;
 };
+export type ZKasHistory = z.infer<typeof historySchema>;
 
 export class ZKasSubmissionUncertainError extends Error {
   readonly txid?: string;
@@ -71,17 +88,27 @@ function validatedBaseUrl(value: string): string {
   return url.toString().replace(/\/+$/, "");
 }
 
+export function getZKasDaemonOriginPattern(value: string): string {
+  const url = new URL(validatedBaseUrl(value));
+  if (url.hostname === "[::1]") {
+    throw new Error("Use localhost or 127.0.0.1 for a local ZKas daemon");
+  }
+  return `${url.protocol}//${url.hostname}/*`;
+}
+
 export class ZKasClient {
   private readonly baseUrl: string;
   private readonly token: string;
   private readonly network: ZKasNetwork;
   private readonly fetcher: typeof fetch;
+  private readonly guard?: () => Promise<void>;
 
   constructor(config: {
     baseUrl: string;
     token: string;
     network: ZKasNetwork;
     fetch?: typeof fetch;
+    guard?: () => Promise<void>;
   }) {
     this.baseUrl = validatedBaseUrl(config.baseUrl);
     if (!/^[0-9a-fA-F]{32}$/.test(config.token)) {
@@ -90,25 +117,36 @@ export class ZKasClient {
     this.token = config.token;
     this.network = config.network;
     this.fetcher = config.fetch ?? globalThis.fetch.bind(globalThis);
+    this.guard = config.guard;
   }
 
   private async request(path: string, body?: unknown): Promise<unknown> {
-    const response = await this.fetcher(`${this.baseUrl}${path}`, {
-      method: body === undefined ? "GET" : "POST",
-      headers: {
-        "X-Wallet-Token": this.token,
-        ...(body === undefined ? {} : { "Content-Type": "application/json" }),
-      },
-      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-      credentials: "omit",
-      redirect: "error",
-      cache: "no-store",
-      referrerPolicy: "no-referrer",
-    });
-    if (!response.ok) {
-      throw new Error(`ZKas daemon returned HTTP ${response.status}`);
+    await this.guard?.();
+    const timeoutMs = path === "/api/wallet/prepare" ? 360_000
+      : path === "/api/wallet/submit" ? 90_000 : 30_000;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await this.fetcher(`${this.baseUrl}${path}`, {
+        method: body === undefined ? "GET" : "POST",
+        headers: {
+          "X-Wallet-Token": this.token,
+          ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+        },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+        credentials: "omit",
+        redirect: "error",
+        cache: "no-store",
+        referrerPolicy: "no-referrer",
+        signal: controller.signal,
+      });
+      if (!response.ok) {
+        throw new Error(`ZKas daemon returned HTTP ${response.status}`);
+      }
+      return await response.json();
+    } finally {
+      clearTimeout(timeout);
     }
-    return response.json();
   }
 
   async state(fvkHex: string, expectedAddress: string): Promise<ZKasState> {
@@ -142,11 +180,16 @@ export class ZKasClient {
     };
   }
 
+  async history(): Promise<ZKasHistory> {
+    return historySchema.parse(await this.request("/api/wallet/history?limit=30"));
+  }
+
   async send(input: {
     signer: ZKasSigner;
     to: string;
     amountSompi: bigint;
     maxFeeSompi: bigint;
+    beforeSubmit?: () => Promise<void>;
   }): Promise<{ txid: string; daemonReportedFeeSompi: bigint }> {
     if (this.network !== "mainnet") {
       throw new Error("The pinned ZKas signer cannot approve testnet payments");
@@ -218,6 +261,7 @@ export class ZKasClient {
     ) {
       throw new Error("ZKas signer returned invalid signatures");
     }
+    await input.beforeSubmit?.();
     let rawSubmission: unknown;
     try {
       rawSubmission = await this.request("/api/wallet/submit", {

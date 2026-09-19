@@ -1,6 +1,6 @@
 import { sendMessage } from "@/lib/utils.ts";
 import { KeyringStatusResponse } from "@/lib/service/handlers/keyring-status.ts";
-import { Method } from "@/lib/service/extension-service.ts";
+import { Method } from "@/lib/service/methods";
 import { KeyringUnlockResponse } from "@/lib/service/handlers/keyring-unlock.ts";
 import {
   KeyringGetWalletSecretRequest,

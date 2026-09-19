@@ -1,4 +1,4 @@
-import { Method } from "@/lib/service/extension-service.ts";
+import { Method } from "@/lib/service/methods";
 import { CURRENCIES } from "@/contexts/SettingsContext.tsx";
 import * as secp from "@noble/secp256k1";
 import { bytesToHex } from "viem";
