@@ -18,10 +18,13 @@ export default function ShowWalletSecret() {
       {secret?.type === "privateKey" && type === "zkas-seed" && secret.zkasSeedHex && (
         <ShowPrivateKey secret={secret.zkasSeedHex} label="ZKas spending seed" />
       )}
+      {secret?.type === "zkasSeed" && type === "zkas-seed" && (
+        <ShowPrivateKey secret={secret.value} label="ZKas spending seed" />
+      )}
       {secret?.type === "mnemonic" && type === "mnemonic" && (
         <ShowRecoveryPhrase secret={secret.value} />
       )}
-      {secret && !((secret.type === "privateKey" && (type === "private-key" || (type === "zkas-seed" && secret.zkasSeedHex))) || (secret.type === "mnemonic" && type === "mnemonic")) && (
+      {secret && !((secret.type === "privateKey" && (type === "private-key" || (type === "zkas-seed" && secret.zkasSeedHex))) || (secret.type === "mnemonic" && type === "mnemonic") || (secret.type === "zkasSeed" && type === "zkas-seed")) && (
         <p role="alert" className="p-6 text-white">This backup type is unavailable for the selected wallet.</p>
       )}
     </>

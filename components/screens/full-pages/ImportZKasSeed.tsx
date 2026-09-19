@@ -1,18 +1,17 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/GeneralHeader";
-import useWalletManager from "@/hooks/wallet/useWalletManager";
-import { importZKasSeed, previewZKasSeed, type PublicZKasAccount } from "@/lib/zkas/popup-client";
+import { importZKasSeed, previewZKasSeed } from "@/lib/zkas/popup-client";
+import useSwitchNetwork from "@/hooks/useSwitchNetwork";
 
-export default function ImportZKasSeed() {
+export default function ImportZKasSeed({ onBack }: { onBack: () => void }) {
   const navigate = useNavigate();
-  const { wallet, account } = useWalletManager();
+  const { switchZKasNetwork } = useSwitchNetwork();
   const [seedHex, setSeedHex] = useState("");
   const [showSeed, setShowSeed] = useState(false);
-  const [preview, setPreview] = useState<PublicZKasAccount>();
+  const [preview, setPreview] = useState<{ network: "mainnet"; address: string }>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const eligible = wallet?.type === "privateKey" && account?.index === 0;
 
   const previewAddress = async () => {
     setBusy(true);
@@ -33,6 +32,12 @@ export default function ImportZKasSeed() {
     try {
       await importZKasSeed(seedHex, preview);
       setSeedHex("");
+      try {
+        await switchZKasNetwork();
+      } catch {
+        // The wallet is saved. The dashboard offers network settings if the
+        // experimental network was disabled in another window during import.
+      }
       navigate("/dashboard");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to import ZKas seed");
@@ -44,16 +49,11 @@ export default function ImportZKasSeed() {
 
   return (
     <div className="flex h-[35rem] w-[41rem] flex-col gap-5 rounded-3xl bg-icy-blue-950 p-8 text-white">
-      <Header title="Import ZKas spending seed" showPrevious={false} onClose={() => navigate("/dashboard")} />
+      <Header title="Import ZKas wallet" showPrevious onBack={onBack} showClose onClose={() => window.close()} />
       <p className="text-sm text-daintree-200">
-        Attach a 32-byte ZKas seed from shielded-pay to {wallet?.name ?? "the selected wallet"}, {account?.name ?? "account 0"}.
-        This seed is used only for ZKas. Keep your original backup of it.
+        Import a 32-byte spending seed from shielded-pay as a separate ZKas wallet. Compare its address before saving, and keep your original backup.
       </p>
-      {!eligible ? (
-        <p role="alert" className="rounded-lg border border-amber-500 p-3 text-sm">
-          Select account 0 in an imported private-key wallet first.
-        </p>
-      ) : preview ? (
+      {preview ? (
         <div className="space-y-4">
           <p className="text-sm">Compare this derived address with the address shown by shielded-pay before importing:</p>
           <p className="break-all rounded-lg bg-daintree-800 p-3 text-sm">{preview.address}</p>
@@ -79,7 +79,7 @@ export default function ImportZKasSeed() {
           <button type="button" onClick={() => setShowSeed((value) => !value)} className="text-sm text-icy-blue-400">
             {showSeed ? "Hide seed" : "Show seed"}
           </button>
-          <button type="button" disabled={!eligible || busy || !seedHex.trim()} onClick={() => void previewAddress()} className="w-full rounded-full bg-icy-blue-400 p-4 disabled:opacity-50">
+          <button type="button" disabled={busy || !seedHex.trim()} onClick={() => void previewAddress()} className="w-full rounded-full bg-icy-blue-400 p-4 disabled:opacity-50">
             Show derived address
           </button>
         </div>

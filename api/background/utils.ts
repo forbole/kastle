@@ -24,6 +24,7 @@ import { kasplexTestnet, kasplexMainnet } from "@/lib/layer2";
 import { publicKeyToAddress } from "viem/accounts";
 import { RpcClient, Encoding, Resolver } from "@/wasm/core/kaspa";
 import { deriveKaspaAddress } from "@/lib/kaspa";
+import { getSelectedKaspaAccount } from "@/lib/wallet-switcher-selection";
 
 export class ApiUtils {
   static openPopup(tabId: number, url: string) {
@@ -66,14 +67,7 @@ export class ApiUtils {
   }
 
   static async getSelectedAccountFromSettings(settings: WalletSettings | null) {
-    if (!settings) return null;
-
-    const selectedWallet = await ApiUtils.getCurrentWallet();
-    if (!selectedWallet) return null;
-    const selectedAccount = selectedWallet.accounts.find((account) => {
-      return account.index === settings.selectedAccountIndex;
-    });
-
+    const selectedAccount = getSelectedKaspaAccount(settings);
     if (!selectedAccount) return null;
 
     // Re-derive the address from the current network on every read instead
@@ -208,7 +202,7 @@ export class ApiUtils {
 
   static async getEvmAddress() {
     const wallet = await ApiUtils.getCurrentWallet();
-    if (!wallet || wallet.type === "ledger") {
+    if (!wallet || wallet.type === "ledger" || wallet.type === "zkasSeed") {
       return;
     }
 

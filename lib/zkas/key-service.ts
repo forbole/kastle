@@ -3,13 +3,13 @@ import { SETTINGS_KEY } from "@/contexts/SettingsContext";
 import type { WalletSettings } from "@/contexts/WalletManagerContext";
 import { WALLET_SETTINGS } from "@/contexts/WalletManagerContext";
 import { ExtensionService } from "@/lib/service/extension-service";
+import { updateWalletSettingsLocked } from "@/lib/wallet-settings-storage";
 import type { WalletSecret } from "@/types/WalletSecret";
 import signerAssetUrl from "@/wasm/zkas-signer/firecash_signer_bg.wasm?url";
 import { parseZkasSompi } from "./amount";
 import { deriveZKasAccount, deriveZKasAccountFromSeed, initZKasSigner } from "./signer";
-import { attachZKasSeed, getSelectedAvailableZKasAddress, getZKasSecretSource, loadSelectedZKasAccount, normalizeZKasSeedHex, sameZKasSelection, type ZKasSelection } from "./selection";
-import { getVisibleWalletNetworks, ZKAS_EXPERIMENTAL_KEY, ZKAS_MAINNET } from "@/lib/wallet-network";
-import { getZKasPaymentJournal } from "./payment-journal";
+import { addOrRecoverZKasSeed, getSelectedAvailableZKasAddress, getZKasSecretSource, listZKasSwitchAccounts, loadSelectedZKasAccount, normalizeZKasSeedHex, sameZKasSelection, type ZKasSelection } from "./selection";
+import { getVisibleWalletNetworks, isZKasActive, ZKAS_EXPERIMENTAL_KEY, ZKAS_MAINNET } from "@/lib/wallet-network";
 
 export type ZKasCredentials = ZKasSelection & {
   keyringVersion: number;
@@ -32,6 +32,50 @@ export type ZKasSignRequest = {
 };
 
 export class ZKasKeyService {
+  private importTail: Promise<void> = Promise.resolve();
+
+  private async available(): Promise<{ settings: Settings; walletSettings: WalletSettings; keyringVersion: number }> {
+    const keyring = ExtensionService.getInstance().getKeyring();
+    if (!keyring.isUnlocked()) throw new Error("Unlock Kastle to use ZKas");
+    const keyringVersion = keyring.getSessionVersion();
+    const [settings, walletSettings, enabled] = await Promise.all([
+      storage.getItem<Settings>(SETTINGS_KEY),
+      storage.getItem<WalletSettings>(WALLET_SETTINGS),
+      storage.getItem<boolean>(ZKAS_EXPERIMENTAL_KEY),
+    ]);
+    if (!settings || !walletSettings || !getVisibleWalletNetworks(settings, enabled).includes(ZKAS_MAINNET)) {
+      throw new Error("Enable Experimental features to import a ZKas wallet");
+    }
+    if (!keyring.isUnlocked() || keyring.getSessionVersion() !== keyringVersion) {
+      throw new Error("Kastle lock state changed during the ZKas request");
+    }
+    return { settings, walletSettings, keyringVersion };
+  }
+
+  async switchAccounts(): Promise<Awaited<ReturnType<typeof listZKasSwitchAccounts>>> {
+    const { keyringVersion, settings } = await this.available();
+    const enabled = await storage.getItem<boolean>(ZKAS_EXPERIMENTAL_KEY);
+    if (!isZKasActive(settings, enabled)) throw new Error("Select ZKas Mainnet to view ZKas wallets");
+    const keyring = ExtensionService.getInstance().getKeyring();
+    const walletSettings = await storage.getItem<WalletSettings>(WALLET_SETTINGS);
+    if (!walletSettings) throw new Error("Wallet settings are unavailable");
+    const secrets = (await keyring.getValue<WalletSecret[]>("wallets")) ?? [];
+    await initZKasSigner(signerAssetUrl);
+    const accounts = await listZKasSwitchAccounts(walletSettings, secrets, async (source, index) => {
+      const derived = source.type === "mnemonic"
+        ? await deriveZKasAccount(source.value, index, "mainnet")
+        : await deriveZKasAccountFromSeed(source.value, "mainnet");
+      return derived.address;
+    });
+    const latest = await this.available();
+    if (keyring.getSessionVersion() !== keyringVersion ||
+      !isZKasActive(latest.settings, await storage.getItem<boolean>(ZKAS_EXPERIMENTAL_KEY)) ||
+      JSON.stringify(await storage.getItem<WalletSettings>(WALLET_SETTINGS)) !== JSON.stringify(walletSettings)) {
+      throw new Error("Wallets changed while loading the ZKas switcher");
+    }
+    return accounts;
+  }
+
   private async selected(): Promise<{ selection: ZKasSelection; settings: Settings; keyringVersion: number }> {
     const keyring = ExtensionService.getInstance().getKeyring();
     return loadSelectedZKasAccount(
@@ -115,44 +159,60 @@ export class ZKasKeyService {
     return account;
   }
 
-  async previewSeed(rawSeed: string): Promise<ZKasSelection & { address: string }> {
-    const { selection, keyringVersion } = await this.selected();
-    const keyring = ExtensionService.getInstance().getKeyring();
-    const secrets = (await keyring.getValue<WalletSecret[]>("wallets")) ?? [];
-    const secret = secrets.find((item) => item.id === selection.walletId);
-    if (selection.accountIndex !== 0 || secret?.type !== "privateKey") {
-      throw new Error("Select an imported-key wallet's account 0 to import a ZKas seed");
-    }
-    if (secret.zkasSeedHex) throw new Error("A ZKas seed is already attached to this wallet");
+  async previewSeed(rawSeed: string): Promise<{ network: "mainnet"; address: string }> {
+    const { keyringVersion } = await this.available();
     const seedHex = normalizeZKasSeedHex(rawSeed);
     await initZKasSigner(signerAssetUrl);
     let address: string;
     try {
-      address = (await deriveZKasAccountFromSeed(seedHex, selection.network)).address;
+      address = (await deriveZKasAccountFromSeed(seedHex, "mainnet")).address;
     } catch {
       throw new Error("Invalid ZKas spending seed");
     }
-    await this.checkSelection(selection, undefined, keyringVersion);
-    return { ...selection, address };
+    const keyring = ExtensionService.getInstance().getKeyring();
+    await this.available();
+    if (keyring.getSessionVersion() !== keyringVersion) throw new Error("Kastle lock state changed during the ZKas request");
+    return { network: "mainnet", address };
   }
 
-  async importSeed(rawSeed: string, expectedAccount: ZKasSelection & { address: string }): Promise<ZKasSelection & { address: string }> {
-    const preview = await this.previewSeed(rawSeed);
-    if (!sameZKasSelection(preview, expectedAccount) || preview.address !== expectedAccount.address) {
-      throw new Error("Selected ZKas account changed. Preview the seed again");
-    }
-    const { selection, keyringVersion } = await this.selected();
-    if (!sameZKasSelection(preview, selection)) throw new Error("Selected ZKas account changed");
-    if (await getZKasPaymentJournal().get(selection)) {
-      throw new Error("Review the previous ZKas payment before importing a seed");
-    }
-    const keyring = ExtensionService.getInstance().getKeyring();
-    await keyring.updateValue<WalletSecret[]>("wallets", async (secrets) => {
-      const updated = attachZKasSeed(secrets ?? [], selection, rawSeed);
-      await this.checkSelection(selection, undefined, keyringVersion);
-      return updated;
+  async importSeed(rawSeed: string, expectedAccount: { network: "mainnet"; address: string }): Promise<ZKasSelection & { address: string }> {
+    const operation = this.importTail.then(async () => {
+      const preview = await this.previewSeed(rawSeed);
+      if (expectedAccount?.network !== "mainnet" || preview.address !== expectedAccount.address) {
+        throw new Error("ZKas address changed. Preview the seed again");
+      }
+      const { keyringVersion } = await this.available();
+      const keyring = ExtensionService.getInstance().getKeyring();
+      const seed = normalizeZKasSeedHex(rawSeed);
+      let id: string = crypto.randomUUID();
+      await updateWalletSettingsLocked<WalletSettings>(WALLET_SETTINGS, async (walletSettings) => {
+        await this.available();
+        if (keyring.getSessionVersion() !== keyringVersion) throw new Error("Kastle lock state changed during import");
+        await keyring.updateValue<WalletSecret[]>("wallets", (current) => {
+          const result = addOrRecoverZKasSeed(current ?? [], walletSettings, seed, id);
+          if (keyring.getSessionVersion() !== keyringVersion) throw new Error("Kastle lock state changed during import");
+          id = result.id;
+          return result.secrets;
+        });
+        const nextNumber = (walletSettings.lastZKasSeedNumber ?? 0) + 1;
+        return {
+          ...walletSettings,
+          selectedWalletId: id,
+          selectedAccountIndex: 0,
+          lastZKasSeedNumber: nextNumber,
+          wallets: [...walletSettings.wallets, {
+            id,
+            type: "zkasSeed",
+            name: `ZKas seed ${nextNumber}`,
+            accounts: [{ index: 0, name: "Account 0", address: preview.address }],
+            backed: true,
+          }],
+        };
+      });
+      return { walletId: id, accountIndex: 0, network: "mainnet" as const, address: preview.address };
     });
-    return preview;
+    this.importTail = operation.then(() => undefined, () => undefined);
+    return operation;
   }
 
   async credentials(): Promise<ZKasCredentials> {

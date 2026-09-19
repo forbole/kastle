@@ -19,7 +19,7 @@ import { evmGetPublicKeyHandler } from "./handlers/evm/evm-get-public-key.ts";
 import { evmSignTransactionHandler } from "./handlers/evm/evm-sign-transaction.ts";
 import { evmSignTypedDataHandler } from "./handlers/evm/evm-sign-typed-data.ts";
 import { evmSignMessageHandler } from "./handlers/evm/evm-sign-message.ts";
-import { zkasCheckSelection, zkasGetAccount, zkasGetSelectedAddress, zkasGetCredentials, zkasSign, zkasPaymentStatus, zkasPaymentAcquire, zkasPaymentSubmitting, zkasPaymentUncertain, zkasPaymentSuccess, zkasPaymentRelease, zkasPaymentClear, zkasPaymentAbortBeforeFetch, zkasConnectionRemove, zkasPreviewSeed, zkasImportSeed } from "./handlers/zkas";
+import { zkasCheckSelection, zkasGetAccount, zkasGetSelectedAddress, zkasGetSwitchAccounts, zkasGetCredentials, zkasSign, zkasPaymentStatus, zkasPaymentAcquire, zkasPaymentSubmitting, zkasPaymentUncertain, zkasPaymentSuccess, zkasPaymentRelease, zkasPaymentClear, zkasPaymentAbortBeforeFetch, zkasConnectionRemove, zkasPreviewSeed, zkasImportSeed } from "./handlers/zkas";
 import { Method } from "./methods";
 import { isTrustedZKasSender } from "./zkas-sender";
 import { zkasDappCheck, zkasDappComplete, zkasDappPendingGet } from "./handlers/zkas-dapp";
@@ -60,6 +60,7 @@ export class ExtensionService {
       [Method.EVM_SIGN_MESSAGE]: evmSignMessageHandler,
       [Method.ZKAS_GET_ACCOUNT]: zkasGetAccount,
       [Method.ZKAS_GET_SELECTED_ADDRESS]: zkasGetSelectedAddress,
+      [Method.ZKAS_GET_SWITCH_ACCOUNTS]: zkasGetSwitchAccounts,
       [Method.ZKAS_PREVIEW_SEED]: zkasPreviewSeed,
       [Method.ZKAS_IMPORT_SEED]: zkasImportSeed,
       [Method.ZKAS_GET_CREDENTIALS]: zkasGetCredentials,

@@ -3,7 +3,7 @@ import { sendMessage } from "@/lib/utils";
 import { parseZkasAmount } from "./amount";
 import { getZKasDaemonOriginPattern, ZKasClient, type ZKasHistory, type ZKasSigner, type ZKasState } from "./client";
 import type { ZKasCredentials, ZKasSignRequest } from "./key-service";
-import type { ZKasSelection } from "./selection";
+import type { ZKasSelection, ZKasSwitchAccount } from "./selection";
 import type { ZKasPaymentRecord } from "./payment-journal";
 import { ZKasPreSubmitError, ZKasSubmissionUncertainError } from "./client";
 
@@ -68,11 +68,15 @@ export async function getSelectedZKasAddress(): Promise<PublicZKasAccount | null
   return internal(Method.ZKAS_GET_SELECTED_ADDRESS);
 }
 
-export async function previewZKasSeed(seedHex: string): Promise<PublicZKasAccount> {
+export async function getZKasSwitchAccounts(): Promise<ZKasSwitchAccount[]> {
+  return internal(Method.ZKAS_GET_SWITCH_ACCOUNTS);
+}
+
+export async function previewZKasSeed(seedHex: string): Promise<{ network: "mainnet"; address: string }> {
   return internal(Method.ZKAS_PREVIEW_SEED, { seedHex });
 }
 
-export async function importZKasSeed(seedHex: string, expectedAccount: PublicZKasAccount): Promise<PublicZKasAccount> {
+export async function importZKasSeed(seedHex: string, expectedAccount: { network: "mainnet"; address: string }): Promise<PublicZKasAccount> {
   return internal(Method.ZKAS_IMPORT_SEED, { seedHex, expectedAccount });
 }
 

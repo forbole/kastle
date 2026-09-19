@@ -1,6 +1,7 @@
 import {
   createHashRouter,
   LoaderFunctionArgs,
+  Link,
   Navigate,
   Outlet,
   redirect,
@@ -16,7 +17,6 @@ import AddWallet from "@/components/screens/AddWallet.tsx";
 import ImportRecoveryPhrase from "@/components/screens/full-pages/ImportRecoveryPhrase";
 import ImportRecoveryPhraseWithPassphrase from "@/components/screens/full-pages/ImportRecoveryPhraseWithPassphrase";
 import ImportPrivateKey from "@/components/screens/full-pages/ImportPrivateKey";
-import ImportZKasSeed from "@/components/screens/full-pages/ImportZKasSeed";
 import ResetWallet from "@/components/screens/ResetWallet.tsx";
 import FullscreenLayout from "@/components/layouts/FullscreenLayout.tsx";
 import RecoveryPhraseManageAccounts from "@/components/screens/full-pages/RecoveryPhraseManageAccounts";
@@ -93,16 +93,35 @@ import ZKasSend from "@/components/screens/zkas/ZKasSend";
 import ZKasSettings from "@/components/screens/zkas/ZKasSettings";
 import ZKasConnect from "@/components/screens/browser-api/zkas/ZKasConnect";
 import ZKasDappSend from "@/components/screens/browser-api/zkas/ZKasDappSend";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useSettings } from "@/hooks/useSettings";
 import { getVisibleWalletNetworks, isZKasActive, ZKAS_EXPERIMENTAL_KEY, ZKAS_MAINNET } from "@/lib/wallet-network";
 import useStorageState from "@/hooks/useStorageState";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
+import { SideMenu } from "@/components/side-menu/SideMenu";
+
+function ChooseKaspaWallet() {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="flex h-full flex-col gap-5 bg-icy-blue-950 p-5 text-white">
+      <SideMenu isOpen={open} onClose={() => setOpen(false)} />
+      <h1 className="text-xl font-bold">Choose a Kaspa wallet</h1>
+      <p className="text-sm text-daintree-200">The selected spending-seed wallet is available on ZKas Mainnet. Choose a recovery phrase, private key, or Ledger wallet for Kaspa.</p>
+      <button type="button" className="rounded-full bg-icy-blue-400 p-4 font-semibold" onClick={() => setOpen(true)}>Open wallet switcher</button>
+      <Link to="/add-wallet" className="rounded-full border border-daintree-700 p-4 text-center font-semibold">Import a Kaspa wallet</Link>
+      <Link to="/settings" className="rounded-full border border-daintree-700 p-4 text-center font-semibold">Network settings</Link>
+    </div>
+  );
+}
 
 function WalletDashboard() {
   const [settings, , isLoading] = useSettings();
   const [enabled, , gateLoading] = useStorageState<boolean | null>(ZKAS_EXPERIMENTAL_KEY, null);
+  const { walletSettings } = useWalletManager();
   if (isLoading || gateLoading) return null;
-  return isZKasActive(settings, enabled) ? <ZKasAsset /> : <Dashboard />;
+  if (isZKasActive(settings, enabled)) return <ZKasAsset />;
+  const selectedWallet = walletSettings?.wallets.find((wallet) => wallet.id === walletSettings.selectedWalletId);
+  return selectedWallet?.type === "zkasSeed" ? <ChooseKaspaWallet /> : <Dashboard />;
 }
 
 function ZKasOnly({ children }: { children: ReactNode }) {
@@ -492,7 +511,7 @@ export const router = createHashRouter([
                 element: <ImportRecoveryPhraseWithPassphrase />,
               },
               { path: "import-private-key", element: <ImportPrivateKey /> },
-              { path: "import-zkas-seed", element: <ZKasOnly><ImportZKasSeed /></ZKasOnly> },
+              { path: "import-zkas-seed", element: <Navigate to="/import-private-key" replace /> },
               {
                 path: "show-wallet-secret/:walletId/:type",
                 element: <ShowWalletSecret />,

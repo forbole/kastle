@@ -10,6 +10,35 @@ export type ZKasSelection = {
   network: ZKasNetwork;
 };
 
+export type ZKasSwitchAccount = ZKasSelection & {
+  address: string;
+  source: "recoveryPhrase" | "importedSeed";
+};
+
+export async function listZKasSwitchAccounts(
+  walletSettings: WalletSettings,
+  walletSecrets: WalletSecret[],
+  deriveAddress: (source: { type: "mnemonic" | "seed"; value: string }, accountIndex: number) => Promise<string>,
+): Promise<ZKasSwitchAccount[]> {
+  const entries: ZKasSwitchAccount[] = [];
+  for (const wallet of walletSettings.wallets) {
+    for (const account of wallet.accounts) {
+      const selected = await getSelectedAvailableZKasAddress(
+        { ...walletSettings, selectedWalletId: wallet.id, selectedAccountIndex: account.index },
+        walletSecrets,
+        deriveAddress,
+      );
+      if (selected) {
+        entries.push({
+          ...selected,
+          source: wallet.type === "mnemonic" ? "recoveryPhrase" : "importedSeed",
+        });
+      }
+    }
+  }
+  return entries;
+}
+
 export async function getSelectedAvailableZKasAddress(
   walletSettings: WalletSettings,
   walletSecrets: WalletSecret[],
@@ -23,6 +52,8 @@ export async function getSelectedAvailableZKasAddress(
   let source: { type: "mnemonic" | "seed"; value: string };
   if (secret.type === "mnemonic" && !secret.passphrase) {
     source = { type: "mnemonic", value: secret.value };
+  } else if (secret.type === "zkasSeed" && account.index === 0) {
+    source = { type: "seed", value: normalizeZKasSeedHex(secret.value) };
   } else if (secret.type === "privateKey" && account.index === 0 && secret.zkasSeedHex) {
     source = { type: "seed", value: normalizeZKasSeedHex(secret.zkasSeedHex) };
   } else {
@@ -78,6 +109,43 @@ export function normalizeZKasSeedHex(value: string): string {
   return seed.toLowerCase();
 }
 
+export function assertUniqueZKasSeed(walletSecrets: WalletSecret[], rawSeed: string): string {
+  const seed = normalizeZKasSeedHex(rawSeed);
+  if (walletSecrets.some((secret) =>
+    (secret.type === "zkasSeed" && normalizeZKasSeedHex(secret.value) === seed) ||
+    (secret.type === "privateKey" && secret.zkasSeedHex && normalizeZKasSeedHex(secret.zkasSeedHex) === seed)
+  )) {
+    throw new Error("This ZKas spending seed is already imported");
+  }
+  return seed;
+}
+
+export function addOrRecoverZKasSeed(
+  walletSecrets: WalletSecret[],
+  walletSettings: WalletSettings,
+  rawSeed: string,
+  newId: string,
+): { id: string; secrets: WalletSecret[] } {
+  const seed = normalizeZKasSeedHex(rawSeed);
+  const matching = walletSecrets.find((secret) =>
+    (secret.type === "zkasSeed" && normalizeZKasSeedHex(secret.value) === seed) ||
+    (secret.type === "privateKey" && secret.zkasSeedHex && normalizeZKasSeedHex(secret.zkasSeedHex) === seed)
+  );
+  if (matching) {
+    // A lock or interrupted worker can leave the encrypted seed written before
+    // its public wallet metadata. Reuse that ID instead of trapping the owner.
+    if (matching.type === "zkasSeed" && !walletSettings.wallets.some((wallet) => wallet.id === matching.id)) {
+      return { id: matching.id, secrets: walletSecrets };
+    }
+    throw new Error("This ZKas spending seed is already imported");
+  }
+  if (walletSecrets.some((secret) => secret.id === newId) ||
+    walletSettings.wallets.some((wallet) => wallet.id === newId)) {
+    throw new Error("Wallet ID already exists");
+  }
+  return { id: newId, secrets: [...walletSecrets, { id: newId, type: "zkasSeed", value: seed }] };
+}
+
 export function attachZKasSeed(
   walletSecrets: WalletSecret[],
   selection: ZKasSelection,
@@ -99,6 +167,10 @@ export function getZKasSecretSource(
 ): { type: "mnemonic" | "seed"; value: string } {
   const secret = walletSecrets.find((item) => item.id === selection.walletId);
   if (!secret) throw new Error("Selected wallet secret was not found");
+  if (secret.type === "zkasSeed") {
+    if (selection.accountIndex !== 0) throw new Error("Imported ZKas seed wallets support only account 0");
+    return { type: "seed", value: normalizeZKasSeedHex(secret.value) };
+  }
   if (secret.type === "privateKey") {
     if (selection.accountIndex !== 0) throw new Error("Imported-key wallets support only account 0");
     if (!secret.zkasSeedHex) throw new Error("Import a ZKas spending seed for this wallet first");
