@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import type { Settings } from "@/contexts/SettingsContext";
 import type { WalletSettings } from "@/contexts/WalletManagerContext";
-import { attachZKasSeed, getSelectedZKasAccount, getZKasMnemonic, getZKasSecretSource, listZKasSwitchAccounts, loadSelectedZKasAccount, sameZKasSelection } from "@/lib/zkas/selection";
+import { attachZKasSeed, getSelectedAvailableZKasAddress, getSelectedZKasAccount, getZKasMnemonic, getZKasSecretSource, loadSelectedZKasAccount, requireSelectedZKasAddress, sameZKasSelection } from "@/lib/zkas/selection";
 import { getZKasDaemonOriginPattern } from "@/lib/zkas/client";
 import { isTrustedZKasSender } from "@/lib/service/zkas-sender";
 
@@ -82,7 +82,28 @@ test("a Kaspa private key is never silently treated as a ZKas seed", () => {
   ], selected, "not-a-seed")).toThrow(/seed/i);
 });
 
-test("wallet switcher lists real ZKas addresses only for supported account secrets", async () => {
+test("address selector derives only the selected recovery-phrase account", async () => {
+  const wallets = {
+    ...walletSettings,
+    selectedAccountIndex: 2,
+    wallets: [{ ...walletSettings.wallets[0], accounts: [
+      { index: 0, name: "First", address: "kaspa:first" },
+      { index: 2, name: "Third", address: "kaspa:third" },
+    ] }],
+  } satisfies WalletSettings;
+  const requested: number[] = [];
+  const result = await getSelectedAvailableZKasAddress(wallets, [
+    { id: "wallet-1", type: "mnemonic", value: "phrase" },
+  ], async (_source, index) => {
+    requested.push(index);
+    return `zkas:account-${index}`;
+  });
+
+  expect(result).toEqual({ walletId: "wallet-1", accountIndex: 2, network: "mainnet", address: "zkas:account-2" });
+  expect(requested).toEqual([2]);
+});
+
+test("address selector shows an attached ZKas seed only for its selected wallet", async () => {
   const seed = "01".repeat(32);
   const wallets = {
     ...walletSettings,
@@ -109,18 +130,45 @@ test("wallet switcher lists real ZKas addresses only for supported account secre
     { id: "ledger", type: "ledger" as const, value: "ledger-secret" },
   ];
   const derivations: string[] = [];
-  const entries = await listZKasSwitchAccounts(wallets, secrets, async (source, index) => {
+  const derive = async (source: { type: "mnemonic" | "seed"; value: string }, index: number) => {
     derivations.push(`${source.type}:${index}`);
     return `zkas:${source.type}-${index}`;
-  });
+  };
 
-  expect(entries).toEqual([
-    { walletId: "wallet-1", accountIndex: 0, address: "zkas:mnemonic-0", source: "recoveryPhrase" },
-    { walletId: "wallet-1", accountIndex: 2, address: "zkas:mnemonic-2", source: "recoveryPhrase" },
-    { walletId: "seed-wallet", accountIndex: 0, address: "zkas:seed-0", source: "importedSeed" },
-  ]);
-  expect(derivations).toEqual(["mnemonic:0", "mnemonic:2", "seed:0"]);
-  expect(JSON.stringify(entries)).not.toContain(seed);
+  const selected = await getSelectedAvailableZKasAddress(
+    { ...wallets, selectedWalletId: "seed-wallet", selectedAccountIndex: 0 },
+    secrets,
+    derive,
+  );
+  expect(selected).toEqual({ walletId: "seed-wallet", accountIndex: 0, network: "mainnet", address: "zkas:seed-0" });
+  expect(derivations).toEqual(["seed:0"]);
+  expect(JSON.stringify(selected)).not.toContain(seed);
+
+  for (const selectedWalletId of ["kaspa-only", "passphrase", "ledger"]) {
+    expect(await getSelectedAvailableZKasAddress(
+      { ...wallets, selectedWalletId, selectedAccountIndex: 0 },
+      secrets,
+      derive,
+    )).toBeNull();
+  }
+  expect(derivations).toEqual(["seed:0"]);
+});
+
+test("a delayed address response cannot show another wallet or account", async () => {
+  const expected = { walletId: "wallet-1", accountIndex: 1, network: "mainnet" as const };
+  let finishRequest!: (account: typeof expected & { address: string }) => void;
+  const pending = new Promise<typeof expected & { address: string }>((resolve) => { finishRequest = resolve; });
+  const display = pending.then((account) => requireSelectedZKasAddress(account, expected));
+  finishRequest({ ...expected, walletId: "wallet-2", address: "zkas:other-wallet" });
+  await expect(display).rejects.toThrow(/selected ZKas account changed/i);
+
+  expect(() => requireSelectedZKasAddress({ ...expected, accountIndex: 2, address: "zkas:other-account" }, expected))
+    .toThrow(/selected ZKas account changed/i);
+  expect(() => requireSelectedZKasAddress({ ...expected, network: "testnet", address: "zkas:other-network" }, expected))
+    .toThrow(/selected ZKas account changed/i);
+  expect(requireSelectedZKasAddress({ ...expected, address: "zkas:selected" }, expected)?.address)
+    .toBe("zkas:selected");
+  expect(requireSelectedZKasAddress(null, expected)).toBeNull();
 });
 
 test("daemon permission pattern matches the selected host and refuses plaintext remote URLs", () => {

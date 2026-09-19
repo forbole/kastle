@@ -6,17 +6,7 @@ import { PrivateKeyWalletItem } from "@/components/side-menu/PrivateKeyWalletIte
 import { LedgerWalletItem } from "@/components/side-menu/LedgerWalletItem";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import useAccountManager from "@/hooks/wallet/useAccountManager";
-import useSwitchNetwork from "@/hooks/useSwitchNetwork";
 import { runExclusiveWalletSelection } from "@/lib/wallet-switcher-selection";
-import { useSettings } from "@/hooks/useSettings";
-import useStorageState from "@/hooks/useStorageState";
-import {
-  getVisibleWalletNetworks,
-  isZKasActive,
-  ZKAS_EXPERIMENTAL_KEY,
-  ZKAS_MAINNET,
-} from "@/lib/wallet-network";
-import { ZKasWalletSection } from "./ZKasWalletSection";
 
 type SideMenuProps = { isOpen: boolean; onClose: () => void };
 
@@ -25,20 +15,9 @@ export const SideMenu = ({ isOpen, onClose }: SideMenuProps) => {
   const navigate = useNavigate();
   const { walletSettings } = useWalletManager();
   const { selectAccount } = useAccountManager();
-  const { switchKaspaNetwork, switchZKasNetwork } = useSwitchNetwork();
   const selectionLock = useRef({ busy: false });
   const [switching, setSwitching] = useState(false);
   const [selectionError, setSelectionError] = useState("");
-  const [settings] = useSettings();
-  const [zkasEnabled, , isZKasGateLoading] = useStorageState<boolean | null>(
-    ZKAS_EXPERIMENTAL_KEY,
-    null,
-  );
-  const showZKas =
-    !isZKasGateLoading &&
-    !!settings &&
-    getVisibleWalletNetworks(settings, zkasEnabled).includes(ZKAS_MAINNET);
-  const zkasFirst = showZKas && isZKasActive(settings, zkasEnabled);
 
   const wallets = walletSettings?.wallets;
 
@@ -52,11 +31,7 @@ export const SideMenu = ({ isOpen, onClose }: SideMenuProps) => {
 
   const ledgerWallets = wallets?.filter((wallet) => wallet.type === "ledger");
 
-  const chooseAccount = async (
-    chain: "kaspa" | "zkas",
-    walletId: string,
-    accountIndex: number,
-  ) => {
+  const chooseAccount = async (walletId: string, accountIndex: number) => {
     try {
       await runExclusiveWalletSelection(
         selectionLock.current,
@@ -71,9 +46,6 @@ export const SideMenu = ({ isOpen, onClose }: SideMenuProps) => {
           }
           setSelectionError("");
           await selectAccount(walletId, accountIndex);
-          if (chain === "zkas") await switchZKasNetwork();
-          else if (settings?.activeChain === "zkas")
-            await switchKaspaNetwork(settings.networkId);
           onClose();
           navigate("/dashboard");
         },
@@ -86,25 +58,15 @@ export const SideMenu = ({ isOpen, onClose }: SideMenuProps) => {
     }
   };
 
-  const chooseKaspaAccount = (walletId: string, accountIndex: number) =>
-    chooseAccount("kaspa", walletId, accountIndex);
-  const chooseZKasAccount = (walletId: string, accountIndex: number) =>
-    chooseAccount("zkas", walletId, accountIndex);
-
-  const kaspaWallets = (
-    <section aria-label="Kaspa wallets" className="flex flex-col gap-3">
-      {showZKas && (
-        <h2 className="px-2 text-sm font-semibold text-daintree-400">
-          Kaspa wallets
-        </h2>
-      )}
+  const walletList = (
+    <section aria-label="Wallets" className="flex flex-col gap-3">
       <div className="flex flex-col items-stretch gap-3">
         {recoveryPhraseWallets?.map((wallet) => (
           <RecoveryPhraseWalletItem
             key={wallet.id}
             wallet={wallet}
             onClose={onClose}
-            onSelectAccount={chooseKaspaAccount}
+            onSelectAccount={chooseAccount}
           />
         ))}
       </div>
@@ -114,7 +76,7 @@ export const SideMenu = ({ isOpen, onClose }: SideMenuProps) => {
             key={wallet.id}
             wallet={wallet}
             onClose={onClose}
-            onSelectAccount={chooseKaspaAccount}
+            onSelectAccount={chooseAccount}
           />
         ))}
       </div>
@@ -124,7 +86,7 @@ export const SideMenu = ({ isOpen, onClose }: SideMenuProps) => {
             key={wallet.id}
             wallet={wallet}
             onClose={onClose}
-            onSelectAccount={chooseKaspaAccount}
+            onSelectAccount={chooseAccount}
           />
         ))}
       </div>
@@ -169,19 +131,7 @@ export const SideMenu = ({ isOpen, onClose }: SideMenuProps) => {
             disabled={switching}
             className="flex min-w-0 flex-col gap-3 disabled:opacity-50"
           >
-            {zkasFirst && (
-              <ZKasWalletSection
-                isOpen={isOpen}
-                onSelectAccount={chooseZKasAccount}
-              />
-            )}
-            {kaspaWallets}
-            {showZKas && !zkasFirst && (
-              <ZKasWalletSection
-                isOpen={isOpen}
-                onSelectAccount={chooseZKasAccount}
-              />
-            )}
+            {walletList}
           </fieldset>
         </div>
       </div>

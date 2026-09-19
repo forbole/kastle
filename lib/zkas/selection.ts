@@ -10,42 +10,26 @@ export type ZKasSelection = {
   network: ZKasNetwork;
 };
 
-export type ZKasSwitchAccount = {
-  walletId: string;
-  accountIndex: number;
-  address: string;
-  source: "recoveryPhrase" | "importedSeed";
-};
-
-export async function listZKasSwitchAccounts(
+export async function getSelectedAvailableZKasAddress(
   walletSettings: WalletSettings,
   walletSecrets: WalletSecret[],
   deriveAddress: (source: { type: "mnemonic" | "seed"; value: string }, accountIndex: number) => Promise<string>,
-): Promise<ZKasSwitchAccount[]> {
-  const accounts: ZKasSwitchAccount[] = [];
-  for (const wallet of walletSettings.wallets) {
-    const secret = walletSecrets.find((item) => item.id === wallet.id);
-    if (!secret || secret.type !== wallet.type) continue;
-    if (secret.type === "mnemonic" && !secret.passphrase) {
-      for (const account of wallet.accounts) {
-        accounts.push({
-          walletId: wallet.id,
-          accountIndex: account.index,
-          address: await deriveAddress({ type: "mnemonic", value: secret.value }, account.index),
-          source: "recoveryPhrase",
-        });
-      }
-    } else if (secret.type === "privateKey" && secret.zkasSeedHex &&
-      wallet.accounts.some((account) => account.index === 0)) {
-      accounts.push({
-        walletId: wallet.id,
-        accountIndex: 0,
-        address: await deriveAddress({ type: "seed", value: normalizeZKasSeedHex(secret.zkasSeedHex) }, 0),
-        source: "importedSeed",
-      });
-    }
+): Promise<(ZKasSelection & { address: string }) | null> {
+  const wallet = walletSettings.wallets.find((item) => item.id === walletSettings.selectedWalletId);
+  const account = wallet?.accounts.find((item) => item.index === walletSettings.selectedAccountIndex);
+  if (!wallet || !account) return null;
+  const secret = walletSecrets.find((item) => item.id === wallet.id);
+  if (!secret || secret.type !== wallet.type) return null;
+  let source: { type: "mnemonic" | "seed"; value: string };
+  if (secret.type === "mnemonic" && !secret.passphrase) {
+    source = { type: "mnemonic", value: secret.value };
+  } else if (secret.type === "privateKey" && account.index === 0 && secret.zkasSeedHex) {
+    source = { type: "seed", value: normalizeZKasSeedHex(secret.zkasSeedHex) };
+  } else {
+    return null;
   }
-  return accounts;
+  const address = await deriveAddress(source, account.index);
+  return { walletId: wallet.id, accountIndex: account.index, network: "mainnet", address };
 }
 
 export async function loadSelectedZKasAccount(
@@ -139,4 +123,14 @@ export function sameZKasSelection(a: ZKasSelection, b: ZKasSelection): boolean {
   return a.walletId === b.walletId &&
     a.accountIndex === b.accountIndex &&
     a.network === b.network;
+}
+
+export function requireSelectedZKasAddress<T extends ZKasSelection & { address: string }>(
+  account: T | null,
+  expected: ZKasSelection,
+): T | null {
+  if (account && !sameZKasSelection(account, expected)) {
+    throw new Error("Selected ZKas account changed. Refresh this screen.");
+  }
+  return account;
 }
