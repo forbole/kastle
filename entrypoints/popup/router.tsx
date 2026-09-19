@@ -90,6 +90,7 @@ import ZKasAsset from "@/components/screens/zkas/ZKasAsset";
 import ZKasReceive from "@/components/screens/zkas/ZKasReceive";
 import ZKasSend from "@/components/screens/zkas/ZKasSend";
 import ZKasSettings from "@/components/screens/zkas/ZKasSettings";
+import ZKasConnect from "@/components/screens/browser-api/zkas/ZKasConnect";
 
 const loadKaspaWasm = async () => {
   await init({ module_or_path: kaspaModule });
@@ -363,6 +364,7 @@ export const router = createHashRouter([
                     children: [
                       // Kaspa BrowserAPI routes
                       { path: "connect", element: <ConnectConfirm /> },
+                      { path: "zkas-connect", element: <ZKasConnect /> },
                       {
                         path: "sign-and-broadcast-tx",
                         element: <SignAndBroadcastTxConfirm />,

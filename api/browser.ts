@@ -155,6 +155,9 @@ export class KastleBrowserAPI {
       "kas:build_transaction": Action.BUILD_TRANSACTION,
       "kas:get_version": Action.GET_VERSION,
       "kas:compound_utxos": Action.COMPOUND_UTXOS,
+      "zkas:connect": Action.ZKAS_CONNECT,
+      "zkas:get_account": Action.ZKAS_GET_ACCOUNT,
+      "zkas:get_balance": Action.ZKAS_GET_BALANCE,
     }[method];
 
     if (!action) {

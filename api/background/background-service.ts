@@ -18,6 +18,10 @@ import { getUtxoEntriesHandler } from "./handlers/kaspa/getUtxoEntries";
 import { buildTransactionHandler } from "./handlers/kaspa/buildTransaction";
 import { getVersionHandler } from "./handlers/kaspa/getVersion";
 import { compoundUtxosHandler } from "./handlers/kaspa/compoundUtxos";
+import { zkasConnectHandler } from "./handlers/zkas/connect";
+import { zkasGetAccountHandler } from "./handlers/zkas/get-account";
+import { zkasGetBalanceHandler } from "./handlers/zkas/get-balance";
+import { isTrustedZKasPageRequest } from "./zkas-origin";
 
 export class BackgroundService {
   public listen(): void {
@@ -29,6 +33,18 @@ export class BackgroundService {
         }
 
         const parsedMessage = ApiRequestWithHostSchema.parse(message);
+
+        if ([Action.ZKAS_CONNECT, Action.ZKAS_GET_ACCOUNT, Action.ZKAS_GET_BALANCE].includes(parsedMessage.action) &&
+          !isTrustedZKasPageRequest(parsedMessage.origin, sender, browser.runtime.id)) {
+          sendResponse({
+            id: parsedMessage.id,
+            source: "background",
+            target: "browser",
+            response: null,
+            error: "ZKas request origin did not match its tab",
+          });
+          return true;
+        }
 
         const handler = this.getHandler(parsedMessage.action);
 
@@ -97,6 +113,9 @@ export class BackgroundService {
       [Action.BUILD_TRANSACTION]: buildTransactionHandler,
       [Action.GET_VERSION]: getVersionHandler,
       [Action.COMPOUND_UTXOS]: compoundUtxosHandler,
+      [Action.ZKAS_CONNECT]: zkasConnectHandler,
+      [Action.ZKAS_GET_ACCOUNT]: zkasGetAccountHandler,
+      [Action.ZKAS_GET_BALANCE]: zkasGetBalanceHandler,
     };
 
     return handlers[action];

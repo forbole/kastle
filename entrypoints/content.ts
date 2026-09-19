@@ -3,12 +3,16 @@ import { EthereumAccountsChangedListener } from "@/api/content-script/listeners/
 import { EthereumChainChangedListener } from "@/api/content-script/listeners/ethereum/chainChanged";
 import { watchSettingsUpdated } from "@/api/content-script/listeners/kaspa/settings-updated";
 import { watchWalletSettingsUpdated } from "@/api/content-script/listeners/kaspa/wallet-settings-updated";
+import { isTrustedZKasPageMessage } from "@/api/content-script/zkas-page-message";
 
 export default defineContentScript({
   matches: ["*://*/*"],
   main() {
     // Listen for messages from the browser
     window.addEventListener("message", async (event: MessageEvent<unknown>) => {
+      if (!isTrustedZKasPageMessage(event.source, event.origin, window)) {
+        return;
+      }
       const message = event.data;
 
       const result = ApiRequestSchema.safeParse(message);
@@ -20,6 +24,7 @@ export default defineContentScript({
       const messageWithHost = {
         ...parsedMessage,
         host: window.location.host,
+        origin: window.location.origin,
       };
       const parsedMessageWithHost =
         ApiRequestWithHostSchema.parse(messageWithHost);

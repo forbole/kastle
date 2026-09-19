@@ -17,6 +17,9 @@ export enum Action {
   BUILD_TRANSACTION,
   GET_VERSION,
   COMPOUND_UTXOS,
+  ZKAS_CONNECT,
+  ZKAS_GET_ACCOUNT,
+  ZKAS_GET_BALANCE,
 }
 
 // ================================================================================================
@@ -100,6 +103,7 @@ export type ApiRequest = z.infer<typeof ApiRequestSchema>;
 
 export const ApiRequestWithHostSchema = ApiRequestSchema.extend({
   host: z.string(),
+  origin: z.string().optional(),
 });
 
 export type ApiRequestWithHost = z.infer<typeof ApiRequestWithHostSchema>;

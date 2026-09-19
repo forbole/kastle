@@ -3,10 +3,16 @@ import { useNavigate } from "react-router-dom";
 import Header from "@/components/GeneralHeader";
 import { useSettings } from "@/hooks/useSettings";
 import { getZKasDaemonOriginPattern } from "@/lib/zkas/client";
+import { SETTINGS_KEY, type Settings } from "@/contexts/SettingsContext";
+import useStorageState from "@/hooks/useStorageState";
+import { ZKAS_CONNECTIONS_KEY, type ZKasConnections } from "@/lib/zkas/connection";
+import { Method } from "@/lib/service/methods";
+import { sendMessage } from "@/lib/utils";
 
 export default function ZKasSettings() {
   const navigate = useNavigate();
-  const [settings, setSettings, isSettingsLoading] = useSettings();
+  const [settings, , isSettingsLoading] = useSettings();
+  const [connections] = useStorageState<ZKasConnections>(ZKAS_CONNECTIONS_KEY, {});
   const network = settings?.networkId === "mainnet"
     ? "mainnet"
     : settings?.networkId === "testnet-10"
@@ -26,15 +32,29 @@ export default function ZKasSettings() {
       const pattern = getZKasDaemonOriginPattern(url.trim());
       const granted = await browser.permissions.request({ origins: [pattern] });
       if (!granted) throw new Error("Daemon access was not granted");
-      await setSettings((previous) => ({
-        ...previous,
-        zkasDaemonUrls: { ...previous.zkasDaemonUrls, [network]: url.trim() },
-      }));
+      const latest = await storage.getItem<Settings>(SETTINGS_KEY);
+      if (!latest || latest.networkId !== settings.networkId) {
+        throw new Error("Kastle network changed. Review the daemon setting again.");
+      }
+      await storage.setItem(SETTINGS_KEY, {
+        ...latest,
+        zkasDaemonUrls: { ...latest.zkasDaemonUrls, [network]: url.trim() },
+      });
       navigate("/zkas-asset");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to save ZKas daemon");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const disconnect = async (origin: string) => {
+    try {
+      const response = await sendMessage<{ ok?: boolean; error?: string }>(Method.ZKAS_CONNECTION_REMOVE, { origin });
+      if (response.error || !response.ok) throw new Error(response.error ?? "Unable to disconnect website");
+      setError("");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to disconnect website");
     }
   };
 
@@ -48,6 +68,14 @@ export default function ZKasSettings() {
         <p className="text-xs text-daintree-400">HTTPS is required except for localhost. The daemon sees your full viewing key and activity. Choose one you trust to preserve privacy.</p>
         {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
         <button type="button" disabled={saving || isSettingsLoading || !network} onClick={() => void save()} className="w-full rounded-full bg-icy-blue-400 p-3 font-semibold disabled:opacity-40">{saving ? "Saving…" : "Allow access and save"}</button>
+        <section className="space-y-2 pt-4" aria-label="Connected ZKas websites">
+          <h2 className="font-semibold">Connected websites</h2>
+          {Object.keys(connections).length === 0 && <p className="text-xs text-daintree-400">No ZKas websites connected.</p>}
+          {Object.keys(connections).map((origin) => <div key={origin} className="flex items-center gap-2 rounded-lg bg-daintree-800 p-2 text-xs">
+            <span className="min-w-0 flex-1 break-all">{origin}</span>
+            <button type="button" onClick={() => void disconnect(origin)} className="rounded border border-daintree-700 px-2 py-1">Disconnect</button>
+          </div>)}
+        </section>
       </div>
     </div>
   );
