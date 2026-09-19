@@ -19,9 +19,10 @@ import { evmGetPublicKeyHandler } from "./handlers/evm/evm-get-public-key.ts";
 import { evmSignTransactionHandler } from "./handlers/evm/evm-sign-transaction.ts";
 import { evmSignTypedDataHandler } from "./handlers/evm/evm-sign-typed-data.ts";
 import { evmSignMessageHandler } from "./handlers/evm/evm-sign-message.ts";
-import { zkasCheckSelection, zkasGetAccount, zkasGetCredentials, zkasSign, zkasPaymentStatus, zkasPaymentAcquire, zkasPaymentSubmitting, zkasPaymentUncertain, zkasPaymentSuccess, zkasPaymentRelease, zkasPaymentClear, zkasConnectionRemove } from "./handlers/zkas";
+import { zkasCheckSelection, zkasGetAccount, zkasGetCredentials, zkasSign, zkasPaymentStatus, zkasPaymentAcquire, zkasPaymentSubmitting, zkasPaymentUncertain, zkasPaymentSuccess, zkasPaymentRelease, zkasPaymentClear, zkasPaymentAbortBeforeFetch, zkasConnectionRemove } from "./handlers/zkas";
 import { Method } from "./methods";
 import { isTrustedZKasSender } from "./zkas-sender";
+import { zkasDappCheck, zkasDappComplete, zkasDappPendingGet } from "./handlers/zkas-dapp";
 export { Method } from "./methods";
 
 export type Message<T = object> = {
@@ -68,7 +69,11 @@ export class ExtensionService {
       [Method.ZKAS_PAYMENT_SUCCESS]: zkasPaymentSuccess,
       [Method.ZKAS_PAYMENT_RELEASE]: zkasPaymentRelease,
       [Method.ZKAS_PAYMENT_CLEAR]: zkasPaymentClear,
+      [Method.ZKAS_PAYMENT_ABORT_BEFORE_FETCH]: zkasPaymentAbortBeforeFetch,
       [Method.ZKAS_CONNECTION_REMOVE]: zkasConnectionRemove,
+      [Method.ZKAS_DAPP_PENDING_GET]: zkasDappPendingGet,
+      [Method.ZKAS_DAPP_CHECK]: zkasDappCheck,
+      [Method.ZKAS_DAPP_COMPLETE]: zkasDappComplete,
     };
   }
 
@@ -97,7 +102,7 @@ export class ExtensionService {
       }
 
       // FIXME improve typings
-      handler(message, sendResponse).catch((error: unknown) => {
+      handler(message, sendResponse, sender).catch((error: unknown) => {
         if (!message.method.startsWith("ZKAS_")) {
           console.error(`Error handling message ${message.method}:`, error);
         }

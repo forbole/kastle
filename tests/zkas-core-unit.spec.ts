@@ -280,6 +280,60 @@ test("account changes before submit prevent signature delivery to daemon", async
   expect(calls.some((call) => call.path.endsWith("/submit"))).toBe(false);
 });
 
+test("revoked payment guard blocks daemon submission after proof preparation", async () => {
+  const { daemonFetch, calls } = fakeDaemon({
+    "/api/status": goodStatus,
+    "/api/wallet/balance": { balance_sompi: "1000" },
+    "/api/wallet/prepare": goodPrepare,
+  });
+  let connected = true;
+  const signer = fakeSigner().signer;
+  const sign = signer.verifyAndSign;
+  signer.verifyAndSign = async (input) => {
+    const signatures = await sign(input);
+    connected = false;
+    return signatures;
+  };
+  const client = new ZKasClient({
+    baseUrl: "https://wallet.example",
+    token: "b".repeat(32),
+    network: "mainnet",
+    fetch: daemonFetch,
+    guard: async () => { if (!connected) throw new Error("Website was disconnected"); },
+  });
+  await expect(client.send({
+    signer,
+    to: "zkas:recipient",
+    amountSompi: 100n,
+    maxFeeSompi: 20n,
+  })).rejects.toThrow(/disconnected/i);
+  expect(calls.some((call) => call.path.endsWith("/submit"))).toBe(false);
+});
+
+test("authorization change during journal persistence stops before daemon submit", async () => {
+  const { daemonFetch, calls } = fakeDaemon({
+    "/api/status": goodStatus,
+    "/api/wallet/balance": { balance_sompi: "1000" },
+    "/api/wallet/prepare": goodPrepare,
+  });
+  let connected = true;
+  const client = new ZKasClient({
+    baseUrl: "https://wallet.example",
+    token: "b".repeat(32),
+    network: "mainnet",
+    fetch: daemonFetch,
+    guard: async () => { if (!connected) throw new Error("Website was disconnected"); },
+  });
+  await expect(client.send({
+    signer: fakeSigner().signer,
+    to: "zkas:recipient",
+    amountSompi: 100n,
+    maxFeeSompi: 20n,
+    beforeSubmit: async () => { connected = false; },
+  })).rejects.toThrow(/disconnected/i);
+  expect(calls.some((call) => call.path.endsWith("/submit"))).toBe(false);
+});
+
 test("daemon configuration rejects remote plaintext and malformed tokens", () => {
   expect(
     () =>

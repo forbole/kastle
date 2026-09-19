@@ -1,4 +1,4 @@
-import { ApiRequestSchema, ApiRequestWithHostSchema } from "@/api/message";
+import { ApiRequestSchema, ApiRequestWithHostSchema, ZKasDappResultSchema } from "@/api/message";
 import { EthereumAccountsChangedListener } from "@/api/content-script/listeners/ethereum/accountsChanged";
 import { EthereumChainChangedListener } from "@/api/content-script/listeners/ethereum/chainChanged";
 import { watchSettingsUpdated } from "@/api/content-script/listeners/kaspa/settings-updated";
@@ -34,6 +34,17 @@ export default defineContentScript({
 
       // Send the response back to the source
       window.postMessage(response, window.location.origin);
+    });
+
+    browser.runtime.onMessage.addListener((message: unknown, sender, sendResponse) => {
+      const result = ZKasDappResultSchema.safeParse(message);
+      if (!result.success || sender.id !== browser.runtime.id) return;
+      if (result.data.origin !== window.location.origin) {
+        sendResponse({ accepted: false });
+        return;
+      }
+      window.postMessage(result.data.response, window.location.origin);
+      sendResponse({ accepted: true, origin: window.location.origin });
     });
 
     new EthereumAccountsChangedListener().start();

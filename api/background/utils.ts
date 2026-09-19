@@ -302,4 +302,5 @@ export type Handler = (
   tabId: number,
   message: ApiRequestWithHost,
   sendResponse: (response: any) => void,
+  sender: chrome.runtime.MessageSender,
 ) => Promise<void>;

@@ -67,7 +67,7 @@ export class ZKasPaymentJournal {
   private update(
     selection: ZKasSelection,
     id: string,
-    next: "submitting" | "uncertain" | "success" | "release",
+    next: "submitting" | "uncertain" | "success" | "release" | "abort-before-fetch",
     txid?: string,
   ): Promise<void> {
     return this.run(async () => {
@@ -78,7 +78,8 @@ export class ZKasPaymentJournal {
       if (next === "submitting" && current.status !== "preparing") throw new Error("ZKas payment already submitted");
       if ((next === "uncertain" || next === "success") && current.status !== "submitting") throw new Error("ZKas payment was not marked for submission");
       if (next === "release" && current.status !== "preparing") throw new Error("Submitted ZKas payment must be reconciled");
-      if (next === "release") delete records[key];
+      if (next === "abort-before-fetch" && current.status !== "submitting") throw new Error("ZKas payment was not marked for submission");
+      if (next === "release" || next === "abort-before-fetch") delete records[key];
       else records[key] = { ...current, status: next, updatedAt: this.now(), ...(txid ? { txid } : {}) };
       await this.store.setItem(JOURNAL_KEY, records);
     });
@@ -98,6 +99,10 @@ export class ZKasPaymentJournal {
 
   release(selection: ZKasSelection, id: string): Promise<void> {
     return this.update(selection, id, "release");
+  }
+
+  abortBeforeFetch(selection: ZKasSelection, id: string): Promise<void> {
+    return this.update(selection, id, "abort-before-fetch");
   }
 
   clearAfterReview(selection: ZKasSelection, id: string): Promise<void> {
