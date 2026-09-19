@@ -17,8 +17,9 @@ export const keyringAddWalletSecret = async (
     throw new Error("Keyring not initialized or locked");
   }
 
-  const wallets = (await keyring.getValue<WalletSecret[]>("wallets")) ?? [];
-  await keyring.setValue<WalletSecret[]>("wallets", [...wallets, walletSecret]);
+  await keyring.updateValue<WalletSecret[]>("wallets", (wallets) => [
+    ...(wallets ?? []), walletSecret,
+  ]);
 
   sendResponse();
 };
