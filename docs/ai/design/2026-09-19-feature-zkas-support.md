@@ -28,7 +28,7 @@ Background code owns ZKas derivation and signing. The visible extension popup ow
 
 ## Data Models
 
-- `ZKasNetwork = mainnet | testnet`, mapped from Kastle's selected network and checked against walletd status. The pinned signer authorizes mainnet payments only; testnet is receive/read only until upstream pins its testnet genesis.
+- `networkId` remains the Kaspa RPC network. An optional `activeChain` selects the wallet dashboard; old stored settings default to Kaspa. ZKas Mainnet requires `preview === true`, `activeChain === "zkas"`, Kaspa `networkId === mainnet`, and a separate `local:zkas-experimental-enabled` value that is not `false`. A missing flag preserves pre-upgrade Experimental choices; the toggle writes an explicit flag thereafter. Disabling it first writes `false` to the separate key, then selects Kaspa, so a stale whole-settings write from another extension window cannot reauthorize ZKas. The picker, routes, and background key service apply the gate; ZKas testnet remains unsupported in the picker until a validated signer exists.
 - Per-network daemon URL with no default. HTTPS is required except loopback development; optional host permission is requested from a user gesture.
 - Public ZKas account address bound to Kastle wallet ID and account index. No derived seed is persisted separately.
 - Balance in decimal-string sompi with sync and missing-history flags; all payment amounts are `bigint`.

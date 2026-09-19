@@ -7,6 +7,8 @@ import { zkasKeyService } from "@/lib/zkas/key-service";
 import { sameZKasSelection } from "@/lib/zkas/selection";
 import { createZKasApprovalSession } from "@/api/background/zkas-approval";
 import { z } from "zod";
+import { SETTINGS_KEY, type Settings } from "@/contexts/SettingsContext";
+import { isZKasActive, ZKAS_EXPERIMENTAL_KEY } from "@/lib/wallet-network";
 
 const ApprovedAccountSchema = z.object({
   walletId: z.string(),
@@ -18,6 +20,13 @@ const ApprovedAccountSchema = z.object({
 export const zkasConnectHandler: Handler = async (tabId, message, sendResponse) => {
   const origin = message.origin;
   if (!origin) throw new Error("ZKas website origin is missing");
+  const [settings, enabled] = await Promise.all([
+    storage.getItem<Settings>(SETTINGS_KEY),
+    storage.getItem<boolean>(ZKAS_EXPERIMENTAL_KEY),
+  ]);
+  if (!isZKasActive(settings, enabled)) {
+    throw new Error("Enable Experimental features and select ZKas Mainnet first");
+  }
   if (!(await isKeyringInitialized())) throw new Error("Initialize Kastle first");
   try {
     const [account, connections] = await Promise.all([

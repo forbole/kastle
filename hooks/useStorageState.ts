@@ -6,7 +6,7 @@ function useStorageState<T>(key: StorageItemKey, initialValue: T) {
   const [isLoading, setIsLoading] = useState(true);
 
   const listenStorage = useCallback((updatedValue: T | null) => {
-    if (updatedValue) {
+    if (updatedValue !== null) {
       setValue(updatedValue);
     }
   }, []);

@@ -38,6 +38,7 @@ Kastle handles Kaspa transparent accounts and transfers. ZKas is a separate mand
 ## Constraints & Assumptions
 
 - ZKas mainnet/testnet are distinct from Kaspa mainnet/testnet-10.
+- ZKas Mainnet appears in the existing Network picker only while Experimental features is enabled. Selecting it shows the ZKAS dashboard; disabling Experimental features restores Kaspa Mainnet and makes all ZKas account and signing operations fail closed. ZKas testnet is not exposed in the picker until its payment signer can be validated.
 - Pin `firecash/zkas-signer` source `44209c7f9b7ada554a40b633a8025888f625418f` and the reference binary from `firecash/zkas-wallet` `ae576a86a47df0e52ab0fdf7f1103ba818b09609` (SHA-256 `ea0ec55a2cef0bb7f3cd6ce80b0e5c218693e0e97be49c80a73587b1eefcd409`). Check the genesis domain before release.
 - `@zkas/sdk` returned npm 404 on 2026-09-19; implement a narrow, typed daemon adapter based on upstream source.
 - Named assumptions pending user reply: existing ordinary BIP39 phrase derives ZKas; user configures a daemon rather than silently using a hosted operator.

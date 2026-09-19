@@ -8,16 +8,14 @@ import useStorageState from "@/hooks/useStorageState";
 import { ZKAS_CONNECTIONS_KEY, type ZKasConnections } from "@/lib/zkas/connection";
 import { Method } from "@/lib/service/methods";
 import { sendMessage } from "@/lib/utils";
+import { isZKasActive, ZKAS_EXPERIMENTAL_KEY } from "@/lib/wallet-network";
 
 export default function ZKasSettings() {
   const navigate = useNavigate();
   const [settings, , isSettingsLoading] = useSettings();
+  const [enabled, , isGateLoading] = useStorageState<boolean | null>(ZKAS_EXPERIMENTAL_KEY, null);
   const [connections] = useStorageState<ZKasConnections>(ZKAS_CONNECTIONS_KEY, {});
-  const network = settings?.networkId === "mainnet"
-    ? "mainnet"
-    : settings?.networkId === "testnet-10"
-      ? "testnet"
-      : undefined;
+  const network = !isGateLoading && isZKasActive(settings, enabled) ? "mainnet" : undefined;
   const [url, setUrl] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -33,7 +31,8 @@ export default function ZKasSettings() {
       const granted = await browser.permissions.request({ origins: [pattern] });
       if (!granted) throw new Error("Daemon access was not granted");
       const latest = await storage.getItem<Settings>(SETTINGS_KEY);
-      if (!latest || latest.networkId !== settings.networkId) {
+      const latestEnabled = await storage.getItem<boolean>(ZKAS_EXPERIMENTAL_KEY);
+      if (!latest || !isZKasActive(latest, latestEnabled) || latest.networkId !== settings.networkId) {
         throw new Error("Kastle network changed. Review the daemon setting again.");
       }
       await storage.setItem(SETTINGS_KEY, {

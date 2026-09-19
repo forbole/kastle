@@ -4,6 +4,9 @@ import * as conn from "@/lib/settings/connection";
 import { kasplexMainnet, kasplexTestnet } from "@/lib/layer2";
 import useStorageState from "@/hooks/useStorageState";
 import type { ZKasNetwork } from "@/lib/zkas/client";
+import { NetworkType } from "@/lib/network-type";
+
+export { NetworkType } from "@/lib/network-type";
 
 export const SETTINGS_KEY = "local:settings";
 
@@ -18,11 +21,6 @@ export const CURRENCIES = [
 ] as const;
 
 export type CurrencyCode = (typeof CURRENCIES)[number][0];
-
-export enum NetworkType {
-  Mainnet = "mainnet",
-  TestnetT10 = "testnet-10",
-}
 
 type SettingsContextType = {
   settings?: Settings;
@@ -39,6 +37,7 @@ export type Settings = {
   walletConnections: conn.WalletConnections | undefined; // WalletId -> Account Index -> NetworkId -> WalletConnection[]
   hideBalances: boolean;
   preview: boolean;
+  activeChain?: "kaspa" | "zkas";
 
   evmL2ChainId?: Record<NetworkType, number | undefined>;
   isLegacyEvmAddressEnabled?: boolean;
@@ -70,6 +69,7 @@ export const initialSettings = {
   walletConnections: undefined,
   hideBalances: true,
   preview: false,
+  activeChain: "kaspa",
 
   evmL2ChainId: {
     [NetworkType.Mainnet]: kasplexMainnet.id,

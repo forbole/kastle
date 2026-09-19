@@ -4,7 +4,7 @@ import { SideMenu } from "@/components/side-menu/SideMenu.tsx";
 import gavelIcon from "@/assets/images/gavel.svg";
 import { formatCurrency, symbolForCurrencyCode } from "@/lib/utils.ts";
 import { twMerge } from "tailwind-merge";
-import useBackupWarning from "@/hooks/useBackupWarning.ts";
+import BackupWarning from "@/components/dashboard/BackupWarning";
 import useKeyring from "@/hooks/useKeyring.ts";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
@@ -27,9 +27,7 @@ export default function Dashboard() {
   const totalBalance = useTotalBalance();
   const { amount: totalBalanceCurrency, code: currencyCode } =
     useCurrencyValue(totalBalance);
-  const { showWarning } = useBackupWarning();
   const { account, wallet } = useWalletManager();
-  const [dismissWarning, setDismissWarning] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isAddressesMenuOpen, setIsAddressesMenuOpen] = useState(false);
 
@@ -65,40 +63,7 @@ export default function Dashboard() {
 
   return (
     <div className="no-scrollbar relative flex h-full w-full flex-col overflow-y-scroll px-3">
-      {/* Warning popup */}
-      {showWarning && !dismissWarning && (
-        <div
-          className="absolute bottom-0 left-0 z-10 m-3 flex flex-col gap-2 rounded-xl border border-[#713F12] bg-[#281704] p-4 text-base"
-          role="alert"
-        >
-          <div className="flex items-center justify-between">
-            <span className="font-semibold text-daintree-200">
-              ✋ Hold on, Your Majesty! 👑
-            </span>
-            <button type="button" onClick={() => setDismissWarning(true)}>
-              <i className="hn hn-times text-[16px] text-[#854D0E]"></i>
-            </button>
-          </div>
-
-          <span className="text-sm text-daintree-400">
-            Please back up your recovery phrase 📜. It’s the 🗝️ key to accessing
-            your Kastle if you lose your password or reinstall your browser or
-            extension 🌐
-          </span>
-          <button
-            onClick={() => {
-              const url = new URL(browser.runtime.getURL("/popup.html"));
-              url.hash = `/show-wallet-secret/${wallet?.id}/mnemonic`;
-              browser.tabs.create({ url: url.toString() });
-            }}
-            type="button"
-            className="inline-flex items-center gap-x-2 self-start rounded-lg border border-transparent bg-[#854D0E]/30 px-4 py-3 text-sm font-medium text-[#EAB308] hover:bg-[#854D0E]/20 focus:bg-[#854D0E4D] focus:outline-none disabled:pointer-events-none disabled:opacity-50"
-          >
-            Back up now
-            <i className="hn hn-angle-right"></i>
-          </button>
-        </div>
-      )}
+      <BackupWarning />
 
       {/* Side Menu */}
       <SideMenu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />

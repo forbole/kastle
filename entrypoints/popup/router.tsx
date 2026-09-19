@@ -92,6 +92,24 @@ import ZKasSend from "@/components/screens/zkas/ZKasSend";
 import ZKasSettings from "@/components/screens/zkas/ZKasSettings";
 import ZKasConnect from "@/components/screens/browser-api/zkas/ZKasConnect";
 import ZKasDappSend from "@/components/screens/browser-api/zkas/ZKasDappSend";
+import type { ReactNode } from "react";
+import { useSettings } from "@/hooks/useSettings";
+import { isZKasActive, ZKAS_EXPERIMENTAL_KEY } from "@/lib/wallet-network";
+import useStorageState from "@/hooks/useStorageState";
+
+function WalletDashboard() {
+  const [settings, , isLoading] = useSettings();
+  const [enabled, , gateLoading] = useStorageState<boolean | null>(ZKAS_EXPERIMENTAL_KEY, null);
+  if (isLoading || gateLoading) return null;
+  return isZKasActive(settings, enabled) ? <ZKasAsset /> : <Dashboard />;
+}
+
+function ZKasOnly({ children }: { children: ReactNode }) {
+  const [settings, , isLoading] = useSettings();
+  const [enabled, , gateLoading] = useStorageState<boolean | null>(ZKAS_EXPERIMENTAL_KEY, null);
+  if (isLoading || gateLoading) return null;
+  return isZKasActive(settings, enabled) ? children : <Navigate to="/dashboard" replace />;
+}
 
 const loadKaspaWasm = async () => {
   await init({ module_or_path: kaspaModule });
@@ -225,7 +243,7 @@ export const router = createHashRouter([
                   { path: "asset-select", element: <AssetSelect /> },
                   { path: "token-transfer", element: <Krc20Transfer /> },
                   { path: "kas/send", element: <KasSend /> },
-                  { path: "zkas/send", element: <ZKasSend /> },
+                  { path: "zkas/send", element: <ZKasOnly><ZKasSend /></ZKasOnly> },
                   { path: "krc20/send/:tick", element: <Krc20Send /> },
                   { path: "evm-kas/send/:chainId", element: <EvmKasSend /> },
                   {
@@ -254,13 +272,13 @@ export const router = createHashRouter([
                     element: <SelectAddress />,
                   },
                   { path: "receive/kaspa", element: <KaspaReceiveAddress /> },
-                  { path: "receive/zkas", element: <ZKasReceive /> },
+                  { path: "receive/zkas", element: <ZKasOnly><ZKasReceive /></ZKasOnly> },
                   {
                     path: "receive/evm/:chainId",
                     element: <EvmReceiveAddress />,
                   },
                   { path: "settings", element: <Settings /> },
-                  { path: "zkas/settings", element: <ZKasSettings /> },
+                  { path: "zkas/settings", element: <ZKasOnly><ZKasSettings /></ZKasOnly> },
                   {
                     path: "connected-apps",
                     element: <ConnectedApps />,
@@ -273,7 +291,7 @@ export const router = createHashRouter([
                     path: "dev-mode",
                     element: <DevMode />,
                   },
-                  { path: "dashboard", element: <Dashboard /> },
+                  { path: "dashboard", element: <WalletDashboard /> },
                   { path: "add-wallet", element: <AddWallet /> },
                   {
                     path: "rename-account/:walletId/:accountIndex",
@@ -331,7 +349,7 @@ export const router = createHashRouter([
                     path: "kas-asset",
                     element: <KasAsset />,
                   },
-                  { path: "zkas-asset", element: <ZKasAsset /> },
+                  { path: "zkas-asset", element: <ZKasOnly><Navigate to="/dashboard" replace /></ZKasOnly> },
 
                   {
                     path: "erc20-asset/:chainId/:address",

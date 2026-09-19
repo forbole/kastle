@@ -2,6 +2,7 @@ import type { Settings } from "@/contexts/SettingsContext";
 import type { WalletSettings } from "@/contexts/WalletManagerContext";
 import type { WalletSecret } from "@/types/WalletSecret";
 import type { ZKasNetwork } from "./client";
+import { isZKasActive } from "@/lib/wallet-network";
 
 export type ZKasSelection = {
   walletId: string;
@@ -13,12 +14,15 @@ export async function loadSelectedZKasAccount(
   keyring: { isUnlocked(): boolean; getSessionVersion(): number },
   readWalletSettings: () => Promise<WalletSettings | null>,
   readSettings: () => Promise<Settings | null>,
+  readExperimentalEnabled: () => Promise<boolean | null>,
 ): Promise<{ selection: ZKasSelection; settings: Settings; keyringVersion: number }> {
   if (!keyring.isUnlocked()) throw new Error("Unlock Kastle to use ZKas");
   const keyringVersion = keyring.getSessionVersion();
-  const [walletSettings, settings] = await Promise.all([readWalletSettings(), readSettings()]);
+  const [walletSettings, settings, experimentalEnabled] = await Promise.all([
+    readWalletSettings(), readSettings(), readExperimentalEnabled(),
+  ]);
   if (!settings) throw new Error("Kastle settings are unavailable");
-  const selection = getSelectedZKasAccount(walletSettings, settings);
+  const selection = getSelectedZKasAccount(walletSettings, settings, experimentalEnabled);
   if (!keyring.isUnlocked() || keyring.getSessionVersion() !== keyringVersion) {
     throw new Error("Kastle was locked during the ZKas request");
   }
@@ -28,7 +32,11 @@ export async function loadSelectedZKasAccount(
 export function getSelectedZKasAccount(
   walletSettings: WalletSettings | null,
   settings: Settings | null,
+  experimentalEnabled: boolean | null,
 ): ZKasSelection {
+  if (!isZKasActive(settings, experimentalEnabled)) {
+    throw new Error("Enable Experimental features and select ZKas Mainnet first");
+  }
   if (!walletSettings?.selectedWalletId || walletSettings.selectedAccountIndex === undefined) {
     throw new Error("Select a Kastle wallet account first");
   }
@@ -40,13 +48,7 @@ export function getSelectedZKasAccount(
   if (wallet.type !== "mnemonic") {
     throw new Error("ZKas is not supported for this wallet type");
   }
-  const network = settings?.networkId === "mainnet"
-    ? "mainnet"
-    : settings?.networkId === "testnet-10"
-      ? "testnet"
-      : undefined;
-  if (!network) throw new Error("Unsupported ZKas network selection");
-  return { walletId: wallet.id, accountIndex, network };
+  return { walletId: wallet.id, accountIndex, network: "mainnet" };
 }
 
 export function getZKasMnemonic(
