@@ -33,6 +33,11 @@ export default defineConfig({
   manifest: {
     ...(versionName && { version_name: versionName }),
     permissions: ["storage", "alarms", "clipboardRead"],
+    optional_host_permissions: [
+      "https://*/*",
+      "http://localhost/*",
+      "http://127.0.0.1/*",
+    ],
     content_security_policy: {
       extension_pages:
         "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'",

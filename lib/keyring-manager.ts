@@ -35,6 +35,7 @@ const ARGON2ID_SALT_LENGTH = 32; // bytes
 
 export class Keyring {
   private masterKey: CryptoKey | null = null;
+  private sessionVersion = 0;
   private namespace: string;
 
   constructor(namespace: string = "keyring") {
@@ -54,6 +55,15 @@ export class Keyring {
 
   isUnlocked(): boolean {
     return this.masterKey !== null;
+  }
+
+  getSessionVersion(): number {
+    return this.sessionVersion;
+  }
+
+  private setMasterKey(key: CryptoKey | null): void {
+    this.masterKey = key;
+    this.sessionVersion += 1;
   }
 
   async initialize(password: string): Promise<void> {
@@ -79,7 +89,7 @@ export class Keyring {
     const key = await this.deriveKey(password, salt, method);
     await this.storeVerificationValue(key);
 
-    this.masterKey = key;
+    this.setMasterKey(key);
     await this.updateWalletChangeTime();
   }
 
@@ -113,11 +123,11 @@ export class Keyring {
 
     const isValid = await this.verifyKey(key);
     if (!isValid) {
-      this.masterKey = null;
+      this.setMasterKey(null);
       return false;
     }
 
-    this.masterKey = key;
+    this.setMasterKey(key);
     await this.updateWalletChangeTime();
 
     // If using legacy PBKDF2, migrate to Argon2id
@@ -129,7 +139,7 @@ export class Keyring {
   }
 
   async lock(): Promise<void> {
-    this.masterKey = null;
+    this.setMasterKey(null);
     await this.updateWalletChangeTime();
   }
 
@@ -286,7 +296,7 @@ export class Keyring {
     );
 
     // Update master key and re-encrypt all data
-    this.masterKey = newKey;
+    this.setMasterKey(newKey);
     await this.updateWalletChangeTime();
     await Promise.all(
       dataToMigrate.map(async (item) => {
@@ -315,7 +325,7 @@ export class Keyring {
       storage.removeItem(`local:${this.namespace}:${VERIFICATION_KEY}`),
     ]);
 
-    this.masterKey = null;
+    this.setMasterKey(null);
     await this.updateWalletChangeTime();
   }
 
@@ -346,7 +356,7 @@ export class Keyring {
     );
 
     // Update master key
-    this.masterKey = newKey;
+    this.setMasterKey(newKey);
 
     // Re-encrypt all data with the new key
     await Promise.all(

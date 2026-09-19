@@ -3,6 +3,7 @@ import { captureException } from "@sentry/react";
 import * as conn from "@/lib/settings/connection";
 import { kasplexMainnet, kasplexTestnet } from "@/lib/layer2";
 import useStorageState from "@/hooks/useStorageState";
+import type { ZKasNetwork } from "@/lib/zkas/client";
 
 export const SETTINGS_KEY = "local:settings";
 
@@ -41,6 +42,7 @@ export type Settings = {
 
   evmL2ChainId?: Record<NetworkType, number | undefined>;
   isLegacyEvmAddressEnabled?: boolean;
+  zkasDaemonUrls?: Partial<Record<ZKasNetwork, string>>;
 };
 
 export const RPC_URLS: Record<NetworkType, string[]> = {
