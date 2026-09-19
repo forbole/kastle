@@ -19,7 +19,7 @@ import { evmGetPublicKeyHandler } from "./handlers/evm/evm-get-public-key.ts";
 import { evmSignTransactionHandler } from "./handlers/evm/evm-sign-transaction.ts";
 import { evmSignTypedDataHandler } from "./handlers/evm/evm-sign-typed-data.ts";
 import { evmSignMessageHandler } from "./handlers/evm/evm-sign-message.ts";
-import { zkasCheckSelection, zkasGetAccount, zkasGetCredentials, zkasSign, zkasPaymentStatus, zkasPaymentAcquire, zkasPaymentSubmitting, zkasPaymentUncertain, zkasPaymentSuccess, zkasPaymentRelease, zkasPaymentClear } from "./handlers/zkas";
+import { zkasCheckSelection, zkasGetAccount, zkasGetCredentials, zkasSign, zkasPaymentStatus, zkasPaymentAcquire, zkasPaymentSubmitting, zkasPaymentUncertain, zkasPaymentSuccess, zkasPaymentRelease, zkasPaymentClear, zkasConnectionRemove } from "./handlers/zkas";
 import { Method } from "./methods";
 import { isTrustedZKasSender } from "./zkas-sender";
 export { Method } from "./methods";
@@ -68,6 +68,7 @@ export class ExtensionService {
       [Method.ZKAS_PAYMENT_SUCCESS]: zkasPaymentSuccess,
       [Method.ZKAS_PAYMENT_RELEASE]: zkasPaymentRelease,
       [Method.ZKAS_PAYMENT_CLEAR]: zkasPaymentClear,
+      [Method.ZKAS_CONNECTION_REMOVE]: zkasConnectionRemove,
     };
   }
 

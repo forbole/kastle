@@ -21,3 +21,9 @@ If a submit response is lost, the payment may already have been broadcast. Open 
 - The upstream signer WASM and JS glue are pinned by SHA-256 and checked at build and packaging time. Verify upstream redistribution licensing before publishing an extension build that contains them.
 
 Technical provenance and security tests are tracked in [the feature design](ai/design/2026-09-19-feature-zkas-support.md) and [test plan](ai/testing/2026-09-19-feature-zkas-support.md).
+
+## Local website test
+
+Build and load `.output/chrome-mv3` as an unpacked extension. From the repository root, run `python3 -m http.server 4173 --directory devtools/zkas-test` and open `http://localhost:4173`. The page detects the installed Kastle provider, probes the existing Kaspa API, and can request a separate ZKas connection. After approval, it reads the selected ZKas public address and shielded balance/sync status. The page never receives the recovery phrase, full viewing key, or daemon token.
+
+The grant is specific to the website origin, selected Kastle wallet/account, and ZKas network. Disconnect a site under **ZKAS → Configure ZKas daemon → Connected websites**. Only HTTPS sites and HTTP loopback development sites can request ZKas access. A payment request always opens a separate review screen and requires a fresh approval.

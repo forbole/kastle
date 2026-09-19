@@ -1,6 +1,7 @@
 import { zkasKeyService, type ZKasSignRequest } from "@/lib/zkas/key-service";
 import type { ZKasSelection } from "@/lib/zkas/selection";
 import { getZKasPaymentJournal } from "@/lib/zkas/payment-journal";
+import { zkasConnectionStore } from "@/lib/zkas/connection";
 import type { Message } from "../extension-service";
 
 export const zkasGetAccount = async (_: Message, sendResponse: (value: unknown) => void) => {
@@ -82,5 +83,13 @@ export const zkasPaymentClear = async (
 ) => {
   await zkasKeyService.checkSelection(selection);
   await getZKasPaymentJournal().clearAfterReview(selection, id);
+  sendResponse({ ok: true });
+};
+
+export const zkasConnectionRemove = async (
+  { origin }: Message<{ origin: string }>,
+  sendResponse: (value: unknown) => void,
+) => {
+  await zkasConnectionStore.remove(origin);
   sendResponse({ ok: true });
 };

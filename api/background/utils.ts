@@ -140,8 +140,17 @@ export class ApiUtils {
     url: string,
     tabId: number,
     timeout = 180_000, // 3 minute
+    moveTab = true,
   ) {
-    const popup = await this.openPopup(tabId, url);
+    const popup = moveTab
+      ? await this.openPopup(tabId, url)
+      : await browser.windows.create({
+        type: "popup",
+        url,
+        width: POPUP_WINDOW_WIDTH,
+        height: POPUP_WINDOW_HEIGHT,
+        focused: true,
+      });
     let onRemovedListener: ((windowId: number) => void) | null = null;
     let receiveListener: ((message: unknown) => void) | null = null;
     let receiveTimeout: NodeJS.Timeout | null = null;
