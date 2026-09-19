@@ -18,22 +18,28 @@ const walletSettings = {
     accounts: [{ index: 1, name: "Account 2", address: "kaspa:example" }],
   }],
 } satisfies WalletSettings;
-const mainnetSettings = { networkId: "mainnet" } as Settings;
+const mainnetSettings = { networkId: "mainnet", preview: true, activeChain: "zkas" } as Settings;
 
-test("selected phrase account follows the Kastle wallet and network", () => {
-  const mainnet = getSelectedZKasAccount(walletSettings, mainnetSettings);
+test("selected phrase account follows the Kastle wallet and selected ZKas mainnet", () => {
+  const mainnet = getSelectedZKasAccount(walletSettings, mainnetSettings, true);
   expect(mainnet).toEqual({ walletId: "wallet-1", accountIndex: 1, network: "mainnet" });
-  const testnet = getSelectedZKasAccount(walletSettings, {
-    ...mainnetSettings,
-    networkId: "testnet-10",
-  } as Settings);
-  expect(testnet.network).toBe("testnet");
-  expect(sameZKasSelection(mainnet, testnet)).toBe(false);
   expect(sameZKasSelection(mainnet, { ...mainnet })).toBe(true);
+  expect(sameZKasSelection(mainnet, { ...mainnet, network: "testnet" })).toBe(false);
+});
+
+test("ZKas account requests require the experimental toggle and active ZKas network", () => {
+  for (const settings of [
+    { ...mainnetSettings, preview: false },
+    { ...mainnetSettings, activeChain: "kaspa" },
+    { ...mainnetSettings, networkId: "testnet-10" },
+  ] as Settings[]) {
+    expect(() => getSelectedZKasAccount(walletSettings, settings, true)).toThrow(/select ZKas|experimental/i);
+  }
+  expect(() => getSelectedZKasAccount(walletSettings, mainnetSettings, false)).toThrow(/experimental/i);
 });
 
 test("unsupported or absent account secrets fail before derivation", () => {
-  const selected = getSelectedZKasAccount(walletSettings, mainnetSettings);
+  const selected = getSelectedZKasAccount(walletSettings, mainnetSettings, true);
   expect(getZKasMnemonic([{ id: "wallet-1", type: "mnemonic", value: "synthetic phrase" }], selected))
     .toBe("synthetic phrase");
   for (const secret of [
@@ -44,7 +50,7 @@ test("unsupported or absent account secrets fail before derivation", () => {
     expect(() => getZKasMnemonic([secret], selected)).toThrow(/not supported/i);
   }
   expect(() => getZKasMnemonic([], selected)).toThrow(/not found/i);
-  expect(() => getSelectedZKasAccount({ ...walletSettings, selectedAccountIndex: 2 }, mainnetSettings))
+  expect(() => getSelectedZKasAccount({ ...walletSettings, selectedAccountIndex: 2 }, mainnetSettings, true))
     .toThrow(/account/i);
 });
 
@@ -80,7 +86,7 @@ test("lock or unlock during asynchronous selection reads invalidates the request
     let unlocked = true;
     let version = 1;
     const keyring = { isUnlocked: () => unlocked, getSessionVersion: () => version };
-    const selected = loadSelectedZKasAccount(keyring, () => pendingSettings, async () => mainnetSettings);
+    const selected = loadSelectedZKasAccount(keyring, () => pendingSettings, async () => mainnetSettings, async () => true);
     unlocked = false;
     version += 1;
     if (unlockedAgain) { unlocked = true; version += 1; }

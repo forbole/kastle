@@ -12,6 +12,7 @@ description: Small reviewed milestones
 - [x] M2: Asset, receive, send, and daemon settings workflow (`97f51d4`, `c16bf12`, `9f358b2`).
 - [x] M3: Origin-gated browser API and standalone local test page (`a2b3195`, `4a4a020`).
 - [x] M4: Local tests, docs, Astra review, and Codex Security review converged. External release checks remain below.
+- [x] M5: Move ZKas into the Network picker behind Experimental features; guard popup and background access, test and review the change. Astra found and verified fixes for balance masking and the backup warning. Codex Security reviewed the final 16 changed source files with zero findings.
 
 ## Task Breakdown
 

@@ -5,7 +5,7 @@ ZKas is a separate shielded network. The ZKAS asset follows the selected Kastle 
 ## Set up a wallet daemon
 
 1. Run a compatible `zkas-walletd` with complete shielded history. A mining-only or history-pruned node cannot establish a final balance. See [upstream walletd documentation](https://github.com/firecash/zkas-rusty/blob/main/docs/WALLETD.md).
-2. Unlock Kastle, select the intended recovery-phrase account and Kaspa mainnet, and open **ZKAS → Configure ZKas daemon**.
+2. Unlock Kastle, select the intended recovery-phrase account, enable **Settings → Experimental features**, then choose **ZKas Mainnet · Experimental** under **Settings → Network**. The dashboard switches to ZKAS. Open **Configure ZKas daemon**.
 3. Enter the walletd URL and approve the browser's host permission prompt. Use HTTPS for a remote daemon, or `http://localhost` / `http://127.0.0.1` for a local one. Kastle does not choose a hosted daemon automatically.
 4. Wait for the asset screen to show a synced shielded balance. Receive uses the ZKas address shown there or its QR code. Before a send, review the recipient, amount, and maximum fee; keep the Kastle window open during proof preparation.
 
@@ -15,7 +15,7 @@ If a submit response is lost, the payment may already have been broadcast. Open 
 
 ## Network and release limits
 
-- The pinned signer supports mainnet payment authorization. Testnet accounts are read/receive only until an upstream testnet genesis is pinned and independently tested.
+- The network picker exposes ZKas Mainnet only while Experimental features is enabled. Turning the toggle off returns the dashboard to Kaspa Mainnet and blocks ZKas account, balance, and payment requests, including if another open extension window later saves older settings. Selecting a Kaspa network also leaves ZKas. ZKas testnet is not selectable in this version because the pinned signer cannot authorize its payments.
 - The first send flow authorizes one full payment transaction. A fragmented payment that requires partial delivery is refused before signing.
 - A funded mainnet send, a compatible walletd, and independent upstream signer audit are outstanding release checks. No live transaction is exercised by the automated test suite.
 - The upstream signer WASM and JS glue are pinned by SHA-256 and checked at build and packaging time. Verify upstream redistribution licensing before publishing an extension build that contains them.
@@ -24,7 +24,7 @@ Technical provenance and security tests are tracked in [the feature design](ai/d
 
 ## Local website test
 
-Build and load `.output/chrome-mv3` as an unpacked extension. From the repository root, run `python3 -m http.server 4173 --directory devtools/zkas-test` and open `http://localhost:4173`. The page detects the installed Kastle provider, probes the existing Kaspa API, and can request a separate ZKas connection. After approval, it reads the selected ZKas public address and shielded balance/sync status. The page never receives the recovery phrase, full viewing key, or daemon token.
+Build and load `.output/chrome-mv3` as an unpacked extension. From the repository root, run `python3 -m http.server 4173 --directory devtools/zkas-test` and open `http://localhost:4173`. Enable Experimental features and select ZKas Mainnet in the extension before using the ZKas probes. The page detects the installed Kastle provider, probes the existing Kaspa API, and can request a separate ZKas connection. After approval, it reads the selected ZKas public address and shielded balance/sync status. The page never receives the recovery phrase, full viewing key, or daemon token.
 
 The grant is specific to the website origin, selected Kastle wallet/account, and ZKas network. Disconnect a site under **ZKAS → Configure ZKas daemon → Connected websites**. Only HTTPS sites and HTTP loopback development sites can request ZKas access. A payment request always opens a separate review screen and requires a fresh approval.
 

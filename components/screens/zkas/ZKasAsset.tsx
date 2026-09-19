@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Header from "@/components/GeneralHeader";
+import { SideMenu } from "@/components/side-menu/SideMenu";
+import useKeyring from "@/hooks/useKeyring";
+import BackupWarning from "@/components/dashboard/BackupWarning";
 import { formatZkasAmount } from "@/lib/zkas/amount";
 import { clearZKasPaymentRecord, getZKasHistory, getZKasPaymentRecord, getZKasPublicAccount, getZKasState } from "@/lib/zkas/popup-client";
 import type { ZKasHistory } from "@/lib/zkas/client";
@@ -10,8 +12,11 @@ import { useSettings } from "@/hooks/useSettings";
 
 export default function ZKasAsset() {
   const navigate = useNavigate();
-  const { walletSettings } = useWalletManager();
-  const [settings] = useSettings();
+  const { account: kaspaAccount, walletSettings } = useWalletManager();
+  const { keyringLock } = useKeyring();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [settings, setSettings] = useSettings();
+  const showBalance = !settings?.hideBalances;
   const [address, setAddress] = useState("");
   const [balance, setBalance] = useState<string>();
   const [message, setMessage] = useState("Loading shielded account…");
@@ -76,7 +81,7 @@ export default function ZKasAsset() {
     };
     void load();
     return () => { active = false; };
-  }, [walletSettings?.selectedWalletId, walletSettings?.selectedAccountIndex, settings?.networkId, settings?.zkasDaemonUrls]);
+  }, [walletSettings?.selectedWalletId, walletSettings?.selectedAccountIndex, settings?.networkId, settings?.activeChain, settings?.preview, settings?.zkasDaemonUrls]);
 
   const clearPayment = async () => {
     if (!paymentRecord || !window.confirm("I checked ZKas history and understand this payment may have been broadcast. Clear the warning and allow another send?")) return;
@@ -91,11 +96,24 @@ export default function ZKasAsset() {
 
   return (
     <div className="flex h-full flex-col overflow-y-auto p-4 text-white">
-      <Header title="ZKAS" onBack={() => navigate("/dashboard")} onClose={() => navigate("/dashboard")} />
+      <BackupWarning />
+      <SideMenu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
+      <div className="mb-4 flex items-center justify-between gap-2">
+        <button type="button" className="rounded-lg border border-daintree-700 px-3 py-2 text-sm font-semibold" onClick={() => setIsMenuOpen(true)}>{kaspaAccount?.name ?? "Account"}</button>
+        <span className="font-bold">ZKAS</span>
+        <div className="flex">
+          <button type="button" aria-label="Settings" className="p-2" onClick={() => navigate("/settings")}><i className="hn hn-cog text-[20px]" /></button>
+          <button type="button" aria-label="Lock wallet" className="p-2" onClick={async () => { await keyringLock(); navigate("/unlock"); }}><i className="hn hn-lock-alt text-[20px]" /></button>
+        </div>
+      </div>
+      <p className="mb-3 text-center text-xs text-icy-blue-400">ZKas Mainnet · Experimental</p>
       <div className="space-y-4">
         <div className="rounded-xl border border-daintree-700 bg-daintree-800 p-5">
           <p className="text-sm text-daintree-400">Shielded balance</p>
-          <p className="mt-2 text-3xl font-semibold">{balance === undefined ? "—" : `${balance} ZKAS`}</p>
+          <button type="button" aria-label={showBalance ? "Hide balance" : "Show balance"} className="mt-2" onClick={() => void setSettings((prev) => ({ ...prev, hideBalances: !prev.hideBalances }))}>
+            <i className={showBalance ? "hn hn-eye-cross" : "hn hn-eye"} />
+          </button>
+          <p className="mt-2 text-3xl font-semibold">{!showBalance ? "*****" : balance === undefined ? "—" : `${balance} ZKAS`}</p>
           <p className="mt-3 text-sm text-daintree-400" role="status">{message}</p>
         </div>
         {address && <p className="break-all rounded-xl bg-daintree-800 p-3 text-xs text-daintree-200">{address}</p>}
@@ -116,8 +134,8 @@ export default function ZKasAsset() {
           <h2 className="font-semibold">Recent activity</h2>
           {historyError && <p role="alert" className="text-xs text-red-400">{historyError}</p>}
           {history && !history.recoverableHistory && <p className="text-xs text-daintree-400">Recoverable history is disabled on this daemon. Earlier payments may be absent.</p>}
-          {history?.pendingOutgoing?.map((row) => <div key={`pending-${row.txid}`} className="rounded-lg bg-daintree-800 p-3 text-xs"><p>Pending send · {formatZkasAmount(BigInt(row.amountSompi))} ZKAS</p><p className="break-all text-daintree-400">{row.txid}</p></div>)}
-          {history?.rows.map((row) => <div key={`${row.kind}-${row.txid}`} className="rounded-lg bg-daintree-800 p-3 text-xs"><p>{row.kind === "sent" ? "Sent" : row.kind === "received" ? "Received" : "Coinbase"} · {formatZkasAmount(BigInt(row.amountSompi))} ZKAS</p><p className="break-all text-daintree-400">{row.txid}</p></div>)}
+          {history?.pendingOutgoing?.map((row) => <div key={`pending-${row.txid}`} className="rounded-lg bg-daintree-800 p-3 text-xs"><p>Pending send · {showBalance ? `${formatZkasAmount(BigInt(row.amountSompi))} ZKAS` : "*****"}</p><p className="break-all text-daintree-400">{row.txid}</p></div>)}
+          {history?.rows.map((row) => <div key={`${row.kind}-${row.txid}`} className="rounded-lg bg-daintree-800 p-3 text-xs"><p>{row.kind === "sent" ? "Sent" : row.kind === "received" ? "Received" : "Coinbase"} · {showBalance ? `${formatZkasAmount(BigInt(row.amountSompi))} ZKAS` : "*****"}</p><p className="break-all text-daintree-400">{row.txid}</p></div>)}
           {history && history.rows.length === 0 && !history.pendingOutgoing?.length && <p className="text-xs text-daintree-400">No recent activity reported by the daemon.</p>}
         </section>
         <p className="text-xs text-daintree-400">Your chosen daemon can see your full viewing key and shielded activity. Kastle keeps the spending seed local.</p>

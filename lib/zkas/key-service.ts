@@ -8,6 +8,7 @@ import signerAssetUrl from "@/wasm/zkas-signer/firecash_signer_bg.wasm?url";
 import { parseZkasSompi } from "./amount";
 import { deriveZKasAccount, initZKasSigner } from "./signer";
 import { getZKasMnemonic, loadSelectedZKasAccount, sameZKasSelection, type ZKasSelection } from "./selection";
+import { ZKAS_EXPERIMENTAL_KEY } from "@/lib/wallet-network";
 
 export type ZKasCredentials = ZKasSelection & {
   keyringVersion: number;
@@ -36,6 +37,7 @@ export class ZKasKeyService {
       keyring,
       () => storage.getItem<WalletSettings>(WALLET_SETTINGS),
       () => storage.getItem<Settings>(SETTINGS_KEY),
+      () => storage.getItem<boolean>(ZKAS_EXPERIMENTAL_KEY),
     );
   }
 
