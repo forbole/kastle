@@ -1,3 +1,4 @@
+import { isKeyringInitialized } from "@/api/background/keyring-status";
 import { z } from "zod";
 import { ApiRequestWithHost } from "@/api/message";
 import { ApiUtils } from "../../utils";
@@ -18,7 +19,7 @@ export const switchNetworkHandler = async (
   const network = result.data;
 
   // Check if extension is initialized
-  if (!(await ApiUtils.isInitialized())) {
+  if (!(await isKeyringInitialized())) {
     sendResponse(
       ApiUtils.createApiResponse(
         message.id,

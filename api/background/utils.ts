@@ -4,7 +4,6 @@ import {
   ApiResponseSchema,
   RPC_ERRORS,
 } from "@/api/message";
-import { ExtensionService } from "@/lib/service/extension-service";
 import {
   NetworkType,
   Settings,
@@ -98,10 +97,6 @@ export class ApiUtils {
     );
   }
 
-  static async isInitialized(): Promise<boolean> {
-    return ExtensionService.getInstance().getKeyring().isInitialized();
-  }
-
   static async matchNetworkId(networkId: NetworkType): Promise<boolean> {
     const settings = await this.getSettings();
     return settings?.networkId === networkId;
@@ -128,10 +123,6 @@ export class ApiUtils {
     );
 
     return conn.isConnected(connections, host);
-  }
-
-  static isUnlocked(): boolean {
-    return ExtensionService.getInstance().getKeyring().isUnlocked();
   }
 
   static createApiResponse(id: string, response: unknown, error?: unknown) {

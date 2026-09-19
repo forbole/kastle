@@ -1,3 +1,4 @@
+import { isKeyringInitialized } from "@/api/background/keyring-status";
 import { ApiRequestWithHost } from "@/api/message";
 import { ApiUtils, Handler } from "@/api/background/utils";
 import { z } from "zod";
@@ -34,7 +35,7 @@ export const connectHandler: Handler = async (
   const parsedPayload = result.data;
 
   // Check if extension is initialized
-  if (!(await ApiUtils.isInitialized())) {
+  if (!(await isKeyringInitialized())) {
     sendError("Extension is not initialized");
     return;
   }
