@@ -1,3 +1,4 @@
+import { isKeyringInitialized } from "@/api/background/keyring-status";
 import { ApiRequestWithHost, RPC_ERRORS } from "@/api/message";
 import { z } from "zod";
 import { ApiUtils } from "@/api/background/utils";
@@ -44,7 +45,7 @@ export async function sendSompiHandler(
   }
 
   // Check if extension is initialized
-  if (!(await ApiUtils.isInitialized())) {
+  if (!(await isKeyringInitialized())) {
     sendResponse(
       ApiUtils.createApiResponse(
         message.id,
