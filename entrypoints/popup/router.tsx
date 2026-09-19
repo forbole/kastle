@@ -86,6 +86,10 @@ import { KeyringStatusCheckerProvider } from "@/contexts/KeyringStatusChecker";
 import { PostHogWrapperProvider } from "@/contexts/PostHogWrapperProvider.tsx";
 import Erc721 from "@/components/screens/ERC721";
 import Erc721Transfer from "@/components/screens/Erc721Transfer";
+import ZKasAsset from "@/components/screens/zkas/ZKasAsset";
+import ZKasReceive from "@/components/screens/zkas/ZKasReceive";
+import ZKasSend from "@/components/screens/zkas/ZKasSend";
+import ZKasSettings from "@/components/screens/zkas/ZKasSettings";
 
 const loadKaspaWasm = async () => {
   await init({ module_or_path: kaspaModule });
@@ -219,6 +223,7 @@ export const router = createHashRouter([
                   { path: "asset-select", element: <AssetSelect /> },
                   { path: "token-transfer", element: <Krc20Transfer /> },
                   { path: "kas/send", element: <KasSend /> },
+                  { path: "zkas/send", element: <ZKasSend /> },
                   { path: "krc20/send/:tick", element: <Krc20Send /> },
                   { path: "evm-kas/send/:chainId", element: <EvmKasSend /> },
                   {
@@ -247,11 +252,13 @@ export const router = createHashRouter([
                     element: <SelectAddress />,
                   },
                   { path: "receive/kaspa", element: <KaspaReceiveAddress /> },
+                  { path: "receive/zkas", element: <ZKasReceive /> },
                   {
                     path: "receive/evm/:chainId",
                     element: <EvmReceiveAddress />,
                   },
                   { path: "settings", element: <Settings /> },
+                  { path: "zkas/settings", element: <ZKasSettings /> },
                   {
                     path: "connected-apps",
                     element: <ConnectedApps />,
@@ -322,6 +329,7 @@ export const router = createHashRouter([
                     path: "kas-asset",
                     element: <KasAsset />,
                   },
+                  { path: "zkas-asset", element: <ZKasAsset /> },
 
                   {
                     path: "erc20-asset/:chainId/:address",

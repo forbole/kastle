@@ -15,14 +15,16 @@ Test each signing/broadcast trust boundary and relevant KAS/EVM regressions. Rec
 - [x] Decimal ZKAS↔sompi rejects negatives, excess precision, scientific notation, and unsafe numbers.
 - [x] Pinned WASM derives stable, network-correct addresses and distinct account indices; hash/genesis build guard passes.
 - [x] Adapter rejects wrong network, daemon address substitution, malformed response, changed amount, excessive fee, and partial prepare before signing.
-- [ ] Unsupported account types never invoke signer or daemon.
-- [ ] Origin/selected-account guard rejects unconnected or stale requests.
+- [x] Unsupported account types fail during selection before signer or daemon access.
+- [x] Privileged ZKas message sender helper rejects web-page, wrong-extension, malformed, and absent URLs; selection helper distinguishes accounts and networks.
+- [ ] Browser integration proves lock and selection changes invalidate an in-flight payment.
 
 ## Integration Tests
 
 - [x] Fake daemon sees FVK/token only; never phrase/seed.
 - [ ] Valid prepared bundle reaches `verify_and_sign_payment` before submit; malicious prover cannot submit.
 - [ ] Failed proof does not retry into duplicate send.
+- [x] Account-scoped journal rejects concurrent reservations, survives service recreation, and retains uncertain outcomes until reviewed.
 - [ ] UI/page receive only public data and errors with no key material.
 
 ## End-to-End Tests
@@ -41,6 +43,8 @@ Synthetic BIP39 phrases only in source tests. A funded mainnet account and daemo
 Record exact results of `npm run compile`, `npm run lint`, `npm run build`, and targeted Playwright specs per milestone. Native `canvas` setup is a host limitation.
 
 M1: 13 ZKas focused Playwright tests pass; TypeScript compile and ESLint pass (39 preexisting warnings). Runtime WASM hash rejection, testnet signing rejection, uncertain submit results, and address binding have targeted tests. Build and broader regressions are pending the feature wiring.
+
+M2: 23 focused tests pass; TypeScript compile, Chrome build, and ESLint pass (39 preexisting warnings). The Chrome content script contains no ZKas signer symbols after separating shared API utilities from background keyring code. These results use a fake daemon and do not establish compatibility with a running walletd or a funded payment.
 
 ## Manual Testing
 

@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import kasIcon from "@/assets/images/network-logos/kaspa.svg";
+import zkasIcon from "@/assets/images/network-logos/zkas.svg";
 import {
   formatCurrency,
   formatToken,
@@ -87,6 +88,18 @@ export default function Assets() {
           </div>
         </div>
       </div>
+
+      <button
+        type="button"
+        className="flex items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3 text-left hover:border-white"
+        onClick={() => navigate("/zkas-asset")}
+      >
+        <img alt="ZKas" className="h-10 w-10" src={zkasIcon} />
+        <div className="flex-grow">
+          <div className="text-base text-white">ZKAS</div>
+          <div className="text-sm text-daintree-400">Shielded ZKas</div>
+        </div>
+      </button>
 
       {/*EVM KAS*/}
       {supportEvmL2s.length > 0 &&
