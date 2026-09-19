@@ -7,7 +7,6 @@ import useTotalBalanceByAccount from "@/hooks/kasplex/useTotalBalanceByAccount";
 import useAccountManager from "@/hooks/wallet/useAccountManager";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import useKaspaBalance from "@/hooks/wallet/useKaspaBalance";
-import useSwitchNetwork from "@/hooks/useSwitchNetwork";
 
 type AccountItemProps = {
   walletId: string;
@@ -27,7 +26,6 @@ export default function AccountItem({
   const [settings] = useSettings();
   const { walletSettings } = useWalletManager();
   const { selectAccount } = useAccountManager();
-  const { switchKaspaNetwork } = useSwitchNetwork();
   const isSelectedWalletId = walletSettings?.selectedWalletId === walletId;
   const selectedAccountIndex = walletSettings?.selectedAccountIndex;
   const totalBalance = useTotalBalanceByAccount(account);
@@ -39,8 +37,7 @@ export default function AccountItem({
     <div
       className={twMerge(
         "flex w-full",
-        settings?.activeChain !== "zkas" &&
-          isSelectedWalletId &&
+        isSelectedWalletId &&
           account.index === selectedAccountIndex &&
           "rounded-xl border-2 border-icy-blue-400 hover:border-transparent",
       )}
@@ -57,9 +54,6 @@ export default function AccountItem({
               return;
             }
             await selectAccount(walletId, account.index);
-            if (settings?.activeChain === "zkas") {
-              await switchKaspaNetwork(settings.networkId);
-            }
             onClose();
           }}
         >

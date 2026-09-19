@@ -11,12 +11,11 @@ import {
 import { numberToHex } from "viem";
 import { getChainImage } from "@/lib/layer2";
 import useEvmAddress from "@/hooks/evm/useEvmAddress";
-import { useEffect, useState } from "react";
-import { getZKasPublicAccount } from "@/lib/zkas/popup-client";
 import zkasIcon from "@/assets/images/network-logos/zkas.svg";
+import useSelectedZKasAddress from "@/hooks/useSelectedZKasAddress";
 
 export default function SelectAddress() {
-  const { account, walletSettings } = useWalletManager();
+  const { account } = useWalletManager();
   const navigate = useNavigate();
   const [settings] = useSettings();
 
@@ -27,16 +26,7 @@ export default function SelectAddress() {
 
   const kasAddress = account?.address ?? "";
   const evmAddress = useEvmAddress();
-  const [zkasAccount, setZkasAccount] = useState<{ address: string; network: string; walletId: string; accountIndex: number }>();
-
-  useEffect(() => {
-    let active = true;
-    setZkasAccount(undefined);
-    void getZKasPublicAccount().then((value) => {
-      if (active) setZkasAccount(value);
-    }).catch(() => undefined);
-    return () => { active = false; };
-  }, [walletSettings?.selectedWalletId, walletSettings?.selectedAccountIndex, settings?.networkId]);
+  const { account: zkasAccount } = useSelectedZKasAddress();
 
   return (
     <div className="flex h-full flex-col p-4">
@@ -51,11 +41,9 @@ export default function SelectAddress() {
           redirect={() => navigate("/receive/kaspa")}
         />
 
-        {zkasAccount && zkasAccount.walletId === walletSettings?.selectedWalletId &&
-          zkasAccount.accountIndex === walletSettings?.selectedAccountIndex &&
-          zkasAccount.network === (settings?.networkId === "mainnet" ? "mainnet" : "testnet") && <AddressItem
+        {zkasAccount && <AddressItem
           address={zkasAccount.address}
-          chainName={zkasAccount.network === "mainnet" ? "ZKas" : "ZKas Testnet"}
+          chainName="ZKas Mainnet"
           imageUrl={zkasIcon}
           redirect={() => navigate("/receive/zkas")}
         />}

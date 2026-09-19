@@ -95,7 +95,7 @@ import ZKasConnect from "@/components/screens/browser-api/zkas/ZKasConnect";
 import ZKasDappSend from "@/components/screens/browser-api/zkas/ZKasDappSend";
 import type { ReactNode } from "react";
 import { useSettings } from "@/hooks/useSettings";
-import { isZKasActive, ZKAS_EXPERIMENTAL_KEY } from "@/lib/wallet-network";
+import { getVisibleWalletNetworks, isZKasActive, ZKAS_EXPERIMENTAL_KEY, ZKAS_MAINNET } from "@/lib/wallet-network";
 import useStorageState from "@/hooks/useStorageState";
 
 function WalletDashboard() {
@@ -110,6 +110,15 @@ function ZKasOnly({ children }: { children: ReactNode }) {
   const [enabled, , gateLoading] = useStorageState<boolean | null>(ZKAS_EXPERIMENTAL_KEY, null);
   if (isLoading || gateLoading) return null;
   return isZKasActive(settings, enabled) ? children : <Navigate to="/dashboard" replace />;
+}
+
+function ZKasAvailable({ children }: { children: ReactNode }) {
+  const [settings, , isLoading] = useSettings();
+  const [enabled, , gateLoading] = useStorageState<boolean | null>(ZKAS_EXPERIMENTAL_KEY, null);
+  if (isLoading || gateLoading) return null;
+  return settings && getVisibleWalletNetworks(settings, enabled).includes(ZKAS_MAINNET)
+    ? children
+    : <Navigate to="/dashboard" replace />;
 }
 
 const loadKaspaWasm = async () => {
@@ -273,7 +282,7 @@ export const router = createHashRouter([
                     element: <SelectAddress />,
                   },
                   { path: "receive/kaspa", element: <KaspaReceiveAddress /> },
-                  { path: "receive/zkas", element: <ZKasOnly><ZKasReceive /></ZKasOnly> },
+                  { path: "receive/zkas", element: <ZKasAvailable><ZKasReceive /></ZKasAvailable> },
                   {
                     path: "receive/evm/:chainId",
                     element: <EvmReceiveAddress />,
