@@ -15,7 +15,8 @@ Test each signing/broadcast trust boundary and relevant KAS/EVM regressions. Rec
 - [x] Decimal ZKAS↔sompi rejects negatives, excess precision, scientific notation, and unsafe numbers.
 - [x] Pinned WASM derives stable, network-correct addresses and distinct account indices; hash/genesis build guard passes.
 - [x] Adapter rejects wrong network, daemon address substitution, malformed response, changed amount, excessive fee, and partial prepare before signing.
-- [x] Unsupported account types fail during selection before signer or daemon access.
+- [x] Unsupported secret sources fail before signer or daemon access; an imported Kaspa private key is never silently interpreted as a ZKas seed.
+- [x] The pinned signer derives the expected account from an explicitly supplied 32-byte spending seed. Two concurrent imports cannot replace the first seed, and a concurrent wallet addition cannot be lost.
 - [x] Privileged ZKas message sender helper rejects web-page, wrong-extension, malformed, and absent URLs; selection helper distinguishes accounts and networks.
 - [x] Selection and grant guards are rechecked before submit; unit tests force a state change during the pre-submit callback after proof preparation and before daemon fetch.
 - [x] Selection tests cover Experimental off, the separate disable flag defeating stale settings writes, Kaspa ↔ ZKas selection, and background account refusal. Popup toggle and dashboard checks remain manual.
@@ -53,6 +54,8 @@ M2: 23 focused tests pass; TypeScript compile, Chrome build, and ESLint pass (39
 M3/M4: 35 focused ZKas tests pass; TypeScript compile, Chrome and Firefox builds, and ESLint pass (39 existing warnings). An isolated installed-Chrome probe confirms provider discovery, Kaspa version response, locked/uninitialized ZKas errors, and both accepted and rejected final-result acknowledgements. Astra converged with no P0/P1/P2 findings. The final Codex Security M3b diff scan covered 21 source files with zero findings after the result-delivery defect was fixed. A broad Playwright run and a single existing Kaspa batch spec both stalled before test discovery under Node 26 on this host and were stopped; they are not counted as passes.
 
 M5: 40 focused ZKas and network-selection tests pass; TypeScript compile, Chrome and Firefox builds, and ESLint pass (39 existing warnings). Astra reviewed the picker, toggle, dashboard privacy, backup reminder, and separate disable flag with no remaining actionable finding. The final Codex Security diff scan `e088441f-085e-4e7d-b07e-916149b0927d` covered 16 changed source files with zero findings. A targeted existing Kaspa batch/legacy-toggle Playwright run again stalled before discovery on Node 26 and was stopped; no Kaspa regression pass is claimed. A live two-window toggle race and initialized-wallet popup flow remain manual release checks.
+
+M6: 15 focused seed/keyring/selection/signer tests, TypeScript compile, Chrome build, and ESLint passed locally (39 existing warnings). Astra's second review found no remaining actionable issue after serialized keyring mutations were added. Codex Security diff scan `d5849c25-1c95-4ca9-9f79-cda66e4f95c4` reviewed 17 changed source files and completed with zero findings. The new import UI, password-gated backup, broader Kaspa regression suite, and live walletd flow still need manual validation. The scan did not audit pinned signer WASM internals or execute a funded mainnet payment.
 
 ## Manual Testing
 

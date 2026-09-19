@@ -8,6 +8,20 @@ export const zkasGetAccount = async (_: Message, sendResponse: (value: unknown) 
   sendResponse(await zkasKeyService.publicAccount());
 };
 
+export const zkasPreviewSeed = async (
+  { seedHex }: Message<{ seedHex: string }>,
+  sendResponse: (value: unknown) => void,
+) => {
+  sendResponse(await zkasKeyService.previewSeed(seedHex));
+};
+
+export const zkasImportSeed = async (
+  { seedHex, expectedAccount }: Message<{ seedHex: string; expectedAccount: ZKasSelection & { address: string } }>,
+  sendResponse: (value: unknown) => void,
+) => {
+  sendResponse(await zkasKeyService.importSeed(seedHex, expectedAccount));
+};
+
 export const zkasGetCredentials = async (_: Message, sendResponse: (value: unknown) => void) => {
   sendResponse(await zkasKeyService.credentials());
 };

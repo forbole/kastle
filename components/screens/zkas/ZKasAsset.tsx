@@ -12,7 +12,7 @@ import { useSettings } from "@/hooks/useSettings";
 
 export default function ZKasAsset() {
   const navigate = useNavigate();
-  const { account: kaspaAccount, walletSettings } = useWalletManager();
+  const { account: kaspaAccount, wallet, walletSettings } = useWalletManager();
   const { keyringLock } = useKeyring();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [settings, setSettings] = useSettings();
@@ -117,6 +117,9 @@ export default function ZKasAsset() {
           <p className="mt-3 text-sm text-daintree-400" role="status">{message}</p>
         </div>
         {address && <p className="break-all rounded-xl bg-daintree-800 p-3 text-xs text-daintree-200">{address}</p>}
+        {wallet?.type === "privateKey" && !address && (
+          <button className="w-full rounded-full border border-icy-blue-400 p-3" onClick={() => navigate("/import-zkas-seed")}>Import ZKas spending seed</button>
+        )}
         <div className="flex gap-2">
           <button className="flex-1 rounded-full bg-icy-blue-400 p-3 font-semibold disabled:opacity-40" disabled={!address} onClick={() => navigate("/receive/zkas")}>Receive</button>
           <button className="flex-1 rounded-full bg-icy-blue-400 p-3 font-semibold disabled:opacity-40" disabled={!ready || paymentRecord === undefined || (paymentRecord !== null && paymentRecord.status !== "success")} onClick={() => navigate("/zkas/send")}>Send</button>
@@ -129,6 +132,13 @@ export default function ZKasAsset() {
         </div>}
         {paymentRecord?.status === "success" && paymentRecord.txid && <p className="break-all text-xs text-daintree-400">Last submitted ZKas payment: {paymentRecord.txid}</p>}
         <button className="w-full rounded-full border border-daintree-700 p-3" onClick={() => navigate("/zkas/settings")}>Configure ZKas daemon</button>
+        {wallet?.type === "privateKey" && address && (
+          <button className="w-full rounded-full border border-daintree-700 p-3" onClick={() => {
+            const url = new URL(browser.runtime.getURL("/popup.html"));
+            url.hash = `/show-wallet-secret/${wallet.id}/zkas-seed`;
+            void browser.tabs.create({ url: url.toString() });
+          }}>Back up ZKas spending seed</button>
+        )}
         {paymentError && !paymentRecord && <p role="alert" className="text-xs text-red-400">{paymentError}</p>}
         <section aria-label="Recent ZKas activity" className="space-y-2">
           <h2 className="font-semibold">Recent activity</h2>

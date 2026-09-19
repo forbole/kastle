@@ -13,6 +13,7 @@ Kastle handles Kaspa transparent accounts and transfers. ZKas is a separate mand
 ## Goals & Objectives
 
 - Derive ZKas accounts for eligible recovery-phrase accounts with the upstream ZIP-32 account path. Keep the phrase and derived spending seed inside the extension.
+- Let a user explicitly attach a 32-byte `shielded-pay` spending seed to an imported-key wallet's account 0 after comparing the derived address; encrypt it separately from the Kaspa key and provide password-gated backup.
 - Add ZKAS asset, receive, balance/sync, and send screens with details → confirm → result; show fees and incomplete-history warnings.
 - Use a user-selected wallet daemon for scanning and proof generation. Register only a full viewing key; verify and sign on the device.
 - Provide connected-origin dApp read methods and a fresh payment approval. Provide a standalone localhost extension test page.
@@ -25,7 +26,7 @@ Kastle handles Kaspa transparent accounts and transfers. ZKas is a separate mand
 - The user enters a ZKas address and exact amount, sees a fee ceiling, confirms, then sees the txid or a clear failure with no partial payment.
 - A connected dApp reads the selected shielded address/balance and requests a payment that gets its own visible confirmation.
 - A developer opens a localhost page and probes an installed Kastle extension without receiving keys or viewing credentials.
-- Ledger, private-key, and passphrase-backed accounts see an unsupported state.
+- Ledger and passphrase-backed accounts see an unsupported state. An imported Kaspa private key shows a separate ZKas seed import path.
 
 ## Success Criteria
 
