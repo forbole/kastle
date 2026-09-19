@@ -1,11 +1,15 @@
 # ZKas in Kastle
 
-ZKas is a separate shielded network. The ZKAS asset follows the selected Kastle recovery-phrase wallet and account index. The normal Kastle backup phrase also recovers the ZKas spending account. A phrase with a BIP39 passphrase, an imported private-key wallet, and a Ledger wallet are currently unsupported and fail before key derivation.
+ZKas is a separate shielded network. For an ordinary Kastle recovery-phrase wallet, the ZKAS asset follows the selected account index and the Kastle backup phrase also recovers its ZKas spending account. An imported Kaspa private key does not automatically become a ZKas spending seed. A phrase with a BIP39 passphrase and a Ledger wallet remain unsupported.
+
+If you have a 32-byte ZKas spending seed in 64-character hexadecimal form, select an imported-key wallet's account 0, enable Experimental features, and switch to ZKas Mainnet. On the ZKAS asset screen choose **Import ZKas spending seed**, enter the seed, and compare the derived address with the address from the wallet or CLI that generated it before confirming. Kastle stores this seed as a distinct field alongside the Kaspa private key in the encrypted wallet record. The Kaspa wallet backup does **not** recover the imported ZKas seed: use **Back up ZKas spending seed** on the asset screen and keep an offline copy. The import is one-time for that wallet; to use another seed, select another imported-key wallet. Never paste a spending seed into the local test page or a website.
+
+The [current upstream CLI guide](https://github.com/firecash/zkas-rusty/blob/main/docs/CLI-WALLET.md) describes `shielded-pay` as a testing tool and does not document a `new` command. Check the version you installed and confirm that its output is a real 32-byte spending seed and that Kastle derives the expected address. Do not use a CLI test seed to hold funds.
 
 ## Set up a wallet daemon
 
 1. Run a compatible `zkas-walletd` with complete shielded history. A mining-only or history-pruned node cannot establish a final balance. See [upstream walletd documentation](https://github.com/firecash/zkas-rusty/blob/main/docs/WALLETD.md).
-2. Unlock Kastle, select the intended recovery-phrase account, enable **Settings → Experimental features**, then choose **ZKas Mainnet · Experimental** under **Settings → Network**. The dashboard switches to ZKAS. Open **Configure ZKas daemon**.
+2. Unlock Kastle, select the intended recovery-phrase or seed-attached imported-key account, enable **Settings → Experimental features**, then choose **ZKas Mainnet · Experimental** under **Settings → Network**. The dashboard switches to ZKAS. Open **Configure ZKas daemon**.
 3. Enter the walletd URL and approve the browser's host permission prompt. Use HTTPS for a remote daemon, or `http://localhost` / `http://127.0.0.1` for a local one. Kastle does not choose a hosted daemon automatically.
 4. Wait for the asset screen to show a synced shielded balance. Receive uses the ZKas address shown there or its QR code. Before a send, review the recipient, amount, and maximum fee; keep the Kastle window open during proof preparation.
 

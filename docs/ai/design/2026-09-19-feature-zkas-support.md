@@ -30,10 +30,11 @@ Background code owns ZKas derivation and signing. The visible extension popup ow
 
 - `networkId` remains the Kaspa RPC network. An optional `activeChain` selects the wallet dashboard; old stored settings default to Kaspa. ZKas Mainnet requires `preview === true`, `activeChain === "zkas"`, Kaspa `networkId === mainnet`, and a separate `local:zkas-experimental-enabled` value that is not `false`. A missing flag preserves pre-upgrade Experimental choices; the toggle writes an explicit flag thereafter. Disabling it first writes `false` to the separate key, then selects Kaspa, so a stale whole-settings write from another extension window cannot reauthorize ZKas. The picker, routes, and background key service apply the gate; ZKas testnet remains unsupported in the picker until a validated signer exists.
 - Per-network daemon URL with no default. HTTPS is required except loopback development; optional host permission is requested from a user gesture.
-- Public ZKas account address bound to Kastle wallet ID and account index. No derived seed is persisted separately.
+- Public ZKas account address bound to Kastle wallet ID and account index. Phrase-derived seeds are not persisted. For imported-key wallets, an explicitly supplied ZKas seed is stored as a separate encrypted field in the selected wallet secret. It never overwrites or derives from the Kaspa private key.
 - Balance in decimal-string sompi with sync and missing-history flags; all payment amounts are `bigint`.
 - Account/network-scoped wallet token derived locally with a domain-separated HMAC from the derived seed; never returned to a dApp.
 - A keyring session version invalidates in-flight operations after lock, unlock, reset, or password migration.
+- Wallet-secret changes use a serialized read-modify-write path. A concurrent ZKas seed import fails once one seed is attached; wallet add/remove and password migration cannot overwrite it with an older array snapshot.
 - A local account-scoped payment record stores only selection, status, time, and optional transaction ID. It blocks another send after interrupted preparation or uncertain submission until the user checks history and clears the warning.
 
 ## API Design
@@ -56,7 +57,7 @@ Background code owns ZKas derivation and signing. The visible extension popup ow
 ## Design Decisions
 
 - Direct daemon adapter because the upstream SDK is not published to npm.
-- Existing ordinary BIP39 phrase with upstream ZIP-32 account derivation keeps backup and account switching familiar. Passphrase and non-mnemonic accounts fail closed.
+- Existing ordinary BIP39 phrase with upstream ZIP-32 account derivation keeps backup and account switching familiar. An imported-key wallet can instead attach one explicit ZKas seed to account 0. The separate seed needs its own backup. Passphrase and Ledger accounts fail closed.
 - First version requires one full transaction. A fragmented payment fails before signing, avoiding ambiguous partial delivery.
 - Daemon choice is explicit because its operator can observe activity through the FVK.
 

@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import type { Settings } from "@/contexts/SettingsContext";
 import type { WalletSettings } from "@/contexts/WalletManagerContext";
-import { getSelectedZKasAccount, getZKasMnemonic, loadSelectedZKasAccount, sameZKasSelection } from "@/lib/zkas/selection";
+import { attachZKasSeed, getSelectedZKasAccount, getZKasMnemonic, getZKasSecretSource, loadSelectedZKasAccount, sameZKasSelection } from "@/lib/zkas/selection";
 import { getZKasDaemonOriginPattern } from "@/lib/zkas/client";
 import { isTrustedZKasSender } from "@/lib/service/zkas-sender";
 
@@ -52,6 +52,34 @@ test("unsupported or absent account secrets fail before derivation", () => {
   expect(() => getZKasMnemonic([], selected)).toThrow(/not found/i);
   expect(() => getSelectedZKasAccount({ ...walletSettings, selectedAccountIndex: 2 }, mainnetSettings, true))
     .toThrow(/account/i);
+});
+
+test("an explicitly attached ZKas seed enables only the selected imported-key account", () => {
+  const imported = {
+    ...walletSettings,
+    wallets: [{ ...walletSettings.wallets[0], type: "privateKey" as const,
+      accounts: [{ index: 0, name: "Imported key", address: "kaspa:example" }] }],
+    selectedAccountIndex: 0,
+  };
+  const selected = getSelectedZKasAccount(imported, mainnetSettings, true);
+  const seed = "01".repeat(32);
+  const secrets = attachZKasSeed([
+    { id: "wallet-1", type: "privateKey", value: "02".repeat(32) },
+  ], selected, seed);
+  expect(getZKasSecretSource(secrets, selected)).toEqual({ type: "seed", value: seed });
+  expect(secrets[0].value).toBe("02".repeat(32));
+  expect(() => attachZKasSeed(secrets, selected, "03".repeat(32))).toThrow(/already/i);
+  expect(() => getZKasSecretSource(secrets, { ...selected, accountIndex: 1 })).toThrow(/account/i);
+});
+
+test("a Kaspa private key is never silently treated as a ZKas seed", () => {
+  const selected = { walletId: "wallet-1", accountIndex: 0, network: "mainnet" as const };
+  expect(() => getZKasSecretSource([
+    { id: "wallet-1", type: "privateKey", value: "01".repeat(32) },
+  ], selected)).toThrow(/not supported|import/i);
+  expect(() => attachZKasSeed([
+    { id: "wallet-1", type: "privateKey", value: "02".repeat(32) },
+  ], selected, "not-a-seed")).toThrow(/seed/i);
 });
 
 test("daemon permission pattern matches the selected host and refuses plaintext remote URLs", () => {

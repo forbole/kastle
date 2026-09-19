@@ -117,3 +117,29 @@ test("Kastle's signer adapter keeps spending material out of public account data
   expect(result.publicFields).toEqual(["address", "token"]);
   expect(result.fvk).toMatch(/^[0-9a-f]{192}$/);
 });
+
+test("a raw ZKas seed restores the same address as the upstream signer", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "kastle-zkas-raw-seed-"));
+  const adapterPath = path.join(tempDir, "signer.mjs");
+  execFileSync(path.join(root, "node_modules/.bin/esbuild"), [
+    path.join(root, "lib/zkas/signer.ts"), "--bundle", "--platform=node", "--format=esm", `--outfile=${adapterPath}`,
+  ], { cwd: root, timeout: 10_000 });
+  const script = `
+    import fs from "node:fs";
+    import {initZKasSigner,deriveZKasAccountFromSeed} from ${JSON.stringify(adapterPath)};
+    await initZKasSigner(fs.readFileSync("wasm/zkas-signer/firecash_signer_bg.wasm"));
+    const account = await deriveZKasAccountFromSeed("20468ca002014b860fce6926a03c8eeaceebb48b365160f60836cc3a111d3b38", "mainnet");
+    console.log(JSON.stringify({address:account.address,token:account.token}));
+  `;
+  let output: string;
+  try {
+    output = execFileSync(process.execPath, ["--input-type=module", "-e", script], {
+      cwd: root, timeout: 10_000, encoding: "utf8",
+    });
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+  const result = JSON.parse(output);
+  expect(result.address).toBe("zkas:px8dx79gspafw49lw989mzdxhlqt6pehw9ql54r8ayyymv59vday3mtyxm432g4t6we2gygp3udqluy");
+  expect(result.token).toMatch(/^[0-9a-f]{32}$/);
+});

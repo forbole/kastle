@@ -60,6 +60,16 @@ export async function deriveZKasAccount(
     throw new Error("Invalid ZKas account index");
   }
   const seedHex = account_seed_hex(mnemonic, accountIndex);
+  return deriveZKasAccountFromSeed(seedHex, network);
+}
+
+export async function deriveZKasAccountFromSeed(
+  seedHex: string,
+  network: ZKasNetwork,
+): Promise<{ address: string; token: string; signer: ZKasSigner }> {
+  if (!ready) throw new Error("ZKas signer is not initialized");
+  await ready;
+  if (!/^[0-9a-f]{64}$/.test(seedHex)) throw new Error("Invalid ZKas spending seed");
   const address = address_from_seed(seedHex, network);
   const token = await deriveWalletToken(seedHex, network);
   const signer: ZKasSigner = {

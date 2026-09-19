@@ -8,11 +8,12 @@ description: Small reviewed milestones
 
 ## Milestones
 
-- [x] M1: Pinned signer and typed non-custodial core (`90a0087`).
-- [x] M2: Asset, receive, send, and daemon settings workflow (`97f51d4`, `c16bf12`, `9f358b2`).
-- [x] M3: Origin-gated browser API and standalone local test page (`a2b3195`, `4a4a020`).
+- [x] M1: Pinned signer and typed non-custodial core (`b0fb5e0`).
+- [x] M2: Asset, receive, send, and daemon settings workflow (`4b0ec35`, `463b579`, `1058a02`).
+- [x] M3: Origin-gated browser API and standalone local test page (`38278d1`, `7078337`).
 - [x] M4: Local tests, docs, Astra review, and Codex Security review converged. External release checks remain below.
 - [x] M5: Move ZKas into the Network picker behind Experimental features; guard popup and background access, test and review the change. Astra found and verified fixes for balance masking and the backup warning. Codex Security reviewed the final 16 changed source files with zero findings.
+- [x] M6: Import an explicit `shielded-pay` spending seed into an imported-key account, with address preview, encrypted storage, backup, concurrency tests, and independent security review. Astra's second pass found no remaining actionable issue. Codex Security scan `d5849c25-1c95-4ca9-9f79-cda66e4f95c4` reviewed all 17 changed source files with zero findings; it did not audit signer WASM internals or a funded mainnet payment.
 
 ## Task Breakdown
 
@@ -57,4 +58,5 @@ description: Small reviewed milestones
 - Hostile or wrong daemon: check network/state and amount/fee; WASM verifies the prepared bundle.
 - Viewing privacy: explicit daemon choice and no credentials in page API.
 - Recovery mismatch: pinned ZIP-32 path and vectors; unsupported wallet types disabled.
+- Imported-seed recovery: the Kaspa key and phrase do not recover a separately attached ZKas seed; show a distinct backup action and require the user to compare the derived address before import.
 - Partial send: fail before broadcast when the full amount cannot fit.

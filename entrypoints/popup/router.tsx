@@ -16,6 +16,7 @@ import AddWallet from "@/components/screens/AddWallet.tsx";
 import ImportRecoveryPhrase from "@/components/screens/full-pages/ImportRecoveryPhrase";
 import ImportRecoveryPhraseWithPassphrase from "@/components/screens/full-pages/ImportRecoveryPhraseWithPassphrase";
 import ImportPrivateKey from "@/components/screens/full-pages/ImportPrivateKey";
+import ImportZKasSeed from "@/components/screens/full-pages/ImportZKasSeed";
 import ResetWallet from "@/components/screens/ResetWallet.tsx";
 import FullscreenLayout from "@/components/layouts/FullscreenLayout.tsx";
 import RecoveryPhraseManageAccounts from "@/components/screens/full-pages/RecoveryPhraseManageAccounts";
@@ -482,6 +483,7 @@ export const router = createHashRouter([
                 element: <ImportRecoveryPhraseWithPassphrase />,
               },
               { path: "import-private-key", element: <ImportPrivateKey /> },
+              { path: "import-zkas-seed", element: <ZKasOnly><ImportZKasSeed /></ZKasOnly> },
               {
                 path: "show-wallet-secret/:walletId/:type",
                 element: <ShowWalletSecret />,
