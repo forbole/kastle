@@ -154,6 +154,12 @@ export default function Settings() {
           toggleShow={() => setCurrencyDropdownOpen((prev) => !prev)}
         />
 
+        <SettingItem
+          title="ZKas daemon"
+          showChevron
+          onClick={() => navigate("/zkas/settings")}
+        />
+
         {/* Network */}
         <SettingItem
           title="Network"
