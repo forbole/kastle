@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import type { Settings } from "@/contexts/SettingsContext";
 import type { WalletSettings } from "@/contexts/WalletManagerContext";
-import { attachZKasSeed, getSelectedAvailableZKasAddress, getSelectedZKasAccount, getZKasMnemonic, getZKasSecretSource, loadSelectedZKasAccount, requireSelectedZKasAddress, sameZKasSelection } from "@/lib/zkas/selection";
+import { addOrRecoverZKasSeed, assertUniqueZKasSeed, attachZKasSeed, getSelectedAvailableZKasAddress, getSelectedZKasAccount, getZKasMnemonic, getZKasSecretSource, listZKasSwitchAccounts, loadSelectedZKasAccount, requireSelectedZKasAddress, sameZKasSelection } from "@/lib/zkas/selection";
 import { getZKasDaemonOriginPattern } from "@/lib/zkas/client";
 import { isTrustedZKasSender } from "@/lib/service/zkas-sender";
 
@@ -82,6 +82,33 @@ test("a Kaspa private key is never silently treated as a ZKas seed", () => {
   ], selected, "not-a-seed")).toThrow(/seed/i);
 });
 
+test("a ZKas seed cannot be imported again under another wallet ID", () => {
+  const seed = "ab".repeat(32);
+  expect(() => assertUniqueZKasSeed([
+    { id: "standalone", type: "zkasSeed", value: seed },
+  ], seed.toUpperCase())).toThrow(/already imported/i);
+  expect(() => assertUniqueZKasSeed([
+    { id: "legacy", type: "privateKey", value: "01".repeat(32), zkasSeedHex: seed },
+  ], `0x${seed}`)).toThrow(/already imported/i);
+  expect(assertUniqueZKasSeed([], seed.toUpperCase())).toBe(seed);
+});
+
+test("an interrupted import recovers its encrypted seed without making a second wallet ID", () => {
+  const seed = "cd".repeat(32);
+  const orphan = { id: "first-attempt", type: "zkasSeed" as const, value: seed };
+  const recovered = addOrRecoverZKasSeed([orphan], walletSettings, seed, "retry-id");
+  expect(recovered).toEqual({ id: orphan.id, secrets: [orphan] });
+  expect(addOrRecoverZKasSeed([], walletSettings, seed, "new-id")).toEqual({
+    id: "new-id", secrets: [{ id: "new-id", type: "zkasSeed", value: seed }],
+  });
+  const persistedWallet = { ...walletSettings, wallets: [...walletSettings.wallets, {
+    id: orphan.id, type: "zkasSeed" as const, name: "ZKas", backed: true,
+    accounts: [{ index: 0, name: "Account 0", address: "zkas:seed" }],
+  }] };
+  expect(() => addOrRecoverZKasSeed([orphan], persistedWallet, seed, "retry-id"))
+    .toThrow(/already imported/i);
+});
+
 test("address selector derives only the selected recovery-phrase account", async () => {
   const wallets = {
     ...walletSettings,
@@ -152,6 +179,68 @@ test("address selector shows an attached ZKas seed only for its selected wallet"
     )).toBeNull();
   }
   expect(derivations).toEqual(["seed:0"]);
+});
+
+test("a standalone ZKas seed is an independent wallet and leaves the selected phrase unchanged", async () => {
+  const seed = "05".repeat(32);
+  const wallets = {
+    ...walletSettings,
+    wallets: [
+      walletSettings.wallets[0],
+      { id: "shielded-wallet", name: "ZKas seed 1", type: "zkasSeed" as const, backed: true,
+        accounts: [{ index: 0, name: "Account 0", address: "zkas:shielded" }] },
+    ],
+  } satisfies WalletSettings;
+  const secrets = [
+    { id: "wallet-1", type: "mnemonic" as const, value: "phrase" },
+    { id: "shielded-wallet", type: "zkasSeed" as const, value: seed },
+  ];
+  const derive = async (source: { type: "mnemonic" | "seed"; value: string }) =>
+    source.type === "seed" ? "zkas:shielded" : "zkas:phrase";
+
+  expect((await getSelectedAvailableZKasAddress(wallets, secrets, derive))?.address)
+    .toBe("zkas:phrase");
+  const shieldedSelection = { walletId: "shielded-wallet", accountIndex: 0, network: "mainnet" as const };
+  expect(getZKasSecretSource(secrets, shieldedSelection)).toEqual({ type: "seed", value: seed });
+  expect(await getSelectedAvailableZKasAddress(
+    { ...wallets, selectedWalletId: "shielded-wallet", selectedAccountIndex: 0 }, secrets, derive,
+  )).toEqual({ ...shieldedSelection, address: "zkas:shielded" });
+});
+
+test("ZKas wallet switcher lists phrase, standalone seed, and legacy attached seed addresses", async () => {
+  const wallets = {
+    ...walletSettings,
+    wallets: [
+      walletSettings.wallets[0],
+      { id: "standalone", type: "zkasSeed" as const, name: "ZKas seed", backed: true,
+        accounts: [{ index: 0, name: "Account 0", address: "zkas:stored" }] },
+      { id: "legacy-attached", type: "privateKey" as const, name: "Kaspa with seed", backed: true,
+        accounts: [{ index: 0, name: "Account 0", address: "kaspa:legacy" }] },
+      { id: "kaspa-only", type: "privateKey" as const, name: "Kaspa only", backed: true,
+        accounts: [{ index: 0, name: "Account 0", address: "kaspa:only" }] },
+      { id: "ledger", type: "ledger" as const, name: "Ledger", backed: true,
+        accounts: [{ index: 0, name: "Account 0", address: "kaspa:ledger" }] },
+    ],
+  } satisfies WalletSettings;
+  const secrets = [
+    { id: "wallet-1", type: "mnemonic" as const, value: "phrase" },
+    { id: "standalone", type: "zkasSeed" as const, value: "01".repeat(32) },
+    { id: "legacy-attached", type: "privateKey" as const, value: "02".repeat(32), zkasSeedHex: "03".repeat(32) },
+    { id: "kaspa-only", type: "privateKey" as const, value: "04".repeat(32) },
+    { id: "ledger", type: "ledger" as const, value: "device" },
+  ];
+  const derived: string[] = [];
+  const entries = await listZKasSwitchAccounts(wallets, secrets, async (source, index) => {
+    derived.push(`${source.type}:${index}`);
+    return `zkas:${source.type}-${index}`;
+  });
+
+  expect(entries).toEqual([
+    { walletId: "wallet-1", accountIndex: 1, network: "mainnet", address: "zkas:mnemonic-1", source: "recoveryPhrase" },
+    { walletId: "standalone", accountIndex: 0, network: "mainnet", address: "zkas:seed-0", source: "importedSeed" },
+    { walletId: "legacy-attached", accountIndex: 0, network: "mainnet", address: "zkas:seed-0", source: "importedSeed" },
+  ]);
+  expect(derived).toEqual(["mnemonic:1", "seed:0", "seed:0"]);
 });
 
 test("a delayed address response cannot show another wallet or account", async () => {
