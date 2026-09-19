@@ -17,19 +17,22 @@ Test each signing/broadcast trust boundary and relevant KAS/EVM regressions. Rec
 - [x] Adapter rejects wrong network, daemon address substitution, malformed response, changed amount, excessive fee, and partial prepare before signing.
 - [x] Unsupported account types fail during selection before signer or daemon access.
 - [x] Privileged ZKas message sender helper rejects web-page, wrong-extension, malformed, and absent URLs; selection helper distinguishes accounts and networks.
-- [ ] Browser integration proves lock and selection changes invalidate an in-flight payment.
+- [x] Selection and grant guards are rechecked before submit; unit tests force a state change during the pre-submit callback after proof preparation and before daemon fetch.
 
 ## Integration Tests
 
 - [x] Fake daemon sees FVK/token only; never phrase/seed.
-- [ ] Valid prepared bundle reaches `verify_and_sign_payment` before submit; malicious prover cannot submit.
-- [ ] Failed proof does not retry into duplicate send.
+- [x] Adapter sequencing calls a mock signer before submit; hostile or incomplete daemon responses fail before signing or submit.
+- [ ] A valid mainnet bundle passes the pinned WASM verifier, and tampered bundles fail, using fixtures from a compatible daemon.
+- [x] Failed preparation releases its reservation; uncertain submission persists and blocks a second send.
 - [x] Account-scoped journal rejects concurrent reservations, survives service recreation, and retains uncertain outcomes until reviewed.
-- [ ] UI/page receive only public data and errors with no key material.
+- [ ] Initialized-wallet browser integration confirms public-only account, balance, and receipt/error data. Source and schema review found no secret fields in page responses, and the installed-extension probe checked the final result relay.
 
 ## End-to-End Tests
 
-- [ ] Development extension + localhost page: discover, connect, read account/status/balance, deny and approve send against fake daemon.
+- [x] Development extension + localhost page: provider discovery and existing Kaspa version probe; ZKas connect/account/send return locked or uninitialized errors before a wallet is set up.
+- [x] Installed Chrome extension: accepted same-origin result reaches the page and receives `{accepted:true}`; mismatched-origin result is rejected with `{accepted:false}`.
+- [ ] Initialized wallet: complete connection, account/balance, denial, and approval against a compatible daemon.
 - [ ] Popup: asset → receive → send → confirm → result.
 - [ ] Account/network switch and lock during request fail closed.
 - [ ] Existing Kaspa send and connection regression checks pass.
@@ -46,12 +49,15 @@ M1: 13 ZKas focused Playwright tests pass; TypeScript compile and ESLint pass (3
 
 M2: 23 focused tests pass; TypeScript compile, Chrome build, and ESLint pass (39 preexisting warnings). The Chrome content script contains no ZKas signer symbols after separating shared API utilities from background keyring code. These results use a fake daemon and do not establish compatibility with a running walletd or a funded payment.
 
+M3/M4: 35 focused ZKas tests pass; TypeScript compile, Chrome and Firefox builds, and ESLint pass (39 existing warnings). An isolated installed-Chrome probe confirms provider discovery, Kaspa version response, locked/uninitialized ZKas errors, and both accepted and rejected final-result acknowledgements. Astra converged with no P0/P1/P2 findings. The final Codex Security M3b diff scan covered 21 source files with zero findings after the result-delivery defect was fixed. A broad Playwright run and a single existing Kaspa batch spec both stalled before test discovery under Node 26 on this host and were stopped; they are not counted as passes.
+
 ## Manual Testing
 
-- [ ] Serve page from localhost; confirm provider discovery and one connect approval.
+- [x] Serve page from loopback; confirm provider discovery and the existing Kaspa API probe.
+- [ ] Initialize an extension wallet and confirm one ZKas connection approval.
 - [ ] Check address, balance/sync warning, QR/copy, fee, denial, and result copy.
 - [ ] Confirm no phrase, FVK, token, or signatures appear in page state or network calls.
-- [ ] Check Chrome and Firefox builds if toolchains are available.
+- [x] Check Chrome and Firefox production builds.
 
 ## Performance Testing
 
