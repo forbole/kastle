@@ -86,6 +86,14 @@ export const zkasPaymentClear = async (
   sendResponse({ ok: true });
 };
 
+export const zkasPaymentAbortBeforeFetch = async (
+  { selection, id }: PaymentMessage,
+  sendResponse: (value: unknown) => void,
+) => {
+  await getZKasPaymentJournal().abortBeforeFetch(selection, id);
+  sendResponse({ ok: true });
+};
+
 export const zkasConnectionRemove = async (
   { origin }: Message<{ origin: string }>,
   sendResponse: (value: unknown) => void,

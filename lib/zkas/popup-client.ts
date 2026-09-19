@@ -5,7 +5,7 @@ import { getZKasDaemonOriginPattern, ZKasClient, type ZKasHistory, type ZKasSign
 import type { ZKasCredentials, ZKasSignRequest } from "./key-service";
 import type { ZKasSelection } from "./selection";
 import type { ZKasPaymentRecord } from "./payment-journal";
-import { ZKasSubmissionUncertainError } from "./client";
+import { ZKasPreSubmitError, ZKasSubmissionUncertainError } from "./client";
 
 type InternalError = { error: string };
 let paymentInProgress = false;
@@ -18,9 +18,10 @@ async function internal<T>(method: Method, data: object = {}): Promise<T> {
   return response as T;
 }
 
-async function permittedClient(credentials: ZKasCredentials): Promise<ZKasClient> {
+async function permittedClient(credentials: ZKasCredentials, extraGuard?: () => Promise<void>): Promise<ZKasClient> {
   if (!credentials.daemonUrl) throw new Error("Configure a ZKas daemon first");
   const guard = async () => {
+    await extraGuard?.();
     await internal(Method.ZKAS_CHECK_SELECTION, {
       selection: selectionOf(credentials),
       daemonUrl: credentials.daemonUrl,
@@ -91,15 +92,17 @@ export async function sendZKasPayment(input: {
   amount: string;
   maxFee: string;
   expectedAccount: PublicZKasAccount;
+  guard?: () => Promise<void>;
 }): Promise<{ txid: string; daemonReportedFeeSompi: string }> {
   if (paymentInProgress) throw new Error("A ZKas payment is already in progress");
   paymentInProgress = true;
   try {
+    await input.guard?.();
     const amountSompi = parseZkasAmount(input.amount);
     const maxFeeSompi = parseZkasAmount(input.maxFee);
     const credentials = await internal<ZKasCredentials>(Method.ZKAS_GET_CREDENTIALS);
     assertExpectedAccount(credentials, input.expectedAccount);
-    const client = await permittedClient(credentials);
+    const client = await permittedClient(credentials, input.guard);
     const selection = selectionOf(credentials);
     const record = await internal<ZKasPaymentRecord>(Method.ZKAS_PAYMENT_ACQUIRE, {
       selection,
@@ -110,6 +113,7 @@ export async function sendZKasPayment(input: {
       address: () => credentials.address,
       fullViewingKeyHex: async () => credentials.fullViewingKeyHex,
       verifyAndSign: async (prepared) => {
+        await input.guard?.();
         const request: ZKasSignRequest = {
           selection,
           keyringVersion: credentials.keyringVersion,
@@ -135,14 +139,14 @@ export async function sendZKasPayment(input: {
         amountSompi,
         maxFeeSompi,
         beforeSubmit: async () => {
-          await permittedClient(credentials);
-          submitting = true;
+          await input.guard?.();
           await internal(Method.ZKAS_PAYMENT_SUBMITTING, {
             selection,
             keyringVersion: credentials.keyringVersion,
             daemonUrl: credentials.daemonUrl,
             id: record.id,
           });
+          submitting = true;
         },
       });
       await internal(Method.ZKAS_PAYMENT_SUCCESS, { selection, id: record.id, txid: result.txid });
@@ -151,6 +155,13 @@ export async function sendZKasPayment(input: {
         daemonReportedFeeSompi: result.daemonReportedFeeSompi.toString(),
       };
     } catch (cause) {
+      if (cause instanceof ZKasPreSubmitError) {
+        await internal(submitting ? Method.ZKAS_PAYMENT_ABORT_BEFORE_FETCH : Method.ZKAS_PAYMENT_RELEASE, {
+          selection,
+          id: record.id,
+        }).catch(() => undefined);
+        throw cause;
+      }
       if (submitting) {
         const txid = cause instanceof ZKasSubmissionUncertainError ? cause.txid : undefined;
         await internal(Method.ZKAS_PAYMENT_UNCERTAIN, { selection, id: record.id, txid }).catch(() => undefined);

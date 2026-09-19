@@ -52,3 +52,12 @@ test("a failed preparation releases its reservation; an uncertain submission ret
   expect((await journal.get(selection))?.status).toBe("success");
   await journal.acquire(selection);
 });
+
+test("known pre-fetch cancellation safely clears a submitting journal record", async () => {
+  const journal = new ZKasPaymentJournal(fakeStore());
+  const record = await journal.acquire(selection);
+  await journal.markSubmitting(selection, record.id);
+  await journal.abortBeforeFetch(selection, record.id);
+  expect(await journal.get(selection)).toBeUndefined();
+  await journal.acquire(selection);
+});

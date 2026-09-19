@@ -76,6 +76,13 @@ export class ZKasSubmissionUncertainError extends Error {
   }
 }
 
+export class ZKasPreSubmitError extends Error {
+  constructor(cause: unknown) {
+    super(cause instanceof Error ? cause.message : String(cause));
+    this.name = "ZKasPreSubmitError";
+  }
+}
+
 function validatedBaseUrl(value: string): string {
   const url = new URL(value);
   const loopback = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
@@ -120,8 +127,14 @@ export class ZKasClient {
     this.guard = config.guard;
   }
 
-  private async request(path: string, body?: unknown): Promise<unknown> {
-    await this.guard?.();
+  private async request(path: string, body?: unknown, beforeFetch?: () => Promise<void>): Promise<unknown> {
+    try {
+      await this.guard?.();
+      await beforeFetch?.();
+      if (beforeFetch) await this.guard?.();
+    } catch (cause) {
+      throw new ZKasPreSubmitError(cause);
+    }
     const timeoutMs = path === "/api/wallet/prepare" ? 360_000
       : path === "/api/wallet/submit" ? 90_000 : 30_000;
     const controller = new AbortController();
@@ -261,14 +274,14 @@ export class ZKasClient {
     ) {
       throw new Error("ZKas signer returned invalid signatures");
     }
-    await input.beforeSubmit?.();
     let rawSubmission: unknown;
     try {
       rawSubmission = await this.request("/api/wallet/submit", {
         session: prepared.session,
         sigs: signatures,
-      });
-    } catch {
+      }, input.beforeSubmit);
+    } catch (cause) {
+      if (cause instanceof ZKasPreSubmitError) throw cause;
       throw new ZKasSubmissionUncertainError();
     }
     const parsed = submitSchema.safeParse(rawSubmission);

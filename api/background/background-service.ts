@@ -21,10 +21,13 @@ import { compoundUtxosHandler } from "./handlers/kaspa/compoundUtxos";
 import { zkasConnectHandler } from "./handlers/zkas/connect";
 import { zkasGetAccountHandler } from "./handlers/zkas/get-account";
 import { zkasGetBalanceHandler } from "./handlers/zkas/get-balance";
+import { zkasSendHandler } from "./handlers/zkas/send";
 import { isTrustedZKasPageRequest } from "./zkas-origin";
+import { listenForZKasDappPaymentClosure } from "./zkas-dapp-payment";
 
 export class BackgroundService {
   public listen(): void {
+    listenForZKasDappPaymentClosure();
     browser.runtime.onMessage.addListener(
       (message: unknown, sender, sendResponse) => {
         const result = ApiRequestWithHostSchema.safeParse(message);
@@ -34,7 +37,7 @@ export class BackgroundService {
 
         const parsedMessage = ApiRequestWithHostSchema.parse(message);
 
-        if ([Action.ZKAS_CONNECT, Action.ZKAS_GET_ACCOUNT, Action.ZKAS_GET_BALANCE].includes(parsedMessage.action) &&
+        if ([Action.ZKAS_CONNECT, Action.ZKAS_GET_ACCOUNT, Action.ZKAS_GET_BALANCE, Action.ZKAS_SEND].includes(parsedMessage.action) &&
           !isTrustedZKasPageRequest(parsedMessage.origin, sender, browser.runtime.id)) {
           sendResponse({
             id: parsedMessage.id,
@@ -65,7 +68,7 @@ export class BackgroundService {
         const tabId = sender.tab?.id;
         if (tabId) {
           const handleMessage = async () => {
-            await handler(tabId, parsedMessage, sendResponse);
+            await handler(tabId, parsedMessage, sendResponse, sender);
           };
 
           handleMessage().catch((error) => {
@@ -116,6 +119,7 @@ export class BackgroundService {
       [Action.ZKAS_CONNECT]: zkasConnectHandler,
       [Action.ZKAS_GET_ACCOUNT]: zkasGetAccountHandler,
       [Action.ZKAS_GET_BALANCE]: zkasGetBalanceHandler,
+      [Action.ZKAS_SEND]: zkasSendHandler,
     };
 
     return handlers[action];
