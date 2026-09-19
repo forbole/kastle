@@ -6,11 +6,13 @@ import WalletHeader from "./WalletHeader";
 interface PrivateKeyWalletItemProps {
   wallet: WalletInfo;
   onClose: () => void;
+  onSelectAccount?: (walletId: string, accountIndex: number) => Promise<void>;
 }
 
 export const PrivateKeyWalletItem = ({
   wallet,
   onClose,
+  onSelectAccount,
 }: PrivateKeyWalletItemProps) => {
   const navigate = useNavigate();
 
@@ -36,6 +38,7 @@ export const PrivateKeyWalletItem = ({
                 walletId={wallet.id}
                 account={account}
                 onClose={onClose}
+                onSelectAccount={onSelectAccount}
               >
                 <button
                   type="button"

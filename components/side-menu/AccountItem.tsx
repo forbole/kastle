@@ -7,11 +7,13 @@ import useTotalBalanceByAccount from "@/hooks/kasplex/useTotalBalanceByAccount";
 import useAccountManager from "@/hooks/wallet/useAccountManager";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import useKaspaBalance from "@/hooks/wallet/useKaspaBalance";
+import useSwitchNetwork from "@/hooks/useSwitchNetwork";
 
 type AccountItemProps = {
   walletId: string;
   account: Account;
   onClose: () => void;
+  onSelectAccount?: (walletId: string, accountIndex: number) => Promise<void>;
   children?: React.ReactNode;
 };
 
@@ -19,11 +21,13 @@ export default function AccountItem({
   walletId,
   account,
   onClose,
+  onSelectAccount,
   children,
 }: AccountItemProps) {
   const [settings] = useSettings();
   const { walletSettings } = useWalletManager();
   const { selectAccount } = useAccountManager();
+  const { switchKaspaNetwork } = useSwitchNetwork();
   const isSelectedWalletId = walletSettings?.selectedWalletId === walletId;
   const selectedAccountIndex = walletSettings?.selectedAccountIndex;
   const totalBalance = useTotalBalanceByAccount(account);
@@ -35,7 +39,8 @@ export default function AccountItem({
     <div
       className={twMerge(
         "flex w-full",
-        isSelectedWalletId &&
+        settings?.activeChain !== "zkas" &&
+          isSelectedWalletId &&
           account.index === selectedAccountIndex &&
           "rounded-xl border-2 border-icy-blue-400 hover:border-transparent",
       )}
@@ -47,7 +52,14 @@ export default function AccountItem({
         <button
           className="flex flex-grow items-center justify-stretch gap-2 px-2 py-3"
           onClick={async () => {
-            selectAccount(walletId, account.index);
+            if (onSelectAccount) {
+              await onSelectAccount(walletId, account.index);
+              return;
+            }
+            await selectAccount(walletId, account.index);
+            if (settings?.activeChain === "zkas") {
+              await switchKaspaNetwork(settings.networkId);
+            }
             onClose();
           }}
         >
