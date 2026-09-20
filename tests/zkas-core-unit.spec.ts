@@ -181,6 +181,38 @@ test("send verifies the prepared payment before submitting", async () => {
   ]);
 });
 
+test("an excessive prepared fee shows the daemon quote without signing or submitting", async () => {
+  const { daemonFetch, calls } = fakeDaemon({
+    "/api/status": goodStatus,
+    "/api/wallet/balance": { balance_sompi: "222000000" },
+    "/api/wallet/prepare": {
+      ...goodPrepare,
+      amount_sompi_exact: "103000000",
+      fee_sompi_exact: "1855400",
+    },
+  });
+  const { signer, verified } = fakeSigner();
+  const client = new ZKasClient({
+    baseUrl: "https://wallet.example",
+    token: "b".repeat(32),
+    network: "mainnet",
+    fetch: daemonFetch,
+  });
+
+  await expect(
+    client.send({
+      signer,
+      to: "zkas:recipient",
+      amountSompi: 103000000n,
+      maxFeeSompi: 10000n,
+    }),
+  ).rejects.toThrow(
+    "ZKas daemon proposes a fee of 0.018554 ZKAS, above your 0.0001 ZKAS maximum. No payment was signed or submitted.",
+  );
+  expect(verified).toHaveLength(0);
+  expect(calls.some((call) => call.path.endsWith("/submit"))).toBe(false);
+});
+
 test("submission failures carry uncertain outcome and preserve any returned txid", async () => {
   for (const response of [
     new Error("connection lost"),
