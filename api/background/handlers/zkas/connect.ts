@@ -8,7 +8,7 @@ import { sameZKasSelection } from "@/lib/zkas/selection";
 import { createZKasApprovalSession } from "@/api/background/zkas-approval";
 import { z } from "zod";
 import { SETTINGS_KEY, type Settings } from "@/contexts/SettingsContext";
-import { isZKasActive, ZKAS_EXPERIMENTAL_KEY } from "@/lib/wallet-network";
+import { assertZKasActive, ZKAS_EXPERIMENTAL_KEY } from "@/lib/wallet-network";
 
 const ApprovedAccountSchema = z.object({
   walletId: z.string(),
@@ -28,11 +28,7 @@ export const zkasConnectHandler: Handler = async (
     storage.getItem<Settings>(SETTINGS_KEY),
     storage.getItem<boolean>(ZKAS_EXPERIMENTAL_KEY),
   ]);
-  if (!isZKasActive(settings, enabled)) {
-    throw new Error(
-      "Enable Experimental features and select ZKas Mainnet first",
-    );
-  }
+  assertZKasActive(settings, enabled);
   if (!(await isKeyringInitialized()))
     throw new Error("Initialize Kastle first");
   try {

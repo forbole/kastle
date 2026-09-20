@@ -19,6 +19,21 @@ export function isZKasActive(
   );
 }
 
+export function assertZKasActive(
+  settings: Settings | null | undefined,
+  experimentalEnabled: boolean | null,
+): void {
+  if (isZKasActive(settings, experimentalEnabled)) return;
+  if (settings?.preview !== true || experimentalEnabled === false) {
+    throw new Error(
+      "Enable Experimental features in Kastle Settings to use ZKas",
+    );
+  }
+  throw new Error(
+    "Select ZKas Mainnet in Kastle Settings → Network to use ZKas",
+  );
+}
+
 export function getSelectedWalletNetwork(
   settings: Settings,
   experimentalEnabled: boolean | null,

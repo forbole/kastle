@@ -20,6 +20,7 @@ ZKas support is experimental and available on ZKas Mainnet only when Experimenta
 
 ### Bug Fixes
 
+* **zkas:** distinguish an inactive Experimental features toggle from a Kaspa network selection in website connection errors
 * **keyring:** serialize wallet secret changes so concurrent imports or removals cannot overwrite each other ([88fd269](https://github.com/forbole/kastle/commit/88fd2697abbc1f2876bf9dc7eaec469500b7896a))
 * **zkas:** show the selected wallet's shielded address in the account menu ([27eff07](https://github.com/forbole/kastle/commit/27eff07990be968a896bc296686bd61aa53d290f))
 * **zkas:** restore the full-page import completion layout and keep the closed switcher off the dashboard ([249ca03](https://github.com/forbole/kastle/commit/249ca032b14434b701eb11b2fb853a1c8e60d26b))

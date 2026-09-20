@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import type { Settings } from "@/contexts/SettingsContext";
 import { NetworkType } from "@/lib/network-type";
 import {
+  assertZKasActive,
   getSelectedWalletNetwork,
   getVisibleWalletNetworks,
   isZKasActive,
@@ -80,4 +81,25 @@ test("a stale settings write cannot reauthorize ZKas after the toggle is turned 
   expect(() =>
     selectWalletNetwork(enabled, ZKAS_MAINNET, disabledFlag),
   ).toThrow(/experimental/i);
+});
+
+test("ZKas connection guidance identifies the setting that actually blocks it", () => {
+  const enabledKaspa = { ...initialSettings, preview: true };
+  expect(() => assertZKasActive(initialSettings, false)).toThrow(
+    /Enable Experimental features/,
+  );
+  expect(() => assertZKasActive(enabledKaspa, true)).toThrow(
+    /Select ZKas Mainnet in Kastle Settings/,
+  );
+  expect(() =>
+    assertZKasActive(
+      { ...enabledKaspa, networkId: NetworkType.TestnetT10 },
+      true,
+    ),
+  ).toThrow(/Select ZKas Mainnet/);
+  const selectedZKas = selectWalletNetwork(enabledKaspa, ZKAS_MAINNET, true);
+  expect(() => assertZKasActive(selectedZKas, true)).not.toThrow();
+  expect(() => assertZKasActive(selectedZKas, false)).toThrow(
+    /Enable Experimental features/,
+  );
 });
