@@ -11,6 +11,7 @@ export interface ZKasSigner {
     recipient: string;
     amountSompi: bigint;
     maxFeeSompi: bigint;
+    memo?: string;
     bundleHex: string;
     disclosure: unknown;
     spendAuth: unknown;

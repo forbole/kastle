@@ -3,12 +3,12 @@ import init, {
   account_seed_hex,
   address_from_seed,
   fvk_hex,
-  verify_and_sign_payment,
+  verify_and_sign_payment_with_memo,
 } from "../../wasm/zkas-signer/firecash_signer.js";
 
 let ready: Promise<void> | undefined;
 const PINNED_WASM_SHA256 =
-  "ea0ec55a2cef0bb7f3cd6ce80b0e5c218693e0e97be49c80a73587b1eefcd409";
+  "89e75959878d113154212fa901e6599b21d4a3823ac12fbd92287d4be6a23914";
 
 export function initZKasSigner(bytesOrUrl: Uint8Array | string): Promise<void> {
   if (!ready) {
@@ -86,12 +86,13 @@ export async function deriveZKasAccountFromSeed(
         throw new Error("ZKas signing network changed");
       }
       try {
-        const signatures = verify_and_sign_payment(
+        const signatures = verify_and_sign_payment_with_memo(
           seedHex,
           network,
           input.recipient,
           input.amountSompi,
           input.maxFeeSompi,
+          input.memo ?? "",
           input.bundleHex,
           JSON.stringify(input.disclosure),
           JSON.stringify(input.spendAuth),

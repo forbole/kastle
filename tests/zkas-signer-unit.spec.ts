@@ -10,7 +10,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const signerDir = path.join(root, "wasm/zkas-signer");
 const signerBytes = path.join(signerDir, "firecash_signer_bg.wasm");
 const signerSha =
-  "ea0ec55a2cef0bb7f3cd6ce80b0e5c218693e0e97be49c80a73587b1eefcd409";
+  "89e75959878d113154212fa901e6599b21d4a3823ac12fbd92287d4be6a23914";
 const mainnetGenesis =
   "b63f7fe8e50402af34790265e299bb1ba63e943b91a59a670e5971b7a9e84e6f";
 const phrase =
@@ -78,6 +78,50 @@ test("the pinned signer refuses testnet payment authorization", () => {
     },
   );
   expect(output).toMatch(/only mainnet is pinned/);
+});
+
+test("the shipped WASM binds the reviewed memo to the encrypted recipient note", () => {
+  // Synthetic, proof-free bundle: tests the check before any real payment can be signed.
+  const fixture = JSON.parse(
+    fs.readFileSync(
+      path.join(root, "tests/fixtures/zkas-memo-prepared.json"),
+      "utf8",
+    ),
+  );
+  const script = `
+    import fs from "node:fs";
+    import init,{verify_and_sign_payment_with_memo} from "./wasm/zkas-signer/firecash_signer.js";
+    await init({module_or_path:fs.readFileSync("wasm/zkas-signer/firecash_signer_bg.wasm")});
+    const fixture = ${JSON.stringify(fixture)};
+    const spendAuth = JSON.stringify([{index:0,alpha:"03".repeat(32)}]);
+    const sign = (memo) => verify_and_sign_payment_with_memo(
+      fixture.seed,"mainnet",fixture.to,BigInt(fixture.amountSompi),
+      BigInt(fixture.maxFeeSompi),memo,fixture.bundleHex,
+      fixture.disclosure,spendAuth,
+    );
+    const rejects = (memo) => { try { sign(memo); return false; } catch { return true; } };
+    console.log(JSON.stringify({
+      signatures:JSON.parse(sign(fixture.memo)),
+      changed:rejects("deposit 43"),
+      omitted:rejects(""),
+      oversized:rejects("a".repeat(513)),
+    }));
+  `;
+  const output = execFileSync(
+    process.execPath,
+    ["--input-type=module", "-e", script],
+    {
+      cwd: root,
+      timeout: 10_000,
+      encoding: "utf8",
+    },
+  );
+  expect(JSON.parse(output)).toEqual({
+    signatures: [{ index: 0, sig: expect.stringMatching(/^[0-9a-f]{128}$/) }],
+    changed: true,
+    omitted: true,
+    oversized: true,
+  });
 });
 
 test("Kastle's signer adapter keeps spending material out of public account data", () => {
