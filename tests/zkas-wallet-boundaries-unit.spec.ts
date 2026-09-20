@@ -6,6 +6,19 @@ import { addOrRecoverZKasSeed } from "@/lib/zkas/selection";
 import type { WalletSecret } from "@/types/WalletSecret";
 import { removeWalletAndSecretLocked, WalletSecretCleanupError } from "@/lib/wallet-lifecycle";
 
+let addedNavigator = false;
+test.beforeEach(() => {
+  // Node 20 in CI has no global navigator; these tests provide its Locks API.
+  addedNavigator = typeof navigator === "undefined";
+  if (addedNavigator) {
+    Object.defineProperty(globalThis, "navigator", { configurable: true, value: {} });
+  }
+});
+
+test.afterEach(() => {
+  if (addedNavigator) Reflect.deleteProperty(globalThis, "navigator");
+});
+
 test("Kaspa wallet switcher excludes standalone ZKas seeds", () => {
   const wallets = (["mnemonic", "privateKey", "ledger", "zkasSeed"] as const).map((type) => ({
     id: type, type, name: type, backed: true,
