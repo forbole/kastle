@@ -81,7 +81,7 @@ python3 -m http.server 4173 --directory devtools/zkas-test
 
 Open `http://localhost:4173` in the same Chrome profile. A `file:` URL is not a supported website origin for this flow. The page detects the installed Kastle provider and **Probe installed extension** calls the existing Kaspa version API. Enable Experimental features and select ZKas Mainnet in the extension before choosing **Connect ZKas**, **Get ZKas account**, or **Get shielded balance and sync state**. After approval, the page reads the selected public address and shielded balance/sync status. It never receives the recovery phrase, full viewing key, or daemon token.
 
-The grant is specific to the website origin, selected Kastle wallet/account, and ZKas network. Disconnect a site under **ZKAS → Configure ZKas daemon → Connected websites**. Only HTTPS sites and HTTP loopback development sites can request ZKas access. A payment request always opens a separate review screen and requires a fresh approval.
+The grant is specific to the website origin, selected Kastle wallet/account, and ZKas network. A website's `zkas:connect` request identifies the ZKas API but does not switch Kastle from Kaspa to ZKas. Experimental features must be enabled and **ZKas Mainnet · Experimental** selected under **Settings → Network** before connecting. Disconnect a site under **ZKAS → Configure ZKas daemon → Connected websites**. Only HTTPS sites and HTTP loopback development sites can request ZKas access. A payment request always opens a separate review screen and requires a fresh approval.
 
 The browser provider uses `window.kastle.request(method, args)`:
 

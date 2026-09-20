@@ -2,7 +2,7 @@ import type { Settings } from "@/contexts/SettingsContext";
 import type { WalletSettings } from "@/contexts/WalletManagerContext";
 import type { WalletSecret } from "@/types/WalletSecret";
 import type { ZKasNetwork } from "./client";
-import { isZKasActive } from "@/lib/wallet-network";
+import { assertZKasActive } from "@/lib/wallet-network";
 
 export type ZKasSelection = {
   walletId: string;
@@ -121,11 +121,7 @@ export function getSelectedZKasAccount(
   settings: Settings | null,
   experimentalEnabled: boolean | null,
 ): ZKasSelection {
-  if (!isZKasActive(settings, experimentalEnabled)) {
-    throw new Error(
-      "Enable Experimental features and select ZKas Mainnet first",
-    );
-  }
+  assertZKasActive(settings, experimentalEnabled);
   if (
     !walletSettings?.selectedWalletId ||
     walletSettings.selectedAccountIndex === undefined
