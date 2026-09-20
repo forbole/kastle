@@ -15,6 +15,7 @@ type PendingView = {
   to: string;
   amountSompi: string;
   maxFeeSompi: string;
+  memo?: string;
 };
 
 async function internal<T>(method: Method, data: object): Promise<T> {
@@ -109,6 +110,7 @@ export default function ZKasDappSend() {
         to: pending.to,
         amount: formatZkasAmount(parseZkasSompi(pending.amountSompi)),
         maxFee: formatZkasAmount(parseZkasSompi(pending.maxFeeSompi)),
+        memo: pending.memo,
         expectedAccount: pending.account,
         guard: check,
       });
@@ -177,6 +179,15 @@ export default function ZKasDappSend() {
             <br />
             {formatZkasAmount(parseZkasSompi(pending.maxFeeSompi))} ZKAS
           </p>
+        )}
+        {pending?.memo && (
+          <div className="rounded-lg bg-daintree-800 p-3">
+            <strong>Memo</strong>
+            <p className="whitespace-pre-wrap break-words">{pending.memo}</p>
+            <p className="mt-2 text-xs text-slate-300">
+              The connected wallet daemon can read this memo in plaintext.
+            </p>
+          </div>
         )}
         {busy && (
           <p role="status">

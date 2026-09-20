@@ -64,6 +64,7 @@ export const zkasDappPendingGet = async (
     to: pending.to,
     amountSompi: pending.amountSompi,
     maxFeeSompi: pending.maxFeeSompi,
+    memo: pending.memo,
   });
 };
 

@@ -7,6 +7,7 @@ ZKas support is experimental and available on ZKas Mainnet only when Experimenta
 ### Features
 
 * **zkas:** add optional memos to shielded sends with local encrypted memo verification, plus expandable daemon-provided transaction details
+* **zkas:** add optional memos to the local website test page and website payment approvals
 * **zkas:** add a pinned shielded signer and user-selected wallet daemon client for watch-only proof preparation and local signing ([b0fb5e0](https://github.com/forbole/kastle/commit/b0fb5e02dac92c1240a5463bef41be1c164d8c48))
 * **zkas:** validate prepared payments and retain recovery state when submission may have succeeded ([463b579](https://github.com/forbole/kastle/commit/463b5793cae6498597c489926b0ffff5c5e2c69b))
 * **zkas:** add ZKAS dashboard, receive, send, and recent activity screens ([1058a02](https://github.com/forbole/kastle/commit/1058a0290b6738b31122414b58b7364bc71b34f2))

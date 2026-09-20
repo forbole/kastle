@@ -53,6 +53,22 @@ function toSompi(value, label) {
   return sompi.toString();
 }
 
+function validatedMemo(value) {
+  if (value === "") return undefined;
+  const bytes = new TextEncoder().encode(value);
+  if (new TextDecoder("utf-8", { ignoreBOM: true }).decode(bytes) !== value)
+    throw new Error("Memo contains invalid Unicode");
+  if (bytes.length > 512)
+    throw new Error("Memo must be at most 512 UTF-8 bytes");
+  return value;
+}
+
+byId("memo").addEventListener("input", () => {
+  const bytes = new TextEncoder().encode(byId("memo").value).length;
+  byId("memo-help").textContent =
+    `${bytes}/512 UTF-8 bytes. The connected wallet daemon can read the memo.`;
+});
+
 byId("probe").addEventListener("click", () =>
   invoke("connection-output", "kas:get_version"),
 );
@@ -70,7 +86,13 @@ byId("send").addEventListener("click", () => {
     const to = byId("recipient").value.trim();
     const amountSompi = toSompi(byId("amount").value.trim(), "Amount");
     const maxFeeSompi = toSompi(byId("fee").value.trim(), "Maximum fee");
-    void invoke("send-output", "zkas:send", { to, amountSompi, maxFeeSompi });
+    const memo = validatedMemo(byId("memo").value);
+    void invoke("send-output", "zkas:send", {
+      to,
+      amountSompi,
+      maxFeeSompi,
+      ...(memo === undefined ? {} : { memo }),
+    });
   } catch (error) {
     show(
       "send-output",
