@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { MAX_ZKAS_SOMPI, parseZkasSompi } from "./amount";
+import { formatZkasAmount, MAX_ZKAS_SOMPI, parseZkasSompi } from "./amount";
 
 export type ZKasNetwork = "mainnet" | "testnet";
 
@@ -279,7 +279,9 @@ export class ZKasClient {
       throw new Error("ZKas daemon changed the payment amount");
     }
     if (preparedFee > maxFeeSompi) {
-      throw new Error("ZKas fee exceeds the approved maximum");
+      throw new Error(
+        `ZKas daemon proposes a fee of ${formatZkasAmount(preparedFee)} ZKAS, above your ${formatZkasAmount(maxFeeSompi)} ZKAS maximum. No payment was signed or submitted.`,
+      );
     }
     const signatures = await signer.verifyAndSign({
       network: this.network,
