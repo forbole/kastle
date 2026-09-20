@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { formatZkasAmount, parseZkasAmount } from "@/lib/zkas/amount";
 import { historyDetailLabels } from "@/lib/zkas/history-detail";
+import { validateZKasMemo } from "@/lib/zkas/memo";
 import {
   ZKasClient,
   ZKasSubmissionUncertainError,
@@ -285,12 +286,81 @@ test("send verifies the prepared payment before submitting", async () => {
   expect(result.txid).toBe(txid);
   expect(String(result.daemonReportedFeeSompi)).toBe("10");
   expect(verified).toHaveLength(1);
+  expect(verified[0]).toMatchObject({ memo: "" });
   expect(calls.map((call) => call.path)).toEqual([
     "/api/status",
     "/api/wallet/balance",
     "/api/wallet/prepare",
     "/api/wallet/submit",
   ]);
+  expect(
+    calls.find((call) => call.path.endsWith("/prepare"))?.body,
+  ).not.toHaveProperty("memo");
+});
+
+test("send passes the exact 512-byte memo to non-custodial prepare", async () => {
+  const { daemonFetch, calls } = fakeDaemon({
+    "/api/status": goodStatus,
+    "/api/wallet/balance": { balance_sompi: "1000" },
+    "/api/wallet/prepare": goodPrepare,
+    "/api/wallet/submit": {
+      txid,
+      amount_sompi_exact: "100",
+      fee_sompi_exact: "10",
+    },
+  });
+  const client = new ZKasClient({
+    baseUrl: "https://wallet.example",
+    token: "b".repeat(32),
+    network: "mainnet",
+    fetch: daemonFetch,
+  });
+  const memo = `  ${"é".repeat(254)}\n  `;
+  expect(new TextEncoder().encode(memo).length).toBe(513);
+  const maxMemo = ` ${"é".repeat(254)}\n  `;
+  expect(new TextEncoder().encode(maxMemo).length).toBe(512);
+  const { signer, verified } = fakeSigner();
+  await client.send({
+    signer,
+    to: "zkas:recipient",
+    amountSompi: 100n,
+    maxFeeSompi: 20n,
+    memo: maxMemo,
+  });
+  expect(
+    calls.find((call) => call.path.endsWith("/prepare"))?.body,
+  ).toMatchObject({
+    memo: maxMemo,
+    allow_partial: false,
+  });
+  expect(verified).toHaveLength(1);
+  expect(verified[0]).toMatchObject({ memo: maxMemo });
+  expect(calls.some((call) => call.path === "/api/wallet/send")).toBe(false);
+});
+
+test("oversized and malformed memos fail before the daemon is contacted", async () => {
+  const { daemonFetch, calls } = fakeDaemon({});
+  const client = new ZKasClient({
+    baseUrl: "https://wallet.example",
+    token: "b".repeat(32),
+    network: "mainnet",
+    fetch: daemonFetch,
+  });
+  for (const memo of ["x".repeat(513), "😀".repeat(129), "\ud800"]) {
+    await expect(
+      client.send({
+        signer: fakeSigner().signer,
+        to: "zkas:recipient",
+        amountSompi: 100n,
+        maxFeeSompi: 20n,
+        memo,
+      }),
+    ).rejects.toThrow(/memo/i);
+  }
+  expect(calls).toEqual([]);
+  expect(validateZKasMemo("")).toBeUndefined();
+  expect(validateZKasMemo(" \n ")).toBe(" \n ");
+  expect(validateZKasMemo("\uFEFFreference")).toBe("\uFEFFreference");
 });
 
 test("an excessive prepared fee shows the daemon quote without signing or submitting", async () => {

@@ -7,6 +7,7 @@ import { updateWalletSettingsLocked } from "@/lib/wallet-settings-storage";
 import type { WalletSecret } from "@/types/WalletSecret";
 import signerAssetUrl from "@/wasm/zkas-signer/firecash_signer_bg.wasm?url";
 import { parseZkasSompi } from "./amount";
+import { validateZKasMemo } from "./memo";
 import {
   deriveZKasAccount,
   deriveZKasAccountFromSeed,
@@ -44,6 +45,7 @@ export type ZKasSignRequest = {
   recipient: string;
   amountSompi: string;
   maxFeeSompi: string;
+  memo: string;
   bundleHex: string;
   disclosure: unknown[];
   spendAuth: unknown[];
@@ -369,6 +371,7 @@ export class ZKasKeyService {
     }
     const amountSompi = parseZkasSompi(request.amountSompi, "amount");
     const maxFeeSompi = parseZkasSompi(request.maxFeeSompi, "fee ceiling");
+    const memo = validateZKasMemo(request.memo) ?? "";
     const { derived, keyringVersion } = await this.account();
     if (keyringVersion !== request.keyringVersion)
       throw new Error("Kastle lock state changed during the ZKas request");
@@ -382,6 +385,7 @@ export class ZKasKeyService {
       recipient: request.recipient,
       amountSompi,
       maxFeeSompi,
+      memo,
       bundleHex: request.bundleHex,
       disclosure: request.disclosure,
       spendAuth: request.spendAuth,

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Header from "@/components/GeneralHeader";
 import { formatZkasAmount, parseZkasAmount } from "@/lib/zkas/amount";
 import { ZKasSubmissionUncertainError } from "@/lib/zkas/client";
+import { MAX_ZKAS_MEMO_BYTES, validateZKasMemo } from "@/lib/zkas/memo";
 import {
   getZKasPaymentRecord,
   getZKasPublicAccount,
@@ -32,10 +33,12 @@ export default function ZKasSend() {
   const [to, setTo] = useState("");
   const [amount, setAmount] = useState("");
   const [maxFee, setMaxFee] = useState("0.03");
+  const [memo, setMemo] = useState("");
   const [error, setError] = useState("");
   const [txid, setTxid] = useState("");
   const [reportedFee, setReportedFee] = useState("");
   const uiGeneration = useRef(0);
+  const memoBytes = new TextEncoder().encode(memo).length;
 
   useEffect(() => {
     let active = true;
@@ -44,6 +47,7 @@ export default function ZKasSend() {
     setBalance(undefined);
     setReady(false);
     setStep("details");
+    setMemo("");
     setError("");
     const load = async () => {
       try {
@@ -98,6 +102,7 @@ export default function ZKasSend() {
         throw new Error("ZKas account is not ready to send");
       const requested = parseZkasAmount(amount);
       parseZkasAmount(maxFee);
+      validateZKasMemo(memo);
       if (!to.trim().startsWith("zkas:"))
         throw new Error("Enter a mainnet ZKas address");
       if (requested > balance)
@@ -119,6 +124,7 @@ export default function ZKasSend() {
         to,
         amount,
         maxFee,
+        memo,
         expectedAccount: account,
       });
       if (uiGeneration.current !== submitGeneration) return;
@@ -194,6 +200,29 @@ export default function ZKasSend() {
             preparation can take time. The signer refuses a bundle whose actual
             fee exceeds your ceiling.
           </p>
+          <label className="text-sm" htmlFor="zkas-memo">
+            Memo (optional)
+          </label>
+          <textarea
+            id="zkas-memo"
+            value={memo}
+            onChange={(event) => setMemo(event.target.value)}
+            maxLength={MAX_ZKAS_MEMO_BYTES}
+            rows={3}
+            aria-describedby="zkas-memo-help"
+            aria-invalid={memoBytes > MAX_ZKAS_MEMO_BYTES}
+            className="rounded-lg border border-daintree-700 bg-daintree-800 p-3"
+          />
+          <p id="zkas-memo-help" className="text-xs text-daintree-400">
+            {memoBytes}/{MAX_ZKAS_MEMO_BYTES} UTF-8 bytes. The connected daemon
+            receives the memo. Kastle verifies the encrypted recipient note
+            contains the exact memo before signing.
+          </p>
+          {memoBytes > MAX_ZKAS_MEMO_BYTES && (
+            <p role="alert" className="text-xs text-red-400">
+              Shorten the memo to 512 UTF-8 bytes.
+            </p>
+          )}
           {error && (
             <p role="alert" className="text-sm text-red-400">
               {error}
@@ -216,6 +245,18 @@ export default function ZKasSend() {
           <p className="break-all text-xs">{to.trim()}</p>
           <p>Amount: {amount} ZKAS</p>
           <p>Maximum fee: {maxFee} ZKAS</p>
+          {memo !== "" && (
+            <div className="space-y-1">
+              <p className="text-sm text-daintree-400">Memo as entered</p>
+              <p className="whitespace-pre-wrap break-words rounded-lg bg-daintree-800 p-3 text-xs">
+                {memo}
+              </p>
+              <p className="text-xs text-daintree-400">
+                The daemon can read this memo while preparing the payment.
+                Kastle checks the encrypted note before signing.
+              </p>
+            </div>
+          )}
           <p className="text-xs text-daintree-400">
             The daemon reports its fee; Kastle verifies the fee in the bundle
             stays within this maximum.
