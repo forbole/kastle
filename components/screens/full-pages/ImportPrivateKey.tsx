@@ -22,7 +22,10 @@ type PrivateKeyFormValues = { privateKey: string };
 export default function ImportPrivateKey() {
   const [walletNetwork, setWalletNetwork] = useState<"kaspa" | "zkas">("kaspa");
   const [settings] = useSettings();
-  const [experimentalEnabled, , gateLoading] = useStorageState<boolean | null>(ZKAS_EXPERIMENTAL_KEY, null);
+  const [experimentalEnabled, , gateLoading] = useStorageState<boolean | null>(
+    ZKAS_EXPERIMENTAL_KEY,
+    null,
+  );
   const { emitWalletCreated } = useAnalytics();
   const navigate = useNavigate();
   const { keyringInitialize } = useKeyring();
@@ -69,7 +72,11 @@ export default function ImportPrivateKey() {
     );
   });
 
-  const showZKasChoice = !onboardingForm && !gateLoading && settings?.preview === true && experimentalEnabled !== false;
+  const showZKasChoice =
+    !onboardingForm &&
+    !gateLoading &&
+    settings?.preview === true &&
+    experimentalEnabled !== false;
   if (walletNetwork === "zkas" && showZKasChoice) {
     return <ImportZKasSeed onBack={() => setWalletNetwork("kaspa")} />;
   }
@@ -87,9 +94,26 @@ export default function ImportPrivateKey() {
         />
 
         {showZKasChoice && (
-          <div role="group" aria-label="Wallet network" className="flex gap-2 rounded-xl bg-daintree-800 p-1">
-            <button type="button" aria-pressed={true} className="flex-1 rounded-lg bg-icy-blue-400 p-3 font-semibold">Kaspa private key</button>
-            <button type="button" aria-pressed={false} onClick={() => setWalletNetwork("zkas")} className="flex-1 rounded-lg p-3 font-semibold hover:bg-daintree-700">ZKas spending seed</button>
+          <div
+            role="group"
+            aria-label="Wallet network"
+            className="flex gap-2 rounded-xl bg-daintree-800 p-1"
+          >
+            <button
+              type="button"
+              aria-pressed={true}
+              className="flex-1 rounded-lg bg-icy-blue-400 p-3 font-semibold"
+            >
+              Kaspa private key
+            </button>
+            <button
+              type="button"
+              aria-pressed={false}
+              onClick={() => setWalletNetwork("zkas")}
+              className="flex-1 rounded-lg p-3 font-semibold hover:bg-daintree-700"
+            >
+              ZKas spending seed
+            </button>
           </div>
         )}
 

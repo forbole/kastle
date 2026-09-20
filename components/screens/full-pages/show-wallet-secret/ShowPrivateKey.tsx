@@ -4,7 +4,13 @@ import { useBoolean, useCopyToClipboard } from "usehooks-ts";
 import Header from "@/components/GeneralHeader";
 import { Tooltip } from "react-tooltip";
 
-export default function ShowPrivateKey({ secret, label = "Private key" }: { secret: string; label?: string }) {
+export default function ShowPrivateKey({
+  secret,
+  label = "Private key",
+}: {
+  secret: string;
+  label?: string;
+}) {
   const [, copy] = useCopyToClipboard();
   const [copied, setCopied] = useState(false);
   const { value: isHidden, toggle: toggleHidden } = useBoolean(true);

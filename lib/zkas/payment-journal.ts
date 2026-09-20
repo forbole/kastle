@@ -17,7 +17,11 @@ type JournalStore = {
 };
 
 function selectionKey(selection: ZKasSelection): string {
-  return JSON.stringify([selection.walletId, selection.accountIndex, selection.network]);
+  return JSON.stringify([
+    selection.walletId,
+    selection.accountIndex,
+    selection.network,
+  ]);
 }
 
 export class ZKasPaymentJournal {
@@ -37,7 +41,11 @@ export class ZKasPaymentJournal {
   }
 
   private async all(): Promise<Record<string, ZKasPaymentRecord>> {
-    return (await this.store.getItem<Record<string, ZKasPaymentRecord>>(JOURNAL_KEY)) ?? {};
+    return (
+      (await this.store.getItem<Record<string, ZKasPaymentRecord>>(
+        JOURNAL_KEY,
+      )) ?? {}
+    );
   }
 
   get(selection: ZKasSelection): Promise<ZKasPaymentRecord | undefined> {
@@ -50,7 +58,9 @@ export class ZKasPaymentJournal {
       const key = selectionKey(selection);
       const existing = records[key];
       if (existing && existing.status !== "success") {
-        throw new Error("A previous ZKas payment needs review before another send");
+        throw new Error(
+          "A previous ZKas payment needs review before another send",
+        );
       }
       const record: ZKasPaymentRecord = {
         id: crypto.randomUUID(),
@@ -67,20 +77,40 @@ export class ZKasPaymentJournal {
   private update(
     selection: ZKasSelection,
     id: string,
-    next: "submitting" | "uncertain" | "success" | "release" | "abort-before-fetch",
+    next:
+      | "submitting"
+      | "uncertain"
+      | "success"
+      | "release"
+      | "abort-before-fetch",
     txid?: string,
   ): Promise<void> {
     return this.run(async () => {
       const records = await this.all();
       const key = selectionKey(selection);
       const current = records[key];
-      if (!current || current.id !== id) throw new Error("ZKas payment reservation changed");
-      if (next === "submitting" && current.status !== "preparing") throw new Error("ZKas payment already submitted");
-      if ((next === "uncertain" || next === "success") && current.status !== "submitting") throw new Error("ZKas payment was not marked for submission");
-      if (next === "release" && current.status !== "preparing") throw new Error("Submitted ZKas payment must be reconciled");
-      if (next === "abort-before-fetch" && current.status !== "submitting") throw new Error("ZKas payment was not marked for submission");
-      if (next === "release" || next === "abort-before-fetch") delete records[key];
-      else records[key] = { ...current, status: next, updatedAt: this.now(), ...(txid ? { txid } : {}) };
+      if (!current || current.id !== id)
+        throw new Error("ZKas payment reservation changed");
+      if (next === "submitting" && current.status !== "preparing")
+        throw new Error("ZKas payment already submitted");
+      if (
+        (next === "uncertain" || next === "success") &&
+        current.status !== "submitting"
+      )
+        throw new Error("ZKas payment was not marked for submission");
+      if (next === "release" && current.status !== "preparing")
+        throw new Error("Submitted ZKas payment must be reconciled");
+      if (next === "abort-before-fetch" && current.status !== "submitting")
+        throw new Error("ZKas payment was not marked for submission");
+      if (next === "release" || next === "abort-before-fetch")
+        delete records[key];
+      else
+        records[key] = {
+          ...current,
+          status: next,
+          updatedAt: this.now(),
+          ...(txid ? { txid } : {}),
+        };
       await this.store.setItem(JOURNAL_KEY, records);
     });
   }
@@ -89,11 +119,19 @@ export class ZKasPaymentJournal {
     return this.update(selection, id, "submitting");
   }
 
-  markUncertain(selection: ZKasSelection, id: string, txid?: string): Promise<void> {
+  markUncertain(
+    selection: ZKasSelection,
+    id: string,
+    txid?: string,
+  ): Promise<void> {
     return this.update(selection, id, "uncertain", txid);
   }
 
-  markSuccess(selection: ZKasSelection, id: string, txid: string): Promise<void> {
+  markSuccess(
+    selection: ZKasSelection,
+    id: string,
+    txid: string,
+  ): Promise<void> {
     return this.update(selection, id, "success", txid);
   }
 
@@ -110,9 +148,15 @@ export class ZKasPaymentJournal {
       const records = await this.all();
       const key = selectionKey(selection);
       const current = records[key];
-      if (!current || current.id !== id) throw new Error("ZKas payment reservation changed");
-      if (current.status !== "uncertain" && this.now() - current.updatedAt < ACTIVE_REVIEW_DELAY_MS) {
-        throw new Error("Wait for the active payment to finish before clearing this warning");
+      if (!current || current.id !== id)
+        throw new Error("ZKas payment reservation changed");
+      if (
+        current.status !== "uncertain" &&
+        this.now() - current.updatedAt < ACTIVE_REVIEW_DELAY_MS
+      ) {
+        throw new Error(
+          "Wait for the active payment to finish before clearing this warning",
+        );
       }
       delete records[key];
       await this.store.setItem(JOURNAL_KEY, records);

@@ -22,10 +22,18 @@ export function isZKasDappPopupSender(
   pending: ZKasDappPending,
   sender: { url?: string; tab?: { windowId?: number } },
 ): boolean {
-  if (pending.windowId === undefined || sender.tab?.windowId !== pending.windowId || !sender.url) return false;
+  if (
+    pending.windowId === undefined ||
+    sender.tab?.windowId !== pending.windowId ||
+    !sender.url
+  )
+    return false;
   try {
     const source = new URL(sender.url);
-    return source.searchParams.get("approvalId") === pending.approvalId && source.hash === "#/zkas-send";
+    return (
+      source.searchParams.get("approvalId") === pending.approvalId &&
+      source.hash === "#/zkas-send"
+    );
   } catch {
     return false;
   }
@@ -39,17 +47,23 @@ export class ZKasDappPendingStore {
     set(value: ZKasDappPending | null): Promise<void>;
   };
 
-  constructor(adapter: {
-    get(): Promise<ZKasDappPending | null>;
-    set(value: ZKasDappPending | null): Promise<void>;
-  }, now = () => Date.now()) {
+  constructor(
+    adapter: {
+      get(): Promise<ZKasDappPending | null>;
+      set(value: ZKasDappPending | null): Promise<void>;
+    },
+    now = () => Date.now(),
+  ) {
     this.adapter = adapter;
     this.now = now;
   }
 
   private async run<T>(operation: () => Promise<T>): Promise<T> {
     const result = this.tail.then(operation);
-    this.tail = result.then(() => undefined, () => undefined);
+    this.tail = result.then(
+      () => undefined,
+      () => undefined,
+    );
     return result;
   }
 
@@ -66,7 +80,12 @@ export class ZKasDappPendingStore {
   async get(approvalId: string): Promise<ZKasDappPending | null> {
     return this.run(async () => {
       const value = await this.adapter.get();
-      if (!value || value.approvalId !== approvalId || this.now() - value.createdAt >= ZKAS_DAPP_TIMEOUT_MS) return null;
+      if (
+        !value ||
+        value.approvalId !== approvalId ||
+        this.now() - value.createdAt >= ZKAS_DAPP_TIMEOUT_MS
+      )
+        return null;
       return value;
     });
   }
@@ -74,7 +93,8 @@ export class ZKasDappPendingStore {
   async bindWindow(approvalId: string, windowId: number): Promise<void> {
     await this.run(async () => {
       const value = await this.adapter.get();
-      if (!value || value.approvalId !== approvalId) throw new Error("ZKas payment request expired");
+      if (!value || value.approvalId !== approvalId)
+        throw new Error("ZKas payment request expired");
       await this.adapter.set({ ...value, windowId });
     });
   }

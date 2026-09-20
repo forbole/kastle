@@ -17,7 +17,11 @@ const ApprovedAccountSchema = z.object({
   address: z.string(),
 });
 
-export const zkasConnectHandler: Handler = async (tabId, message, sendResponse) => {
+export const zkasConnectHandler: Handler = async (
+  tabId,
+  message,
+  sendResponse,
+) => {
   const origin = message.origin;
   if (!origin) throw new Error("ZKas website origin is missing");
   const [settings, enabled] = await Promise.all([
@@ -25,9 +29,12 @@ export const zkasConnectHandler: Handler = async (tabId, message, sendResponse) 
     storage.getItem<boolean>(ZKAS_EXPERIMENTAL_KEY),
   ]);
   if (!isZKasActive(settings, enabled)) {
-    throw new Error("Enable Experimental features and select ZKas Mainnet first");
+    throw new Error(
+      "Enable Experimental features and select ZKas Mainnet first",
+    );
   }
-  if (!(await isKeyringInitialized())) throw new Error("Initialize Kastle first");
+  if (!(await isKeyringInitialized()))
+    throw new Error("Initialize Kastle first");
   try {
     const [account, connections] = await Promise.all([
       zkasKeyService.publicAccount(),
@@ -47,15 +54,28 @@ export const zkasConnectHandler: Handler = async (tabId, message, sendResponse) 
   url.hash = "/zkas-connect";
   url.searchParams.set("origin", approval.origin);
   url.searchParams.set("requestId", approval.approvalId);
-  const response = ApiResponseSchema.parse(await ApiUtils.openPopupAndListenForResponse(approval.approvalId, url.toString(), tabId, 180_000, false));
+  const response = ApiResponseSchema.parse(
+    await ApiUtils.openPopupAndListenForResponse(
+      approval.approvalId,
+      url.toString(),
+      tabId,
+      180_000,
+      false,
+    ),
+  );
   if (response.error) {
     sendResponse(ApiUtils.createApiResponse(message.id, null, response.error));
     return;
   }
   const approved = ApprovedAccountSchema.parse(response.response);
   const current = await zkasKeyService.publicAccount();
-  if (!sameZKasSelection(approved, current) || approved.address !== current.address) {
-    throw new Error("Selected ZKas account changed. Review the connection again.");
+  if (
+    !sameZKasSelection(approved, current) ||
+    approved.address !== current.address
+  ) {
+    throw new Error(
+      "Selected ZKas account changed. Review the connection again.",
+    );
   }
   await zkasConnectionStore.add(origin, current);
   sendResponse(ApiUtils.createApiResponse(message.id, true));

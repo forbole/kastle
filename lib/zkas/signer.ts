@@ -13,13 +13,18 @@ const PINNED_WASM_SHA256 =
 export function initZKasSigner(bytesOrUrl: Uint8Array | string): Promise<void> {
   if (!ready) {
     ready = (async () => {
-      const bytes = typeof bytesOrUrl === "string"
-        ? await fetchSignerBytes(bytesOrUrl)
-        : bytesOrUrl;
+      const bytes =
+        typeof bytesOrUrl === "string"
+          ? await fetchSignerBytes(bytesOrUrl)
+          : bytesOrUrl;
       const copy = new Uint8Array(bytes.length);
       copy.set(bytes);
-      const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", copy.buffer));
-      const hash = Array.from(digest, (byte) => byte.toString(16).padStart(2, "0")).join("");
+      const digest = new Uint8Array(
+        await crypto.subtle.digest("SHA-256", copy.buffer),
+      );
+      const hash = Array.from(digest, (byte) =>
+        byte.toString(16).padStart(2, "0"),
+      ).join("");
       if (hash !== PINNED_WASM_SHA256) {
         throw new Error("ZKas signer binary does not match the pinned version");
       }
@@ -69,7 +74,8 @@ export async function deriveZKasAccountFromSeed(
 ): Promise<{ address: string; token: string; signer: ZKasSigner }> {
   if (!ready) throw new Error("ZKas signer is not initialized");
   await ready;
-  if (!/^[0-9a-f]{64}$/.test(seedHex)) throw new Error("Invalid ZKas spending seed");
+  if (!/^[0-9a-f]{64}$/.test(seedHex))
+    throw new Error("Invalid ZKas spending seed");
   const address = address_from_seed(seedHex, network);
   const token = await deriveWalletToken(seedHex, network);
   const signer: ZKasSigner = {
@@ -103,9 +109,8 @@ async function deriveWalletToken(
   seedHex: string,
   network: ZKasNetwork,
 ): Promise<string> {
-  const bytes = Uint8Array.from(
-    seedHex.match(/.{2}/g) ?? [],
-    (byte) => Number.parseInt(byte, 16),
+  const bytes = Uint8Array.from(seedHex.match(/.{2}/g) ?? [], (byte) =>
+    Number.parseInt(byte, 16),
   );
   const key = await crypto.subtle.importKey(
     "raw",
@@ -117,9 +122,7 @@ async function deriveWalletToken(
   const message = new TextEncoder().encode(
     `kastle:zkas:wallet-token:v1:${network}`,
   );
-  const mac = new Uint8Array(
-    await crypto.subtle.sign("HMAC", key, message),
-  );
+  const mac = new Uint8Array(await crypto.subtle.sign("HMAC", key, message));
   return Array.from(mac.slice(0, 16), (byte) =>
     byte.toString(16).padStart(2, "0"),
   ).join("");

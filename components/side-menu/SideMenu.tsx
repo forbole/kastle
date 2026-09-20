@@ -6,7 +6,10 @@ import { PrivateKeyWalletItem } from "@/components/side-menu/PrivateKeyWalletIte
 import { LedgerWalletItem } from "@/components/side-menu/LedgerWalletItem";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import useAccountManager from "@/hooks/wallet/useAccountManager";
-import { listKaspaWallets, runExclusiveWalletSelection } from "@/lib/wallet-switcher-selection";
+import {
+  listKaspaWallets,
+  runExclusiveWalletSelection,
+} from "@/lib/wallet-switcher-selection";
 import { useSettings } from "@/hooks/useSettings";
 import useStorageState from "@/hooks/useStorageState";
 import { isZKasActive, ZKAS_EXPERIMENTAL_KEY } from "@/lib/wallet-network";
@@ -21,7 +24,10 @@ export const SideMenu = ({ isOpen, onClose }: SideMenuProps) => {
   const navigate = useNavigate();
   const { walletSettings } = useWalletManager();
   const [settings] = useSettings();
-  const [experimentalEnabled] = useStorageState<boolean | null>(ZKAS_EXPERIMENTAL_KEY, null);
+  const [experimentalEnabled] = useStorageState<boolean | null>(
+    ZKAS_EXPERIMENTAL_KEY,
+    null,
+  );
   const zkasActive = isZKasActive(settings, experimentalEnabled);
   const [zkasAccounts, setZKasAccounts] = useState<ZKasSwitchAccount[]>([]);
   const [zkasLoading, setZKasLoading] = useState(false);
@@ -36,15 +42,27 @@ export const SideMenu = ({ isOpen, onClose }: SideMenuProps) => {
     if (!isOpen || !zkasActive) return;
     let active = true;
     setZKasLoading(true);
-    void getZKasSwitchAccounts().then((accounts) => {
-      if (active) {
-        setZKasAccounts(accounts);
-        setSelectionError("");
-      }
-    }).catch((cause) => {
-      if (active) setSelectionError(cause instanceof Error ? cause.message : "Unable to load ZKas wallets");
-    }).finally(() => { if (active) setZKasLoading(false); });
-    return () => { active = false; };
+    void getZKasSwitchAccounts()
+      .then((accounts) => {
+        if (active) {
+          setZKasAccounts(accounts);
+          setSelectionError("");
+        }
+      })
+      .catch((cause) => {
+        if (active)
+          setSelectionError(
+            cause instanceof Error
+              ? cause.message
+              : "Unable to load ZKas wallets",
+          );
+      })
+      .finally(() => {
+        if (active) setZKasLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, [isOpen, zkasActive, walletSettings?.wallets]);
 
   const kaspaWallets = listKaspaWallets(wallets ?? []);
@@ -56,7 +74,9 @@ export const SideMenu = ({ isOpen, onClose }: SideMenuProps) => {
     (wallet) => wallet.type === "privateKey",
   );
 
-  const ledgerWallets = kaspaWallets.filter((wallet) => wallet.type === "ledger");
+  const ledgerWallets = kaspaWallets.filter(
+    (wallet) => wallet.type === "ledger",
+  );
 
   const chooseAccount = async (walletId: string, accountIndex: number) => {
     try {
@@ -71,14 +91,23 @@ export const SideMenu = ({ isOpen, onClose }: SideMenuProps) => {
               "This wallet changed. Close and reopen the switcher.",
             );
           }
-          const latestSettings = await storage.getItem<typeof settings>("local:settings");
-          const latestEnabled = await storage.getItem<boolean>(ZKAS_EXPERIMENTAL_KEY);
+          const latestSettings =
+            await storage.getItem<typeof settings>("local:settings");
+          const latestEnabled = await storage.getItem<boolean>(
+            ZKAS_EXPERIMENTAL_KEY,
+          );
           if (zkasActive !== isZKasActive(latestSettings, latestEnabled)) {
             throw new Error("Network changed. Reopen the wallet switcher.");
           }
           if (zkasActive) {
             const latestAccounts = await getZKasSwitchAccounts();
-            if (!latestAccounts.some((item) => item.walletId === walletId && item.accountIndex === accountIndex)) {
+            if (
+              !latestAccounts.some(
+                (item) =>
+                  item.walletId === walletId &&
+                  item.accountIndex === accountIndex,
+              )
+            ) {
               throw new Error("This wallet is unavailable on ZKas Mainnet");
             }
           } else if (wallet.type === "zkasSeed") {
@@ -172,9 +201,23 @@ export const SideMenu = ({ isOpen, onClose }: SideMenuProps) => {
             className="flex min-w-0 flex-col gap-3 disabled:opacity-50"
           >
             {zkasActive ? (
-              zkasLoading ? <p className="px-2 text-sm text-daintree-200">Loading ZKas wallets…</p> :
-                walletSettings && <ZKasWalletSection wallets={wallets ?? []} accounts={zkasAccounts} walletSettings={walletSettings} onSelectAccount={chooseAccount} />
-            ) : walletList}
+              zkasLoading ? (
+                <p className="px-2 text-sm text-daintree-200">
+                  Loading ZKas wallets…
+                </p>
+              ) : (
+                walletSettings && (
+                  <ZKasWalletSection
+                    wallets={wallets ?? []}
+                    accounts={zkasAccounts}
+                    walletSettings={walletSettings}
+                    onSelectAccount={chooseAccount}
+                  />
+                )
+              )
+            ) : (
+              walletList
+            )}
           </fieldset>
         </div>
       </div>

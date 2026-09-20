@@ -1,8 +1,6 @@
 {
   "version": "0.62.2",
-  "environments": [
-    "claude"
-  ],
+  "environments": ["claude"],
   "phases": [
     "requirements",
     "design",

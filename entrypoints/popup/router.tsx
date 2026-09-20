@@ -95,7 +95,12 @@ import ZKasConnect from "@/components/screens/browser-api/zkas/ZKasConnect";
 import ZKasDappSend from "@/components/screens/browser-api/zkas/ZKasDappSend";
 import { useState, type ReactNode } from "react";
 import { useSettings } from "@/hooks/useSettings";
-import { getVisibleWalletNetworks, isZKasActive, ZKAS_EXPERIMENTAL_KEY, ZKAS_MAINNET } from "@/lib/wallet-network";
+import {
+  getVisibleWalletNetworks,
+  isZKasActive,
+  ZKAS_EXPERIMENTAL_KEY,
+  ZKAS_MAINNET,
+} from "@/lib/wallet-network";
 import useStorageState from "@/hooks/useStorageState";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { SideMenu } from "@/components/side-menu/SideMenu";
@@ -106,38 +111,79 @@ function ChooseKaspaWallet() {
     <div className="flex h-full flex-col gap-5 bg-icy-blue-950 p-5 text-white">
       <SideMenu isOpen={open} onClose={() => setOpen(false)} />
       <h1 className="text-xl font-bold">Choose a Kaspa wallet</h1>
-      <p className="text-sm text-daintree-200">The selected spending-seed wallet is available on ZKas Mainnet. Choose a recovery phrase, private key, or Ledger wallet for Kaspa.</p>
-      <button type="button" className="rounded-full bg-icy-blue-400 p-4 font-semibold" onClick={() => setOpen(true)}>Open wallet switcher</button>
-      <Link to="/add-wallet" className="rounded-full border border-daintree-700 p-4 text-center font-semibold">Import a Kaspa wallet</Link>
-      <Link to="/settings" className="rounded-full border border-daintree-700 p-4 text-center font-semibold">Network settings</Link>
+      <p className="text-sm text-daintree-200">
+        The selected spending-seed wallet is available on ZKas Mainnet. Choose a
+        recovery phrase, private key, or Ledger wallet for Kaspa.
+      </p>
+      <button
+        type="button"
+        className="rounded-full bg-icy-blue-400 p-4 font-semibold"
+        onClick={() => setOpen(true)}
+      >
+        Open wallet switcher
+      </button>
+      <Link
+        to="/add-wallet"
+        className="rounded-full border border-daintree-700 p-4 text-center font-semibold"
+      >
+        Import a Kaspa wallet
+      </Link>
+      <Link
+        to="/settings"
+        className="rounded-full border border-daintree-700 p-4 text-center font-semibold"
+      >
+        Network settings
+      </Link>
     </div>
   );
 }
 
 function WalletDashboard() {
   const [settings, , isLoading] = useSettings();
-  const [enabled, , gateLoading] = useStorageState<boolean | null>(ZKAS_EXPERIMENTAL_KEY, null);
+  const [enabled, , gateLoading] = useStorageState<boolean | null>(
+    ZKAS_EXPERIMENTAL_KEY,
+    null,
+  );
   const { walletSettings } = useWalletManager();
   if (isLoading || gateLoading) return null;
   if (isZKasActive(settings, enabled)) return <ZKasAsset />;
-  const selectedWallet = walletSettings?.wallets.find((wallet) => wallet.id === walletSettings.selectedWalletId);
-  return selectedWallet?.type === "zkasSeed" ? <ChooseKaspaWallet /> : <Dashboard />;
+  const selectedWallet = walletSettings?.wallets.find(
+    (wallet) => wallet.id === walletSettings.selectedWalletId,
+  );
+  return selectedWallet?.type === "zkasSeed" ? (
+    <ChooseKaspaWallet />
+  ) : (
+    <Dashboard />
+  );
 }
 
 function ZKasOnly({ children }: { children: ReactNode }) {
   const [settings, , isLoading] = useSettings();
-  const [enabled, , gateLoading] = useStorageState<boolean | null>(ZKAS_EXPERIMENTAL_KEY, null);
+  const [enabled, , gateLoading] = useStorageState<boolean | null>(
+    ZKAS_EXPERIMENTAL_KEY,
+    null,
+  );
   if (isLoading || gateLoading) return null;
-  return isZKasActive(settings, enabled) ? children : <Navigate to="/dashboard" replace />;
+  return isZKasActive(settings, enabled) ? (
+    children
+  ) : (
+    <Navigate to="/dashboard" replace />
+  );
 }
 
 function ZKasAvailable({ children }: { children: ReactNode }) {
   const [settings, , isLoading] = useSettings();
-  const [enabled, , gateLoading] = useStorageState<boolean | null>(ZKAS_EXPERIMENTAL_KEY, null);
+  const [enabled, , gateLoading] = useStorageState<boolean | null>(
+    ZKAS_EXPERIMENTAL_KEY,
+    null,
+  );
   if (isLoading || gateLoading) return null;
-  return settings && getVisibleWalletNetworks(settings, enabled).includes(ZKAS_MAINNET)
-    ? children
-    : <Navigate to="/dashboard" replace />;
+  return settings &&
+    getVisibleWalletNetworks(settings, enabled).includes(ZKAS_MAINNET) ? (
+    children
+  ) : (
+    <Navigate to="/dashboard" replace />
+  );
 }
 
 const loadKaspaWasm = async () => {
@@ -272,7 +318,14 @@ export const router = createHashRouter([
                   { path: "asset-select", element: <AssetSelect /> },
                   { path: "token-transfer", element: <Krc20Transfer /> },
                   { path: "kas/send", element: <KasSend /> },
-                  { path: "zkas/send", element: <ZKasOnly><ZKasSend /></ZKasOnly> },
+                  {
+                    path: "zkas/send",
+                    element: (
+                      <ZKasOnly>
+                        <ZKasSend />
+                      </ZKasOnly>
+                    ),
+                  },
                   { path: "krc20/send/:tick", element: <Krc20Send /> },
                   { path: "evm-kas/send/:chainId", element: <EvmKasSend /> },
                   {
@@ -301,13 +354,27 @@ export const router = createHashRouter([
                     element: <SelectAddress />,
                   },
                   { path: "receive/kaspa", element: <KaspaReceiveAddress /> },
-                  { path: "receive/zkas", element: <ZKasAvailable><ZKasReceive /></ZKasAvailable> },
+                  {
+                    path: "receive/zkas",
+                    element: (
+                      <ZKasAvailable>
+                        <ZKasReceive />
+                      </ZKasAvailable>
+                    ),
+                  },
                   {
                     path: "receive/evm/:chainId",
                     element: <EvmReceiveAddress />,
                   },
                   { path: "settings", element: <Settings /> },
-                  { path: "zkas/settings", element: <ZKasOnly><ZKasSettings /></ZKasOnly> },
+                  {
+                    path: "zkas/settings",
+                    element: (
+                      <ZKasOnly>
+                        <ZKasSettings />
+                      </ZKasOnly>
+                    ),
+                  },
                   {
                     path: "connected-apps",
                     element: <ConnectedApps />,
@@ -378,7 +445,14 @@ export const router = createHashRouter([
                     path: "kas-asset",
                     element: <KasAsset />,
                   },
-                  { path: "zkas-asset", element: <ZKasOnly><Navigate to="/dashboard" replace /></ZKasOnly> },
+                  {
+                    path: "zkas-asset",
+                    element: (
+                      <ZKasOnly>
+                        <Navigate to="/dashboard" replace />
+                      </ZKasOnly>
+                    ),
+                  },
 
                   {
                     path: "erc20-asset/:chainId/:address",
@@ -511,7 +585,10 @@ export const router = createHashRouter([
                 element: <ImportRecoveryPhraseWithPassphrase />,
               },
               { path: "import-private-key", element: <ImportPrivateKey /> },
-              { path: "import-zkas-seed", element: <Navigate to="/import-private-key" replace /> },
+              {
+                path: "import-zkas-seed",
+                element: <Navigate to="/import-private-key" replace />,
+              },
               {
                 path: "show-wallet-secret/:walletId/:type",
                 element: <ShowWalletSecret />,

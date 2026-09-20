@@ -41,12 +41,14 @@ export default function SelectAddress() {
           redirect={() => navigate("/receive/kaspa")}
         />
 
-        {zkasAccount && <AddressItem
-          address={zkasAccount.address}
-          chainName="ZKas Mainnet"
-          imageUrl={zkasIcon}
-          redirect={() => navigate("/receive/zkas")}
-        />}
+        {zkasAccount && (
+          <AddressItem
+            address={zkasAccount.address}
+            chainName="ZKas Mainnet"
+            imageUrl={zkasIcon}
+            redirect={() => navigate("/receive/zkas")}
+          />
+        )}
 
         {supportEvmL2s.map((chain) => {
           const chainName = chain.name;

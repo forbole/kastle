@@ -169,13 +169,20 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
   const refreshKaspaAddresses = async (networkId: NetworkType) => {
     await setWalletSettings((prev) => ({
       ...prev,
-      wallets: prev.wallets.map((wallet) => wallet.type === "zkasSeed" ? wallet : {
-        ...wallet,
-        accounts: wallet.accounts.map((account) => {
-          const address = deriveKaspaAddress(account.publicKeys, networkId);
-          return address ? { ...account, address } : account;
-        }),
-      }),
+      wallets: prev.wallets.map((wallet) =>
+        wallet.type === "zkasSeed"
+          ? wallet
+          : {
+              ...wallet,
+              accounts: wallet.accounts.map((account) => {
+                const address = deriveKaspaAddress(
+                  account.publicKeys,
+                  networkId,
+                );
+                return address ? { ...account, address } : account;
+              }),
+            },
+      ),
     }));
   };
 
@@ -204,12 +211,13 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
     // In legacy mode, watch all addresses derived from publicKeys
     // In non-legacy mode, only watch the primary account.address
     const addressesToWatch =
-      wallet.type === "zkasSeed" ? [] :
-      wallet.isLegacyWalletEnabled && account.publicKeys?.length
-        ? account.publicKeys.map((publicKey) =>
-            new PublicKey(publicKey).toAddress(networkId).toString(),
-          )
-        : [account.address];
+      wallet.type === "zkasSeed"
+        ? []
+        : wallet.isLegacyWalletEnabled && account.publicKeys?.length
+          ? account.publicKeys.map((publicKey) =>
+              new PublicKey(publicKey).toAddress(networkId).toString(),
+            )
+          : [account.address];
 
     // skip if the addresses are the same
     if (addressesToWatch.join() === addresses.join()) {
@@ -361,7 +369,8 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
       let updated = false;
       const newWallets = await Promise.all(
         wallets.map(async (wallet) => {
-          if (wallet.type === "ledger" || wallet.type === "zkasSeed") return wallet;
+          if (wallet.type === "ledger" || wallet.type === "zkasSeed")
+            return wallet;
 
           const isKastleLegacy = wallet.isLegacyWalletEnabled ?? false;
           const shouldUseLegacy = settings?.isLegacyEvmAddressEnabled ?? false;

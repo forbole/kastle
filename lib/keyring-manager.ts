@@ -69,7 +69,10 @@ export class Keyring {
 
   private serializeMutation<T>(operation: () => Promise<T>): Promise<T> {
     const result = this.mutationTail.then(operation);
-    this.mutationTail = result.then(() => undefined, () => undefined);
+    this.mutationTail = result.then(
+      () => undefined,
+      () => undefined,
+    );
     return result;
   }
 
@@ -166,7 +169,10 @@ export class Keyring {
     });
   }
 
-  async updateValue<T>(key: AllowedKey, update: (current: T | null) => T | Promise<T>): Promise<void> {
+  async updateValue<T>(
+    key: AllowedKey,
+    update: (current: T | null) => T | Promise<T>,
+  ): Promise<void> {
     const version = this.sessionVersion;
     await this.serializeMutation(async () => {
       this.assertSessionVersion(version);
@@ -275,7 +281,9 @@ export class Keyring {
     currentPassword: string,
     newPassword: string,
   ): Promise<boolean> {
-    return this.serializeMutation(() => this.changePasswordDirect(currentPassword, newPassword));
+    return this.serializeMutation(() =>
+      this.changePasswordDirect(currentPassword, newPassword),
+    );
   }
 
   private async changePasswordDirect(

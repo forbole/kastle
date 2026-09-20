@@ -5,7 +5,12 @@ export function isTrustedZKasPageRequest(
   sender: { id?: string; url?: string },
   extensionId: string,
 ): boolean {
-  if (!origin || !isAllowedZKasDappOrigin(origin) || sender.id !== extensionId || !sender.url) {
+  if (
+    !origin ||
+    !isAllowedZKasDappOrigin(origin) ||
+    sender.id !== extensionId ||
+    !sender.url
+  ) {
     return false;
   }
   try {

@@ -9,13 +9,22 @@ export default function BackupWarning() {
   if (!showWarning || dismissed) return null;
 
   return (
-    <div className="absolute bottom-0 left-0 z-10 m-3 flex flex-col gap-2 rounded-xl border border-[#713F12] bg-[#281704] p-4 text-base" role="alert">
+    <div
+      className="absolute bottom-0 left-0 z-10 m-3 flex flex-col gap-2 rounded-xl border border-[#713F12] bg-[#281704] p-4 text-base"
+      role="alert"
+    >
       <div className="flex items-center justify-between">
-        <span className="font-semibold text-daintree-200">✋ Hold on, Your Majesty! 👑</span>
-        <button type="button" onClick={() => setDismissed(true)}><i className="hn hn-times text-[16px] text-[#854D0E]" /></button>
+        <span className="font-semibold text-daintree-200">
+          ✋ Hold on, Your Majesty! 👑
+        </span>
+        <button type="button" onClick={() => setDismissed(true)}>
+          <i className="hn hn-times text-[16px] text-[#854D0E]" />
+        </button>
       </div>
       <span className="text-sm text-daintree-400">
-        Please back up your recovery phrase 📜. It’s the 🗝️ key to accessing your Kastle if you lose your password or reinstall your browser or extension 🌐
+        Please back up your recovery phrase 📜. It’s the 🗝️ key to accessing
+        your Kastle if you lose your password or reinstall your browser or
+        extension 🌐
       </span>
       <button
         type="button"

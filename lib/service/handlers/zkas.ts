@@ -4,15 +4,24 @@ import { getZKasPaymentJournal } from "@/lib/zkas/payment-journal";
 import { zkasConnectionStore } from "@/lib/zkas/connection";
 import type { Message } from "../extension-service";
 
-export const zkasGetAccount = async (_: Message, sendResponse: (value: unknown) => void) => {
+export const zkasGetAccount = async (
+  _: Message,
+  sendResponse: (value: unknown) => void,
+) => {
   sendResponse(await zkasKeyService.publicAccount());
 };
 
-export const zkasGetSelectedAddress = async (_: Message, sendResponse: (value: unknown) => void) => {
+export const zkasGetSelectedAddress = async (
+  _: Message,
+  sendResponse: (value: unknown) => void,
+) => {
   sendResponse(await zkasKeyService.selectedAddress());
 };
 
-export const zkasGetSwitchAccounts = async (_: Message, sendResponse: (value: unknown) => void) => {
+export const zkasGetSwitchAccounts = async (
+  _: Message,
+  sendResponse: (value: unknown) => void,
+) => {
   sendResponse(await zkasKeyService.switchAccounts());
 };
 
@@ -24,18 +33,35 @@ export const zkasPreviewSeed = async (
 };
 
 export const zkasImportSeed = async (
-  { seedHex, expectedAccount }: Message<{ seedHex: string; expectedAccount: { network: "mainnet"; address: string } }>,
+  {
+    seedHex,
+    expectedAccount,
+  }: Message<{
+    seedHex: string;
+    expectedAccount: { network: "mainnet"; address: string };
+  }>,
   sendResponse: (value: unknown) => void,
 ) => {
   sendResponse(await zkasKeyService.importSeed(seedHex, expectedAccount));
 };
 
-export const zkasGetCredentials = async (_: Message, sendResponse: (value: unknown) => void) => {
+export const zkasGetCredentials = async (
+  _: Message,
+  sendResponse: (value: unknown) => void,
+) => {
   sendResponse(await zkasKeyService.credentials());
 };
 
 export const zkasCheckSelection = async (
-  { selection, daemonUrl, keyringVersion }: Message<{ selection: ZKasSelection; daemonUrl: string; keyringVersion: number }>,
+  {
+    selection,
+    daemonUrl,
+    keyringVersion,
+  }: Message<{
+    selection: ZKasSelection;
+    daemonUrl: string;
+    keyringVersion: number;
+  }>,
   sendResponse: (value: unknown) => void,
 ) => {
   await zkasKeyService.checkSelection(selection, daemonUrl, keyringVersion);
@@ -49,9 +75,17 @@ export const zkasSign = async (
   sendResponse({ signatures: await zkasKeyService.sign(request) });
 };
 
-type PaymentMessage = Message<{ selection: ZKasSelection; keyringVersion: number; id: string; txid?: string }>;
+type PaymentMessage = Message<{
+  selection: ZKasSelection;
+  keyringVersion: number;
+  id: string;
+  txid?: string;
+}>;
 
-export const zkasPaymentStatus = async (_: Message, sendResponse: (value: unknown) => void) => {
+export const zkasPaymentStatus = async (
+  _: Message,
+  sendResponse: (value: unknown) => void,
+) => {
   const selection = await zkasKeyService.publicAccount();
   sendResponse((await getZKasPaymentJournal().get(selection)) ?? null);
 };
@@ -65,7 +99,12 @@ export const zkasPaymentAcquire = async (
 };
 
 export const zkasPaymentSubmitting = async (
-  { selection, keyringVersion, id, daemonUrl }: PaymentMessage & { daemonUrl: string },
+  {
+    selection,
+    keyringVersion,
+    id,
+    daemonUrl,
+  }: PaymentMessage & { daemonUrl: string },
   sendResponse: (value: unknown) => void,
 ) => {
   await zkasKeyService.checkSelection(selection, daemonUrl, keyringVersion);
@@ -77,7 +116,8 @@ export const zkasPaymentUncertain = async (
   { selection, id, txid }: PaymentMessage,
   sendResponse: (value: unknown) => void,
 ) => {
-  if (txid !== undefined && !/^[0-9a-fA-F]{64}$/.test(txid)) throw new Error("Invalid ZKas transaction ID");
+  if (txid !== undefined && !/^[0-9a-fA-F]{64}$/.test(txid))
+    throw new Error("Invalid ZKas transaction ID");
   await getZKasPaymentJournal().markUncertain(selection, id, txid);
   sendResponse({ ok: true });
 };
@@ -86,7 +126,8 @@ export const zkasPaymentSuccess = async (
   { selection, id, txid }: PaymentMessage,
   sendResponse: (value: unknown) => void,
 ) => {
-  if (!txid || !/^[0-9a-fA-F]{64}$/.test(txid)) throw new Error("Invalid ZKas transaction ID");
+  if (!txid || !/^[0-9a-fA-F]{64}$/.test(txid))
+    throw new Error("Invalid ZKas transaction ID");
   await getZKasPaymentJournal().markSuccess(selection, id, txid);
   sendResponse({ ok: true });
 };

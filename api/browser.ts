@@ -166,7 +166,11 @@ export class KastleBrowserAPI {
     }
 
     const request = createApiRequest(action, requestId, args);
-    const response = this.receiveMessageWithTimeout(requestId, method === "zkas:send" ? 20 * 60_000 : 180_000, method === "zkas:send");
+    const response = this.receiveMessageWithTimeout(
+      requestId,
+      method === "zkas:send" ? 20 * 60_000 : 180_000,
+      method === "zkas:send",
+    );
     window.postMessage(request, "*");
 
     return await response;
@@ -410,9 +414,15 @@ export class KastleBrowserAPI {
       const onMessage = (event: MessageEvent<unknown>) => {
         if (ignorePending && event.origin === window.location.origin) {
           const pending = ApiResponseSchema.safeParse(event.data);
-          if (pending.success && pending.data.id === id &&
-            typeof pending.data.response === "object" && pending.data.response !== null &&
-            "pending" in pending.data.response && pending.data.response.pending === true) return;
+          if (
+            pending.success &&
+            pending.data.id === id &&
+            typeof pending.data.response === "object" &&
+            pending.data.response !== null &&
+            "pending" in pending.data.response &&
+            pending.data.response.pending === true
+          )
+            return;
         }
         try {
           const result = callback(event);

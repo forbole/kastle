@@ -11,10 +11,10 @@ Kastle can manage ZKas shielded accounts alongside its existing Kaspa wallets. T
 
 The wallet switcher follows the selected network. Switching wallets does not silently change networks.
 
-| Selected network | Wallets in the switcher | Address shown |
-| --- | --- | --- |
-| Kaspa Mainnet or Testnet T10 | Recovery phrase, imported Kaspa private key, and Ledger | Kaspa address for the selected network |
-| ZKas Mainnet | Eligible recovery-phrase accounts, imported ZKas spending seeds, and legacy wallets with an attached ZKas seed | `zkas:` shielded address |
+| Selected network             | Wallets in the switcher                                                                                        | Address shown                          |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| Kaspa Mainnet or Testnet T10 | Recovery phrase, imported Kaspa private key, and Ledger                                                        | Kaspa address for the selected network |
+| ZKas Mainnet                 | Eligible recovery-phrase accounts, imported ZKas spending seeds, and legacy wallets with an attached ZKas seed | `zkas:` shielded address               |
 
 ### Wallets and backups
 
@@ -77,11 +77,11 @@ The grant is specific to the website origin, selected Kastle wallet/account, and
 
 The browser provider uses `window.kastle.request(method, args)`:
 
-| Method | Result or action |
-| --- | --- |
-| `zkas:connect` | Request an origin-scoped connection to the selected ZKas account. |
-| `zkas:get_account` | Read the connected public account. |
-| `zkas:get_balance` | Read shielded balance and sync status from the selected daemon. |
-| `zkas:send` | Request a fresh payment approval with `{ to, amountSompi, maxFeeSompi }`. |
+| Method             | Result or action                                                          |
+| ------------------ | ------------------------------------------------------------------------- |
+| `zkas:connect`     | Request an origin-scoped connection to the selected ZKas account.         |
+| `zkas:get_account` | Read the connected public account.                                        |
+| `zkas:get_balance` | Read shielded balance and sync status from the selected daemon.           |
+| `zkas:send`        | Request a fresh payment approval with `{ to, amountSompi, maxFeeSompi }`. |
 
 Both payment amounts are positive decimal integer strings in sompi (100,000,000 sompi per ZKAS). A successful send resolves after the separate payment window submits with `{ txid, daemonReportedFeeSompi }`. If the window closes or the outcome is uncertain, the page receives an error and the user should reconcile Kastle activity before retrying. The local test page converts its ZKAS decimal inputs exactly to sompi. **Request payment approval** is optional; the page sends nothing on load, but approval can broadcast a real mainnet payment.

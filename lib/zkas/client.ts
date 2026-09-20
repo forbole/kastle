@@ -52,10 +52,15 @@ const historySchema = z.object({
   recoverableHistory: z.boolean(),
   total: z.number().int().nonnegative().safe(),
   rows: z.array(historyRowSchema).max(30),
-  pendingOutgoing: z.array(z.object({
-    txid: z.string().regex(/^[0-9a-fA-F]{64}$/),
-    amountSompi: z.number().int().nonnegative().safe(),
-  })).max(30).optional(),
+  pendingOutgoing: z
+    .array(
+      z.object({
+        txid: z.string().regex(/^[0-9a-fA-F]{64}$/),
+        amountSompi: z.number().int().nonnegative().safe(),
+      }),
+    )
+    .max(30)
+    .optional(),
 });
 
 export type ZKasState = {
@@ -70,7 +75,9 @@ export class ZKasSubmissionUncertainError extends Error {
   readonly txid?: string;
 
   constructor(txid?: string) {
-    super("ZKas payment outcome is uncertain. Check wallet history before trying again.");
+    super(
+      "ZKas payment outcome is uncertain. Check wallet history before trying again.",
+    );
     this.name = "ZKasSubmissionUncertainError";
     this.txid = txid;
   }
@@ -127,7 +134,11 @@ export class ZKasClient {
     this.guard = config.guard;
   }
 
-  private async request(path: string, body?: unknown, beforeFetch?: () => Promise<void>): Promise<unknown> {
+  private async request(
+    path: string,
+    body?: unknown,
+    beforeFetch?: () => Promise<void>,
+  ): Promise<unknown> {
     try {
       await this.guard?.();
       await beforeFetch?.();
@@ -135,8 +146,12 @@ export class ZKasClient {
     } catch (cause) {
       throw new ZKasPreSubmitError(cause);
     }
-    const timeoutMs = path === "/api/wallet/prepare" ? 360_000
-      : path === "/api/wallet/submit" ? 90_000 : 30_000;
+    const timeoutMs =
+      path === "/api/wallet/prepare"
+        ? 360_000
+        : path === "/api/wallet/submit"
+          ? 90_000
+          : 30_000;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
     try {
@@ -168,7 +183,9 @@ export class ZKasClient {
     }
     const status = statusSchema.parse(await this.request("/api/status"));
     if (status.network !== this.network) {
-      throw new Error("ZKas daemon network does not match the selected network");
+      throw new Error(
+        "ZKas daemon network does not match the selected network",
+      );
     }
     let address = status.address;
     if (!status.has_wallet) {
@@ -181,10 +198,15 @@ export class ZKasClient {
       address = watch.address;
     }
     const expectedPrefix = this.network === "mainnet" ? "zkas:" : "zkastest:";
-    if (!expectedAddress.startsWith(expectedPrefix) || address !== expectedAddress) {
+    if (
+      !expectedAddress.startsWith(expectedPrefix) ||
+      address !== expectedAddress
+    ) {
       throw new Error("ZKas daemon address does not match the local account");
     }
-    const balance = balanceSchema.parse(await this.request("/api/wallet/balance"));
+    const balance = balanceSchema.parse(
+      await this.request("/api/wallet/balance"),
+    );
     return {
       address,
       balanceSompi: parseZkasSompi(balance.balance_sompi, "balance"),
@@ -194,7 +216,9 @@ export class ZKasClient {
   }
 
   async history(): Promise<ZKasHistory> {
-    return historySchema.parse(await this.request("/api/wallet/history?limit=30"));
+    return historySchema.parse(
+      await this.request("/api/wallet/history?limit=30"),
+    );
   }
 
   async send(input: {
@@ -242,7 +266,10 @@ export class ZKasClient {
       prepared.amount_sompi_exact,
       "prepared amount",
     );
-    const preparedFee = parseZkasSompi(prepared.fee_sompi_exact, "prepared fee");
+    const preparedFee = parseZkasSompi(
+      prepared.fee_sompi_exact,
+      "prepared fee",
+    );
     const remaining = parseZkasSompi(
       prepared.remaining_sompi_exact ?? "0",
       "remaining amount",
@@ -276,24 +303,35 @@ export class ZKasClient {
     }
     let rawSubmission: unknown;
     try {
-      rawSubmission = await this.request("/api/wallet/submit", {
-        session: prepared.session,
-        sigs: signatures,
-      }, input.beforeSubmit);
+      rawSubmission = await this.request(
+        "/api/wallet/submit",
+        {
+          session: prepared.session,
+          sigs: signatures,
+        },
+        input.beforeSubmit,
+      );
     } catch (cause) {
       if (cause instanceof ZKasPreSubmitError) throw cause;
       throw new ZKasSubmissionUncertainError();
     }
     const parsed = submitSchema.safeParse(rawSubmission);
     if (!parsed.success) {
-      const txid = z.object({ txid: submitSchema.shape.txid }).safeParse(rawSubmission);
-      throw new ZKasSubmissionUncertainError(txid.success ? txid.data.txid : undefined);
+      const txid = z
+        .object({ txid: submitSchema.shape.txid })
+        .safeParse(rawSubmission);
+      throw new ZKasSubmissionUncertainError(
+        txid.success ? txid.data.txid : undefined,
+      );
     }
     const submitted = parsed.data;
     let submittedAmount: bigint;
     let submittedFee: bigint;
     try {
-      submittedAmount = parseZkasSompi(submitted.amount_sompi_exact, "submitted amount");
+      submittedAmount = parseZkasSompi(
+        submitted.amount_sompi_exact,
+        "submitted amount",
+      );
       submittedFee = parseZkasSompi(submitted.fee_sompi_exact, "submitted fee");
     } catch {
       throw new ZKasSubmissionUncertainError(submitted.txid);

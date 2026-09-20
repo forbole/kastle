@@ -1,21 +1,35 @@
 import { expect, test } from "@playwright/test";
 import { ZKasPaymentJournal } from "@/lib/zkas/payment-journal";
 
-const selection = { walletId: "wallet-1", accountIndex: 0, network: "mainnet" as const };
+const selection = {
+  walletId: "wallet-1",
+  accountIndex: 0,
+  network: "mainnet" as const,
+};
 
 function fakeStore() {
   const items = new Map<string, unknown>();
   return {
-    getItem: async <T>(key: string): Promise<T | null> => (items.get(key) as T | undefined) ?? null,
-    setItem: async <T>(key: string, value: T): Promise<void> => { items.set(key, structuredClone(value)); },
+    getItem: async <T>(key: string): Promise<T | null> =>
+      (items.get(key) as T | undefined) ?? null,
+    setItem: async <T>(key: string, value: T): Promise<void> => {
+      items.set(key, structuredClone(value));
+    },
   };
 }
 
 test("concurrent extension windows cannot reserve the same account twice", async () => {
   const journal = new ZKasPaymentJournal(fakeStore());
-  const results = await Promise.allSettled([journal.acquire(selection), journal.acquire(selection)]);
-  expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
-  expect(results.filter((result) => result.status === "rejected")).toHaveLength(1);
+  const results = await Promise.allSettled([
+    journal.acquire(selection),
+    journal.acquire(selection),
+  ]);
+  expect(
+    results.filter((result) => result.status === "fulfilled"),
+  ).toHaveLength(1);
+  expect(results.filter((result) => result.status === "rejected")).toHaveLength(
+    1,
+  );
   const other = await journal.acquire({ ...selection, accountIndex: 1 });
   expect(other.selection.accountIndex).toBe(1);
 });
@@ -29,8 +43,12 @@ test("submission state survives a service restart and blocks retry until reviewe
   const restarted = new ZKasPaymentJournal(store, () => now);
   expect((await restarted.get(selection))?.status).toBe("submitting");
   await expect(restarted.acquire(selection)).rejects.toThrow(/review/i);
-  await expect(restarted.release(selection, record.id)).rejects.toThrow(/reconciled/i);
-  await expect(restarted.clearAfterReview(selection, record.id)).rejects.toThrow(/wait/i);
+  await expect(restarted.release(selection, record.id)).rejects.toThrow(
+    /reconciled/i,
+  );
+  await expect(
+    restarted.clearAfterReview(selection, record.id),
+  ).rejects.toThrow(/wait/i);
   now += 10 * 60 * 1000;
   await restarted.clearAfterReview(selection, record.id);
   expect(await restarted.get(selection)).toBeUndefined();

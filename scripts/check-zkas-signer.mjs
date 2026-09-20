@@ -21,7 +21,8 @@ function fail(message) {
 const actualHash = createHash("sha256").update(wasm).digest("hex");
 if (actualHash !== expectedHash) fail(`SHA-256 mismatch: ${actualHash}`);
 const actualGlueHash = createHash("sha256").update(glue).digest("hex");
-if (actualGlueHash !== expectedGlueHash) fail(`JS glue SHA-256 mismatch: ${actualGlueHash}`);
+if (actualGlueHash !== expectedGlueHash)
+  fail(`JS glue SHA-256 mismatch: ${actualGlueHash}`);
 if (!wasm.includes(genesis)) fail("mainnet genesis domain is absent");
 
 const imports = WebAssembly.Module.imports(new WebAssembly.Module(wasm));
@@ -32,4 +33,6 @@ if (missing.length > 0) {
   fail(`JS glue is missing ${missing.map((entry) => entry.name).join(", ")}`);
 }
 
-console.log(`ZKas signer OK: ${actualHash.slice(0, 12)}, genesis and glue verified`);
+console.log(
+  `ZKas signer OK: ${actualHash.slice(0, 12)}, genesis and glue verified`,
+);
