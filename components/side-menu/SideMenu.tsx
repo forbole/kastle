@@ -138,7 +138,7 @@ export const SideMenu = ({ isOpen, onClose }: SideMenuProps) => {
       {/* Side Menu */}
       <div
         className={`no-scrollbar fixed left-0 top-0 z-50 h-full min-h-0 w-full transform overflow-y-scroll bg-icy-blue-950 p-4 transition-transform duration-300 ease-out ${
-          isOpen ? "translate-x-0" : "-translate-x-[600px]"
+          isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         <div className="flex flex-col gap-3">
