@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { formatZkasAmount, parseZkasAmount } from "@/lib/zkas/amount";
+import { historyDetailLabels } from "@/lib/zkas/history-detail";
 import {
   ZKasClient,
   ZKasSubmissionUncertainError,
@@ -101,6 +102,7 @@ test("history reads bounded rows and rejects imprecise amounts", async () => {
     fetch: daemonFetch,
   });
   expect((await client.history()).rows[0].amountSompi).toBe(100);
+  expect((await client.history()).rows[0].amountSompiExact).toBe("100");
   const unsafe = fakeDaemon({
     "/api/wallet/history": {
       recoverableHistory: true,
@@ -123,6 +125,116 @@ test("history reads bounded rows and rejects imprecise amounts", async () => {
     fetch: unsafe.daemonFetch,
   });
   await expect(unsafeClient.history()).rejects.toThrow();
+});
+
+test("history details preserve exact amounts and daemon-provided memo text", async () => {
+  const { daemonFetch } = fakeDaemon({
+    "/api/wallet/history": {
+      recoverableHistory: true,
+      total: 1,
+      rows: [
+        {
+          kind: "sent",
+          txid,
+          amountSompi: 9007199254740992,
+          amountSompiExact: "9007199254740993",
+          amountKind: "netOutflow",
+          feeSompi: 0,
+          feeSompiExact: "0",
+          feeKnown: false,
+          timestamp: 0,
+          daaScore: 42,
+          recipient: null,
+          memo: "<img src=x onerror=alert(1)>",
+        },
+      ],
+      pendingOutgoing: [{ txid, amountSompi: 9007199254740992 }],
+    },
+  });
+  const client = new ZKasClient({
+    baseUrl: "https://wallet.example",
+    token: "b".repeat(32),
+    network: "mainnet",
+    fetch: daemonFetch,
+  });
+  const history = await client.history();
+  expect(history.rows[0].amountSompiExact).toBe("9007199254740993");
+  expect(history.pendingOutgoing?.[0].amountSompiExact).toBeUndefined();
+  expect(formatZkasAmount(BigInt(history.rows[0].amountSompiExact))).toBe(
+    "90071992.54740993",
+  );
+  expect(history.rows[0].feeKnown).toBe(false);
+  expect(history.rows[0].recipient).toBeNull();
+  expect(history.rows[0].memo).toBe("<img src=x onerror=alert(1)>");
+  expect(historyDetailLabels(history.rows[0]).amount).toBe("Net outflow");
+});
+
+test("history labels do not attribute multi-output totals to one recipient", async () => {
+  const { daemonFetch } = fakeDaemon({
+    "/api/wallet/history": {
+      recoverableHistory: true,
+      total: 1,
+      rows: [
+        {
+          kind: "sent",
+          txid,
+          amountSompiExact: "150000000",
+          feeSompiExact: "1000",
+          timestamp: 1,
+          amountKind: "paid",
+          recipient: "zkas:first-output",
+          memo: "first memo",
+        },
+      ],
+    },
+  });
+  const client = new ZKasClient({
+    baseUrl: "https://wallet.example",
+    token: "b".repeat(32),
+    network: "mainnet",
+    fetch: daemonFetch,
+  });
+  expect(historyDetailLabels((await client.history()).rows[0])).toEqual({
+    amount: "Total paid",
+    recipient: "Reported recipient",
+    firstRecipientOnly: true,
+  });
+});
+
+test("history rejects a conflicting exact amount and an oversized memo", async () => {
+  for (const row of [
+    {
+      kind: "received",
+      txid,
+      amountSompi: 100,
+      amountSompiExact: "101",
+      feeSompi: 0,
+      timestamp: 0,
+    },
+    {
+      kind: "received",
+      txid,
+      amountSompi: 100,
+      feeSompi: 0,
+      timestamp: 0,
+      memo: "x".repeat(513),
+    },
+  ]) {
+    const { daemonFetch } = fakeDaemon({
+      "/api/wallet/history": {
+        recoverableHistory: true,
+        total: 1,
+        rows: [row],
+      },
+    });
+    const client = new ZKasClient({
+      baseUrl: "https://wallet.example",
+      token: "b".repeat(32),
+      network: "mainnet",
+      fetch: daemonFetch,
+    });
+    await expect(client.history()).rejects.toThrow();
+  }
 });
 
 test("read-only state exposes incomplete sync without presenting it as final", async () => {

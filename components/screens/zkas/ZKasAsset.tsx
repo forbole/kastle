@@ -15,6 +15,7 @@ import type { ZKasHistory } from "@/lib/zkas/client";
 import type { ZKasPaymentRecord } from "@/lib/zkas/payment-journal";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { useSettings } from "@/hooks/useSettings";
+import ZKasHistoryEntry from "./ZKasHistoryEntry";
 
 export default function ZKasAsset() {
   const navigate = useNavigate();
@@ -93,9 +94,12 @@ export default function ZKasAsset() {
           } catch (cause) {
             if (active)
               setHistoryError(
-                cause instanceof Error
-                  ? cause.message
-                  : "Unable to load ZKas history",
+                cause instanceof Error &&
+                  /ZKas daemon returned HTTP (404|501)$/.test(cause.message)
+                  ? "The connected ZKas daemon does not provide transaction history."
+                  : cause instanceof Error
+                    ? cause.message
+                    : "Unable to load ZKas history",
               );
           }
         } catch (error) {
@@ -312,42 +316,38 @@ export default function ZKasAsset() {
           )}
           {history && !history.recoverableHistory && (
             <p className="text-xs text-daintree-400">
-              Recoverable history is disabled on this daemon. Earlier payments
-              may be absent.
+              Recoverable history is off for this wallet on the connected
+              daemon. Earlier transactions and their details may be absent.
             </p>
           )}
-          {history?.pendingOutgoing?.map((row) => (
+          {history?.pendingOutgoing?.map((row, index) => (
             <div
-              key={`pending-${row.txid}`}
+              key={`pending-${row.txid}-${index}`}
               className="rounded-lg bg-daintree-800 p-3 text-xs"
             >
+              <p>Pending shielded spend</p>
+              <p className="break-all text-daintree-400">
+                Transaction ID: {row.txid}
+              </p>
               <p>
-                Pending send ·{" "}
+                Input note value:{" "}
                 {showBalance
-                  ? `${formatZkasAmount(BigInt(row.amountSompi))} ZKAS`
+                  ? row.amountSompiExact === undefined
+                    ? "Not available"
+                    : `${formatZkasAmount(BigInt(row.amountSompiExact))} ZKAS`
                   : "*****"}
               </p>
-              <p className="break-all text-daintree-400">{row.txid}</p>
+              <p className="text-daintree-400">
+                The input note value may differ from the payment amount.
+              </p>
             </div>
           ))}
           {history?.rows.map((row) => (
-            <div
+            <ZKasHistoryEntry
               key={`${row.kind}-${row.txid}`}
-              className="rounded-lg bg-daintree-800 p-3 text-xs"
-            >
-              <p>
-                {row.kind === "sent"
-                  ? "Sent"
-                  : row.kind === "received"
-                    ? "Received"
-                    : "Coinbase"}{" "}
-                ·{" "}
-                {showBalance
-                  ? `${formatZkasAmount(BigInt(row.amountSompi))} ZKAS`
-                  : "*****"}
-              </p>
-              <p className="break-all text-daintree-400">{row.txid}</p>
-            </div>
+              row={row}
+              showBalance={showBalance}
+            />
           ))}
           {history &&
             history.rows.length === 0 &&

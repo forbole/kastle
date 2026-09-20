@@ -41,13 +41,52 @@ const submitSchema = z.object({
   amount_sompi_exact: z.string(),
   fee_sompi_exact: z.string(),
 });
-const historyRowSchema = z.object({
-  kind: z.enum(["coinbase", "received", "sent"]),
-  txid: z.string().regex(/^[0-9a-fA-F]{64}$/),
-  amountSompi: z.number().int().nonnegative().safe(),
-  feeSompi: z.number().int().nonnegative().safe(),
-  timestamp: z.number().int().nonnegative().safe(),
-});
+function exactHistorySompi(
+  approximate: number | undefined,
+  exact: string | undefined,
+  label: string,
+): string {
+  if (exact !== undefined) {
+    const sompi = parseZkasSompi(exact, label);
+    if (
+      approximate !== undefined &&
+      Number.isSafeInteger(approximate) &&
+      BigInt(approximate) !== sompi
+    ) {
+      throw new Error(`ZKas history ${label} disagrees with its exact value`);
+    }
+    return sompi.toString();
+  }
+  if (approximate === undefined || !Number.isSafeInteger(approximate)) {
+    throw new Error(`ZKas history ${label} is not exact`);
+  }
+  return parseZkasSompi(approximate.toString(), label).toString();
+}
+
+const historyRowSchema = z
+  .object({
+    kind: z.enum(["coinbase", "received", "sent"]),
+    txid: z.string().regex(/^[0-9a-fA-F]{64}$/),
+    amountSompi: z.number().int().nonnegative().optional(),
+    amountSompiExact: z.string().optional(),
+    amountKind: z.enum(["netOutflow", "paid"]).optional(),
+    feeSompi: z.number().int().nonnegative().optional(),
+    feeSompiExact: z.string().optional(),
+    feeKnown: z.boolean().optional(),
+    timestamp: z.number().int().nonnegative().safe(),
+    daaScore: z.number().int().nonnegative().safe().optional(),
+    recipient: z.string().max(256).nullable().optional(),
+    memo: z.string().max(512).nullable().optional(),
+  })
+  .transform((row) => ({
+    ...row,
+    amountSompiExact: exactHistorySompi(
+      row.amountSompi,
+      row.amountSompiExact,
+      "amount",
+    ),
+    feeSompiExact: exactHistorySompi(row.feeSompi, row.feeSompiExact, "fee"),
+  }));
 const historySchema = z.object({
   recoverableHistory: z.boolean(),
   total: z.number().int().nonnegative().safe(),
@@ -56,10 +95,18 @@ const historySchema = z.object({
     .array(
       z.object({
         txid: z.string().regex(/^[0-9a-fA-F]{64}$/),
-        amountSompi: z.number().int().nonnegative().safe(),
+        amountSompi: z.number().int().nonnegative(),
       }),
     )
     .max(30)
+    .transform((rows) =>
+      rows.map((row) => ({
+        ...row,
+        amountSompiExact: Number.isSafeInteger(row.amountSompi)
+          ? row.amountSompi.toString()
+          : undefined,
+      })),
+    )
     .optional(),
 });
 
