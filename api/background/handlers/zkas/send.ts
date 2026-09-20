@@ -5,20 +5,12 @@ import { hasZKasConnection, zkasConnectionStore } from "@/lib/zkas/connection";
 import {
   ZKAS_DAPP_ALARM_PREFIX,
   ZKAS_DAPP_TIMEOUT_MS,
+  parseZKasDappSendRequest,
   zkasDappPendingStore,
   type ZKasDappPending,
 } from "@/lib/zkas/dapp-payment";
 import { zkasKeyService } from "@/lib/zkas/key-service";
 import { POPUP_WINDOW_HEIGHT, POPUP_WINDOW_WIDTH } from "@/lib/utils";
-import { z } from "zod";
-
-const SendRequestSchema = z
-  .object({
-    to: z.string().min(1).max(300),
-    amountSompi: z.string(),
-    maxFeeSompi: z.string(),
-  })
-  .strict();
 
 export const zkasSendHandler: Handler = async (
   tabId,
@@ -28,7 +20,7 @@ export const zkasSendHandler: Handler = async (
 ) => {
   if (!message.origin || sender.frameId === undefined)
     throw new Error("ZKas website origin or frame is missing");
-  const input = SendRequestSchema.parse(message.payload);
+  const input = parseZKasDappSendRequest(message.payload);
   if (
     parseZkasSompi(input.amountSompi) <= 0n ||
     parseZkasSompi(input.maxFeeSompi) <= 0n
@@ -61,6 +53,7 @@ export const zkasSendHandler: Handler = async (
     to: input.to,
     amountSompi: input.amountSompi,
     maxFeeSompi: input.maxFeeSompi,
+    memo: input.memo,
     createdAt: Date.now(),
   };
   await zkasDappPendingStore.acquire(pending);

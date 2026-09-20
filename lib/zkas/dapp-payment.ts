@@ -1,8 +1,25 @@
 import type { ZKasSelection } from "./selection";
+import { validateZKasMemo } from "./memo";
+import { z } from "zod";
 
 export const ZKAS_DAPP_PENDING_KEY = "session:zkas-dapp-pending";
 export const ZKAS_DAPP_ALARM_PREFIX = "zkas-dapp-timeout:";
 export const ZKAS_DAPP_TIMEOUT_MS = 20 * 60_000;
+
+const SendRequestSchema = z
+  .object({
+    to: z.string().min(1).max(300),
+    amountSompi: z.string(),
+    maxFeeSompi: z.string(),
+    memo: z.string().optional(),
+  })
+  .strict();
+
+export function parseZKasDappSendRequest(payload: unknown) {
+  const input = SendRequestSchema.parse(payload);
+  const memo = validateZKasMemo(input.memo);
+  return { ...input, memo };
+}
 
 export type ZKasDappPending = {
   approvalId: string;
@@ -14,6 +31,7 @@ export type ZKasDappPending = {
   to: string;
   amountSompi: string;
   maxFeeSompi: string;
+  memo?: string;
   createdAt: number;
   windowId?: number;
 };
