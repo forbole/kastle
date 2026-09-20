@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { formatZkasAmount, MAX_ZKAS_SOMPI, parseZkasSompi } from "./amount";
+import { validateZKasMemo } from "./memo";
 
 export type ZKasNetwork = "mainnet" | "testnet";
 
@@ -274,12 +275,14 @@ export class ZKasClient {
     to: string;
     amountSompi: bigint;
     maxFeeSompi: bigint;
+    memo?: string;
     beforeSubmit?: () => Promise<void>;
   }): Promise<{ txid: string; daemonReportedFeeSompi: bigint }> {
     if (this.network !== "mainnet") {
       throw new Error("The pinned ZKas signer cannot approve testnet payments");
     }
     const { signer, amountSompi, maxFeeSompi } = input;
+    const memo = validateZKasMemo(input.memo);
     if (
       amountSompi <= 0n ||
       amountSompi > MAX_ZKAS_SOMPI ||
@@ -307,6 +310,7 @@ export class ZKasClient {
         fvk_hex: fvk,
         to,
         amount_sompi: amountSompi.toString(),
+        ...(memo === undefined ? {} : { memo }),
         allow_partial: false,
       }),
     );
@@ -336,6 +340,7 @@ export class ZKasClient {
       recipient: to,
       amountSompi,
       maxFeeSompi,
+      memo: memo ?? "",
       bundleHex: prepared.bundle_hex,
       disclosure: prepared.disclosure,
       spendAuth: prepared.spend_auth,

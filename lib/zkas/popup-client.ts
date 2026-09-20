@@ -12,6 +12,7 @@ import type { ZKasCredentials, ZKasSignRequest } from "./key-service";
 import type { ZKasSelection, ZKasSwitchAccount } from "./selection";
 import type { ZKasPaymentRecord } from "./payment-journal";
 import { ZKasPreSubmitError, ZKasSubmissionUncertainError } from "./client";
+import { validateZKasMemo } from "./memo";
 
 type InternalError = { error: string };
 let paymentInProgress = false;
@@ -140,6 +141,7 @@ export async function sendZKasPayment(input: {
   to: string;
   amount: string;
   maxFee: string;
+  memo?: string;
   expectedAccount: PublicZKasAccount;
   guard?: () => Promise<void>;
 }): Promise<{ txid: string; daemonReportedFeeSompi: string }> {
@@ -150,6 +152,7 @@ export async function sendZKasPayment(input: {
     await input.guard?.();
     const amountSompi = parseZkasAmount(input.amount);
     const maxFeeSompi = parseZkasAmount(input.maxFee);
+    const memo = validateZKasMemo(input.memo);
     const credentials = await internal<ZKasCredentials>(
       Method.ZKAS_GET_CREDENTIALS,
     );
@@ -176,6 +179,7 @@ export async function sendZKasPayment(input: {
           recipient: prepared.recipient,
           amountSompi: prepared.amountSompi.toString(),
           maxFeeSompi: prepared.maxFeeSompi.toString(),
+          memo: prepared.memo ?? "",
           bundleHex: prepared.bundleHex,
           disclosure: prepared.disclosure as unknown[],
           spendAuth: prepared.spendAuth as unknown[],
@@ -192,6 +196,7 @@ export async function sendZKasPayment(input: {
         to: input.to,
         amountSompi,
         maxFeeSompi,
+        memo,
         beforeSubmit: async () => {
           await input.guard?.();
           await internal(Method.ZKAS_PAYMENT_SUBMITTING, {
