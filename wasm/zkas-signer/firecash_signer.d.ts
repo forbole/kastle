@@ -1,9 +1,39 @@
 /* tslint:disable */
 /* eslint-disable */
 /**
+ * True if `secret` is a well-formed recovery phrase (right words, right checksum).
+ * Lets the UI validate what was typed before trying to open a wallet with it.
+ */
+export function is_valid_mnemonic(secret: string): boolean;
+/**
  * Derive the `zkas:` address for an existing seed on a network.
  */
 export function address_from_seed(seed_hex: string, network: string): string;
+/**
+ * Sign `message`, proving control of the seed's address on `network`. The
+ * returned `signature_hex` is `fvk ‖ sig`, interoperable with `shielded-pay` and
+ * the mining-pool claim verifier.
+ */
+export function sign(seed_hex: string, network: string, message: string): Signature;
+/**
+ * Verify that `signature_hex` (`fvk ‖ sig`) proves control of `address` over
+ * `message`. Returns `true` iff valid. The network is taken from the address
+ * prefix, matching how the signature was produced.
+ */
+export function verify(address: string, message: string, signature_hex: string): boolean;
+/**
+ * The wallet's full viewing key (`ak ‖ nk ‖ rivk`, 96 bytes) as hex, derived from
+ * the seed on-device. Send this to the daemon's non-custodial `/prepare` endpoint so
+ * it can scan watch-only and build the payment proof. Grants viewing, not spend.
+ */
+export function fvk_hex(seed_hex: string): string;
+/**
+ * Device half of a **non-custodial payment**. Given the wallet seed and, from the
+ * server's `prepare` response, a spend's `alpha` randomizer and the payment `sighash`,
+ * returns the 64-byte RedPallas spend-auth signature (hex). The seed never leaves the
+ * device; the server applies this signature and broadcasts. No proving circuit.
+ */
+export function sign_spend_auth(seed_hex: string, alpha_hex: string, sighash_hex: string): string;
 /**
  * **The anti-blind-signing entry point** for the non-custodial send.
  *
@@ -26,17 +56,25 @@ export function address_from_seed(seed_hex: string, network: string): string;
  */
 export function verify_and_sign_payment(seed_hex: string, network: string, to_address: string, amount_sompi: bigint, max_fee_sompi: bigint, bundle_hex: string, disclosure_json: string, alphas_json: string): string;
 /**
- * Sign `message`, proving control of the seed's address on `network`. The
- * returned `signature_hex` is `fvk ‖ sig`, interoperable with `shielded-pay` and
- * the mining-pool claim verifier.
+ * Signs only if the intended UTF-8 memo is encrypted into the actual recipient
+ * output of the bundle. This binds deposit references to the payment signature.
  */
-export function sign(seed_hex: string, network: string, message: string): Signature;
+export function verify_and_sign_payment_with_memo(seed_hex: string, network: string, to_address: string, amount_sompi: bigint, max_fee_sompi: bigint, memo: string, bundle_hex: string, disclosure_json: string, alphas_json: string): string;
 /**
- * The wallet's full viewing key (`ak ‖ nk ‖ rivk`, 96 bytes) as hex, derived from
- * the seed on-device. Send this to the daemon's non-custodial `/prepare` endpoint so
- * it can scan watch-only and build the payment proof. Grants viewing, not spend.
+ * Generate a brand-new wallet: a random 32-byte seed (browser CSPRNG) and its
+ * `zkas:` address. Retries the negligibly-rare case where a random seed is
+ * not a valid Orchard spending key.
  */
-export function fvk_hex(seed_hex: string): string;
+export function new_wallet(network: string): Wallet;
+/**
+ * Generate a new wallet as a **12-word recovery phrase** (128 bits of entropy).
+ *
+ * Twelve words is not a shortcut: an Orchard key lives on the Pallas curve, whose
+ * ~128-bit security caps what any seed can buy. A longer phrase would be more to
+ * write down for no additional strength — and a phrase people actually finish
+ * writing down is the one that saves their funds.
+ */
+export function new_wallet_mnemonic(network: string): MnemonicWallet;
 /**
  * Derive the spending key of ONE ACCOUNT from a recovery phrase, as 64-hex.
  *
@@ -51,52 +89,18 @@ export function fvk_hex(seed_hex: string): string;
  */
 export function account_seed_hex(mnemonic: string, account: number): string;
 /**
- * True if `secret` is a well-formed recovery phrase (right words, right checksum).
- * Lets the UI validate what was typed before trying to open a wallet with it.
- */
-export function is_valid_mnemonic(secret: string): boolean;
-/**
- * Generate a new wallet as a **12-word recovery phrase** (128 bits of entropy).
- *
- * Twelve words is not a shortcut: an Orchard key lives on the Pallas curve, whose
- * ~128-bit security caps what any seed can buy. A longer phrase would be more to
- * write down for no additional strength — and a phrase people actually finish
- * writing down is the one that saves their funds.
- */
-export function new_wallet_mnemonic(network: string): MnemonicWallet;
-/**
- * Device half of a **non-custodial payment**. Given the wallet seed and, from the
- * server's `prepare` response, a spend's `alpha` randomizer and the payment `sighash`,
- * returns the 64-byte RedPallas spend-auth signature (hex). The seed never leaves the
- * device; the server applies this signature and broadcasts. No proving circuit.
- */
-export function sign_spend_auth(seed_hex: string, alpha_hex: string, sighash_hex: string): string;
-/**
- * Generate a brand-new wallet: a random 32-byte seed (browser CSPRNG) and its
- * `zkas:` address. Retries the negligibly-rare case where a random seed is
- * not a valid Orchard spending key.
- */
-export function new_wallet(network: string): Wallet;
-/**
- * Verify that `signature_hex` (`fvk ‖ sig`) proves control of `address` over
- * `message`. Returns `true` iff valid. The network is taken from the address
- * prefix, matching how the signature was produced.
- */
-export function verify(address: string, message: string, signature_hex: string): boolean;
-/**
  * The `zkas:` address of one account of a recovery phrase, without going through
  * the raw key — so a caller can preview or discover accounts cheaply.
  */
 export function account_address(mnemonic: string, network: string, account: number): string;
 /**
- * r" Deferred promise - an object that has `resolve()` and `reject()`
- * r" functions that can be called outside of the promise body.
- * r" WARNING: This function uses `eval` and can not be used in environments
- * r" where dynamically-created code can not be executed such as web browser
- * r" extensions.
- * r" @category General
+ * Initialize Rust panic handler in console mode.
+ *
+ * This will output additional debug information during a panic to the console.
+ * This function should be called right after loading WASM libraries.
+ * @category General
  */
-export function defer(): Promise<any>;
+export function initConsolePanicHook(): void;
 /**
  * Initialize Rust panic handler in browser mode.
  *
@@ -120,19 +124,20 @@ export function initBrowserPanicHook(): void;
  */
 export function presentPanicHookLogs(): void;
 /**
- * Initialize Rust panic handler in console mode.
- *
- * This will output additional debug information during a panic to the console.
- * This function should be called right after loading WASM libraries.
- * @category General
- */
-export function initConsolePanicHook(): void;
-/**
  * Configuration for the WASM32 bindings runtime interface.
  * @see {@link IWASM32BindingsConfig}
  * @category General
  */
 export function initWASM32Bindings(config: IWASM32BindingsConfig): void;
+/**
+ * r" Deferred promise - an object that has `resolve()` and `reject()`
+ * r" functions that can be called outside of the promise body.
+ * r" WARNING: This function uses `eval` and can not be used in environments
+ * r" where dynamically-created code can not be executed such as web browser
+ * r" extensions.
+ * r" @category General
+ */
+export function defer(): Promise<any>;
 /**
  * Set the logger log level using a string representation.
  * Available variants are: 'off', 'error', 'warn', 'info', 'debug', 'trace'
@@ -321,18 +326,18 @@ export interface InitOutput {
   readonly sign_spend_auth: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number, number, number];
   readonly verify: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number, number];
   readonly verify_and_sign_payment: (a: number, b: number, c: number, d: number, e: number, f: number, g: bigint, h: bigint, i: number, j: number, k: number, l: number, m: number, n: number) => [number, number, number, number];
-  readonly __wbg_get_signature_address: (a: number) => [number, number];
-  readonly __wbg_get_signature_signature_hex: (a: number) => [number, number];
-  readonly __wbg_get_wallet_address: (a: number) => [number, number];
-  readonly __wbg_get_wallet_seed_hex: (a: number) => [number, number];
+  readonly verify_and_sign_payment_with_memo: (a: number, b: number, c: number, d: number, e: number, f: number, g: bigint, h: bigint, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number) => [number, number, number, number];
   readonly __wbg_set_signature_address: (a: number, b: number, c: number) => void;
   readonly __wbg_set_signature_signature_hex: (a: number, b: number, c: number) => void;
   readonly __wbg_set_wallet_address: (a: number, b: number, c: number) => void;
   readonly __wbg_set_wallet_seed_hex: (a: number, b: number, c: number) => void;
+  readonly __wbg_get_signature_address: (a: number) => [number, number];
+  readonly __wbg_get_signature_signature_hex: (a: number) => [number, number];
+  readonly __wbg_get_wallet_address: (a: number) => [number, number];
+  readonly __wbg_get_wallet_seed_hex: (a: number) => [number, number];
   readonly __wbg_hash_free: (a: number, b: number) => void;
   readonly hash_constructor: (a: number, b: number) => number;
   readonly hash_toString: (a: number) => [number, number];
-  readonly __wbg_address_free: (a: number, b: number) => void;
   readonly address_constructor: (a: number, b: number) => number;
   readonly address_payload: (a: number) => [number, number];
   readonly address_prefix: (a: number) => [number, number];
@@ -340,11 +345,12 @@ export interface InitOutput {
   readonly address_toString: (a: number) => [number, number];
   readonly address_validate: (a: number, b: number) => number;
   readonly address_version: (a: number) => [number, number];
-  readonly defer: () => any;
+  readonly __wbg_address_free: (a: number, b: number) => void;
   readonly initBrowserPanicHook: () => void;
   readonly initConsolePanicHook: () => void;
   readonly initWASM32Bindings: (a: any) => [number, number];
   readonly presentPanicHookLogs: () => void;
+  readonly defer: () => any;
   readonly __wbg_abortable_free: (a: number, b: number) => void;
   readonly __wbg_aborted_free: (a: number, b: number) => void;
   readonly abortable_abort: (a: number) => void;
