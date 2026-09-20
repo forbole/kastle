@@ -22,8 +22,11 @@ export default function AddressesMenu({ onClose }: { onClose: () => void }) {
 
   const kasAddress = account?.address ?? "";
   const evmAddress = useEvmAddress();
-  const { account: zkasAccount, loading: zkasLoading, error: zkasError } =
-    useSelectedZKasAddress();
+  const {
+    account: zkasAccount,
+    loading: zkasLoading,
+    error: zkasError,
+  } = useSelectedZKasAddress();
 
   const supportEvmL2s =
     settings?.networkId === "mainnet"

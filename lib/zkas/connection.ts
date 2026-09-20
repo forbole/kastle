@@ -8,8 +8,11 @@ export function isAllowedZKasDappOrigin(value: string): boolean {
   try {
     const url = new URL(value);
     if (url.origin !== value || url.username || url.password) return false;
-    return url.protocol === "https:" ||
-      (url.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname));
+    return (
+      url.protocol === "https:" ||
+      (url.protocol === "http:" &&
+        ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname))
+    );
   } catch {
     return false;
   }
@@ -21,7 +24,9 @@ export function hasZKasConnection(
   selection: ZKasSelection,
 ): boolean {
   if (!isAllowedZKasDappOrigin(origin)) return false;
-  return (connections?.[origin] ?? []).some((item) => sameZKasSelection(item, selection));
+  return (connections?.[origin] ?? []).some((item) =>
+    sameZKasSelection(item, selection),
+  );
 }
 
 export function addZKasConnection(
@@ -29,7 +34,8 @@ export function addZKasConnection(
   origin: string,
   selection: ZKasSelection,
 ): ZKasConnections {
-  if (!isAllowedZKasDappOrigin(origin)) throw new Error("Unsupported ZKas website origin");
+  if (!isAllowedZKasDappOrigin(origin))
+    throw new Error("Unsupported ZKas website origin");
   if (hasZKasConnection(connections, origin, selection)) return connections;
   return {
     ...connections,
@@ -56,7 +62,9 @@ export class ZKasConnectionStore {
     return (await this.adapter.get()) ?? {};
   }
 
-  private async mutate(change: (value: ZKasConnections) => ZKasConnections): Promise<void> {
+  private async mutate(
+    change: (value: ZKasConnections) => ZKasConnections,
+  ): Promise<void> {
     const operation = this.tail.then(async () => {
       const current = (await this.adapter.get()) ?? {};
       const next = change(current);
@@ -67,11 +75,14 @@ export class ZKasConnectionStore {
   }
 
   async add(origin: string, selection: ZKasSelection): Promise<void> {
-    await this.mutate((current) => addZKasConnection(current, origin, selection));
+    await this.mutate((current) =>
+      addZKasConnection(current, origin, selection),
+    );
   }
 
   async remove(origin: string): Promise<void> {
-    if (!isAllowedZKasDappOrigin(origin)) throw new Error("Unsupported ZKas website origin");
+    if (!isAllowedZKasDappOrigin(origin))
+      throw new Error("Unsupported ZKas website origin");
     await this.mutate((current) => {
       if (!(origin in current)) return current;
       const next = { ...current };

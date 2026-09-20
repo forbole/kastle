@@ -14,7 +14,9 @@ export default function RemoveWallet() {
   const { walletId } = useParams();
   const { removeWallet } = useWalletEditor();
   const { walletSettings } = useWalletManager();
-  const removingZKasSeed = walletSettings?.wallets.some((wallet) => wallet.id === walletId && wallet.type === "zkasSeed");
+  const removingZKasSeed = walletSettings?.wallets.some(
+    (wallet) => wallet.id === walletId && wallet.type === "zkasSeed",
+  );
   const {
     handleSubmit,
     register,
@@ -68,9 +70,9 @@ export default function RemoveWallet() {
               </span>
               <ul className="list-disc text-xs">
                 <li className="ml-4">
-                {removingZKasSeed
-                  ? "Make sure you have backed up this ZKas spending seed. Your Kaspa recovery phrase cannot restore it."
-                  : "Keep your recovery phrase, private key, or Ledger device. If this wallet also has a ZKas spending seed, back that seed up separately before removing the wallet."}
+                  {removingZKasSeed
+                    ? "Make sure you have backed up this ZKas spending seed. Your Kaspa recovery phrase cannot restore it."
+                    : "Keep your recovery phrase, private key, or Ledger device. If this wallet also has a ZKas spending seed, back that seed up separately before removing the wallet."}
                 </li>
               </ul>
             </div>

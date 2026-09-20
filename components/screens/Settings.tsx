@@ -13,7 +13,13 @@ import { PostHogWrapperContext } from "@/contexts/PostHogWrapperProvider.tsx";
 
 import packageJson from "../../package.json";
 import CurrencySelection from "@/components/settings/CurrencySelection.tsx";
-import { getSelectedWalletNetwork, getVisibleWalletNetworks, isZKasActive, ZKAS_EXPERIMENTAL_KEY, ZKAS_MAINNET } from "@/lib/wallet-network";
+import {
+  getSelectedWalletNetwork,
+  getVisibleWalletNetworks,
+  isZKasActive,
+  ZKAS_EXPERIMENTAL_KEY,
+  ZKAS_MAINNET,
+} from "@/lib/wallet-network";
 import useStorageState from "@/hooks/useStorageState";
 
 export const explorerTxLinks = {
@@ -36,7 +42,10 @@ export default function Settings() {
   const [lockAfterDropdownOpen, setLockAfterDropdownOpen] = useState(false);
   const [currencyDropdownOpen, setCurrencyDropdownOpen] = useState(false);
   const [settings, setSettings] = useSettings();
-  const [zkasEnabled, , isZKasGateLoading] = useStorageState<boolean | null>(ZKAS_EXPERIMENTAL_KEY, null);
+  const [zkasEnabled, , isZKasGateLoading] = useStorageState<boolean | null>(
+    ZKAS_EXPERIMENTAL_KEY,
+    null,
+  );
   const { switchKaspaNetwork, switchZKasNetwork } = useSwitchNetwork();
   const navigate = useNavigate();
   const { postHog } = useContext(PostHogWrapperContext);
@@ -94,8 +103,14 @@ export default function Settings() {
     },
   ];
   const enabled = isZKasGateLoading ? false : zkasEnabled;
-  const visibleNetworks = getVisibleWalletNetworks(settings ?? initialSettings, enabled);
-  const selectedNetwork = networks.find((n) => n.id === getSelectedWalletNetwork(settings ?? initialSettings, enabled));
+  const visibleNetworks = getVisibleWalletNetworks(
+    settings ?? initialSettings,
+    enabled,
+  );
+  const selectedNetwork = networks.find(
+    (n) =>
+      n.id === getSelectedWalletNetwork(settings ?? initialSettings, enabled),
+  );
 
   return (
     <div className="relative flex h-full flex-col p-4">
@@ -165,11 +180,13 @@ export default function Settings() {
           toggleShow={() => setCurrencyDropdownOpen((prev) => !prev)}
         />
 
-        {isZKasActive(settings, enabled) && <SettingItem
-          title="ZKas daemon"
-          showChevron
-          onClick={() => navigate("/zkas/settings")}
-        />}
+        {isZKasActive(settings, enabled) && (
+          <SettingItem
+            title="ZKas daemon"
+            showChevron
+            onClick={() => navigate("/zkas/settings")}
+          />
+        )}
 
         {/* Network */}
         <SettingItem
@@ -196,25 +213,29 @@ export default function Settings() {
               networkDropdownOpen ? "translate-y-0" : "translate-y-[30vh]",
             )}
           >
-            {networks.filter((network) => visibleNetworks.includes(network.id)).map((network) => (
-              <div
-                key={network.id}
-                className={twMerge(
-                  "flex w-full cursor-pointer items-center gap-2 rounded-lg p-2 opacity-80 hover:bg-daintree-700",
-                  network.text,
-                  selectedNetwork?.id === network.id && "bg-daintree-700",
-                )}
-                onClick={async () => {
-                  if (network.id === ZKAS_MAINNET) await switchZKasNetwork();
-                  else await switchKaspaNetwork(network.id);
-                  setNetworkDropdownOpen(false);
-                }}
-              >
-                <i className={twMerge("rounded-full p-1", network.iconColor)} />
-                <span className="text-sm font-semibold">{network.name}</span>
-                <div className="text-sm"></div>
-              </div>
-            ))}
+            {networks
+              .filter((network) => visibleNetworks.includes(network.id))
+              .map((network) => (
+                <div
+                  key={network.id}
+                  className={twMerge(
+                    "flex w-full cursor-pointer items-center gap-2 rounded-lg p-2 opacity-80 hover:bg-daintree-700",
+                    network.text,
+                    selectedNetwork?.id === network.id && "bg-daintree-700",
+                  )}
+                  onClick={async () => {
+                    if (network.id === ZKAS_MAINNET) await switchZKasNetwork();
+                    else await switchKaspaNetwork(network.id);
+                    setNetworkDropdownOpen(false);
+                  }}
+                >
+                  <i
+                    className={twMerge("rounded-full p-1", network.iconColor)}
+                  />
+                  <span className="text-sm font-semibold">{network.name}</span>
+                  <div className="text-sm"></div>
+                </div>
+              ))}
           </div>
         </>
 

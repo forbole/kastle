@@ -4,14 +4,17 @@ byId("origin").textContent = window.location.origin;
 function provider() {
   const kastle = window.kastle;
   if (!kastle || typeof kastle.request !== "function") {
-    throw new Error("Kastle was not detected. Load the local extension and refresh this page.");
+    throw new Error(
+      "Kastle was not detected. Load the local extension and refresh this page.",
+    );
   }
   return kastle;
 }
 
 function show(id, value, error = false) {
   const node = byId(id);
-  node.textContent = typeof value === "string" ? value : JSON.stringify(value, null, 2);
+  node.textContent =
+    typeof value === "string" ? value : JSON.stringify(value, null, 2);
   node.classList.toggle("error", error);
 }
 
@@ -43,15 +46,25 @@ async function invoke(id, method, args) {
 function toSompi(value, label) {
   const match = /^(0|[1-9]\d*)(?:\.(\d{1,8}))?$/.exec(value);
   if (!match) throw new Error(`${label} needs at most 8 decimal places`);
-  const sompi = BigInt(match[1]) * 100000000n + BigInt((match[2] ?? "").padEnd(8, "0"));
-  if (sompi <= 0n || sompi > 18446744073709551615n) throw new Error(`${label} is out of range`);
+  const sompi =
+    BigInt(match[1]) * 100000000n + BigInt((match[2] ?? "").padEnd(8, "0"));
+  if (sompi <= 0n || sompi > 18446744073709551615n)
+    throw new Error(`${label} is out of range`);
   return sompi.toString();
 }
 
-byId("probe").addEventListener("click", () => invoke("connection-output", "kas:get_version"));
-byId("connect").addEventListener("click", () => invoke("connection-output", "zkas:connect"));
-byId("account").addEventListener("click", () => invoke("read-output", "zkas:get_account"));
-byId("balance").addEventListener("click", () => invoke("read-output", "zkas:get_balance"));
+byId("probe").addEventListener("click", () =>
+  invoke("connection-output", "kas:get_version"),
+);
+byId("connect").addEventListener("click", () =>
+  invoke("connection-output", "zkas:connect"),
+);
+byId("account").addEventListener("click", () =>
+  invoke("read-output", "zkas:get_account"),
+);
+byId("balance").addEventListener("click", () =>
+  invoke("read-output", "zkas:get_balance"),
+);
 byId("send").addEventListener("click", () => {
   try {
     const to = byId("recipient").value.trim();
@@ -59,6 +72,10 @@ byId("send").addEventListener("click", () => {
     const maxFeeSompi = toSompi(byId("fee").value.trim(), "Maximum fee");
     void invoke("send-output", "zkas:send", { to, amountSompi, maxFeeSompi });
   } catch (error) {
-    show("send-output", error instanceof Error ? error.message : String(error), true);
+    show(
+      "send-output",
+      error instanceof Error ? error.message : String(error),
+      true,
+    );
   }
 });

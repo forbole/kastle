@@ -3,10 +3,10 @@ export const MAX_ZKAS_SOMPI = (1n << 64n) - 1n;
 
 export function parseZkasAmount(value: string): bigint {
   const match = /^(0|[1-9]\d*)(?:\.(\d{1,8}))?$/.exec(value.trim());
-  if (!match) throw new Error("Enter a positive ZKAS amount with at most 8 decimals");
+  if (!match)
+    throw new Error("Enter a positive ZKAS amount with at most 8 decimals");
   const sompi =
-    BigInt(match[1]) * SOMPI_PER_ZKAS +
-    BigInt((match[2] ?? "").padEnd(8, "0"));
+    BigInt(match[1]) * SOMPI_PER_ZKAS + BigInt((match[2] ?? "").padEnd(8, "0"));
   if (sompi <= 0n || sompi > MAX_ZKAS_SOMPI) {
     throw new Error("ZKAS amount is out of range");
   }

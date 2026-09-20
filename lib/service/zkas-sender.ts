@@ -7,7 +7,9 @@ export function isTrustedZKasSender(
   try {
     const source = new URL(sender.url);
     const extension = new URL(extensionUrl);
-    return source.protocol === extension.protocol && source.host === extension.host;
+    return (
+      source.protocol === extension.protocol && source.host === extension.host
+    );
   } catch {
     return false;
   }

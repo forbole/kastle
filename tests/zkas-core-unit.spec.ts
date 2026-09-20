@@ -1,6 +1,10 @@
 import { expect, test } from "@playwright/test";
 import { formatZkasAmount, parseZkasAmount } from "@/lib/zkas/amount";
-import { ZKasClient, ZKasSubmissionUncertainError, type ZKasSigner } from "@/lib/zkas/client";
+import {
+  ZKasClient,
+  ZKasSubmissionUncertainError,
+  type ZKasSigner,
+} from "@/lib/zkas/client";
 
 test("ZKAS amounts use exact 8-decimal integer sompi", () => {
   expect(String(parseZkasAmount("1.00000001"))).toBe("100000001");
@@ -84,20 +88,40 @@ test("history reads bounded rows and rejects imprecise amounts", async () => {
     "/api/wallet/history": {
       recoverableHistory: true,
       total: 1,
-      rows: [{ kind: "sent", txid, amountSompi: 100, feeSompi: 10, timestamp: 0 }],
+      rows: [
+        { kind: "sent", txid, amountSompi: 100, feeSompi: 10, timestamp: 0 },
+      ],
       pendingOutgoing: [],
     },
   });
-  const client = new ZKasClient({ baseUrl: "https://wallet.example", token: "b".repeat(32), network: "mainnet", fetch: daemonFetch });
+  const client = new ZKasClient({
+    baseUrl: "https://wallet.example",
+    token: "b".repeat(32),
+    network: "mainnet",
+    fetch: daemonFetch,
+  });
   expect((await client.history()).rows[0].amountSompi).toBe(100);
   const unsafe = fakeDaemon({
     "/api/wallet/history": {
       recoverableHistory: true,
       total: 1,
-      rows: [{ kind: "sent", txid, amountSompi: Number.MAX_SAFE_INTEGER + 1, feeSompi: 10, timestamp: 0 }],
+      rows: [
+        {
+          kind: "sent",
+          txid,
+          amountSompi: Number.MAX_SAFE_INTEGER + 1,
+          feeSompi: 10,
+          timestamp: 0,
+        },
+      ],
     },
   });
-  const unsafeClient = new ZKasClient({ baseUrl: "https://wallet.example", token: "b".repeat(32), network: "mainnet", fetch: unsafe.daemonFetch });
+  const unsafeClient = new ZKasClient({
+    baseUrl: "https://wallet.example",
+    token: "b".repeat(32),
+    network: "mainnet",
+    fetch: unsafe.daemonFetch,
+  });
   await expect(unsafeClient.history()).rejects.toThrow();
 });
 
@@ -178,25 +202,62 @@ test("submission failures carry uncertain outcome and preserve any returned txid
     });
     let caught: unknown;
     try {
-      await client.send({ signer: fakeSigner().signer, to: "zkas:recipient", amountSompi: 100n, maxFeeSompi: 20n });
+      await client.send({
+        signer: fakeSigner().signer,
+        to: "zkas:recipient",
+        amountSompi: 100n,
+        maxFeeSompi: 20n,
+      });
     } catch (error) {
       caught = error;
     }
     expect(caught).toBeInstanceOf(ZKasSubmissionUncertainError);
-    expect((caught as ZKasSubmissionUncertainError).txid).toBe(response instanceof Error ? undefined : txid);
-    expect(calls.filter((call) => call.path.endsWith("/submit"))).toHaveLength(1);
+    expect((caught as ZKasSubmissionUncertainError).txid).toBe(
+      response instanceof Error ? undefined : txid,
+    );
+    expect(calls.filter((call) => call.path.endsWith("/submit"))).toHaveLength(
+      1,
+    );
   }
 });
 
 test("hostile or incomplete daemon responses never reach signing or submit", async () => {
   const cases = [
-    { status: { ...goodStatus, network: "testnet" }, prepare: goodPrepare, error: /network/i },
-    { status: { ...goodStatus, address: "zkas:attacker" }, prepare: goodPrepare, error: /address/i },
-    { status: { ...goodStatus, synced: false }, prepare: goodPrepare, error: /sync/i },
-    { status: { ...goodStatus, missing_history: true }, prepare: goodPrepare, error: /history/i },
-    { status: goodStatus, prepare: { ...goodPrepare, amount_sompi_exact: "99" }, error: /amount/i },
-    { status: goodStatus, prepare: { ...goodPrepare, fee_sompi_exact: "21" }, error: /fee/i },
-    { status: goodStatus, prepare: { ...goodPrepare, remaining_sompi_exact: "1" }, error: /partial/i },
+    {
+      status: { ...goodStatus, network: "testnet" },
+      prepare: goodPrepare,
+      error: /network/i,
+    },
+    {
+      status: { ...goodStatus, address: "zkas:attacker" },
+      prepare: goodPrepare,
+      error: /address/i,
+    },
+    {
+      status: { ...goodStatus, synced: false },
+      prepare: goodPrepare,
+      error: /sync/i,
+    },
+    {
+      status: { ...goodStatus, missing_history: true },
+      prepare: goodPrepare,
+      error: /history/i,
+    },
+    {
+      status: goodStatus,
+      prepare: { ...goodPrepare, amount_sompi_exact: "99" },
+      error: /amount/i,
+    },
+    {
+      status: goodStatus,
+      prepare: { ...goodPrepare, fee_sompi_exact: "21" },
+      error: /fee/i,
+    },
+    {
+      status: goodStatus,
+      prepare: { ...goodPrepare, remaining_sompi_exact: "1" },
+      error: /partial/i,
+    },
   ];
   for (const item of cases) {
     const { daemonFetch, calls } = fakeDaemon({
@@ -235,7 +296,9 @@ test("watch response cannot replace the locally derived receive address", async 
     network: "mainnet",
     fetch: daemonFetch,
   });
-  await expect(client.state("f".repeat(192), goodStatus.address)).rejects.toThrow(/address/i);
+  await expect(
+    client.state("f".repeat(192), goodStatus.address),
+  ).rejects.toThrow(/address/i);
   expect(calls.some((call) => call.path.endsWith("/balance"))).toBe(false);
 });
 
@@ -247,12 +310,14 @@ test("testnet payment fails before a daemon request because signer cannot verify
     network: "testnet",
     fetch: daemonFetch,
   });
-  await expect(client.send({
-    signer: fakeSigner().signer,
-    to: "zkastest:recipient",
-    amountSompi: 100n,
-    maxFeeSompi: 20n,
-  })).rejects.toThrow(/testnet/i);
+  await expect(
+    client.send({
+      signer: fakeSigner().signer,
+      to: "zkastest:recipient",
+      amountSompi: 100n,
+      maxFeeSompi: 20n,
+    }),
+  ).rejects.toThrow(/testnet/i);
   expect(calls).toHaveLength(0);
 });
 
@@ -269,13 +334,17 @@ test("account changes before submit prevent signature delivery to daemon", async
     fetch: daemonFetch,
   });
   const { signer, verified } = fakeSigner();
-  await expect(client.send({
-    signer,
-    to: "zkas:recipient",
-    amountSompi: 100n,
-    maxFeeSompi: 20n,
-    beforeSubmit: async () => { throw new Error("Selected account changed"); },
-  })).rejects.toThrow(/account changed/i);
+  await expect(
+    client.send({
+      signer,
+      to: "zkas:recipient",
+      amountSompi: 100n,
+      maxFeeSompi: 20n,
+      beforeSubmit: async () => {
+        throw new Error("Selected account changed");
+      },
+    }),
+  ).rejects.toThrow(/account changed/i);
   expect(verified).toHaveLength(1);
   expect(calls.some((call) => call.path.endsWith("/submit"))).toBe(false);
 });
@@ -299,14 +368,18 @@ test("revoked payment guard blocks daemon submission after proof preparation", a
     token: "b".repeat(32),
     network: "mainnet",
     fetch: daemonFetch,
-    guard: async () => { if (!connected) throw new Error("Website was disconnected"); },
+    guard: async () => {
+      if (!connected) throw new Error("Website was disconnected");
+    },
   });
-  await expect(client.send({
-    signer,
-    to: "zkas:recipient",
-    amountSompi: 100n,
-    maxFeeSompi: 20n,
-  })).rejects.toThrow(/disconnected/i);
+  await expect(
+    client.send({
+      signer,
+      to: "zkas:recipient",
+      amountSompi: 100n,
+      maxFeeSompi: 20n,
+    }),
+  ).rejects.toThrow(/disconnected/i);
   expect(calls.some((call) => call.path.endsWith("/submit"))).toBe(false);
 });
 
@@ -322,15 +395,21 @@ test("authorization change during journal persistence stops before daemon submit
     token: "b".repeat(32),
     network: "mainnet",
     fetch: daemonFetch,
-    guard: async () => { if (!connected) throw new Error("Website was disconnected"); },
+    guard: async () => {
+      if (!connected) throw new Error("Website was disconnected");
+    },
   });
-  await expect(client.send({
-    signer: fakeSigner().signer,
-    to: "zkas:recipient",
-    amountSompi: 100n,
-    maxFeeSompi: 20n,
-    beforeSubmit: async () => { connected = false; },
-  })).rejects.toThrow(/disconnected/i);
+  await expect(
+    client.send({
+      signer: fakeSigner().signer,
+      to: "zkas:recipient",
+      amountSompi: 100n,
+      maxFeeSompi: 20n,
+      beforeSubmit: async () => {
+        connected = false;
+      },
+    }),
+  ).rejects.toThrow(/disconnected/i);
   expect(calls.some((call) => call.path.endsWith("/submit"))).toBe(false);
 });
 

@@ -1,4 +1,7 @@
-export function createZKasApprovalSession(pageRequestId: string, origin: string) {
+export function createZKasApprovalSession(
+  pageRequestId: string,
+  origin: string,
+) {
   return {
     pageRequestId,
     origin,

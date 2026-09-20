@@ -19,10 +19,32 @@ import { evmGetPublicKeyHandler } from "./handlers/evm/evm-get-public-key.ts";
 import { evmSignTransactionHandler } from "./handlers/evm/evm-sign-transaction.ts";
 import { evmSignTypedDataHandler } from "./handlers/evm/evm-sign-typed-data.ts";
 import { evmSignMessageHandler } from "./handlers/evm/evm-sign-message.ts";
-import { zkasCheckSelection, zkasGetAccount, zkasGetSelectedAddress, zkasGetSwitchAccounts, zkasGetCredentials, zkasSign, zkasPaymentStatus, zkasPaymentAcquire, zkasPaymentSubmitting, zkasPaymentUncertain, zkasPaymentSuccess, zkasPaymentRelease, zkasPaymentClear, zkasPaymentAbortBeforeFetch, zkasConnectionRemove, zkasPreviewSeed, zkasImportSeed } from "./handlers/zkas";
+import {
+  zkasCheckSelection,
+  zkasGetAccount,
+  zkasGetSelectedAddress,
+  zkasGetSwitchAccounts,
+  zkasGetCredentials,
+  zkasSign,
+  zkasPaymentStatus,
+  zkasPaymentAcquire,
+  zkasPaymentSubmitting,
+  zkasPaymentUncertain,
+  zkasPaymentSuccess,
+  zkasPaymentRelease,
+  zkasPaymentClear,
+  zkasPaymentAbortBeforeFetch,
+  zkasConnectionRemove,
+  zkasPreviewSeed,
+  zkasImportSeed,
+} from "./handlers/zkas";
 import { Method } from "./methods";
 import { isTrustedZKasSender } from "./zkas-sender";
-import { zkasDappCheck, zkasDappComplete, zkasDappPendingGet } from "./handlers/zkas-dapp";
+import {
+  zkasDappCheck,
+  zkasDappComplete,
+  zkasDappPendingGet,
+} from "./handlers/zkas-dapp";
 export { Method } from "./methods";
 
 export type Message<T = object> = {
@@ -96,13 +118,18 @@ export class ExtensionService {
 
       const handler = this.handlers[message.method];
 
-      if (message.method.startsWith("ZKAS_") && !isTrustedZKasSender(
-        sender,
-        browser.runtime.id,
-        browser.runtime.getURL("/"),
-      )) {
-          sendResponse({ error: "ZKas requests require an extension page" } as ErrorMessage);
-          return true;
+      if (
+        message.method.startsWith("ZKAS_") &&
+        !isTrustedZKasSender(
+          sender,
+          browser.runtime.id,
+          browser.runtime.getURL("/"),
+        )
+      ) {
+        sendResponse({
+          error: "ZKas requests require an extension page",
+        } as ErrorMessage);
+        return true;
       }
 
       // FIXME improve typings

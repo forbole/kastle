@@ -96,7 +96,11 @@ export default function AssetSelect() {
 
         {/* EVM KAS */}
         {(hasSearchQuery || "zkas".startsWith(searchQuery.toLowerCase())) && (
-          <button type="button" className="flex items-center gap-3 rounded-lg px-3 py-2 text-base font-medium text-daintree-200 hover:bg-daintree-800" onClick={() => navigate("/zkas/send")}>
+          <button
+            type="button"
+            className="flex items-center gap-3 rounded-lg px-3 py-2 text-base font-medium text-daintree-200 hover:bg-daintree-800"
+            onClick={() => navigate("/zkas/send")}
+          >
             <img alt="ZKas" className="h-10 w-10" src={zkasIcon} />
             <span>ZKAS</span>
           </button>

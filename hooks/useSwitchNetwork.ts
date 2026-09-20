@@ -5,7 +5,11 @@ import {
   MAINNET_SUPPORTED_EVM_L2_CHAINS,
   ALL_SUPPORTED_EVM_L2_CHAINS,
 } from "@/lib/layer2";
-import { selectWalletNetwork, ZKAS_EXPERIMENTAL_KEY, ZKAS_MAINNET } from "@/lib/wallet-network";
+import {
+  selectWalletNetwork,
+  ZKAS_EXPERIMENTAL_KEY,
+  ZKAS_MAINNET,
+} from "@/lib/wallet-network";
 
 export default function useSwitchNetwork() {
   const [settings, setSettings] = useSettings();
@@ -27,9 +31,16 @@ export default function useSwitchNetwork() {
   const switchZKasNetwork = async () => {
     if (!settings) throw new Error("Settings not loaded");
     const enabled = await storage.getItem<boolean>(ZKAS_EXPERIMENTAL_KEY);
-    if (settings.preview !== true || enabled === false) throw new Error("Enable Experimental features to use ZKas");
-    if (settings.activeChain === "zkas" && settings.networkId === NetworkType.Mainnet) return;
-    await setSettings((prev) => selectWalletNetwork(prev, ZKAS_MAINNET, enabled));
+    if (settings.preview !== true || enabled === false)
+      throw new Error("Enable Experimental features to use ZKas");
+    if (
+      settings.activeChain === "zkas" &&
+      settings.networkId === NetworkType.Mainnet
+    )
+      return;
+    await setSettings((prev) =>
+      selectWalletNetwork(prev, ZKAS_MAINNET, enabled),
+    );
     if (settings.networkId !== NetworkType.Mainnet) {
       await refreshKaspaAddresses(NetworkType.Mainnet);
     }

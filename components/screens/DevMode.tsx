@@ -96,7 +96,10 @@ async function emitCanaryEnvelope(kind: "canary" | "control") {
 export default function DevMode() {
   const navigate = useNavigate();
   const [settings, setSettings, isSettingsLoading] = useSettings();
-  const [zkasEnabled, , isZKasGateLoading] = useStorageState<boolean | null>(ZKAS_EXPERIMENTAL_KEY, null);
+  const [zkasEnabled, , isZKasGateLoading] = useStorageState<boolean | null>(
+    ZKAS_EXPERIMENTAL_KEY,
+    null,
+  );
 
   const updateExperimental = async (enabled: boolean) => {
     if (!enabled) await storage.setItem(ZKAS_EXPERIMENTAL_KEY, false);
@@ -135,7 +138,9 @@ export default function DevMode() {
           <input
             checked={Boolean(settings?.preview && zkasEnabled !== false)}
             disabled={isSettingsLoading || isZKasGateLoading}
-            onChange={(e) => { void updateExperimental(e.target.checked); }}
+            onChange={(e) => {
+              void updateExperimental(e.target.checked);
+            }}
             type="checkbox"
             className="relative h-6 w-11 cursor-pointer rounded-full border-neutral-700 border-transparent bg-daintree-700 p-px text-transparent transition-colors duration-200 ease-in-out before:inline-block before:size-5 before:translate-x-0 before:transform before:rounded-full before:bg-white before:shadow before:ring-0 before:transition before:duration-200 before:ease-in-out checked:border-icy-blue-400 checked:bg-icy-blue-400 checked:bg-none checked:text-icy-blue-400 checked:before:translate-x-full checked:before:bg-white focus:ring-transparent focus:ring-offset-transparent focus:checked:border-transparent disabled:pointer-events-none disabled:opacity-50"
           />

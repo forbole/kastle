@@ -18,7 +18,8 @@ export const keyringAddWalletSecret = async (
   }
 
   await keyring.updateValue<WalletSecret[]>("wallets", (wallets) => [
-    ...(wallets ?? []), walletSecret,
+    ...(wallets ?? []),
+    walletSecret,
   ]);
 
   sendResponse();

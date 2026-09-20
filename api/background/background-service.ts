@@ -37,8 +37,19 @@ export class BackgroundService {
 
         const parsedMessage = ApiRequestWithHostSchema.parse(message);
 
-        if ([Action.ZKAS_CONNECT, Action.ZKAS_GET_ACCOUNT, Action.ZKAS_GET_BALANCE, Action.ZKAS_SEND].includes(parsedMessage.action) &&
-          !isTrustedZKasPageRequest(parsedMessage.origin, sender, browser.runtime.id)) {
+        if (
+          [
+            Action.ZKAS_CONNECT,
+            Action.ZKAS_GET_ACCOUNT,
+            Action.ZKAS_GET_BALANCE,
+            Action.ZKAS_SEND,
+          ].includes(parsedMessage.action) &&
+          !isTrustedZKasPageRequest(
+            parsedMessage.origin,
+            sender,
+            browser.runtime.id,
+          )
+        ) {
           sendResponse({
             id: parsedMessage.id,
             source: "background",

@@ -1,7 +1,10 @@
 import { Outlet, useLocation } from "react-router-dom";
 import { POPUP_WINDOW_HEIGHT, POPUP_WINDOW_WIDTH } from "@/lib/utils";
 import { useEffect } from "react";
-import { browserApiPopupDeadline, type ZKasPopupPhase } from "./browser-api-timeout";
+import {
+  browserApiPopupDeadline,
+  type ZKasPopupPhase,
+} from "./browser-api-timeout";
 
 export default function BrowserAPILayout() {
   const { pathname } = useLocation();
@@ -19,11 +22,18 @@ export default function BrowserAPILayout() {
     let timeout: ReturnType<typeof setTimeout>;
     const schedule = () => {
       clearTimeout(timeout);
-      timeout = setTimeout(() => window.close(), Math.max(0, browserApiPopupDeadline(pathname, openedAt, phase) - Date.now()));
+      timeout = setTimeout(
+        () => window.close(),
+        Math.max(
+          0,
+          browserApiPopupDeadline(pathname, openedAt, phase) - Date.now(),
+        ),
+      );
     };
     const onPhase = (event: Event) => {
       const kind = (event as CustomEvent<ZKasPopupPhase["kind"]>).detail;
-      if (pathname !== "/zkas-send" || (kind !== "busy" && kind !== "done")) return;
+      if (pathname !== "/zkas-send" || (kind !== "busy" && kind !== "done"))
+        return;
       phase = { kind, at: Date.now() };
       schedule();
     };

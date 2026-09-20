@@ -37,13 +37,19 @@ test("the signer derives separate recoverable shielded accounts", async () => {
       restored:address_from_seed(first,"mainnet")
     }));
   `;
-  const output = execFileSync(process.execPath, ["--input-type=module", "-e", script], {
-    cwd: root,
-    timeout: 10_000,
-    encoding: "utf8",
-  });
+  const output = execFileSync(
+    process.execPath,
+    ["--input-type=module", "-e", script],
+    {
+      cwd: root,
+      timeout: 10_000,
+      encoding: "utf8",
+    },
+  );
   const result = JSON.parse(output);
-  expect(result.first).toBe("20468ca002014b860fce6926a03c8eeaceebb48b365160f60836cc3a111d3b38");
+  expect(result.first).toBe(
+    "20468ca002014b860fce6926a03c8eeaceebb48b365160f60836cc3a111d3b38",
+  );
   expect(result.second).not.toBe(result.first);
   expect(result.mainnet).toBe(
     "zkas:px8dx79gspafw49lw989mzdxhlqt6pehw9ql54r8ayyymv59vday3mtyxm432g4t6we2gygp3udqluy",
@@ -62,24 +68,32 @@ test("the pinned signer refuses testnet payment authorization", () => {
     try { verify_and_sign_payment(seed,"testnet",to,100n,20n,"ab","[]","[]"); }
     catch (error) { console.log(String(error)); }
   `;
-  const output = execFileSync(process.execPath, ["--input-type=module", "-e", script], {
-    cwd: root,
-    timeout: 10_000,
-    encoding: "utf8",
-  });
+  const output = execFileSync(
+    process.execPath,
+    ["--input-type=module", "-e", script],
+    {
+      cwd: root,
+      timeout: 10_000,
+      encoding: "utf8",
+    },
+  );
   expect(output).toMatch(/only mainnet is pinned/);
 });
 
 test("Kastle's signer adapter keeps spending material out of public account data", () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "kastle-zkas-signer-"));
   const adapterPath = path.join(tempDir, "signer.mjs");
-  execFileSync(path.join(root, "node_modules/.bin/esbuild"), [
-    path.join(root, "lib/zkas/signer.ts"),
-    "--bundle",
-    "--platform=node",
-    "--format=esm",
-    `--outfile=${adapterPath}`,
-  ], { cwd: root, timeout: 10_000 });
+  execFileSync(
+    path.join(root, "node_modules/.bin/esbuild"),
+    [
+      path.join(root, "lib/zkas/signer.ts"),
+      "--bundle",
+      "--platform=node",
+      "--format=esm",
+      `--outfile=${adapterPath}`,
+    ],
+    { cwd: root, timeout: 10_000 },
+  );
   const script = `
     import fs from "node:fs";
     import {initZKasSigner,deriveZKasAccount} from ${JSON.stringify(adapterPath)};
@@ -99,11 +113,15 @@ test("Kastle's signer adapter keeps spending material out of public account data
   `;
   let output: string;
   try {
-    output = execFileSync(process.execPath, ["--input-type=module", "-e", script], {
-      cwd: root,
-      timeout: 10_000,
-      encoding: "utf8",
-    });
+    output = execFileSync(
+      process.execPath,
+      ["--input-type=module", "-e", script],
+      {
+        cwd: root,
+        timeout: 10_000,
+        encoding: "utf8",
+      },
+    );
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
@@ -119,11 +137,21 @@ test("Kastle's signer adapter keeps spending material out of public account data
 });
 
 test("a raw ZKas seed restores the same address as the upstream signer", () => {
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "kastle-zkas-raw-seed-"));
+  const tempDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), "kastle-zkas-raw-seed-"),
+  );
   const adapterPath = path.join(tempDir, "signer.mjs");
-  execFileSync(path.join(root, "node_modules/.bin/esbuild"), [
-    path.join(root, "lib/zkas/signer.ts"), "--bundle", "--platform=node", "--format=esm", `--outfile=${adapterPath}`,
-  ], { cwd: root, timeout: 10_000 });
+  execFileSync(
+    path.join(root, "node_modules/.bin/esbuild"),
+    [
+      path.join(root, "lib/zkas/signer.ts"),
+      "--bundle",
+      "--platform=node",
+      "--format=esm",
+      `--outfile=${adapterPath}`,
+    ],
+    { cwd: root, timeout: 10_000 },
+  );
   const script = `
     import fs from "node:fs";
     import {initZKasSigner,deriveZKasAccountFromSeed} from ${JSON.stringify(adapterPath)};
@@ -133,13 +161,21 @@ test("a raw ZKas seed restores the same address as the upstream signer", () => {
   `;
   let output: string;
   try {
-    output = execFileSync(process.execPath, ["--input-type=module", "-e", script], {
-      cwd: root, timeout: 10_000, encoding: "utf8",
-    });
+    output = execFileSync(
+      process.execPath,
+      ["--input-type=module", "-e", script],
+      {
+        cwd: root,
+        timeout: 10_000,
+        encoding: "utf8",
+      },
+    );
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
   const result = JSON.parse(output);
-  expect(result.address).toBe("zkas:px8dx79gspafw49lw989mzdxhlqt6pehw9ql54r8ayyymv59vday3mtyxm432g4t6we2gygp3udqluy");
+  expect(result.address).toBe(
+    "zkas:px8dx79gspafw49lw989mzdxhlqt6pehw9ql54r8ayyymv59vday3mtyxm432g4t6we2gygp3udqluy",
+  );
   expect(result.token).toMatch(/^[0-9a-f]{32}$/);
 });

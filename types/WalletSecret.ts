@@ -1,4 +1,8 @@
-export type WalletSecretType = "privateKey" | "mnemonic" | "ledger" | "zkasSeed";
+export type WalletSecretType =
+  | "privateKey"
+  | "mnemonic"
+  | "ledger"
+  | "zkasSeed";
 
 export interface WalletSecret {
   id: string;

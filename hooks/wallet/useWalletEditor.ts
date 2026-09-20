@@ -2,7 +2,10 @@ import internalToast from "@/components/Toast";
 import useWalletManager from "./useWalletManager";
 import useKeyring from "@/hooks/useKeyring";
 import { defaultValue } from "@/contexts/WalletManagerContext";
-import { removeWalletAndSecretLocked, WalletSecretCleanupError } from "@/lib/wallet-lifecycle";
+import {
+  removeWalletAndSecretLocked,
+  WalletSecretCleanupError,
+} from "@/lib/wallet-lifecycle";
 
 export default function useWalletEditor() {
   const { walletSettings, setWalletSettings } = useWalletManager();
@@ -52,7 +55,11 @@ export default function useWalletEditor() {
         keyring.keyringReset,
       );
     } catch (error) {
-      internalToast.error(error instanceof WalletSecretCleanupError ? error.message : "Failed to remove wallet");
+      internalToast.error(
+        error instanceof WalletSecretCleanupError
+          ? error.message
+          : "Failed to remove wallet",
+      );
       return { noWallet: false };
     }
   };
