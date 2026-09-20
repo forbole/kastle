@@ -61,6 +61,8 @@ M6: 15 focused seed/keyring/selection/signer tests, TypeScript compile, Chrome b
 
 M7: 54 focused ZKas and wallet-boundary tests pass, including network filtering, concurrent import/reset/remove behavior, failed metadata writes, and ambiguous keyring cleanup. TypeScript compile, Chrome build, and ESLint pass (38 existing warnings). Astra's final pass found no P0–P2 issue. Codex Security's final diff scan `04e9e70f-74d9-4a33-811f-76b81e4c7b87` reviewed 26 changed source files with zero attacker-reachable findings. The import chooser, password-gated backup, and two-window behavior still require a manual check in an initialized extension; a funded payment remains outside this local test run.
 
+M8 layout regression: ZKas seed import now ends on the existing full-page **Accounts Imported** screen, followed by **Back to extension**. The closed wallet switcher moves by its full width so it cannot cover a dashboard opened in a wide browser tab. TypeScript compile, Chrome build, lint (38 existing warnings), and all 54 focused ZKas tests passed. Astra found no P0–P2 issue. Codex Security diff scan `e9179a82-ce26-453e-9fb4-ca8bcbe12839` reviewed both changed source files with zero reportable findings. The existing onboarding browser spec failed before browser launch under Node 26 because `tests/pages/onboarding.ts` imports the `Page` TypeScript type as a runtime export; the Playwright Chromium binary is also absent. Check the import transition and open/closed switcher at popup and full-tab widths with a disposable seed; no funded transaction is needed.
+
 ## Manual Testing
 
 - [x] Serve page from loopback; confirm provider discovery and the existing Kaspa API probe.

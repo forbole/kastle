@@ -38,7 +38,7 @@ export default function ImportZKasSeed({ onBack }: { onBack: () => void }) {
         // The wallet is saved. The dashboard offers network settings if the
         // experimental network was disabled in another window during import.
       }
-      navigate("/dashboard");
+      navigate("/accounts-imported");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to import ZKas seed");
       setPreview(undefined);
