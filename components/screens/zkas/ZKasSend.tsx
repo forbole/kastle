@@ -31,7 +31,7 @@ export default function ZKasSend() {
   const [ready, setReady] = useState(false);
   const [to, setTo] = useState("");
   const [amount, setAmount] = useState("");
-  const [maxFee, setMaxFee] = useState("");
+  const [maxFee, setMaxFee] = useState("0.03");
   const [error, setError] = useState("");
   const [txid, setTxid] = useState("");
   const [reportedFee, setReportedFee] = useState("");
@@ -190,8 +190,9 @@ export default function ZKasSend() {
             className="rounded-lg border border-daintree-700 bg-daintree-800 p-3"
           />
           <p className="text-xs text-daintree-400">
-            Proof preparation can take time. The signer refuses a bundle whose
-            actual fee exceeds your ceiling.
+            0.03 ZKAS is the default fee ceiling, not a fixed charge. Proof
+            preparation can take time. The signer refuses a bundle whose actual
+            fee exceeds your ceiling.
           </p>
           {error && (
             <p role="alert" className="text-sm text-red-400">
