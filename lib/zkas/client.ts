@@ -310,6 +310,10 @@ export class ZKasClient {
         fvk_hex: fvk,
         to,
         amount_sompi: amountSompi.toString(),
+        // walletd treats this field as a caller-selected fee floor. Request its
+        // byte-priced relay minimum; the user's value remains a maximum that
+        // Kastle verifies against the prepared bundle below.
+        fee: "0",
         ...(memo === undefined ? {} : { memo }),
         allow_partial: false,
       }),

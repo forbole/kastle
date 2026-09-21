@@ -293,9 +293,13 @@ test("send verifies the prepared payment before submitting", async () => {
     "/api/wallet/prepare",
     "/api/wallet/submit",
   ]);
-  expect(
-    calls.find((call) => call.path.endsWith("/prepare"))?.body,
-  ).not.toHaveProperty("memo");
+  expect(calls.find((call) => call.path.endsWith("/prepare"))?.body).toEqual({
+    fvk_hex: "f".repeat(192),
+    to: "zkas:recipient",
+    amount_sompi: "100",
+    fee: "0",
+    allow_partial: false,
+  });
 });
 
 test("send passes the exact 512-byte memo to non-custodial prepare", async () => {
