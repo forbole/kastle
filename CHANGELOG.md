@@ -6,6 +6,7 @@ ZKas support is experimental and available on ZKas Mainnet only when Experimenta
 
 ### Features
 
+* **zkas:** require daemon setup before ZKas wallet creation or import, disclose FVK visibility, register newly created wallets once from the daemon's current birthday, and scan restored wallets from genesis
 * **zkas:** add optional memos to shielded sends with local encrypted memo verification, plus expandable daemon-provided transaction details
 * **zkas:** add optional memos to the local website test page and website payment approvals
 * **zkas:** add a pinned shielded signer and user-selected wallet daemon client for watch-only proof preparation and local signing ([b0fb5e0](https://github.com/forbole/kastle/commit/b0fb5e02dac92c1240a5463bef41be1c164d8c48))
@@ -20,6 +21,7 @@ ZKas support is experimental and available on ZKas Mainnet only when Experimenta
 
 ### Bug Fixes
 
+* **zkas:** bind viewing-key registration to the daemon the user approved, serialize settings changes across extension windows, and start every retry or daemon change from genesis
 * **zkas:** distinguish an inactive Experimental features toggle from a Kaspa network selection in website connection errors
 * **keyring:** serialize wallet secret changes so concurrent imports or removals cannot overwrite each other ([88fd269](https://github.com/forbole/kastle/commit/88fd2697abbc1f2876bf9dc7eaec469500b7896a))
 * **zkas:** show the selected wallet's shielded address in the account menu ([27eff07](https://github.com/forbole/kastle/commit/27eff07990be968a896bc296686bd61aa53d290f))

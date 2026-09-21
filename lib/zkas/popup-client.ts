@@ -9,7 +9,11 @@ import {
   type ZKasState,
 } from "./client";
 import type { ZKasCredentials, ZKasSignRequest } from "./key-service";
-import type { ZKasSelection, ZKasSwitchAccount } from "./selection";
+import {
+  sameZKasSelection,
+  type ZKasSelection,
+  type ZKasSwitchAccount,
+} from "./selection";
 import type { ZKasPaymentRecord } from "./payment-journal";
 import { ZKasPreSubmitError, ZKasSubmissionUncertainError } from "./client";
 import { validateZKasMemo } from "./memo";
@@ -86,6 +90,45 @@ export async function getSelectedZKasAddress(): Promise<PublicZKasAccount | null
 
 export async function getZKasSwitchAccounts(): Promise<ZKasSwitchAccount[]> {
   return internal(Method.ZKAS_GET_SWITCH_ACCOUNTS);
+}
+
+export async function getZKasDaemonBirthday(
+  daemonUrl: string,
+  network: "mainnet" = "mainnet",
+): Promise<number> {
+  const pattern = getZKasDaemonOriginPattern(daemonUrl);
+  if (!(await browser.permissions.contains({ origins: [pattern] }))) {
+    throw new Error("Allow Kastle access to the selected ZKas daemon first");
+  }
+  return new ZKasClient({ baseUrl: daemonUrl, network }).currentBirthday();
+}
+
+export async function registerSelectedZKasWallet(
+  expectedAccount: ZKasSelection & { address?: string },
+  expectedDaemonUrl: string,
+  birthday = 0,
+): Promise<void> {
+  const credentials = await internal<ZKasCredentials>(
+    Method.ZKAS_GET_CREDENTIALS,
+  );
+  if (!sameZKasSelection(credentials, expectedAccount)) {
+    throw new Error("Selected ZKas account changed. Refresh this screen.");
+  }
+  if (
+    expectedAccount.address !== undefined &&
+    credentials.address !== expectedAccount.address
+  ) {
+    throw new Error("Selected ZKas account changed. Refresh this screen.");
+  }
+  if (credentials.daemonUrl !== expectedDaemonUrl) {
+    throw new Error("Selected ZKas daemon changed. Review and retry.");
+  }
+  const client = await permittedClient(credentials);
+  await client.register(
+    credentials.fullViewingKeyHex,
+    credentials.address,
+    birthday,
+  );
 }
 
 export async function previewZKasSeed(

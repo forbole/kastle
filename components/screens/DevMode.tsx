@@ -108,7 +108,10 @@ export default function DevMode() {
       preview: enabled,
       activeChain: "kaspa",
     }));
-    if (enabled) await storage.setItem(ZKAS_EXPERIMENTAL_KEY, true);
+    if (enabled) {
+      await storage.setItem(ZKAS_EXPERIMENTAL_KEY, true);
+      navigate("/zkas/settings");
+    }
   };
 
   return (

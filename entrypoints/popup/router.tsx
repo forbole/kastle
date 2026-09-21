@@ -417,9 +417,9 @@ export const router = createHashRouter([
                   {
                     path: "zkas/settings",
                     element: (
-                      <ZKasOnly>
+                      <ZKasAvailable>
                         <ZKasSettings />
-                      </ZKasOnly>
+                      </ZKasAvailable>
                     ),
                   },
                   {

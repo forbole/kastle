@@ -5,10 +5,11 @@ import { kasplexMainnet, kasplexTestnet } from "@/lib/layer2";
 import useStorageState from "@/hooks/useStorageState";
 import type { ZKasNetwork } from "@/lib/zkas/client";
 import { NetworkType } from "@/lib/network-type";
+import { SETTINGS_STORAGE_KEY } from "@/lib/settings-storage";
 
 export { NetworkType } from "@/lib/network-type";
 
-export const SETTINGS_KEY = "local:settings";
+export const SETTINGS_KEY = SETTINGS_STORAGE_KEY;
 
 export const CURRENCIES = [
   ["USD", "United States Dollar", "$"],

@@ -1,12 +1,21 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/GeneralHeader";
-import { importZKasSeed, previewZKasSeed } from "@/lib/zkas/popup-client";
+import internalToast from "@/components/Toast";
+import {
+  getZKasDaemonBirthday,
+  importZKasSeed,
+  previewZKasSeed,
+  registerSelectedZKasWallet,
+} from "@/lib/zkas/popup-client";
 import useSwitchNetwork from "@/hooks/useSwitchNetwork";
+import { useSettings } from "@/hooks/useSettings";
+import { requireZKasDaemonUrl } from "@/lib/zkas/setup";
 
 export default function ImportZKasSeed({ onBack }: { onBack: () => void }) {
   const navigate = useNavigate();
   const { switchZKasNetwork } = useSwitchNetwork();
+  const [settings] = useSettings();
   const [seedHex, setSeedHex] = useState("");
   const [showSeed, setShowSeed] = useState(false);
   const [preview, setPreview] = useState<{
@@ -34,17 +43,30 @@ export default function ImportZKasSeed({ onBack }: { onBack: () => void }) {
     if (!preview) return;
     setBusy(true);
     setError("");
+    let imported = false;
     try {
-      await importZKasSeed(seedHex, preview);
-      setSeedHex("");
+      const daemonUrl = requireZKasDaemonUrl(settings, "mainnet");
+      await getZKasDaemonBirthday(daemonUrl);
+      const importedAccount = await importZKasSeed(seedHex, preview);
+      imported = true;
       try {
         await switchZKasNetwork();
       } catch {
         // The wallet is saved. The dashboard offers network settings if the
         // experimental network was disabled in another window during import.
       }
+      await registerSelectedZKasWallet(importedAccount, daemonUrl);
+      setSeedHex("");
       navigate("/accounts-imported");
     } catch (cause) {
+      if (imported) {
+        setSeedHex("");
+        internalToast.error(
+          "Wallet imported, but daemon registration failed. Kastle will retry from genesis.",
+        );
+        navigate("/accounts-imported");
+        return;
+      }
       setError(
         cause instanceof Error ? cause.message : "Unable to import ZKas seed",
       );

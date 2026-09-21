@@ -22,10 +22,24 @@ const goodStatus = {
   address: "zkas:test-address",
   network: "mainnet",
   node_connected: true,
+  daa_score: 123456,
   synced: true,
   missing_history: false,
   balance_sompi: "1000",
 };
+
+test("daemon probing returns the exact DAA birthday without a wallet token", async () => {
+  const { daemonFetch, calls } = fakeDaemon({
+    "/api/status": { ...goodStatus, has_wallet: false, address: null },
+  });
+  const client = new ZKasClient({
+    baseUrl: "https://wallet.example",
+    network: "mainnet",
+    fetch: daemonFetch,
+  });
+  await expect(client.currentBirthday()).resolves.toBe(123456);
+  expect(calls).toEqual([{ path: "/api/status", body: undefined }]);
+});
 const goodPrepare = {
   session: "session-1",
   bundle_hex: "ab",
@@ -64,7 +78,7 @@ function fakeSigner() {
   return { signer, verified };
 }
 
-test("watch-only state registers only the viewing key and returns exact balance", async () => {
+test("watch-only state recovers from genesis and returns exact balance", async () => {
   const { daemonFetch, calls } = fakeDaemon({
     "/api/status": { ...goodStatus, has_wallet: false },
     "/api/wallet/watch": { address: goodStatus.address },
@@ -81,8 +95,52 @@ test("watch-only state registers only the viewing key and returns exact balance"
   expect(calls.find((call) => call.path.endsWith("/watch"))?.body).toEqual({
     fvk_hex: "f".repeat(192),
     birthday: 0,
+    recoverable_history: true,
   });
   expect(JSON.stringify(calls)).not.toContain("seed");
+});
+
+test("new-wallet registration uses the supplied birthday once", async () => {
+  const { daemonFetch, calls } = fakeDaemon({
+    "/api/status": { ...goodStatus, has_wallet: false, address: null },
+    "/api/wallet/watch": { address: goodStatus.address },
+  });
+  const client = new ZKasClient({
+    baseUrl: "https://wallet.example",
+    token: "b".repeat(32),
+    network: "mainnet",
+    fetch: daemonFetch,
+  });
+  await client.register("f".repeat(192), goodStatus.address, 123456);
+  expect(calls.find((call) => call.path.endsWith("/watch"))?.body).toEqual({
+    fvk_hex: "f".repeat(192),
+    birthday: 123456,
+    recoverable_history: true,
+  });
+});
+
+test("a birthday ahead of the current daemon height recovers from genesis", async () => {
+  const { daemonFetch, calls } = fakeDaemon({
+    "/api/status": {
+      ...goodStatus,
+      has_wallet: false,
+      address: null,
+      daa_score: 100,
+    },
+    "/api/wallet/watch": { address: goodStatus.address },
+  });
+  const client = new ZKasClient({
+    baseUrl: "https://wallet.example",
+    token: "b".repeat(32),
+    network: "mainnet",
+    fetch: daemonFetch,
+  });
+  await client.register("f".repeat(192), goodStatus.address, 999);
+  expect(calls.find((call) => call.path.endsWith("/watch"))?.body).toEqual({
+    fvk_hex: "f".repeat(192),
+    birthday: 0,
+    recoverable_history: true,
+  });
 });
 
 test("history reads bounded rows and rejects imprecise amounts", async () => {
