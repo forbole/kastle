@@ -188,7 +188,13 @@ export default function useWalletImporter() {
 
   const createNewWallet = async (id: string, defaultAccountName?: string) => {
     const mnemonic = KaspaAccountFactory.generateMnemonic();
-    return importWalletByMnemonic(id, mnemonic, defaultAccountName, false);
+    return importWalletByMnemonic(
+      id,
+      mnemonic,
+      defaultAccountName,
+      false,
+      undefined,
+    );
   };
 
   return {

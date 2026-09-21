@@ -14,7 +14,7 @@ import internalToast from "@/components/Toast.tsx";
 import { explorerTxLinks } from "@/components/screens/Settings.tsx";
 import useKaspaBackgroundSigner from "@/hooks/wallet/useKaspaBackgroundSigner";
 import useEvmBackgroundSigner from "@/hooks/wallet/useEvmBackgroundSigner";
-import { NetworkType } from "./SettingsContext";
+import { NetworkType, SETTINGS_KEY, type Settings } from "./SettingsContext";
 import { useSettings } from "@/hooks/useSettings";
 import {
   WALLET_SETTINGS_VERSION,
@@ -61,7 +61,9 @@ type WalletManagerContextType = {
   addresses: string[];
   kaspaBalances: Record<string, number>;
   setWalletSettings: (
-    settings: WalletSettings | ((prev: WalletSettings) => WalletSettings),
+    settings:
+      | WalletSettings
+      | ((prev: WalletSettings) => WalletSettings | Promise<WalletSettings>),
   ) => Promise<void>;
   resetWallet: () => Promise<void>;
   markWalletBacked: (walletId: string) => Promise<void>;
@@ -167,23 +169,27 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
   };
 
   const refreshKaspaAddresses = async (networkId: NetworkType) => {
-    await setWalletSettings((prev) => ({
-      ...prev,
-      wallets: prev.wallets.map((wallet) =>
-        wallet.type === "zkasSeed"
-          ? wallet
-          : {
-              ...wallet,
-              accounts: wallet.accounts.map((account) => {
-                const address = deriveKaspaAddress(
-                  account.publicKeys,
-                  networkId,
-                );
-                return address ? { ...account, address } : account;
-              }),
-            },
-      ),
-    }));
+    await setWalletSettings(async (prev) => {
+      const latestSettings = await storage.getItem<Settings>(SETTINGS_KEY);
+      const currentNetwork = latestSettings?.networkId ?? networkId;
+      return {
+        ...prev,
+        wallets: prev.wallets.map((wallet) =>
+          wallet.type === "zkasSeed"
+            ? wallet
+            : {
+                ...wallet,
+                accounts: wallet.accounts.map((account) => {
+                  const address = deriveKaspaAddress(
+                    account.publicKeys,
+                    currentNetwork,
+                  );
+                  return address ? { ...account, address } : account;
+                }),
+              },
+        ),
+      };
+    });
   };
 
   // Refresh wallet and account after settings changed

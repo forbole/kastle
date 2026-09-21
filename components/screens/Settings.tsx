@@ -16,7 +16,6 @@ import CurrencySelection from "@/components/settings/CurrencySelection.tsx";
 import {
   getSelectedWalletNetwork,
   getVisibleWalletNetworks,
-  isZKasActive,
   ZKAS_EXPERIMENTAL_KEY,
   ZKAS_MAINNET,
 } from "@/lib/wallet-network";
@@ -180,7 +179,7 @@ export default function Settings() {
           toggleShow={() => setCurrencyDropdownOpen((prev) => !prev)}
         />
 
-        {isZKasActive(settings, enabled) && (
+        {settings && visibleNetworks.includes(ZKAS_MAINNET) && (
           <SettingItem
             title="ZKas daemon"
             showChevron
@@ -224,6 +223,14 @@ export default function Settings() {
                     selectedNetwork?.id === network.id && "bg-daintree-700",
                   )}
                   onClick={async () => {
+                    if (
+                      network.id === ZKAS_MAINNET &&
+                      !settings?.zkasDaemonUrls?.mainnet
+                    ) {
+                      setNetworkDropdownOpen(false);
+                      navigate("/zkas/settings");
+                      return;
+                    }
                     if (network.id === ZKAS_MAINNET) await switchZKasNetwork();
                     else await switchKaspaNetwork(network.id);
                     setNetworkDropdownOpen(false);

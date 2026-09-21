@@ -12,6 +12,10 @@ import {
   WALLET_SETTINGS_STORAGE_KEY,
   withWalletSettingsLock,
 } from "@/lib/wallet-settings-storage";
+import {
+  SETTINGS_STORAGE_KEY,
+  updateSettingsLocked,
+} from "@/lib/settings-storage";
 import { addOrRecoverZKasSeed } from "@/lib/zkas/selection";
 import type { WalletSecret } from "@/types/WalletSecret";
 import {
@@ -173,6 +177,67 @@ test("two windows starting from one wallet snapshot cannot overwrite each other"
       "second",
       "third",
     ]);
+  } finally {
+    Object.defineProperty(navigator, "locks", {
+      configurable: true,
+      value: originalLocks,
+    });
+    Object.assign(globalThis, { storage: originalStorage });
+  }
+});
+
+test("concurrent functional settings updates merge against current storage", async () => {
+  const originalLocks = navigator.locks;
+  const originalStorage = (globalThis as { storage?: unknown }).storage;
+  type TestSettings = {
+    networkId: string;
+    preview: boolean;
+    activeChain: "kaspa" | "zkas";
+    zkasDaemonUrls: { mainnet: string };
+  };
+  const initial: TestSettings = {
+    networkId: "mainnet",
+    preview: true,
+    activeChain: "kaspa",
+    zkasDaemonUrls: { mainnet: "https://first.example" },
+  };
+  let persisted = initial;
+  let tail: Promise<unknown> = Promise.resolve();
+  Object.defineProperty(navigator, "locks", {
+    configurable: true,
+    value: {
+      request: (_name: string, operation: () => Promise<unknown>) => {
+        const result = tail.then(operation);
+        tail = result.catch(() => undefined);
+        return result;
+      },
+    },
+  });
+  Object.assign(globalThis, {
+    storage: {
+      getItem: async () => persisted,
+      setItem: async (_key: string, value: typeof initial) => {
+        persisted = value;
+      },
+    },
+  });
+  try {
+    await Promise.all([
+      updateSettingsLocked<TestSettings>(SETTINGS_STORAGE_KEY, (current) => ({
+        ...current,
+        activeChain: "zkas",
+      })),
+      updateSettingsLocked<TestSettings>(SETTINGS_STORAGE_KEY, (current) => ({
+        ...current,
+        preview: false,
+      })),
+    ]);
+    expect(persisted).toEqual({
+      ...initial,
+      activeChain: "zkas",
+      preview: false,
+    });
+    expect(persisted.zkasDaemonUrls.mainnet).toBe("https://first.example");
   } finally {
     Object.defineProperty(navigator, "locks", {
       configurable: true,

@@ -311,7 +311,11 @@ export class ZKasKeyService {
                 type: "zkasSeed",
                 name: `ZKas seed ${nextNumber}`,
                 accounts: [
-                  { index: 0, name: "Account 0", address: preview.address },
+                  {
+                    index: 0,
+                    name: "Account 0",
+                    address: preview.address,
+                  },
                 ],
                 backed: true,
               },

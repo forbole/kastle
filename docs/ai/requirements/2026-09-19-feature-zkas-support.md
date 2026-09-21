@@ -16,6 +16,7 @@ Kastle handles Kaspa transparent accounts and transfers. ZKas is a separate mand
 - Let a user import a 32-byte `shielded-pay` spending seed as an independent ZKas wallet after comparing the derived address; encrypt it and provide password-gated backup.
 - Add ZKAS asset, receive, balance/sync, and send screens with details → confirm → result; show fees and incomplete-history warnings.
 - Use a user-selected wallet daemon for scanning and proof generation. Register only a full viewing key; verify and sign on the device.
+- Require daemon setup before entering ZKas or creating/importing a ZKas wallet. Explain that the daemon can see addresses, balance, and transaction history. Register a newly created wallet once from the daemon's current DAA birthday, without persisting that untrusted value. Register restored phrases, spending seeds, retries, and daemon changes from genesis. Bind registration to the approved daemon URL and serialize cross-window settings changes.
 - Provide connected-origin dApp read methods and a fresh payment approval. Provide a standalone localhost extension test page.
 - Preserve KAS and EVM behavior.
 - Non-goals: custodial daemon endpoints, local Halo 2 proving, Ledger ZKas signing, automatic multi-transaction payments.

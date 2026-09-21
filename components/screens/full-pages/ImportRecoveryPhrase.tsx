@@ -11,6 +11,15 @@ import { OnboardingData } from "@/components/screens/Onboarding.tsx";
 import useKeyring from "@/hooks/useKeyring.ts";
 import Header from "@/components/GeneralHeader.tsx";
 import useWalletImporter from "@/hooks/wallet/useWalletImporter";
+import { useSettings } from "@/hooks/useSettings";
+import useStorageState from "@/hooks/useStorageState";
+import { isZKasActive, ZKAS_EXPERIMENTAL_KEY } from "@/lib/wallet-network";
+import { requireZKasDaemonUrl } from "@/lib/zkas/setup";
+import {
+  getZKasDaemonBirthday,
+  registerSelectedZKasWallet,
+} from "@/lib/zkas/popup-client";
+import internalToast from "@/components/Toast";
 
 type PhraseLength = 12 | 24;
 
@@ -25,6 +34,11 @@ export default function ImportRecoveryPhrase() {
   const navigate = useNavigate();
   const { keyringInitialize } = useKeyring();
   const { importWalletByMnemonic } = useWalletImporter();
+  const [settings] = useSettings();
+  const [experimentalEnabled] = useStorageState<boolean | null>(
+    ZKAS_EXPERIMENTAL_KEY,
+    null,
+  );
   const onboardingForm = useFormContext<OnboardingData>();
   const {
     register,
@@ -39,6 +53,7 @@ export default function ImportRecoveryPhrase() {
   const inputWords = watch();
 
   const [recoveryPhraseError, setRecoveryPhraseError] = useState<string>();
+  const [submitError, setSubmitError] = useState<string>();
   const [phraseLength, setPhraseLength] = useState<PhraseLength>(12);
   const { value: isHidden, toggle: toggleHidden } = useBoolean(true);
 
@@ -77,9 +92,24 @@ export default function ImportRecoveryPhrase() {
   };
 
   const onSubmit = handleSubmit(async (data) => {
+    setSubmitError(undefined);
+
     const words: string[] = [];
     for (let index = 0; index < phraseLength; index++) {
       words.push(data[`word${index + 1}` as `word${WordNumber}`]);
+    }
+
+    const zkasActive = isZKasActive(settings, experimentalEnabled);
+    let daemonUrl: string | undefined;
+    if (zkasActive) {
+      try {
+        daemonUrl = requireZKasDaemonUrl(settings, "mainnet");
+        await getZKasDaemonBirthday(daemonUrl);
+      } catch (cause) {
+        const detail = cause instanceof Error ? `: ${cause.message}` : "";
+        setSubmitError(`Unable to connect to the ZKas daemon${detail}`);
+        return;
+      }
     }
 
     if (onboardingForm) {
@@ -87,7 +117,29 @@ export default function ImportRecoveryPhrase() {
     }
 
     const walletId = uuid();
-    const address = await importWalletByMnemonic(walletId, words.join(" "));
+    const address = await importWalletByMnemonic(
+      walletId,
+      words.join(" "),
+      "Account 0",
+      true,
+      undefined,
+    );
+    if (zkasActive) {
+      try {
+        await registerSelectedZKasWallet(
+          {
+            walletId,
+            accountIndex: 0,
+            network: "mainnet",
+          },
+          daemonUrl!,
+        );
+      } catch {
+        internalToast.error(
+          "Wallet imported, but daemon registration failed. Kastle will retry from genesis.",
+        );
+      }
+    }
     emitWalletCreated({ method: "import", sender: address ?? undefined });
     navigate(`/manage-accounts/recovery-phrase/${walletId}/import`, {
       state: {
@@ -210,9 +262,9 @@ export default function ImportRecoveryPhrase() {
             </div>
           </div>
 
-          {(!isValid || recoveryPhraseError) && isDirtyAlt && (
+          {(!isValid || recoveryPhraseError || submitError) && isDirtyAlt && (
             <span className="text-sm font-semibold text-red-500">
-              {recoveryPhraseError ? recoveryPhraseError : "Oh, invalid"}
+              {submitError ?? recoveryPhraseError ?? "Oh, invalid"}
             </span>
           )}
 

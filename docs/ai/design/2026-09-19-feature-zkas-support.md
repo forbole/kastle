@@ -29,8 +29,9 @@ Background code owns ZKas derivation and signing. The visible extension popup ow
 ## Data Models
 
 - `networkId` remains the Kaspa RPC network. An optional `activeChain` selects the wallet dashboard; old stored settings default to Kaspa. ZKas Mainnet requires `preview === true`, `activeChain === "zkas"`, Kaspa `networkId === mainnet`, and a separate `local:zkas-experimental-enabled` value that is not `false`. A missing flag preserves pre-upgrade Experimental choices; the toggle writes an explicit flag thereafter. Disabling it first writes `false` to the separate key, then selects Kaspa, so a stale whole-settings write from another extension window cannot reauthorize ZKas. The picker, routes, and background key service apply the gate; ZKas testnet remains unsupported in the picker until a validated signer exists.
-- Per-network daemon URL with no default. HTTPS is required except loopback development; optional host permission is requested from a user gesture.
+- Per-network daemon URL with no default. HTTPS is required except loopback development; optional host permission is requested from a user gesture. Enabling ZKas opens this setup before ZKas network selection or wallet creation/import. Saving the daemon validates its network and shares the selected compatible account's FVK after an explicit disclosure. Registration is bound to the exact initiating daemon URL, and general settings writes are serialized across extension windows.
 - Public ZKas account address bound to Kastle wallet ID and account index. Phrase-derived seeds are not persisted. A newly imported spending seed is its own encrypted `zkasSeed` wallet secret and public wallet entry; legacy Kaspa private-key wallets with an attached seed remain readable. Neither route derives a ZKas seed from the Kaspa private key.
+- A newly generated wallet captures the configured daemon's current DAA score and uses it only for its immediate first registration. Kastle does not persist that daemon-provided score. An imported recovery phrase or spending seed, registration retry, and daemon change use birthday `0`. Walletd receives the FVK and effective birthday with `recoverable_history: true`.
 - Balance in decimal-string sompi with sync and missing-history flags; all payment amounts are `bigint`.
 - Account/network-scoped wallet token derived locally with a domain-separated HMAC from the derived seed; never returned to a dApp.
 - A keyring session version invalidates in-flight operations after lock, unlock, reset, or password migration.
@@ -59,7 +60,7 @@ Background code owns ZKas derivation and signing. The visible extension popup ow
 - Direct daemon adapter because the upstream SDK is not published to npm.
 - Existing ordinary BIP39 phrase with upstream ZIP-32 account derivation keeps backup and account switching familiar. The switcher shows Kaspa wallets on Kaspa networks and eligible phrase plus spending-seed wallets on ZKas Mainnet. A spending seed imports through Import Wallet independently of the selected phrase and needs its own backup. Passphrase and Ledger accounts fail closed on ZKas.
 - First version requires one full transaction. A fragmented payment fails before signing, avoiding ambiguous partial delivery.
-- Daemon choice is explicit because its operator can observe activity through the FVK.
+- Daemon choice and FVK disclosure are explicit because its operator can identify addresses and observe balances and transaction history through the FVK. The configured daemon is required for ZKas wallet creation/import and sending.
 
 ## Non-Functional Requirements
 

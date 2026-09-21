@@ -8,8 +8,8 @@ import {
 import {
   selectWalletNetwork,
   ZKAS_EXPERIMENTAL_KEY,
-  ZKAS_MAINNET,
 } from "@/lib/wallet-network";
+import { selectZKasNetworkWithDaemon } from "@/lib/zkas/setup";
 
 export default function useSwitchNetwork() {
   const [settings, setSettings] = useSettings();
@@ -28,22 +28,23 @@ export default function useSwitchNetwork() {
     if (settings.networkId !== network) await refreshKaspaAddresses(network);
   };
 
-  const switchZKasNetwork = async () => {
+  const switchZKasNetwork = async (
+    daemonUrl?: string,
+    options: { deferKaspaAddressRefresh?: boolean } = {},
+  ): Promise<boolean> => {
     if (!settings) throw new Error("Settings not loaded");
     const enabled = await storage.getItem<boolean>(ZKAS_EXPERIMENTAL_KEY);
     if (settings.preview !== true || enabled === false)
       throw new Error("Enable Experimental features to use ZKas");
-    if (
-      settings.activeChain === "zkas" &&
-      settings.networkId === NetworkType.Mainnet
-    )
-      return;
-    await setSettings((prev) =>
-      selectWalletNetwork(prev, ZKAS_MAINNET, enabled),
-    );
-    if (settings.networkId !== NetworkType.Mainnet) {
+    let needsKaspaAddressRefresh = false;
+    await setSettings((prev) => {
+      needsKaspaAddressRefresh = prev.networkId !== NetworkType.Mainnet;
+      return selectZKasNetworkWithDaemon(prev, enabled, daemonUrl);
+    });
+    if (needsKaspaAddressRefresh && options.deferKaspaAddressRefresh !== true) {
       await refreshKaspaAddresses(NetworkType.Mainnet);
     }
+    return needsKaspaAddressRefresh;
   };
 
   const switchEvmL2Network = async (chainId: number) => {

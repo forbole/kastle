@@ -4,12 +4,18 @@ import {
   updateWalletSettingsLocked,
   WALLET_SETTINGS_STORAGE_KEY,
 } from "@/lib/wallet-settings-storage";
+import {
+  SETTINGS_STORAGE_KEY,
+  updateSettingsLocked,
+} from "@/lib/settings-storage";
+
+const isLockedKey = (key: StorageItemKey) =>
+  key === WALLET_SETTINGS_STORAGE_KEY || key === SETTINGS_STORAGE_KEY;
 
 function useStorageState<T>(key: StorageItemKey, initialValue: T) {
   const [snapshot, setSnapshot] = useState({
     value: initialValue,
-    baselineJson:
-      key === WALLET_SETTINGS_STORAGE_KEY ? JSON.stringify(initialValue) : "",
+    baselineJson: isLockedKey(key) ? JSON.stringify(initialValue) : "",
   });
   const value = snapshot.value;
   const [isLoading, setIsLoading] = useState(true);
@@ -19,10 +25,7 @@ function useStorageState<T>(key: StorageItemKey, initialValue: T) {
       if (updatedValue !== null) {
         setSnapshot({
           value: updatedValue,
-          baselineJson:
-            key === WALLET_SETTINGS_STORAGE_KEY
-              ? JSON.stringify(updatedValue)
-              : "",
+          baselineJson: isLockedKey(key) ? JSON.stringify(updatedValue) : "",
         });
       }
     },
@@ -33,10 +36,7 @@ function useStorageState<T>(key: StorageItemKey, initialValue: T) {
     storage.getItem(key, { fallback: initialValue }).then((storedValue) => {
       setSnapshot({
         value: storedValue,
-        baselineJson:
-          key === WALLET_SETTINGS_STORAGE_KEY
-            ? JSON.stringify(storedValue)
-            : "",
+        baselineJson: isLockedKey(key) ? JSON.stringify(storedValue) : "",
       });
       setIsLoading(false);
     });
@@ -51,22 +51,21 @@ function useStorageState<T>(key: StorageItemKey, initialValue: T) {
       return;
     }
 
-    if (key === WALLET_SETTINGS_STORAGE_KEY) {
+    if (isLockedKey(key)) {
       try {
-        const next = await updateWalletSettingsLocked<T>(
-          key,
-          (current) =>
-            typeof newValue === "function"
-              ? (newValue as (prev: T) => T | Promise<T>)(current)
-              : newValue,
-          {
-            expectedJson:
-              typeof newValue === "function"
-                ? undefined
-                : snapshot.baselineJson,
-            fallback: initialValue,
-          },
-        );
+        const update = (current: T) =>
+          typeof newValue === "function"
+            ? (newValue as (prev: T) => T | Promise<T>)(current)
+            : newValue;
+        const options = {
+          expectedJson:
+            typeof newValue === "function" ? undefined : snapshot.baselineJson,
+          fallback: initialValue,
+        };
+        const next =
+          key === WALLET_SETTINGS_STORAGE_KEY
+            ? await updateWalletSettingsLocked<T>(key, update, options)
+            : await updateSettingsLocked<T>(key, update, options);
         setSnapshot({ value: next, baselineJson: JSON.stringify(next) });
       } catch (cause) {
         const latest = await storage.getItem(key, { fallback: initialValue });

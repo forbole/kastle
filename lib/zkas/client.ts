@@ -24,6 +24,7 @@ const statusSchema = z.object({
   address: z.string().nullable(),
   network: z.string(),
   node_connected: z.boolean(),
+  daa_score: z.number().int().nonnegative().safe(),
   synced: z.boolean(),
   missing_history: z.boolean().optional(),
 });
@@ -161,20 +162,20 @@ export function getZKasDaemonOriginPattern(value: string): string {
 
 export class ZKasClient {
   private readonly baseUrl: string;
-  private readonly token: string;
+  private readonly token?: string;
   private readonly network: ZKasNetwork;
   private readonly fetcher: typeof fetch;
   private readonly guard?: () => Promise<void>;
 
   constructor(config: {
     baseUrl: string;
-    token: string;
+    token?: string;
     network: ZKasNetwork;
     fetch?: typeof fetch;
     guard?: () => Promise<void>;
   }) {
     this.baseUrl = validatedBaseUrl(config.baseUrl);
-    if (!/^[0-9a-fA-F]{32}$/.test(config.token)) {
+    if (config.token !== undefined && !/^[0-9a-fA-F]{32}$/.test(config.token)) {
       throw new Error("Invalid ZKas wallet token");
     }
     this.token = config.token;
@@ -207,7 +208,7 @@ export class ZKasClient {
       const response = await this.fetcher(`${this.baseUrl}${path}`, {
         method: body === undefined ? "GET" : "POST",
         headers: {
-          "X-Wallet-Token": this.token,
+          ...(this.token ? { "X-Wallet-Token": this.token } : {}),
           ...(body === undefined ? {} : { "Content-Type": "application/json" }),
         },
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
@@ -226,22 +227,41 @@ export class ZKasClient {
     }
   }
 
-  async state(fvkHex: string, expectedAddress: string): Promise<ZKasState> {
-    if (!/^[0-9a-fA-F]{192}$/.test(fvkHex)) {
-      throw new Error("Invalid ZKas viewing key");
-    }
+  private async status(): Promise<z.infer<typeof statusSchema>> {
     const status = statusSchema.parse(await this.request("/api/status"));
     if (status.network !== this.network) {
       throw new Error(
         "ZKas daemon network does not match the selected network",
       );
     }
+    return status;
+  }
+
+  async currentBirthday(): Promise<number> {
+    return (await this.status()).daa_score;
+  }
+
+  async register(
+    fvkHex: string,
+    expectedAddress: string,
+    birthday: number,
+  ): Promise<z.infer<typeof statusSchema>> {
+    if (!/^[0-9a-fA-F]{192}$/.test(fvkHex)) {
+      throw new Error("Invalid ZKas viewing key");
+    }
+    if (!Number.isSafeInteger(birthday) || birthday < 0) {
+      throw new Error("Invalid ZKas wallet birthday");
+    }
+    if (!this.token) throw new Error("ZKas wallet token is required");
+    const status = await this.status();
+    const effectiveBirthday = birthday > status.daa_score ? 0 : birthday;
     let address = status.address;
     if (!status.has_wallet) {
       const watch = watchSchema.parse(
         await this.request("/api/wallet/watch", {
           fvk_hex: fvkHex,
-          birthday: 0,
+          birthday: effectiveBirthday,
+          recoverable_history: true,
         }),
       );
       address = watch.address;
@@ -253,11 +273,16 @@ export class ZKasClient {
     ) {
       throw new Error("ZKas daemon address does not match the local account");
     }
+    return status;
+  }
+
+  async state(fvkHex: string, expectedAddress: string): Promise<ZKasState> {
+    const status = await this.register(fvkHex, expectedAddress, 0);
     const balance = balanceSchema.parse(
       await this.request("/api/wallet/balance"),
     );
     return {
-      address,
+      address: expectedAddress,
       balanceSompi: parseZkasSompi(balance.balance_sompi, "balance"),
       synced: status.node_connected && status.synced,
       missingHistory: status.missing_history === true,

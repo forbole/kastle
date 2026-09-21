@@ -21,6 +21,8 @@ Test each signing/broadcast trust boundary and relevant KAS/EVM regressions. Rec
 - [x] Selection and grant guards are rechecked before submit; unit tests force a state change during the pre-submit callback after proof preparation and before daemon fetch.
 - [x] Selection tests cover Experimental off, the separate disable flag defeating stale settings writes, Kaspa ↔ ZKas selection, and background account refusal. Popup toggle and dashboard checks remain manual.
 - [x] M7 selection tests cover standalone ZKas seed lookup, network-specific Kaspa wallet filtering, and duplicate spending seeds across new and legacy wallets.
+- [x] Daemon setup tests cover tokenless DAA birthday probing, one-shot new-wallet birthday registration, genesis recovery for state reads and later registrations, future-birthday fallback, recoverable-history registration, exact daemon URL binding, required daemon configuration, and wallet creation/import workflow wiring.
+- [x] Concurrent functional settings updates reread current storage under a browser lock, preserving a newly selected daemon while other extension windows update the active network or preview state.
 - [ ] Initialized-wallet test covers Import Wallet → ZKas seed preview → independent wallet creation → network-filtered switcher → password-gated backup.
 
 ## Integration Tests
@@ -63,8 +65,12 @@ M7: 54 focused ZKas and wallet-boundary tests pass, including network filtering,
 
 M8 layout regression: ZKas seed import now ends on the existing full-page **Accounts Imported** screen, followed by **Back to extension**. The closed wallet switcher moves by its full width so it cannot cover a dashboard opened in a wide browser tab. TypeScript compile, Chrome build, lint (38 existing warnings), and all 54 focused ZKas tests passed. Astra found no P0–P2 issue. Codex Security diff scan `e9179a82-ce26-453e-9fb4-ca8bcbe12839` reviewed both changed source files with zero reportable findings. The existing onboarding browser spec failed before browser launch under Node 26 because `tests/pages/onboarding.ts` imports the `Page` TypeScript type as a runtime export; the Playwright Chromium binary is also absent. Check the import transition and open/closed switcher at popup and full-tab widths with a disposable seed; no funded transaction is needed.
 
+M9 daemon-first setup: 77 focused ZKas and network tests pass. TypeScript compile, Chrome build, Firefox build, signer integrity check, and ESLint pass; ESLint reports 38 existing warnings and zero errors. Astra's fresh pass found no actionable issue after exercising account changes, permission ordering, locked registration, and registration failure. Codex Security verified occurrence `occ_3aeb382a4ad7687e0c33b196` fixed: a daemon DAA score is used only for immediate new-wallet registration, is not persisted, and every state, history, send, retry, restored import, and daemon change starts from genesis. The security pass found no new attacker-reachable issue. A live compatible daemon, initialized popup workflow, and funded payment remain manual release checks.
+
 ## Manual Testing
 
+- [ ] Enable Experimental features and confirm Kastle opens daemon setup, discloses address/history/balance visibility, and prevents ZKas selection without a configured daemon.
+- [ ] Create a fresh phrase wallet on ZKas and confirm walletd receives the current DAA birthday once; reconnect it, restore a phrase, and import a seed, then confirm each later registration receives birthday `0`.
 - [x] Serve page from loopback; confirm provider discovery and the existing Kaspa API probe.
 - [ ] Initialize an extension wallet and confirm one ZKas connection approval.
 - [ ] Check address, balance/sync warning, QR/copy, fee, denial, and result copy.
