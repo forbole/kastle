@@ -9,13 +9,16 @@ import { Hex } from "viem";
 export default function NftList() {
   const { account } = useWalletManager();
   const address = account?.address;
-  const { data, size, setSize, isLoading } = useKRC721ByAddress(address);
+  const { data, size, setSize, isLoading, error, mutate } =
+    useKRC721ByAddress(address);
   const {
     data: erc721Data,
     size: erc721Size,
     setSize: setErc721Size,
     isLoading: isErc721Loading,
     hasNextPage: hasErc721NextPage,
+    error: erc721Error,
+    mutate: mutateErc721,
   } = useErc721AssetsFromApi();
   const [pagingErc721, setPagingErc721] = useState(false);
   const observerRef = useRef<HTMLDivElement>(null);
@@ -28,6 +31,16 @@ export default function NftList() {
 
   const isCurrentlyLoading = pagingErc721 ? isErc721Loading : isLoading;
   const firstLoading = !data && isLoading;
+
+  // Same split as the Names tab: a failed fetch is not an empty wallet, so the
+  // two messages stay separate, the error takes precedence, and neither shows
+  // over cards that did land.
+  const failed = !!error || !!erc721Error;
+  const nothingRendered =
+    !isLoading &&
+    !isErc721Loading &&
+    (data?.[0]?.result?.length ?? 0) === 0 &&
+    (erc721Data?.[0]?.items?.length ?? 0) === 0;
 
   const loadMore = useCallback(async () => {
     if (isLoadingRef.current || isCurrentlyLoading) return;
@@ -102,6 +115,28 @@ export default function NftList() {
 
   return (
     <>
+      {failed && nothingRendered && (
+        <div className="flex w-full flex-col items-center gap-2 py-6 text-center text-sm text-daintree-400">
+          Couldn’t load your NFTs. Check your connection and try again.
+          <button
+            type="button"
+            className="rounded-full border border-daintree-400 px-4 py-1 text-white"
+            onClick={() => {
+              mutate();
+              mutateErc721();
+            }}
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {!failed && nothingRendered && (
+        <div className="flex w-full justify-center py-6 text-sm text-daintree-400">
+          No NFTs found
+        </div>
+      )}
+
       <div className="grid grid-cols-3 items-end gap-3 pb-4">
         {firstLoading &&
           Array.from({ length: 6 }).map((_, index) => (
@@ -117,6 +152,7 @@ export default function NftList() {
               key={`${krc721.tick}-${krc721.tokenId}`}
               tick={krc721.tick}
               tokenId={krc721.tokenId}
+              buri={krc721.buri}
             />
           )),
         )}

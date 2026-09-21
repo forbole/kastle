@@ -59,7 +59,12 @@ export const KNS_API_URLS = {
   [NetworkType.TestnetT10]: "https://api.knsdomains.org/tn10",
 };
 
-export const KRC721_INDEXER_BASE_URL = "https://krc721-indexer.kaspa.com";
+// The production host only indexes mainnet; testnet-10 routes 404 there and
+// the NFT tab painted blank on testnet. (Mobile builds the same wrong URL.)
+export const KRC721_INDEXER_URLS = {
+  [NetworkType.Mainnet]: "https://krc721-indexer.kaspa.com",
+  [NetworkType.TestnetT10]: "https://dev-krc721-indexer.kaspa.com",
+};
 
 export const initialSettings = {
   networkId: NetworkType.Mainnet,
