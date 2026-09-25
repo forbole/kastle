@@ -72,8 +72,9 @@ export default function KRC721Item({
           setCacheFailed(true);
         }}
         alt={data?.name ?? name}
-        className="m-auto max-h-28 rounded-xl"
-        placeholder={{ className: "m-auto max-h-28 rounded-xl" }}
+        // Fills the tile and crops, as mobile's expo-image `cover` does.
+        className="h-28 w-full rounded-xl object-cover"
+        placeholder={{ className: "h-28 w-full rounded-xl object-cover" }}
       />
       <div className="absolute bottom-0 left-0 right-0 m-1 rounded-full border border-[#203C49] bg-[#102832] py-1.5 text-center text-[10px] leading-none text-white">
         {name.length > NAME_LIMIT ? `${name.slice(0, NAME_LIMIT)}...` : name}
