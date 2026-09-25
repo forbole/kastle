@@ -4,7 +4,19 @@ import KRC721Item from "@/components/dashboard/KRC721Item";
 import useErc721AssetsFromApi from "@/hooks/evm/useErc721AssetsFromApi";
 import { useState, useEffect, useRef, useCallback } from "react";
 import ERC721Item from "./Erc721Item";
-import { Hex } from "viem";
+import { Hex, hexToNumber } from "viem";
+import { NftAsset } from "@/lib/nft/erc721";
+import { INS_V1_REGISTRY, INS_V2_REGISTRY } from "@/lib/ins/insRegistry";
+import { igraMainnet } from "@/lib/layer2";
+
+// INS names are ERC-721s on these two registries, and they already have the
+// Names tab. Filtered here, after the fetch, so the L2 pager is untouched.
+const INS_REGISTRIES = new Set(
+  [INS_V2_REGISTRY, INS_V1_REGISTRY].map((a) => a.toLowerCase()),
+);
+const isInsName = (chainId: string, asset: NftAsset) =>
+  hexToNumber(chainId as Hex) === igraMainnet.id &&
+  INS_REGISTRIES.has(asset.token.address_hash.toLowerCase());
 
 export default function NftList() {
   const { account } = useWalletManager();
@@ -36,11 +48,20 @@ export default function NftList() {
   // two messages stay separate, the error takes precedence, and neither shows
   // over cards that did land.
   const failed = !!error || !!erc721Error;
+  const erc721Pages = erc721Data?.map((page) => ({
+    ...page,
+    items: page.items.filter((asset) => !isInsName(page.chainId, asset)),
+  }));
+  // Counted from what the grid below actually draws -- every page of both
+  // sources, ERC-721 only once it is paging -- and only once there is nothing
+  // left to page in, so the message can never sit above a card.
+  const renderedCount =
+    (data?.reduce((n, page) => n + (page.result?.length ?? 0), 0) ?? 0) +
+    (pagingErc721
+      ? (erc721Pages?.reduce((n, page) => n + page.items.length, 0) ?? 0)
+      : 0);
   const nothingRendered =
-    !isLoading &&
-    !isErc721Loading &&
-    (data?.[0]?.result?.length ?? 0) === 0 &&
-    (erc721Data?.[0]?.items?.length ?? 0) === 0;
+    !isLoading && !isErc721Loading && !hasNextPage && renderedCount === 0;
 
   const loadMore = useCallback(async () => {
     if (isLoadingRef.current || isCurrentlyLoading) return;
@@ -111,7 +132,11 @@ export default function NftList() {
     }
 
     return () => observer.disconnect();
-  }, [hasNextPage]);
+    // Re-armed when a load settles too: observe() reports the sentinel's
+    // current state, so a sentinel still on screen asks for the next page.
+    // Keyed on hasNextPage alone, a first intersection that landed mid-load
+    // was dropped and nothing re-fired it until the user scrolled.
+  }, [hasNextPage, isCurrentlyLoading]);
 
   return (
     <>
@@ -158,7 +183,7 @@ export default function NftList() {
         )}
 
         {pagingErc721 &&
-          erc721Data?.map((page) =>
+          erc721Pages?.map((page) =>
             page.items.map((asset) => (
               <ERC721Item
                 key={`${page.chainId}-${asset.token.address_hash}-${asset.id}`}

@@ -70,6 +70,12 @@ export type WalletConnections = Record<string, unknown>;
 export const captureException = () => {};
 export const kasplexMainnet = { id: 167012 };
 export const kasplexTestnet = { id: 167012 };
+// lib/ins/insRegistry builds its viem client from this at import time; the
+// URL is never dialled by the grid.
+export const igraMainnet = {
+  id: 38833,
+  rpcUrls: { default: { http: ["http://127.0.0.1:9"] } },
+};
 export default function useStorageState() {
   return [undefined, async () => {}, false];
 }

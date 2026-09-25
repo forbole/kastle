@@ -50,6 +50,8 @@ test.afterAll(() => server?.close());
 type Fixture = {
   pages?: ReturnType<typeof rows>[];
   indexerStatus?: number;
+  // Holds every indexer response, so the first intersection lands mid-load.
+  indexerDelayMs?: number;
   metaStatus?: number;
   tokenState?: string;
   tokenStatus?: number;
@@ -60,6 +62,7 @@ async function open(page: Page, query: string, fx: Fixture = {}) {
   const {
     pages = [rows(3)],
     indexerStatus = 200,
+    indexerDelayMs = 0,
     metaStatus = 200,
     tokenState = "unlisted",
     tokenStatus = 200,
@@ -71,7 +74,8 @@ async function open(page: Page, query: string, fx: Fixture = {}) {
     contentType: "application/json",
     body: JSON.stringify(body),
   });
-  await page.route(/krc721-indexer\.kaspa\.com/, (route) => {
+  await page.route(/krc721-indexer\.kaspa\.com/, async (route) => {
+    if (indexerDelayMs) await new Promise((r) => setTimeout(r, indexerDelayMs));
     const url = route.request().url();
     reqs.push(url);
     const addr = url.match(/\/address\/[^?]+(?:\?offset=(\d+))?$/);
@@ -229,6 +233,74 @@ test("ERC-721 pages follow the KRC-721 pages (Do-not-break)", async ({
     "L2 Cat",
     "Igra Dog",
   ]);
+});
+
+// QA wallet shape: no KRC-721, nothing on Kasplex, kastlewallet.igra on the
+// INS V2 registry. Igra is chainIndex 1, so it lands on erc721Data[1].
+const igraPage = (items: unknown[]) => [
+  { chainId: "0x3173b", chainIndex: 0, items: [] },
+  { chainId: "0x97b1", chainIndex: 1, items },
+];
+const insName = (id: string, registry: string, name: string) => ({
+  id,
+  token: { address_hash: registry },
+  metadata: { name },
+});
+
+test("INS names stay out of the NFT tab, which then says it is empty", async ({
+  page,
+}) => {
+  const erc = igraPage([
+    insName(
+      "294",
+      "0x7E7018959bf44045F01D176D8db1594894CBf4E9",
+      "kastlewallet.igra",
+    ),
+    insName("5", "0x42c2f5aa0c4aacfd07e5fbe65b898212c1c2879c", "old.igra"),
+  ]);
+  await open(
+    page,
+    `route=/grid&erc721=${encodeURIComponent(JSON.stringify(erc))}`,
+    { pages: [[]] },
+  );
+  await expect(page.getByText("No NFTs found")).toBeVisible();
+  await expect(page.locator("#popup .grid > div")).toHaveCount(0);
+  await expect(page.getByText("kastlewallet.igra")).toHaveCount(0);
+});
+
+test("the empty message never renders above an L2 card", async ({ page }) => {
+  const erc = igraPage([
+    insName(
+      "294",
+      "0x7E7018959bf44045F01D176D8db1594894CBf4E9",
+      "kastlewallet.igra",
+    ),
+    insName("8", "0xb", "Igra Dog"),
+  ]);
+  await open(
+    page,
+    `route=/grid&erc721=${encodeURIComponent(JSON.stringify(erc))}`,
+    { pages: [[]] },
+  );
+  await expect(page.getByText("Igra Dog")).toBeVisible();
+  expect(await labels(page)).toEqual(["Igra Dog"]);
+  await expect(page.getByText("No NFTs found")).toHaveCount(0);
+});
+
+// The stall behind the QA screenshot: the sentinel is on screen from the first
+// paint, its first intersection lands while KRC-721 is still loading and is
+// dropped, and a grid too short to scroll never produces another one.
+test("L2 pages load without a scroll when KRC-721 was slow", async ({
+  page,
+}) => {
+  const erc = igraPage([insName("8", "0xb", "Igra Dog")]);
+  await open(
+    page,
+    `route=/grid&erc721=${encodeURIComponent(JSON.stringify(erc))}`,
+    { pages: [[]], indexerDelayMs: 500 },
+  );
+  await expect(page.getByText("Igra Dog")).toBeVisible();
+  await expect(page.getByText("Scroll to load more...")).toHaveCount(0);
 });
 
 test("testnet-10 uses the dev indexer host", async ({ page }) => {
