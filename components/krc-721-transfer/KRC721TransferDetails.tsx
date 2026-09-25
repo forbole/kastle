@@ -78,7 +78,7 @@ export const KRC721TransferDetails = ({
   const onClose = () => navigate("/dashboard");
 
   const addressValidator = async (value: string | undefined) => {
-    const genericErrorMessage = "Invalid address or KRC721 domain";
+    const genericErrorMessage = "Invalid Kaspa address or .kas domain";
     if (!value) return false;
 
     if (currentBalance < ((commitFee ?? 0) + (revealFee ?? 0)) / 1e8) {
@@ -209,7 +209,7 @@ export const KRC721TransferDetails = ({
               errors.userInput &&
                 "ring ring-red-500/25 focus:ring focus:ring-red-500/25",
             )}
-            placeholder="Enter wallet address or KRC721"
+            placeholder="Enter wallet address or KNS"
           />
 
           <div className="pointer-events-none absolute end-0 top-10 flex h-16 items-center pe-3">
