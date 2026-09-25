@@ -3,6 +3,7 @@ import { formatZkasAmount, parseZkasAmount } from "@/lib/zkas/amount";
 import { historyDetailLabels } from "@/lib/zkas/history-detail";
 import { validateZKasMemo } from "@/lib/zkas/memo";
 import {
+  probeZKasDaemonBirthday,
   ZKasClient,
   ZKasSubmissionUncertainError,
   type ZKasSigner,
@@ -28,17 +29,25 @@ const goodStatus = {
   balance_sompi: "1000",
 };
 
-test("daemon probing returns the exact DAA birthday without a wallet token", async () => {
-  const { daemonFetch, calls } = fakeDaemon({
-    "/api/status": { ...goodStatus, has_wallet: false, address: null },
-  });
-  const client = new ZKasClient({
-    baseUrl: "https://wallet.example",
-    network: "mainnet",
-    fetch: daemonFetch,
-  });
-  await expect(client.currentBirthday()).resolves.toBe(123456);
-  expect(calls).toEqual([{ path: "/api/status", body: undefined }]);
+test("daemon probing uses a fresh token before a wallet exists", async () => {
+  const tokens: string[] = [];
+  const daemonFetch = (async (_url: string, init?: RequestInit) => {
+    const token = new Headers(init?.headers).get("X-Wallet-Token");
+    if (!token || !/^[0-9a-f]{32}$/.test(token)) {
+      return new Response(null, { status: 401 });
+    }
+    tokens.push(token);
+    return Response.json({ ...goodStatus, has_wallet: false, address: null });
+  }) as typeof fetch;
+
+  await expect(
+    probeZKasDaemonBirthday("https://wallet.example", "mainnet", daemonFetch),
+  ).resolves.toBe(123456);
+  await expect(
+    probeZKasDaemonBirthday("https://wallet.example", "mainnet", daemonFetch),
+  ).resolves.toBe(123456);
+  expect(tokens).toHaveLength(2);
+  expect(tokens[0]).not.toBe(tokens[1]);
 });
 const goodPrepare = {
   session: "session-1",

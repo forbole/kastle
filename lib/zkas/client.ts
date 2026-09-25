@@ -160,6 +160,25 @@ export function getZKasDaemonOriginPattern(value: string): string {
   return `${url.protocol}//${url.hostname}/*`;
 }
 
+export async function probeZKasDaemonBirthday(
+  baseUrl: string,
+  network: ZKasNetwork,
+  fetcher?: typeof fetch,
+): Promise<number> {
+  // The wallet token is not available before import or initial setup. A fresh
+  // token lets a token-requiring proxy serve status without exposing a wallet.
+  const bytes = globalThis.crypto.getRandomValues(new Uint8Array(16));
+  const token = Array.from(bytes, (byte) =>
+    byte.toString(16).padStart(2, "0"),
+  ).join("");
+  return new ZKasClient({
+    baseUrl,
+    network,
+    token,
+    fetch: fetcher,
+  }).currentBirthday();
+}
+
 export class ZKasClient {
   private readonly baseUrl: string;
   private readonly token?: string;

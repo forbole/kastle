@@ -3,6 +3,7 @@ import { sendMessage } from "@/lib/utils";
 import { parseZkasAmount } from "./amount";
 import {
   getZKasDaemonOriginPattern,
+  probeZKasDaemonBirthday,
   ZKasClient,
   type ZKasHistory,
   type ZKasSigner,
@@ -100,7 +101,7 @@ export async function getZKasDaemonBirthday(
   if (!(await browser.permissions.contains({ origins: [pattern] }))) {
     throw new Error("Allow Kastle access to the selected ZKas daemon first");
   }
-  return new ZKasClient({ baseUrl: daemonUrl, network }).currentBirthday();
+  return probeZKasDaemonBirthday(daemonUrl, network);
 }
 
 export async function registerSelectedZKasWallet(
