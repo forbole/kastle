@@ -57,6 +57,9 @@ type Fixture = {
   // know, so by default every card takes the IPFS fallback.
   cacheStatus?: number;
   cacheDelayMs?: number;
+  // The cache's `/metadata/` JSON. A token it cannot resolve gets a 400, or
+  // no answer at all ("hang").
+  cacheMeta?: number | "hang";
   tokenState?: string;
   tokenStatus?: number;
   tokenOwner?: string;
@@ -70,6 +73,7 @@ async function open(page: Page, query: string, fx: Fixture = {}) {
     metaStatus = 200,
     cacheStatus = 400,
     cacheDelayMs = 0,
+    cacheMeta = 400,
     tokenState = "unlisted",
     tokenStatus = 200,
     tokenOwner = OWNER,
@@ -132,14 +136,29 @@ async function open(page: Page, query: string, fx: Fixture = {}) {
         name: `KSPR #${id}`,
         image: `${BURI}/${id}.png`,
         description: `desc ${id}`,
-        attributes: [],
+        attributes: [{ trait_type: "Source", value: "pinata" }],
       }),
     );
   });
   cacheMaxInFlight = 0;
   let inFlight = 0;
   await page.route(/krc721-cache(-dev)?\.kaspa\.com/, async (route) => {
-    reqs.push(route.request().url());
+    const url = route.request().url();
+    reqs.push(url);
+    const meta = url.match(/\/metadata\/\w+\/(\d+)$/);
+    if (meta) {
+      if (cacheMeta === "hang") return;
+      if (cacheMeta !== 200)
+        return route.fulfill({ status: cacheMeta, body: "" });
+      return route.fulfill(
+        json({
+          name: `KSPR #${meta[1]}`,
+          image: `ipfs://bafyCacheArt/${meta[1]}.png`,
+          description: `cache desc ${meta[1]}`,
+          attributes: [{ trait_type: "Source", value: "cache" }],
+        }),
+      );
+    }
     cacheMaxInFlight = Math.max(cacheMaxInFlight, ++inFlight);
     await new Promise((r) => setTimeout(r, cacheDelayMs));
     inFlight--;
@@ -416,5 +435,57 @@ test.describe("detail screen Transfer gate", () => {
       page.getByText("Couldn’t load this NFT’s metadata"),
     ).toBeVisible();
     await expect(page.locator(".animate-pulse")).toHaveCount(0);
+  });
+});
+
+// Bug 3: the detail screen took its image and traits from Pinata alone. For
+// GREENNYMPH #46 that was two minutes of skeletons and two 404s, while
+// kaspa.com's cache answered both in 0.3 s.
+test.describe("detail screen draws from kaspa.com's cache", () => {
+  const MAIN = "https://krc721-cache.kaspa.com/krc721/mainnet";
+  const art = (page: Page) => page.locator("img[alt='KSPR_1']");
+  const traits = (page: Page) => page.locator("#popup li");
+
+  test("image and traits come from the cache while Pinata 429s", async ({
+    page,
+  }) => {
+    const reqs = await open(page, "route=/krc721/KSPR/1", {
+      cacheStatus: 200,
+      cacheMeta: 200,
+      metaStatus: 429,
+    });
+    await expect(traits(page)).toHaveText([/Source\W*Cache/]);
+    await expect(page.getByText("cache desc 1")).toBeVisible();
+    await expect(art(page)).toHaveAttribute("src", `${MAIN}/optimized/KSPR/1`);
+    await expect(page.locator("img[alt='Placeholder']")).toHaveCount(0);
+    expect(reqs.filter((u) => u.includes("pinata"))).toEqual([]);
+  });
+
+  for (const cacheMeta of [400, "hang"] as const) {
+    test(`cache metadata ${cacheMeta} → Pinata's metadata and artwork`, async ({
+      page,
+    }) => {
+      // "hang" waits out the 15 s deadline.
+      test.slow(cacheMeta === "hang");
+      const reqs = await open(page, "route=/krc721/KSPR/1", { cacheMeta });
+      await expect(traits(page)).toHaveText([/Source\W*Pinata/], {
+        timeout: 25_000,
+      });
+      await expect(art(page)).toHaveAttribute("src", `${GW}/1.png`);
+      const cacheAt = reqs.indexOf(`${MAIN}/metadata/KSPR/1`);
+      expect(cacheAt).toBeGreaterThanOrEqual(0);
+      expect(cacheAt).toBeLessThan(reqs.findIndex((u) => u.includes("pinata")));
+    });
+  }
+
+  test("testnet-10 asks the dev cache", async ({ page }) => {
+    const dev = "https://krc721-cache-dev.kaspa.com/krc721/testnet-10";
+    const reqs = await open(page, "route=/krc721/KSPR/1&network=testnet-10", {
+      cacheStatus: 200,
+      cacheMeta: 200,
+    });
+    await expect(traits(page)).toHaveText([/Source\W*Cache/]);
+    await expect(art(page)).toHaveAttribute("src", `${dev}/optimized/KSPR/1`);
+    expect(reqs).toContain(`${dev}/metadata/KSPR/1`);
   });
 });

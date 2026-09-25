@@ -1,7 +1,10 @@
 import { useParams } from "react-router-dom";
-import { useKRC721Details, useKRC721Token } from "@/hooks/krc721/useKRC721";
+import {
+  useKRC721Details,
+  useKRC721Image,
+  useKRC721Token,
+} from "@/hooks/krc721/useKRC721";
 import Header from "@/components/GeneralHeader";
-import { convertIPFStoHTTP } from "@/lib/utils";
 import useKRC721RecentTransfer from "@/hooks/krc721/useKRC721RecentTransfer";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import InfoImage from "../nft/InfoImage";
@@ -13,6 +16,7 @@ import TransferButton from "../nft/TransferButton";
 export default function KRC721() {
   const { tick, tokenId } = useParams();
   const { data, error, mutate } = useKRC721Details(tick, tokenId);
+  const image = useKRC721Image(tick, tokenId, data?.image);
   const {
     data: token,
     error: tokenError,
@@ -70,9 +74,10 @@ export default function KRC721() {
         </div>
       ) : (
         <InfoImage
-          isLoading={isLoading}
+          isLoading={!image.src && isLoading}
           downloadedName={`${tick}_${tokenId}`}
-          imageUrl={convertIPFStoHTTP(data?.image ?? "")}
+          imageUrl={image.src ?? ""}
+          onError={image.onError}
         />
       )}
 

@@ -1,48 +1,26 @@
-import { useKRC721Metadata } from "@/hooks/krc721/useKRC721";
+import {
+  requestCacheSlot,
+  useKRC721CacheBase,
+  useKRC721Metadata,
+} from "@/hooks/krc721/useKRC721";
 import { convertIPFStoHTTP } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import NFTPlaceholderImage from "@/components/NFTPlaceholderImage.tsx";
-import { KRC721_CACHE_URLS, NetworkType } from "@/contexts/SettingsContext";
 
 const NAME_LIMIT = 14;
 
-// kaspa.com's cache answers a burst from one client with 429s (measured: 16
-// of 50 at once, then 49 of the next 50; 0 of 50 at five in flight), so the
-// cards take turns. Slots are granted in mount order, i.e. grid order.
-// ponytail: same shape as mobile's KRC721_CACHE_MAX_IN_FLIGHT limiter.
-const CACHE_MAX_IN_FLIGHT = 5;
-let inFlight = 0;
-const waiters: (() => void)[] = [];
-
+// The cards take turns for kaspa.com's cache (see requestCacheSlot), in
+// mount order, i.e. grid order.
 function useCacheSlot() {
   const [granted, setGranted] = useState(false);
-  const held = useRef(false);
-
-  const release = useCallback(() => {
-    if (!held.current) return;
-    held.current = false;
-    const next = waiters.shift();
-    if (next) next();
-    else inFlight -= 1;
-  }, []);
+  const release = useRef(() => {});
 
   useEffect(() => {
-    const grant = () => {
-      held.current = true;
-      setGranted(true);
-    };
-    if (inFlight < CACHE_MAX_IN_FLIGHT) {
-      inFlight += 1;
-      grant();
-    } else waiters.push(grant);
-    return () => {
-      const i = waiters.indexOf(grant);
-      if (i >= 0) waiters.splice(i, 1);
-      release();
-    };
-  }, [release]);
+    release.current = requestCacheSlot(() => setGranted(true));
+    return () => release.current();
+  }, []);
 
-  return [granted, release] as const;
+  return [granted, useCallback(() => release.current(), [])] as const;
 }
 
 export default function KRC721Item({
@@ -54,7 +32,6 @@ export default function KRC721Item({
   tokenId: string;
   buri?: string;
 }) {
-  const { networkId } = useRpcClientStateful();
   // Mobile's order: kaspa.com's cached thumbnail first, which needs no
   // metadata at all, and only if that image fails the IPFS metadata and the
   // artwork it names. The cache answers 400 for a token it does not know.
@@ -64,7 +41,8 @@ export default function KRC721Item({
   const [slot, releaseSlot] = useCacheSlot();
   const { data } = useKRC721Metadata(cacheFailed ? buri : undefined, tokenId);
   const navigate = useNavigate();
-  const cacheSrc = `${KRC721_CACHE_URLS[networkId ?? NetworkType.Mainnet]}/thumbnail/${tick}/${tokenId}`;
+  const cacheBase = useKRC721CacheBase();
+  const cacheSrc = `${cacheBase}/thumbnail/${tick}/${tokenId}`;
 
   const onClick = () => {
     navigate(`/krc721/${tick}/${tokenId}`);

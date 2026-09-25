@@ -6,12 +6,14 @@ type InfoImageProps = {
   isLoading?: boolean;
   downloadedName: string;
   imageUrl: string;
+  onError?: () => void;
 };
 
 export default function InfoImage({
   isLoading,
   downloadedName,
   imageUrl,
+  onError,
 }: InfoImageProps) {
   const { value: showDownload, setTrue: setShowDownload } = useBoolean(false);
 
@@ -40,6 +42,7 @@ export default function InfoImage({
             alt={downloadedName ?? "ERC721"}
             className="m-auto max-h-48 max-w-48 rounded-xl"
             onLoad={setShowDownload}
+            onError={onError}
           />
           {showDownload && (
             <div
