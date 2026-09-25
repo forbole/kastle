@@ -40,7 +40,8 @@ export default function InfoImage({
           <NFTPlaceholderImage
             src={imageUrl}
             alt={downloadedName ?? "ERC721"}
-            className="m-auto max-h-48 max-w-48 rounded-xl"
+            // Fills the box and crops, as mobile's expo-image `cover` does.
+            className="h-full w-full rounded-xl object-cover"
             onLoad={setShowDownload}
             onError={onError}
           />
