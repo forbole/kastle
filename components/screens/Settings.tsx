@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState } from "react";
 import { SettingItem } from "@/components/SettingItem";
 import { useSettings } from "@/hooks/useSettings";
-import { NetworkType } from "@/contexts/SettingsContext.tsx";
+import { initialSettings, NetworkType } from "@/contexts/SettingsContext.tsx";
 import { twMerge } from "tailwind-merge";
 import Header from "@/components/GeneralHeader";
 import { useNavigate } from "react-router-dom";
@@ -13,6 +13,13 @@ import { PostHogWrapperContext } from "@/contexts/PostHogWrapperProvider.tsx";
 
 import packageJson from "../../package.json";
 import CurrencySelection from "@/components/settings/CurrencySelection.tsx";
+import {
+  getSelectedWalletNetwork,
+  getVisibleWalletNetworks,
+  ZKAS_EXPERIMENTAL_KEY,
+  ZKAS_MAINNET,
+} from "@/lib/wallet-network";
+import useStorageState from "@/hooks/useStorageState";
 
 export const explorerTxLinks = {
   [NetworkType.Mainnet]: "https://explorer.kaspa.org/txs/",
@@ -34,7 +41,11 @@ export default function Settings() {
   const [lockAfterDropdownOpen, setLockAfterDropdownOpen] = useState(false);
   const [currencyDropdownOpen, setCurrencyDropdownOpen] = useState(false);
   const [settings, setSettings] = useSettings();
-  const { switchKaspaNetwork } = useSwitchNetwork();
+  const [zkasEnabled, , isZKasGateLoading] = useStorageState<boolean | null>(
+    ZKAS_EXPERIMENTAL_KEY,
+    null,
+  );
+  const { switchKaspaNetwork, switchZKasNetwork } = useSwitchNetwork();
   const navigate = useNavigate();
   const { postHog } = useContext(PostHogWrapperContext);
   const [analyticsEnabled, setAnalyticsEnabled] = useState(true);
@@ -83,8 +94,22 @@ export default function Settings() {
       text: "text-yellow-500",
       iconColor: "bg-yellow-500",
     },
+    {
+      id: ZKAS_MAINNET,
+      name: "ZKas Mainnet · Experimental",
+      text: "text-icy-blue-400",
+      iconColor: "bg-icy-blue-400",
+    },
   ];
-  const selectedNetwork = networks.find((n) => n.id === settings?.networkId);
+  const enabled = isZKasGateLoading ? false : zkasEnabled;
+  const visibleNetworks = getVisibleWalletNetworks(
+    settings ?? initialSettings,
+    enabled,
+  );
+  const selectedNetwork = networks.find(
+    (n) =>
+      n.id === getSelectedWalletNetwork(settings ?? initialSettings, enabled),
+  );
 
   return (
     <div className="relative flex h-full flex-col p-4">
@@ -154,6 +179,14 @@ export default function Settings() {
           toggleShow={() => setCurrencyDropdownOpen((prev) => !prev)}
         />
 
+        {settings && visibleNetworks.includes(ZKAS_MAINNET) && (
+          <SettingItem
+            title="ZKas daemon"
+            showChevron
+            onClick={() => navigate("/zkas/settings")}
+          />
+        )}
+
         {/* Network */}
         <SettingItem
           title="Network"
@@ -175,28 +208,41 @@ export default function Settings() {
           />
           <div
             className={twMerge(
-              "no-scrollbar absolute bottom-0 left-0 z-50 h-[25vh] w-full transform rounded-t-2xl border border-daintree-700 bg-daintree-800 p-3 transition-transform duration-300 ease-out",
-              networkDropdownOpen ? "translate-y-0" : "translate-y-[25vh]",
+              "no-scrollbar absolute bottom-0 left-0 z-50 h-[30vh] w-full transform rounded-t-2xl border border-daintree-700 bg-daintree-800 p-3 transition-transform duration-300 ease-out",
+              networkDropdownOpen ? "translate-y-0" : "translate-y-[30vh]",
             )}
           >
-            {networks.map((network) => (
-              <div
-                key={network.id}
-                className={twMerge(
-                  "flex w-full cursor-pointer items-center gap-2 rounded-lg p-2 opacity-80 hover:bg-daintree-700",
-                  network.text,
-                  selectedNetwork?.id === network.id && "bg-daintree-700",
-                )}
-                onClick={async () => {
-                  await switchKaspaNetwork(network.id);
-                  setNetworkDropdownOpen(false);
-                }}
-              >
-                <i className={twMerge("rounded-full p-1", network.iconColor)} />
-                <span className="text-sm font-semibold">{network.name}</span>
-                <div className="text-sm"></div>
-              </div>
-            ))}
+            {networks
+              .filter((network) => visibleNetworks.includes(network.id))
+              .map((network) => (
+                <div
+                  key={network.id}
+                  className={twMerge(
+                    "flex w-full cursor-pointer items-center gap-2 rounded-lg p-2 opacity-80 hover:bg-daintree-700",
+                    network.text,
+                    selectedNetwork?.id === network.id && "bg-daintree-700",
+                  )}
+                  onClick={async () => {
+                    if (
+                      network.id === ZKAS_MAINNET &&
+                      !settings?.zkasDaemonUrls?.mainnet
+                    ) {
+                      setNetworkDropdownOpen(false);
+                      navigate("/zkas/settings");
+                      return;
+                    }
+                    if (network.id === ZKAS_MAINNET) await switchZKasNetwork();
+                    else await switchKaspaNetwork(network.id);
+                    setNetworkDropdownOpen(false);
+                  }}
+                >
+                  <i
+                    className={twMerge("rounded-full p-1", network.iconColor)}
+                  />
+                  <span className="text-sm font-semibold">{network.name}</span>
+                  <div className="text-sm"></div>
+                </div>
+              ))}
           </div>
         </>
 

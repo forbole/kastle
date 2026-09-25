@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useForm, useFormContext } from "react-hook-form";
 import { twMerge } from "tailwind-merge";
 import { useNavigate } from "react-router-dom";
@@ -11,14 +11,26 @@ import { OnboardingData } from "@/components/screens/Onboarding.tsx";
 import Header from "@/components/GeneralHeader.tsx";
 import useKeyring from "@/hooks/useKeyring.ts";
 import useWalletImporter from "@/hooks/wallet/useWalletImporter.ts";
+import { useSettings } from "@/hooks/useSettings";
+import useStorageState from "@/hooks/useStorageState";
+import { ZKAS_EXPERIMENTAL_KEY } from "@/lib/wallet-network";
+import useSwitchNetwork from "@/hooks/useSwitchNetwork";
+import ImportZKasSeed from "./ImportZKasSeed";
 
 type PrivateKeyFormValues = { privateKey: string };
 
 export default function ImportPrivateKey() {
+  const [walletNetwork, setWalletNetwork] = useState<"kaspa" | "zkas">("kaspa");
+  const [settings] = useSettings();
+  const [experimentalEnabled, , gateLoading] = useStorageState<boolean | null>(
+    ZKAS_EXPERIMENTAL_KEY,
+    null,
+  );
   const { emitWalletCreated } = useAnalytics();
   const navigate = useNavigate();
   const { keyringInitialize } = useKeyring();
   const { importWalletByPrivateKey } = useWalletImporter();
+  const { switchKaspaNetwork } = useSwitchNetwork();
   const onboardingForm = useFormContext<OnboardingData>();
   const {
     handleSubmit,
@@ -48,22 +60,62 @@ export default function ImportPrivateKey() {
 
     const address = await importWalletByPrivateKey(uuid(), privateKey);
     emitWalletCreated({ method: "import", sender: address ?? undefined });
+    if (settings?.activeChain === "zkas") {
+      try {
+        await switchKaspaNetwork(settings.networkId);
+      } catch {
+        // The wallet is saved. The dashboard prompts for a compatible network.
+      }
+    }
     navigate(
       onboardingForm ? "/onboarding-success/import" : "/accounts-imported",
     );
   });
 
+  const showZKasChoice =
+    !onboardingForm &&
+    !gateLoading &&
+    settings?.preview === true &&
+    experimentalEnabled !== false;
+  if (walletNetwork === "zkas" && showZKasChoice) {
+    return <ImportZKasSeed onBack={() => setWalletNetwork("kaspa")} />;
+  }
+
   return (
     <div className="flex h-[35rem] w-[41rem] flex-col items-stretch gap-4 rounded-3xl bg-icy-blue-950 pb-6">
       <div className="flex h-full flex-col justify-stretch gap-6 px-10 py-4 text-white">
         <Header
-          title="Import Private Key"
+          title="Import Wallet"
           subtitle="Please fill in the private key"
           showPrevious={!!onboardingForm}
           onBack={() => onboardingForm.setValue("step", "choose")}
           showClose={!onboardingForm}
           onClose={onClose}
         />
+
+        {showZKasChoice && (
+          <div
+            role="group"
+            aria-label="Wallet network"
+            className="flex gap-2 rounded-xl bg-daintree-800 p-1"
+          >
+            <button
+              type="button"
+              aria-pressed={true}
+              className="flex-1 rounded-lg bg-icy-blue-400 p-3 font-semibold"
+            >
+              Kaspa private key
+            </button>
+            <button
+              type="button"
+              aria-pressed={false}
+              onClick={() => setWalletNetwork("zkas")}
+              className="flex-1 rounded-lg p-3 font-semibold hover:bg-daintree-700"
+            >
+              ZKas spending seed
+            </button>
+          </div>
+        )}
 
         <form
           onSubmit={onSubmit}

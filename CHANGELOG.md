@@ -1,5 +1,31 @@
 # Changelog
 
+## Unreleased
+
+ZKas support is experimental and available on ZKas Mainnet only when Experimental features is enabled. See the [setup, wallet backup, privacy, and testing guide](docs/zkas.md). A funded mainnet payment and independent upstream signer audit remain release checks.
+
+### Features
+
+* **zkas:** require daemon setup before ZKas wallet creation or import, disclose FVK visibility, register newly created wallets once from the daemon's current birthday, and scan restored wallets from genesis
+* **zkas:** add optional memos to shielded sends with local encrypted memo verification, plus expandable daemon-provided transaction details
+* **zkas:** add optional memos to the local website test page and website payment approvals
+* **zkas:** add a pinned shielded signer and user-selected wallet daemon client for watch-only proof preparation and local signing ([b0fb5e0](https://github.com/forbole/kastle/commit/b0fb5e02dac92c1240a5463bef41be1c164d8c48))
+* **zkas:** validate prepared payments and retain recovery state when submission may have succeeded ([463b579](https://github.com/forbole/kastle/commit/463b5793cae6498597c489926b0ffff5c5e2c69b))
+* **zkas:** add ZKAS dashboard, receive, send, and recent activity screens ([1058a02](https://github.com/forbole/kastle/commit/1058a0290b6738b31122414b58b7364bc71b34f2))
+* **zkas:** add origin-scoped website connections and a local extension test page ([38278d1](https://github.com/forbole/kastle/commit/38278d157a8c6129e8466419cb73067c7373ad00))
+* **zkas:** require a separate visible approval for website payment requests ([7078337](https://github.com/forbole/kastle/commit/7078337168473c6f57360a90e218d1865d61cc54))
+* **zkas:** expose ZKas Mainnet in the network picker only when Experimental features is enabled ([7456a64](https://github.com/forbole/kastle/commit/7456a641cc9c2196e51a4b85a6748f8f71e3c852))
+* **zkas:** add spending-seed import with address preview and a separate backup reminder ([fbbea10](https://github.com/forbole/kastle/commit/fbbea10482e57f8f3019c484a53027b97542efe4))
+* **zkas:** show shielded accounts in the wallet switcher ([21eb27d](https://github.com/forbole/kastle/commit/21eb27dd49b5dac3cf418df9cd7aac3269a9d1ba))
+* **zkas:** create standalone spending-seed wallets and filter the switcher by the selected network while keeping recovery-phrase accounts in both eligible views ([582e2c5](https://github.com/forbole/kastle/commit/582e2c52a05ead69092646e528b0cc63073b614f))
+
+### Bug Fixes
+
+* **zkas:** bind viewing-key registration to the daemon the user approved, serialize settings changes across extension windows, and start every retry or daemon change from genesis
+* **zkas:** distinguish an inactive Experimental features toggle from a Kaspa network selection in website connection errors
+* **keyring:** serialize wallet secret changes so concurrent imports or removals cannot overwrite each other ([88fd269](https://github.com/forbole/kastle/commit/88fd2697abbc1f2876bf9dc7eaec469500b7896a))
+* **zkas:** show the selected wallet's shielded address in the account menu ([27eff07](https://github.com/forbole/kastle/commit/27eff07990be968a896bc296686bd61aa53d290f))
+* **zkas:** restore the full-page import completion layout and keep the closed switcher off the dashboard ([249ca03](https://github.com/forbole/kastle/commit/249ca032b14434b701eb11b2fb853a1c8e60d26b))
 ## [2.60.1](https://github.com/forbole/kastle/compare/v2.60.0...v2.60.1) (2026-09-10)
 
 

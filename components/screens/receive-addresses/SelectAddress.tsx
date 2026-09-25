@@ -11,6 +11,8 @@ import {
 import { numberToHex } from "viem";
 import { getChainImage } from "@/lib/layer2";
 import useEvmAddress from "@/hooks/evm/useEvmAddress";
+import zkasIcon from "@/assets/images/network-logos/zkas.svg";
+import useSelectedZKasAddress from "@/hooks/useSelectedZKasAddress";
 
 export default function SelectAddress() {
   const { account } = useWalletManager();
@@ -24,6 +26,7 @@ export default function SelectAddress() {
 
   const kasAddress = account?.address ?? "";
   const evmAddress = useEvmAddress();
+  const { account: zkasAccount } = useSelectedZKasAddress();
 
   return (
     <div className="flex h-full flex-col p-4">
@@ -37,6 +40,15 @@ export default function SelectAddress() {
           imageUrl={kasIcon}
           redirect={() => navigate("/receive/kaspa")}
         />
+
+        {zkasAccount && (
+          <AddressItem
+            address={zkasAccount.address}
+            chainName="ZKas Mainnet"
+            imageUrl={zkasIcon}
+            redirect={() => navigate("/receive/zkas")}
+          />
+        )}
 
         {supportEvmL2s.map((chain) => {
           const chainName = chain.name;

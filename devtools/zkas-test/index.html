@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Kastle ZKas local test</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font:
+          15px/1.5 system-ui,
+          sans-serif;
+        background: #071c25;
+        color: #effaff;
+      }
+      body {
+        max-width: 760px;
+        margin: 0 auto;
+        padding: 32px 20px;
+      }
+      h1 {
+        margin-bottom: 4px;
+      }
+      p {
+        color: #b6cbd4;
+      }
+      section {
+        background: #102e3b;
+        border: 1px solid #365664;
+        border-radius: 14px;
+        padding: 20px;
+        margin: 18px 0;
+      }
+      button {
+        background: #61d6ff;
+        border: 0;
+        border-radius: 9px;
+        color: #071c25;
+        cursor: pointer;
+        font: inherit;
+        font-weight: 700;
+        padding: 10px 15px;
+        margin: 4px 8px 4px 0;
+      }
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.4;
+      }
+      output,
+      pre {
+        display: block;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        background: #061922;
+        border-radius: 9px;
+        padding: 12px;
+        margin-top: 12px;
+      }
+      .muted {
+        color: #9cb5c1;
+      }
+      .error {
+        color: #ffb0aa;
+      }
+      label {
+        display: block;
+        margin-top: 12px;
+      }
+      input,
+      textarea {
+        box-sizing: border-box;
+        width: 100%;
+        border: 1px solid #63808b;
+        border-radius: 8px;
+        background: #061922;
+        color: #effaff;
+        font: inherit;
+        padding: 10px;
+      }
+      textarea {
+        min-height: 84px;
+        resize: vertical;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Kastle ZKas local test</h1>
+    <p>
+      This page uses the installed Kastle extension at
+      <strong id="origin"></strong>. It never asks for a recovery phrase or
+      viewing key. Use a disposable account and daemon for payment tests.
+    </p>
+
+    <section>
+      <h2>Extension connection</h2>
+      <p id="provider" role="status">Checking for Kastle…</p>
+      <p class="muted">
+        For ZKas requests, enable Experimental features and select
+        <strong>ZKas Mainnet · Experimental</strong> in Kastle Settings →
+        Network. Kastle does not change networks when this page connects.
+      </p>
+      <button id="probe">Probe installed extension</button>
+      <button id="connect">Connect ZKas</button>
+      <output id="connection-output" aria-live="polite"
+        >No connection request yet.</output
+      >
+    </section>
+
+    <section>
+      <h2>Selected shielded account</h2>
+      <button id="account">Get ZKas account</button>
+      <button id="balance">Get shielded balance and sync state</button>
+      <output id="read-output" aria-live="polite"
+        >Connect first, then run a read probe.</output
+      >
+    </section>
+
+    <section>
+      <h2>Approved payment</h2>
+      <p>
+        Optional mainnet payment. Kastle will show a separate payment approval
+        with the exact recipient, amount, maximum fee, and optional memo. No
+        transaction runs when this page loads.
+      </p>
+      <label for="recipient">ZKas recipient address</label
+      ><input id="recipient" autocomplete="off" placeholder="zkas:…" />
+      <label for="amount">Amount in ZKAS</label
+      ><input id="amount" inputmode="decimal" placeholder="0.01" />
+      <label for="fee">Maximum fee in ZKAS</label
+      ><input id="fee" inputmode="decimal" value="0.03" />
+      <label for="memo">Memo (optional)</label>
+      <textarea
+        id="memo"
+        maxlength="512"
+        spellcheck="false"
+        aria-describedby="memo-help"
+      ></textarea>
+      <p id="memo-help" class="muted">
+        0/512 UTF-8 bytes. The connected wallet daemon can read the memo.
+      </p>
+      <button id="send">Request payment approval</button>
+      <output id="send-output" aria-live="polite">No payment requested.</output>
+    </section>
+
+    <p class="muted">
+      Serve this directory on localhost; opening this file directly has an
+      unsupported <code>file:</code> origin. Only use a funded mainnet account
+      when you intend to test a real payment.
+    </p>
+    <script type="module" src="./test.js"></script>
+  </body>
+</html>

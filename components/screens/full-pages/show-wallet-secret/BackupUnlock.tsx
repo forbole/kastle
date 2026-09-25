@@ -62,7 +62,7 @@ export default function BackupUnlock({
               Ensure no one <br /> is watching your screen 👀
             </h1>
             <p className="mt-2 text-sm text-gray-400">
-              Anyone with this phrase can access your wallet and steal your
+              Anyone with this secret can access your wallet and steal your
               funds.
             </p>
           </div>

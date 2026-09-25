@@ -4,7 +4,13 @@ import { useBoolean, useCopyToClipboard } from "usehooks-ts";
 import Header from "@/components/GeneralHeader";
 import { Tooltip } from "react-tooltip";
 
-export default function ShowPrivateKey({ secret }: { secret: string }) {
+export default function ShowPrivateKey({
+  secret,
+  label = "Private key",
+}: {
+  secret: string;
+  label?: string;
+}) {
   const [, copy] = useCopyToClipboard();
   const [copied, setCopied] = useState(false);
   const { value: isHidden, toggle: toggleHidden } = useBoolean(true);
@@ -20,7 +26,7 @@ export default function ShowPrivateKey({ secret }: { secret: string }) {
 
   return (
     <div className="flex h-[35rem] w-[41rem] flex-col items-stretch gap-4 rounded-3xl bg-icy-blue-950 p-4 pb-6">
-      <Header title="Back up Private key" showPrevious={false} />
+      <Header title={`Back up ${label}`} showPrevious={false} />
 
       <div className="flex flex-grow flex-col items-stretch gap-4">
         <div className="relative">
@@ -60,7 +66,7 @@ export default function ShowPrivateKey({ secret }: { secret: string }) {
 
             {/* Word grid */}
             <textarea
-              placeholder="Private key"
+              placeholder={label}
               value={privateKey}
               className={twMerge(
                 "peer block h-[120px] w-full resize-none rounded-lg border border-daintree-700 bg-daintree-800 p-3 text-base text-white placeholder-daintree-200 hover:placeholder-daintree-50 focus:ring-0 disabled:pointer-events-none disabled:opacity-50",

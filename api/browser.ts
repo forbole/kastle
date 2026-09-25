@@ -155,6 +155,10 @@ export class KastleBrowserAPI {
       "kas:build_transaction": Action.BUILD_TRANSACTION,
       "kas:get_version": Action.GET_VERSION,
       "kas:compound_utxos": Action.COMPOUND_UTXOS,
+      "zkas:connect": Action.ZKAS_CONNECT,
+      "zkas:get_account": Action.ZKAS_GET_ACCOUNT,
+      "zkas:get_balance": Action.ZKAS_GET_BALANCE,
+      "zkas:send": Action.ZKAS_SEND,
     }[method];
 
     if (!action) {
@@ -162,9 +166,14 @@ export class KastleBrowserAPI {
     }
 
     const request = createApiRequest(action, requestId, args);
+    const response = this.receiveMessageWithTimeout(
+      requestId,
+      method === "zkas:send" ? 20 * 60_000 : 180_000,
+      method === "zkas:send",
+    );
     window.postMessage(request, "*");
 
-    return await this.receiveMessageWithTimeout(requestId);
+    return await response;
   }
 
   async getVersion(): Promise<string> {
@@ -398,26 +407,42 @@ export class KastleBrowserAPI {
   private async receiveMessageWithTimeout<T>(
     id: string,
     timeout = 180_000, // 3 minute
+    ignorePending = false,
   ): Promise<T> {
     return new Promise<T>((resolve, reject) => {
       const callback = this.createReceiveCallback<T>(id);
-      const onMessage = async (event: MessageEvent<unknown>) => {
+      const onMessage = (event: MessageEvent<unknown>) => {
+        if (ignorePending && event.origin === window.location.origin) {
+          const pending = ApiResponseSchema.safeParse(event.data);
+          if (
+            pending.success &&
+            pending.data.id === id &&
+            typeof pending.data.response === "object" &&
+            pending.data.response !== null &&
+            "pending" in pending.data.response &&
+            pending.data.response.pending === true
+          )
+            return;
+        }
         try {
           const result = callback(event);
           if (result === undefined) {
             return; // Skip if the result is empty, which means the message is not for this channel
           }
 
+          window.removeEventListener("message", onMessage);
+          clearTimeout(timeoutId);
           resolve(result);
         } catch (error) {
           window.removeEventListener("message", onMessage);
+          clearTimeout(timeoutId);
           reject(error);
         }
       };
 
       window.addEventListener("message", onMessage);
 
-      setTimeout(() => {
+      const timeoutId = setTimeout(() => {
         window.removeEventListener("message", onMessage);
         reject(new Error("Timeout"));
       }, timeout);

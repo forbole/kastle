@@ -35,6 +35,8 @@ const ARGON2ID_SALT_LENGTH = 32; // bytes
 
 export class Keyring {
   private masterKey: CryptoKey | null = null;
+  private sessionVersion = 0;
+  private mutationTail: Promise<void> = Promise.resolve();
   private namespace: string;
 
   constructor(namespace: string = "keyring") {
@@ -54,6 +56,30 @@ export class Keyring {
 
   isUnlocked(): boolean {
     return this.masterKey !== null;
+  }
+
+  getSessionVersion(): number {
+    return this.sessionVersion;
+  }
+
+  private setMasterKey(key: CryptoKey | null): void {
+    this.masterKey = key;
+    this.sessionVersion += 1;
+  }
+
+  private serializeMutation<T>(operation: () => Promise<T>): Promise<T> {
+    const result = this.mutationTail.then(operation);
+    this.mutationTail = result.then(
+      () => undefined,
+      () => undefined,
+    );
+    return result;
+  }
+
+  private assertSessionVersion(version: number): void {
+    if (!this.masterKey || this.sessionVersion !== version) {
+      throw new Error("Keyring lock state changed during the wallet update");
+    }
   }
 
   async initialize(password: string): Promise<void> {
@@ -79,7 +105,7 @@ export class Keyring {
     const key = await this.deriveKey(password, salt, method);
     await this.storeVerificationValue(key);
 
-    this.masterKey = key;
+    this.setMasterKey(key);
     await this.updateWalletChangeTime();
   }
 
@@ -113,11 +139,11 @@ export class Keyring {
 
     const isValid = await this.verifyKey(key);
     if (!isValid) {
-      this.masterKey = null;
+      this.setMasterKey(null);
       return false;
     }
 
-    this.masterKey = key;
+    this.setMasterKey(key);
     await this.updateWalletChangeTime();
 
     // If using legacy PBKDF2, migrate to Argon2id
@@ -129,11 +155,35 @@ export class Keyring {
   }
 
   async lock(): Promise<void> {
-    this.masterKey = null;
-    await this.updateWalletChangeTime();
+    await this.serializeMutation(async () => {
+      this.setMasterKey(null);
+      await this.updateWalletChangeTime();
+    });
   }
 
   async setValue<T>(key: AllowedKey, value: T): Promise<void> {
+    const version = this.sessionVersion;
+    await this.serializeMutation(async () => {
+      this.assertSessionVersion(version);
+      await this.writeValue(key, value);
+    });
+  }
+
+  async updateValue<T>(
+    key: AllowedKey,
+    update: (current: T | null) => T | Promise<T>,
+  ): Promise<void> {
+    const version = this.sessionVersion;
+    await this.serializeMutation(async () => {
+      this.assertSessionVersion(version);
+      const current = await this.getValue<T>(key);
+      const value = await update(current);
+      this.assertSessionVersion(version);
+      await this.writeValue(key, value);
+    });
+  }
+
+  private async writeValue<T>(key: AllowedKey, value: T): Promise<void> {
     if (!this.masterKey) {
       throw new Error("Keyring is locked");
     }
@@ -183,6 +233,10 @@ export class Keyring {
   }
 
   async removeValue(key: string): Promise<void> {
+    await this.serializeMutation(() => this.removeValueDirect(key));
+  }
+
+  private async removeValueDirect(key: string): Promise<void> {
     if (key === VERIFICATION_KEY) {
       throw new Error("Reserved key name");
     }
@@ -224,6 +278,15 @@ export class Keyring {
   }
 
   async changePassword(
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<boolean> {
+    return this.serializeMutation(() =>
+      this.changePasswordDirect(currentPassword, newPassword),
+    );
+  }
+
+  private async changePasswordDirect(
     currentPassword: string,
     newPassword: string,
   ): Promise<boolean> {
@@ -286,12 +349,12 @@ export class Keyring {
     );
 
     // Update master key and re-encrypt all data
-    this.masterKey = newKey;
+    this.setMasterKey(newKey);
     await this.updateWalletChangeTime();
     await Promise.all(
       dataToMigrate.map(async (item) => {
         if (!item) return;
-        await this.setValue(item.key, item.value);
+        await this.writeValue(item.key, item.value);
       }),
     );
 
@@ -307,19 +370,27 @@ export class Keyring {
   }
 
   async clear(): Promise<void> {
+    await this.serializeMutation(() => this.clearDirect());
+  }
+
+  private async clearDirect(): Promise<void> {
     const keys = this.listKeys();
     await Promise.all([
-      ...keys.map((key) => this.removeValue(key)),
+      ...keys.map((key) => this.removeValueDirect(key)),
       storage.removeItem(`local:${this.namespace}:salt`),
       storage.removeItem(`local:${this.namespace}:keyDerivationInfo`),
       storage.removeItem(`local:${this.namespace}:${VERIFICATION_KEY}`),
     ]);
 
-    this.masterKey = null;
+    this.setMasterKey(null);
     await this.updateWalletChangeTime();
   }
 
   private async migrateToArgon2id(password: string): Promise<void> {
+    await this.serializeMutation(() => this.migrateToArgon2idDirect(password));
+  }
+
+  private async migrateToArgon2idDirect(password: string): Promise<void> {
     // Get all current data
     const keys = this.listKeys();
     const dataToMigrate = await Promise.all(
@@ -346,13 +417,13 @@ export class Keyring {
     );
 
     // Update master key
-    this.masterKey = newKey;
+    this.setMasterKey(newKey);
 
     // Re-encrypt all data with the new key
     await Promise.all(
       dataToMigrate.map(async (item) => {
         if (!item) return;
-        await this.setValue(item.key, item.value);
+        await this.writeValue(item.key, item.value);
       }),
     );
 

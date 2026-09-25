@@ -4,7 +4,6 @@ import {
   ApiResponseSchema,
   RPC_ERRORS,
 } from "@/api/message";
-import { ExtensionService } from "@/lib/service/extension-service";
 import {
   NetworkType,
   Settings,
@@ -25,6 +24,7 @@ import { kasplexTestnet, kasplexMainnet } from "@/lib/layer2";
 import { publicKeyToAddress } from "viem/accounts";
 import { RpcClient, Encoding, Resolver } from "@/wasm/core/kaspa";
 import { deriveKaspaAddress } from "@/lib/kaspa";
+import { getSelectedKaspaAccount } from "@/lib/wallet-switcher-selection";
 
 export class ApiUtils {
   static openPopup(tabId: number, url: string) {
@@ -67,14 +67,7 @@ export class ApiUtils {
   }
 
   static async getSelectedAccountFromSettings(settings: WalletSettings | null) {
-    if (!settings) return null;
-
-    const selectedWallet = await ApiUtils.getCurrentWallet();
-    if (!selectedWallet) return null;
-    const selectedAccount = selectedWallet.accounts.find((account) => {
-      return account.index === settings.selectedAccountIndex;
-    });
-
+    const selectedAccount = getSelectedKaspaAccount(settings);
     if (!selectedAccount) return null;
 
     // Re-derive the address from the current network on every read instead
@@ -96,10 +89,6 @@ export class ApiUtils {
         (wallet) => wallet.id === walletSettings.selectedWalletId,
       ) ?? null
     );
-  }
-
-  static async isInitialized(): Promise<boolean> {
-    return ExtensionService.getInstance().getKeyring().isInitialized();
   }
 
   static async matchNetworkId(networkId: NetworkType): Promise<boolean> {
@@ -130,10 +119,6 @@ export class ApiUtils {
     return conn.isConnected(connections, host);
   }
 
-  static isUnlocked(): boolean {
-    return ExtensionService.getInstance().getKeyring().isUnlocked();
-  }
-
   static createApiResponse(id: string, response: unknown, error?: unknown) {
     return ApiResponseSchema.parse({
       source: "background",
@@ -149,8 +134,17 @@ export class ApiUtils {
     url: string,
     tabId: number,
     timeout = 180_000, // 3 minute
+    moveTab = true,
   ) {
-    const popup = await this.openPopup(tabId, url);
+    const popup = moveTab
+      ? await this.openPopup(tabId, url)
+      : await browser.windows.create({
+          type: "popup",
+          url,
+          width: POPUP_WINDOW_WIDTH,
+          height: POPUP_WINDOW_HEIGHT,
+          focused: true,
+        });
     let onRemovedListener: ((windowId: number) => void) | null = null;
     let receiveListener: ((message: unknown) => void) | null = null;
     let receiveTimeout: NodeJS.Timeout | null = null;
@@ -208,7 +202,7 @@ export class ApiUtils {
 
   static async getEvmAddress() {
     const wallet = await ApiUtils.getCurrentWallet();
-    if (!wallet || wallet.type === "ledger") {
+    if (!wallet || wallet.type === "ledger" || wallet.type === "zkasSeed") {
       return;
     }
 
@@ -302,4 +296,5 @@ export type Handler = (
   tabId: number,
   message: ApiRequestWithHost,
   sendResponse: (response: any) => void,
+  sender: chrome.runtime.MessageSender,
 ) => Promise<void>;

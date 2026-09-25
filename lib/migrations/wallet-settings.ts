@@ -52,7 +52,7 @@ export async function migrateWalletSettings(
   let updated = false;
   const newWallets = await Promise.all(
     wallets.map(async (wallet) => {
-      if (wallet.type === "ledger") return wallet;
+      if (wallet.type === "ledger" || wallet.type === "zkasSeed") return wallet;
 
       // Determine legacy mode based on current settings
       const isKastleLegacy = wallet.isLegacyWalletEnabled ?? false;

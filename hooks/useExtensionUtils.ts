@@ -1,5 +1,5 @@
 import { sendMessage } from "@/lib/utils.ts";
-import { Method } from "@/lib/service/extension-service.ts";
+import { Method } from "@/lib/service/methods";
 import { ReopenPopupRequest } from "@/lib/service/handlers/reopenPopup.ts";
 
 export default function useExtensionUtils() {

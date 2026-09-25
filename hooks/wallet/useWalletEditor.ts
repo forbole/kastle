@@ -1,9 +1,14 @@
 import internalToast from "@/components/Toast";
 import useWalletManager from "./useWalletManager";
 import useKeyring from "@/hooks/useKeyring";
+import { defaultValue } from "@/contexts/WalletManagerContext";
+import {
+  removeWalletAndSecretLocked,
+  WalletSecretCleanupError,
+} from "@/lib/wallet-lifecycle";
 
 export default function useWalletEditor() {
-  const { walletSettings, setWalletSettings, resetWallet } = useWalletManager();
+  const { walletSettings, setWalletSettings } = useWalletManager();
   const keyring = useKeyring();
 
   // Function to set legacy wallet enabled state
@@ -43,37 +48,18 @@ export default function useWalletEditor() {
   // Function to remove a wallet
   const removeWallet = async (walletId: string) => {
     try {
-      if (!walletSettings) {
-        throw new Error("Wallet manager not initialized");
-      }
-
-      walletSettings.wallets = walletSettings.wallets.filter(
-        (w) => w.id !== walletId,
+      return await removeWalletAndSecretLocked(
+        walletId,
+        defaultValue,
+        (id) => keyring.removeWalletSecret({ walletId: id }),
+        keyring.keyringReset,
       );
-
-      const noWallet = walletSettings.wallets.length === 0;
-
-      if (noWallet) {
-        await resetWallet();
-        return { noWallet: noWallet };
-      }
-
-      await keyring.removeWalletSecret({ walletId });
-
-      // If the wallet being removed is the selected wallet, select the first account of the first wallet
-      if (walletSettings.selectedWalletId === walletId) {
-        walletSettings.selectedWalletId = walletSettings.wallets[0]?.id;
-        walletSettings.selectedAccountIndex =
-          walletSettings.wallets[0]?.accounts[0]?.index;
-      }
-
-      await setWalletSettings({
-        ...walletSettings,
-      });
-
-      return { noWallet: noWallet };
     } catch (error) {
-      internalToast.error("Failed to remove wallet");
+      internalToast.error(
+        error instanceof WalletSecretCleanupError
+          ? error.message
+          : "Failed to remove wallet",
+      );
       return { noWallet: false };
     }
   };

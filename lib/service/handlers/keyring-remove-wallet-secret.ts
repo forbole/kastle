@@ -17,11 +17,9 @@ export const keyringRemoveWalletSecret = async (
     throw new Error("Keyring not initialized or locked");
   }
 
-  const walletSecrets =
-    (await keyring.getValue<WalletSecret[]>("wallets")) ?? [];
-  const wallets = walletSecrets.filter((w) => w.id !== walletId);
-
-  await keyring.setValue<WalletSecret[]>("wallets", wallets);
+  await keyring.updateValue<WalletSecret[]>("wallets", (wallets) =>
+    (wallets ?? []).filter((wallet) => wallet.id !== walletId),
+  );
 
   sendResponse();
 };

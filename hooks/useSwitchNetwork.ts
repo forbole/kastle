@@ -5,6 +5,11 @@ import {
   MAINNET_SUPPORTED_EVM_L2_CHAINS,
   ALL_SUPPORTED_EVM_L2_CHAINS,
 } from "@/lib/layer2";
+import {
+  selectWalletNetwork,
+  ZKAS_EXPERIMENTAL_KEY,
+} from "@/lib/wallet-network";
+import { selectZKasNetworkWithDaemon } from "@/lib/zkas/setup";
 
 export default function useSwitchNetwork() {
   const [settings, setSettings] = useSettings();
@@ -15,12 +20,31 @@ export default function useSwitchNetwork() {
       throw new Error("Settings not loaded");
     }
 
-    if (settings.networkId === network) {
+    if (settings.networkId === network && settings.activeChain !== "zkas") {
       return;
     }
 
-    await setSettings((prev) => ({ ...prev, networkId: network }));
-    await refreshKaspaAddresses(network);
+    await setSettings((prev) => selectWalletNetwork(prev, network, null));
+    if (settings.networkId !== network) await refreshKaspaAddresses(network);
+  };
+
+  const switchZKasNetwork = async (
+    daemonUrl?: string,
+    options: { deferKaspaAddressRefresh?: boolean } = {},
+  ): Promise<boolean> => {
+    if (!settings) throw new Error("Settings not loaded");
+    const enabled = await storage.getItem<boolean>(ZKAS_EXPERIMENTAL_KEY);
+    if (settings.preview !== true || enabled === false)
+      throw new Error("Enable Experimental features to use ZKas");
+    let needsKaspaAddressRefresh = false;
+    await setSettings((prev) => {
+      needsKaspaAddressRefresh = prev.networkId !== NetworkType.Mainnet;
+      return selectZKasNetworkWithDaemon(prev, enabled, daemonUrl);
+    });
+    if (needsKaspaAddressRefresh && options.deferKaspaAddressRefresh !== true) {
+      await refreshKaspaAddresses(NetworkType.Mainnet);
+    }
+    return needsKaspaAddressRefresh;
   };
 
   const switchEvmL2Network = async (chainId: number) => {
@@ -46,6 +70,7 @@ export default function useSwitchNetwork() {
       return {
         ...prev,
         networkId: targetNetwork,
+        activeChain: "kaspa",
         evmL2ChainId: Object.fromEntries(
           Object.values(NetworkType).map((nt) => [
             nt,
@@ -60,5 +85,5 @@ export default function useSwitchNetwork() {
     }
   };
 
-  return { switchKaspaNetwork, switchEvmL2Network };
+  return { switchKaspaNetwork, switchZKasNetwork, switchEvmL2Network };
 }

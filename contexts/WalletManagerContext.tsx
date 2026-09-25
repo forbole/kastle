@@ -14,12 +14,13 @@ import internalToast from "@/components/Toast.tsx";
 import { explorerTxLinks } from "@/components/screens/Settings.tsx";
 import useKaspaBackgroundSigner from "@/hooks/wallet/useKaspaBackgroundSigner";
 import useEvmBackgroundSigner from "@/hooks/wallet/useEvmBackgroundSigner";
-import { NetworkType } from "./SettingsContext";
+import { NetworkType, SETTINGS_KEY, type Settings } from "./SettingsContext";
 import { useSettings } from "@/hooks/useSettings";
 import {
   WALLET_SETTINGS_VERSION,
   migrateWalletSettings,
 } from "@/lib/migrations/wallet-settings";
+import { withWalletSettingsLock } from "@/lib/wallet-settings-storage";
 
 export const WALLET_SETTINGS = "local:wallet-settings";
 const KASPA_BALANCES_KEY = "local:kaspa-balances";
@@ -48,6 +49,7 @@ export type WalletSettings = {
   wallets: WalletInfo[];
   lastRecoveryPhraseNumber: number;
   lastPrivateKeyNumber: number;
+  lastZKasSeedNumber?: number;
   lastLedgerNumber?: number;
   version?: number;
 };
@@ -59,7 +61,9 @@ type WalletManagerContextType = {
   addresses: string[];
   kaspaBalances: Record<string, number>;
   setWalletSettings: (
-    settings: WalletSettings | ((prev: WalletSettings) => WalletSettings),
+    settings:
+      | WalletSettings
+      | ((prev: WalletSettings) => WalletSettings | Promise<WalletSettings>),
   ) => Promise<void>;
   resetWallet: () => Promise<void>;
   markWalletBacked: (walletId: string) => Promise<void>;
@@ -158,35 +162,34 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
   };
 
   const resetWallet = async () => {
-    await setWalletSettings(defaultValue);
-    await keyring.keyringReset();
+    await withWalletSettingsLock(async () => {
+      await storage.setItem(WALLET_SETTINGS, defaultValue);
+      await keyring.keyringReset();
+    });
   };
 
   const refreshKaspaAddresses = async (networkId: NetworkType) => {
-    let isUpdated = false;
-    const wallets = walletSettings?.wallets;
-    if (!wallets) {
-      return;
-    }
-
-    for (const wallet of wallets) {
-      for (const account of wallet.accounts) {
-        const address = deriveKaspaAddress(account.publicKeys, networkId);
-        // hotfix for missing public keys
-        if (!address) {
-          continue;
-        }
-
-        account.address = address;
-        isUpdated = true;
-      }
-    }
-
-    if (!isUpdated) {
-      return;
-    }
-
-    await setWalletSettings((prev) => ({ ...prev, wallets: wallets }));
+    await setWalletSettings(async (prev) => {
+      const latestSettings = await storage.getItem<Settings>(SETTINGS_KEY);
+      const currentNetwork = latestSettings?.networkId ?? networkId;
+      return {
+        ...prev,
+        wallets: prev.wallets.map((wallet) =>
+          wallet.type === "zkasSeed"
+            ? wallet
+            : {
+                ...wallet,
+                accounts: wallet.accounts.map((account) => {
+                  const address = deriveKaspaAddress(
+                    account.publicKeys,
+                    currentNetwork,
+                  );
+                  return address ? { ...account, address } : account;
+                }),
+              },
+        ),
+      };
+    });
   };
 
   // Refresh wallet and account after settings changed
@@ -214,11 +217,13 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
     // In legacy mode, watch all addresses derived from publicKeys
     // In non-legacy mode, only watch the primary account.address
     const addressesToWatch =
-      wallet.isLegacyWalletEnabled && account.publicKeys?.length
-        ? account.publicKeys.map((publicKey) =>
-            new PublicKey(publicKey).toAddress(networkId).toString(),
-          )
-        : [account.address];
+      wallet.type === "zkasSeed"
+        ? []
+        : wallet.isLegacyWalletEnabled && account.publicKeys?.length
+          ? account.publicKeys.map((publicKey) =>
+              new PublicKey(publicKey).toAddress(networkId).toString(),
+            )
+          : [account.address];
 
     // skip if the addresses are the same
     if (addressesToWatch.join() === addresses.join()) {
@@ -370,7 +375,8 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
       let updated = false;
       const newWallets = await Promise.all(
         wallets.map(async (wallet) => {
-          if (wallet.type === "ledger") return wallet;
+          if (wallet.type === "ledger" || wallet.type === "zkasSeed")
+            return wallet;
 
           const isKastleLegacy = wallet.isLegacyWalletEnabled ?? false;
           const shouldUseLegacy = settings?.isLegacyEvmAddressEnabled ?? false;
@@ -421,6 +427,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
 
       let updated = false;
       const newWallets = wallets.map((wallet) => {
+        if (wallet.type === "zkasSeed") return wallet;
         const newAccounts = wallet.accounts.map((account) => {
           if (!account.publicKeys?.length) return account;
 
