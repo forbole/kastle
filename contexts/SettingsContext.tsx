@@ -66,6 +66,14 @@ export const KRC721_INDEXER_URLS = {
   [NetworkType.TestnetT10]: "https://dev-krc721-indexer.kaspa.com",
 };
 
+// kaspa.com's image cache, which kaspa.com and mobile draw their grids from.
+// Pinata rate-limits a wallet's first page into mostly 429s; this does not.
+export const KRC721_CACHE_URLS = {
+  [NetworkType.Mainnet]: "https://krc721-cache.kaspa.com/krc721/mainnet",
+  [NetworkType.TestnetT10]:
+    "https://krc721-cache-dev.kaspa.com/krc721/testnet-10",
+};
+
 export const initialSettings = {
   networkId: NetworkType.Mainnet,
   currency: "USD",

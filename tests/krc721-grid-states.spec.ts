@@ -53,6 +53,10 @@ type Fixture = {
   // Holds every indexer response, so the first intersection lands mid-load.
   indexerDelayMs?: number;
   metaStatus?: number;
+  // kaspa.com's thumbnail cache. 400 is its answer for a token it does not
+  // know, so by default every card takes the IPFS fallback.
+  cacheStatus?: number;
+  cacheDelayMs?: number;
   tokenState?: string;
   tokenStatus?: number;
   tokenOwner?: string;
@@ -64,6 +68,8 @@ async function open(page: Page, query: string, fx: Fixture = {}) {
     indexerStatus = 200,
     indexerDelayMs = 0,
     metaStatus = 200,
+    cacheStatus = 400,
+    cacheDelayMs = 0,
     tokenState = "unlisted",
     tokenStatus = 200,
     tokenOwner = OWNER,
@@ -130,9 +136,27 @@ async function open(page: Page, query: string, fx: Fixture = {}) {
       }),
     );
   });
+  cacheMaxInFlight = 0;
+  let inFlight = 0;
+  await page.route(/krc721-cache(-dev)?\.kaspa\.com/, async (route) => {
+    reqs.push(route.request().url());
+    cacheMaxInFlight = Math.max(cacheMaxInFlight, ++inFlight);
+    await new Promise((r) => setTimeout(r, cacheDelayMs));
+    inFlight--;
+    return cacheStatus === 200
+      ? route.fulfill({ status: 200, contentType: "image/png", body: PNG })
+      : route.fulfill({ status: cacheStatus, body: "" });
+  });
   await page.goto(`${base}/?${query}`);
   return reqs;
 }
+
+// 1x1 transparent PNG, so the cache image really loads.
+const PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
+  "base64",
+);
+let cacheMaxInFlight = 0;
 
 const labels = (page: Page) =>
   page.locator("#popup .grid > div > div:last-child").allInnerTexts();
@@ -225,9 +249,13 @@ test("ERC-721 pages follow the KRC-721 pages (Do-not-break)", async ({
       ],
     },
   );
-  // No CSS in this build, so the scroll sentinel is always in view and the
-  // pager walks every page by itself.
-  await expect(page.getByText("Igra Dog")).toBeVisible();
+  // Scrolled like a user: without CSS the placeholders sit at their natural
+  // size, and six of them push the sentinel below the fold (5 of 40 runs
+  // measured with it at top=1292 of a 720px viewport, correctly waiting).
+  await expect(async () => {
+    await page.mouse.wheel(0, 10_000);
+    await expect(page.getByText("Igra Dog")).toBeVisible({ timeout: 500 });
+  }).toPass();
   expect(await labels(page)).toEqual([
     ...[1, 2, 3, 4, 5, 6].map((i) => `KSPR #${i}`),
     "L2 Cat",
@@ -303,13 +331,50 @@ test("L2 pages load without a scroll when KRC-721 was slow", async ({
   await expect(page.getByText("Scroll to load more...")).toHaveCount(0);
 });
 
-test("testnet-10 uses the dev indexer host", async ({ page }) => {
+const CACHE = "https://krc721-cache.kaspa.com/krc721/mainnet/thumbnail";
+
+// Bug 2: Pinata 429s most of a wallet's first page (50 of 50 measured), so
+// cards that kaspa.com and mobile draw stayed on the placeholder here.
+test("cards draw from kaspa.com's cache and never ask Pinata", async ({
+  page,
+}) => {
+  const reqs = await open(page, "route=/grid", {
+    pages: [rows(6)],
+    cacheStatus: 200,
+    metaStatus: 429,
+  });
+  await expect(page.locator("img[alt='Placeholder']")).toHaveCount(0);
+  for (const i of [1, 2, 3, 4, 5, 6])
+    await expect(page.locator(`img[alt='KSPR #${i}']`)).toHaveAttribute(
+      "src",
+      `${CACHE}/KSPR/${i}`,
+    );
+  expect(reqs.filter((u) => u.includes("pinata"))).toEqual([]);
+});
+
+test("at most five cache images load at once", async ({ page }) => {
+  const reqs = await open(page, "route=/grid", {
+    pages: [rows(12)],
+    cacheStatus: 200,
+    cacheDelayMs: 200,
+  });
+  await expect(page.locator("img[alt='Placeholder']")).toHaveCount(0);
+  expect(reqs.filter((u) => u.startsWith(CACHE))).toHaveLength(12);
+  expect(cacheMaxInFlight).toBe(5);
+});
+
+test("testnet-10 uses the dev indexer and cache hosts", async ({ page }) => {
   const reqs = await open(page, "route=/grid&network=testnet-10", {
     pages: [rows(1)],
+    cacheStatus: 200,
   });
   await expect(page.locator("#popup .grid > div")).toHaveCount(1);
   expect(reqs[0]).toMatch(
     /^https:\/\/dev-krc721-indexer\.kaspa\.com\/api\/v1\/krc721\/testnet-10\/address\//,
+  );
+  await expect(page.locator("img[alt='KSPR #1']")).toHaveAttribute(
+    "src",
+    "https://krc721-cache-dev.kaspa.com/krc721/testnet-10/thumbnail/KSPR/1",
   );
 });
 
