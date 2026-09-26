@@ -43,6 +43,12 @@ export default function NftList() {
 
   const isCurrentlyLoading = pagingErc721 ? isErc721Loading : isLoading;
   const firstLoading = !data && isLoading;
+  // The L2 cards follow the last KRC-721 page. Not pagingErc721 alone: that
+  // flag is component state and the L2 page count is SWR's, so after a
+  // remount every L2 page can already be in, with no sentinel left to set it.
+  const krc721Done =
+    !!error || (!!data && data.length === size && !data[size - 1]?.next);
+  const showErc721 = pagingErc721 || krc721Done;
 
   // Same split as the Names tab: a failed fetch is not an empty wallet, so the
   // two messages stay separate, the error takes precedence, and neither shows
@@ -53,15 +59,16 @@ export default function NftList() {
     items: page.items.filter((asset) => !isInsName(page.chainId, asset)),
   }));
   // Counted from what the grid below actually draws -- every page of both
-  // sources, ERC-721 only once it is paging -- and only once there is nothing
-  // left to page in, so the message can never sit above a card.
+  // sources, ERC-721 only once it shows -- so neither message can sit above a
+  // card. The empty one also waits until there is nothing left to page in;
+  // the error does not, as a failed page leaves the pager thinking there is.
   const renderedCount =
     (data?.reduce((n, page) => n + (page.result?.length ?? 0), 0) ?? 0) +
-    (pagingErc721
+    (showErc721
       ? (erc721Pages?.reduce((n, page) => n + page.items.length, 0) ?? 0)
       : 0);
-  const nothingRendered =
-    !isLoading && !isErc721Loading && !hasNextPage && renderedCount === 0;
+  const settledEmpty = !isLoading && !isErc721Loading && renderedCount === 0;
+  const nothingRendered = settledEmpty && !hasNextPage;
 
   const loadMore = useCallback(async () => {
     if (isLoadingRef.current || isCurrentlyLoading) return;
@@ -140,7 +147,7 @@ export default function NftList() {
 
   return (
     <>
-      {failed && nothingRendered && (
+      {failed && settledEmpty && (
         <div className="flex w-full flex-col items-center gap-2 py-6 text-center text-sm text-daintree-400">
           Couldn’t load your NFTs. Check your connection and try again.
           <button
@@ -182,7 +189,7 @@ export default function NftList() {
           )),
         )}
 
-        {pagingErc721 &&
+        {showErc721 &&
           erc721Pages?.map((page) =>
             page.items.map((asset) => (
               <ERC721Item

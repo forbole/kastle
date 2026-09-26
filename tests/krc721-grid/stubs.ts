@@ -10,6 +10,8 @@ declare global {
       address: string;
       walletType: string;
       erc721Pages: { chainId: string; chainIndex: number; items: unknown[] }[];
+      // Index of the first L2 page whose fetch fails.
+      erc721FailAt: number;
     };
     __storage: Map<string, unknown>;
   }
@@ -32,11 +34,14 @@ export function useKRC721RecentTransfer() {
 }
 
 // Same return shape as the real hook. Two pages = two chains, so hasNextPage
-// is true after page 0 exactly as the real hook computes it on mainnet.
+// is true after page 0 exactly as the real hook computes it on mainnet. The
+// page count outlives a remount, as it does in SWR's cache.
+let keptSize = 1;
 export function useErc721AssetsFromApi() {
-  const [size, setSize] = useState(1);
-  const all = h().erc721Pages;
-  const pages = all.slice(0, size);
+  const [size, setSize] = useState(keptSize);
+  keptSize = size;
+  const { erc721Pages: all, erc721FailAt } = h();
+  const pages = all.slice(0, Math.min(size, erc721FailAt));
   return {
     data: pages,
     size,
@@ -44,7 +49,7 @@ export function useErc721AssetsFromApi() {
       setSize((p) => (typeof n === "function" ? n(p) : n)),
     isLoading: false,
     hasNextPage: pages.length < all.length,
-    error: undefined,
+    error: size > erc721FailAt ? new Error("L2 page failed") : undefined,
     mutate: () => Promise.resolve(),
   };
 }

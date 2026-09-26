@@ -60,6 +60,8 @@ type Fixture = {
   // The cache's `/metadata/` JSON. A token it cannot resolve gets a 400, or
   // no answer at all ("hang").
   cacheMeta?: number | "hang";
+  // The collection lookup answers without a buri.
+  noBuri?: boolean;
   tokenState?: string;
   tokenStatus?: number;
   tokenOwner?: string;
@@ -74,6 +76,7 @@ async function open(page: Page, query: string, fx: Fixture = {}) {
     cacheStatus = 400,
     cacheDelayMs = 0,
     cacheMeta = 400,
+    noBuri = false,
     tokenState = "unlisted",
     tokenStatus = 200,
     tokenOwner = OWNER,
@@ -118,7 +121,10 @@ async function open(page: Page, query: string, fx: Fixture = {}) {
       );
     }
     return route.fulfill(
-      json({ message: "success", result: { tick: "KSPR", buri: BURI } }),
+      json({
+        message: "success",
+        result: { tick: "KSPR", buri: noBuri ? undefined : BURI },
+      }),
     );
   });
   await page.route(/gateway\.pinata\.cloud/, (route) => {
@@ -334,6 +340,40 @@ test("the empty message never renders above an L2 card", async ({ page }) => {
   await expect(page.getByText("No NFTs found")).toHaveCount(0);
 });
 
+// The L2 cards used to wait for the scroll sentinel to switch the grid to L2
+// paging. That switch was component state, the page count is SWR's: back from
+// a detail screen, every L2 page is already in, no sentinel is drawn, and
+// nothing ever switches again.
+test("L2 cards are still there after a detail screen and back", async ({
+  page,
+}) => {
+  const erc = igraPage([insName("8", "0xb", "Igra Dog")]);
+  await open(
+    page,
+    `route=/grid&erc721=${encodeURIComponent(JSON.stringify(erc))}`,
+    { pages: [rows(1)] },
+  );
+  await expect(page.getByText("Igra Dog")).toBeVisible();
+  await page.getByText("KSPR #1").click();
+  await page.locator("button:has(i.hn-angle-left)").click();
+  await expect(page.getByText("KSPR #1")).toBeVisible();
+  expect(await labels(page)).toEqual(["KSPR #1", "Igra Dog"]);
+});
+
+// SWR keeps the pages that landed when a later one fails. Here that is an
+// empty Kasplex page, which still says Igra is next, so a "nothing more to
+// page" condition never held and the failure showed as "Scroll to load more".
+test("a failed L2 page with nothing drawn offers Retry", async ({ page }) => {
+  const erc = igraPage([insName("8", "0xb", "Igra Dog")]);
+  await open(
+    page,
+    `route=/grid&erc721=${encodeURIComponent(JSON.stringify(erc))}&erc721FailAt=1`,
+    { pages: [[]] },
+  );
+  await expect(page.getByRole("button", { name: "Retry" })).toBeVisible();
+  await expect(page.getByText("No NFTs found")).toHaveCount(0);
+});
+
 // The stall behind the QA screenshot: the sentinel is on screen from the first
 // paint, its first intersection lands while KRC-721 is still loading and is
 // dropped, and a grid too short to scroll never produces another one.
@@ -487,5 +527,17 @@ test.describe("detail screen draws from kaspa.com's cache", () => {
     await expect(traits(page)).toHaveText([/Source\W*Cache/]);
     await expect(art(page)).toHaveAttribute("src", `${dev}/optimized/KSPR/1`);
     expect(reqs).toContain(`${dev}/metadata/KSPR/1`);
+  });
+
+  // The cache failed and the collection names no buri: nothing is left to
+  // try, which used to resolve as "no data, no error", a skeleton for good.
+  test("no cache metadata and no buri → the message, not a skeleton", async ({
+    page,
+  }) => {
+    await open(page, "route=/krc721/KSPR/1", { noBuri: true });
+    await expect(
+      page.getByText("Couldn’t load this NFT’s metadata"),
+    ).toBeVisible();
+    await expect(page.locator(".animate-pulse")).toHaveCount(0);
   });
 });

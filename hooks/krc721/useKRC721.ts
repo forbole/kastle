@@ -150,7 +150,7 @@ export function useKRC721Details(
   const { networkId } = useRpcClientStateful();
   const cacheBase = useKRC721CacheBase();
 
-  return useSWR<KRC721DetailsResponse | undefined, Error>(
+  return useSWR<KRC721DetailsResponse, Error>(
     ticker && tokenID
       ? [
           `${indexerBase(networkId)}/api/v1/krc721/${networkId ?? NetworkType.Mainnet}/nfts/${ticker}`,
@@ -165,7 +165,8 @@ export function useKRC721Details(
         const collectionData: KRC721CollectionResponse =
           await fetchImmutable(url);
         const buri = collectionData?.result?.buri;
-        if (!buri) return undefined;
+        // Nothing left to try. Resolving empty would read as "still loading".
+        if (!buri) throw new Error(`No buri for ${url}`);
         return fetchIPFSMetadata<KRC721DetailsResponse>(buri, id);
       }
     },
@@ -182,13 +183,15 @@ export function useKRC721Image(
   tokenId?: string,
   ipfsImage?: string,
 ) {
-  const cacheBase = useKRC721CacheBase();
-  const [cacheFailed, setCacheFailed] = useState(false);
+  const cacheSrc = `${useKRC721CacheBase()}/optimized/${tick}/${tokenId}`;
+  // Keyed to the URL, so another token or network tries its cache again.
+  const [failedSrc, setFailedSrc] = useState<string>();
   return {
-    src: cacheFailed
-      ? ipfsImage && convertIPFStoHTTP(ipfsImage)
-      : `${cacheBase}/optimized/${tick}/${tokenId}`,
-    onError: () => setCacheFailed(true),
+    src:
+      failedSrc === cacheSrc
+        ? ipfsImage && convertIPFStoHTTP(ipfsImage)
+        : cacheSrc,
+    onError: () => setFailedSrc(cacheSrc),
   };
 }
 

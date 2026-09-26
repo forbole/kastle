@@ -27,6 +27,12 @@ const json = (body: unknown) =>
   });
 const status = (s: number) => new Response("", { status: s });
 
+// One worker runs other spec files after this one; they get the real fetch.
+const realFetch = globalThis.fetch;
+test.afterAll(() => {
+  globalThis.fetch = realFetch;
+});
+
 test.beforeAll(async () => {
   // wxt/storage captures `browser` at import time, so the fake goes first.
   (globalThis as { chrome?: unknown }).chrome = fakeBrowser;

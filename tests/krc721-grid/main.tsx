@@ -11,6 +11,7 @@ window.__h = {
   address: params.get("address") ?? "kaspa:owner",
   walletType: params.get("wallet") ?? "software",
   erc721Pages: JSON.parse(params.get("erc721") ?? "[]"),
+  erc721FailAt: Number(params.get("erc721FailAt") ?? Infinity),
 };
 
 const router = createMemoryRouter(
