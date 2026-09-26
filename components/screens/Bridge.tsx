@@ -482,31 +482,23 @@ export default function Bridge() {
           />
         </div>
 
-        <div className="relative">
-          <AmountInput
-            value={amount}
-            onChange={setAmount}
-            symbol={fromSymbol}
-            usd={
-              amountNum > 0
-                ? `$${formatAmount(amountNum * kaspaPrice, 2)}`
-                : undefined
-            }
-            balance={balance === undefined ? undefined : formatAmount(balance)}
-          />
-          <button
-            type="button"
-            aria-label="Flip"
-            disabled={!canFlip}
-            onClick={() => {
-              setDirection(reverse);
-              setAmount("");
-            }}
-            className="absolute right-0 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 disabled:opacity-40"
-          >
-            <i className="hn hn-sort text-white" />
-          </button>
-        </div>
+        <AmountInput
+          value={amount}
+          onChange={setAmount}
+          symbol={fromSymbol}
+          chainImage={chainImage(route.from)}
+          usd={
+            amountNum > 0
+              ? `$${formatAmount(amountNum * kaspaPrice, 2)}`
+              : undefined
+          }
+          balance={balance === undefined ? undefined : formatAmount(balance)}
+          onFlip={() => {
+            setDirection(reverse);
+            setAmount("");
+          }}
+          flipDisabled={!canFlip}
+        />
 
         {amountNum > 0 && (
           <div className="rounded-lg border border-daintree-700 bg-daintree-800 px-4 py-2">

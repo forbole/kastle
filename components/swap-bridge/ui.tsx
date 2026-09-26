@@ -1,7 +1,8 @@
 import React, { ReactNode, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { twMerge } from "tailwind-merge";
-import { Check } from "lucide-react";
+import { ArrowUpDown, Check } from "lucide-react";
+import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import Layer2AssetImage from "@/components/Layer2AssetImage";
 import useStorageState from "@/hooks/useStorageState";
 
@@ -122,24 +123,41 @@ export function TokenPill({
   );
 }
 
+/** Figma "Amount Info": centered digit + logo + ticker, fiat below, flip right-aligned. */
 export function AmountInput({
   value,
   onChange,
   symbol,
+  tokenImage,
+  chainImage,
   usd,
   balance,
   onMax,
+  onFlip,
+  flipDisabled,
 }: {
   value: string;
   onChange: (v: string) => void;
   symbol: string;
+  tokenImage?: string;
+  chainImage?: string;
   usd?: string;
   balance?: string;
   onMax?: () => void;
+  onFlip: () => void;
+  flipDisabled?: boolean;
 }) {
+  const textSize =
+    value.length > 14
+      ? "text-xl"
+      : value.length > 11
+        ? "text-2xl"
+        : value.length > 8
+          ? "text-3xl"
+          : "text-4xl";
   return (
-    <div className="flex flex-col items-center gap-1 py-4">
-      <div className="flex items-baseline justify-center gap-2">
+    <div className="flex flex-col items-center pt-2">
+      <div className="flex max-w-full items-center justify-center gap-2.5">
         <input
           inputMode="decimal"
           placeholder="0"
@@ -148,23 +166,56 @@ export function AmountInput({
             const v = e.target.value.replace(",", ".");
             if (/^\d*\.?\d*$/.test(v)) onChange(v);
           }}
-          className="w-40 border-none bg-transparent p-0 text-right text-4xl font-semibold text-white placeholder:text-daintree-600 focus:ring-0"
+          // ponytail: ch-width hugs the digits; swap for `field-sizing: content` once Firefox ships it
+          style={{ width: `${Math.max(value.length, 1)}ch` }}
+          className={twMerge(
+            "min-w-0 border-none bg-transparent p-0 text-center font-semibold text-white placeholder:text-daintree-600 focus:ring-0",
+            textSize,
+          )}
         />
-        <span className="text-xl font-semibold text-daintree-400">
-          {symbol}
-        </span>
+        {symbol && (
+          <div className="flex flex-none items-center gap-2 pt-0.5">
+            <div className="relative">
+              <img
+                src={tokenImage ?? kasIcon}
+                alt={symbol}
+                onError={(e) => (e.currentTarget.src = kasIcon)}
+                className="size-10 rounded-full object-cover"
+              />
+              <img
+                src={chainImage ?? kasIcon}
+                alt=""
+                className="absolute bottom-0 left-[30px] size-4 rounded-full border-2 border-icy-blue-950 bg-black object-cover"
+              />
+            </div>
+            <span className="text-xl font-semibold text-[#9eb7c4]">
+              {symbol}
+            </span>
+          </div>
+        )}
       </div>
-      {usd && <span className="text-sm text-daintree-400">≈ {usd}</span>}
+      {usd && <span className="mt-3 text-base text-[#9eb7c4]">{usd}</span>}
       {balance !== undefined && (
         <button
           type="button"
-          className="text-xs text-daintree-400"
+          className="mt-1 text-xs text-daintree-400"
           onClick={onMax}
         >
           Balance: {balance} {symbol}
           {onMax && <span className="ml-1 text-icy-blue-400">Max</span>}
         </button>
       )}
+      <div className="flex w-full justify-end">
+        <button
+          type="button"
+          aria-label="Flip"
+          disabled={flipDisabled}
+          onClick={onFlip}
+          className="flex size-[38px] items-center justify-center rounded-full bg-white/10 disabled:opacity-40"
+        >
+          <ArrowUpDown size={16} strokeWidth={1.5} className="text-white" />
+        </button>
+      </div>
     </div>
   );
 }
@@ -210,13 +261,16 @@ export function TermsGate({ kind }: { kind: "Swap" | "Bridge" }) {
   return (
     <>
       <div className="fixed inset-0 z-40" />
-      <div className="fixed inset-x-0 bottom-0 z-50 flex h-[277px] flex-col rounded-t-2xl border border-daintree-700 bg-daintree-800 py-4 shadow-lg">
-        <div className="px-2 pt-4">
-          <h2 className="border-b border-daintree-700 pb-2 pl-2 text-lg font-semibold text-gray-200">
+      <div className="fixed inset-x-0 bottom-0 z-50 flex flex-col rounded-t-2xl border border-daintree-700 bg-daintree-800 py-4 drop-shadow-lg">
+        <div className="px-2 pb-2 pt-4">
+          <h2 className="pl-2 text-lg font-semibold text-gray-200">
             {kind} Terms & Conditions
           </h2>
         </div>
-        <div className="flex items-center justify-between gap-2 rounded-lg px-6 py-2 text-sm text-white">
+        <div className="py-2">
+          <div className="h-px w-full bg-daintree-700" />
+        </div>
+        <div className="flex items-center justify-between gap-2 rounded-lg px-6 pb-12 pt-2 text-sm text-white">
           <span>
             I have read and agree to the {kind}{" "}
             <a
@@ -245,21 +299,21 @@ export function TermsGate({ kind }: { kind: "Swap" | "Bridge" }) {
             {checked && <Check size={14} className="text-white" />}
           </button>
         </div>
-        <div className="mt-auto flex gap-3 px-4 pb-6 pt-3">
-          <button
-            type="button"
-            className="px-4 py-2.5 text-[15px] font-semibold text-daintree-400"
-            onClick={() => navigate("/dashboard")}
-          >
-            Cancel
-          </button>
+        <div className="flex flex-col px-4 pb-6 pt-3">
           <button
             type="button"
             disabled={!checked}
             onClick={() => setAccepted(true)}
-            className="flex-1 rounded-full bg-icy-blue-400 py-2.5 text-[15px] font-semibold text-white disabled:bg-icy-blue-700/30 disabled:text-white/20"
+            className="w-full rounded-full bg-icy-blue-400 px-4 py-3.5 text-[15px] font-semibold text-white disabled:bg-icy-blue-700/30 disabled:text-white/20"
           >
             Confirm
+          </button>
+          <button
+            type="button"
+            className="w-full rounded-lg px-5 py-[22px] text-[15px] font-semibold text-daintree-400"
+            onClick={() => navigate("/dashboard")}
+          >
+            Cancel
           </button>
         </div>
       </div>

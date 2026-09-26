@@ -426,34 +426,27 @@ export default function Swap() {
           />
         </div>
 
-        <div className="relative">
-          <AmountInput
-            value={amount}
-            onChange={setAmount}
-            symbol={tokenIn?.symbol ?? ""}
-            usd={usdIn > 0 ? `$${formatAmount(usdIn, 2)}` : undefined}
-            balance={
-              balances && tokenIn
-                ? formatAmount(
-                    Number(formatUnits(balances.input, tokenIn.decimals)),
-                  )
-                : undefined
-            }
-            onMax={
-              balances && tokenIn && !isNativeIn
-                ? () => setAmount(formatUnits(balances.input, tokenIn.decimals))
-                : undefined
-            }
-          />
-          <button
-            type="button"
-            aria-label="Flip"
-            onClick={flip}
-            className="absolute right-0 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/10"
-          >
-            <i className="hn hn-sort text-white" />
-          </button>
-        </div>
+        <AmountInput
+          value={amount}
+          onChange={setAmount}
+          symbol={tokenIn?.symbol ?? ""}
+          tokenImage={tokenIn?.image}
+          chainImage={tokenIn?.chainImage}
+          usd={usdIn > 0 ? `$${formatAmount(usdIn, 2)}` : undefined}
+          balance={
+            balances && tokenIn
+              ? formatAmount(
+                  Number(formatUnits(balances.input, tokenIn.decimals)),
+                )
+              : undefined
+          }
+          onMax={
+            balances && tokenIn && !isNativeIn
+              ? () => setAmount(formatUnits(balances.input, tokenIn.decimals))
+              : undefined
+          }
+          onFlip={flip}
+        />
 
         {rawIn > 0n && tokenOut && !samePair && (
           <div className="rounded-lg border border-daintree-700 bg-daintree-800 px-4 py-2">
