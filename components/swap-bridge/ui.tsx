@@ -1,6 +1,7 @@
 import React, { ReactNode, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { twMerge } from "tailwind-merge";
+import { Check } from "lucide-react";
 import Layer2AssetImage from "@/components/Layer2AssetImage";
 import useStorageState from "@/hooks/useStorageState";
 
@@ -197,28 +198,72 @@ export function ConfirmButton({
   );
 }
 
-/** Bottom action bar shared by Swap and Bridge (Figma: home / swap / bridge). */
-export function SwapBridgeNav({ active }: { active: "swap" | "bridge" }) {
+/** Pre-first-use T&C gate (Figma "Dropdown Menu/bottom sheet"); Cancel leaves the flow. */
+export function TermsGate({ kind }: { kind: "Swap" | "Bridge" }) {
   const navigate = useNavigate();
-  const item = (key: "home" | "swap" | "bridge", icon: string) => (
-    <button
-      type="button"
-      aria-label={key}
-      onClick={() => navigate(key === "home" ? "/dashboard" : `/${key}`)}
-      className={twMerge(
-        "flex h-10 w-16 items-center justify-center rounded-full text-xl",
-        active === key ? "bg-white/10 text-white" : "text-daintree-400",
-      )}
-    >
-      <i className={`hn ${icon}`} />
-    </button>
+  const [accepted, setAccepted, loading] = useStorageState(
+    `local:${kind.toLowerCase()}_terms_accepted`,
+    false,
   );
+  const [checked, setChecked] = useState(false);
+  if (loading || accepted) return null;
   return (
-    <div className="flex justify-center gap-6 border-t border-daintree-700 py-2">
-      {item("home", "hn-home")}
-      {item("swap", "hn-refresh")}
-      {item("bridge", "hn-link")}
-    </div>
+    <>
+      <div className="fixed inset-0 z-40" />
+      <div className="fixed inset-x-0 bottom-0 z-50 flex h-[277px] flex-col rounded-t-2xl border border-daintree-700 bg-daintree-800 py-4 shadow-lg">
+        <div className="px-2 pt-4">
+          <h2 className="border-b border-daintree-700 pb-2 pl-2 text-lg font-semibold text-gray-200">
+            {kind} Terms & Conditions
+          </h2>
+        </div>
+        <div className="flex items-center justify-between gap-2 rounded-lg px-6 py-2 text-sm text-white">
+          <span>
+            I have read and agree to the {kind}{" "}
+            <a
+              href="https://kastle.cc/term-and-conditions"
+              target="_blank"
+              rel="noreferrer"
+              className="text-icy-blue-400 underline"
+            >
+              T&C
+            </a>
+            .
+          </span>
+          <button
+            type="button"
+            role="checkbox"
+            aria-checked={checked}
+            aria-label={`Agree to the ${kind} T&C`}
+            onClick={() => setChecked(!checked)}
+            className={twMerge(
+              "flex size-4 flex-none items-center justify-center rounded border",
+              checked
+                ? "border-icy-blue-400 bg-icy-blue-400"
+                : "border-daintree-400",
+            )}
+          >
+            {checked && <Check size={14} className="text-white" />}
+          </button>
+        </div>
+        <div className="mt-auto flex gap-3 px-4 pb-6 pt-3">
+          <button
+            type="button"
+            className="px-4 py-2.5 text-[15px] font-semibold text-daintree-400"
+            onClick={() => navigate("/dashboard")}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={!checked}
+            onClick={() => setAccepted(true)}
+            className="flex-1 rounded-full bg-icy-blue-400 py-2.5 text-[15px] font-semibold text-white disabled:bg-icy-blue-700/30 disabled:text-white/20"
+          >
+            Confirm
+          </button>
+        </div>
+      </div>
+    </>
   );
 }
 

@@ -22,12 +22,13 @@ import {
   QuoteRow,
   SheetToken,
   Skeleton,
-  SwapBridgeNav,
+  TermsGate,
   TokenPill,
   TokenSheet,
   AmountInput,
   formatAmount,
 } from "@/components/swap-bridge/ui";
+import BottomNav from "@/components/BottomNav";
 import { NetworkType } from "@/contexts/SettingsContext";
 import useEvmAddress from "@/hooks/evm/useEvmAddress";
 import useEvmHotWalletSigner from "@/hooks/wallet/useEvmHotWalletSigner";
@@ -529,7 +530,8 @@ export default function Swap() {
           onClick={onConfirm}
         />
       </div>
-      <SwapBridgeNav active="swap" />
+      <BottomNav />
+      <TermsGate kind="Swap" />
 
       {(["in", "out"] as const).map((side) => (
         <TokenSheet

@@ -20,11 +20,12 @@ import {
   QuoteRow,
   SheetToken,
   Skeleton,
-  SwapBridgeNav,
+  TermsGate,
   TokenPill,
   TokenSheet,
   formatAmount,
 } from "@/components/swap-bridge/ui";
+import BottomNav from "@/components/BottomNav";
 import kaspaIcon from "@/assets/images/network-logos/kaspa.svg";
 import { NetworkType } from "@/contexts/SettingsContext";
 import useEvmAddress from "@/hooks/evm/useEvmAddress";
@@ -562,7 +563,8 @@ export default function Bridge() {
           onClick={onConfirm}
         />
       </div>
-      <SwapBridgeNav active="bridge" />
+      <BottomNav />
+      <TermsGate kind="Bridge" />
 
       <TokenSheet
         open={sheet === "token"}
