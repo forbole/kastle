@@ -3,9 +3,9 @@ import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import {
   Address,
+  addressFromScriptPublicKey,
   payToAddressScript,
   sompiToKaspaString,
-  Transaction,
 } from "@/wasm/core/kaspa";
 import { useState } from "react";
 import Header from "@/components/GeneralHeader";
@@ -283,6 +283,36 @@ export default function SignConfirm({
                 </div>
               </li>
             </ul>
+            <section
+              className="mt-3 space-y-3"
+              aria-label="Transaction outputs"
+            >
+              <h3 className="font-semibold">Transaction outputs</h3>
+              {transaction.outputs.map((output, index) => {
+                const address = addressFromScriptPublicKey(
+                  output.scriptPublicKey,
+                  payload.networkId ?? settings?.networkId ?? "mainnet",
+                )?.toString();
+                return (
+                  <div
+                    key={index}
+                    className="rounded-lg border border-daintree-700 p-3 text-sm"
+                  >
+                    <div className="flex justify-between gap-2">
+                      <span>
+                        Output {index + 1}
+                        {address === account?.address ? " (your address)" : ""}
+                      </span>
+                      <span>{sompiToKaspaString(output.value)} KAS</span>
+                    </div>
+                    <p className="mt-2 break-all">
+                      {address ??
+                        `Script: ${output.scriptPublicKey.toString()}`}
+                    </p>
+                  </div>
+                );
+              })}
+            </section>
             <div className="space-y-4 py-4">
               <span
                 className="inline-flex cursor-pointer items-center gap-2 font-semibold text-[#00B1D0]"

@@ -5,7 +5,10 @@ import { EthereumBrowserAPI } from "./ethereum";
 import { ConnectPayloadSchema } from "@/api/background/handlers/kaspa/connect";
 import { SignTxPayloadSchema } from "@/api/background/handlers/kaspa/utils";
 import { SignMessagePayloadSchema } from "@/api/background/handlers/kaspa/signMessage";
-import { sendSompiPayloadSchema } from "./background/handlers/kaspa/sendSompi";
+import {
+  sendSompiPayloadSchema,
+  sendKaspaManyPayloadSchema,
+} from "@/lib/kaspa-send-request";
 import {
   CommitRevealResponse,
   CommitRevealResponseSchema,
@@ -342,6 +345,21 @@ export class KastleBrowserAPI {
     });
     window.postMessage(request, "*");
 
+    return await this.receiveMessageWithTimeout(requestId);
+  }
+
+  /** Sends all outputs in one transaction, or rejects without broadcasting. */
+  async sendKaspaMany(
+    outputs: { address: string; amount: string }[],
+    options?: { priorityFee?: string; payload?: string },
+  ): Promise<string> {
+    const requestId = uuid();
+    const request = createApiRequest(
+      Action.SEND_SOMPI,
+      requestId,
+      sendKaspaManyPayloadSchema.parse({ outputs, options }),
+    );
+    window.postMessage(request, "*");
     return await this.receiveMessageWithTimeout(requestId);
   }
 

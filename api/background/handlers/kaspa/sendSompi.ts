@@ -1,30 +1,10 @@
 import { ApiRequestWithHost, RPC_ERRORS } from "@/api/message";
-import { z } from "zod";
 import { ApiUtils } from "@/api/background/utils";
-import { Address, kaspaToSompi, createTransactions } from "@/wasm/core/kaspa";
+import { Address, createTransactions } from "@/wasm/core/kaspa";
 import { SignTxPayloadSchema } from "./utils";
 
-export const sendSompiPayloadSchema = z.object({
-  toAddress: z.string().min(1, "toAddress cannot be empty"),
-  sompi: z
-    .number()
-    .min(Number(0.2 * 10 ** 8), "sompi must be greater than 0.2 KAS"),
-  options: z
-    .object({
-      priorityFee: z
-        .number()
-        .min(0, "priorityFee must be greater than or equal to 0")
-        .default(0),
-      payload: z
-        .string()
-        .refine(
-          (v) => /^[0-9a-fA-F]*$/.test(v) && v.length % 2 === 0,
-          "payload must be a valid hex string (even length, 0-9 a-f only)",
-        )
-        .optional(),
-    })
-    .default({}),
-});
+import { parseKaspaSendRequest } from "@/lib/kaspa-send-request";
+export { sendSompiPayloadSchema } from "@/lib/kaspa-send-request";
 
 const ADDRESS_PREFIX_MAP = {
   mainnet: "kaspa",
@@ -63,36 +43,31 @@ export async function sendSompiHandler(
     return;
   }
 
-  const result = sendSompiPayloadSchema.safeParse(message.payload);
-  if (!result.success) {
+  let parsed: ReturnType<typeof parseKaspaSendRequest>;
+  try {
+    parsed = parseKaspaSendRequest(message.payload);
+  } catch (error) {
     sendResponse(
-      ApiUtils.createApiResponse(
-        message.id,
-        null,
-        `Invalid payload: ${result.error.message}`,
-      ),
+      ApiUtils.createApiResponse(message.id, null, `Invalid payload: ${error}`),
     );
     return;
   }
-
-  // Validate toAddress, network prefix
-  const parsed = result.data;
 
   const networkId = (await ApiUtils.getSettings()).networkId;
-  const isValidated = Address.validate(parsed.toAddress);
-  if (!isValidated) {
-    sendResponse(
-      ApiUtils.createApiResponse(message.id, null, "Invalid toAddress"),
-    );
-    return;
-  }
-
-  const parsedAddress = new Address(parsed.toAddress);
-  if (parsedAddress.prefix !== ADDRESS_PREFIX_MAP[networkId]) {
-    sendResponse(
-      ApiUtils.createApiResponse(message.id, null, "Invalid toAddress"),
-    );
-    return;
+  for (const output of parsed.outputs) {
+    if (
+      !Address.validate(output.address) ||
+      new Address(output.address).prefix !== ADDRESS_PREFIX_MAP[networkId]
+    ) {
+      sendResponse(
+        ApiUtils.createApiResponse(
+          message.id,
+          null,
+          "Invalid output address or network",
+        ),
+      );
+      return;
+    }
   }
 
   // Get sender address
@@ -125,12 +100,10 @@ export async function sendSompiHandler(
     // Create transaction and open signAndBroadcastTx popup
     const { transactions: pendingTxs } = await createTransactions({
       entries,
-      outputs: [
-        {
-          address: parsed.toAddress,
-          amount: BigInt(parsed.sompi),
-        },
-      ],
+      outputs: parsed.outputs.map((output) => ({
+        address: output.address,
+        amount: BigInt(output.amount),
+      })),
       priorityFee: BigInt(parsed.options.priorityFee),
       changeAddress: sender.address,
       payload: parsed.options?.payload,
@@ -159,7 +132,7 @@ export async function sendSompiHandler(
     const pendingTx = pendingTxs[0];
 
     // Open sign and broadcast popup
-    const result = SignTxPayloadSchema.safeParse({
+    const result = SignTxPayloadSchema.parse({
       networkId,
       txJson: pendingTx.transaction.serializeToSafeJSON(),
     });
@@ -167,7 +140,7 @@ export async function sendSompiHandler(
     const url = new URL(browser.runtime.getURL("/popup.html"));
     url.hash = "/sign-and-broadcast-tx";
     url.searchParams.set("requestId", message.id);
-    url.searchParams.set("payload", JSON.stringify(result.data));
+    url.searchParams.set("payload", JSON.stringify(result));
 
     // Open the popup and wait for the response
     const response = await ApiUtils.openPopupAndListenForResponse(
