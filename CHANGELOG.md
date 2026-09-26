@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.60.2](https://github.com/forbole/kastle/compare/v2.60.1...v2.60.2) (2026-09-26)
+
+
+### Bug Fixes
+
+* **krc721:** render KSPR, keep failed cards, gate Transfer on listing, testnet indexer host ([#347](https://github.com/forbole/kastle/issues/347)) ([2e98d70](https://github.com/forbole/kastle/commit/2e98d70413a9073a6da16e6f9e1bc5e0f58c0835))
+
 ## [2.60.1](https://github.com/forbole/kastle/compare/v2.60.0...v2.60.1) (2026-09-10)
 
 
