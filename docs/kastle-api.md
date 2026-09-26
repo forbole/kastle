@@ -7,7 +7,7 @@ Integrate your dApp with Kastle Wallet.
 Each API method is available in two styles:
 
 - **Direct method**: `kastle.methodName(...)`
-- **KIP-style generic request**: `kastle.request('kas:method_name', args)`
+- **KIP-style generic request**: `kastle.request('kas:method_name', args)`, or the EIP-1193 object form `kastle.request({ method: 'kas:method_name', params: args })`. The object form rejects an unknown method with code `4200`; the positional form resolves `undefined`.
 
 ---
 
@@ -534,6 +534,12 @@ kastle.on("kas:account_changed", (address) => {
 
 kastle.on("kas:network_changed", (network) => {
   console.log("Network changed:", network);
+});
+
+// EIP-1193-style: fired once when the extension's page bridge is ready.
+// Register before DOMContentLoaded to receive it.
+kastle.on("connect", ({ networkId }) => {
+  console.log("Connected on:", networkId);
 });
 
 // Remove a listener

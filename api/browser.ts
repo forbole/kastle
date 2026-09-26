@@ -1,5 +1,11 @@
 import { v4 as uuid } from "uuid";
-import { Action, ApiRequest, ApiResponseSchema } from "@/api/message";
+import {
+  Action,
+  ApiRequest,
+  ApiResponseSchema,
+  RPC_ERRORS,
+  RpcError,
+} from "@/api/message";
 import { ScriptOption } from "@/lib/wallet/wallet-interface.ts";
 import { EthereumBrowserAPI } from "./ethereum";
 import { ConnectPayloadSchema } from "@/api/background/handlers/kaspa/connect";
@@ -32,6 +38,11 @@ export type KastleEventMap = {
   // KIP-style events
   "kas:account_changed": (address: string | null) => void;
   "kas:network_changed": (network: string | null) => void;
+  // EIP-1193 / KCC-12 connectivity events
+  connect: (info: { networkId: string }) => void;
+  // ponytail: typed but never emitted — the background is local, so the page
+  // has no "remote lost" signal yet. Wire it when KCC-12 lands (code 1013).
+  disconnect: (error: RpcError) => void;
 };
 
 export type KastleEventType = keyof KastleEventMap;
@@ -62,6 +73,20 @@ export class KastleBrowserAPI {
         this._emit("kas:network_changed", response as string | null);
       }
     });
+
+    // content.ts fires this once its message bridge is live, which is when
+    // this provider can first service requests. Skip the round-trip on the
+    // many pages that never listen for it.
+    window.addEventListener(
+      "kastle#initialized",
+      () => {
+        if (!this._eventListeners.get("connect")?.size) return;
+        this.getNetwork()
+          .then((networkId) => this._emit("connect", { networkId }))
+          .catch(() => {});
+      },
+      { once: true },
+    );
   }
 
   on<E extends KastleEventType>(event: E, handler: KastleEventMap[E]): this {
@@ -115,7 +140,17 @@ export class KastleBrowserAPI {
 
   async disconnect(): Promise<void> {}
 
-  async request(method: string, args?: unknown): Promise<any> {
+  // EIP-1193 / KCC-12 shape is request({ method, params }). The positional
+  // request(method, args) form predates it and stays for existing dApps.
+  // KCC-12 method gaps: docs/kcc12-prep.md.
+  async request(
+    methodOrArgs: string | { method: string; params?: unknown },
+    legacyArgs?: unknown,
+  ): Promise<any> {
+    const isLegacy = typeof methodOrArgs === "string";
+    const { method, params: args } = isLegacy
+      ? { method: methodOrArgs, params: legacyArgs }
+      : methodOrArgs;
     const requestId = uuid();
 
     // kas:connect requires name/icon from page context if not provided
@@ -158,7 +193,9 @@ export class KastleBrowserAPI {
     }[method];
 
     if (!action) {
-      return;
+      // Legacy callers got undefined for an unknown method; keep that.
+      if (isLegacy) return;
+      throw RPC_ERRORS.METHOD_NOT_SUPPORTED;
     }
 
     const request = createApiRequest(action, requestId, args);
