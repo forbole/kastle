@@ -6,7 +6,10 @@ import {
   formatTokenPrice,
   symbolForCurrencyCode,
 } from "@/lib/utils.ts";
-import TokenListItem from "@/components/dashboard/TokenListItem.tsx";
+import TokenListItem, {
+  Kcc20TokenListItem,
+} from "@/components/dashboard/TokenListItem.tsx";
+import useKcc20Tokens from "@/lib/kcc20/useKcc20Tokens";
 import { applyDecimal } from "@/lib/krc20.ts";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 import { useTokenListByAddress } from "@/hooks/kasplex/useTokenListByAddress";
@@ -48,6 +51,8 @@ export default function Assets() {
       bToFloat(parseInt(b.balance, 10)) - aToFloat(parseInt(a.balance, 10))
     );
   });
+
+  const kcc20Tokens = useKcc20Tokens(address);
 
   const isAssetListLoading = balance === undefined;
 
@@ -96,6 +101,11 @@ export default function Assets() {
 
       {/*KRC20 tokens*/}
       {tokens?.map((token) => <TokenListItem key={token.id} token={token} />)}
+
+      {/*KCC20 tokens*/}
+      {kcc20Tokens?.map((token) => (
+        <Kcc20TokenListItem key={token.covenantId} token={token} />
+      ))}
 
       {/* ERC20 tokens */}
       <Erc20Assets />
