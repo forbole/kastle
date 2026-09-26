@@ -270,7 +270,7 @@ export function TermsGate({ kind }: { kind: "Swap" | "Bridge" }) {
         <div className="py-2">
           <div className="h-px w-full bg-daintree-700" />
         </div>
-        <div className="flex items-center justify-between gap-2 rounded-lg px-6 pb-12 pt-2 text-sm text-white">
+        <div className="flex items-center justify-between gap-2 rounded-lg px-3 pb-10 pt-2 text-sm text-white">
           <span>
             I have read and agree to the {kind}{" "}
             <a
