@@ -13,9 +13,9 @@ import { KRC721TransferFormData } from "@/components/screens/KRC721Transfer.tsx"
 import { buildKrc721TransferScript } from "@/lib/krc721";
 import { useKasFeeEstimate } from "@/hooks/useKasFeeEstimate";
 import { useKns } from "@/hooks/kns/useKns";
-import { convertIPFStoHTTP, formatToken } from "@/lib/utils.ts";
+import { formatToken } from "@/lib/utils.ts";
 import useKaspaBalance from "@/hooks/wallet/useKaspaBalance";
-import { useKRC721Details } from "@/hooks/krc721/useKRC721";
+import { useKRC721Details, useKRC721Image } from "@/hooks/krc721/useKRC721";
 import FeeSegment from "../nft-transfer/FeeSegment";
 
 type KRC721TransferDetailsProps = {
@@ -69,6 +69,7 @@ export const KRC721TransferDetails = ({
   } = useBoolean(false);
 
   const { data } = useKRC721Details(tick, tokenId);
+  const image = useKRC721Image(tick, tokenId, data?.image);
 
   const { value: isAddressFieldFocused, setValue: setAddressFieldFocused } =
     useBoolean(false);
@@ -78,7 +79,7 @@ export const KRC721TransferDetails = ({
   const onClose = () => navigate("/dashboard");
 
   const addressValidator = async (value: string | undefined) => {
-    const genericErrorMessage = "Invalid address or KRC721 domain";
+    const genericErrorMessage = "Invalid Kaspa address or .kas domain";
     if (!value) return false;
 
     if (currentBalance < ((commitFee ?? 0) + (revealFee ?? 0)) / 1e8) {
@@ -150,9 +151,10 @@ export const KRC721TransferDetails = ({
 
       <div className="relative flex h-full flex-col gap-4">
         <div className="relative mx-auto max-h-28 max-w-48 rounded-xl bg-daintree-800">
-          {!!data && (
+          {!!image.src && (
             <img
-              src={convertIPFStoHTTP(data.image)}
+              src={image.src}
+              onError={image.onError}
               alt="KRC721"
               className="m-auto max-h-28 max-w-48 rounded-xl"
             />
@@ -209,7 +211,7 @@ export const KRC721TransferDetails = ({
               errors.userInput &&
                 "ring ring-red-500/25 focus:ring focus:ring-red-500/25",
             )}
-            placeholder="Enter wallet address or KRC721"
+            placeholder="Enter wallet address or KNS"
           />
 
           <div className="pointer-events-none absolute end-0 top-10 flex h-16 items-center pe-3">

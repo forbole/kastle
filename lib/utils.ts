@@ -125,9 +125,7 @@ export function openFullPage(path: `/${string}`) {
   browser.tabs.create({ url: url.toString() });
 }
 
-export function convertIPFStoHTTP(url: string) {
-  return url.replace("ipfs://", "https://gateway.pinata.cloud/ipfs/");
-}
+export { convertIPFStoHTTP } from "@/lib/cache/ipfsCache";
 
 export function toLegacyEvmAddress(publicKey: string) {
   const uncompressed =
