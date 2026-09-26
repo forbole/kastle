@@ -1,0 +1,354 @@
+import React, { ReactNode, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { twMerge } from "tailwind-merge";
+import Layer2AssetImage from "@/components/Layer2AssetImage";
+import useStorageState from "@/hooks/useStorageState";
+
+export function BottomSheet({
+  title,
+  open,
+  onClose,
+  children,
+}: {
+  title: string;
+  open: boolean;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  if (!open) return null;
+  return (
+    <>
+      <div className="fixed inset-0 z-40 bg-black/50" onClick={onClose} />
+      <div className="fixed inset-x-0 bottom-0 z-50 flex max-h-[85%] flex-col gap-4 rounded-t-2xl border border-daintree-700 bg-daintree-800 p-6">
+        <div className="flex items-center justify-between">
+          <span className="text-lg font-semibold text-white">{title}</span>
+          <button type="button" onClick={onClose} aria-label="Close">
+            <i className="hn hn-times text-xl text-daintree-400" />
+          </button>
+        </div>
+        <div className="no-scrollbar flex flex-col gap-2 overflow-y-auto">
+          {children}
+        </div>
+      </div>
+    </>
+  );
+}
+
+export type Tooltip = { title: string; body: string; footer?: string };
+
+/** A quote-card row; the info icon opens its explanation as a sheet. */
+export function QuoteRow({
+  label,
+  tooltip,
+  onClick,
+  children,
+}: {
+  label: string;
+  tooltip?: Tooltip;
+  onClick?: () => void;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="flex items-center justify-between py-1.5 text-sm">
+      <button
+        type="button"
+        className="flex items-center gap-1 text-daintree-400"
+        onClick={() => tooltip && setOpen(true)}
+      >
+        {label}
+        {tooltip && <i className="hn hn-info-circle text-xs" />}
+      </button>
+      <div
+        className={twMerge(
+          "flex items-center gap-1 text-white",
+          onClick && "cursor-pointer",
+        )}
+        onClick={onClick}
+      >
+        {children}
+        {onClick && <i className="hn hn-angle-right text-xs" />}
+      </div>
+      {tooltip && (
+        <BottomSheet
+          title={tooltip.title}
+          open={open}
+          onClose={() => setOpen(false)}
+        >
+          <p className="text-sm text-daintree-400">{tooltip.body}</p>
+          {tooltip.footer && (
+            <p className="text-xs text-daintree-500">{tooltip.footer}</p>
+          )}
+        </BottomSheet>
+      )}
+    </div>
+  );
+}
+
+export const Skeleton = () => (
+  <span className="h-4 w-20 animate-pulse rounded-lg bg-daintree-700" />
+);
+
+export function TokenPill({
+  symbol,
+  tokenImage,
+  chainImage,
+  onClick,
+}: {
+  symbol: string;
+  tokenImage?: string;
+  chainImage?: string;
+  onClick?: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="flex flex-1 items-center gap-2 rounded-full border border-daintree-700 bg-daintree-800 px-3 py-2 text-white"
+      onClick={onClick}
+    >
+      <Layer2AssetImage
+        tokenImage={tokenImage}
+        chainImage={chainImage}
+        tokenImageSize={24}
+        chainImageSize={12}
+        chainImageBottomPosition={-2}
+      />
+      <span className="flex-1 truncate text-left text-sm font-semibold">
+        {symbol}
+      </span>
+      <i className="hn hn-angle-down text-xs text-daintree-400" />
+    </button>
+  );
+}
+
+export function AmountInput({
+  value,
+  onChange,
+  symbol,
+  usd,
+  balance,
+  onMax,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  symbol: string;
+  usd?: string;
+  balance?: string;
+  onMax?: () => void;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-1 py-4">
+      <div className="flex items-baseline justify-center gap-2">
+        <input
+          inputMode="decimal"
+          placeholder="0"
+          value={value}
+          onChange={(e) => {
+            const v = e.target.value.replace(",", ".");
+            if (/^\d*\.?\d*$/.test(v)) onChange(v);
+          }}
+          className="w-40 border-none bg-transparent p-0 text-right text-4xl font-semibold text-white placeholder:text-daintree-600 focus:ring-0"
+        />
+        <span className="text-xl font-semibold text-daintree-400">
+          {symbol}
+        </span>
+      </div>
+      {usd && <span className="text-sm text-daintree-400">≈ {usd}</span>}
+      {balance !== undefined && (
+        <button
+          type="button"
+          className="text-xs text-daintree-400"
+          onClick={onMax}
+        >
+          Balance: {balance} {symbol}
+          {onMax && <span className="ml-1 text-icy-blue-400">Max</span>}
+        </button>
+      )}
+    </div>
+  );
+}
+
+export function ConfirmButton({
+  error,
+  disabled,
+  loading,
+  onClick,
+}: {
+  error?: string;
+  disabled: boolean;
+  loading: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <div className="mt-auto flex flex-col gap-2 pb-2">
+      {error && <p className="text-center text-sm text-red-500">{error}</p>}
+      <button
+        type="button"
+        className="flex w-full items-center justify-center gap-2 rounded-full bg-icy-blue-400 py-4 text-base font-medium text-white hover:bg-icy-blue-600 disabled:bg-daintree-800 disabled:text-[#4B5563]"
+        disabled={disabled || loading}
+        onClick={onClick}
+      >
+        {loading && (
+          <span className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+        )}
+        Confirm
+      </button>
+    </div>
+  );
+}
+
+/** Bottom action bar shared by Swap and Bridge (Figma: home / swap / bridge). */
+export function SwapBridgeNav({ active }: { active: "swap" | "bridge" }) {
+  const navigate = useNavigate();
+  const item = (key: "home" | "swap" | "bridge", icon: string) => (
+    <button
+      type="button"
+      aria-label={key}
+      onClick={() => navigate(key === "home" ? "/dashboard" : `/${key}`)}
+      className={twMerge(
+        "flex h-10 w-16 items-center justify-center rounded-full text-xl",
+        active === key ? "bg-white/10 text-white" : "text-daintree-400",
+      )}
+    >
+      <i className={`hn ${icon}`} />
+    </button>
+  );
+  return (
+    <div className="flex justify-center gap-6 border-t border-daintree-700 py-2">
+      {item("home", "hn-home")}
+      {item("swap", "hn-refresh")}
+      {item("bridge", "hn-link")}
+    </div>
+  );
+}
+
+export type SheetToken = {
+  key: string;
+  chain: string;
+  symbol: string;
+  address?: string;
+  image?: string;
+  chainImage?: string;
+  balance?: string;
+  disabled?: boolean;
+};
+
+/** Token picker: chain chips, search by symbol/address, recent picks first. */
+export function TokenSheet({
+  open,
+  onClose,
+  chains,
+  chain,
+  onChain,
+  tokens,
+  onSelect,
+  recentKey,
+}: {
+  open: boolean;
+  onClose: () => void;
+  chains: { key: string; label: string }[];
+  chain: string;
+  onChain: (key: string) => void;
+  tokens: SheetToken[];
+  onSelect: (token: SheetToken) => void;
+  recentKey: `local:${string}`;
+}) {
+  const [search, setSearch] = useState("");
+  const [recent, setRecent] = useStorageState<string[]>(recentKey, []);
+  const q = search.trim().toLowerCase();
+  const inChain = tokens.filter((t) => t.chain === chain);
+  const matches = inChain.filter(
+    (t) =>
+      !q ||
+      t.symbol.toLowerCase().includes(q) ||
+      t.address?.toLowerCase().includes(q),
+  );
+  const recentTokens = q
+    ? []
+    : recent
+        .map((k) => inChain.find((t) => t.key === k))
+        .filter((t): t is SheetToken => !!t);
+
+  const row = (t: SheetToken) => (
+    <button
+      key={t.key}
+      type="button"
+      disabled={t.disabled}
+      className="flex items-center gap-3 rounded-lg p-2 text-left hover:bg-daintree-700 disabled:opacity-40"
+      onClick={() => {
+        void setRecent((prev) =>
+          [t.key, ...prev.filter((k) => k !== t.key)].slice(0, 5),
+        );
+        onSelect(t);
+        onClose();
+      }}
+    >
+      <Layer2AssetImage
+        tokenImage={t.image}
+        chainImage={t.chainImage}
+        tokenImageSize={32}
+        chainImageSize={14}
+        chainImageBottomPosition={-2}
+      />
+      <div className="flex flex-1 flex-col">
+        <span className="text-sm font-semibold text-white">{t.symbol}</span>
+        {t.address && (
+          <span className="text-xs text-daintree-400">
+            {t.address.slice(0, 6)}…{t.address.slice(-4)}
+          </span>
+        )}
+      </div>
+      {t.balance !== undefined && (
+        <span className="text-sm text-daintree-400">{t.balance}</span>
+      )}
+    </button>
+  );
+
+  return (
+    <BottomSheet title="Select Token" open={open} onClose={onClose}>
+      <input
+        placeholder="Search token"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="w-full rounded-lg border border-daintree-700 bg-daintree-900 px-3 py-2 text-sm text-white placeholder:text-daintree-500 focus:border-daintree-600 focus:ring-0"
+      />
+      {chains.length > 1 && (
+        <div className="flex gap-2">
+          {chains.map((c) => (
+            <button
+              key={c.key}
+              type="button"
+              onClick={() => onChain(c.key)}
+              className={twMerge(
+                "rounded-full border px-3 py-1 text-xs",
+                c.key === chain
+                  ? "border-icy-blue-400 bg-icy-blue-400/10 text-icy-blue-400"
+                  : "border-daintree-700 text-daintree-400",
+              )}
+            >
+              {c.label}
+            </button>
+          ))}
+        </div>
+      )}
+      {recentTokens.length > 0 && (
+        <>
+          <span className="text-xs text-daintree-500">Recent</span>
+          {recentTokens.map(row)}
+          <span className="text-xs text-daintree-500">All tokens</span>
+        </>
+      )}
+      {matches.map(row)}
+      {matches.length === 0 && (
+        <p className="py-4 text-center text-sm text-daintree-400">
+          No tokens found
+        </p>
+      )}
+    </BottomSheet>
+  );
+}
+
+export const formatAmount = (n: number, max = 6) =>
+  Number.isFinite(n)
+    ? n.toLocaleString("en-US", { maximumFractionDigits: max })
+    : "0";

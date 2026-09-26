@@ -144,11 +144,13 @@ export interface ExitGateValues {
  * COORDINATOR_MAX_AGE_MS — so the caller falls through to the on-chain check.
  * Never throws.
  */
-export async function fetchCoordinatorLiquidity(opts: {
-  fetchImpl?: typeof fetch;
-  now?: number;
-  signal?: AbortSignal;
-} = {}): Promise<CoordinatorLiquidity | null> {
+export async function fetchCoordinatorLiquidity(
+  opts: {
+    fetchImpl?: typeof fetch;
+    now?: number;
+    signal?: AbortSignal;
+  } = {},
+): Promise<CoordinatorLiquidity | null> {
   const doFetch = opts.fetchImpl ?? fetch;
   const now = opts.now ?? Date.now();
   try {
@@ -332,18 +334,38 @@ const REVERT_MESSAGE_MAP: [string, string][] = [
   ["Bridge paused", EXIT_GATE_MESSAGES.unavailable],
   ["Bridge disabled", EXIT_GATE_MESSAGES.unavailable],
   ["Exceeds rolling cap", EXIT_GATE_MESSAGES.capFull],
-  ["Exceeds max exit", "This amount is above the bridge's maximum exit size. Use a smaller amount."],
-  ["Below min exit", "This amount is below the bridge's minimum exit size. Use a larger amount."],
-  ["Below minimum fee", "This amount is below the bridge's minimum exit size. Use a larger amount."],
-  ["No iKAS sent", "No amount was attached to the exit. Re-enter the amount and try again."],
-  ["Kaspa address too long", "The Kaspa payout address is too long for the bridge. Check the address and try again."],
-  ["Empty kaspa address", "No Kaspa payout address was provided. Check the address and try again."],
+  [
+    "Exceeds max exit",
+    "This amount is above the bridge's maximum exit size. Use a smaller amount.",
+  ],
+  [
+    "Below min exit",
+    "This amount is below the bridge's minimum exit size. Use a larger amount.",
+  ],
+  [
+    "Below minimum fee",
+    "This amount is below the bridge's minimum exit size. Use a larger amount.",
+  ],
+  [
+    "No iKAS sent",
+    "No amount was attached to the exit. Re-enter the amount and try again.",
+  ],
+  [
+    "Kaspa address too long",
+    "The Kaspa payout address is too long for the bridge. Check the address and try again.",
+  ],
+  [
+    "Empty kaspa address",
+    "No Kaspa payout address was provided. Check the address and try again.",
+  ],
 ];
 
 /** Maps a send/estimateGas error to cause-specific copy; undefined → caller's generic fallback. */
 export function mapExitRevertToMessage(error: unknown): string | undefined {
   const text =
-    error instanceof Error ? `${error.message} ${String(error.cause ?? "")}` : String(error);
+    error instanceof Error
+      ? `${error.message} ${String(error.cause ?? "")}`
+      : String(error);
   for (const [needle, message] of REVERT_MESSAGE_MAP) {
     if (text.includes(needle)) return message;
   }
@@ -368,7 +390,9 @@ export const KASPA_ADDRESS_MAX_LENGTH = 100;
  * plus the contract's prefix/length constraints.
  * Returns an error message, or undefined when valid.
  */
-export function validateKaspaPayoutAddress(address: string): string | undefined {
+export function validateKaspaPayoutAddress(
+  address: string,
+): string | undefined {
   if (address.length > KASPA_ADDRESS_MAX_LENGTH) {
     return "Invalid Kaspa payout address";
   }

@@ -221,7 +221,7 @@ export default function Dashboard() {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex w-full justify-center gap-10 text-sm text-daintree-400">
+        <div className="flex w-full justify-center gap-5 text-sm text-daintree-400">
           <button
             type="button"
             className="flex flex-col items-center gap-2"
@@ -265,6 +265,36 @@ export default function Dashboard() {
             </div>
             <span className="text-daintree-400">Receive</span>
           </button>
+
+          {(
+            [
+              ["/swap", "hn-refresh", "Swap"],
+              ["/bridge", "hn-link", "Bridge"],
+            ] as const
+          ).map(([path, icon, label]) => (
+            <button
+              key={path}
+              type="button"
+              className="flex flex-col items-center gap-2"
+              onClick={() => navigate(path)}
+              disabled={!isConnected}
+            >
+              <div
+                className={twMerge(
+                  "flex h-[46px] w-[46px] items-center justify-center rounded-full bg-white/10",
+                  !isConnected && "animate-pulse",
+                )}
+              >
+                <i
+                  className={twMerge(
+                    `hn ${icon} text-[20px]`,
+                    isConnected ? "text-white" : "text-daintree-600",
+                  )}
+                ></i>
+              </div>
+              <span className="text-daintree-400">{label}</span>
+            </button>
+          ))}
 
           {/* Deploy */}
           {isLedger && (

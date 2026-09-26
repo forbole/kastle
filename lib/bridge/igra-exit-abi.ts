@@ -94,12 +94,37 @@ export const IGRA_EXIT_BRIDGE_ABI = [
   {
     anonymous: false,
     inputs: [
-      { indexed: true, internalType: "uint256", name: "exitId", type: "uint256" },
-      { indexed: true, internalType: "address", name: "sender", type: "address" },
-      { indexed: false, internalType: "uint256", name: "grossAmount", type: "uint256" },
+      {
+        indexed: true,
+        internalType: "uint256",
+        name: "exitId",
+        type: "uint256",
+      },
+      {
+        indexed: true,
+        internalType: "address",
+        name: "sender",
+        type: "address",
+      },
+      {
+        indexed: false,
+        internalType: "uint256",
+        name: "grossAmount",
+        type: "uint256",
+      },
       { indexed: false, internalType: "uint256", name: "fee", type: "uint256" },
-      { indexed: false, internalType: "uint256", name: "netAmount", type: "uint256" },
-      { indexed: false, internalType: "bytes", name: "kaspaAddress", type: "bytes" },
+      {
+        indexed: false,
+        internalType: "uint256",
+        name: "netAmount",
+        type: "uint256",
+      },
+      {
+        indexed: false,
+        internalType: "bytes",
+        name: "kaspaAddress",
+        type: "bytes",
+      },
     ],
     name: "LockForExit",
     type: "event",

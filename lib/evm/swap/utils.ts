@@ -1,6 +1,5 @@
 import { concat, keccak256, toHex } from "viem";
 
-
 export const FACTORY_ABI = [
   {
     inputs: [

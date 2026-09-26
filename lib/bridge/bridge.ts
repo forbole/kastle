@@ -18,11 +18,32 @@ export const BRIDGE_ROUTES: Record<
     mainnetOnly?: boolean;
   }
 > = {
-  "kas-igra": { from: "kaspa", to: "igra", provider: "IGRA Bridge", estTime: "~60s" },
-  "kas-kasplex": { from: "kaspa", to: "kasplex", provider: "Kurve Bridge", estTime: "~60s" },
-  "kasplex-kas": { from: "kasplex", to: "kaspa", provider: "Kasplex Bridge", estTime: "~60s" },
+  "kas-igra": {
+    from: "kaspa",
+    to: "igra",
+    provider: "IGRA Bridge",
+    estTime: "~60s",
+  },
+  "kas-kasplex": {
+    from: "kaspa",
+    to: "kasplex",
+    provider: "Kurve Bridge",
+    estTime: "~60s",
+  },
+  "kasplex-kas": {
+    from: "kasplex",
+    to: "kaspa",
+    provider: "Kasplex Bridge",
+    estTime: "~60s",
+  },
   // Testnet has no KAT fee collector deployed.
-  "igra-kas": { from: "igra", to: "kaspa", provider: "KAT Bridge", estTime: "~8-12 min", mainnetOnly: true },
+  "igra-kas": {
+    from: "igra",
+    to: "kaspa",
+    provider: "KAT Bridge",
+    estTime: "~8-12 min",
+    mainnetOnly: true,
+  },
 };
 
 export const BRIDGE_TOKEN_NAME: Record<BridgeChain, string> = {
@@ -39,18 +60,24 @@ export const bridgeDirectionsFrom = (from: BridgeChain, isMainnet: boolean) =>
   );
 
 export const KASTLE_FEE_ADDRESS = {
-  mainnet: "kaspa:qzy6me2q7tdgn863uhu52rwdruq6u2rx0e6y4dvj3k9yl3aqnjt7jh077p3s3",
-  testnet: "kaspatest:qrdk4gs8y5dvw57qh0pxrg6xts9khwamy7php9gfxe9tr57vftffcexzsulw6",
+  mainnet:
+    "kaspa:qzy6me2q7tdgn863uhu52rwdruq6u2rx0e6y4dvj3k9yl3aqnjt7jh077p3s3",
+  testnet:
+    "kaspatest:qrdk4gs8y5dvw57qh0pxrg6xts9khwamy7php9gfxe9tr57vftffcexzsulw6",
 };
 
 export const IGRA_ENTRY_ADDRESS = {
-  mainnet: "kaspa:ppvnxxzm0rr37zpnwux2f2ntvfpr4uqdpm7zsvsztg3en92r7gs0wkmr72q9n",
-  testnet: "kaspatest:qqmstl2znv9tsfgcmj9shme82my867tapz7pdu4ztwdn6sm9452jj5mm0sxzw",
+  mainnet:
+    "kaspa:ppvnxxzm0rr37zpnwux2f2ntvfpr4uqdpm7zsvsztg3en92r7gs0wkmr72q9n",
+  testnet:
+    "kaspatest:qqmstl2znv9tsfgcmj9shme82my867tapz7pdu4ztwdn6sm9452jj5mm0sxzw",
 };
 
 export const KURVE_ENTRY_ADDRESS = {
-  mainnet: "kaspa:qypr0qj7luv26laqlquan9n2zu7wyen87fkdw3kx3kd69ymyw3tj4tsh467xzf2",
-  testnet: "kaspatest:qyp7xxc2c2u0rs6uhgrs88ljjd0tlgjjxnu5a48899xmma894p68mggzct64wuu",
+  mainnet:
+    "kaspa:qypr0qj7luv26laqlquan9n2zu7wyen87fkdw3kx3kd69ymyw3tj4tsh467xzf2",
+  testnet:
+    "kaspatest:qyp7xxc2c2u0rs6uhgrs88ljjd0tlgjjxnu5a48899xmma894p68mggzct64wuu",
 };
 
 export const KASPLEX_BRIDGE_CONTRACT = {
