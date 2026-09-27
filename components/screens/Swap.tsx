@@ -36,6 +36,8 @@ import useWalletManager from "@/hooks/wallet/useWalletManager";
 import useKaspaPrice from "@/hooks/useKaspaPrice";
 import { useErc20Price } from "@/hooks/evm/useErc20Prices";
 import useErc20Assets from "@/hooks/evm/useErc20Assets";
+import { useErc20Balances } from "@/hooks/evm/useErc20Balance";
+import { useEvmKasBalances } from "@/hooks/evm/useEvmKasBalance";
 import useFeeEstimateByGas, {
   SWAP_GAS_ESTIMATES,
 } from "@/hooks/evm/useFeeEstimateByGas";
@@ -118,16 +120,33 @@ export default function Swap() {
   const { data: zealousKasplex } = useZealousSwapTokensMetadata();
   const { data: zealousIgra } = useZealousSwapIgraTokensMetadata();
   const { assets } = useErc20Assets();
+  // Sheet balances come from the app-wide cached hooks, as on mobile: tokens
+  // the user does not hold show no balance.
+  const { data: nativeBalances } = useEvmKasBalances();
+  const { data: erc20Balances } = useErc20Balances();
   const tokens = useMemo(() => {
+    const erc20Balance = (chainId: Hex, address: string) => {
+      const b = erc20Balances?.find(
+        (b) =>
+          !("error" in b) &&
+          b.chainId === chainId &&
+          b.tokenAddress.toLowerCase() === address.toLowerCase(),
+      );
+      return b && !("error" in b) ? formatAmount(b.balance) : undefined;
+    };
     const list: SwapToken[] = [];
     for (const key of ["kasplex", "igra"] as ChainKey[]) {
       const c = CHAINS[key];
+      const hex = numberToHex(c.id) as Hex;
+      const native = nativeBalances?.[hex]?.balance;
       list.push({
         key: `${key}:${NATIVE}`,
         chain: key,
         symbol: c.nativeCurrency.symbol,
         decimals: 18,
         chainImage: c.icon,
+        balance:
+          native === undefined ? undefined : formatAmount(Number(native)),
       });
       const zealous = key === "igra" ? zealousIgra : zealousKasplex;
       const imageBase =
@@ -141,9 +160,10 @@ export default function Swap() {
           decimals: t.decimals,
           image: `${imageBase}${t.logoURI}`,
           chainImage: c.icon,
+          balance: erc20Balance(hex, t.address),
         });
       }
-      for (const a of assets.filter((a) => a.chainId === numberToHex(c.id))) {
+      for (const a of assets.filter((a) => a.chainId === hex)) {
         if (list.some((t) => t.key === `${key}:${a.address.toLowerCase()}`))
           continue;
         list.push({
@@ -154,11 +174,12 @@ export default function Swap() {
           decimals: a.decimals,
           image: a.image,
           chainImage: c.icon,
+          balance: erc20Balance(hex, a.address),
         });
       }
     }
     return list;
-  }, [zealousKasplex, zealousIgra, assets]);
+  }, [zealousKasplex, zealousIgra, assets, nativeBalances, erc20Balances]);
 
   const [tokenInKey, setTokenInKey] = useState<string | undefined>(
     `kasplex:${NATIVE}`,
