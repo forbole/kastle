@@ -7,7 +7,9 @@ const BRIDGE_FLAG_KEY = "bridge_enabled_extension";
 /** Kill switches: undefined (PostHog unloaded/unreachable/key absent) means enabled — only an explicit `false` disables. */
 export function useFeatureFlags() {
   const { postHog } = useContext(PostHogWrapperContext);
-  const [flags, setFlags] = useState<Record<string, string | boolean | undefined>>({});
+  const [flags, setFlags] = useState<
+    Record<string, string | boolean | undefined>
+  >({});
 
   useEffect(() => {
     if (!postHog) return;
