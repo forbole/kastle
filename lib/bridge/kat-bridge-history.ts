@@ -180,7 +180,8 @@ export async function fetchKatBridgeHistory({
   // A failed side and a truncated side are different states — unavailable
   // wins when both apply to a side, which they can't: fetchWalletSide never
   // reports truncated on a failed read.
-  const depositsTruncated = deposits !== null && deposits.ok && deposits.truncated;
+  const depositsTruncated =
+    deposits !== null && deposits.ok && deposits.truncated;
   const exitsTruncated = exits !== null && exits.ok && exits.truncated;
   const degraded: BridgeHistoryDegradation | null =
     depositsFailed && exitsFailed

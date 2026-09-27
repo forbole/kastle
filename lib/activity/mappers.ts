@@ -131,7 +131,9 @@ export function mapSwapActivity(s: SwapActivityRecord): ActivityRowDescriptor {
 
 /** Wei → trimmed decimal string. 8dp: L1 KAS cannot express more. */
 function weiToDecimal(wei: bigint): string {
-  return Number(formatEther(wei)).toFixed(8).replace(/\.?0+$/, "");
+  return Number(formatEther(wei))
+    .toFixed(8)
+    .replace(/\.?0+$/, "");
 }
 
 // ─── bridge transfer (KAT /bridge-history — deposits + remote-only exits) ────
@@ -170,7 +172,7 @@ const KAT_TX_STATUS_TOKEN: Record<KatBridgeStatus, ActivityStatusToken> = {
  * token's identity comes from the row rather than being hardcoded per mapper.
  */
 function legSymbol(tick: string, chainId: number): string {
-  // ponytail: guard, not coercion — `String(tick)` would turn an object tick
+  // Guard, not coercion — `String(tick)` would turn an object tick
   // into the symbol "[object Object]", which is worse than admitting we do not
   // know. Anything non-string becomes "", which adapters.tsx normalises to
   // undefined in symbolText — one shape for "unknown" — while keeping the
@@ -200,7 +202,11 @@ export function mapBridgeTransferActivity(
   const sourceHash = deposit ? tx.l1TxId : tx.l2TxHash;
   const destHash = deposit ? tx.l2TxHash : tx.l1TxId;
   const explorerUrl = (hash: string, onL1: boolean): string | null =>
-    onL1 ? `${l1Explorer}${hash}` : l2Explorer ? `${l2Explorer}/tx/${hash}` : null;
+    onL1
+      ? `${l1Explorer}${hash}`
+      : l2Explorer
+        ? `${l2Explorer}/tx/${hash}`
+        : null;
 
   // `amount` is display units AND already NET of KAT's fee: it is what the
   // destination chain actually delivered. All 14 rows of the mainnet test
@@ -310,17 +316,37 @@ export const IGRA_DEPOSIT_ACTIVITY_TYPE = "igra_deposit";
 // Kept apart from BRIDGE_TRANSFER_ACTIVITY_TYPE because the source is chain
 // data, not an indexer: there is no id, no status field and no destination
 // hash to render — Igra credits the account at block level, with no L2
-// transaction to link to. Everything this row shows comes from the L1 payment
-// itself, which is why the delivered leg is a claim rather than a receipt: the
-// credit is recorded as a beacon-chain withdrawal, and this module does not
-// read it yet. See the received leg below.
+// transaction to link to. The outlay and fees come from the L1 payment; the
+// delivery comes from Igra's credit list (lib/bridge/igra-credits.ts), and
+// without it the row never claims completion.
 
 const SOMPI_PER_KAS = 1e8;
 
-export function mapIgraDepositActivity(
-  d: IgraDeposit,
-): ActivityRowDescriptor {
-  const amount = trimDecimal(d.amountSompi / SOMPI_PER_KAS);
+/**
+ * L1 acceptance is the lane being PAID, not the credit landing. Completed
+ * needs Igra's credit; a credit list that was read and is still inside the
+ * window is pending; anything unobserved — list unreadable, or the window
+ * passed with no credit — is unknown, never completed.
+ */
+function igraDepositStatus(d: IgraDeposit): ActivityStatusToken {
+  if (!d.accepted) return "pending";
+  switch (d.credit?.status) {
+    case "credited":
+      return "completed";
+    case "awaiting":
+      return "pending";
+    default:
+      return "unknown";
+  }
+}
+
+export function mapIgraDepositActivity(d: IgraDeposit): ActivityRowDescriptor {
+  const credited = d.credit?.status === "credited" ? d.credit : null;
+  // Observed credit when there is one; otherwise the payload amount, which is
+  // only what the lane was ASKED to credit (the adapter labels it "You'll
+  // receive" on any row that is not completed).
+  const receivedSompi = credited ? credited.amountSompi : d.amountSompi;
+  const amount = trimDecimal(receivedSompi / SOMPI_PER_KAS);
   const explorer = TX_EXPLORER[NetworkType.Mainnet];
   // Sent is the user's actual outlay: what the lane was paid PLUS Kastle's
   // fee output, both observed in this one L1 transaction. It used to be the
@@ -337,31 +363,19 @@ export function mapIgraDepositActivity(
   // The 0.2 KAS that the entry quote screen discloses is NOT an Igra fee — it
   // is KASTLE_BASE_FEE, the fixed half of our own cut (hooks/bridge/
   // useKasToIgraBridge.ts), and it lands in the Kastle fee output below.
-  const providerFeeSompi = Math.max(0, d.entryOutSompi - d.amountSompi);
+  const providerFeeSompi = Math.max(0, d.entryOutSompi - receivedSompi);
   return {
     id: `igra_deposit:${d.txId}`,
     type: IGRA_DEPOSIT_ACTIVITY_TYPE,
     timestampMs: d.timestampMs,
     direction: "in",
     sent: { value: trimDecimal(paidSompi / SOMPI_PER_KAS), symbol: "KAS" },
-    // The payload amount, which is what the lane is ASKED to credit — not a
-    // receipt. It matched Igra's own credit to the sompi on every mainnet
-    // deposit surveyed (2026-08-26) but one: 97b13711f9126c4e… was accepted on
-    // L1 (9.725 KAS to the lane) and Igra never credited it at all. So this
-    // leg is a claim about the destination, not an observation of it.
-    //
-    // KNOWN DEFECT, not a limitation: that row renders "+9.725 iKAS,
-    // Completed" for money the user never received. The credit IS observable —
-    // Igra records each one as a beacon-chain withdrawal, so
-    // /api/v2/addresses/{addr}/withdrawals returns one sompi-exact item per
-    // credited deposit (paginate: a single page silently looks uncredited).
-    // Reading it is the fix for both this leg and the status below; it is not
-    // done here because matching credits back to deposits needs a rule for
-    // repeated amounts, which several wallets have. See the follow-up doc.
+    // The payload amount matched Igra's own credit to the sompi on every
+    // mainnet deposit surveyed (2026-08-26) but one: 97b13711f9126c4e… was
+    // accepted on L1 (9.725 KAS to the lane) and Igra never credited it. So
+    // only an observed credit completes the row.
     received: { value: amount, symbol: "iKAS" },
-    // L1 acceptance, which is the lane being PAID rather than the credit
-    // landing — see the note above for why that is a stopgap, not the truth.
-    status: d.accepted ? "completed" : "pending",
+    status: igraDepositStatus(d),
     actions: [],
     meta: {
       route: "l1-to-l2",
@@ -394,19 +408,17 @@ const KURVE_STATUS_TOKEN: Record<KurveRegistryStatus, ActivityStatusToken> = {
   NOT_FOUND: "unknown",
 };
 
-// Kurve fee schedule (same numbers the bridge hooks display).
+// The received leg and provider fee come from the settlement
+// applyKurveCompletions observed (the L1 payout on an exit, the Kasplex credit
+// on a deposit): received = that payout, fee = amount − payout.
 //
-// The deposit flat fee is the one constant here with chain backing: the L2
-// credit is exactly 0.5 KAS under the vault deposit on every mainnet Kurve
-// entry surveyed 2026-08-26 (11.71→11.21, 4.7625→4.2625, 118.90→118.4,
-// 99.05→98.55, 9.725→9.225). It is still a constant in a display path, so it
-// is reported as a finding: the honest version reads the Kasplex credit and
-// derives the gap, exactly as the Igra lane does.
-//
-// The exit rate has NO such backing — it is the hook's estimate, and the
-// received leg below is therefore derived, not observed. Also a finding.
+// Without an observation only a deposit keeps a figure, because its flat fee
+// has chain backing: the L2 credit is exactly 0.5 KAS under the vault deposit
+// on every mainnet Kurve entry surveyed 2026-08-26 (11.71→11.21,
+// 4.7625→4.2625, 118.90→118.4, 99.05→98.55, 9.725→9.225). The exit rate has
+// no such backing — 0.5% is only the hook's estimate — so an unobserved exit
+// shows neither a received leg nor a fee.
 const KURVE_DEPOSIT_FLAT_FEE = 0.5;
-const KURVE_EXIT_FEE_RATE = 0.005;
 
 /** 8dp, trailing zeros dropped. Exported so adapters.tsx renders fees the same
  * way the mappers write them, rather than inventing a second format. */
@@ -419,13 +431,20 @@ export function mapKurveBridgeActivity(
 ): ActivityRowDescriptor {
   const deposit = a.direction === "l1-to-l2";
   const amountNum = Number(a.amount);
-  const feeKas = deposit
-    ? KURVE_DEPOSIT_FLAT_FEE
-    : Number.isFinite(amountNum)
-      ? amountNum * KURVE_EXIT_FEE_RATE
+  // Payouts are KAS; they say nothing about a non-KAS row.
+  const observedKas =
+    a.observedPayoutSompi !== undefined && a.tokenSymbol === "KAS"
+      ? a.observedPayoutSompi / SOMPI_PER_KAS
       : null;
-  const receivedNum =
-    Number.isFinite(amountNum) && feeKas !== null ? amountNum - feeKas : null;
+  const receivedNum = !Number.isFinite(amountNum)
+    ? null
+    : observedKas !== null
+      ? observedKas
+      : deposit
+        ? amountNum - KURVE_DEPOSIT_FLAT_FEE
+        : null;
+  const feeKas =
+    receivedNum !== null ? Math.max(0, amountNum - receivedNum) : null;
   // The registry amount is the LANE output, already net of Kastle's cut, so
   // the gross the user parted with is lane + cut. Symbol-gated: the cut is
   // always KAS, and adding it to a KRC-20 amount would be nonsense.
@@ -512,7 +531,10 @@ export function mapKurveBridgeActivity(
 
 registerActivityMapper(SWAP_ACTIVITY_TYPE, mapSwapActivity);
 registerActivityMapper(KURVE_BRIDGE_ACTIVITY_TYPE, mapKurveBridgeActivity);
-registerActivityMapper(BRIDGE_TRANSFER_ACTIVITY_TYPE, mapBridgeTransferActivity);
+registerActivityMapper(
+  BRIDGE_TRANSFER_ACTIVITY_TYPE,
+  mapBridgeTransferActivity,
+);
 registerActivityMapper(IGRA_DEPOSIT_ACTIVITY_TYPE, mapIgraDepositActivity);
 
 export type ActivityPageType = "swap" | "bridge";

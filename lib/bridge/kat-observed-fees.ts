@@ -82,7 +82,9 @@ const P2SH_ADDRESS_PREFIX = "kaspa:p";
  * lib/activity/mappers.ts already runs on.
  */
 function isNativeLaneRow(tx: KatBridgeTx): boolean {
-  return typeof tx.tokenTick === "string" && tx.tokenTick.toUpperCase() === "KAS";
+  return (
+    typeof tx.tokenTick === "string" && tx.tokenTick.toUpperCase() === "KAS"
+  );
 }
 
 // How many rows one refresh will read from chain, newest first.
@@ -92,7 +94,7 @@ function isNativeLaneRow(tx: KatBridgeTx): boolean {
 // holds 14 KAT rows and kat-bridge-history's own ceiling is 400, so 50 covers
 // every real wallet seen while capping the worst case at ~100 requests.
 //
-// ponytail: rows past the cap keep their fees absent and render a dash rather
+// Rows past the cap keep their fees absent and render a dash rather
 // than a wrong number; the console line below says how many. Raise the cap or
 // page it if a wallet ever trips it in the wild.
 const MAX_OBSERVED_ROWS = 50;
@@ -211,7 +213,7 @@ export async function readDepositFees(
   // function does not look (a rotated address, or the reveal). Rendering that
   // as "0 KAS" would state a fee we never read.
   //
-  // ponytail: the whole read is discarded, so the Kastle cut dashes too. Split
+  // The whole read is discarded, so the Kastle cut dashes too. Split
   // the two if a lane ever legitimately charges no bridge fee.
   if (bridgeFeeSompi === null || bridgeFeeSompi === 0) return null;
 
@@ -408,9 +410,10 @@ export async function attachKatObservedFees(
       // coin, and the mapper labels them with that chain's symbol.
       const fees = deposit
         ? await readDepositFees(hash)
-        : await (isNativeLaneRow(tx)
-            ? readNativeExitFeeWei(hash, tx.fromChainId)
-            : readExitBridgeFeeWei(hash, tx.fromChainId)
+        : await (
+            isNativeLaneRow(tx)
+              ? readNativeExitFeeWei(hash, tx.fromChainId)
+              : readExitBridgeFeeWei(hash, tx.fromChainId)
           ).then((wei) => (wei === null ? null : { exitBridgeFeeWei: wei }));
       if (!fees) return;
       observedByTx.set(key, fees);

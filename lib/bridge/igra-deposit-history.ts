@@ -43,6 +43,7 @@
 
 import { NetworkType } from "@/contexts/SettingsContext";
 import { KASPA_REST_APIS, KASTLE_FEE_ADDRESS } from "@/lib/activity/externals";
+import type { IgraCreditObservation } from "@/lib/bridge/igra-credits";
 
 /** Total payload length in hex characters: 1 + 20 + 8 + 4 bytes. */
 const PAYLOAD_HEX_LEN = 66;
@@ -72,13 +73,15 @@ export interface IgraDeposit {
   /**
    * L1 acceptance — the lane being PAID, which is not the same as the credit
    * landing. A deposit can be accepted here and never credited on L2
-   * (97b13711f9126c4e… is one). This is a stopgap, NOT the honest signal:
-   * Igra records each credit as a beacon-chain withdrawal, so
-   * /api/v2/addresses/{addr}/withdrawals returns one sompi-exact item per
-   * credited deposit and would settle it properly. Paginate it — one page
-   * makes credited deposits look uncredited.
+   * (97b13711f9126c4e… is one), so this alone never completes a row: that
+   * takes `credit`.
    */
   accepted: boolean;
+  /**
+   * Igra's own record of the credit (lib/bridge/igra-credits.ts). Absent when
+   * the credit list could not be read, or the deposit is not accepted yet.
+   */
+  credit?: IgraCreditObservation;
 }
 
 /**
@@ -124,7 +127,7 @@ const PAGE_SIZE = 100;
 // What makes that acceptable is the flag, not the depth: every one of those 9
 // short results reported `truncated: true`. A partial history is allowed here.
 // A partial history served as complete is the bug this file exists to fix.
-// ponytail: no "load more" past the horizon — those deposits are unreachable
+// No "load more" past the horizon — those deposits are unreachable
 // by any user action. Add paging on demand when someone asks for their
 // pre-horizon history.
 //
@@ -227,9 +230,7 @@ export function parseIgraEntryPayload(
   const amountHex = hex.slice(42, 58);
   const bytes = amountHex.match(/.{2}/g);
   if (!bytes) return null;
-  const amountSompi = Number(
-    BigInt("0x" + [...bytes].reverse().join("")),
-  );
+  const amountSompi = Number(BigInt("0x" + [...bytes].reverse().join("")));
   if (!Number.isSafeInteger(amountSompi) || amountSompi <= 0) return null;
 
   return { evmAddress: `0x${hex.slice(2, 42)}`, amountSompi };

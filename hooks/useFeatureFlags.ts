@@ -6,6 +6,9 @@ const SWAP_FLAG_KEY = "swap_enabled_extension";
 const BRIDGE_FLAG_KEY = "bridge_enabled_extension";
 // Extension-only (mobile uses `activity_v2_enabled`). Opt-in, unlike the kill switches above.
 const ACTIVITY_FLAG_KEY = "activity_enabled_extension";
+// PostHog can fail to init (context stays undefined) or never deliver flags;
+// neither is distinguishable from "still loading", so the wait is bounded.
+const FLAGS_TIMEOUT_MS = 5_000;
 
 type FlagValue = string | boolean | undefined;
 
@@ -23,6 +26,13 @@ export function isFlagEnabled(value: FlagValue): boolean {
 export function useFeatureFlags() {
   const { postHog } = useContext(PostHogWrapperContext);
   const [flags, setFlags] = useState<Record<string, FlagValue>>({});
+  const [flagsTimedOut, setFlagsTimedOut] = useState(false);
+
+  useEffect(() => {
+    if (!isProduction) return;
+    const timer = setTimeout(() => setFlagsTimedOut(true), FLAGS_TIMEOUT_MS);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     if (!postHog) return;
@@ -46,8 +56,9 @@ export function useFeatureFlags() {
     isBridgeEnabled: isFlagEnabled(flags[BRIDGE_FLAG_KEY]),
     // Only an explicit `true` enables; dev builds force it on (mobile: __DEV__).
     isActivityEnabled: !isProduction || flags[ACTIVITY_FLAG_KEY] === true,
-    // Deciding before PostHog's flags arrive would bounce a flagged-on user.
-    // A PostHog that never fetches flags leaves this true forever (blank route).
-    isActivityLoading: isProduction && flags[ACTIVITY_FLAG_KEY] === undefined,
+    // Deciding before PostHog's flags arrive would bounce a flagged-on user,
+    // but only for FLAGS_TIMEOUT_MS: after that Activity fails closed (off).
+    isActivityLoading:
+      isProduction && flags[ACTIVITY_FLAG_KEY] === undefined && !flagsTimedOut,
   };
 }

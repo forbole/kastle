@@ -28,7 +28,7 @@ export interface PayoutCandidate {
 // with 566 transactions the newest 50 reach back only to 2026-06-18, so every
 // exit older than that has an evicted payout (measured 2026-08-31).
 //
-// ponytail: NOT paginated on purpose. The page count grows with the user's own
+// NOT paginated on purpose. The page count grows with the user's own
 // transaction count, not with their exits, and it would not fix the real
 // damage anyway — an exit whose own payout is evicted can still fall inside a
 // NEIGHBOUR's amount window and claim it.
@@ -72,9 +72,7 @@ export async function fetchVaultPayouts(
 
   return txs
     .filter((tx) =>
-      (tx.inputs ?? []).some(
-        (i) => i.previous_outpoint_address === vault,
-      ),
+      (tx.inputs ?? []).some((i) => i.previous_outpoint_address === vault),
     )
     .map((tx) => ({
       txHash: tx.transaction_id,

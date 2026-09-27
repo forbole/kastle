@@ -26,7 +26,7 @@ import {
   TokenSheet,
   formatAmount,
 } from "@/components/swap-bridge/ui";
-import BottomNav from "@/components/BottomNav";
+import BottomNav, { ActivityHeaderButton } from "@/components/BottomNav";
 import kaspaIcon from "@/assets/images/network-logos/kaspa.svg";
 import { NetworkType } from "@/contexts/SettingsContext";
 import useEvmAddress from "@/hooks/evm/useEvmAddress";
@@ -88,7 +88,7 @@ import { bridgeReceived, l1BridgeSplit } from "@/lib/swap-bridge-quote";
 import { createTransactions, kaspaToSompi } from "@/wasm/core/kaspa";
 import { signAndSubmitBatch } from "@/lib/wallet/transaction-batch";
 
-// ponytail: display-only gas for the fee row; the send path estimates for real.
+// Display-only gas for the fee row; the send path estimates for real.
 const EVM_BRIDGE_GAS = 150_000n;
 const REVERSE: Record<BridgeDirection, BridgeDirection> = {
   "kas-igra": "igra-kas",
@@ -513,7 +513,10 @@ export default function Bridge() {
   return (
     <div className="flex h-full flex-col">
       <div className="no-scrollbar flex flex-1 flex-col gap-2 overflow-y-auto px-4 pt-4">
-        <GeneralHeader title="Bridge" showClose={false} />
+        <div className="relative">
+          <GeneralHeader title="Bridge" showClose={false} />
+          <ActivityHeaderButton type="bridge" />
+        </div>
 
         <div className="flex items-center gap-2">
           <TokenPill

@@ -24,10 +24,11 @@ import {
 import { IGRA_ENTRY_ADDRESS } from "@/lib/bridge/bridge";
 import {
   fetchKurveRegistry,
-  KurveRegistryRecord,
+  KurveRegistryDegradation,
   mergeKurveHistory,
 } from "@/lib/bridge/kat-registry";
 import { readLocalKurveRecords } from "@/lib/bridge/kurve-local-history";
+import { attachIgraCredits } from "@/lib/bridge/igra-credits";
 import { applyKurveCompletions } from "@/lib/activity/kurve-completion";
 import { attachKurveKastleFees } from "@/lib/bridge/kat-observed-fees";
 import { ActivitySourceItem } from "@/lib/activity/types";
@@ -64,51 +65,57 @@ export function useActivityFeed(enabled: boolean) {
       // Independent sources, run together: wall-clock is the slowest one, not
       // the sum (mobile measured 11.2 s sequential). Each bounds its own
       // requests, so this await always settles.
-      const [swapHistory, kurveRows, katHistory, igraDeposits] =
-        await Promise.all([
-          // Both mainnet L2s — the same EVM key signs on each. Never throws;
-          // each chain degrades on its own.
-          sender
-            ? fetchAllSwapHistory(sender)
-            : Promise.resolve({
-                swaps: [],
-                degraded: [] as SwapHistoryDegradation[],
-              }),
-          // Kurve (Kaspa ↔ Kasplex): KAT's self-reported registry, queried by
-          // both wallets (deposits key on the kaspa sender OR evm recipient,
-          // exits the reverse), over the local broadcast backup that keeps
-          // rows alive when a POST failed or the registry is down. The
-          // registry never completes Kastle-posted rows, so PENDING rows are
-          // upgraded from on-chain settlement.
-          (async () => {
-            const wallets = [
-              ...new Set([sender, kaspaAddress].filter(Boolean)),
-            ] as string[];
-            const local = await readLocalKurveRecords(wallets).catch(() => []);
-            const remote = (
-              await Promise.all(wallets.map((w) => fetchKurveRegistry(w)))
-            )
-              .filter((r): r is KurveRegistryRecord[] => r !== null)
-              .flat();
-            return attachKurveKastleFees(
+      const [swapHistory, kurve, katHistory, igraDeposits] = await Promise.all([
+        // Both mainnet L2s — the same EVM key signs on each. Never throws;
+        // each chain degrades on its own.
+        sender
+          ? fetchAllSwapHistory(sender)
+          : Promise.resolve({
+              swaps: [],
+              degraded: [] as SwapHistoryDegradation[],
+            }),
+        // Kurve (Kaspa ↔ Kasplex): KAT's self-reported registry, queried by
+        // both wallets (deposits key on the kaspa sender OR evm recipient,
+        // exits the reverse), over the local broadcast backup that keeps
+        // rows alive when a POST failed or the registry is down. The
+        // registry never completes Kastle-posted rows, so PENDING rows are
+        // upgraded from on-chain settlement.
+        (async () => {
+          const wallets = [
+            ...new Set([sender, kaspaAddress].filter(Boolean)),
+          ] as string[];
+          const local = await readLocalKurveRecords(wallets).catch(() => []);
+          const pages = (
+            await Promise.all(wallets.map((w) => fetchKurveRegistry(w)))
+          ).filter((r) => r !== null);
+          const remote = pages.flatMap((p) => p.rows);
+          return {
+            rows: await attachKurveKastleFees(
               await applyKurveCompletions(mergeKurveHistory(local, remote), {
                 kaspaAddress: kaspaAddress ?? null,
                 evmAddress: sender ?? null,
               }),
-            );
-          })(),
-          // KAT's wallet-scoped history needs BOTH addresses: deposits come
-          // back for the L1 wallet, withdrawals for the L2 wallet, never both
-          // from one call.
-          fetchKatBridgeHistory({ kaspaAddress, evmAddress: sender }),
-          // Igra's KAS → iKAS lane mints without an L2 tx, so neither KAT nor
-          // any L2 list sees it — reconstructed from the L1 lane payload.
-          fetchIgraDeposits({
-            kaspaAddress,
-            entryAddress: IGRA_ENTRY_ADDRESS.mainnet,
-            force: forceIgra,
-          }),
-        ]);
+            ),
+            truncated: pages.some((p) => p.truncated),
+          };
+        })(),
+        // KAT's wallet-scoped history needs BOTH addresses: deposits come
+        // back for the L1 wallet, withdrawals for the L2 wallet, never both
+        // from one call.
+        fetchKatBridgeHistory({ kaspaAddress, evmAddress: sender }),
+        // Igra's KAS → iKAS lane mints without an L2 tx, so neither KAT nor
+        // any L2 list sees it — reconstructed from the L1 lane payload.
+        // L1 acceptance is not delivery: each deposit carries Igra's own
+        // credit observation, which is what completes the row.
+        fetchIgraDeposits({
+          kaspaAddress,
+          entryAddress: IGRA_ENTRY_ADDRESS.mainnet,
+          force: forceIgra,
+        }).then(async (r) => ({
+          ...r,
+          deposits: await attachIgraCredits(r.deposits),
+        })),
+      ]);
 
       const items: ActivitySourceItem[] = [
         ...katHistory.txs.map((data) => ({
@@ -119,8 +126,14 @@ export function useActivityFeed(enabled: boolean) {
           type: IGRA_DEPOSIT_ACTIVITY_TYPE,
           data,
         })),
-        ...kurveRows.map((data) => ({ type: KURVE_BRIDGE_ACTIVITY_TYPE, data })),
-        ...swapHistory.swaps.map((data) => ({ type: SWAP_ACTIVITY_TYPE, data })),
+        ...kurve.rows.map((data) => ({
+          type: KURVE_BRIDGE_ACTIVITY_TYPE,
+          data,
+        })),
+        ...swapHistory.swaps.map((data) => ({
+          type: SWAP_ACTIVITY_TYPE,
+          data,
+        })),
       ];
 
       return {
@@ -134,6 +147,9 @@ export function useActivityFeed(enabled: boolean) {
           : igraDeposits.truncated
             ? ("igra_deposits_partial" as const)
             : null,
+        kurveSource: kurve.truncated
+          ? ("kurve_registry_partial" as const)
+          : null,
       };
     },
     { refreshInterval: 10_000, dedupingInterval: 5_000 },
@@ -150,6 +166,7 @@ export function useActivityFeed(enabled: boolean) {
       null) as BridgeHistoryDegradation | null,
     depositSource: (data?.depositSource ??
       null) as IgraDepositDegradation | null,
+    kurveSource: (data?.kurveSource ?? null) as KurveRegistryDegradation | null,
     error,
     isLoading,
     isRefreshing,

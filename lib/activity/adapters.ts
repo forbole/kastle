@@ -96,7 +96,10 @@ export interface AdapterDeps {
 
 export function formatDateTime(timestampMs: number): string {
   const d = new Date(timestampMs);
-  const date = d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  const date = d.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+  });
   const time = d.toLocaleTimeString("en-GB", {
     hour: "2-digit",
     minute: "2-digit",
@@ -126,7 +129,8 @@ function sheetTitle(row: ActivityRowDescriptor): string {
   // KAT transfer: runs both directions on both L2s; the mapper names the L2.
   const l2 = row.meta?.l2Chain ?? "Igra";
   const asset = row.sent?.symbol ?? "";
-  const dir = row.meta?.route === "l1-to-l2" ? `Kaspa → ${l2}` : `${l2} → Kaspa`;
+  const dir =
+    row.meta?.route === "l1-to-l2" ? `Kaspa → ${l2}` : `${l2} → Kaspa`;
   return asset ? `Bridge ${asset} (${dir})` : `Bridge (${dir})`;
 }
 
@@ -248,8 +252,16 @@ function buildDetails(row: ActivityRowDescriptor): DetailRow[] {
   const igraDeposit = row.type === IGRA_DEPOSIT_ACTIVITY_TYPE;
   details.push({
     label: "Provider",
-    value: kurve ? "Kasplex Bridge" : igraDeposit ? "IGRA Bridge" : "KAT Bridge",
-    icon: kurve ? kasplexMainnet.icon : igraDeposit ? igraMainnet.icon : katLogo,
+    value: kurve
+      ? "Kasplex Bridge"
+      : igraDeposit
+        ? "IGRA Bridge"
+        : "KAT Bridge",
+    icon: kurve
+      ? kasplexMainnet.icon
+      : igraDeposit
+        ? igraMainnet.icon
+        : katLogo,
   });
   // Every bridge row spans a chain pair it decides itself, so its mapper
   // supplies full explorer URLs.
@@ -278,14 +290,19 @@ export function toActivityItem(
   const toImage = toAsset ? deps.logoFor(toAsset) : undefined;
 
   // A SETTLED bridge reports what was DELIVERED — never fall back to the gross
-  // sent amount there (mobile shipped that bug once). In flight, `sent` is the
-  // truest thing the row knows. Swaps keep the fallback: one chain, no fee
-  // legs between the two amounts.
-  const amountLeg =
-    bridge && settled ? row.received : (row.received ?? row.sent);
+  // sent amount there (mobile shipped that bug once). Any other bridge
+  // (pending, failed, unknown) reports what was SENT: its received leg is at
+  // most an expectation, and showing it would present a credit that has not
+  // landed. Swaps keep the fallback: one chain, no fee legs between the two
+  // amounts.
+  const amountLeg = bridge
+    ? settled
+      ? row.received
+      : row.sent
+    : (row.received ?? row.sent);
   const swapCredit = swap && !!row.received && row.status !== "failed";
-  const signed =
-    !!amountLeg && row.status !== "failed" && (bridge || swapCredit);
+  // Only a delivered amount is a credit; an outlay is never signed "+".
+  const signed = !!amountLeg && (bridge ? settled : swapCredit);
 
   return {
     id: row.id,

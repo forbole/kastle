@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { twMerge } from "tailwind-merge";
 import GeneralHeader from "@/components/GeneralHeader";
+import BottomNav from "@/components/BottomNav";
 import { BottomSheet, Skeleton } from "@/components/swap-bridge/ui";
 import kaspaIcon from "@/assets/images/network-logos/kaspa.svg";
 import { NetworkType } from "@/contexts/SettingsContext";
@@ -22,6 +23,7 @@ import {
 import { rowsForPage, type ActivityPageType } from "@/lib/activity/mappers";
 import type { BridgeHistoryDegradation } from "@/lib/bridge/kat-bridge-history";
 import type { IgraDepositDegradation } from "@/lib/bridge/igra-deposit-history";
+import type { KurveRegistryDegradation } from "@/lib/bridge/kat-registry";
 import type { SwapHistoryDegradation } from "@/lib/activity/swap-history";
 
 // Ported from kastle-mobile app/(has-wallet)/activity.tsx + ActivityContainer +
@@ -31,7 +33,7 @@ import type { SwapHistoryDegradation } from "@/lib/activity/swap-history";
 // A partial list must never read as a complete one — each page names the
 // upstream that failed. Mobile's "Pull to retry" becomes the refresh button.
 const BRIDGE_SOURCE_MESSAGE: Record<
-  BridgeHistoryDegradation | IgraDepositDegradation,
+  BridgeHistoryDegradation | IgraDepositDegradation | KurveRegistryDegradation,
   string
 > = {
   bridge_history_deposits_unavailable:
@@ -50,6 +52,8 @@ const BRIDGE_SOURCE_MESSAGE: Record<
     "This wallet has more bridge withdrawals than shown — some older transfers may be missing.",
   bridge_history_partial:
     "This wallet has more bridge transfers than shown — some older transfers may be missing.",
+  kurve_registry_partial:
+    "This wallet has more Kasplex bridge transfers than shown — some older transfers may be missing.",
 };
 
 const SWAP_SOURCE_MESSAGE: Record<SwapHistoryDegradation, string> = {
@@ -122,7 +126,10 @@ function TokenIcon({ src, className }: { src?: string; className: string }) {
 function PairImage({ item }: { item: ActivityItem }) {
   return (
     <div className="relative h-10 w-12 shrink-0">
-      <TokenIcon src={item.fromImage} className="absolute left-0 top-0 h-7 w-7" />
+      <TokenIcon
+        src={item.fromImage}
+        className="absolute left-0 top-0 h-7 w-7"
+      />
       <TokenIcon
         src={item.toImage}
         className="absolute bottom-0 right-1 h-7 w-7 border-2 border-daintree-800"
@@ -295,7 +302,7 @@ export default function Activity() {
 
   const warnings = (
     pageType === "bridge"
-      ? [feed.bridgeSource, feed.depositSource].map((t) =>
+      ? [feed.bridgeSource, feed.depositSource, feed.kurveSource].map((t) =>
           t ? BRIDGE_SOURCE_MESSAGE[t] : undefined,
         )
       : toList(feed.swapSource).map((t) => SWAP_SOURCE_MESSAGE[t])
@@ -349,7 +356,7 @@ export default function Activity() {
               feed.error ? (
                 <div className="flex flex-col items-center gap-3 py-10 text-center">
                   <p className="text-sm text-daintree-400">
-                    Couldn't load activity.
+                    {"Couldn't load activity."}
                   </p>
                   <button
                     type="button"
@@ -394,6 +401,7 @@ export default function Activity() {
           </>
         )}
       </div>
+      <BottomNav />
 
       <BottomSheet
         title={open?.sheet.title ?? ""}

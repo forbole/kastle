@@ -38,10 +38,32 @@ const TABS: [string, string, (active: boolean) => ReactNode][] = [
   ["/activity", "Activity", () => <History size={24} strokeWidth={1.5} />],
 ];
 
-/** Bottom action bar shown on Dashboard, Swap and Bridge (Figma "Tab bar / V2"). */
+/**
+ * Top-right Activity shortcut for Swap and Bridge (mobile parity: the history
+ * icon in the screen header). Opens the Activity page for that screen.
+ */
+export function ActivityHeaderButton({ type }: { type: "swap" | "bridge" }) {
+  const navigate = useNavigate();
+  const { isActivityEnabled } = useFeatureFlags();
+  if (!isActivityEnabled) return null;
+  return (
+    <button
+      type="button"
+      aria-label="Activity"
+      onClick={() => navigate(`/activity?type=${type}`)}
+      // Sits over GeneralHeader's empty right slot (same p-3 + 20px box), so
+      // the title stays centred.
+      className="absolute right-0 top-0 rounded-lg p-3 text-white hover:bg-gray-800"
+    >
+      <History size={20} strokeWidth={1.5} />
+    </button>
+  );
+}
+
+/** Bottom action bar shown on Dashboard, Swap, Bridge and Activity (Figma "Tab bar / V2"). */
 export default function BottomNav() {
   const navigate = useNavigate();
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const { isSwapEnabled, isBridgeEnabled, isActivityEnabled } =
     useFeatureFlags();
 
@@ -51,10 +73,15 @@ export default function BottomNav() {
       (path !== "/bridge" || isBridgeEnabled) &&
       (path !== "/activity" || isActivityEnabled),
   );
-  // Activity is two pages (mobile: one per tab); open the one for this screen.
+  // Activity is two pages (mobile: one per tab); open the one for this screen,
+  // or stay on the current one when already there.
+  const onBridge =
+    pathname === "/bridge" ||
+    (pathname === "/activity" &&
+      new URLSearchParams(search).get("type") === "bridge");
   const target = (path: string) =>
     path === "/activity"
-      ? `/activity?type=${pathname === "/bridge" ? "bridge" : "swap"}`
+      ? `/activity?type=${onBridge ? "bridge" : "swap"}`
       : path;
 
   return (

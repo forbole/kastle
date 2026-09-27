@@ -181,7 +181,11 @@ const BridgeRoute = () => {
 const ActivityRoute = () => {
   const { isActivityEnabled, isActivityLoading } = useFeatureFlags();
   if (isActivityLoading) return null;
-  return isActivityEnabled ? <Activity /> : <Navigate to="/dashboard" replace />;
+  return isActivityEnabled ? (
+    <Activity />
+  ) : (
+    <Navigate to="/dashboard" replace />
+  );
 };
 
 export const router = createHashRouter([

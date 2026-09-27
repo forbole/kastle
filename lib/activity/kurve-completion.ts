@@ -1,9 +1,9 @@
 import { kasplexMainnet } from "@/lib/layer2";
-import { KASPLEX_BRIDGE_CONTRACT, KURVE_ENTRY_ADDRESS } from "@/lib/bridge/bridge";
 import {
-  fetchVaultPayouts,
-  PayoutCandidate,
-} from "@/lib/activity/exit-payout";
+  KASPLEX_BRIDGE_CONTRACT,
+  KURVE_ENTRY_ADDRESS,
+} from "@/lib/bridge/bridge";
+import { fetchVaultPayouts, PayoutCandidate } from "@/lib/activity/exit-payout";
 import type { KurveBridgeActivity } from "@/lib/bridge/kat-registry";
 
 // ─── Kurve (Kaspa ↔ Kasplex) completion detection ────────────────────────────
@@ -20,7 +20,10 @@ import type { KurveBridgeActivity } from "@/lib/bridge/kat-registry";
 //    KAS to the recipient as an internal tx (observed: 11.71 → 11.21,
 //    tx 0x13172563…, ~1 min after L1 acceptance).
 // Registry statuses still win when present: only PENDING/NOT_FOUND rows are
-// upgraded, never FAILED, and an existing destTxHash is kept.
+// upgraded, never FAILED, and an existing destTxHash is kept. The matched
+// settlement's amount rides along as observedPayoutSompi, so the row can show
+// what was really delivered; a registry-COMPLETED row gets it from the
+// candidate whose hash is its destTxHash.
 
 /** Kurve deposit receiver = the hot wallet that also pays exits on L1. */
 export const KURVE_L1_HOT_WALLET = KURVE_ENTRY_ADDRESS.mainnet;
@@ -35,7 +38,7 @@ const WEI_PER_SOMPI = 10n ** 10n;
  * rows are stamped at broadcast, but registry-only rows carry the POST time
  * (`createdAt`), which trails settlement by however late the POST was —
  * observed 1 h 34 m on registry id 127 (credited 10:55, posted 12:29).
- * ponytail: 2 h window; rows POSTed later than that stay Bridging — fetch the
+ * 2 h window; rows POSTed later than that stay Bridging — fetch the
  * origin tx's chain time instead if that ever bites.
  */
 const CLOCK_SKEW_MS = 2 * 60 * 60 * 1000;
@@ -166,6 +169,13 @@ export interface KurveWallets {
 
 const upgradeable = (row: KurveBridgeActivity) =>
   row.status === "PENDING" || row.status === "NOT_FOUND";
+/** Completed by the registry, with a destination hash to look the payout up by. */
+const payoutLookup = (row: KurveBridgeActivity) =>
+  row.status === "COMPLETED" &&
+  !!row.destTxHash &&
+  row.observedPayoutSompi === undefined;
+const wanted = (row: KurveBridgeActivity) =>
+  upgradeable(row) || payoutLookup(row);
 
 /**
  * Upgrade PENDING Kurve rows whose settlement is visible on-chain. Candidate
@@ -182,10 +192,10 @@ export async function applyKurveCompletions(
 ): Promise<KurveBridgeActivity[]> {
   const wantExits =
     wallets.kaspaAddress &&
-    rows.some((r) => r.direction === "l2-to-l1" && upgradeable(r));
+    rows.some((r) => r.direction === "l2-to-l1" && wanted(r));
   const wantDeposits =
     wallets.evmAddress &&
-    rows.some((r) => r.direction === "l1-to-l2" && upgradeable(r));
+    rows.some((r) => r.direction === "l1-to-l2" && wanted(r));
   if (!wantExits && !wantDeposits) return rows;
 
   const [payouts, credits] = await Promise.all([
@@ -200,7 +210,20 @@ export async function applyKurveCompletions(
   const claimedPayouts = new Set<string>();
   const claimedCredits = new Set<string>();
   const matched = new Map<string, PayoutCandidate>();
-  for (const row of [...rows].sort((a, b) => a.timestampMs - b.timestampMs)) {
+  const oldestFirst = [...rows].sort((a, b) => a.timestampMs - b.timestampMs);
+  // Registry-settled rows first: their payout is known by hash, so the amount
+  // matcher below must not hand that candidate to a pending row.
+  for (const row of oldestFirst) {
+    if (!payoutLookup(row)) continue;
+    const deposit = row.direction === "l1-to-l2";
+    const hit = (deposit ? credits : payouts)?.find(
+      (c) => c.txHash.toLowerCase() === row.destTxHash!.toLowerCase(),
+    );
+    if (!hit) continue;
+    (deposit ? claimedCredits : claimedPayouts).add(hit.txHash);
+    matched.set(row.originTxHash, hit);
+  }
+  for (const row of oldestFirst) {
     if (!upgradeable(row)) continue;
     const deposit = row.direction === "l1-to-l2";
     const candidates = deposit ? credits : payouts;
@@ -224,6 +247,7 @@ export async function applyKurveCompletions(
       ...row,
       status: "COMPLETED" as const,
       destTxHash: row.destTxHash ?? match.txHash,
+      observedPayoutSompi: match.amountSompi,
     };
   });
 }

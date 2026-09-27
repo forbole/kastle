@@ -32,7 +32,7 @@ export function assembleActivityFeed(
     try {
       rows.push(map(item.data as never));
     } catch {
-      // ponytail: silently dropped; add per-row error reporting if support needs it
+      // Silently dropped; add per-row error reporting if support needs it
     }
   }
   return rows.sort((a, b) => b.timestampMs - a.timestampMs);

@@ -108,15 +108,36 @@ function isRegistryRecord(row: unknown): row is KurveRegistryRecord {
   );
 }
 
-/** Rows for a wallet (matches sender OR recipient). null = registry unreachable. */
+/** Shown when a wallet's registry rows ran past REGISTRY_MAX_PAGES. */
+export type KurveRegistryDegradation = "kurve_registry_partial";
+
+const REGISTRY_PAGE_SIZE = 100; // endpoint maximum; 101 is a 400
+// Cost ceiling, same as kat-bridge-history's MAX_PAGES: re-paid every poll.
+const REGISTRY_MAX_PAGES = 4;
+
+/**
+ * Rows for a wallet (matches sender OR recipient), paged until the registry's
+ * own `hasMore` says no. null = registry unreachable. `truncated` = the page
+ * cap ran out with rows left on the server, so older records are missing.
+ */
 export async function fetchKurveRegistry(
   wallet: string,
-): Promise<KurveRegistryRecord[] | null> {
-  const payload = await requestJson(
-    `${KAT_BRIDGE_API}/kurve-bridge?wallet=${encodeURIComponent(wallet)}&limit=50&offset=0`,
-  );
-  if (payload === null) return null;
-  return unwrapRegistryRows(payload).filter(isRegistryRecord);
+): Promise<{ rows: KurveRegistryRecord[]; truncated: boolean } | null> {
+  const rows: KurveRegistryRecord[] = [];
+  for (let page = 0; page < REGISTRY_MAX_PAGES; page++) {
+    const payload = await requestJson(
+      `${KAT_BRIDGE_API}/kurve-bridge?wallet=${encodeURIComponent(wallet)}` +
+        `&limit=${REGISTRY_PAGE_SIZE}&offset=${page * REGISTRY_PAGE_SIZE}`,
+    );
+    // A later page failing keeps what was read, but flagged as short.
+    if (payload === null) return page === 0 ? null : { rows, truncated: true };
+    rows.push(...unwrapRegistryRows(payload).filter(isRegistryRecord));
+    const pagination = (
+      payload as { data?: { pagination?: { hasMore?: boolean } } }
+    )?.data?.pagination;
+    if (!pagination?.hasMore) return { rows, truncated: false };
+  }
+  return { rows, truncated: true };
 }
 
 // ─── merged history (registry status wins; local rows survive alone) ────────
@@ -137,6 +158,12 @@ export interface KurveBridgeActivity {
    * absent means "not observed", never zero.
    */
   kastleFeeSompi?: number;
+  /**
+   * KAS the destination actually paid out, sompi — the L1 payout (exits) or
+   * the Kasplex credit (deposits) that `applyKurveCompletions` matched. Absent
+   * when no settlement was observed; the mapper then shows no received leg.
+   */
+  observedPayoutSompi?: number;
 }
 
 export function mergeKurveHistory(

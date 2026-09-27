@@ -66,7 +66,10 @@ export function toProviderId(name: string): string {
  * against Kasplex's addresses and invent swaps. Gated here rather than in
  * constants.ts, which the swap screen shares.
  */
-const HISTORY_CHAIN_IDS: readonly number[] = [igraMainnet.id, kasplexMainnet.id];
+const HISTORY_CHAIN_IDS: readonly number[] = [
+  igraMainnet.id,
+  kasplexMainnet.id,
+];
 
 /**
  * Venues that are NOT routable by the app but that users reach elsewhere, so
@@ -131,7 +134,7 @@ export function swapRoutersForChain(chainId: number): SwapRouterConfig[] {
  * adapters.tsx calls this as the fallback and both real Kasplex launchpad rows
  * name their venue.
  *
- * ponytail ceiling: a name, no logo — history-only venues ship no image asset,
+ * Ceiling: a name, no logo — history-only venues ship no image asset,
  * so the Provider row is text-only. Upgrade path: give the router table an
  * image and adapters.tsx collapses back to one lookup.
  */
@@ -203,7 +206,7 @@ const NATIVE_DECIMALS = 18;
  * behaviour: six name a function this repo already ships an ABI for
  * (lib/evm/swap/utils.ts), and the two launchpad ones were recovered from
  * observed calldata and then confirmed by keccak preimage — sellTokens and
- * buyTokens appear nowhere in utils.ts, which is the ponytail note below.
+ * buyTokens appear nowhere in utils.ts, which is the note below.
  *
  * Enumerated from the 32 real swaps on both test wallets across both chains.
  * OBSERVED on chain, with counts:
@@ -217,7 +220,7 @@ const NATIVE_DECIMALS = 18;
  *   0xed9772b6 × 1  sellTokens(uint256,uint256)  — Launchpad, also absent
  *   0x3610724e × 1  buyTokens(uint256)           — Launchpad, also absent
  *
- * ponytail: the two Launchpad selectors are named but NOT trusted. Their
+ * The two Launchpad selectors are named but NOT trusted. Their
  * contract is unverified on the Kasplex explorer and this repo ships no ABI for
  * it, so whether a bonding-curve buy can refund is unknown — and an unknown
  * shape stays flagged. Both real launchpad rows are on Kasplex, which indexes
@@ -246,7 +249,8 @@ function toDisplayAmount(
   raw: string | undefined,
   decimals: string | number | undefined,
 ): string | null {
-  const d = typeof decimals === "number" ? decimals : parseInt(decimals ?? "", 10);
+  const d =
+    typeof decimals === "number" ? decimals : parseInt(decimals ?? "", 10);
   if (!Number.isInteger(d) || d < 0 || d > 36) return null;
   try {
     return formatUnits(BigInt(raw ?? ""), d);
@@ -377,7 +381,7 @@ export interface BuildSwapRecordsInput {
  * Turns one fee log into a display amount + symbol, using the metadata this tx
  * already carries. Null when the token cannot be named.
  *
- * ponytail: the fee token's symbol/decimals are read off this transaction's own
+ * The fee token's symbol/decimals are read off this transaction's own
  * tokentx legs rather than from the contract. All 3 non-native fees observed
  * (Igra 0xe60a0705… IGRA, Kasplex 0x0ce57125… and 0x6b98d3eb… NACHO) charge in
  * a token the same tx transferred, so the leg is always there — and taking the
@@ -444,7 +448,7 @@ export function buildSwapRecords({
   // nothing. One credit anywhere in this address' history proves the endpoint
   // works, and only then does an empty bucket mean "no native was paid back".
   //
-  // ponytail: address-scoped, so a wallet whose only swaps are native → token
+  // Address-scoped, so a wallet whose only swaps are native → token
   // on a chain that DOES index internals still reads as unindexed. The selector
   // rule below caps what that costs: reading unindexed now doubts a row only
   // when its entrypoint is exact-output or unrecognised, which is exactly the
@@ -577,16 +581,21 @@ export function buildSwapRecords({
       timestampMs: Number.isFinite(timestampMs) ? timestampMs : 0,
       fromSymbol,
       toSymbol,
-      // ponytail: a failed swap (and an unindexed leg) has no transfer to read,
+      // A failed swap (and an unindexed leg) has no transfer to read,
       // so the unknown side stays "0"/"" rather than being invented.
       // hasUnresolvedLeg() turns the second case into a degradation signal.
       fromAmount: fromAmount ?? "0",
       toAmount: toAmount ?? "0",
       status: failed ? "failed" : "completed",
       ...(networkFee ? { feeAmount: networkFee, feeSymbol: nativeSymbol } : {}),
-      ...(nativeInputUnverified ? { nativeInputUnverified: true as const } : {}),
+      ...(nativeInputUnverified
+        ? { nativeInputUnverified: true as const }
+        : {}),
       ...(kastleFee
-        ? { kastleFeeAmount: kastleFee.amount, kastleFeeSymbol: kastleFee.symbol }
+        ? {
+            kastleFeeAmount: kastleFee.amount,
+            kastleFeeSymbol: kastleFee.symbol,
+          }
         : {}),
       ...(kastleFeeUnobserved ? { kastleFeeUnobserved: true as const } : {}),
     });
@@ -622,7 +631,8 @@ export function buildSwapRecords({
 export function hasUnresolvedLeg(record: SwapHistoryRecord): boolean {
   if (record.status === "failed") return false;
   if (record.nativeInputUnverified || record.kastleFeeUnobserved) return true;
-  const observed = (amount: string, symbol: string) => !!symbol && amount !== "0";
+  const observed = (amount: string, symbol: string) =>
+    !!symbol && amount !== "0";
   return (
     !observed(record.fromAmount, record.fromSymbol) ||
     !observed(record.toAmount, record.toSymbol)
@@ -727,7 +737,9 @@ const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
 /** The address packed into an indexed address topic, lowercased; "" if absent. */
 function topicAddress(topic: string | undefined): string {
-  return topic && topic.length === 66 ? `0x${topic.slice(26).toLowerCase()}` : "";
+  return topic && topic.length === 66
+    ? `0x${topic.slice(26).toLowerCase()}`
+    : "";
 }
 
 interface RpcLog {
@@ -1070,7 +1082,7 @@ export async function observeSwapReceipts(
         id?: number | string;
         result?: unknown;
       };
-      // ponytail: JSON-RPC permits a STRING id, and a node that echoed "0"
+      // JSON-RPC permits a STRING id, and a node that echoed "0"
       // instead of 0 matched nothing — every fee row on that chain degraded to
       // "-" plus a banner, for a node behaving to spec. The id only has to
       // index into the slots; a receipt's transactionHash is what actually
