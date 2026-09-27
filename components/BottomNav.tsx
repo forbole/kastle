@@ -4,6 +4,7 @@ import { ArrowRightLeft } from "lucide-react";
 import { twMerge } from "tailwind-merge";
 import homeIcon from "@/assets/images/home.svg";
 import homeFilledIcon from "@/assets/images/home-filled.svg";
+import { useFeatureFlags } from "@/hooks/useFeatureFlags";
 
 // Icon Park outline "bridge-two": the shape Figma renders for its
 // `icon-park-outline:bridge-one` layer (Iconify's bridge-one is an arch).
@@ -40,11 +41,18 @@ const TABS: [string, string, (active: boolean) => ReactNode][] = [
 export default function BottomNav() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const { isSwapEnabled, isBridgeEnabled } = useFeatureFlags();
+
+  const tabs = TABS.filter(
+    ([path]) =>
+      (path !== "/swap" || isSwapEnabled) &&
+      (path !== "/bridge" || isBridgeEnabled),
+  );
 
   return (
     <div className="bg-icy-blue-950 pb-3">
       <div className="flex h-[54px] justify-between border-t border-daintree-800 px-2 shadow-[0_3px_20px_-4px_rgba(10,10,10,0.1)]">
-        {TABS.map(([path, label, icon]) => {
+        {tabs.map(([path, label, icon]) => {
           const active = pathname === path;
           return (
             <button

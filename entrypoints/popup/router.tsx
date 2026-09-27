@@ -82,6 +82,7 @@ import EvmReceiveAddress from "@/components/screens/receive-addresses/EvmReceive
 import AssetSelect from "@/components/screens/asset-selector/AssetSelect";
 import Swap from "@/components/screens/Swap";
 import Bridge from "@/components/screens/Bridge";
+import { useFeatureFlags } from "@/hooks/useFeatureFlags";
 import CommitRevealConfirm from "@/components/screens/browser-api/kaspa/CommitRevealConfirm";
 import ShowWalletSecret from "@/components/screens/full-pages/show-wallet-secret/ShowWalletSecret";
 import { KeyringStatusCheckerProvider } from "@/contexts/KeyringStatusChecker";
@@ -166,6 +167,16 @@ const fullPageKeyringGuard = async ({ request }: LoaderFunctionArgs) => {
   return null;
 };
 
+const SwapRoute = () => {
+  const { isSwapEnabled } = useFeatureFlags();
+  return isSwapEnabled ? <Swap /> : <Navigate to="/dashboard" replace />;
+};
+
+const BridgeRoute = () => {
+  const { isBridgeEnabled } = useFeatureFlags();
+  return isBridgeEnabled ? <Bridge /> : <Navigate to="/dashboard" replace />;
+};
+
 export const router = createHashRouter([
   {
     element: <RootLayout />,
@@ -219,8 +230,8 @@ export const router = createHashRouter([
                 children: [
                   // Sending
                   { path: "asset-select", element: <AssetSelect /> },
-                  { path: "swap", element: <Swap /> },
-                  { path: "bridge", element: <Bridge /> },
+                  { path: "swap", element: <SwapRoute /> },
+                  { path: "bridge", element: <BridgeRoute /> },
                   { path: "token-transfer", element: <Krc20Transfer /> },
                   { path: "kas/send", element: <KasSend /> },
                   { path: "krc20/send/:tick", element: <Krc20Send /> },
