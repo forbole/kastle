@@ -3,6 +3,7 @@ import Header from "@/components/GeneralHeader";
 import NameCard from "@/components/dashboard/NameCard";
 import { DetailList, DetailRow, ExplorerLink } from "@/components/DetailList";
 import { igraMainnet } from "@/lib/layer2";
+import { INS_LOOKUP_FAILED_MESSAGE } from "@/lib/ins/insRegistry";
 import { useInsResolve } from "@/hooks/ins/useIns";
 import useInsOnChain from "@/hooks/ins/useInsOnChain";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
@@ -38,14 +39,18 @@ export default function INSAsset() {
     record.owner.toLowerCase() === evmAddress.toLowerCase();
 
   // Wording mirrors the mobile INS screen; only the Ledger line is
-  // extension-only, since mobile has no Ledger wallets.
+  // extension-only, since mobile has no Ledger wallets. A definite reason
+  // (expired, not registered) is shown as-is, but an RPC error or timeout
+  // gets mobile's shorter line instead of the lookup's "... Try again.".
   const ownerActionDisabledMessage =
     wallet?.type === "ledger"
       ? "Ledger doesn’t support transfer function currently."
       : isLoading
         ? "Verifying ownership on-chain…"
         : !record
-          ? (reason ?? "Could not verify this name on-chain.")
+          ? !reason || reason === INS_LOOKUP_FAILED_MESSAGE
+            ? "Could not verify this name on-chain."
+            : reason
           : !isOwner
             ? "You do not own this name."
             : undefined;
