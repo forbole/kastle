@@ -4,8 +4,8 @@ import { isProduction } from "@/lib/utils.ts";
 
 const SWAP_FLAG_KEY = "swap_enabled_extension";
 const BRIDGE_FLAG_KEY = "bridge_enabled_extension";
-// Shared with kastle-mobile. Opt-in, unlike the kill switches above.
-const ACTIVITY_FLAG_KEY = "activity_v2_enabled";
+// Extension-only (mobile uses `activity_v2_enabled`). Opt-in, unlike the kill switches above.
+const ACTIVITY_FLAG_KEY = "activity_enabled_extension";
 
 type FlagValue = string | boolean | undefined;
 
