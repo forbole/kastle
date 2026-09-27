@@ -364,31 +364,6 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Share Card */}
-          <div className="flex w-full items-center gap-3 rounded-xl bg-daintree-800 px-4 py-2.5">
-            <div className="flex size-[46px] flex-none items-center justify-center gap-2 rounded-lg border border-transparent bg-white/10">
-              <i className="hn hn-crown text-[20px] text-daintree-400" />
-            </div>
-            <div className="flex flex-col gap-1 text-[#F4F3F2]">
-              <span className="text-sm font-semibold">
-                👑 Welcome to your Kastle! 🏰
-              </span>
-              <span className="text-xs">
-                {
-                  "We’re the official wallet sponsor of The Kaspa Experience Berlin 🇩🇪 on Sept 13 — join us "
-                }
-                <a
-                  href="https://experience.kaspa.events"
-                  className="text-icy-blue-400 underline"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  there
-                </a>
-              </span>
-            </div>
-          </div>
-
           {/* Tabs */}
           <div className="flex w-full flex-col gap-2 text-lg">
             <div className="flex items-center font-semibold">
