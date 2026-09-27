@@ -11,7 +11,6 @@ import TransferButton from "@/components/nft/TransferButton";
 import { textEllipsis } from "@/lib/utils";
 import Copy from "@/components/Copy";
 import HoverShowAllCopy from "@/components/HoverShowAllCopy";
-import { Tooltip } from "react-tooltip";
 
 export default function INSAsset() {
   const navigate = useNavigate();
@@ -24,7 +23,7 @@ export default function INSAsset() {
   // id with the v1 address (or vice versa) would act on a different asset.
   //
   // Loading and failure are tracked apart: collapsing them into one falsy value
-  // showed "Verifying this name on-chain..." forever after a lookup that had
+  // showed "Verifying ownership on-chain…" forever after a lookup that had
   // already permanently failed.
   const { record, reason, isLoading } = useInsOnChain(name);
 
@@ -38,15 +37,17 @@ export default function INSAsset() {
     !!evmAddress &&
     record.owner.toLowerCase() === evmAddress.toLowerCase();
 
+  // Wording mirrors the mobile INS screen; only the Ledger line is
+  // extension-only, since mobile has no Ledger wallets.
   const ownerActionDisabledMessage =
     wallet?.type === "ledger"
       ? "Ledger doesn’t support transfer function currently."
       : isLoading
-        ? "Verifying this name on-chain…"
+        ? "Verifying ownership on-chain…"
         : !record
-          ? (reason ?? "Could not verify this name on-chain. Try again.")
+          ? (reason ?? "Could not verify this name on-chain.")
           : !isOwner
-            ? "Only the owner of this name can transfer it."
+            ? "You do not own this name."
             : undefined;
 
   return (
@@ -78,117 +79,117 @@ export default function INSAsset() {
               />
             </Copy>
 
-            <div className="w-full">
+            {/* Mirrors mobile's NameDetailPage: a "Details" heading over one
+              list, and a row with no value is hidden rather than shown as a
+              dash -- so a Forever name has no Expiry row at all. */}
+            <div className="flex w-full flex-col gap-2">
+              <h2 className="text-base font-semibold text-daintree-300">
+                Details
+              </h2>
               <DetailList>
-                <DetailRow label="Owner">
-                  {/* INS resolves against a hardcoded mainnet API, so the Igra
-                    mainnet explorer is the only matching destination. */}
-                  <ExplorerLink
-                    label="View owner in explorer"
-                    url={`${igraMainnet.blockExplorers.default.url}/address/${detail.owner ?? ""}`}
-                  />
-                  <span className="cursor-pointer">
-                    <HoverShowAllCopy
-                      text={detail.owner ?? ""}
-                      id="hover-show-all-copy-ins-owner"
-                      tooltipWidth="20rem"
-                      place="bottom-end"
-                    >
-                      {textEllipsis(detail.owner ?? "")}
-                    </HoverShowAllCopy>
-                  </span>
-                </DetailRow>
-
-                {/* Ownership and routing are separate on INS, and only one of
-                  them decides where an incoming send lands. Showing the target
-                  next to the owner is what makes that visible at all. */}
-                <DetailRow label="Routes To">
-                  <span className="cursor-pointer">
-                    {record?.target ? (
+                {detail.owner && (
+                  <DetailRow label="Owner">
+                    {/* INS resolves against a hardcoded mainnet API, so the
+                      Igra mainnet explorer is the only matching destination. */}
+                    <ExplorerLink
+                      label="View owner in explorer"
+                      url={`${igraMainnet.blockExplorers.default.url}/address/${detail.owner}`}
+                    />
+                    <span className="cursor-pointer">
                       <HoverShowAllCopy
-                        text={record.target}
-                        id="hover-show-all-copy-ins-target"
+                        text={detail.owner}
+                        id="hover-show-all-copy-ins-owner"
                         tooltipWidth="20rem"
                         place="bottom-end"
                       >
-                        {textEllipsis(record.target)}
+                        {textEllipsis(detail.owner)}
                       </HoverShowAllCopy>
-                    ) : isLoading ? (
-                      "…"
+                    </span>
+                  </DetailRow>
+                )}
+
+                {/* Ownership and routing are separate on INS, and only the
+                  Receiver decides where an incoming send lands. Hidden until
+                  the on-chain read lands; a failed targetOf reads
+                  "Unavailable" so it never looks like "no receiver set". */}
+                {record && (
+                  <DetailRow label="Receiver">
+                    {record.target ? (
+                      <span className="cursor-pointer">
+                        <HoverShowAllCopy
+                          text={record.target}
+                          id="hover-show-all-copy-ins-target"
+                          tooltipWidth="20rem"
+                          place="bottom-end"
+                        >
+                          {textEllipsis(record.target)}
+                        </HoverShowAllCopy>
+                      </span>
                     ) : (
-                      "-"
+                      <span>Unavailable</span>
                     )}
-                  </span>
-                </DetailRow>
+                  </DetailRow>
+                )}
 
-                <DetailRow label="Tenure">
-                  <span>{detail.tenure ?? "-"}</span>
-                </DetailRow>
+                {detail.tenure && (
+                  <DetailRow label="Tenure">
+                    <span className="capitalize">{detail.tenure}</span>
+                  </DetailRow>
+                )}
 
-                <DetailRow label="Registry Version">
-                  <span>{detail.registry_version ?? "-"}</span>
-                </DetailRow>
+                {detail.registry_version && (
+                  <DetailRow label="Registry">
+                    <span>{detail.registry_version}</span>
+                  </DetailRow>
+                )}
 
-                <DetailRow label="Expires At">
-                  <span>
-                    {/* A Forever name reports tenure "forever" and a null
-                      expires_at; everything else is unix SECONDS, so it needs
-                      *1000 before Date sees it or every name renders as 1970. */}
-                    {detail.tenure === "forever" || detail.expires_at === 0
-                      ? "Never"
-                      : detail.expires_at
-                        ? new Date(detail.expires_at * 1000).toLocaleString(
-                            "en-GB",
-                            {
-                              month: "short",
-                              day: "2-digit",
-                              year: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                              timeZoneName: "short",
-                            },
-                          )
-                        : "-"}
-                  </span>
-                </DetailRow>
+                {/* A Forever name reports a null expires_at; everything else
+                  is unix SECONDS, so it needs *1000 before Date sees it or
+                  every name renders as 1970. */}
+                {!!detail.expires_at && (
+                  <DetailRow label="Expiry">
+                    <span>
+                      {new Date(detail.expires_at * 1000).toLocaleString(
+                        "en-GB",
+                        {
+                          month: "short",
+                          day: "2-digit",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          timeZoneName: "short",
+                        },
+                      )}
+                    </span>
+                  </DetailRow>
+                )}
               </DetailList>
             </div>
           </div>
 
           {/* Pinned: the content above scrolls, these stay reachable. */}
           <div className="w-full shrink-0">
-            {ownerActionDisabledMessage && (
-              <Tooltip
-                id="ins-owner-action"
-                style={{
-                  backgroundColor: "#374151",
-                  fontSize: "12px",
-                  fontWeight: 600,
-                  padding: "8px",
-                  borderRadius: "8px",
-                }}
-              />
-            )}
-            {/* The only durable way into set-target. The transfer's Half-done
-              screen also links here, but that screen is ephemeral: closing the
-              popup, going back to the name, or a receipt timeout that never
-              reaches Half-done all lose it -- and "Routes To" above would then
-              show a stranger with nothing the owner could do about it. */}
-            <button
-              type="button"
-              onClick={() => navigate(`/ins/${name}/set-target`)}
-              disabled={ownerActionDisabledMessage !== undefined}
-              data-tooltip-id="ins-owner-action"
-              data-tooltip-content={ownerActionDisabledMessage}
-              className="w-full rounded-full py-2 text-sm font-medium text-icy-blue-400 disabled:text-[#0E7490]"
-            >
-              Set routing target
-            </button>
-
             <TransferButton
               disabledMessage={ownerActionDisabledMessage}
               redirectTo={`/ins/${name}/transfer`}
             />
+
+            {/* The only durable way into set-target. The transfer's Half-done
+              screen also links here, but that screen is ephemeral: closing the
+              popup, going back to the name, or a receipt timeout that never
+              reaches Half-done all lose it -- and "Receiver" above would then
+              show a stranger with nothing the owner could do about it.
+              Like mobile, it is only offered to someone who can use it; the
+              Transfer tooltip above already explains why when it is not. */}
+            {!ownerActionDisabledMessage && (
+              <button
+                type="button"
+                onClick={() => navigate(`/ins/${name}/set-target`)}
+                className="w-full rounded-full border border-daintree-700 py-3 text-base font-semibold text-white"
+              >
+                Change Receiving Address
+              </button>
+            )}
           </div>
         </div>
       )}
