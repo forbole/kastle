@@ -9,9 +9,9 @@ import { KASPA_REST_APIS } from "@/lib/activity/externals";
 //
 // ─── L1 payout detection for iKAS → KAS exits ────────────────────────────────
 //
-// The in-repo Igra exit ABI has no per-exit status getter and no completion
-// event (see mobile's lib/activity/exit-state.ts header), so completion is observed the
-// only way this repo can: the vault paying KAS to the exit's payout address on
+// The in-repo Igra exit ABI (lib/bridge/igra-exit-abi.ts) has no per-exit
+// status getter and no completion event, so completion is observed the only
+// way this repo can: the vault paying KAS to the exit's payout address on
 // L1. A vault→user transaction newer than the exit's submission IS the payout;
 // its hash is the Destination TX and its existence flips the row to Completed.
 

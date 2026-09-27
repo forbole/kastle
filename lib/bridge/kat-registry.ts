@@ -1,16 +1,17 @@
-// KAT bridge REST registry (api.katbridge.com), read side only.
+// KAT bridge REST registry (api.katbridge.com).
 // Docs: kaspakat.gitbook.io/kat-bridge/developer-integration.
 //
 // /kurve-bridge is a SELF-REPORTED registry for Kurve (Kaspa ↔ Kasplex) txs:
-// only POSTed txs appear. Ported from kastle-mobile lib/bridge/kat-registry.ts
-// minus the POST, the local backup record and the Igra exit-status probe —
-// the extension's bridge flow writes none of those, so nothing read them here.
+// only POSTed txs appear, so every broadcast also appends a local backup
+// record (kurve-local-history.ts) — a failed POST must never silently drop a
+// feed row. Ported from kastle-mobile lib/bridge/kat-registry.ts minus the
+// Igra exit-status probe (the extension keeps no local exit log to probe).
 
 export const KAT_BRIDGE_API = "https://api.katbridge.com";
 
 const TIMEOUT_MS = 10_000;
 
-/** Kurve registry row fields (the POST /kurve-bridge body shape). */
+/** POST /kurve-bridge body. Server validates with a strict whitelist — any unknown field is a 400, so this shape must match the docs exactly. */
 export interface KurveBridgePostBody {
   mechanism: "kas-kurve" | "kurve-stablecoin";
   direction: "l1-to-l2" | "l2-to-l1";
@@ -42,6 +43,12 @@ export interface KurveRegistryRecord extends Partial<KurveBridgePostBody> {
   createdAt?: string;
 }
 
+/** Local backup record (persistence lives in kurve-local-history.ts). */
+export interface LocalKurveRecord extends KurveBridgePostBody {
+  /** Broadcast time, ms. */
+  timestamp: number;
+}
+
 // ─── HTTP (best-effort: null on any failure, never throws) ──────────────────
 
 export async function requestJson(
@@ -56,6 +63,27 @@ export async function requestJson(
     return await res.json();
   } catch {
     return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** POST /kurve-bridge — idempotent by originTxHash. True = accepted. */
+export async function postKurveBridgeRecord(
+  body: KurveBridgePostBody,
+): Promise<boolean> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  try {
+    const res = await fetch(`${KAT_BRIDGE_API}/kurve-bridge`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    return res.ok;
+  } catch {
+    return false;
   } finally {
     clearTimeout(timer);
   }
@@ -91,7 +119,7 @@ export async function fetchKurveRegistry(
   return unwrapRegistryRows(payload).filter(isRegistryRecord);
 }
 
-// ─── merged history (deduped across the two wallet queries) ─────────────────
+// ─── merged history (registry status wins; local rows survive alone) ────────
 
 /** One Kurve bridge tx, ready for the activity mapper. */
 export interface KurveBridgeActivity {
@@ -112,14 +140,32 @@ export interface KurveBridgeActivity {
 }
 
 export function mergeKurveHistory(
+  local: LocalKurveRecord[],
   remote: KurveRegistryRecord[],
 ): KurveBridgeActivity[] {
+  const byHash = new Map<string, KurveRegistryRecord>();
+  for (const r of remote) byHash.set(r.originTxHash, r);
+
   const rows: KurveBridgeActivity[] = [];
   const seen = new Set<string>();
 
-  // The same record can arrive twice — the feed queries by kaspa AND evm
-  // wallet and the registry matches sender OR recipient — so mark each hash
-  // as seen.
+  for (const l of local) {
+    const r = byHash.get(l.originTxHash);
+    seen.add(l.originTxHash);
+    rows.push({
+      originTxHash: l.originTxHash,
+      direction: l.direction,
+      amount: l.amount,
+      tokenSymbol: l.tokenSymbol,
+      status: r?.status ?? "PENDING",
+      destTxHash: r?.destTxHash ?? null,
+      timestampMs: l.timestamp,
+    });
+  }
+
+  // Registry-only rows (posted by another device or KAT's own UI). The same
+  // record can arrive twice — the feed queries by kaspa AND evm wallet and
+  // the registry matches sender OR recipient — so mark each hash as seen.
   for (const r of remote) {
     if (seen.has(r.originTxHash)) continue;
     seen.add(r.originTxHash);

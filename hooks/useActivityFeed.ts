@@ -27,6 +27,7 @@ import {
   KurveRegistryRecord,
   mergeKurveHistory,
 } from "@/lib/bridge/kat-registry";
+import { readLocalKurveRecords } from "@/lib/bridge/kurve-local-history";
 import { applyKurveCompletions } from "@/lib/activity/kurve-completion";
 import { attachKurveKastleFees } from "@/lib/bridge/kat-observed-fees";
 import { ActivitySourceItem } from "@/lib/activity/types";
@@ -39,8 +40,9 @@ import { ActivitySourceItem } from "@/lib/activity/types";
  * Mobile merges five sources; this has four. The fifth — Igra exits read from
  * a local exit log, with payout matching and refund probes — exists only
  * because the mobile bridge writes that log on submit. The extension bridge
- * writes nothing, so its exits reach this feed through KAT's own history
- * instead (fetchKatBridgeHistory covers both directions).
+ * writes no exit log (only the Kurve backup, kurve-local-history.ts), so its
+ * Igra exits reach this feed through KAT's own history instead
+ * (fetchKatBridgeHistory covers both directions).
  */
 export function useActivityFeed(enabled: boolean) {
   const sender = useEvmAddress();
@@ -74,19 +76,22 @@ export function useActivityFeed(enabled: boolean) {
               }),
           // Kurve (Kaspa ↔ Kasplex): KAT's self-reported registry, queried by
           // both wallets (deposits key on the kaspa sender OR evm recipient,
-          // exits the reverse). The registry never completes Kastle-posted
-          // rows, so PENDING rows are upgraded from on-chain settlement.
+          // exits the reverse), over the local broadcast backup that keeps
+          // rows alive when a POST failed or the registry is down. The
+          // registry never completes Kastle-posted rows, so PENDING rows are
+          // upgraded from on-chain settlement.
           (async () => {
             const wallets = [
               ...new Set([sender, kaspaAddress].filter(Boolean)),
             ] as string[];
+            const local = await readLocalKurveRecords(wallets).catch(() => []);
             const remote = (
               await Promise.all(wallets.map((w) => fetchKurveRegistry(w)))
             )
               .filter((r): r is KurveRegistryRecord[] => r !== null)
               .flat();
             return attachKurveKastleFees(
-              await applyKurveCompletions(mergeKurveHistory(remote), {
+              await applyKurveCompletions(mergeKurveHistory(local, remote), {
                 kaspaAddress: kaspaAddress ?? null,
                 evmAddress: sender ?? null,
               }),

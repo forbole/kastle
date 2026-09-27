@@ -6,6 +6,7 @@ import {
   createPublicClient,
   encodeFunctionData,
   formatEther,
+  formatUnits,
   http,
   numberToHex,
   parseEther,
@@ -73,6 +74,7 @@ import {
   IGRA_KAS_VAULT_MAINNET,
 } from "@/lib/bridge/igra-exit-abi";
 import { KASPLEX_BRIDGE_ABI } from "@/lib/bridge/kurve-abi";
+import { trackKurveBridge } from "@/lib/bridge/kurve-local-history";
 import { BRIDGE_SUBMITTED_MESSAGE } from "@/lib/bridge/messages";
 import { mineIgraEntry } from "@/lib/bridge/igra-entry";
 import {
@@ -334,7 +336,30 @@ export default function Bridge() {
     });
     if (!isIgra) {
       // The payment is the last transaction of the batch.
-      await signAndSubmitBatch(transactions, kaspaSigner, rpcClient);
+      const ids = await signAndSubmitBatch(
+        transactions,
+        kaspaSigner,
+        rpcClient,
+      );
+      // Register in KAT's Kurve registry + local backup so the deposit shows
+      // in Activity. Fire-and-forget; registry chain ids are mainnet-only.
+      if (isMainnet)
+        void trackKurveBridge(
+          {
+            mechanism: "kas-kurve",
+            direction: "l1-to-l2",
+            originChainId: 0, // Kaspa L1 (KAT chain-id table)
+            destChainId: kasplexMainnet.id,
+            originTxHash: ids[ids.length - 1],
+            sender: account.address,
+            recipient: evmAddress,
+            tokenSymbol: "KAS",
+            tokenAddress: null,
+            // What actually enters the vault (Kastle fee is a separate output).
+            amount: formatUnits(entrySompi, 8),
+          },
+          Date.now(),
+        );
       return;
     }
     if (transactions.length !== 1)
@@ -416,7 +441,7 @@ export default function Bridge() {
       data,
       value,
     });
-    await sendEvmTransaction({
+    const txId = await sendEvmTransaction({
       ethClient: client,
       signer: evmSigner,
       sender: evmAddress,
@@ -426,6 +451,23 @@ export default function Bridge() {
       chainId: chain.id,
       data,
     });
+    // Kurve exit: same registry + local backup as the deposit above.
+    if (direction === "kasplex-kas" && isMainnet)
+      void trackKurveBridge(
+        {
+          mechanism: "kas-kurve",
+          direction: "l2-to-l1",
+          originChainId: chain.id,
+          destChainId: 0, // Kaspa L1 (KAT chain-id table)
+          originTxHash: txId,
+          sender: evmAddress,
+          recipient: account.address,
+          tokenSymbol: "KAS",
+          tokenAddress: null,
+          amount: formatEther(value),
+        },
+        Date.now(),
+      );
   };
 
   const onConfirm = async () => {

@@ -1,6 +1,6 @@
 import React, { ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ArrowRightLeft } from "lucide-react";
+import { ArrowRightLeft, History } from "lucide-react";
 import { twMerge } from "tailwind-merge";
 import homeIcon from "@/assets/images/home.svg";
 import homeFilledIcon from "@/assets/images/home-filled.svg";
@@ -35,19 +35,27 @@ const TABS: [string, string, (active: boolean) => ReactNode][] = [
   ],
   ["/swap", "Swap", () => <ArrowRightLeft size={24} strokeWidth={1.5} />],
   ["/bridge", "Bridge", () => <BridgeIcon />],
+  ["/activity", "Activity", () => <History size={24} strokeWidth={1.5} />],
 ];
 
 /** Bottom action bar shown on Dashboard, Swap and Bridge (Figma "Tab bar / V2"). */
 export default function BottomNav() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const { isSwapEnabled, isBridgeEnabled } = useFeatureFlags();
+  const { isSwapEnabled, isBridgeEnabled, isActivityEnabled } =
+    useFeatureFlags();
 
   const tabs = TABS.filter(
     ([path]) =>
       (path !== "/swap" || isSwapEnabled) &&
-      (path !== "/bridge" || isBridgeEnabled),
+      (path !== "/bridge" || isBridgeEnabled) &&
+      (path !== "/activity" || isActivityEnabled),
   );
+  // Activity is two pages (mobile: one per tab); open the one for this screen.
+  const target = (path: string) =>
+    path === "/activity"
+      ? `/activity?type=${pathname === "/bridge" ? "bridge" : "swap"}`
+      : path;
 
   return (
     <div className="bg-icy-blue-950 pb-3">
@@ -60,7 +68,7 @@ export default function BottomNav() {
               type="button"
               aria-label={label}
               aria-current={active ? "page" : undefined}
-              onClick={() => navigate(path)}
+              onClick={() => navigate(target(path))}
               className={twMerge(
                 "flex w-[70px] justify-center px-4 pb-3 pt-[18px]",
                 active ? "text-[#00C4E7]" : "text-white",

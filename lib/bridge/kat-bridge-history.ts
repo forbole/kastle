@@ -3,8 +3,7 @@
 //
 // The authoritative, wallet-scoped record of every KAT-operated route
 // (KAS ↔ iKAS and KRC-20, on both Igra and Kasplex). Being remote and
-// wallet-scoped, it survives reinstall and seed import — unlike
-// lib/bridge/exit-history.ts, which is local AsyncStorage only.
+// wallet-scoped, it survives reinstall and seed import.
 //
 // TWO QUERIES ARE MANDATORY, not an optimisation:
 //   ?fromL1Wallet=<kaspa address> → DEPOSIT rows only
