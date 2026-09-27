@@ -80,6 +80,8 @@ import SelectAddress from "@/components/screens/receive-addresses/SelectAddress"
 import KaspaReceiveAddress from "@/components/screens/receive-addresses/KaspaReceiveAddress";
 import EvmReceiveAddress from "@/components/screens/receive-addresses/EvmReceiveAddress";
 import AssetSelect from "@/components/screens/asset-selector/AssetSelect";
+import Swap from "@/components/screens/Swap";
+import Bridge from "@/components/screens/Bridge";
 import CommitRevealConfirm from "@/components/screens/browser-api/kaspa/CommitRevealConfirm";
 import ShowWalletSecret from "@/components/screens/full-pages/show-wallet-secret/ShowWalletSecret";
 import { KeyringStatusCheckerProvider } from "@/contexts/KeyringStatusChecker";
@@ -217,6 +219,8 @@ export const router = createHashRouter([
                 children: [
                   // Sending
                   { path: "asset-select", element: <AssetSelect /> },
+                  { path: "swap", element: <Swap /> },
+                  { path: "bridge", element: <Bridge /> },
                   { path: "token-transfer", element: <Krc20Transfer /> },
                   { path: "kas/send", element: <KasSend /> },
                   { path: "krc20/send/:tick", element: <Krc20Send /> },
