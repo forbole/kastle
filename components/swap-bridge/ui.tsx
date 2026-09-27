@@ -1,9 +1,10 @@
-import React, { ReactNode, useState } from "react";
+import React, { ReactNode, useLayoutEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { twMerge } from "tailwind-merge";
 import { ArrowUpDown, Check } from "lucide-react";
 import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import Layer2AssetImage from "@/components/Layer2AssetImage";
+import toast from "@/components/Toast";
 import useStorageState from "@/hooks/useStorageState";
 
 export function BottomSheet({
@@ -19,20 +20,74 @@ export function BottomSheet({
 }) {
   if (!open) return null;
   return (
-    <>
-      <div className="fixed inset-0 z-40 bg-black/50" onClick={onClose} />
-      <div className="fixed inset-x-0 bottom-0 z-50 flex max-h-[85%] flex-col gap-4 rounded-t-2xl border border-daintree-700 bg-daintree-800 p-6">
-        <div className="flex items-center justify-between">
-          <span className="text-lg font-semibold text-white">{title}</span>
-          <button type="button" onClick={onClose} aria-label="Close">
-            <i className="hn hn-times text-xl text-daintree-400" />
-          </button>
-        </div>
-        <div className="no-scrollbar flex flex-col gap-2 overflow-y-auto">
-          {children}
-        </div>
+    <Modal
+      label={title}
+      onCancel={onClose}
+      onBackdropClick={onClose}
+      className="max-h-[85%] gap-4 rounded-t-2xl border border-daintree-700 bg-daintree-800 p-6 backdrop:bg-black/50"
+    >
+      <div className="flex items-center justify-between">
+        <span className="text-lg font-semibold text-white">{title}</span>
+        <button type="button" onClick={onClose} aria-label="Close">
+          <i className="hn hn-times text-xl text-daintree-400" />
+        </button>
       </div>
-    </>
+      <div className="no-scrollbar flex flex-col gap-2 overflow-y-auto">
+        {children}
+      </div>
+    </Modal>
+  );
+}
+
+/**
+ * Bottom-pinned native modal <dialog>: showModal() moves focus in, traps it
+ * and makes the screen behind inert; close() hands focus back to the opener.
+ * Escape fires onCancel.
+ */
+function Modal({
+  label,
+  onCancel,
+  onBackdropClick,
+  className,
+  children,
+}: {
+  label: string;
+  onCancel: () => void;
+  onBackdropClick?: () => void;
+  className: string;
+  children: ReactNode;
+}) {
+  const ref = useRef<HTMLDialogElement>(null);
+  // Layout effect: its cleanup runs while the dialog is still attached, so
+  // close() can restore focus.
+  useLayoutEffect(() => {
+    const dialog = ref.current!;
+    dialog.showModal();
+    return () => dialog.close();
+  }, []);
+  return (
+    <dialog
+      ref={ref}
+      aria-label={label}
+      onCancel={(e) => {
+        e.preventDefault();
+        onCancel();
+      }}
+      onClick={(e) => {
+        // Backdrop clicks target the dialog itself, above the sheet.
+        if (
+          e.target === e.currentTarget &&
+          e.clientY < e.currentTarget.getBoundingClientRect().top
+        )
+          onBackdropClick?.();
+      }}
+      className={twMerge(
+        "m-0 mt-auto w-full max-w-full flex-col text-inherit open:flex",
+        className,
+      )}
+    >
+      {children}
+    </dialog>
   );
 }
 
@@ -61,16 +116,18 @@ export function QuoteRow({
         {label}
         {tooltip && <i className="hn hn-info-circle text-xs" />}
       </button>
-      <div
-        className={twMerge(
-          "flex items-center gap-1 text-white",
-          onClick && "cursor-pointer",
-        )}
-        onClick={onClick}
-      >
-        {children}
-        {onClick && <i className="hn hn-angle-right text-xs" />}
-      </div>
+      {onClick ? (
+        <button
+          type="button"
+          className="flex items-center gap-1 text-white"
+          onClick={onClick}
+        >
+          {children}
+          <i className="hn hn-angle-right text-xs" />
+        </button>
+      ) : (
+        <div className="flex items-center gap-1 text-white">{children}</div>
+      )}
       {tooltip && (
         <BottomSheet
           title={tooltip.title}
@@ -259,65 +316,71 @@ export function TermsGate({ kind }: { kind: "Swap" | "Bridge" }) {
   const [checked, setChecked] = useState(false);
   if (loading || accepted) return null;
   return (
-    <>
-      <div className="fixed inset-0 z-40" />
-      <div className="fixed inset-x-0 bottom-0 z-50 flex flex-col rounded-t-2xl border border-daintree-700 bg-daintree-800 py-4 drop-shadow-lg">
-        <div className="px-2 pb-2 pt-4">
-          <h2 className="pl-2 text-lg font-semibold text-gray-200">
-            {kind} Terms & Conditions
-          </h2>
-        </div>
-        <div className="py-2">
-          <div className="h-px w-full bg-daintree-700" />
-        </div>
-        <div className="flex items-center justify-between gap-2 rounded-lg px-3 pb-10 pt-2 text-sm text-white">
-          <span>
-            I have read and agree to the {kind}{" "}
-            <a
-              href="https://kastle.cc/term-and-conditions"
-              target="_blank"
-              rel="noreferrer"
-              className="text-icy-blue-400 underline"
-            >
-              T&C
-            </a>
-            .
-          </span>
-          <button
-            type="button"
-            role="checkbox"
-            aria-checked={checked}
-            aria-label={`Agree to the ${kind} T&C`}
-            onClick={() => setChecked(!checked)}
-            className={twMerge(
-              "flex size-4 flex-none items-center justify-center rounded border",
-              checked
-                ? "border-icy-blue-400 bg-icy-blue-400"
-                : "border-daintree-400",
-            )}
-          >
-            {checked && <Check size={14} className="text-white" />}
-          </button>
-        </div>
-        <div className="flex flex-col px-4 pb-6 pt-3">
-          <button
-            type="button"
-            disabled={!checked}
-            onClick={() => setAccepted(true)}
-            className="w-full rounded-full bg-icy-blue-400 px-4 py-3.5 text-[15px] font-semibold text-white disabled:bg-icy-blue-700/30 disabled:text-white/20"
-          >
-            Confirm
-          </button>
-          <button
-            type="button"
-            className="w-full rounded-lg px-5 py-[22px] text-[15px] font-semibold text-daintree-400"
-            onClick={() => navigate("/dashboard")}
-          >
-            Cancel
-          </button>
-        </div>
+    <Modal
+      label={`${kind} Terms & Conditions`}
+      // Escape is Cancel: the gate must not just vanish.
+      onCancel={() => navigate("/dashboard")}
+      className="max-h-full rounded-t-2xl border border-daintree-700 bg-daintree-800 py-4 drop-shadow-lg backdrop:bg-transparent"
+    >
+      <div className="px-2 pb-2 pt-4">
+        <h2 className="pl-2 text-lg font-semibold text-gray-200">
+          {kind} Terms & Conditions
+        </h2>
       </div>
-    </>
+      <div className="py-2">
+        <div className="h-px w-full bg-daintree-700" />
+      </div>
+      <div className="flex items-center justify-between gap-2 rounded-lg px-3 pb-10 pt-2 text-sm text-white">
+        <span>
+          I have read and agree to the {kind}{" "}
+          <a
+            href="https://kastle.cc/term-and-conditions"
+            target="_blank"
+            rel="noreferrer"
+            className="text-icy-blue-400 underline"
+          >
+            T&C
+          </a>
+          .
+        </span>
+        <button
+          type="button"
+          role="checkbox"
+          aria-checked={checked}
+          aria-label={`Agree to the ${kind} T&C`}
+          onClick={() => setChecked(!checked)}
+          className={twMerge(
+            "flex size-4 flex-none items-center justify-center rounded border",
+            checked
+              ? "border-icy-blue-400 bg-icy-blue-400"
+              : "border-daintree-400",
+          )}
+        >
+          {checked && <Check size={14} className="text-white" />}
+        </button>
+      </div>
+      <div className="flex flex-col px-4 pb-6 pt-3">
+        <button
+          type="button"
+          disabled={!checked}
+          onClick={() =>
+            setAccepted(true).catch(() =>
+              toast.error("Couldn't save your choice. Please try again."),
+            )
+          }
+          className="w-full rounded-full bg-icy-blue-400 px-4 py-3.5 text-[15px] font-semibold text-white disabled:bg-icy-blue-700/30 disabled:text-white/20"
+        >
+          Confirm
+        </button>
+        <button
+          type="button"
+          className="w-full rounded-lg px-5 py-[22px] text-[15px] font-semibold text-daintree-400"
+          onClick={() => navigate("/dashboard")}
+        >
+          Cancel
+        </button>
+      </div>
+    </Modal>
   );
 }
 
@@ -375,9 +438,10 @@ export function TokenSheet({
       disabled={t.disabled}
       className="flex items-center gap-3 rounded-lg p-2 text-left hover:bg-daintree-700 disabled:opacity-40"
       onClick={() => {
-        void setRecent((prev) =>
+        // Recents are a nicety: a failed write must not block the pick.
+        setRecent((prev) =>
           [t.key, ...prev.filter((k) => k !== t.key)].slice(0, 5),
-        );
+        ).catch(console.error);
         onSelect(t);
         onClose();
       }}
@@ -437,7 +501,7 @@ export function TokenSheet({
           <span className="text-xs text-daintree-500">All tokens</span>
         </>
       )}
-      {matches.map(row)}
+      {matches.filter((t) => !recentTokens.includes(t)).map(row)}
       {matches.length === 0 && (
         <p className="py-4 text-center text-sm text-daintree-400">
           No tokens found

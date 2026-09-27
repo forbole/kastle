@@ -18,6 +18,17 @@ import {
   IGRA_MAINNET_KASPA_COM_SWAP_PROVIDER,
   KASPA_COM_PARTNER_KEY,
 } from "./constants";
+import { KASTLE_SWAP_FEE_BPS, swapPathAmountIn } from "@/lib/swap-bridge-quote";
+
+/** The fee collector's live feeRate() in bps, 75 when it cannot be read. */
+export const readSwapFeeBps = (client: PublicClient, feeCollector: Address) =>
+  (
+    client.readContract({
+      address: feeCollector,
+      abi: FEE_COLLECTOR_SWAP_ABI,
+      functionName: "feeRate",
+    }) as Promise<bigint>
+  ).catch(() => KASTLE_SWAP_FEE_BPS);
 
 // ---------------------------------------------------------------------------
 // Abstract base
@@ -42,11 +53,12 @@ export abstract class BaseSwapExecutor {
   protected abstract get approvalSpender(): Address;
 
   /**
-   * Recipient of output tokens in swap calldata.
-   * Defaults to swapTarget; override for contracts that require the user's address.
+   * Recipient of output tokens in swap calldata: the user's own wallet. A
+   * plain router given itself as `to` keeps the output. Override only for a
+   * target that forwards the output to msg.sender itself.
    */
   protected get recipientAddress(): Address {
-    return this.swapTarget;
+    return this.walletClient.account?.address as Address;
   }
 
   /** Build args for getAmountsOut call */
@@ -343,6 +355,14 @@ export class KaspaComSwapExecutor extends BaseSwapExecutor {
   protected get approvalSpender(): Address {
     return this.proxyAddress;
   }
+  /**
+   * The partner proxy wants itself as `to`: it takes the output and forwards
+   * it to msg.sender. Every swap through the Igra proxy names the proxy
+   * (explorer, 2026-09-27), e.g. tx 0xad6c0131…: pair → proxy → user.
+   */
+  protected get recipientAddress(): Address {
+    return this.proxyAddress;
+  }
   protected get kasToTokenFnName() {
     return "swapExactETHForTokens";
   }
@@ -397,10 +417,6 @@ export class FeeCollectorSwapExecutor extends BaseSwapExecutor {
   protected get approvalSpender(): Address {
     return this.feeCollectorAddress;
   }
-  /** Output tokens go to the caller's wallet, not the contract. */
-  protected get recipientAddress(): Address {
-    return this.walletClient.account?.address as Address;
-  }
   protected get kasToTokenFnName() {
     return "swapExactKASForTokens";
   }
@@ -418,18 +434,11 @@ export class FeeCollectorSwapExecutor extends BaseSwapExecutor {
   ): Promise<bigint[]> {
     // Fee collector deducts feeRate bps before forwarding to the router.
     // Adjust amountIn so the quote reflects what the router actually receives.
-    let feeCollectorBps = 75n; // fallback
-    try {
-      feeCollectorBps = (await this.publicClient.readContract({
-        address: this.feeCollectorAddress,
-        abi: FEE_COLLECTOR_SWAP_ABI,
-        functionName: "feeRate",
-      })) as bigint;
-    } catch {
-      // ignore — use fallback
-    }
-    const adjustedAmountIn = (amountIn * (10_000n - feeCollectorBps)) / 10_000n;
-    return super.readAmountsOut(adjustedAmountIn, path);
+    const feeBps = await readSwapFeeBps(
+      this.publicClient,
+      this.feeCollectorAddress,
+    );
+    return super.readAmountsOut(swapPathAmountIn(amountIn, feeBps), path);
   }
 
   protected encodeSwapData(

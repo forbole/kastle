@@ -55,7 +55,10 @@ import {
   resolveSwapProviderForChain,
 } from "@/lib/evm/swap/constants";
 import { createPathFinder } from "@/lib/evm/swap/pathFinder";
-import { createSwapExecutor } from "@/lib/evm/swap/swapExecutor";
+import {
+  createSwapExecutor,
+  readSwapFeeBps,
+} from "@/lib/evm/swap/swapExecutor";
 import { swapMinReceived, swapPathAmountIn } from "@/lib/swap-bridge-quote";
 
 type ChainKey = "kasplex" | "igra";
@@ -66,6 +69,7 @@ const SLIPPAGES = [0.5, 1, 2];
 type SwapToken = SheetToken & { decimals: number };
 type ProviderQuote = {
   provider: SwapProvider;
+  feeBps?: bigint;
   path?: Address[];
   amountOut?: bigint;
 };
@@ -132,7 +136,9 @@ export default function Swap() {
           b.chainId === chainId &&
           b.tokenAddress.toLowerCase() === address.toLowerCase(),
       );
-      return b && !("error" in b) ? formatAmount(b.balance) : undefined;
+      return b && !("error" in b)
+        ? formatAmount(b.balance, b.decimals)
+        : undefined;
     };
     const list: SwapToken[] = [];
     for (const key of ["kasplex", "igra"] as ChainKey[]) {
@@ -146,7 +152,7 @@ export default function Swap() {
         decimals: 18,
         chainImage: c.icon,
         balance:
-          native === undefined ? undefined : formatAmount(Number(native)),
+          native === undefined ? undefined : formatAmount(Number(native), 18),
       });
       const zealous = key === "igra" ? zealousIgra : zealousKasplex;
       const imageBase =
@@ -238,6 +244,9 @@ export default function Swap() {
         getSwapProvidersForChain(chainHex).map(
           async (provider): Promise<ProviderQuote> => {
             try {
+              const feeBps = provider.feeCollectorAddress
+                ? await readSwapFeeBps(client, provider.feeCollectorAddress)
+                : 0n;
               const best = await createPathFinder(
                 provider,
                 client,
@@ -245,9 +254,14 @@ export default function Swap() {
               ).findBestPath(
                 routeIn,
                 routeOut,
-                swapPathAmountIn(rawIn, !!provider.feeCollectorAddress),
+                swapPathAmountIn(rawIn, feeBps),
               );
-              return { provider, path: best.path, amountOut: best.amountOut };
+              return {
+                provider,
+                feeBps,
+                path: best.path,
+                amountOut: best.amountOut,
+              };
             } catch {
               return { provider };
             }
@@ -257,7 +271,15 @@ export default function Swap() {
     { refreshInterval: 15_000, keepPreviousData: true },
   );
 
-  const supported = (quotes ?? []).filter((q) => q.amountOut);
+  // keepPreviousData serves the previous pair's quotes until the refetch
+  // lands; a path for another pair must never be shown or signed.
+  const matchesRoute = (path?: Address[]) =>
+    !!path?.length &&
+    path[0].toLowerCase() === routeIn.toLowerCase() &&
+    path[path.length - 1].toLowerCase() === routeOut.toLowerCase();
+  const supported = (quotes ?? []).filter(
+    (q) => q.amountOut && matchesRoute(q.path),
+  );
   const best = supported.reduce<ProviderQuote | undefined>(
     (acc, q) => (!acc || q.amountOut! > acc.amountOut! ? q : acc),
     undefined,
@@ -296,10 +318,11 @@ export default function Swap() {
     usdIn > 0 && usdOut > 0 ? (usdOut / usdIn - 1) * 100 : undefined;
   const nativeSymbol = chain.nativeCurrency.symbol;
   const viaFeeCollector = !!selected?.provider.feeCollectorAddress;
+  const feeBps = selected?.feeBps ?? 0n;
   const kastleFee = viaFeeCollector
     ? amountNum -
       Number(
-        formatUnits(swapPathAmountIn(rawIn, true), tokenIn?.decimals ?? 18),
+        formatUnits(swapPathAmountIn(rawIn, feeBps), tokenIn?.decimals ?? 18),
       )
     : 0;
 
@@ -316,7 +339,8 @@ export default function Swap() {
       if (needNative > balances.native)
         return "Oh, you need more for the network fees";
     }
-    if (quotes && supported.length === 0) return "Unsupported token pair";
+    if (quotes && !quotesLoading && supported.length === 0)
+      return "Unsupported token pair";
     return undefined;
   })();
 
@@ -343,7 +367,14 @@ export default function Swap() {
   };
 
   const onConfirm = async () => {
-    if (!selected?.path || !signer || !evmAddress || !tokenIn || !tokenOut)
+    if (
+      !selected?.path ||
+      !matchesRoute(selected.path) ||
+      !signer ||
+      !evmAddress ||
+      !tokenIn ||
+      !tokenOut
+    )
       return;
     // Sign against this chain's own record of the provider, never the quote's
     // object (see resolveSwapProviderForChain).
@@ -413,7 +444,7 @@ export default function Swap() {
     }
   };
 
-  const loading = quotesLoading && !quotes;
+  const loading = quotesLoading && supported.length === 0;
   const minReceived =
     selected?.amountOut !== undefined && tokenOut
       ? formatAmount(
@@ -467,6 +498,7 @@ export default function Swap() {
               : undefined
           }
           onFlip={flip}
+          flipDisabled={!tokenOutKey}
         />
 
         {rawIn > 0n && tokenOut && !samePair && (
@@ -531,7 +563,7 @@ export default function Swap() {
             {viaFeeCollector && (
               <p className="mt-1 flex items-center gap-1 border-t border-daintree-700 pt-2 text-xs text-daintree-400">
                 <i className="hn hn-info-circle" />
-                Quote includes 0.75% Kastle fee
+                Quote includes {Number(feeBps) / 100}% Kastle fee
               </p>
             )}
           </div>

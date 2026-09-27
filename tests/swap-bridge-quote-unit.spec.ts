@@ -11,15 +11,17 @@ import init, {
 import { IGRA_ENTRY_ADDRESS, igraEntryPayload } from "@/lib/bridge/bridge";
 import { mineIgraEntry } from "@/lib/bridge/igra-entry";
 import {
+  KASTLE_SWAP_FEE_BPS,
   bridgeReceived,
   l1BridgeSplit,
   swapMinReceived,
   swapPathAmountIn,
 } from "@/lib/swap-bridge-quote";
 
-test("the fee collector's 0.75% comes off the routed amount only", () => {
-  expect(String(swapPathAmountIn(10_000n, true))).toBe("9925");
-  expect(String(swapPathAmountIn(10_000n, false))).toBe("10000");
+test("the fee collector's rate comes off the routed amount only", () => {
+  expect(String(swapPathAmountIn(10_000n, KASTLE_SWAP_FEE_BPS))).toBe("9925");
+  expect(String(swapPathAmountIn(10_000n, 30n))).toBe("9970");
+  expect(String(swapPathAmountIn(10_000n, 0n))).toBe("10000");
 });
 
 test("min received matches the executor's slippage floor", () => {

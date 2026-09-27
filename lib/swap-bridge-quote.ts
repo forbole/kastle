@@ -10,9 +10,9 @@ import {
 // FeeCollectorSwapExecutor's fallback when feeRate() cannot be read.
 export const KASTLE_SWAP_FEE_BPS = 75n;
 
-/** What the router receives: fee-collector swaps lose the Kastle cut first. */
-export const swapPathAmountIn = (raw: bigint, viaFeeCollector: boolean) =>
-  viaFeeCollector ? (raw * (10_000n - KASTLE_SWAP_FEE_BPS)) / 10_000n : raw;
+/** What the router receives after the fee collector's feeBps cut (0n direct). */
+export const swapPathAmountIn = (raw: bigint, feeBps: bigint) =>
+  (raw * (10_000n - feeBps)) / 10_000n;
 
 /** Same formula as BaseSwapExecutor.calculateMinAmount. */
 export const swapMinReceived = (amountOut: bigint, slippagePercent: number) =>

@@ -213,8 +213,14 @@ export default function Bridge() {
   const amountNum = Number(amount) || 0;
   const igraExit = (() => {
     if (!exitParams || amountNum <= 0) return undefined;
-    const netWei =
-      (parseEther(amount) * (10_000n - exitParams.feeRate)) / 10_000n;
+    let grossWei: bigint;
+    try {
+      grossWei = parseEther(amount);
+    } catch {
+      // "1." or >18 decimals: parseEther throws on a string Number accepts.
+      return undefined;
+    }
+    const netWei = (grossWei * (10_000n - exitParams.feeRate)) / 10_000n;
     const upstreamFeeWei = computeContractFeeWei(
       netWei,
       exitParams.feePercentBps,
@@ -368,6 +374,8 @@ export default function Bridge() {
         args: [stringToHex(account.address)],
       });
     } else {
+      // The exit gate reads mainnet contracts; never sign it on testnet.
+      if (!isMainnet) throw new Error("Igra exit is mainnet-only");
       const addressError = validateKaspaPayoutAddress(account.address);
       if (addressError) throw new Error(addressError);
       let feeRate: bigint;
