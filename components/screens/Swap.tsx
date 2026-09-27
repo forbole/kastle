@@ -137,7 +137,7 @@ export default function Swap() {
           b.tokenAddress.toLowerCase() === address.toLowerCase(),
       );
       return b && !("error" in b)
-        ? formatAmount(b.balance, b.decimals)
+        ? formatAmount(b.balance, Math.min(b.decimals, 8))
         : undefined;
     };
     const list: SwapToken[] = [];
@@ -152,7 +152,7 @@ export default function Swap() {
         decimals: 18,
         chainImage: c.icon,
         balance:
-          native === undefined ? undefined : formatAmount(Number(native), 18),
+          native === undefined ? undefined : formatAmount(Number(native), 8),
       });
       const zealous = key === "igra" ? zealousIgra : zealousKasplex;
       const imageBase =

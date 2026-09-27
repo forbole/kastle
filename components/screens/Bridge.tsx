@@ -460,7 +460,7 @@ export default function Bridge() {
       chain: c,
       symbol: BRIDGE_TOKEN_NAME[c],
       chainImage: chainImage(c),
-      balance: b === undefined ? undefined : formatAmount(b),
+      balance: b === undefined ? undefined : formatAmount(b, 8),
       disabled: bridgeDirectionsFrom(c, isMainnet).length === 0,
     };
   });
