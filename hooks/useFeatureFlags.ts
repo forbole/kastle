@@ -4,10 +4,22 @@ import { PostHogWrapperContext } from "@/contexts/PostHogWrapperProvider.tsx";
 const SWAP_FLAG_KEY = "swap_enabled_extension";
 const BRIDGE_FLAG_KEY = "bridge_enabled_extension";
 
-/** Kill switches: undefined (PostHog unloaded/unreachable/key absent) means enabled — only an explicit `false` disables. */
+type FlagValue = string | boolean | undefined;
+
+/**
+ * Kill switch: only an explicit `false` (boolean or string, any case) disables.
+ * undefined (PostHog unloaded/unreachable, or the flag inactive — /decide v3
+ * omits inactive flags) means enabled, so to switch a feature off keep the
+ * flag active and roll it out to 0%.
+ */
+export function isFlagEnabled(value: FlagValue): boolean {
+  if (typeof value === "string") return value.toLowerCase() !== "false";
+  return value !== false;
+}
+
 export function useFeatureFlags() {
   const { postHog } = useContext(PostHogWrapperContext);
-  const [flags, setFlags] = useState<Record<string, string | boolean | undefined>>({});
+  const [flags, setFlags] = useState<Record<string, FlagValue>>({});
 
   useEffect(() => {
     if (!postHog) return;
@@ -23,7 +35,7 @@ export function useFeatureFlags() {
   }, [postHog]);
 
   return {
-    isSwapEnabled: flags[SWAP_FLAG_KEY] !== false,
-    isBridgeEnabled: flags[BRIDGE_FLAG_KEY] !== false,
+    isSwapEnabled: isFlagEnabled(flags[SWAP_FLAG_KEY]),
+    isBridgeEnabled: isFlagEnabled(flags[BRIDGE_FLAG_KEY]),
   };
 }
