@@ -439,7 +439,7 @@ export default function Bridge() {
       to: chainOf(route.to),
       sender: route.from === "kaspa" ? account?.address : evmAddress,
       value_native: amountNum,
-      native_asset: "KAS",
+      native_asset: fromSymbol,
       ...(kaspaPrice > 0 && { value_usd: amountNum * kaspaPrice }),
     };
     setSubmitting(true);
@@ -452,7 +452,7 @@ export default function Bridge() {
       emitBridgeCompleted({
         ...tracked,
         status: "success",
-        ...(kastleFee > 0 && { fee_amount: kastleFee, fee_asset: "KAS" }),
+        ...(kastleFee > 0 && { fee_amount: kastleFee, fee_asset: fromSymbol }),
       });
       setAmount("");
     } catch (e) {

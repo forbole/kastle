@@ -130,12 +130,8 @@ export default function useAnalytics() {
       ),
     emitSwapCompleted: (properties: SwapCompletedProperties) =>
       captureWithSender("swap_completed", properties),
-    emitBridgeCompleted: ({ from, to, ...rest }: BridgeCompletedProperties) =>
-      captureWithSender("bridge_completed", {
-        from: String(from),
-        to: String(to),
-        ...rest,
-      }),
+    emitBridgeCompleted: (properties: BridgeCompletedProperties) =>
+      captureWithSender("bridge_completed", properties),
     emitKasSignTx: (properties: {
       origin: string;
       status: "success" | "failed";
