@@ -62,6 +62,26 @@ export type SendCompletedProperties =
       status: "success" | "failed";
     } & CommonSendCompleted);
 
+type FeeCompleted = FungibleSendCompleted & {
+  fee_amount?: number;
+  fee_asset?: string;
+};
+
+export type SwapCompletedProperties = {
+  status: "success" | "failed";
+  chainId: number;
+  from: string | null;
+  to: string | null;
+  router: string | null;
+} & FeeCompleted;
+
+// "l1" is Kaspa L1, a number is an EVM chain id, as on mobile.
+export type BridgeCompletedProperties = {
+  from: "l1" | number;
+  to: "l1" | number;
+  status: "success" | "failed";
+} & FeeCompleted;
+
 export default function useAnalytics() {
   const { postHog } = useContext(PostHogWrapperContext);
   const [cachedAnalytics, setCachedAnalytics] = useState<Analytics>();
@@ -108,6 +128,14 @@ export default function useAnalytics() {
         "send_completed",
         properties as Record<string, unknown>,
       ),
+    emitSwapCompleted: (properties: SwapCompletedProperties) =>
+      captureWithSender("swap_completed", properties),
+    emitBridgeCompleted: ({ from, to, ...rest }: BridgeCompletedProperties) =>
+      captureWithSender("bridge_completed", {
+        from: String(from),
+        to: String(to),
+        ...rest,
+      }),
     emitKasSignTx: (properties: {
       origin: string;
       status: "success" | "failed";

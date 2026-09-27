@@ -34,6 +34,7 @@ import useEvmAddress from "@/hooks/evm/useEvmAddress";
 import useEvmHotWalletSigner from "@/hooks/wallet/useEvmHotWalletSigner";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import useKaspaPrice from "@/hooks/useKaspaPrice";
+import useAnalytics from "@/hooks/useAnalytics";
 import { useErc20Price } from "@/hooks/evm/useErc20Prices";
 import useErc20Assets from "@/hooks/evm/useErc20Assets";
 import { useErc20Balances } from "@/hooks/evm/useErc20Balance";
@@ -106,6 +107,7 @@ export default function Swap() {
   const evmAddress = useEvmAddress();
   const signer = useEvmHotWalletSigner();
   const { kaspaPrice } = useKaspaPrice();
+  const { emitSwapCompleted } = useAnalytics();
 
   const [chainKey, setChainKey] = useState<ChainKey>("kasplex");
   const chain = CHAINS[chainKey];
@@ -383,6 +385,22 @@ export default function Swap() {
       chainHex,
     );
     if (!provider) return;
+    const trackSwap = (status: "success" | "failed") =>
+      emitSwapCompleted({
+        status,
+        chainId: chain.id,
+        from: tokenIn.address ?? null,
+        to: tokenOut.address ?? null,
+        router: provider.routerAddress,
+        sender: evmAddress,
+        value_native: amountNum,
+        native_asset: tokenIn.symbol,
+        ...(usdIn > 0 && { value_usd: usdIn }),
+        ...(kastleFee > 0 && {
+          fee_amount: kastleFee,
+          fee_asset: tokenIn.symbol,
+        }),
+      });
     setSubmitting(true);
     try {
       const account = toAccount({
@@ -435,10 +453,12 @@ export default function Swap() {
         if (receipt.status !== "success") throw new Error("Swap reverted");
       }
       toast.success("Swapped successfully!");
+      trackSwap("success");
       setAmount("");
     } catch (e) {
       console.error(e);
       toast.error("Swap failed. Please try again.");
+      trackSwap("failed");
     } finally {
       setSubmitting(false);
     }
