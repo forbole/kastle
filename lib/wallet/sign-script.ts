@@ -325,10 +325,26 @@ export async function signTxWithScriptOptions(
     signTxInputWithScriptOption(tx, option, privateKeyString);
   }
 
-  const isFullySigned = tx.inputs.every((input) => !!input.signatureScript);
+  // each tx.inputs access crosses the WASM boundary; read it once
+  const signedInputs = tx.inputs;
+  const isFullySigned = signedInputs.every((input) => !!input.signatureScript);
   if (isFullySigned) {
     return tx;
   }
 
-  return signTransaction(tx, [privateKeyString], false);
+  // The fallback still has to run: the unscripted inputs may need this key
+  // too (a reveal's fee inputs sit beside its scripted P2SH input). But it
+  // signs EVERY input the key owns with All, overwriting what is there, so a
+  // requested Single* would silently become All. A sighash never covers
+  // signature scripts, so the scripted signatures stay valid: put them back.
+  const scripted = options.map(({ inputIndex }) => ({
+    inputIndex,
+    signatureScript: signedInputs[inputIndex].signatureScript,
+  }));
+  const signed = signTransaction(tx, [privateKeyString], false);
+  const fallbackInputs = signed.inputs;
+  for (const { inputIndex, signatureScript } of scripted) {
+    fallbackInputs[inputIndex].signatureScript = signatureScript;
+  }
+  return signed;
 }

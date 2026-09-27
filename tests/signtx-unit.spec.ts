@@ -570,6 +570,90 @@ test.describe("sighash payload coverage (KIP-12)", () => {
     }
   });
 
+  // The signTransaction fallback re-signs every input the key owns with All,
+  // and signTxWithScriptOptions puts the scripted signatures back afterwards.
+  // That is only sound because no sighash covers signature scripts: both
+  // signatures must still verify, and the restored Single* must still leave
+  // the other output free to change (the marketplace listing shape).
+  test("a Single* signature put back after the All fallback still verifies", async () => {
+    const priv = new PrivateKey(TEST_KEY);
+    const pubX = priv.toPublicKey().toXOnlyPublicKey().toString();
+    const spk = "0000" + "20" + pubX + "ac";
+    const input = (txId: string) => ({
+      transactionId: txId,
+      index: 0,
+      sequence: "0",
+      sigOpCount: 1,
+      computeBudget: 0,
+      signatureScript: "",
+      utxo: {
+        address: null,
+        amount: "100000000",
+        scriptPublicKey: spk,
+        blockDaaScore: "1000",
+        isCoinbase: false,
+      },
+    });
+    const mkTx = (out0: string) => ({
+      id: "00".repeat(32),
+      version: 0,
+      inputs: [input("11".repeat(32)), input("22".repeat(32))],
+      outputs: [
+        { value: out0, scriptPublicKey: spk },
+        { value: "90000000", scriptPublicKey: spk },
+      ],
+      lockTime: "0",
+      subnetworkId: "00".repeat(20),
+      gas: "0",
+      payload: "",
+    });
+
+    const approved = mkTx("90000000");
+    const otherIndexChanged = mkTx("10000000"); // output 0 rewritten
+    const sigOf = (script: string) => hex2b(script.slice(2, 2 + 128));
+
+    for (const type of ["Single", "SingleAnyOneCanPay"] as const) {
+      // only input 1 is scripted; input 0 is left to the fallback
+      const signed = await signTxWithScriptOptions(
+        Transaction.deserializeFromSafeJSON(JSON.stringify(approved)),
+        [{ inputIndex: 1, signType: type }],
+        TEST_KEY,
+      );
+      const [fallbackSig, singleSig]: string[] = JSON.parse(
+        signed.serializeToSafeJSON(),
+      ).inputs.map((i: any) => i.signatureScript);
+
+      // the requested type survived; the unscripted input got All
+      expect(singleSig.slice(2 + 128)).toBe(
+        HASH_TYPE_BYTE[type].toString(16).padStart(2, "0"),
+      );
+      expect(fallbackSig.slice(2 + 128)).toBe("01");
+
+      expect(
+        schnorr.verify(
+          sigOf(singleSig),
+          sighashFor(approved, 1, type),
+          hex2b(pubX),
+        ),
+      ).toBe(true);
+      expect(
+        schnorr.verify(
+          sigOf(fallbackSig),
+          sighashFor(approved, 0, "All"),
+          hex2b(pubX),
+        ),
+      ).toBe(true);
+      // Single binds output 1 only, so output 0 can still change under it
+      expect(
+        schnorr.verify(
+          sigOf(singleSig),
+          sighashFor(otherIndexChanged, 1, type),
+          hex2b(pubX),
+        ),
+      ).toBe(true);
+    }
+  });
+
   test("a payload-bearing tx signs a different sighash than the same tx with empty payload", () => {
     const priv = new PrivateKey(TEST_KEY);
     const pubX = priv.toPublicKey().toXOnlyPublicKey().toString();
@@ -887,20 +971,18 @@ test.describe("Single sighash without a same-index output (KST-002)", () => {
         [3, 1, 0],
         [2, 2, 1],
       ]) {
-        // every input gets an option so the tx comes back fully signed:
-        // otherwise the script-free signTransaction fallback re-signs all
-        // of this key's inputs with All, replacing the Single* signature
+        // only the in-range input gets an option: the signTransaction
+        // fallback signs the others with All but must not replace it
         const signed = await signTxWithScriptOptions(
           mkTx(inputCount, outputCount),
-          Array.from({ length: inputCount }, (_, i) => ({
-            inputIndex: i,
-            signType: i === inputIndex ? signType : "All",
-          })),
+          [{ inputIndex, signType }],
           TEST_KEY,
         );
         const scripts = signatureScripts(signed);
         expect(scripts[inputIndex].endsWith(typeByte[signType])).toBe(true);
-        expect(scripts.every((script) => script !== "")).toBe(true);
+        scripts.forEach((script, i) => {
+          if (i !== inputIndex) expect(script.endsWith("01")).toBe(true);
+        });
 
         const tx = mkTx(inputCount, outputCount);
         signTxInputWithScriptOption(tx, { inputIndex, signType }, TEST_KEY);
@@ -908,6 +990,21 @@ test.describe("Single sighash without a same-index output (KST-002)", () => {
           signatureScripts(tx)[inputIndex].endsWith(typeByte[signType]),
         ).toBe(true);
       }
+    }
+  });
+
+  test("without script options every input this key owns is signed with All", async () => {
+    // absent and empty both mean "no scripts" (the payload schema defaults
+    // `scripts` to []), so the fallback signs everything as before
+    for (const scripts of [undefined, []]) {
+      const signed = await signTxWithScriptOptions(
+        mkTx(3, 2),
+        scripts,
+        TEST_KEY,
+      );
+      expect(
+        signatureScripts(signed).map((script) => script.slice(-2)),
+      ).toEqual(["01", "01", "01"]);
     }
   });
 
