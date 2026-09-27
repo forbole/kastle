@@ -19,6 +19,10 @@ import ledgerSignImage from "@/assets/images/ledger-on-sign.svg";
 import { formatCurrency } from "@/lib/utils.ts";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 import { deserializeTransaction } from "@/lib/kaspa-compat";
+import { hasZeroOutputCommitment } from "@/lib/wallet/sign-script.ts";
+
+const ZERO_OUTPUT_COMMITMENT_ERROR =
+  "This request cannot be signed. It uses a Single sighash on an input that has no matching output, so your signature would commit to no outputs at all. Every output, including where your funds go, could be rewritten after you approve.";
 
 type SignConfirmProps = {
   payload: SignTxPayload;
@@ -40,6 +44,12 @@ export default function SignConfirm({
   const { value: isSigning, toggle: toggleIsSigning } = useBoolean(false);
 
   const transaction = deserializeTransaction(payload.txJson);
+  // Checked here rather than by the callers so every screen that renders this
+  // confirm blocks it, and the partial-outputs warning can never stand in for it.
+  const zeroOutputCommitment = hasZeroOutputCommitment(
+    transaction,
+    payload.scripts,
+  );
 
   const inputsAmount = transaction.inputs.reduce(
     (acc, input) => acc + (input.utxo?.amount ?? 0n),
@@ -147,7 +157,7 @@ export default function SignConfirm({
   };
 
   const onConfirm = async () => {
-    if (isSigning) {
+    if (isSigning || zeroOutputCommitment) {
       return;
     }
 
@@ -206,10 +216,19 @@ export default function SignConfirm({
         {/* Confirm Content */}
         {!networkMismatched && (
           <>
-            {warning && (
-              <div className="mt-3 whitespace-pre-line rounded-lg border border-yellow-600 bg-yellow-900/30 px-4 py-2 text-xs text-yellow-400">
-                {warning}
+            {zeroOutputCommitment ? (
+              <div
+                className="mt-3 whitespace-pre-line rounded-lg border border-red-900 bg-red-800/30 px-4 py-2 text-xs text-red-500"
+                role="alert"
+              >
+                {ZERO_OUTPUT_COMMITMENT_ERROR}
               </div>
+            ) : (
+              warning && (
+                <div className="mt-3 whitespace-pre-line rounded-lg border border-yellow-600 bg-yellow-900/30 px-4 py-2 text-xs text-yellow-400">
+                  {warning}
+                </div>
+              )
             )}
             <ul className="mt-3 flex flex-col rounded-lg bg-daintree-800">
               <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
@@ -291,28 +310,36 @@ export default function SignConfirm({
             !hideDetails && "pb-4",
           )}
         >
-          <button className="rounded-full p-5 text-[#7B9AAA]" onClick={cancel}>
+          <button
+            className={twMerge(
+              "rounded-full p-5 text-[#7B9AAA]",
+              zeroOutputCommitment && "flex-auto bg-daintree-800",
+            )}
+            onClick={cancel}
+          >
             Cancel
           </button>
-          <button
-            className="flex flex-auto items-center justify-center rounded-full bg-icy-blue-400 py-5 font-semibold hover:bg-icy-blue-600"
-            onClick={onConfirm}
-          >
-            {isSigning ? (
-              <div className="flex gap-2">
-                <div
-                  className="inline-block size-5 animate-spin self-center rounded-full border-[3px] border-current border-t-[#A2F5FF] text-icy-blue-600"
-                  role="status"
-                  aria-label="loading"
-                />
-                {wallet?.type === "ledger" && (
-                  <span className="text-sm">Please approve on Ledger</span>
-                )}
-              </div>
-            ) : (
-              `Confirm`
-            )}
-          </button>
+          {!zeroOutputCommitment && (
+            <button
+              className="flex flex-auto items-center justify-center rounded-full bg-icy-blue-400 py-5 font-semibold hover:bg-icy-blue-600"
+              onClick={onConfirm}
+            >
+              {isSigning ? (
+                <div className="flex gap-2">
+                  <div
+                    className="inline-block size-5 animate-spin self-center rounded-full border-[3px] border-current border-t-[#A2F5FF] text-icy-blue-600"
+                    role="status"
+                    aria-label="loading"
+                  />
+                  {wallet?.type === "ledger" && (
+                    <span className="text-sm">Please approve on Ledger</span>
+                  )}
+                </div>
+              ) : (
+                `Confirm`
+              )}
+            </button>
+          )}
         </div>
       )}
     </div>

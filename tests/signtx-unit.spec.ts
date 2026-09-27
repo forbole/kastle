@@ -27,6 +27,7 @@ import {
   hasPartialOutputCommitment,
   hasScriptOptions,
   hasUnsignableFields,
+  hasZeroOutputCommitment,
   normalizeScriptOptions,
   pushDataHex,
   signTxInputWithScriptOption,
@@ -515,6 +516,60 @@ test.describe("sighash payload coverage (KIP-12)", () => {
     }
   });
 
+  // KST-002 premise: Single* on an input with no same-index output commits
+  // ZERO32 for the outputs, so the signature survives its only output being
+  // swapped for an attacker's — exactly the None* exposure.
+  test("Single* on an input past the last output commits no outputs at all", () => {
+    const priv = new PrivateKey(TEST_KEY);
+    const pubX = priv.toPublicKey().toXOnlyPublicKey().toString();
+    const spk = "0000" + "20" + pubX + "ac";
+    const attackerSpk = "0000" + "20" + "ab".repeat(32) + "ac";
+    const input = (txId: string) => ({
+      transactionId: txId,
+      index: 0,
+      sequence: "0",
+      sigOpCount: 1,
+      computeBudget: 0,
+      signatureScript: "",
+      utxo: {
+        address: null,
+        amount: "100000000",
+        scriptPublicKey: spk,
+        blockDaaScore: "1000",
+        isCoinbase: false,
+      },
+    });
+    const mkTx = (outputSpk: string) => ({
+      id: "00".repeat(32),
+      version: 0,
+      inputs: [input("11".repeat(32)), input("22".repeat(32))],
+      outputs: [{ value: "190000000", scriptPublicKey: outputSpk }],
+      lockTime: "0",
+      subnetworkId: "00".repeat(20),
+      gas: "0",
+      payload: "",
+    });
+
+    const approved = mkTx(spk);
+    const rewritten = mkTx(attackerSpk);
+
+    for (const type of ["Single", "SingleAnyOneCanPay"] as const) {
+      const wasmTx = Transaction.deserializeFromSafeJSON(
+        JSON.stringify(approved),
+      );
+      const sigScript = createInputSignature(wasmTx, 1, priv, toSignType(type));
+      const sig64 = hex2b(sigScript.slice(2, 2 + 128));
+
+      expect(
+        schnorr.verify(sig64, sighashFor(approved, 1, type), hex2b(pubX)),
+      ).toBe(true);
+      // the approved output was replaced and the signature still verifies
+      expect(
+        schnorr.verify(sig64, sighashFor(rewritten, 1, type), hex2b(pubX)),
+      ).toBe(true);
+    }
+  });
+
   test("a payload-bearing tx signs a different sighash than the same tx with empty payload", () => {
     const priv = new PrivateKey(TEST_KEY);
     const pubX = priv.toPublicKey().toXOnlyPublicKey().toString();
@@ -711,6 +766,249 @@ test.describe("sighash safety policy (U1)", () => {
     }
     for (const signType of Object.keys(SIGN_TYPE) as SignType[]) {
       expect(toSignType(signType)).toBe(SIGN_TYPE[signType]);
+    }
+  });
+});
+
+// KST-002: Single* with inputIndex >= outputs.length commits no outputs (see
+// the KIP-12 block above), so it is refused like None* rather than warned on.
+test.describe("Single sighash without a same-index output (KST-002)", () => {
+  const SINGLE_TYPES = ["Single", "SingleAnyOneCanPay"] as const;
+  const refusal = (signType: string, inputIndex: number) =>
+    `signTx: ${signType} input ${inputIndex} has no same-index output; the signature would commit to no outputs`;
+
+  // inputCount inputs spending TEST_KEY's P2PK, outputCount outputs back to it
+  function mkTx(inputCount: number, outputCount: number): Transaction {
+    const pubX = new PrivateKey(TEST_KEY)
+      .toPublicKey()
+      .toXOnlyPublicKey()
+      .toString();
+    const spk = "0000" + "20" + pubX + "ac";
+    return Transaction.deserializeFromSafeJSON(
+      JSON.stringify({
+        id: "00".repeat(32),
+        version: 0,
+        inputs: Array.from({ length: inputCount }, (_, i) => ({
+          transactionId: (i + 1).toString(16).padStart(2, "0").repeat(32),
+          index: 0,
+          sequence: "0",
+          sigOpCount: 1,
+          computeBudget: 0,
+          signatureScript: "",
+          utxo: {
+            address: null,
+            amount: "100000000",
+            scriptPublicKey: spk,
+            blockDaaScore: "1000",
+            isCoinbase: false,
+          },
+        })),
+        outputs: Array.from({ length: outputCount }, () => ({
+          value: "90000000",
+          scriptPublicKey: spk,
+        })),
+        lockTime: "0",
+        subnetworkId: "00".repeat(20),
+        gas: "0",
+        payload: "",
+      }),
+    );
+  }
+
+  const signatureScripts = (tx: Transaction): string[] =>
+    JSON.parse(tx.serializeToSafeJSON()).inputs.map(
+      (input: { signatureScript: string }) => input.signatureScript,
+    );
+
+  // [inputCount, outputCount, inputIndex]: the report's shape (attacker input
+  // 0, victim inputs 1+, one output), no outputs at all, and the boundary
+  // inputIndex === outputs.length
+  const OUT_OF_RANGE: [number, number, number][] = [
+    [3, 1, 1],
+    [3, 1, 2],
+    [1, 0, 0],
+    [3, 2, 2],
+  ];
+
+  test("signTxWithScriptOptions refuses Single* on an input with no same-index output", async () => {
+    for (const signType of SINGLE_TYPES) {
+      for (const [inputCount, outputCount, inputIndex] of OUT_OF_RANGE) {
+        const tx = mkTx(inputCount, outputCount);
+        await expect(
+          signTxWithScriptOptions(tx, [{ inputIndex, signType }], TEST_KEY),
+        ).rejects.toThrow(refusal(signType, inputIndex));
+        expect(signatureScripts(tx).every((script) => script === "")).toBe(
+          true,
+        );
+      }
+    }
+  });
+
+  test("signTxInputWithScriptOption refuses it when called directly, bypassing the preflight", () => {
+    for (const signType of SINGLE_TYPES) {
+      for (const [inputCount, outputCount, inputIndex] of OUT_OF_RANGE) {
+        const tx = mkTx(inputCount, outputCount);
+        expect(() =>
+          signTxInputWithScriptOption(tx, { inputIndex, signType }, TEST_KEY),
+        ).toThrow(refusal(signType, inputIndex));
+        expect(signatureScripts(tx).every((script) => script === "")).toBe(
+          true,
+        );
+      }
+    }
+  });
+
+  test("an out-of-range option fails the call before any input is mutated", async () => {
+    for (const signType of SINGLE_TYPES) {
+      const tx = mkTx(3, 1);
+      // the valid options come first: without the preflight, inputs 0 and 1
+      // would already be signed when the loop reached input 2
+      await expect(
+        signTxWithScriptOptions(
+          tx,
+          [
+            { inputIndex: 0, signType },
+            { inputIndex: 1, signType: "All" },
+            { inputIndex: 2, signType },
+          ],
+          TEST_KEY,
+        ),
+      ).rejects.toThrow(refusal(signType, 2));
+      expect(signatureScripts(tx)).toEqual(["", "", ""]);
+    }
+  });
+
+  test("in-range Single* still signs, with its own sighash type", async () => {
+    const typeByte = { Single: "04", SingleAnyOneCanPay: "84" };
+    for (const signType of SINGLE_TYPES) {
+      // input 0 of the report's shape is in range; so is the last of a
+      // square transaction
+      for (const [inputCount, outputCount, inputIndex] of [
+        [3, 1, 0],
+        [2, 2, 1],
+      ]) {
+        // every input gets an option so the tx comes back fully signed:
+        // otherwise the script-free signTransaction fallback re-signs all
+        // of this key's inputs with All, replacing the Single* signature
+        const signed = await signTxWithScriptOptions(
+          mkTx(inputCount, outputCount),
+          Array.from({ length: inputCount }, (_, i) => ({
+            inputIndex: i,
+            signType: i === inputIndex ? signType : "All",
+          })),
+          TEST_KEY,
+        );
+        const scripts = signatureScripts(signed);
+        expect(scripts[inputIndex].endsWith(typeByte[signType])).toBe(true);
+        expect(scripts.every((script) => script !== "")).toBe(true);
+
+        const tx = mkTx(inputCount, outputCount);
+        signTxInputWithScriptOption(tx, { inputIndex, signType }, TEST_KEY);
+        expect(
+          signatureScripts(tx)[inputIndex].endsWith(typeByte[signType]),
+        ).toBe(true);
+      }
+    }
+  });
+
+  test("the range check does not touch other sighash types", async () => {
+    // All* commits every output, so an input past the last output is fine
+    for (const signType of ["All", "AllAnyOneCanPay"] as const) {
+      const signed = await signTxWithScriptOptions(
+        mkTx(3, 1),
+        [{ inputIndex: 2, signType }],
+        TEST_KEY,
+      );
+      expect(signatureScripts(signed)[2]).not.toBe("");
+    }
+    // None* keeps its own refusal, which fires first
+    await expect(
+      signTxWithScriptOptions(
+        mkTx(3, 1),
+        [{ inputIndex: 2, signType: "None" }],
+        TEST_KEY,
+      ),
+    ).rejects.toThrow('signTx: signType "None" commits no outputs');
+  });
+
+  test("hasZeroOutputCommitment flags exactly the out-of-range Single* options", () => {
+    for (const signType of SINGLE_TYPES) {
+      for (const [inputCount, outputCount, inputIndex] of OUT_OF_RANGE) {
+        expect(
+          hasZeroOutputCommitment(mkTx(inputCount, outputCount), [
+            { inputIndex, signType },
+          ]),
+        ).toBe(true);
+      }
+      // one flagged option among safe ones is enough to block
+      expect(
+        hasZeroOutputCommitment(mkTx(3, 1), [
+          { inputIndex: 0, signType },
+          null,
+          { inputIndex: 2, signType },
+        ]),
+      ).toBe(true);
+
+      // in range
+      expect(
+        hasZeroOutputCommitment(mkTx(3, 1), [{ inputIndex: 0, signType }]),
+      ).toBe(false);
+      expect(
+        hasZeroOutputCommitment(mkTx(2, 2), [{ inputIndex: 1, signType }]),
+      ).toBe(false);
+    }
+
+    // other sighash types, however far past the last output
+    for (const signType of ["All", "AllAnyOneCanPay"] as const) {
+      expect(
+        hasZeroOutputCommitment(mkTx(3, 1), [{ inputIndex: 2, signType }]),
+      ).toBe(false);
+    }
+    expect(hasZeroOutputCommitment(mkTx(3, 1), [{ inputIndex: 2 }])).toBe(
+      false,
+    );
+    expect(hasZeroOutputCommitment(mkTx(3, 1), [])).toBe(false);
+    expect(hasZeroOutputCommitment(mkTx(3, 1), undefined)).toBe(false);
+    expect(hasZeroOutputCommitment(mkTx(3, 1), [null, undefined])).toBe(false);
+    // eslint-disable-next-line no-sparse-arrays
+    expect(hasZeroOutputCommitment(mkTx(3, 1), [, , null])).toBe(false);
+
+    // the KaspaCom listing (3 inputs, 4 outputs) is not blocked
+    const { txJson, scripts } = loadFixture();
+    expect(
+      hasZeroOutputCommitment(deserializeTransaction(txJson), scripts),
+    ).toBe(false);
+    for (const signType of SINGLE_TYPES) {
+      expect(
+        hasZeroOutputCommitment(deserializeTransaction(txJson), [
+          { inputIndex: 1, scriptHex: scripts[0].scriptHex, signType },
+        ]),
+      ).toBe(false);
+    }
+  });
+
+  test("hasZeroOutputCommitment does not throw on malformed input", () => {
+    const single = [{ inputIndex: 0, signType: "Single" as const }];
+    // unreadable outputs cannot prove a Single* option commits one: fail closed
+    expect(hasZeroOutputCommitment(null as any, single)).toBe(true);
+    expect(hasZeroOutputCommitment({} as any, single)).toBe(true);
+    expect(
+      hasZeroOutputCommitment({ outputs: { length: "1" } } as any, single),
+    ).toBe(true);
+    // ...but without a Single* option the transaction is never read
+    expect(hasZeroOutputCommitment(null as any, [{ inputIndex: 0 }])).toBe(
+      false,
+    );
+    expect(hasZeroOutputCommitment(null as any, [])).toBe(false);
+    // malformed options are the signer's to refuse, not a zero commitment
+    for (const option of [
+      { inputIndex: "5", signType: "Single" },
+      { signType: "Single" },
+      { inputIndex: 5, signType: { toString: () => "Single" } },
+      5,
+      "Single",
+    ]) {
+      expect(hasZeroOutputCommitment(mkTx(3, 1), [option] as any)).toBe(false);
     }
   });
 });
