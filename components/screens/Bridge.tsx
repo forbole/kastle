@@ -34,6 +34,7 @@ import useEvmKasBalance from "@/hooks/evm/useEvmKasBalance";
 import useFeeEstimateByGas from "@/hooks/evm/useFeeEstimateByGas";
 import { useKasFeeEstimate } from "@/hooks/useKasFeeEstimate";
 import useKaspaPrice from "@/hooks/useKaspaPrice";
+import useAnalytics from "@/hooks/useAnalytics";
 import useEvmHotWalletSigner from "@/hooks/wallet/useEvmHotWalletSigner";
 import useKaspaBalance from "@/hooks/wallet/useKaspaBalance";
 import useKaspaHotWalletSigner from "@/hooks/wallet/useKaspaHotWalletSigner";
@@ -130,6 +131,7 @@ export default function Bridge() {
   const evmSigner = useEvmHotWalletSigner();
   const kaspaSigner = useKaspaHotWalletSigner();
   const { kaspaPrice } = useKaspaPrice();
+  const { emitBridgeCompleted } = useAnalytics();
 
   const evmChains = {
     kasplex: isMainnet ? kasplexMainnet : kasplexTestnet,
@@ -471,6 +473,17 @@ export default function Bridge() {
   };
 
   const onConfirm = async () => {
+    const chainOf = (c: BridgeChain) =>
+      c === "kaspa" ? ("l1" as const) : evmChains[c].id;
+    const kastleFee = fees?.kastle ?? 0;
+    const tracked = {
+      from: chainOf(route.from),
+      to: chainOf(route.to),
+      sender: route.from === "kaspa" ? account?.address : evmAddress,
+      value_native: amountNum,
+      native_asset: fromSymbol,
+      ...(kaspaPrice > 0 && { value_usd: amountNum * kaspaPrice }),
+    };
     setSubmitting(true);
     toast.info(
       `Bridging ${fromSymbol} on ${CHAIN_LABEL[route.from]} to ${CHAIN_LABEL[route.to]}`,
@@ -478,6 +491,11 @@ export default function Bridge() {
     try {
       await (route.from === "kaspa" ? bridgeL1() : bridgeL2());
       toast.success(BRIDGE_SUBMITTED_MESSAGE);
+      emitBridgeCompleted({
+        ...tracked,
+        status: "success",
+        ...(kastleFee > 0 && { fee_amount: kastleFee, fee_asset: fromSymbol }),
+      });
       setAmount("");
     } catch (e) {
       console.error(e);
@@ -488,6 +506,7 @@ export default function Bridge() {
             ? e.message
             : "Bridge failed. Please try again."),
       );
+      emitBridgeCompleted({ ...tracked, status: "failed" });
     } finally {
       setSubmitting(false);
     }
