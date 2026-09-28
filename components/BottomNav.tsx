@@ -1,6 +1,6 @@
 import React, { ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ArrowRightLeft } from "lucide-react";
+import { ArrowRightLeft, History } from "lucide-react";
 import { twMerge } from "tailwind-merge";
 import homeIcon from "@/assets/images/home.svg";
 import homeFilledIcon from "@/assets/images/home-filled.svg";
@@ -35,19 +35,54 @@ const TABS: [string, string, (active: boolean) => ReactNode][] = [
   ],
   ["/swap", "Swap", () => <ArrowRightLeft size={24} strokeWidth={1.5} />],
   ["/bridge", "Bridge", () => <BridgeIcon />],
+  ["/activity", "Activity", () => <History size={24} strokeWidth={1.5} />],
 ];
 
-/** Bottom action bar shown on Dashboard, Swap and Bridge (Figma "Tab bar / V2"). */
+/**
+ * Top-right Activity shortcut for Swap and Bridge (mobile parity: the history
+ * icon in the screen header). Opens the Activity page for that screen.
+ */
+export function ActivityHeaderButton({ type }: { type: "swap" | "bridge" }) {
+  const navigate = useNavigate();
+  const { isActivityEnabled } = useFeatureFlags();
+  if (!isActivityEnabled) return null;
+  return (
+    <button
+      type="button"
+      aria-label="Activity"
+      onClick={() => navigate(`/activity?type=${type}`)}
+      // Sits over GeneralHeader's empty right slot (same p-3 + 20px box), so
+      // the title stays centred.
+      className="absolute right-0 top-0 rounded-lg p-3 text-white hover:bg-gray-800"
+    >
+      <History size={20} strokeWidth={1.5} />
+    </button>
+  );
+}
+
+/** Bottom action bar shown on Dashboard, Swap, Bridge and Activity (Figma "Tab bar / V2"). */
 export default function BottomNav() {
   const navigate = useNavigate();
-  const { pathname } = useLocation();
-  const { isSwapEnabled, isBridgeEnabled } = useFeatureFlags();
+  const { pathname, search } = useLocation();
+  const { isSwapEnabled, isBridgeEnabled, isActivityEnabled } =
+    useFeatureFlags();
 
   const tabs = TABS.filter(
     ([path]) =>
       (path !== "/swap" || isSwapEnabled) &&
-      (path !== "/bridge" || isBridgeEnabled),
+      (path !== "/bridge" || isBridgeEnabled) &&
+      (path !== "/activity" || isActivityEnabled),
   );
+  // Activity is two pages (mobile: one per tab); open the one for this screen,
+  // or stay on the current one when already there.
+  const onBridge =
+    pathname === "/bridge" ||
+    (pathname === "/activity" &&
+      new URLSearchParams(search).get("type") === "bridge");
+  const target = (path: string) =>
+    path === "/activity"
+      ? `/activity?type=${onBridge ? "bridge" : "swap"}`
+      : path;
 
   return (
     <div className="bg-icy-blue-950 pb-3">
@@ -60,7 +95,7 @@ export default function BottomNav() {
               type="button"
               aria-label={label}
               aria-current={active ? "page" : undefined}
-              onClick={() => navigate(path)}
+              onClick={() => navigate(target(path))}
               className={twMerge(
                 "flex w-[70px] justify-center px-4 pb-3 pt-[18px]",
                 active ? "text-[#00C4E7]" : "text-white",
