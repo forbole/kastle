@@ -35,7 +35,6 @@ const TABS: [string, string, (active: boolean) => ReactNode][] = [
   ],
   ["/swap", "Swap", () => <ArrowRightLeft size={24} strokeWidth={1.5} />],
   ["/bridge", "Bridge", () => <BridgeIcon />],
-  ["/activity", "Activity", () => <History size={24} strokeWidth={1.5} />],
 ];
 
 /**
@@ -63,26 +62,14 @@ export function ActivityHeaderButton({ type }: { type: "swap" | "bridge" }) {
 /** Bottom action bar shown on Dashboard, Swap, Bridge and Activity (Figma "Tab bar / V2"). */
 export default function BottomNav() {
   const navigate = useNavigate();
-  const { pathname, search } = useLocation();
-  const { isSwapEnabled, isBridgeEnabled, isActivityEnabled } =
-    useFeatureFlags();
+  const { pathname } = useLocation();
+  const { isSwapEnabled, isBridgeEnabled } = useFeatureFlags();
 
   const tabs = TABS.filter(
     ([path]) =>
       (path !== "/swap" || isSwapEnabled) &&
-      (path !== "/bridge" || isBridgeEnabled) &&
-      (path !== "/activity" || isActivityEnabled),
+      (path !== "/bridge" || isBridgeEnabled),
   );
-  // Activity is two pages (mobile: one per tab); open the one for this screen,
-  // or stay on the current one when already there.
-  const onBridge =
-    pathname === "/bridge" ||
-    (pathname === "/activity" &&
-      new URLSearchParams(search).get("type") === "bridge");
-  const target = (path: string) =>
-    path === "/activity"
-      ? `/activity?type=${onBridge ? "bridge" : "swap"}`
-      : path;
 
   return (
     <div className="bg-icy-blue-950 pb-3">
@@ -95,7 +82,7 @@ export default function BottomNav() {
               type="button"
               aria-label={label}
               aria-current={active ? "page" : undefined}
-              onClick={() => navigate(target(path))}
+              onClick={() => navigate(path)}
               className={twMerge(
                 "flex w-[70px] justify-center px-4 pb-3 pt-[18px]",
                 active ? "text-[#00C4E7]" : "text-white",
