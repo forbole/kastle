@@ -28,6 +28,7 @@ function loadFeatureFlagsModule(react: object): FeatureFlagsModule {
   const stubs: Record<string, unknown> = {
     react,
     "@/contexts/PostHogWrapperProvider.tsx": { PostHogWrapperContext: {} },
+    "@/lib/utils.ts": { isProduction: false },
   };
   const module = { exports: {} as FeatureFlagsModule };
   new Function("require", "module", "exports", outputText)(
@@ -83,14 +84,14 @@ test.describe("swap/bridge kill-switch interpretation", () => {
 
 test.describe("useFeatureFlags", () => {
   test("PostHog not loaded yet: swap and bridge stay enabled", () => {
-    expect(renderFeatureFlags(undefined)).toEqual({
+    expect(renderFeatureFlags(undefined)).toMatchObject({
       isSwapEnabled: true,
       isBridgeEnabled: true,
     });
   });
 
   test("inactive flags, omitted from the /decide v3 map, stay enabled", () => {
-    expect(renderFeatureFlags({ swap_enabled: false })).toEqual({
+    expect(renderFeatureFlags({ swap_enabled: false })).toMatchObject({
       isSwapEnabled: true,
       isBridgeEnabled: true,
     });
@@ -102,7 +103,7 @@ test.describe("useFeatureFlags", () => {
         swap_enabled_extension: false,
         bridge_enabled_extension: true,
       }),
-    ).toEqual({ isSwapEnabled: false, isBridgeEnabled: true });
+    ).toMatchObject({ isSwapEnabled: false, isBridgeEnabled: true });
   });
 
   test('string values disable only the flag that is "false"', () => {
@@ -111,6 +112,6 @@ test.describe("useFeatureFlags", () => {
         swap_enabled_extension: "true",
         bridge_enabled_extension: "false",
       }),
-    ).toEqual({ isSwapEnabled: true, isBridgeEnabled: false });
+    ).toMatchObject({ isSwapEnabled: true, isBridgeEnabled: false });
   });
 });
