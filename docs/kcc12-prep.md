@@ -11,7 +11,7 @@ KCC-12 (Kaspa browser-wallet provider, [kaspanet/kccs#24](https://github.com/kas
 | Call           | `request("kas:get_network")`     | `request({ method: "kas:get_network", params })` |
 | Unknown method | resolves `undefined` (unchanged) | rejects `{ code: 4200 }`                         |
 
-Events via `on` / `removeListener`: `accountsChanged`, `networkChanged` (existing), `connect({ networkId })` (new, fires once when `content.ts` dispatches `kastle#initialized`, only if a listener is registered by then), `disconnect` (typed, **never emitted**: the background is local, so the page has no "remote lost" signal). The `kas:*` events are unchanged.
+Events via `on` / `removeListener`: `accountsChanged`, `networkChanged` (existing), `connect({ networkId })` (new, fires when `content.ts` dispatches `kastle#initialized` and replays to listeners registered later), `disconnect` (typed, **never emitted**: the background is local, so the page has no "remote lost" signal). The `kas:*` events are unchanged.
 
 Discovery (`kaspa:announceProvider` / `kaspa:requestProvider`) is not wired. When it is, it should announce the same instance that `window.kastle` points to.
 
@@ -66,8 +66,8 @@ Two caveats:
 
 **What blocks strict `signInputs`:**
 
-1. **Fallback over-signs** (`sign-script.ts` `signWithScripts`, the final `signTransaction(tx, [key], false)`). If any input is still unsigned after the listed ones, WASM `signTransaction` signs **every** wallet-owned P2PK input, including ones the dApp did not list. It uses `SIGHASH_ALL` and overwrites any existing `signatureScript` on those inputs.
-2. **No ownership check.** `inputIndex` is checked only for being a non-negative integer. There is no upper bound and no check that the wallet owns the input.
+1. **Fallback over-signs** (`sign-script.ts` `signTxWithScriptOptions`, the final `signTransaction(tx, [key], false)`). If any input is still unsigned after the listed ones, WASM `signTransaction` signs **every** wallet-owned P2PK input, including ones the dApp did not list. It uses `SIGHASH_ALL` and overwrites any existing `signatureScript` on those inputs.
+2. **No ownership check.** `inputIndex` is checked for being a non-negative integer and within the input range (`inputIndex >= inputs.length` is rejected in `sign-script.ts`), but there is no check that the wallet owns the input.
 3. **P2SH fee adjustment** (`SignAndBroadcast.tsx` `applyP2SHFeeAdjustment`). It rewrites the change output and calls `finalize()` before signing. Co-signers' `signatureScript` bytes stay identical, but their `SIGHASH_ALL` signatures become invalid.
 4. **Ledger** (`lib/wallet/account/ledger-account.ts`). It rejects `scripts` outright. Its sign-and-broadcast path rebuilds the transaction in `toRpcTransaction`, which overwrites **every** input's `signatureScript` with `41<sig>01` and drops UTXOs. Co-signing on Ledger is impossible today.
 5. **Every input must carry its `utxo`**, including co-signers' covenant inputs. Both signing APIs fail otherwise.

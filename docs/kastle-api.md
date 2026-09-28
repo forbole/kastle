@@ -536,8 +536,8 @@ kastle.on("kas:network_changed", (network) => {
   console.log("Network changed:", network);
 });
 
-// EIP-1193-style: fired once when the extension's page bridge is ready.
-// Register before DOMContentLoaded to receive it.
+// EIP-1193-style: fired when the extension's page bridge is ready, and
+// replayed to listeners registered later.
 kastle.on("connect", ({ networkId }) => {
   console.log("Connected on:", networkId);
 });
