@@ -62,3 +62,41 @@ test("window.kastle serves both request shapes and emits connect", async ({
     sameInstance: true,
   });
 });
+
+test("window.kastle replays connect to listeners added after init", async ({
+  page,
+}) => {
+  test.skip(!fs.existsSync(INJECTED), "run `npm run build` first");
+
+  await page.route("https://dapp.test/", (route) =>
+    route.fulfill({ contentType: "text/html", body: "<html></html>" }),
+  );
+  await page.goto("https://dapp.test/");
+  await page.addScriptTag({ content: fs.readFileSync(INJECTED, "utf8") });
+
+  const connect = await page.evaluate(async () => {
+    const provider = (window as any).kastle;
+    // Stub bridge: answer every ApiRequest with the network id.
+    window.addEventListener("message", (e) => {
+      if (e.data?.target !== "background") return;
+      window.postMessage(
+        {
+          id: e.data.id,
+          response: "testnet-10",
+          source: "background",
+          target: "browser",
+        },
+        window.location.origin,
+      );
+    });
+
+    window.dispatchEvent(new Event("kastle#initialized"));
+    // The bridge answers in order, so once this resolves the init-time
+    // GET_NETWORK has settled and connect has already been emitted.
+    await provider.request("kas:get_network");
+
+    return new Promise((resolve) => provider.on("connect", resolve));
+  });
+
+  expect(connect).toEqual({ networkId: "testnet-10" });
+});

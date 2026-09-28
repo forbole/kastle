@@ -55,6 +55,9 @@ export class KastleBrowserAPI {
     Set<(...args: any[]) => void>
   >();
 
+  // Last known network id, so `connect` replays to listeners added after init.
+  private _networkId: string | null = null;
+
   constructor() {
     window.addEventListener("message", (event: MessageEvent<unknown>) => {
       if (event.origin !== window.location.origin) return;
@@ -69,20 +72,23 @@ export class KastleBrowserAPI {
         this._emit("accountsChanged", address ? [address] : []);
         this._emit("kas:account_changed", address);
       } else if (id === "kas:network_changed") {
+        this._networkId = response as string;
         this._emit("networkChanged", response as string);
         this._emit("kas:network_changed", response as string | null);
       }
     });
 
     // content.ts fires this once its message bridge is live, which is when
-    // this provider can first service requests. Skip the round-trip on the
-    // many pages that never listen for it.
+    // this provider can first service requests. Always fetch the network so
+    // listeners registered later still get `connect` (replayed in on()).
     window.addEventListener(
       "kastle#initialized",
       () => {
-        if (!this._eventListeners.get("connect")?.size) return;
         this.getNetwork()
-          .then((networkId) => this._emit("connect", { networkId }))
+          .then((networkId) => {
+            this._networkId = networkId;
+            this._emit("connect", { networkId });
+          })
           .catch(() => {});
       },
       { once: true },
@@ -94,6 +100,12 @@ export class KastleBrowserAPI {
       this._eventListeners.set(event, new Set());
     }
     this._eventListeners.get(event)!.add(handler);
+    if (event === "connect" && this._networkId !== null) {
+      const networkId = this._networkId;
+      queueMicrotask(() =>
+        (handler as KastleEventMap["connect"])({ networkId }),
+      );
+    }
     return this;
   }
 
