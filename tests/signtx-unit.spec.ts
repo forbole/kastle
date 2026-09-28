@@ -1092,6 +1092,12 @@ test.describe("Single sighash without a same-index output (KST-002)", () => {
     expect(
       hasZeroOutputCommitment({ outputs: { length: "1" } } as any, single),
     ).toBe(true);
+    // numbers that are not a valid length: NaN makes every >= false
+    for (const length of [NaN, Infinity, -1, 1.5]) {
+      expect(
+        hasZeroOutputCommitment({ outputs: { length } } as any, single),
+      ).toBe(true);
+    }
     // ...but without a Single* option the transaction is never read
     expect(hasZeroOutputCommitment(null as any, [{ inputIndex: 0 }])).toBe(
       false,

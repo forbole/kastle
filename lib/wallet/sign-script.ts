@@ -88,7 +88,8 @@ export function hasZeroOutputCommitment(
 
     // read tx.outputs once — each access crosses the WASM boundary
     const outputCount = tx.outputs.length;
-    if (typeof outputCount !== "number") return true;
+    // NaN/Infinity/fractions pass typeof and make every >= comparison false
+    if (!Number.isInteger(outputCount) || outputCount < 0) return true;
     // a malformed inputIndex is refused by normalizeScriptOptions at sign time
     return singles.some(
       (option) =>
