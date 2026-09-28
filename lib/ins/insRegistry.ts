@@ -70,6 +70,11 @@ export function isInsName(value: string): boolean {
   return /^[^\s.]+\.igra$/.test(value.trim().toLowerCase());
 }
 
+// The reason for an RPC error or timeout, as opposed to a definite answer
+// (expired, not registered). Exported so screens can tell the two apart.
+export const INS_LOOKUP_FAILED_MESSAGE =
+  "Could not verify this name on-chain. Try again.";
+
 export type InsOnChainResult =
   | {
       ok: true;
@@ -163,11 +168,7 @@ export async function lookupInsNameOnChain(
 
   const deadline = new Promise<InsOnChainResult>((resolve) =>
     setTimeout(
-      () =>
-        resolve({
-          ok: false,
-          reason: "Could not verify this name on-chain. Try again.",
-        }),
+      () => resolve({ ok: false, reason: INS_LOOKUP_FAILED_MESSAGE }),
       LOOKUP_DEADLINE_MS,
     ),
   );
@@ -183,10 +184,7 @@ export async function lookupInsNameOnChain(
       return { ok: false, reason: `${label}.igra is not registered.` };
     } catch (error) {
       console.error("INS on-chain lookup failed", error);
-      return {
-        ok: false,
-        reason: "Could not verify this name on-chain. Try again.",
-      };
+      return { ok: false, reason: INS_LOOKUP_FAILED_MESSAGE };
     }
   })();
 
