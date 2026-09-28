@@ -28,7 +28,7 @@ import {
   AmountInput,
   formatAmount,
 } from "@/components/swap-bridge/ui";
-import BottomNav from "@/components/BottomNav";
+import BottomNav, { ActivityHeaderButton } from "@/components/BottomNav";
 import { NetworkType } from "@/contexts/SettingsContext";
 import useEvmAddress from "@/hooks/evm/useEvmAddress";
 import useEvmHotWalletSigner from "@/hooks/wallet/useEvmHotWalletSigner";
@@ -120,7 +120,7 @@ export default function Swap() {
   );
 
   // Token list: native + Zealous-listed + tokens the user already holds.
-  // ponytail: KaspaCom-only listings are not merged, add their graph-pairs API if asked.
+  // KaspaCom-only listings are not merged, add their graph-pairs API if asked.
   const { data: zealousKasplex } = useZealousSwapTokensMetadata();
   const { data: zealousIgra } = useZealousSwapIgraTokensMetadata();
   const { assets } = useErc20Assets();
@@ -388,7 +388,7 @@ export default function Swap() {
       const account = toAccount({
         address: evmAddress,
         signTransaction: (tx) => signer.signTransaction(tx),
-        // ponytail: swaps only sign transactions; wire these if a flow needs them.
+        // Swaps only sign transactions; wire these if a flow needs them.
         signMessage: () => Promise.reject(new Error("Not supported")),
         signTypedData: () => Promise.reject(new Error("Not supported")),
       });
@@ -460,7 +460,10 @@ export default function Swap() {
   return (
     <div className="flex h-full flex-col">
       <div className="no-scrollbar flex flex-1 flex-col gap-2 overflow-y-auto px-4 pt-4">
-        <GeneralHeader title="Swap" showClose={false} />
+        <div className="relative">
+          <GeneralHeader title="Swap" showClose={false} />
+          <ActivityHeaderButton type="swap" />
+        </div>
 
         <div className="flex items-center gap-2">
           <TokenPill
