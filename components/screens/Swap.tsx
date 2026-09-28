@@ -28,12 +28,13 @@ import {
   AmountInput,
   formatAmount,
 } from "@/components/swap-bridge/ui";
-import BottomNav from "@/components/BottomNav";
+import BottomNav, { ActivityHeaderButton } from "@/components/BottomNav";
 import { NetworkType } from "@/contexts/SettingsContext";
 import useEvmAddress from "@/hooks/evm/useEvmAddress";
 import useEvmHotWalletSigner from "@/hooks/wallet/useEvmHotWalletSigner";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import useKaspaPrice from "@/hooks/useKaspaPrice";
+import useAnalytics from "@/hooks/useAnalytics";
 import { useErc20Price } from "@/hooks/evm/useErc20Prices";
 import useErc20Assets from "@/hooks/evm/useErc20Assets";
 import { useErc20Balances } from "@/hooks/evm/useErc20Balance";
@@ -106,6 +107,7 @@ export default function Swap() {
   const evmAddress = useEvmAddress();
   const signer = useEvmHotWalletSigner();
   const { kaspaPrice } = useKaspaPrice();
+  const { emitSwapCompleted } = useAnalytics();
 
   const [chainKey, setChainKey] = useState<ChainKey>("kasplex");
   const chain = CHAINS[chainKey];
@@ -120,7 +122,7 @@ export default function Swap() {
   );
 
   // Token list: native + Zealous-listed + tokens the user already holds.
-  // ponytail: KaspaCom-only listings are not merged, add their graph-pairs API if asked.
+  // KaspaCom-only listings are not merged, add their graph-pairs API if asked.
   const { data: zealousKasplex } = useZealousSwapTokensMetadata();
   const { data: zealousIgra } = useZealousSwapIgraTokensMetadata();
   const { assets } = useErc20Assets();
@@ -137,7 +139,7 @@ export default function Swap() {
           b.tokenAddress.toLowerCase() === address.toLowerCase(),
       );
       return b && !("error" in b)
-        ? formatAmount(b.balance, b.decimals)
+        ? formatAmount(b.balance, Math.min(b.decimals, 8))
         : undefined;
     };
     const list: SwapToken[] = [];
@@ -152,7 +154,7 @@ export default function Swap() {
         decimals: 18,
         chainImage: c.icon,
         balance:
-          native === undefined ? undefined : formatAmount(Number(native), 18),
+          native === undefined ? undefined : formatAmount(Number(native), 8),
       });
       const zealous = key === "igra" ? zealousIgra : zealousKasplex;
       const imageBase =
@@ -383,12 +385,28 @@ export default function Swap() {
       chainHex,
     );
     if (!provider) return;
+    const trackSwap = (status: "success" | "failed") =>
+      emitSwapCompleted({
+        status,
+        chainId: chain.id,
+        from: tokenIn.address ?? null,
+        to: tokenOut.address ?? null,
+        router: provider.routerAddress,
+        sender: evmAddress,
+        value_native: amountNum,
+        native_asset: tokenIn.symbol,
+        ...(usdIn > 0 && { value_usd: usdIn }),
+        ...(kastleFee > 0 && {
+          fee_amount: kastleFee,
+          fee_asset: tokenIn.symbol,
+        }),
+      });
     setSubmitting(true);
     try {
       const account = toAccount({
         address: evmAddress,
         signTransaction: (tx) => signer.signTransaction(tx),
-        // ponytail: swaps only sign transactions; wire these if a flow needs them.
+        // Swaps only sign transactions; wire these if a flow needs them.
         signMessage: () => Promise.reject(new Error("Not supported")),
         signTypedData: () => Promise.reject(new Error("Not supported")),
       });
@@ -435,10 +453,12 @@ export default function Swap() {
         if (receipt.status !== "success") throw new Error("Swap reverted");
       }
       toast.success("Swapped successfully!");
+      trackSwap("success");
       setAmount("");
     } catch (e) {
       console.error(e);
       toast.error("Swap failed. Please try again.");
+      trackSwap("failed");
     } finally {
       setSubmitting(false);
     }
@@ -460,7 +480,10 @@ export default function Swap() {
   return (
     <div className="flex h-full flex-col">
       <div className="no-scrollbar flex flex-1 flex-col gap-2 overflow-y-auto px-4 pt-4">
-        <GeneralHeader title="Swap" showClose={false} />
+        <div className="relative">
+          <GeneralHeader title="Swap" showClose={false} />
+          <ActivityHeaderButton type="swap" />
+        </div>
 
         <div className="flex items-center gap-2">
           <TokenPill
