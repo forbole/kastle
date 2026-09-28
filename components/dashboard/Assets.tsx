@@ -52,7 +52,7 @@ export default function Assets() {
     );
   });
 
-  const kcc20Tokens = useKcc20Tokens(address);
+  const { data: kcc20Tokens } = useKcc20Tokens(address);
 
   const isAssetListLoading = balance === undefined;
 

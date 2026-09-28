@@ -12,10 +12,10 @@ export default function useKcc20Tokens(address?: string) {
   const enabled =
     address && rpcClient && settings?.networkId === NetworkType.Mainnet;
 
-  const { data } = useSWR(
+  const { data, error, isLoading } = useSWR(
     enabled ? ["kcc20Tokens", address] : null,
     () => fetchKcc20Tokens(address!, rpcClient!, restApis[NetworkType.Mainnet]),
     { refreshInterval: 30_000 },
   );
-  return data;
+  return { data, error, isLoading };
 }

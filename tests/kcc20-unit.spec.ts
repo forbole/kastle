@@ -5,7 +5,7 @@ import { expect, test } from "@playwright/test";
 import { kcc20 } from "@kronsdk/kron-sdk";
 import { hexToBytes } from "viem";
 import init, { PrivateKey, payToAddressScript } from "@/wasm/core/kaspa";
-import { isOwnedBy } from "@/lib/kcc20";
+import { isOwnedBy, shouldIncludeToken } from "@/lib/kcc20";
 
 const TESTS_DIR = path.dirname(fileURLToPath(import.meta.url));
 
@@ -32,4 +32,13 @@ test("a kcc20 state counts only for the wallet that can spend it", () => {
   expect(isOwnedBy(kcc20.covenantIdOwned(xonly(mine), 5n), walletSpk)).toBe(
     false,
   );
+});
+
+test("a kcc20 token shows only with verified metadata and a non-zero balance", () => {
+  const meta = { symbol: "KRON", name: "Kron", decimals: 8 };
+
+  expect(shouldIncludeToken(meta, 5n)).toBe(true);
+  // Registry entry missing or failed verification: hidden, never raw units.
+  expect(shouldIncludeToken(undefined, 5n)).toBe(false);
+  expect(shouldIncludeToken(meta, 0n)).toBe(false);
 });

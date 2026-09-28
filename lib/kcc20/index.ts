@@ -36,6 +36,14 @@ export function isOwnedBy(state: kcc20.Kcc20State, walletSpk: string) {
   }
 }
 
+/** Only a non-zero verified balance of a token with verified metadata is shown. */
+export function shouldIncludeToken(
+  meta: Kcc20Token["meta"] | undefined,
+  amount: bigint,
+): boolean {
+  return meta !== undefined && amount > 0n;
+}
+
 // The indexer supplies the redeem scripts, so it could claim any state. A
 // piece counts only if the node holds that outpoint at P2SH(redeem) under the
 // token's covenant id: consensus lets only the covenant (or its genesis)
@@ -123,7 +131,7 @@ async function verifiedMeta(
   return { symbol, name, decimals, logoURI };
 }
 
-/** The wallet's KCC-20 holdings on mainnet, one row per covenant id, verified-balance only. */
+/** The wallet's KCC-20 holdings on mainnet, one row per covenant id, verified balance and metadata only. */
 export async function fetchKcc20Tokens(
   address: string,
   rpc: RpcClient,
@@ -132,7 +140,7 @@ export async function fetchKcc20Tokens(
   const indexer = new client.IndexerClient(KRON_INDEXER_URL);
   const [rows, registry] = await Promise.all([
     indexer.tokenlist(address),
-    // Registry down: tokens still show, as covenant id + raw units.
+    // Registry down: nothing verifies, so no token shows.
     new client.RegistryClient(KRON_REGISTRY_URL)
       .tokenlist()
       .catch(() => undefined),
@@ -147,9 +155,10 @@ export async function fetchKcc20Tokens(
     if (covid && !tickByCovid.has(covid)) tickByCovid.set(covid, row.tick);
   }
 
-  const tokens = await Promise.all(
+  const tokens: (Kcc20Token | undefined)[] = await Promise.all(
     [...tickByCovid].map(async ([covid, tick]) => {
       const amount = await verifiedBalance(indexer, rpc, tick, address, covid);
+      // Skips the genesis-tx fetch; shouldIncludeToken is still the gate.
       if (amount === 0n) return undefined;
       const entry = registry?.tokens.find(
         (t) =>
@@ -163,5 +172,8 @@ export async function fetchKcc20Tokens(
       };
     }),
   );
-  return tokens.filter((t) => t !== undefined);
+  return tokens.filter(
+    (t): t is Kcc20Token =>
+      t !== undefined && shouldIncludeToken(t.meta, t.amount),
+  );
 }
