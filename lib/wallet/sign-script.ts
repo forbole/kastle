@@ -44,6 +44,63 @@ function assertSafeOutputSighash(signType: string, inputIndex: number): void {
   }
 }
 
+function isSingleSignType(signType: unknown): boolean {
+  return (PARTIAL_OUTPUT_SIGN_TYPES as readonly unknown[]).includes(signType);
+}
+
+// KST-002: Single* binds input i to output i only. When there is no output i,
+// KIP-12 hashes the output commitment as ZERO32, so the signature commits to
+// no output at all — None* on the output axis, and every output could be
+// rewritten after approval. Called from the signTxWithScriptOptions preflight
+// (before any mutation) AND from signTxInputWithScriptOption itself, like the
+// None* refusal above.
+function assertSingleHasSameIndexOutput(
+  signType: string,
+  inputIndex: number,
+  outputCount: number,
+): void {
+  if (isSingleSignType(signType) && inputIndex >= outputCount) {
+    throw new Error(
+      `signTx: ${signType} input ${inputIndex} has no same-index output; the signature would commit to no outputs`,
+    );
+  }
+}
+
+/**
+ * True when any Single / SingleAnyOneCanPay option selects an input with no
+ * same-index output (inputIndex >= outputs.length), so its signature would
+ * commit to no outputs at all. The signer refuses these; the confirm screen
+ * must block them outright rather than show the partial-outputs warning.
+ *
+ * Fail closed: if the outputs of a request carrying Single* options cannot be
+ * read, it cannot be proven that each one commits an output.
+ * Non-throwing: safe to call from render paths.
+ */
+export function hasZeroOutputCommitment(
+  tx: Transaction,
+  scripts?: (RawScriptOption | null | undefined)[],
+): boolean {
+  try {
+    const singles = (scripts ?? []).filter((option) =>
+      isSingleSignType(option?.signType),
+    );
+    if (singles.length === 0) return false;
+
+    // read tx.outputs once — each access crosses the WASM boundary
+    const outputCount = tx.outputs.length;
+    // NaN/Infinity/fractions pass typeof and make every >= comparison false
+    if (!Number.isInteger(outputCount) || outputCount < 0) return true;
+    // a malformed inputIndex is refused by normalizeScriptOptions at sign time
+    return singles.some(
+      (option) =>
+        typeof option?.inputIndex === "number" &&
+        option.inputIndex >= outputCount,
+    );
+  } catch {
+    return true;
+  }
+}
+
 /**
  * True when any option signs with a sighash type that commits only part of the
  * outputs, so the rest can still change after the user approves. Non-throwing:
@@ -182,13 +239,23 @@ export function signTxInputWithScriptOption(
   option: ScriptOption,
   privateKeyString: string,
 ) {
-  assertSafeOutputSighash(option.signType ?? "All", option.inputIndex);
+  const signType = option.signType ?? "All";
+  assertSafeOutputSighash(signType, option.inputIndex);
 
   // each tx.inputs access crosses the WASM boundary; read it once
   const inputs = tx.inputs;
   if (option.inputIndex >= inputs.length) {
     throw new Error(
       `signTx: sign option references non-existent input ${option.inputIndex}`,
+    );
+  }
+
+  // tx.outputs builds a fresh array of WASM objects; only Single* needs it
+  if (isSingleSignType(signType)) {
+    assertSingleHasSameIndexOutput(
+      signType,
+      option.inputIndex,
+      tx.outputs.length,
     );
   }
 
@@ -207,7 +274,7 @@ export function signTxInputWithScriptOption(
       tx,
       option.inputIndex,
       own(new PrivateKey(privateKeyString)),
-      toSignType(option.signType ?? "All"),
+      toSignType(signType),
     ),
   );
 
@@ -229,6 +296,7 @@ export async function signTxWithScriptOptions(
   // validate every option before the first mutation so a bad one can't
   // leave the transaction partially signed
   const inputs = tx.inputs;
+  const outputCount = tx.outputs.length;
   const seen = new Set<number>();
   for (const option of options) {
     if (option.inputIndex >= inputs.length) {
@@ -236,6 +304,11 @@ export async function signTxWithScriptOptions(
         `signTx: sign option references non-existent input ${option.inputIndex}`,
       );
     }
+    assertSingleHasSameIndexOutput(
+      option.signType ?? "All",
+      option.inputIndex,
+      outputCount,
+    );
     if (inputs[option.inputIndex].signatureScript) {
       throw new Error(
         `signTx: input ${option.inputIndex} already carries a signatureScript`,
@@ -253,10 +326,26 @@ export async function signTxWithScriptOptions(
     signTxInputWithScriptOption(tx, option, privateKeyString);
   }
 
-  const isFullySigned = tx.inputs.every((input) => !!input.signatureScript);
+  // each tx.inputs access crosses the WASM boundary; read it once
+  const signedInputs = tx.inputs;
+  const isFullySigned = signedInputs.every((input) => !!input.signatureScript);
   if (isFullySigned) {
     return tx;
   }
 
-  return signTransaction(tx, [privateKeyString], false);
+  // The fallback still has to run: the unscripted inputs may need this key
+  // too (a reveal's fee inputs sit beside its scripted P2SH input). But it
+  // signs EVERY input the key owns with All, overwriting what is there, so a
+  // requested Single* would silently become All. A sighash never covers
+  // signature scripts, so the scripted signatures stay valid: put them back.
+  const scripted = options.map(({ inputIndex }) => ({
+    inputIndex,
+    signatureScript: signedInputs[inputIndex].signatureScript,
+  }));
+  const signed = signTransaction(tx, [privateKeyString], false);
+  const fallbackInputs = signed.inputs;
+  for (const { inputIndex, signatureScript } of scripted) {
+    fallbackInputs[inputIndex].signatureScript = signatureScript;
+  }
+  return signed;
 }
