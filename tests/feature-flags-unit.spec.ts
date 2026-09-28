@@ -28,6 +28,7 @@ function loadFeatureFlagsModule(react: object): FeatureFlagsModule {
   const stubs: Record<string, unknown> = {
     react,
     "@/contexts/PostHogWrapperProvider.tsx": { PostHogWrapperContext: {} },
+    "@/lib/utils.ts": { isProduction: false },
   };
   const module = { exports: {} as FeatureFlagsModule };
   new Function("require", "module", "exports", outputText)(
