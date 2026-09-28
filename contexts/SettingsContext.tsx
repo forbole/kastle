@@ -59,7 +59,20 @@ export const KNS_API_URLS = {
   [NetworkType.TestnetT10]: "https://api.knsdomains.org/tn10",
 };
 
-export const KRC721_INDEXER_BASE_URL = "https://krc721-indexer.kaspa.com";
+// The production host only indexes mainnet; testnet-10 routes 404 there and
+// the NFT tab painted blank on testnet. (Mobile builds the same wrong URL.)
+export const KRC721_INDEXER_URLS = {
+  [NetworkType.Mainnet]: "https://krc721-indexer.kaspa.com",
+  [NetworkType.TestnetT10]: "https://dev-krc721-indexer.kaspa.com",
+};
+
+// kaspa.com's image cache, which kaspa.com and mobile draw their grids from.
+// Pinata rate-limits a wallet's first page into mostly 429s; this does not.
+export const KRC721_CACHE_URLS = {
+  [NetworkType.Mainnet]: "https://krc721-cache.kaspa.com/krc721/mainnet",
+  [NetworkType.TestnetT10]:
+    "https://krc721-cache-dev.kaspa.com/krc721/testnet-10",
+};
 
 export const initialSettings = {
   networkId: NetworkType.Mainnet,

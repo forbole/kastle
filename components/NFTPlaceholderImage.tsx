@@ -23,7 +23,15 @@ export default function NFTPlaceholderImage({
       )}
       <img
         alt={"artwork"}
-        className={twMerge(className, isLoaded ? "block" : "hidden")}
+        // Every card on a page used to fetch at once (both image hosts are
+        // HTTP/2, so the per-host connection cap bounds nothing). A lazy
+        // image only loads once it has a layout box near the viewport, so
+        // until then it is invisible, not display:none.
+        loading="lazy"
+        className={twMerge(
+          className,
+          isLoaded ? "block" : "invisible absolute",
+        )}
         onLoad={(event) => {
           setIsLoaded(true);
           onLoad?.(event);
