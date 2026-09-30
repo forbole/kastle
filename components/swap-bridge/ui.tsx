@@ -304,7 +304,7 @@ export function TokenPill({
         <img
           src={chainImage ?? kasIcon}
           alt=""
-          className="absolute bottom-0 -right-[7px] size-3 rounded-full border border-[#1e343d] bg-[#1e343d] object-cover"
+          className="absolute -right-[7px] bottom-0 size-3 rounded-full border border-[#1e343d] bg-[#1e343d] object-cover"
         />
       </span>
       <span className="truncate text-base font-medium">{symbol}</span>
@@ -353,8 +353,10 @@ export function AmountInput({
           : "text-base";
   // A "." is about half a digit wide; counting it as a full `ch` left a gap
   // between the number and the token icon.
-  const widthCh =
-    Math.max(value.replace(".", "").length + (value.includes(".") ? 0.5 : 0), 1);
+  const widthCh = Math.max(
+    value.replace(".", "").length + (value.includes(".") ? 0.5 : 0),
+    1,
+  );
   return (
     <div className="flex flex-col items-center pt-2">
       <div className="flex max-w-full items-center justify-center gap-2.5">
@@ -735,7 +737,7 @@ export function TokenSheet({
               type="button"
               onClick={() => onChain(c.key)}
               className={twMerge(
-                "flex h-9 items-center gap-2 rounded-xl border px-3 text-sm font-medium text-gray-200 bg-daintree-700",
+                "flex h-9 items-center gap-2 rounded-xl border bg-daintree-700 px-3 text-sm font-medium text-gray-200",
                 c.key === chain ? "border-icy-blue-400" : "border-transparent",
               )}
             >
@@ -747,9 +749,7 @@ export function TokenSheet({
           ))}
         </div>
       )}
-      {recentTokens.length > 0 && (
-        <>{recentTokens.map(row)}</>
-      )}
+      {recentTokens.length > 0 && <>{recentTokens.map(row)}</>}
       {matches.filter((t) => !recentTokens.includes(t)).map(row)}
       {matches.length === 0 && (
         <p className="py-4 text-center text-sm text-daintree-400">

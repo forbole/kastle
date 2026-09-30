@@ -342,8 +342,7 @@ export default function Swap() {
       return "Oh, you don't have enough funds";
     if (balances && networkFeeWei !== undefined) {
       const needNative = (isNativeIn ? rawIn : 0n) + networkFeeWei;
-      if (needNative > balances.native)
-        return NETWORK_FEE_ERROR;
+      if (needNative > balances.native) return NETWORK_FEE_ERROR;
     }
     if (quotes && !quotesLoading && supported.length === 0)
       return "Unsupported token pair";
@@ -535,85 +534,84 @@ export default function Swap() {
           tokenOut &&
           !samePair &&
           (!error || error === NETWORK_FEE_ERROR) && (
-          <div className="shrink-0 overflow-hidden rounded-xl border border-daintree-700 bg-daintree-800">
-            <QuoteRow label="Min Received" tooltip={TOOLTIPS.minReceived}>
-              {loading ? (
-                <Skeleton />
-              ) : minReceived ? (
-                <span className="flex flex-col items-end">
-                  ~ {minReceived} {tokenOut.symbol}
-                  {minReceivedUsd !== undefined && (
-                    <span className="text-xs text-daintree-400">
-                      (≈ ${formatAmount(minReceivedUsd, 2)} USD)
-                    </span>
-                  )}
-                </span>
-              ) : (
-                "-"
+            <div className="shrink-0 overflow-hidden rounded-xl border border-daintree-700 bg-daintree-800">
+              <QuoteRow label="Min Received" tooltip={TOOLTIPS.minReceived}>
+                {loading ? (
+                  <Skeleton />
+                ) : minReceived ? (
+                  <span className="flex flex-col items-end">
+                    ~ {minReceived} {tokenOut.symbol}
+                    {minReceivedUsd !== undefined && (
+                      <span className="text-xs text-daintree-400">
+                        (≈ ${formatAmount(minReceivedUsd, 2)} USD)
+                      </span>
+                    )}
+                  </span>
+                ) : (
+                  "-"
+                )}
+              </QuoteRow>
+              <QuoteRow label="Rate" tooltip={TOOLTIPS.rate}>
+                {loading ? (
+                  <Skeleton />
+                ) : outNum !== undefined && amountNum > 0 ? (
+                  `1 ${tokenIn?.symbol} ≈ ${formatAmount(outNum / amountNum)} ${tokenOut.symbol}`
+                ) : (
+                  "-"
+                )}
+              </QuoteRow>
+              <QuoteRow
+                label="Est. Fee"
+                onClick={() => setSheet("fee")}
+                noChevron
+                infoOpensRow
+              >
+                {networkFeeWei === undefined ? (
+                  <Skeleton />
+                ) : (
+                  `${formatAmount(Number(formatEther(networkFeeWei)))} ${nativeSymbol}`
+                )}
+              </QuoteRow>
+              <QuoteRow
+                label="Provider"
+                tooltip={TOOLTIPS.provider}
+                onClick={() => setSheet("provider")}
+              >
+                {selected ? (
+                  <>
+                    <img
+                      src={selected.provider.image}
+                      alt=""
+                      className="size-[26px] rounded-full"
+                    />
+                    {selected.provider.name}
+                  </>
+                ) : loading ? (
+                  <Skeleton />
+                ) : (
+                  "-"
+                )}
+              </QuoteRow>
+              <QuoteRow
+                label="Slippage"
+                tooltip={TOOLTIPS.slippage}
+                onClick={() => setSheet("slippage")}
+              >
+                {slippage}%
+              </QuoteRow>
+              <QuoteRow label="Price Impact" tooltip={TOOLTIPS.priceImpact}>
+                {priceImpact === undefined
+                  ? "-"
+                  : `${formatAmount(priceImpact, 2)}%`}
+              </QuoteRow>
+              {viaFeeCollector && (
+                <p className="flex items-center gap-2 border-t border-daintree-700 px-4 py-3 text-xs font-medium text-daintree-400">
+                  <i className="hn hn-info-circle text-base" />
+                  Quote includes {Number(feeBps) / 100}% Kastle Fee
+                </p>
               )}
-            </QuoteRow>
-            <QuoteRow label="Rate" tooltip={TOOLTIPS.rate}>
-              {loading ? (
-                <Skeleton />
-              ) : outNum !== undefined && amountNum > 0 ? (
-                `1 ${tokenIn?.symbol} ≈ ${formatAmount(outNum / amountNum)} ${tokenOut.symbol}`
-              ) : (
-                "-"
-              )}
-            </QuoteRow>
-            <QuoteRow
-              label="Est. Fee"
-              onClick={() => setSheet("fee")}
-              noChevron
-              infoOpensRow
-            >
-              {networkFeeWei === undefined ? (
-                <Skeleton />
-              ) : (
-                `${formatAmount(Number(formatEther(networkFeeWei)))} ${nativeSymbol}`
-              )}
-            </QuoteRow>
-            <QuoteRow
-              label="Provider"
-              tooltip={TOOLTIPS.provider}
-              onClick={() => setSheet("provider")}
-            >
-              {selected ? (
-                <>
-                  <img
-                    src={selected.provider.image}
-                    alt=""
-                    className="size-[26px] rounded-full"
-                  />
-                  {selected.provider.name}
-                </>
-              ) : loading ? (
-                <Skeleton />
-              ) : (
-                "-"
-              )}
-            </QuoteRow>
-            <QuoteRow
-              label="Slippage"
-              tooltip={TOOLTIPS.slippage}
-              onClick={() => setSheet("slippage")}
-            >
-              {slippage}%
-            </QuoteRow>
-            <QuoteRow label="Price Impact" tooltip={TOOLTIPS.priceImpact}>
-              {priceImpact === undefined
-                ? "-"
-                : `${formatAmount(priceImpact, 2)}%`}
-            </QuoteRow>
-            {viaFeeCollector && (
-              <p className="flex items-center gap-2 border-t border-daintree-700 px-4 py-3 text-xs font-medium text-daintree-400">
-                <i className="hn hn-info-circle text-base" />
-                Quote includes {Number(feeBps) / 100}% Kastle Fee
-              </p>
-            )}
-          </div>
-        )}
-
+            </div>
+          )}
       </div>
       <ConfirmButton
         error={error}

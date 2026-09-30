@@ -586,59 +586,59 @@ export default function Bridge() {
 
         {/* The network-fee error keeps the card: its Est. Fee row explains it. */}
         {amountNum > 0 &&
-          (!error || error === `Oh, you need ${fromSymbol} for the network fees`) && (
-          <div className="shrink-0 overflow-hidden rounded-xl border border-daintree-700 bg-daintree-800">
-            <QuoteRow label="Min Received" tooltip={TOOLTIPS.minReceived}>
-              {received === undefined ? (
-                <Skeleton />
-              ) : (
-                <span className="flex flex-col items-end">
-                  ~ {formatAmount(Math.max(received, 0))} {toSymbol}
-                  <span className="text-xs text-daintree-400">
-                    (≈ ${formatAmount(Math.max(received, 0) * kaspaPrice, 2)}{" "}
-                    USD)
+          (!error ||
+            error === `Oh, you need ${fromSymbol} for the network fees`) && (
+            <div className="shrink-0 overflow-hidden rounded-xl border border-daintree-700 bg-daintree-800">
+              <QuoteRow label="Min Received" tooltip={TOOLTIPS.minReceived}>
+                {received === undefined ? (
+                  <Skeleton />
+                ) : (
+                  <span className="flex flex-col items-end">
+                    ~ {formatAmount(Math.max(received, 0))} {toSymbol}
+                    <span className="text-xs text-daintree-400">
+                      (≈ ${formatAmount(Math.max(received, 0) * kaspaPrice, 2)}{" "}
+                      USD)
+                    </span>
                   </span>
-                </span>
+                )}
+              </QuoteRow>
+              <QuoteRow
+                label="Provider"
+                tooltip={TOOLTIPS.provider}
+                onClick={() => setSheet("provider")}
+              >
+                <img
+                  src={PROVIDER_LOGO[route.provider]}
+                  alt=""
+                  className="size-[26px] rounded-full"
+                />
+                {route.provider}
+              </QuoteRow>
+              <QuoteRow
+                label="Est. Fee"
+                onClick={() => setSheet("fee")}
+                noChevron
+                infoOpensRow
+              >
+                {fees === undefined || networkFee === undefined ? (
+                  <Skeleton />
+                ) : (
+                  `${formatAmount(fees.bridge + fees.kastle + networkFee)} ${fromSymbol}`
+                )}
+              </QuoteRow>
+              <QuoteRow label="Est. Time" tooltip={TOOLTIPS.estTime}>
+                {route.estTime}
+              </QuoteRow>
+              {(route.from === "kaspa" || direction === "igra-kas") && (
+                <p className="flex items-center gap-2 border-t border-daintree-700 px-4 py-3 text-xs font-medium text-daintree-400">
+                  <i className="hn hn-info-circle text-base" />
+                  {route.from === "kaspa"
+                    ? "Quote includes 0.2 $KAS + 0.75% Kastle Fee"
+                    : "Quote includes 0.75% Kastle Fee"}
+                </p>
               )}
-            </QuoteRow>
-            <QuoteRow
-              label="Provider"
-              tooltip={TOOLTIPS.provider}
-              onClick={() => setSheet("provider")}
-            >
-              <img
-                src={PROVIDER_LOGO[route.provider]}
-                alt=""
-                className="size-[26px] rounded-full"
-              />
-              {route.provider}
-            </QuoteRow>
-            <QuoteRow
-              label="Est. Fee"
-              onClick={() => setSheet("fee")}
-              noChevron
-              infoOpensRow
-            >
-              {fees === undefined || networkFee === undefined ? (
-                <Skeleton />
-              ) : (
-                `${formatAmount(fees.bridge + fees.kastle + networkFee)} ${fromSymbol}`
-              )}
-            </QuoteRow>
-            <QuoteRow label="Est. Time" tooltip={TOOLTIPS.estTime}>
-              {route.estTime}
-            </QuoteRow>
-            {(route.from === "kaspa" || direction === "igra-kas") && (
-              <p className="flex items-center gap-2 border-t border-daintree-700 px-4 py-3 text-xs font-medium text-daintree-400">
-                <i className="hn hn-info-circle text-base" />
-                {route.from === "kaspa"
-                  ? "Quote includes 0.2 $KAS + 0.75% Kastle Fee"
-                  : "Quote includes 0.75% Kastle Fee"}
-              </p>
-            )}
-          </div>
-        )}
-
+            </div>
+          )}
       </div>
       <ConfirmButton
         error={error}
@@ -731,7 +731,9 @@ export default function Bridge() {
             <div className="flex items-start justify-between gap-2">
               <span className="min-w-0 font-semibold text-white">{label}</span>
               <span className="flex-none whitespace-nowrap text-white">
-                {value === undefined ? "-" : `${formatAmount(value)} ${fromSymbol}`}
+                {value === undefined
+                  ? "-"
+                  : `${formatAmount(value)} ${fromSymbol}`}
               </span>
             </div>
             {note && <span className="text-xs text-daintree-400">{note}</span>}
