@@ -18,6 +18,8 @@ import {
   AmountInput,
   BottomSheet,
   ConfirmButton,
+  PairArrow,
+  ProviderRow,
   QuoteRow,
   SheetToken,
   Skeleton,
@@ -28,6 +30,9 @@ import {
 } from "@/components/swap-bridge/ui";
 import BottomNav, { ActivityHeaderButton } from "@/components/BottomNav";
 import kaspaIcon from "@/assets/images/network-logos/kaspa.svg";
+import igraLogo from "@/assets/images/providers/igra-logo.png";
+import katLogo from "@/assets/images/providers/kat-logo.png";
+import kurveLogo from "@/assets/images/providers/kurve-logo.png";
 import { NetworkType } from "@/contexts/SettingsContext";
 import useEvmAddress from "@/hooks/evm/useEvmAddress";
 import useEvmKasBalance from "@/hooks/evm/useEvmKasBalance";
@@ -101,6 +106,14 @@ const CHAIN_LABEL: Record<BridgeChain, string> = {
   kaspa: "Kaspa",
   kasplex: "Kasplex",
   igra: "Igra",
+};
+
+const PROVIDER_LOGO: Record<string, string> = {
+  "IGRA Bridge": igraLogo,
+  "Kurve Bridge": kurveLogo,
+  // Kasplex → Kaspa runs through the Kurve contract (KASPLEX_BRIDGE_ABI).
+  "Kasplex Bridge": kurveLogo,
+  "KAT Bridge": katLogo,
 };
 
 const TOOLTIPS = {
@@ -531,13 +544,17 @@ export default function Bridge() {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="no-scrollbar flex flex-1 flex-col gap-2 overflow-y-auto px-4 pt-4">
-        <div className="relative">
-          <GeneralHeader title="Bridge" showClose={false} />
-          <ActivityHeaderButton type="bridge" />
-        </div>
-
-        <div className="flex items-center gap-2">
+      <div className="relative shrink-0 px-4 pt-4">
+        <GeneralHeader
+          title="Bridge"
+          showClose={false}
+          lucideBack
+          titleClassName="text-gray-200"
+        />
+        <ActivityHeaderButton type="bridge" />
+      </div>
+      <div className="no-scrollbar flex flex-1 flex-col gap-2 overflow-y-auto px-4">
+        <div className="mb-4 flex items-center justify-between">
           <TokenPill
             symbol={fromSymbol}
             chainImage={chainImage(route.from)}
@@ -546,7 +563,7 @@ export default function Bridge() {
               setSheet("token");
             }}
           />
-          <i className="hn hn-arrow-right text-daintree-400" />
+          <PairArrow />
           <TokenPill
             symbol={toSymbol}
             chainImage={chainImage(route.to)}
@@ -559,12 +576,7 @@ export default function Bridge() {
           onChange={setAmount}
           symbol={fromSymbol}
           chainImage={chainImage(route.from)}
-          usd={
-            amountNum > 0
-              ? `$${formatAmount(amountNum * kaspaPrice, 2)}`
-              : undefined
-          }
-          balance={balance === undefined ? undefined : formatAmount(balance)}
+          usd={`$${formatAmount(amountNum * kaspaPrice, 2)}`}
           onFlip={() => {
             setDirection(reverse);
             setAmount("");
@@ -572,16 +584,19 @@ export default function Bridge() {
           flipDisabled={!canFlip}
         />
 
-        {amountNum > 0 && (
-          <div className="rounded-lg border border-daintree-700 bg-daintree-800 px-4 py-2">
+        {/* The network-fee error keeps the card: its Est. Fee row explains it. */}
+        {amountNum > 0 &&
+          (!error || error === `Oh, you need ${fromSymbol} for the network fees`) && (
+          <div className="shrink-0 overflow-hidden rounded-xl border border-daintree-700 bg-daintree-800">
             <QuoteRow label="Min Received" tooltip={TOOLTIPS.minReceived}>
               {received === undefined ? (
                 <Skeleton />
               ) : (
                 <span className="flex flex-col items-end">
-                  {formatAmount(Math.max(received, 0))} {toSymbol}
+                  ~ {formatAmount(Math.max(received, 0))} {toSymbol}
                   <span className="text-xs text-daintree-400">
-                    ≈ ${formatAmount(Math.max(received, 0) * kaspaPrice, 2)}
+                    (≈ ${formatAmount(Math.max(received, 0) * kaspaPrice, 2)}{" "}
+                    USD)
                   </span>
                 </span>
               )}
@@ -591,9 +606,19 @@ export default function Bridge() {
               tooltip={TOOLTIPS.provider}
               onClick={() => setSheet("provider")}
             >
+              <img
+                src={PROVIDER_LOGO[route.provider]}
+                alt=""
+                className="size-[26px] rounded-full"
+              />
               {route.provider}
             </QuoteRow>
-            <QuoteRow label="Est. Fee" onClick={() => setSheet("fee")}>
+            <QuoteRow
+              label="Est. Fee"
+              onClick={() => setSheet("fee")}
+              noChevron
+              infoOpensRow
+            >
               {fees === undefined || networkFee === undefined ? (
                 <Skeleton />
               ) : (
@@ -604,8 +629,8 @@ export default function Bridge() {
               {route.estTime}
             </QuoteRow>
             {(route.from === "kaspa" || direction === "igra-kas") && (
-              <p className="mt-1 flex items-center gap-1 border-t border-daintree-700 pt-2 text-xs text-daintree-400">
-                <i className="hn hn-info-circle" />
+              <p className="flex items-center gap-2 border-t border-daintree-700 px-4 py-3 text-xs font-medium text-daintree-400">
+                <i className="hn hn-info-circle text-base" />
                 {route.from === "kaspa"
                   ? "Quote includes 0.2 $KAS + 0.75% Kastle Fee"
                   : "Quote includes 0.75% Kastle Fee"}
@@ -614,19 +639,24 @@ export default function Bridge() {
           </div>
         )}
 
-        <ConfirmButton
-          error={error}
-          disabled={
-            !!error ||
-            amountNum <= 0 ||
-            received === undefined ||
-            loadingQuote ||
-            networkFee === undefined
-          }
-          loading={submitting}
-          onClick={onConfirm}
-        />
       </div>
+      <ConfirmButton
+        error={error}
+        balance={
+          balance === undefined
+            ? undefined
+            : `${formatAmount(balance)} ${fromSymbol}`
+        }
+        disabled={
+          !!error ||
+          amountNum <= 0 ||
+          received === undefined ||
+          loadingQuote ||
+          networkFee === undefined
+        }
+        loading={submitting}
+        onClick={onConfirm}
+      />
       <BottomNav />
       <TermsGate kind="Bridge" />
 
@@ -636,6 +666,7 @@ export default function Bridge() {
         chains={(["kaspa", "kasplex", "igra"] as BridgeChain[]).map((c) => ({
           key: c,
           label: CHAIN_LABEL[c],
+          image: chainImage(c),
         }))}
         chain={sheetChain}
         onChain={(c) => setSheetChain(c as BridgeChain)}
@@ -653,64 +684,59 @@ export default function Bridge() {
         title="Select Provider"
         open={sheet === "provider"}
         onClose={() => setSheet(undefined)}
+        tall
       >
         {bridgeDirectionsFrom(route.from, isMainnet).map((d) => {
           const r = BRIDGE_ROUTES[d];
           return (
-            <button
+            <ProviderRow
               key={d}
-              type="button"
+              image={PROVIDER_LOGO[r.provider]}
+              name={r.provider}
+              subtitle={`${BRIDGE_TOKEN_NAME[r.to]} on ${CHAIN_LABEL[r.to]} · ${r.estTime}`}
+              selected={d === direction}
               onClick={() => {
                 setDirection(d);
                 setSheet(undefined);
               }}
-              className="flex items-center gap-3 rounded-lg border border-daintree-700 p-3 text-left"
-            >
-              <img
-                src={chainImage(r.to)}
-                alt=""
-                className="size-8 rounded-full"
-              />
-              <div className="flex flex-1 flex-col">
-                <span className="text-sm font-semibold text-white">
-                  {r.provider}
-                </span>
-                <span className="text-xs text-daintree-400">
-                  {BRIDGE_TOKEN_NAME[r.to]} on {CHAIN_LABEL[r.to]} · {r.estTime}
-                </span>
-              </div>
-              {d === direction && (
-                <i className="hn hn-check-circle text-icy-blue-400" />
-              )}
-            </button>
+            />
           );
         })}
       </BottomSheet>
 
       <BottomSheet
         title="Est. Fee"
+        subtitle="The estimated total cost for this transaction"
         open={sheet === "fee"}
         onClose={() => setSheet(undefined)}
       >
         {[
-          ["Bridge fees", fees?.bridge],
-          ["Network fees", networkFee],
-          ["Kastle fees", fees?.kastle],
-        ].map(([label, value]) => (
-          <div key={label as string} className="flex justify-between text-sm">
-            <span className="text-daintree-400">{label}</span>
-            <span className="text-white">
-              {value === undefined
-                ? "-"
-                : `${formatAmount(value as number)} ${fromSymbol}`}
-            </span>
+          { label: "Bridge fees", value: fees?.bridge },
+          { label: "Network fees", value: networkFee },
+          {
+            label: "Kastle fees",
+            value: fees?.kastle,
+            note:
+              route.from === "kaspa"
+                ? "Quote includes 0.2 $KAS + 0.75% Kastle Fee"
+                : direction === "igra-kas"
+                  ? "Quote includes 0.75% Kastle Fee"
+                  : undefined,
+          },
+        ].map(({ label, value, note }) => (
+          <div
+            key={label}
+            className="flex flex-col gap-1 rounded-lg px-3 py-2 text-sm"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <span className="min-w-0 font-semibold text-white">{label}</span>
+              <span className="flex-none whitespace-nowrap text-white">
+                {value === undefined ? "-" : `${formatAmount(value)} ${fromSymbol}`}
+              </span>
+            </div>
+            {note && <span className="text-xs text-daintree-400">{note}</span>}
           </div>
         ))}
-        {route.from === "kaspa" && (
-          <p className="text-xs text-daintree-400">
-            Quote includes 0.2 KAS + 0.75% Kastle fee
-          </p>
-        )}
       </BottomSheet>
     </div>
   );

@@ -38,6 +38,8 @@ export default {
           500: "#3b6273",
           600: "#2d4f5d",
           700: "#203c49",
+          // Figma border/border200 (Activity rows), between 700 and 800.
+          750: "#1a303a",
           800: "#102832",
           900: "#09171d",
           950: "#071116",

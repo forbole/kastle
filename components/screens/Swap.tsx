@@ -19,6 +19,8 @@ import toast from "@/components/Toast";
 import {
   BottomSheet,
   ConfirmButton,
+  PairArrow,
+  ProviderRow,
   QuoteRow,
   SheetToken,
   Skeleton,
@@ -99,6 +101,8 @@ const TOOLTIPS = {
     body: "The percentage change in market price caused by the size of your trade.",
   },
 };
+
+const NETWORK_FEE_ERROR = "Oh, you need more for the network fees";
 
 export default function Swap() {
   const { networkId } = useRpcClientStateful();
@@ -339,7 +343,7 @@ export default function Swap() {
     if (balances && networkFeeWei !== undefined) {
       const needNative = (isNativeIn ? rawIn : 0n) + networkFeeWei;
       if (needNative > balances.native)
-        return "Oh, you need more for the network fees";
+        return NETWORK_FEE_ERROR;
     }
     if (quotes && !quotesLoading && supported.length === 0)
       return "Unsupported token pair";
@@ -476,23 +480,37 @@ export default function Swap() {
           ),
         )
       : undefined;
+  // Hidden when the output token has no price, rather than showing $0.00.
+  const minReceivedUsd =
+    selected?.amountOut !== undefined && tokenOut && priceOut > 0
+      ? Number(
+          formatUnits(
+            swapMinReceived(selected.amountOut, slippage),
+            tokenOut.decimals,
+          ),
+        ) * priceOut
+      : undefined;
 
   return (
     <div className="flex h-full flex-col">
-      <div className="no-scrollbar flex flex-1 flex-col gap-2 overflow-y-auto px-4 pt-4">
-        <div className="relative">
-          <GeneralHeader title="Swap" showClose={false} />
-          <ActivityHeaderButton type="swap" />
-        </div>
-
-        <div className="flex items-center gap-2">
+      <div className="relative shrink-0 px-4 pt-4">
+        <GeneralHeader
+          title="Swap"
+          showClose={false}
+          lucideBack
+          titleClassName="text-gray-200"
+        />
+        <ActivityHeaderButton type="swap" />
+      </div>
+      <div className="no-scrollbar flex flex-1 flex-col gap-2 overflow-y-auto px-4">
+        <div className="mb-4 flex items-center justify-between">
           <TokenPill
             symbol={tokenIn?.symbol ?? "Select"}
             tokenImage={tokenIn?.image}
             chainImage={tokenIn?.chainImage}
             onClick={() => setSheet("in")}
           />
-          <i className="hn hn-arrow-right text-daintree-400" />
+          <PairArrow />
           <TokenPill
             symbol={tokenOut?.symbol ?? "Select"}
             tokenImage={tokenOut?.image}
@@ -507,30 +525,29 @@ export default function Swap() {
           symbol={tokenIn?.symbol ?? ""}
           tokenImage={tokenIn?.image}
           chainImage={tokenIn?.chainImage}
-          usd={usdIn > 0 ? `$${formatAmount(usdIn, 2)}` : undefined}
-          balance={
-            balances && tokenIn
-              ? formatAmount(
-                  Number(formatUnits(balances.input, tokenIn.decimals)),
-                )
-              : undefined
-          }
-          onMax={
-            balances && tokenIn && !isNativeIn
-              ? () => setAmount(formatUnits(balances.input, tokenIn.decimals))
-              : undefined
-          }
+          usd={`$${formatAmount(usdIn, 2)}`}
           onFlip={flip}
           flipDisabled={!tokenOutKey}
         />
 
-        {rawIn > 0n && tokenOut && !samePair && (
-          <div className="rounded-lg border border-daintree-700 bg-daintree-800 px-4 py-2">
+        {/* The network-fee error keeps the card: its Est. Fee row explains it. */}
+        {rawIn > 0n &&
+          tokenOut &&
+          !samePair &&
+          (!error || error === NETWORK_FEE_ERROR) && (
+          <div className="shrink-0 overflow-hidden rounded-xl border border-daintree-700 bg-daintree-800">
             <QuoteRow label="Min Received" tooltip={TOOLTIPS.minReceived}>
               {loading ? (
                 <Skeleton />
               ) : minReceived ? (
-                `${minReceived} ${tokenOut.symbol}`
+                <span className="flex flex-col items-end">
+                  ~ {minReceived} {tokenOut.symbol}
+                  {minReceivedUsd !== undefined && (
+                    <span className="text-xs text-daintree-400">
+                      (≈ ${formatAmount(minReceivedUsd, 2)} USD)
+                    </span>
+                  )}
+                </span>
               ) : (
                 "-"
               )}
@@ -544,7 +561,12 @@ export default function Swap() {
                 "-"
               )}
             </QuoteRow>
-            <QuoteRow label="Est. Fee" onClick={() => setSheet("fee")}>
+            <QuoteRow
+              label="Est. Fee"
+              onClick={() => setSheet("fee")}
+              noChevron
+              infoOpensRow
+            >
               {networkFeeWei === undefined ? (
                 <Skeleton />
               ) : (
@@ -561,7 +583,7 @@ export default function Swap() {
                   <img
                     src={selected.provider.image}
                     alt=""
-                    className="size-4 rounded-full"
+                    className="size-[26px] rounded-full"
                   />
                   {selected.provider.name}
                 </>
@@ -584,21 +606,33 @@ export default function Swap() {
                 : `${formatAmount(priceImpact, 2)}%`}
             </QuoteRow>
             {viaFeeCollector && (
-              <p className="mt-1 flex items-center gap-1 border-t border-daintree-700 pt-2 text-xs text-daintree-400">
-                <i className="hn hn-info-circle" />
-                Quote includes {Number(feeBps) / 100}% Kastle fee
+              <p className="flex items-center gap-2 border-t border-daintree-700 px-4 py-3 text-xs font-medium text-daintree-400">
+                <i className="hn hn-info-circle text-base" />
+                Quote includes {Number(feeBps) / 100}% Kastle Fee
               </p>
             )}
           </div>
         )}
 
-        <ConfirmButton
-          error={error}
-          disabled={!!error || !selected?.path || rawIn === 0n || !signer}
-          loading={submitting}
-          onClick={onConfirm}
-        />
       </div>
+      <ConfirmButton
+        error={error}
+        balance={
+          balances && tokenIn
+            ? `${formatAmount(
+                Number(formatUnits(balances.input, tokenIn.decimals)),
+              )} ${tokenIn.symbol}`
+            : undefined
+        }
+        onMax={
+          balances && tokenIn && !isNativeIn
+            ? () => setAmount(formatUnits(balances.input, tokenIn.decimals))
+            : undefined
+        }
+        disabled={!!error || !selected?.path || rawIn === 0n || !signer}
+        loading={submitting}
+        onClick={onConfirm}
+      />
       <BottomNav />
       <TermsGate kind="Swap" />
 
@@ -608,8 +642,8 @@ export default function Swap() {
           open={sheet === side}
           onClose={() => setSheet(undefined)}
           chains={[
-            { key: "kasplex", label: "Kasplex" },
-            { key: "igra", label: "Igra" },
+            { key: "kasplex", label: "Kasplex", image: CHAINS.kasplex.icon },
+            { key: "igra", label: "Igra", image: CHAINS.igra.icon },
           ]}
           chain={chainKey}
           onChain={(k) => {
@@ -627,48 +661,31 @@ export default function Swap() {
         title="Select Provider"
         open={sheet === "provider"}
         onClose={() => setSheet(undefined)}
+        tall
       >
         {(quotes ?? []).map((q) => {
           const rate =
             q.amountOut !== undefined && tokenOut && amountNum > 0
               ? Number(formatUnits(q.amountOut, tokenOut.decimals)) / amountNum
               : undefined;
-          const isSelected = q.provider.name === selected?.provider.name;
           return (
-            <button
+            <ProviderRow
               key={q.provider.name}
-              type="button"
+              image={q.provider.image}
+              name={q.provider.name}
+              subtitle={
+                rate !== undefined
+                  ? `1 ${tokenIn?.symbol} ≈ ${formatAmount(rate)} ${tokenOut?.symbol}`
+                  : "Unsupported Pair"
+              }
+              selected={q.provider.name === selected?.provider.name}
+              recommended={q === best}
               disabled={!q.amountOut}
               onClick={() => {
                 setProviderName(q.provider.name);
                 setSheet(undefined);
               }}
-              className="flex items-center gap-3 rounded-lg border border-daintree-700 p-3 text-left disabled:opacity-40"
-            >
-              <img
-                src={q.provider.image}
-                alt=""
-                className="size-8 rounded-full"
-              />
-              <div className="flex flex-1 flex-col">
-                <span className="flex items-center gap-2 text-sm font-semibold text-white">
-                  {q.provider.name}
-                  {q === best && (
-                    <span className="rounded-full bg-teal-500/10 px-2 text-[10px] text-teal-500">
-                      Recommended
-                    </span>
-                  )}
-                </span>
-                <span className="text-xs text-daintree-400">
-                  {rate !== undefined
-                    ? `1 ${tokenIn?.symbol} ≈ ${formatAmount(rate)} ${tokenOut?.symbol}`
-                    : "Unsupported Pair"}
-                </span>
-              </div>
-              {isSelected && (
-                <i className="hn hn-check-circle text-icy-blue-400" />
-              )}
-            </button>
+            />
           );
         })}
       </BottomSheet>
@@ -677,8 +694,8 @@ export default function Swap() {
         title="Slippage"
         open={sheet === "slippage"}
         onClose={() => setSheet(undefined)}
+        tall
       >
-        <p className="text-sm text-daintree-400">{TOOLTIPS.slippage.body}</p>
         <div className="flex gap-2">
           {SLIPPAGES.map((s) => (
             <button
@@ -690,8 +707,8 @@ export default function Swap() {
               }}
               className={
                 s === slippage
-                  ? "flex-1 rounded-full border border-icy-blue-400 py-2 text-sm text-icy-blue-400"
-                  : "flex-1 rounded-full border border-daintree-700 py-2 text-sm text-daintree-400"
+                  ? "w-[72px] rounded-lg border border-icy-blue-400 bg-white/10 px-3 py-2.5 text-[15px] font-semibold text-white"
+                  : "w-[72px] rounded-lg border border-transparent bg-white/10 px-3 py-2.5 text-[15px] font-semibold text-white"
               }
             >
               {s}%
@@ -702,25 +719,42 @@ export default function Swap() {
 
       <BottomSheet
         title="Est. Fee"
+        subtitle="The estimated total cost for this transaction"
         open={sheet === "fee"}
         onClose={() => setSheet(undefined)}
       >
-        <div className="flex justify-between text-sm">
-          <span className="text-daintree-400">Network</span>
-          <span className="text-white">
-            {networkFeeWei !== undefined
-              ? `${formatAmount(Number(formatEther(networkFeeWei)))} ${nativeSymbol}`
-              : "-"}
-          </span>
-        </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-daintree-400">Kastle</span>
-          <span className="text-white">
-            {viaFeeCollector
+        {[
+          // "Swap fees" row (in the design) is hidden until the quote carries DEX fee data.
+          {
+            label: "Network fees",
+            value:
+              networkFeeWei !== undefined
+                ? `${formatAmount(Number(formatEther(networkFeeWei)))} ${nativeSymbol}`
+                : "-",
+          },
+          {
+            label: "Kastle fees",
+            value: viaFeeCollector
               ? `${formatAmount(kastleFee)} ${tokenIn?.symbol}`
-              : "-"}
-          </span>
-        </div>
+              : "-",
+            note: viaFeeCollector
+              ? `Quote includes ${Number(feeBps) / 100}% Kastle Fee`
+              : undefined,
+          },
+        ].map(({ label, value, note }) => (
+          <div
+            key={label}
+            className="flex flex-col gap-1 rounded-lg px-3 py-2 text-sm"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <span className="min-w-0 font-semibold text-white">{label}</span>
+              <span className="flex-none whitespace-nowrap text-white">
+                {value}
+              </span>
+            </div>
+            {note && <span className="text-xs text-daintree-400">{note}</span>}
+          </div>
+        ))}
       </BottomSheet>
     </div>
   );
