@@ -16,15 +16,17 @@ export default function BackupUnlock({
 }: {
   setSecret: (value: WalletSecret) => void;
 }) {
-  const { walletId } = useParams();
+  const { walletId, type } = useParams();
   const { getWalletSecret } = useKeyring();
   const { value: showPassword, toggle } = useBoolean(false);
   const {
     register,
     handleSubmit,
     setError,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>();
+  const password = watch("password");
 
   const onSubmit = async (data: FormValues) => {
     try {
@@ -49,7 +51,10 @@ export default function BackupUnlock({
 
   return (
     <div className="flex h-full flex-col rounded-3xl bg-icy-blue-950 px-4 py-6">
-      <Header title="Back up" showPrevious={false} />
+      <Header
+        title={type === "private-key" ? "Back up Private Key" : "Back up"}
+        showPrevious={false}
+      />
       <div className="mt-10 flex flex-1 flex-col justify-between">
         <div>
           <img
@@ -82,7 +87,7 @@ export default function BackupUnlock({
                       required: "Password is required",
                     })}
                     type={showPassword ? "text" : "password"}
-                    placeholder="Enter your password"
+                    placeholder="Unlock with password"
                     className={twMerge(
                       "w-full rounded-lg border-0 bg-daintree-800 px-4 py-3 placeholder-daintree-200 ring-0 hover:placeholder-daintree-50 focus:ring-0",
                       errors.password &&
@@ -104,8 +109,8 @@ export default function BackupUnlock({
                 </div>
                 <button
                   type="submit"
-                  disabled={isSubmitting}
-                  className="rounded-full bg-icy-blue-400 py-5 text-center text-base font-semibold hover:bg-icy-blue-600"
+                  disabled={isSubmitting || !password}
+                  className="rounded-full bg-icy-blue-400 py-5 text-center text-base font-semibold hover:bg-icy-blue-600 disabled:bg-daintree-800 disabled:text-daintree-600"
                 >
                   Unlock
                 </button>

@@ -26,7 +26,7 @@ export default function AddWallet() {
     <AddWalletPage
       options={[
         {
-          label: "Create new wallet",
+          label: "Create new recovery phrase",
           description: "Create a 12-word recovery phrase",
           onClick: newWallet,
         },

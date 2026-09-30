@@ -56,7 +56,7 @@ function MethodButton({ label, description, onClick }: ImportMethod) {
 const DEFAULT_METHODS: ImportMethod[] = [
   {
     label: "Recovery phrase",
-    description: "Use a 12- or 24-word recovery phrase, or a private key.",
+    description: "Use a 12- or 24-word recovery phrase.",
   },
   {
     label: "Private Key",

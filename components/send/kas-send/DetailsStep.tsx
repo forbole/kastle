@@ -396,6 +396,10 @@ export function DetailsStep({
             </div>
           </div>
 
+          <p className="text-xs text-daintree-400">
+            {MAX_SEND_RESERVE_KAS} KAS is kept for network fees
+          </p>
+
           {/* Error */}
           {errors.amount && errors.amount?.message !== "" && (
             <span className="text-sm text-red-500">
