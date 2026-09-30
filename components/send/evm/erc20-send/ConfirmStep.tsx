@@ -231,7 +231,7 @@ export const ConfirmStep = ({
                 )}
               </div>
             ) : (
-              "Send"
+              "Confirm"
             )}
           </button>
         </div>
