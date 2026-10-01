@@ -5,7 +5,7 @@ import { expect, test } from "@playwright/test";
 import { kcc20 } from "@kronsdk/kron-sdk";
 import { hexToBytes } from "viem";
 import init, { PrivateKey, payToAddressScript } from "@/wasm/core/kaspa";
-import { isOwnedBy, shouldIncludeToken } from "@/lib/kcc20";
+import { isOwnedBy, shouldIncludeToken, verifiedMeta } from "@/lib/kcc20";
 
 const TESTS_DIR = path.dirname(fileURLToPath(import.meta.url));
 
@@ -41,4 +41,20 @@ test("a kcc20 token shows only with verified metadata and a non-zero balance", (
   // Registry entry missing or failed verification: hidden, never raw units.
   expect(shouldIncludeToken(undefined, 5n)).toBe(false);
   expect(shouldIncludeToken(meta, 0n)).toBe(false);
+});
+
+test("a kcc20 token whose verification throws is dropped, not the whole list", async () => {
+  const entry = {
+    network: "mainnet",
+    covenantId: "ab".repeat(32),
+    symbol: "KRON",
+    name: "Kron",
+    decimals: 8,
+    extensions: { genesisTxid: "cd".repeat(32) },
+  } as unknown as Parameters<typeof verifiedMeta>[0];
+
+  // A non-string REST base makes kaspaRestFetchTx throw: a real rejection.
+  expect(
+    await verifiedMeta(entry, undefined as unknown as string),
+  ).toBeUndefined();
 });

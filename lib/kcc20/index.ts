@@ -110,7 +110,7 @@ async function verifiedBalance(
   return total;
 }
 
-async function verifiedMeta(
+export async function verifiedMeta(
   entry: TokenListEntry | undefined,
   restApi: string,
 ): Promise<Kcc20Token["meta"]> {
@@ -122,10 +122,16 @@ async function verifiedMeta(
   ) {
     return undefined;
   }
-  const { ok } = await verify.verifyTokenListEntry(
-    entry,
-    verify.kaspaRestFetchTx(restApi),
-  );
+  // A throw drops this token only; rejecting would empty the whole list.
+  let ok = false;
+  try {
+    ({ ok } = await verify.verifyTokenListEntry(
+      entry,
+      verify.kaspaRestFetchTx(restApi),
+    ));
+  } catch {
+    // unverifiable, same as !ok
+  }
   if (!ok) return undefined;
   const { symbol, name, decimals, logoURI } = entry;
   return { symbol, name, decimals, logoURI };
