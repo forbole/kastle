@@ -9,8 +9,11 @@ declare global {
 }
 
 export default defineUnlistedScript(() => {
-  // Add the kastle object to window
-  Object.assign(window, { kastle: new KastleBrowserAPI() });
+  // One provider instance: request({ method, params }) + on/removeListener.
+  // window.kastle is the backward-compatible vendor alias; KCC-12 discovery
+  // (kaspa:announceProvider) will announce this same object once merged.
+  const provider = new KastleBrowserAPI();
+  Object.assign(window, { kastle: provider });
 
   handleEIP6963();
 });

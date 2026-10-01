@@ -1,5 +1,11 @@
 import { v4 as uuid } from "uuid";
-import { Action, ApiRequest, ApiResponseSchema } from "@/api/message";
+import {
+  Action,
+  ApiRequest,
+  ApiResponseSchema,
+  RPC_ERRORS,
+  RpcError,
+} from "@/api/message";
 import { ScriptOption } from "@/lib/wallet/wallet-interface.ts";
 import { EthereumBrowserAPI } from "./ethereum";
 import { ConnectPayloadSchema } from "@/api/background/handlers/kaspa/connect";
@@ -32,6 +38,11 @@ export type KastleEventMap = {
   // KIP-style events
   "kas:account_changed": (address: string | null) => void;
   "kas:network_changed": (network: string | null) => void;
+  // EIP-1193 / KCC-12 connectivity events
+  connect: (info: { networkId: string }) => void;
+  // ponytail: typed but never emitted — the background is local, so the page
+  // has no "remote lost" signal yet. Wire it when KCC-12 lands (code 1013).
+  disconnect: (error: RpcError) => void;
 };
 
 export type KastleEventType = keyof KastleEventMap;
@@ -43,6 +54,9 @@ export class KastleBrowserAPI {
     KastleEventType,
     Set<(...args: any[]) => void>
   >();
+
+  // Last known network id, so `connect` replays to listeners added after init.
+  private _networkId: string | null = null;
 
   constructor() {
     window.addEventListener("message", (event: MessageEvent<unknown>) => {
@@ -58,10 +72,27 @@ export class KastleBrowserAPI {
         this._emit("accountsChanged", address ? [address] : []);
         this._emit("kas:account_changed", address);
       } else if (id === "kas:network_changed") {
+        this._networkId = response as string;
         this._emit("networkChanged", response as string);
         this._emit("kas:network_changed", response as string | null);
       }
     });
+
+    // content.ts fires this once its message bridge is live, which is when
+    // this provider can first service requests. Always fetch the network so
+    // listeners registered later still get `connect` (replayed in on()).
+    window.addEventListener(
+      "kastle#initialized",
+      () => {
+        this.getNetwork()
+          .then((networkId) => {
+            this._networkId = networkId;
+            this._emit("connect", { networkId });
+          })
+          .catch(() => {});
+      },
+      { once: true },
+    );
   }
 
   on<E extends KastleEventType>(event: E, handler: KastleEventMap[E]): this {
@@ -69,6 +100,12 @@ export class KastleBrowserAPI {
       this._eventListeners.set(event, new Set());
     }
     this._eventListeners.get(event)!.add(handler);
+    if (event === "connect" && this._networkId !== null) {
+      const networkId = this._networkId;
+      queueMicrotask(() =>
+        (handler as KastleEventMap["connect"])({ networkId }),
+      );
+    }
     return this;
   }
 
@@ -115,7 +152,17 @@ export class KastleBrowserAPI {
 
   async disconnect(): Promise<void> {}
 
-  async request(method: string, args?: unknown): Promise<any> {
+  // EIP-1193 / KCC-12 shape is request({ method, params }). The positional
+  // request(method, args) form predates it and stays for existing dApps.
+  // KCC-12 method gaps: docs/kcc12-prep.md.
+  async request(
+    methodOrArgs: string | { method: string; params?: unknown },
+    legacyArgs?: unknown,
+  ): Promise<any> {
+    const isLegacy = typeof methodOrArgs === "string";
+    const { method, params: args } = isLegacy
+      ? { method: methodOrArgs, params: legacyArgs }
+      : methodOrArgs;
     const requestId = uuid();
 
     // kas:connect requires name/icon from page context if not provided
@@ -140,7 +187,7 @@ export class KastleBrowserAPI {
       return await this.receiveMessageWithTimeout(requestId);
     }
 
-    const action = {
+    const actions: Record<string, Action> = {
       "kas:connect": Action.CONNECT,
       "kas:get_account": Action.GET_ACCOUNT,
       "kas:get_network": Action.GET_NETWORK,
@@ -155,10 +202,14 @@ export class KastleBrowserAPI {
       "kas:build_transaction": Action.BUILD_TRANSACTION,
       "kas:get_version": Action.GET_VERSION,
       "kas:compound_utxos": Action.COMPOUND_UTXOS,
-    }[method];
+    };
+    // hasOwn: inherited names like "constructor" must not resolve to an action.
+    const action = Object.hasOwn(actions, method) ? actions[method] : undefined;
 
     if (!action) {
-      return;
+      // Legacy callers got undefined for an unknown method; keep that.
+      if (isLegacy) return;
+      throw RPC_ERRORS.METHOD_NOT_SUPPORTED;
     }
 
     const request = createApiRequest(action, requestId, args);
