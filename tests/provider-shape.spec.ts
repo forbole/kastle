@@ -48,6 +48,10 @@ test("window.kastle serves both request shapes and emits connect", async ({
         () => "resolved",
         (e: { code: number }) => e.code,
       ),
+      objectInherited: await provider.request({ method: "constructor" }).then(
+        () => "resolved",
+        (e: { code: number }) => e.code,
+      ),
       connect: await connected,
       sameInstance: provider.on("accountsChanged", () => {}) === provider,
     };
@@ -58,6 +62,7 @@ test("window.kastle serves both request shapes and emits connect", async ({
     object: "testnet-10",
     legacyUnknown: "undefined",
     objectUnknown: 4200,
+    objectInherited: 4200,
     connect: { networkId: "testnet-10" },
     sameInstance: true,
   });
