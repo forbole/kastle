@@ -42,6 +42,23 @@ export default {
           900: "#09171d",
           950: "#071116",
         },
+        kcc20: {
+          text: "#6fc7ba",
+          background: "#182b29",
+        },
+        info: {
+          background: "#1a282e",
+        },
+        card: {
+          border: "#1a303a",
+        },
+        search: {
+          border: "#1e3945",
+        },
+        filter: {
+          active: "#4b7d92",
+        },
+        verified: "#00c4e7",
       },
     },
   },
