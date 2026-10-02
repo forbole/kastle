@@ -24,10 +24,15 @@ import { zkasGetBalanceHandler } from "./handlers/zkas/get-balance";
 import { zkasSendHandler } from "./handlers/zkas/send";
 import { isTrustedZKasPageRequest } from "./zkas-origin";
 import { listenForZKasDappPaymentClosure } from "./zkas-dapp-payment";
+import {
+  listenForHistoryGrantClosure,
+  zkasHistoryGrantHandler,
+} from "./handlers/zkas/history-grant";
 
 export class BackgroundService {
   public listen(): void {
     listenForZKasDappPaymentClosure();
+    listenForHistoryGrantClosure();
     browser.runtime.onMessage.addListener(
       (message: unknown, sender, sendResponse) => {
         const result = ApiRequestWithHostSchema.safeParse(message);
@@ -43,6 +48,7 @@ export class BackgroundService {
             Action.ZKAS_GET_ACCOUNT,
             Action.ZKAS_GET_BALANCE,
             Action.ZKAS_SEND,
+            Action.ZKAS_HISTORY_GRANT,
           ].includes(parsedMessage.action) &&
           !isTrustedZKasPageRequest(
             parsedMessage.origin,
@@ -131,6 +137,7 @@ export class BackgroundService {
       [Action.ZKAS_GET_ACCOUNT]: zkasGetAccountHandler,
       [Action.ZKAS_GET_BALANCE]: zkasGetBalanceHandler,
       [Action.ZKAS_SEND]: zkasSendHandler,
+      [Action.ZKAS_HISTORY_GRANT]: zkasHistoryGrantHandler,
     };
 
     return handlers[action];

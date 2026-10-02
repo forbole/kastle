@@ -2,6 +2,7 @@ import {
   ApiRequestSchema,
   ApiRequestWithHostSchema,
   ZKasDappResultSchema,
+  ZKasHistoryChallengeSchema,
 } from "@/api/message";
 import { EthereumAccountsChangedListener } from "@/api/content-script/listeners/ethereum/accountsChanged";
 import { EthereumChainChangedListener } from "@/api/content-script/listeners/ethereum/chainChanged";
@@ -42,6 +43,21 @@ export default defineContentScript({
 
     browser.runtime.onMessage.addListener(
       (message: unknown, sender, sendResponse) => {
+        const challenge = ZKasHistoryChallengeSchema.safeParse(message);
+        if (challenge.success) {
+          if (
+            sender.id !== browser.runtime.id ||
+            challenge.data.origin !== window.location.origin
+          ) {
+            sendResponse(null);
+            return;
+          }
+          sendResponse({
+            nonce: challenge.data.nonce,
+            origin: window.location.origin,
+          });
+          return;
+        }
         const result = ZKasDappResultSchema.safeParse(message);
         if (!result.success || sender.id !== browser.runtime.id) return;
         if (result.data.origin !== window.location.origin) {

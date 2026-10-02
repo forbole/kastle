@@ -162,17 +162,30 @@ export class KastleBrowserAPI {
       "zkas:get_account": Action.ZKAS_GET_ACCOUNT,
       "zkas:get_balance": Action.ZKAS_GET_BALANCE,
       "zkas:send": Action.ZKAS_SEND,
+      "zkas:request_message_history_access": Action.ZKAS_HISTORY_GRANT,
     }[method];
 
     if (!action) {
       return;
     }
 
+    if (
+      method === "zkas:request_message_history_access" &&
+      args !== undefined
+    ) {
+      throw new Error("History access request takes no arguments");
+    }
+
     const request = createApiRequest(action, requestId, args);
     const response = this.receiveMessageWithTimeout(
       requestId,
-      method === "zkas:send" ? 20 * 60_000 : 180_000,
-      method === "zkas:send",
+      method === "zkas:send"
+        ? 20 * 60_000
+        : method === "zkas:request_message_history_access"
+          ? 190_000
+          : 180_000,
+      method === "zkas:send" ||
+        method === "zkas:request_message_history_access",
     );
     window.postMessage(request, "*");
 

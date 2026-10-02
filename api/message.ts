@@ -21,6 +21,7 @@ export enum Action {
   ZKAS_GET_ACCOUNT,
   ZKAS_GET_BALANCE,
   ZKAS_SEND,
+  ZKAS_HISTORY_GRANT,
 }
 
 // ================================================================================================
@@ -129,6 +130,21 @@ export const ZKasDappDeliveryAckSchema = z.object({
   accepted: z.literal(true),
   origin: z.string(),
 });
+
+export const ZKasHistoryChallengeSchema = z
+  .object({
+    kind: z.literal("ZKAS_HISTORY_ORIGIN_CHALLENGE"),
+    origin: z.string().max(256),
+    nonce: z.string().regex(/^[0-9a-f]{64}$/),
+  })
+  .strict();
+
+export const ZKasHistoryChallengeAckSchema = z
+  .object({
+    nonce: z.string().regex(/^[0-9a-f]{64}$/),
+    origin: z.string().max(256),
+  })
+  .strict();
 
 export const ApiExtensionResponseSchema = z.object({
   id: z.string(),

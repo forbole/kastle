@@ -45,6 +45,10 @@ import {
   zkasDappComplete,
   zkasDappPendingGet,
 } from "./handlers/zkas-dapp";
+import {
+  zkasHistoryGrantComplete,
+  zkasHistoryGrantPendingGet,
+} from "./handlers/zkas-history-grant";
 export { Method } from "./methods";
 
 export type Message<T = object> = {
@@ -100,6 +104,8 @@ export class ExtensionService {
       [Method.ZKAS_DAPP_PENDING_GET]: zkasDappPendingGet,
       [Method.ZKAS_DAPP_CHECK]: zkasDappCheck,
       [Method.ZKAS_DAPP_COMPLETE]: zkasDappComplete,
+      [Method.ZKAS_HISTORY_GRANT_PENDING_GET]: zkasHistoryGrantPendingGet,
+      [Method.ZKAS_HISTORY_GRANT_COMPLETE]: zkasHistoryGrantComplete,
     };
   }
 
