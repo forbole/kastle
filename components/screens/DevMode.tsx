@@ -6,6 +6,8 @@ import { sentryScrubHooks } from "@/lib/sentry-scrub.ts";
 import { useNavigate } from "react-router-dom";
 import { ZKAS_EXPERIMENTAL_KEY } from "@/lib/wallet-network";
 import useStorageState from "@/hooks/useStorageState";
+import { SETTINGS_KEY, type Settings } from "@/contexts/SettingsContext";
+import { withSettingsLock } from "@/lib/settings-storage";
 
 /**
  * Dev-only Sentry canary.
@@ -95,21 +97,24 @@ async function emitCanaryEnvelope(kind: "canary" | "control") {
 
 export default function DevMode() {
   const navigate = useNavigate();
-  const [settings, setSettings, isSettingsLoading] = useSettings();
+  const [settings, , isSettingsLoading] = useSettings();
   const [zkasEnabled, , isZKasGateLoading] = useStorageState<boolean | null>(
     ZKAS_EXPERIMENTAL_KEY,
     null,
   );
 
   const updateExperimental = async (enabled: boolean) => {
-    if (!enabled) await storage.setItem(ZKAS_EXPERIMENTAL_KEY, false);
-    await setSettings((prev) => ({
-      ...prev,
-      preview: enabled,
-      activeChain: "kaspa",
-    }));
+    await withSettingsLock(async () => {
+      const current = await storage.getItem<Settings>(SETTINGS_KEY);
+      if (!current) throw new Error("Settings are unavailable");
+      await storage.setItem(SETTINGS_KEY, {
+        ...current,
+        preview: enabled,
+        activeChain: "kaspa",
+      });
+      await storage.setItem(ZKAS_EXPERIMENTAL_KEY, enabled);
+    });
     if (enabled) {
-      await storage.setItem(ZKAS_EXPERIMENTAL_KEY, true);
       navigate("/zkas/settings");
     }
   };

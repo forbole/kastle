@@ -22,6 +22,8 @@ export enum Action {
   ZKAS_GET_BALANCE,
   ZKAS_SEND,
   ZKAS_HISTORY_GRANT,
+  MJ3_REQUEST_PROFILE,
+  MJ3_GET_DIRECT_VIEW,
 }
 
 // ================================================================================================

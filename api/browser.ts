@@ -163,6 +163,8 @@ export class KastleBrowserAPI {
       "zkas:get_balance": Action.ZKAS_GET_BALANCE,
       "zkas:send": Action.ZKAS_SEND,
       "zkas:request_message_history_access": Action.ZKAS_HISTORY_GRANT,
+      "mj3:request_profile": Action.MJ3_REQUEST_PROFILE,
+      "mj3:get_direct_view": Action.MJ3_GET_DIRECT_VIEW,
     }[method];
 
     if (!action) {
@@ -174,6 +176,12 @@ export class KastleBrowserAPI {
       args !== undefined
     ) {
       throw new Error("History access request takes no arguments");
+    }
+    if (
+      (method === "mj3:request_profile" || method === "mj3:get_direct_view") &&
+      args !== undefined
+    ) {
+      throw new Error("Private messaging request takes no arguments");
     }
 
     const request = createApiRequest(action, requestId, args);

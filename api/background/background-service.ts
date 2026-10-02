@@ -28,6 +28,10 @@ import {
   listenForHistoryGrantClosure,
   zkasHistoryGrantHandler,
 } from "./handlers/zkas/history-grant";
+import {
+  zkasDirectProfileHandler,
+  zkasDirectViewHandler,
+} from "./handlers/zkas/direct-profile";
 
 export class BackgroundService {
   public listen(): void {
@@ -49,6 +53,8 @@ export class BackgroundService {
             Action.ZKAS_GET_BALANCE,
             Action.ZKAS_SEND,
             Action.ZKAS_HISTORY_GRANT,
+            Action.MJ3_REQUEST_PROFILE,
+            Action.MJ3_GET_DIRECT_VIEW,
           ].includes(parsedMessage.action) &&
           !isTrustedZKasPageRequest(
             parsedMessage.origin,
@@ -138,6 +144,8 @@ export class BackgroundService {
       [Action.ZKAS_GET_BALANCE]: zkasGetBalanceHandler,
       [Action.ZKAS_SEND]: zkasSendHandler,
       [Action.ZKAS_HISTORY_GRANT]: zkasHistoryGrantHandler,
+      [Action.MJ3_REQUEST_PROFILE]: zkasDirectProfileHandler,
+      [Action.MJ3_GET_DIRECT_VIEW]: zkasDirectViewHandler,
     };
 
     return handlers[action];
