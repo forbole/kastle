@@ -763,3 +763,9 @@ export const formatAmount = (n: number, max = 6) =>
   Number.isFinite(n)
     ? n.toLocaleString("en-US", { maximumFractionDigits: max })
     : "0";
+
+/** USD display: sub-cent values round to 0.00 at 2 decimals, so show more. */
+export const formatUsd = (n: number) =>
+  Number.isFinite(n) && n !== 0 && Math.abs(n) < 0.01
+    ? formatAmount(n, 7)
+    : formatAmount(n, 2);

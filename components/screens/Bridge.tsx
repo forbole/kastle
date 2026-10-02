@@ -27,6 +27,7 @@ import {
   TokenPill,
   TokenSheet,
   formatAmount,
+  formatUsd,
 } from "@/components/swap-bridge/ui";
 import BottomNav, { ActivityHeaderButton } from "@/components/BottomNav";
 import kaspaIcon from "@/assets/images/network-logos/kaspa.svg";
@@ -564,7 +565,7 @@ export default function Bridge() {
           onChange={setAmount}
           symbol={fromSymbol}
           chainImage={chainImage(route.from)}
-          usd={`$${formatAmount(amountNum * kaspaPrice, 2)}`}
+          usd={`$${formatUsd(amountNum * kaspaPrice)}`}
           onFlip={() => {
             setDirection(reverse);
             setAmount("");
@@ -584,8 +585,7 @@ export default function Bridge() {
                   <span className="flex flex-col items-end">
                     ~ {formatAmount(Math.max(received, 0))} {toSymbol}
                     <span className="text-xs text-daintree-400">
-                      (≈ ${formatAmount(Math.max(received, 0) * kaspaPrice, 2)}{" "}
-                      USD)
+                      (≈ ${formatUsd(Math.max(received, 0) * kaspaPrice)} USD)
                     </span>
                   </span>
                 )}
@@ -634,6 +634,14 @@ export default function Bridge() {
           balance === undefined
             ? undefined
             : `${formatAmount(balance)} ${fromSymbol}`
+        }
+        onMax={
+          balance !== undefined && networkFee !== undefined
+            ? () => {
+                const max = Math.max(balance - networkFee, 0);
+                setAmount(max.toFixed(8).replace(/\.?0+$/, "") || "0");
+              }
+            : undefined
         }
         disabled={
           !!error ||

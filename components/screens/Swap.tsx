@@ -29,6 +29,7 @@ import {
   TokenSheet,
   AmountInput,
   formatAmount,
+  formatUsd,
 } from "@/components/swap-bridge/ui";
 import BottomNav, { ActivityHeaderButton } from "@/components/BottomNav";
 import { NetworkType } from "@/contexts/SettingsContext";
@@ -53,6 +54,7 @@ import {
 import { igraMainnet, kasplexMainnet } from "@/lib/layer2";
 import {
   SwapProvider,
+  KASPA_COM_PARTNER_KEY,
   getSwapProvidersForChain,
   getWkasAddress,
   resolveSwapProviderForChain,
@@ -68,6 +70,22 @@ type ChainKey = "kasplex" | "igra";
 const CHAINS = { kasplex: kasplexMainnet, igra: igraMainnet };
 const NATIVE = "native";
 const SLIPPAGES = [0.5, 1, 2];
+const MIN_SLIPPAGE = 0.1;
+const MAX_SLIPPAGE = 50;
+
+/** KaspaCom proxy's partner-fee lookup (same ABI as mobile's useSwapFee). */
+const SWAP_PROXY_ABI = [
+  {
+    inputs: [{ name: "partnerKey", type: "bytes32" }],
+    name: "partners",
+    outputs: [
+      { name: "feeRecipient", type: "address" },
+      { name: "feeBps", type: "uint16" },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+] as const;
 
 type SwapToken = SheetToken & { decimals: number };
 type ProviderQuote = {
@@ -87,6 +105,8 @@ const TOOLTIPS = {
   rate: {
     title: "Rate",
     body: "The current exchange ratio applied between the input and output tokens.",
+    footer:
+      "A fee charged by the liquidity provider on each swap, deducted from the output amount you receive.",
   },
   provider: {
     title: "Provider",
@@ -201,6 +221,7 @@ export default function Swap() {
   const tokenOut = tokens.find((t) => t.key === tokenOutKey);
   const [amount, setAmount] = useState("");
   const [slippage, setSlippage] = useState(SLIPPAGES[0]);
+  const [customSlippageInput, setCustomSlippageInput] = useState("");
   const [providerName, setProviderName] = useState<string>();
   const [sheet, setSheet] = useState<
     "in" | "out" | "provider" | "slippage" | "fee"
@@ -325,12 +346,35 @@ export default function Swap() {
   const nativeSymbol = chain.nativeCurrency.symbol;
   const viaFeeCollector = !!selected?.provider.feeCollectorAddress;
   const feeBps = selected?.feeBps ?? 0n;
+
+  // KaspaCom has no fee collector: its cut is a partner fee encoded in the
+  // proxy contract and taken from the output token, not the input.
+  const { data: partnerFeeBps } = useSWR(
+    !viaFeeCollector && selected?.provider.proxyAddress
+      ? ["swapPartnerFee", chainHex, selected.provider.proxyAddress]
+      : null,
+    async () => {
+      const [, bps] = await client.readContract({
+        address: selected!.provider.proxyAddress as Address,
+        abi: SWAP_PROXY_ABI,
+        functionName: "partners",
+        args: [KASPA_COM_PARTNER_KEY as Hex],
+      });
+      return Number(bps);
+    },
+    { refreshInterval: 3_600_000, revalidateOnFocus: false },
+  );
+
+  const kastleFeeBps = viaFeeCollector ? Number(feeBps) : (partnerFeeBps ?? 0);
+  const kastleFeeSymbol = viaFeeCollector ? tokenIn?.symbol : tokenOut?.symbol;
   const kastleFee = viaFeeCollector
     ? amountNum -
       Number(
         formatUnits(swapPathAmountIn(rawIn, feeBps), tokenIn?.decimals ?? 18),
       )
-    : 0;
+    : kastleFeeBps > 0 && outNum !== undefined
+      ? outNum * (kastleFeeBps / 10000)
+      : 0;
 
   const error = (() => {
     if (wallet?.type === "ledger")
@@ -401,7 +445,7 @@ export default function Swap() {
         ...(usdIn > 0 && { value_usd: usdIn }),
         ...(kastleFee > 0 && {
           fee_amount: kastleFee,
-          fee_asset: tokenIn.symbol,
+          fee_asset: kastleFeeSymbol ?? tokenIn.symbol,
         }),
       });
     setSubmitting(true);
@@ -523,7 +567,7 @@ export default function Swap() {
           symbol={tokenIn?.symbol ?? ""}
           tokenImage={tokenIn?.image}
           chainImage={tokenIn?.chainImage}
-          usd={`$${formatAmount(usdIn, 2)}`}
+          usd={`$${formatUsd(usdIn)}`}
           onFlip={flip}
           flipDisabled={!tokenOutKey}
         />
@@ -542,7 +586,7 @@ export default function Swap() {
                     ~ {minReceived} {tokenOut.symbol}
                     {minReceivedUsd !== undefined && (
                       <span className="text-xs text-daintree-400">
-                        (≈ ${formatAmount(minReceivedUsd, 2)} USD)
+                        (≈ ${formatUsd(minReceivedUsd)} USD)
                       </span>
                     )}
                   </span>
@@ -603,10 +647,10 @@ export default function Swap() {
                   ? "-"
                   : `${formatAmount(priceImpact, 2)}%`}
               </QuoteRow>
-              {viaFeeCollector && (
+              {kastleFee > 0 && (
                 <p className="flex items-center gap-2 border-t border-daintree-700 px-4 py-3 text-xs font-medium text-daintree-400">
                   <i className="hn hn-info-circle text-base" />
-                  Quote includes {Number(feeBps) / 100}% Kastle Fee
+                  Quote includes {kastleFeeBps / 100}% Kastle Fee
                 </p>
               )}
             </div>
@@ -622,8 +666,20 @@ export default function Swap() {
             : undefined
         }
         onMax={
-          balances && tokenIn && !isNativeIn
-            ? () => setAmount(formatUnits(balances.input, tokenIn.decimals))
+          balances && tokenIn
+            ? isNativeIn
+              ? networkFeeWei !== undefined
+                ? () =>
+                    setAmount(
+                      formatUnits(
+                        balances.native > networkFeeWei
+                          ? balances.native - networkFeeWei
+                          : 0n,
+                        tokenIn.decimals,
+                      ),
+                    )
+                : undefined
+              : () => setAmount(formatUnits(balances.input, tokenIn.decimals))
             : undefined
         }
         disabled={!!error || !selected?.path || rawIn === 0n || !signer}
@@ -700,10 +756,11 @@ export default function Swap() {
               type="button"
               onClick={() => {
                 setSlippage(s);
+                setCustomSlippageInput("");
                 setSheet(undefined);
               }}
               className={
-                s === slippage
+                s === slippage && !customSlippageInput
                   ? "w-[72px] rounded-lg border border-icy-blue-400 bg-white/10 px-3 py-2.5 text-[15px] font-semibold text-white"
                   : "w-[72px] rounded-lg border border-transparent bg-white/10 px-3 py-2.5 text-[15px] font-semibold text-white"
               }
@@ -711,7 +768,32 @@ export default function Swap() {
               {s}%
             </button>
           ))}
+          <input
+            inputMode="decimal"
+            placeholder="Custom %"
+            value={customSlippageInput}
+            onChange={(e) => {
+              const v = e.target.value.replace(",", ".");
+              if (!/^\d*\.?\d*$/.test(v)) return;
+              setCustomSlippageInput(v);
+              const n = Number(v);
+              if (v !== "" && n >= MIN_SLIPPAGE && n <= MAX_SLIPPAGE)
+                setSlippage(n);
+            }}
+            className={
+              customSlippageInput
+                ? "w-[72px] rounded-lg border border-icy-blue-400 bg-white/10 px-3 py-2.5 text-center text-[15px] font-semibold text-white placeholder:text-daintree-400 focus:outline-none"
+                : "w-[72px] rounded-lg border border-transparent bg-white/10 px-3 py-2.5 text-center text-[15px] font-semibold text-white placeholder:text-daintree-400 focus:outline-none"
+            }
+          />
         </div>
+        {customSlippageInput !== "" &&
+          (Number(customSlippageInput) < MIN_SLIPPAGE ||
+            Number(customSlippageInput) > MAX_SLIPPAGE) && (
+            <p className="pt-2 text-xs font-medium text-red-500">
+              Enter a value between {MIN_SLIPPAGE}% and {MAX_SLIPPAGE}%
+            </p>
+          )}
       </BottomSheet>
 
       <BottomSheet
@@ -731,12 +813,14 @@ export default function Swap() {
           },
           {
             label: "Kastle fees",
-            value: viaFeeCollector
-              ? `${formatAmount(kastleFee)} ${tokenIn?.symbol}`
-              : "-",
-            note: viaFeeCollector
-              ? `Quote includes ${Number(feeBps) / 100}% Kastle Fee`
-              : undefined,
+            value:
+              kastleFee > 0
+                ? `${formatAmount(kastleFee)} ${kastleFeeSymbol}`
+                : "-",
+            note:
+              kastleFee > 0
+                ? `Quote includes ${kastleFeeBps / 100}% Kastle Fee`
+                : undefined,
           },
         ].map(({ label, value, note }) => (
           <div
