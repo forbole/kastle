@@ -53,6 +53,7 @@ import {
   zkasHistoryGrantsList,
   zkasHistoryGrantRevokeSaved,
 } from "./handlers/zkas-history-grants";
+import * as daemonBearerHandlers from "./handlers/zkas-daemon-bearer";
 export { Method } from "./methods";
 
 export type Message<T = object> = {
@@ -112,6 +113,12 @@ export class ExtensionService {
       [Method.ZKAS_HISTORY_GRANT_COMPLETE]: zkasHistoryGrantComplete,
       [Method.ZKAS_HISTORY_GRANTS_LIST]: zkasHistoryGrantsList,
       [Method.ZKAS_HISTORY_GRANT_REVOKE_SAVED]: zkasHistoryGrantRevokeSaved,
+      [Method.ZKAS_DAEMON_BEARER_PAIR]:
+        daemonBearerHandlers.zkasDaemonBearerPair,
+      [Method.ZKAS_DAEMON_BEARER_LIST]:
+        daemonBearerHandlers.zkasDaemonBearerList,
+      [Method.ZKAS_DAEMON_BEARER_CLEAR]:
+        daemonBearerHandlers.zkasDaemonBearerClear,
     };
   }
 

@@ -5,6 +5,7 @@ const ALLOWED_KEYS = [
   "wallets",
   "zkasBatchJournal",
   "zkasHistoryGrants",
+  "zkasDaemonBearers",
 ] as const;
 
 type AllowedKey = (typeof ALLOWED_KEYS)[number];
