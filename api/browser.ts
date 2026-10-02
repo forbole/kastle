@@ -102,9 +102,11 @@ export class KastleBrowserAPI {
     this._eventListeners.get(event)!.add(handler);
     if (event === "connect" && this._networkId !== null) {
       const networkId = this._networkId;
-      queueMicrotask(() =>
-        (handler as KastleEventMap["connect"])({ networkId }),
-      );
+      queueMicrotask(() => {
+        if (this._eventListeners.get("connect")?.has(handler)) {
+          (handler as KastleEventMap["connect"])({ networkId });
+        }
+      });
     }
     return this;
   }

@@ -105,3 +105,54 @@ test("window.kastle replays connect to listeners added after init", async ({
 
   expect(connect).toEqual({ networkId: "testnet-10" });
 });
+
+test("window.kastle cancels a queued connect replay when the listener is removed same-turn", async ({
+  page,
+}) => {
+  test.skip(!fs.existsSync(INJECTED), "run `npm run build` first");
+
+  await page.route("https://dapp.test/", (route) =>
+    route.fulfill({ contentType: "text/html", body: "<html></html>" }),
+  );
+  await page.goto("https://dapp.test/");
+  await page.addScriptTag({ content: fs.readFileSync(INJECTED, "utf8") });
+
+  const invoked = await page.evaluate(async () => {
+    const provider = (window as any).kastle;
+    // Stub bridge: answer every ApiRequest with the network id.
+    window.addEventListener("message", (e) => {
+      if (e.data?.target !== "background") return;
+      window.postMessage(
+        {
+          id: e.data.id,
+          response: "testnet-10",
+          source: "background",
+          target: "browser",
+        },
+        window.location.origin,
+      );
+    });
+
+    window.dispatchEvent(new Event("kastle#initialized"));
+    await provider.request("kas:get_network");
+
+    let invoked = false;
+    const handler = () => {
+      invoked = true;
+    };
+    // Network is already known, so on() queues a microtask to replay
+    // connect. Removing the handler before that microtask runs must
+    // cancel the replay.
+    provider.on("connect", handler);
+    provider.removeListener("connect", handler);
+
+    // Flush the queued microtask without introducing a new task hop that
+    // could mask the bug.
+    await Promise.resolve();
+    await Promise.resolve();
+
+    return invoked;
+  });
+
+  expect(invoked).toBe(false);
+});
