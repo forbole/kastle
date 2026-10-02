@@ -30,9 +30,6 @@ import {
 } from "@/components/swap-bridge/ui";
 import BottomNav, { ActivityHeaderButton } from "@/components/BottomNav";
 import kaspaIcon from "@/assets/images/network-logos/kaspa.svg";
-import igraLogo from "@/assets/images/providers/igra-logo.png";
-import katLogo from "@/assets/images/providers/kat-logo.png";
-import kurveLogo from "@/assets/images/providers/kurve-logo.png";
 import { NetworkType } from "@/contexts/SettingsContext";
 import useEvmAddress from "@/hooks/evm/useEvmAddress";
 import useEvmKasBalance from "@/hooks/evm/useEvmKasBalance";
@@ -106,14 +103,6 @@ const CHAIN_LABEL: Record<BridgeChain, string> = {
   kaspa: "Kaspa",
   kasplex: "Kasplex",
   igra: "Igra",
-};
-
-const PROVIDER_LOGO: Record<string, string> = {
-  "IGRA Bridge": igraLogo,
-  "Kurve Bridge": kurveLogo,
-  // Kasplex → Kaspa runs through the Kurve contract (KASPLEX_BRIDGE_ABI).
-  "Kasplex Bridge": kurveLogo,
-  "KAT Bridge": katLogo,
 };
 
 const TOOLTIPS = {
@@ -607,7 +596,7 @@ export default function Bridge() {
                 onClick={() => setSheet("provider")}
               >
                 <img
-                  src={PROVIDER_LOGO[route.provider]}
+                  src={route.logo}
                   alt=""
                   className="size-[26px] rounded-full"
                 />
@@ -690,7 +679,7 @@ export default function Bridge() {
           return (
             <ProviderRow
               key={d}
-              image={PROVIDER_LOGO[r.provider]}
+              image={r.logo}
               name={r.provider}
               subtitle={`${BRIDGE_TOKEN_NAME[r.to]} on ${CHAIN_LABEL[r.to]} · ${r.estTime}`}
               selected={d === direction}
