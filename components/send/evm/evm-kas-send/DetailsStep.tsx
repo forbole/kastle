@@ -149,7 +149,7 @@ export default function DetailsStep({
 
     // Same floor as mobile's L2 KAS send.
     if (amountNumber < parseEther("0.2")) {
-      return `Oh, please enter an amount above 0.2 ${tokenSymbol}`;
+      return `Oh, please enter an amount of at least 0.2 ${tokenSymbol}`;
     }
 
     if (amountNumber > currentBalance) {
