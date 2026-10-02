@@ -15,7 +15,12 @@ import useEvmAddress from "@/hooks/evm/useEvmAddress";
 import useFeeEstimate from "@/hooks/evm/useFeeEstimate";
 import useAnalytics from "@/hooks/useAnalytics.ts";
 import { formatEther } from "viem";
-import { ALL_SUPPORTED_EVM_L2_CHAINS, getChainName } from "@/lib/layer2";
+import {
+  ALL_SUPPORTED_EVM_L2_CHAINS,
+  getChainName,
+  getChainTokenSymbol,
+} from "@/lib/layer2";
+import useKaspaPrice from "@/hooks/useKaspaPrice";
 import {
   createPublicClient,
   http,
@@ -75,11 +80,14 @@ export const ConfirmStep = ({
 
   const amountNumber = parseFloat(amount ?? "0");
   const fiatAmount = amountNumber * tokenPrice;
-  const fiatFees = parseFloat(formatEther(estimatedFee ?? BigInt(0)));
+  const { kaspaPrice } = useKaspaPrice();
+  const gasSymbol = getChainTokenSymbol(asset.chainId);
+  const feesToken = parseFloat(formatEther(estimatedFee ?? BigInt(0)));
   const { amount: amountCurrency, code: amountCurrencyCode } =
     useCurrencyValue(fiatAmount);
-  const { amount: feesCurrency, code: feesCurrencyCode } =
-    useCurrencyValue(fiatFees);
+  const { amount: feesCurrency, code: feesCurrencyCode } = useCurrencyValue(
+    feesToken * kaspaPrice,
+  );
 
   const selectedChain = ALL_SUPPORTED_EVM_L2_CHAINS.find(
     (chain) => chain.id === hexToNumber(asset.chainId),
@@ -201,7 +209,9 @@ export const ConfirmStep = ({
             <div className="flex w-full items-start justify-between">
               <span className="font-medium">Fee</span>
               <div className="flex flex-col text-right">
-                <span className="font-medium">{formatToken(fiatFees)} KAS</span>
+                <span className="font-medium">
+                  {formatToken(feesToken)} {gasSymbol}
+                </span>
                 <span className="text-xs text-daintree-400">
                   {formatCurrency(feesCurrency, feesCurrencyCode)}
                 </span>

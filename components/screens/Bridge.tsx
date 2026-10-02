@@ -150,7 +150,7 @@ export default function Bridge() {
     !isMainnet && BRIDGE_ROUTES[picked].mainnetOnly ? "kas-igra" : picked;
   const route = BRIDGE_ROUTES[direction];
   const [amount, setAmount] = useState("");
-  const [sheet, setSheet] = useState<"token" | "provider" | "fee">();
+  const [sheet, setSheet] = useState<"token" | "to" | "provider" | "fee">();
   const [sheetChain, setSheetChain] = useState<BridgeChain>(route.from);
   const [submitting, setSubmitting] = useState(false);
 
@@ -517,17 +517,32 @@ export default function Bridge() {
 
   const sheetTokens: SheetToken[] = (
     ["kaspa", "kasplex", "igra"] as BridgeChain[]
-  ).map((c) => {
-    const b = balanceOf(c);
-    return {
-      key: c,
-      chain: c,
-      symbol: BRIDGE_TOKEN_NAME[c],
-      chainImage: chainImage(c),
-      balance: b === undefined ? undefined : formatAmount(b, 8),
-      disabled: bridgeDirectionsFrom(c, isMainnet).length === 0,
-    };
-  });
+  )
+    // The "from" sheet only lists what can actually be spent.
+    .filter((c) => (balanceOf(c) ?? 0) > 0)
+    .map((c) => {
+      const b = balanceOf(c);
+      return {
+        key: c,
+        chain: c,
+        symbol: BRIDGE_TOKEN_NAME[c],
+        chainImage: chainImage(c),
+        balance: b === undefined ? undefined : formatAmount(b, 8),
+        disabled: bridgeDirectionsFrom(c, isMainnet).length === 0,
+      };
+    });
+  // Reachable destinations from the current source, one per chain.
+  const toTokens: SheetToken[] = [];
+  for (const d of bridgeDirectionsFrom(route.from, isMainnet)) {
+    const r = BRIDGE_ROUTES[d];
+    if (toTokens.some((t) => t.chain === r.to)) continue;
+    toTokens.push({
+      key: d,
+      chain: r.to,
+      symbol: BRIDGE_TOKEN_NAME[r.to],
+      chainImage: chainImage(r.to),
+    });
+  }
   const reverse = REVERSE[direction];
   const canFlip = bridgeDirectionsFrom(route.to, isMainnet).includes(reverse);
   const loadingQuote = direction === "igra-kas" && !exitParams;
@@ -556,7 +571,10 @@ export default function Bridge() {
           <TokenPill
             symbol={toSymbol}
             chainImage={chainImage(route.to)}
-            onClick={() => setSheet("provider")}
+            onClick={() => {
+              setSheetChain(route.to);
+              setSheet("to");
+            }}
           />
         </div>
 
@@ -702,6 +720,21 @@ export default function Bridge() {
           setAmount("");
         }}
         recentKey="local:bridge_recent_tokens"
+      />
+
+      <TokenSheet
+        open={sheet === "to"}
+        onClose={() => setSheet(undefined)}
+        chains={toTokens.map((t) => ({
+          key: t.chain,
+          label: CHAIN_LABEL[t.chain as BridgeChain],
+          image: chainImage(t.chain as BridgeChain),
+        }))}
+        chain={sheetChain}
+        onChain={(c) => setSheetChain(c as BridgeChain)}
+        tokens={toTokens}
+        onSelect={(t) => setDirection(t.key as BridgeDirection)}
+        recentKey="local:bridge_recent_to_tokens"
       />
 
       <BottomSheet
