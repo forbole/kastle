@@ -12,7 +12,10 @@ import {
   deriveZKasAccount,
   deriveZKasAccountFromSeed,
   initZKasSigner,
+  openSelectedPrivateMessagingAccount,
 } from "./signer";
+import type { PrivateMessagingAccount } from "./message-profile";
+import { ZKAS_MAINNET_GENESIS } from "./history-config";
 import {
   addOrRecoverZKasSeed,
   getSelectedAvailableZKasAddress,
@@ -53,6 +56,183 @@ export type ZKasSignRequest = {
 
 export class ZKasKeyService {
   private importTail: Promise<void> = Promise.resolve();
+
+  /** Internal selected-account actor. No website-facing method may return it. */
+  async openPrivateMessagingSession(): Promise<{
+    address: string;
+    publicCard(): Uint8Array;
+    assertCurrent(): Promise<void>;
+    close(): void;
+  }> {
+    const keyring = ExtensionService.getInstance().getKeyring();
+    const controller = new AbortController();
+    let privateHandle: PrivateMessagingAccount | null = null;
+    let closed = false;
+    const unsubscribe = keyring.subscribePrivateWalletInvalidation(() => {
+      controller.abort();
+      privateHandle?.close();
+      privateHandle = null;
+    });
+    const close = () => {
+      if (closed) return;
+      closed = true;
+      controller.abort();
+      privateHandle?.close();
+      privateHandle = null;
+      unsubscribe();
+    };
+    try {
+      const selected = await this.selected();
+      const { selection, settings, keyringVersion } = selected;
+      const walletsGeneration = keyring.getMutationGeneration("wallets");
+      const daemon = settings.zkasDaemonUrls?.mainnet;
+      const index = settings.zkasHistoryIndexUrls?.mainnet;
+      let selectedAddress0 = "";
+      const synchronous = () => {
+        if (
+          closed ||
+          controller.signal.aborted ||
+          keyring.isPrivateWalletWorkPending() ||
+          !keyring.isUnlocked() ||
+          keyring.getSessionVersion() !== keyringVersion ||
+          keyring.getMutationGeneration("wallets") !== walletsGeneration
+        ) {
+          throw new Error("Selected private messaging account changed");
+        }
+      };
+      const assertCurrent = async () => {
+        synchronous();
+        const current = await this.selected();
+        synchronous();
+        if (
+          !sameZKasSelection(selection, current.selection) ||
+          current.settings.zkasDaemonUrls?.mainnet !== daemon ||
+          current.settings.zkasHistoryIndexUrls?.mainnet !== index
+        ) {
+          throw new Error("Selected messaging source changed");
+        }
+        if (selectedAddress0) {
+          const wallets =
+            await storage.getItem<WalletSettings>(WALLET_SETTINGS);
+          synchronous();
+          const address = wallets?.wallets
+            .find((wallet) => wallet.id === selection.walletId)
+            ?.accounts.find(
+              (account) => account.index === selection.accountIndex,
+            )?.address;
+          if (address !== selectedAddress0)
+            throw new Error("Selected messaging address changed");
+        }
+      };
+      synchronous();
+      await initZKasSigner(signerAssetUrl);
+      await assertCurrent();
+      const walletSettings =
+        await storage.getItem<WalletSettings>(WALLET_SETTINGS);
+      await assertCurrent();
+      selectedAddress0 =
+        walletSettings?.wallets
+          .find((wallet) => wallet.id === selection.walletId)
+          ?.accounts.find((account) => account.index === selection.accountIndex)
+          ?.address ?? "";
+      if (!selectedAddress0 || !selectedAddress0.startsWith("zkas:"))
+        throw new Error("Selected messaging address is unavailable");
+      const secrets = (await keyring.getValue<WalletSecret[]>("wallets")) ?? [];
+      await assertCurrent();
+      const source = getZKasSecretSource(secrets, selection);
+      const derivedAddress = await (async () => {
+        // The old pinned signer is the independent canonical address-0 mapping.
+        const derived =
+          source.type === "mnemonic"
+            ? await deriveZKasAccount(
+                source.value,
+                selection.accountIndex,
+                "mainnet",
+              )
+            : await deriveZKasAccountFromSeed(source.value, "mainnet");
+        return derived.address;
+      })();
+      await assertCurrent();
+      if (derivedAddress !== selectedAddress0)
+        throw new Error("Selected messaging address changed");
+      privateHandle = await openSelectedPrivateMessagingAccount(
+        source,
+        selection.accountIndex,
+        selectedAddress0,
+        controller.signal,
+      );
+      await assertCurrent();
+      return {
+        address: selectedAddress0,
+        publicCard: () => {
+          synchronous();
+          if (!privateHandle)
+            throw new Error("Selected private messaging account closed");
+          return new Uint8Array(privateHandle.publicCard());
+        },
+        assertCurrent: async () => {
+          try {
+            await assertCurrent();
+          } catch (error) {
+            close();
+            throw error;
+          }
+        },
+        close,
+      };
+    } catch (error) {
+      close();
+      throw error;
+    }
+  }
+
+  /** Public card projection only; identity proof and website disclosure require separate review. */
+  async publicMessagingProfile(): Promise<{
+    protocolId: "matjam-onchain-v3";
+    accountAddress: string;
+    peerId: string;
+    publicCard: string;
+  }> {
+    const session = await this.openPrivateMessagingSession();
+    try {
+      await session.assertCurrent();
+      const card = session.publicCard();
+      if (card.length !== 184 || card[0] !== 3)
+        throw new Error("Invalid selected messaging card");
+      const protocolId = "matjam-onchain-v3";
+      const protocolHash = new Uint8Array(
+        await crypto.subtle.digest(
+          "SHA-256",
+          new TextEncoder().encode(protocolId),
+        ),
+      );
+      await session.assertCurrent();
+      const message = new Uint8Array(96);
+      message.set(
+        Uint8Array.from(ZKAS_MAINNET_GENESIS.match(/.{2}/g)!, (byte) =>
+          Number.parseInt(byte, 16),
+        ),
+      );
+      message.set(protocolHash, 32);
+      message.set(card.subarray(44, 76), 64);
+      const peerId = new Uint8Array(
+        await crypto.subtle.digest("SHA-256", message),
+      );
+      await session.assertCurrent();
+      return {
+        protocolId,
+        accountAddress: session.address,
+        peerId: Array.from(peerId.subarray(0, 16), (byte) =>
+          byte.toString(16).padStart(2, "0"),
+        ).join(""),
+        publicCard: Array.from(card, (byte) =>
+          byte.toString(16).padStart(2, "0"),
+        ).join(""),
+      };
+    } finally {
+      session.close();
+    }
+  }
 
   private async available(): Promise<{
     settings: Settings;

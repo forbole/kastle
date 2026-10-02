@@ -5,6 +5,8 @@ import init, {
   fvk_hex,
   verify_and_sign_payment_with_memo,
 } from "../../wasm/zkas-signer/firecash_signer.js";
+import { createPrivateMessagingAccount } from "./message-profile";
+import type { PrivateMessagingAccount } from "./message-profile";
 
 let ready: Promise<void> | undefined;
 const PINNED_WASM_SHA256 =
@@ -104,6 +106,51 @@ export async function deriveZKasAccountFromSeed(
     },
   };
   return { address, token, signer };
+}
+
+/** Wallet-internal only. The pinned loader consumes the copied seed before its first await. */
+export async function openSelectedPrivateMessagingAccount(
+  source: { type: "mnemonic" | "seed"; value: string },
+  accountIndex: number,
+  selectedAddress0: string,
+  signal: AbortSignal,
+): Promise<PrivateMessagingAccount> {
+  if (!ready) throw new Error("ZKas signer is not initialized");
+  await ready;
+  if (signal.aborted || !selectedAddress0.startsWith("zkas:"))
+    throw new Error("Selected messaging account changed");
+  if (
+    !Number.isSafeInteger(accountIndex) ||
+    accountIndex < 0 ||
+    accountIndex >= 0x80000000 ||
+    (source.type !== "mnemonic" && source.type !== "seed") ||
+    (source.type === "seed" && accountIndex !== 0)
+  )
+    throw new Error("Invalid selected messaging account");
+  const seedHex =
+    source.type === "mnemonic"
+      ? account_seed_hex(source.value, accountIndex)
+      : source.value;
+  if (
+    !/^[0-9a-f]{64}$/.test(seedHex) ||
+    address_from_seed(seedHex, "mainnet") !== selectedAddress0
+  )
+    throw new Error("Selected messaging address changed");
+  const bytes = Uint8Array.from(seedHex.match(/.{2}/g)!, (pair) =>
+    Number.parseInt(pair, 16),
+  );
+  let opening: Promise<PrivateMessagingAccount>;
+  try {
+    opening = createPrivateMessagingAccount(bytes, selectedAddress0, signal);
+  } finally {
+    bytes.fill(0);
+  }
+  const handle = await opening;
+  if (signal.aborted) {
+    handle.close();
+    throw new Error("Selected messaging account changed");
+  }
+  return handle;
 }
 
 async function deriveWalletToken(

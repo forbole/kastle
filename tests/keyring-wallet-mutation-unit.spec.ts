@@ -57,6 +57,107 @@ test("concurrent wallet addition and ZKas import preserve both changes", async (
   expect(wallets?.[0].zkasSeedHex).toBe("01".repeat(32));
 });
 
+test("private wallet handles invalidate when lock is requested behind a queued mutation", async () => {
+  const keyring = await createTestKeyring();
+  let release!: () => void;
+  const blocked = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const invalidations: string[] = [];
+  keyring.subscribePrivateWalletInvalidation((reason) =>
+    invalidations.push(reason),
+  );
+  const mutating = keyring.updateValue<WalletSecret[]>("wallets", async () => {
+    await blocked;
+    return [];
+  });
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  const locking = keyring.lock();
+  expect(invalidations).toContain("lock");
+  release();
+  await Promise.all([mutating, locking]);
+});
+
+test("private wallet handles invalidate at the start of wallet-secret replacement", async () => {
+  const keyring = await createTestKeyring();
+  const invalidations: string[] = [];
+  const unsubscribe = keyring.subscribePrivateWalletInvalidation((reason) =>
+    invalidations.push(reason),
+  );
+  await keyring.setValue<WalletSecret[]>("wallets", []);
+  expect(invalidations).toContain("wallets");
+  unsubscribe();
+  const previous = invalidations.length;
+  await keyring.setValue<WalletSecret[]>("wallets", []);
+  expect(invalidations).toHaveLength(previous);
+});
+
+test("queued private work blocks new sessions until every operation settles", async () => {
+  const keyring = await createTestKeyring();
+  let release!: () => void;
+  const blocked = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const unrelated = keyring.updateValue("zkasBatchJournal", async () => {
+    await blocked;
+    return [];
+  });
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  const walletWrite = keyring.setValue("wallets", []);
+  const locking = keyring.lock();
+  expect(keyring.isPrivateWalletWorkPending()).toBe(true);
+  release();
+  await Promise.allSettled([unrelated, walletWrite, locking]);
+  expect(keyring.isPrivateWalletWorkPending()).toBe(false);
+});
+
+test("a failed clear keeps private admission blocked until every started deletion finishes", async () => {
+  const keyring = await createTestKeyring();
+  await keyring.setValue("wallets", []);
+  const backing = (
+    globalThis as unknown as {
+      storage: { removeItem(key: string): Promise<void> };
+    }
+  ).storage;
+  const originalRemove = backing.removeItem;
+  let entered!: () => void;
+  let release!: () => void;
+  const reached = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  const blocked = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let walletDeletionSettled = false;
+  backing.removeItem = async (key: string) => {
+    if (key.endsWith(":wallets")) {
+      entered();
+      await blocked;
+      await originalRemove(key);
+      walletDeletionSettled = true;
+      return;
+    }
+    if (key.endsWith(":salt")) throw new Error("storage failure");
+    await originalRemove(key);
+  };
+  const clearing = keyring.clear().then(
+    () => "fulfilled",
+    () => "rejected",
+  );
+  try {
+    await reached;
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(keyring.isPrivateWalletWorkPending()).toBe(true);
+    expect(walletDeletionSettled).toBe(false);
+  } finally {
+    release();
+    expect(await clearing).toBe("rejected");
+    backing.removeItem = originalRemove;
+  }
+  expect(walletDeletionSettled).toBe(true);
+  expect(keyring.isPrivateWalletWorkPending()).toBe(false);
+});
+
 test("signed batch bytes stay encrypted through lock, unlock, and password rotation", async () => {
   const values = installTestStorage();
   const keyring = new Keyring(`test-batch-${crypto.randomUUID()}`);
