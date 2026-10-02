@@ -1,4 +1,5 @@
 import type { ZKasSelection } from "./selection";
+import { withZKasPaymentAccountGate } from "./payment-account-gate";
 
 const JOURNAL_KEY = "local:zkas-payment-journal-v1";
 const ACTIVE_REVIEW_DELAY_MS = 10 * 60 * 1000;
@@ -28,10 +29,19 @@ export class ZKasPaymentJournal {
   private tail: Promise<unknown> = Promise.resolve();
   private readonly store: JournalStore;
   private readonly now: () => number;
+  private readonly batchReserved: (
+    selection: ZKasSelection,
+  ) => Promise<boolean>;
 
-  constructor(store: JournalStore, now = Date.now) {
+  constructor(
+    store: JournalStore,
+    now = Date.now,
+    batchReserved: (selection: ZKasSelection) => Promise<boolean> = async () =>
+      false,
+  ) {
     this.store = store;
     this.now = now;
+    this.batchReserved = batchReserved;
   }
 
   private run<T>(operation: () => Promise<T>): Promise<T> {
@@ -53,25 +63,31 @@ export class ZKasPaymentJournal {
   }
 
   acquire(selection: ZKasSelection): Promise<ZKasPaymentRecord> {
-    return this.run(async () => {
-      const records = await this.all();
-      const key = selectionKey(selection);
-      const existing = records[key];
-      if (existing && existing.status !== "success") {
-        throw new Error(
-          "A previous ZKas payment needs review before another send",
-        );
-      }
-      const record: ZKasPaymentRecord = {
-        id: crypto.randomUUID(),
-        selection,
-        status: "preparing",
-        updatedAt: this.now(),
-      };
-      records[key] = record;
-      await this.store.setItem(JOURNAL_KEY, records);
-      return record;
-    });
+    return withZKasPaymentAccountGate(() =>
+      this.run(async () => {
+        if (await this.batchReserved(selection))
+          throw new Error(
+            "An unresolved batch ZKas payment reserves this account",
+          );
+        const records = await this.all();
+        const key = selectionKey(selection);
+        const existing = records[key];
+        if (existing && existing.status !== "success") {
+          throw new Error(
+            "A previous ZKas payment needs review before another send",
+          );
+        }
+        const record: ZKasPaymentRecord = {
+          id: crypto.randomUUID(),
+          selection,
+          status: "preparing",
+          updatedAt: this.now(),
+        };
+        records[key] = record;
+        await this.store.setItem(JOURNAL_KEY, records);
+        return record;
+      }),
+    );
   }
 
   private update(
@@ -150,10 +166,12 @@ export class ZKasPaymentJournal {
       const current = records[key];
       if (!current || current.id !== id)
         throw new Error("ZKas payment reservation changed");
-      if (
-        current.status !== "uncertain" &&
-        this.now() - current.updatedAt < ACTIVE_REVIEW_DELAY_MS
-      ) {
+      if (current.status === "submitting" || current.status === "uncertain") {
+        throw new Error(
+          "Submitted ZKas payment must be reconciled before another send",
+        );
+      }
+      if (this.now() - current.updatedAt < ACTIVE_REVIEW_DELAY_MS) {
         throw new Error(
           "Wait for the active payment to finish before clearing this warning",
         );
@@ -166,6 +184,9 @@ export class ZKasPaymentJournal {
 
 let journal: ZKasPaymentJournal | undefined;
 export function getZKasPaymentJournal(): ZKasPaymentJournal {
-  journal ??= new ZKasPaymentJournal(storage);
+  journal ??= new ZKasPaymentJournal(storage, Date.now, async (selection) => {
+    const { getZKasBatchJournal } = await import("./batch-journal");
+    return (await getZKasBatchJournal()).hasReservation(selection);
+  });
   return journal;
 }

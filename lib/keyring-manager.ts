@@ -1,7 +1,7 @@
 import { Buffer } from "buffer";
 import { argon2id } from "hash-wasm";
 
-const ALLOWED_KEYS = ["wallets"] as const;
+const ALLOWED_KEYS = ["wallets", "zkasBatchJournal"] as const;
 
 type AllowedKey = (typeof ALLOWED_KEYS)[number];
 

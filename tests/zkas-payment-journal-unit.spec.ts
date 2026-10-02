@@ -48,10 +48,12 @@ test("submission state survives a service restart and blocks retry until reviewe
   );
   await expect(
     restarted.clearAfterReview(selection, record.id),
-  ).rejects.toThrow(/wait/i);
+  ).rejects.toThrow(/reconciled/i);
   now += 10 * 60 * 1000;
-  await restarted.clearAfterReview(selection, record.id);
-  expect(await restarted.get(selection)).toBeUndefined();
+  await expect(
+    restarted.clearAfterReview(selection, record.id),
+  ).rejects.toThrow(/reconciled/i);
+  expect((await restarted.get(selection))?.status).toBe("submitting");
 });
 
 test("a failed preparation releases its reservation; an uncertain submission retains it", async () => {
@@ -63,12 +65,10 @@ test("a failed preparation releases its reservation; an uncertain submission ret
   await journal.markUncertain(selection, next.id, "a".repeat(64));
   expect((await journal.get(selection))?.txid).toBe("a".repeat(64));
   await expect(journal.acquire(selection)).rejects.toThrow(/review/i);
-  await journal.clearAfterReview(selection, next.id);
-  const final = await journal.acquire(selection);
-  await journal.markSubmitting(selection, final.id);
-  await journal.markSuccess(selection, final.id, "b".repeat(64));
-  expect((await journal.get(selection))?.status).toBe("success");
-  await journal.acquire(selection);
+  await expect(journal.clearAfterReview(selection, next.id)).rejects.toThrow(
+    /reconciled/i,
+  );
+  await expect(journal.acquire(selection)).rejects.toThrow(/review/i);
 });
 
 test("known pre-fetch cancellation safely clears a submitting journal record", async () => {

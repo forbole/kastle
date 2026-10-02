@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import { Keyring } from "@/lib/keyring-manager";
 import { attachZKasSeed } from "@/lib/zkas/selection";
 import type { WalletSecret } from "@/types/WalletSecret";
+import { ZKasBatchJournal } from "@/lib/zkas/batch-journal";
 
 test("concurrent ZKas imports attach only the first seed", async () => {
   const keyring = await createTestKeyring();
@@ -55,7 +56,73 @@ test("concurrent wallet addition and ZKas import preserve both changes", async (
   expect(wallets?.[0].zkasSeedHex).toBe("01".repeat(32));
 });
 
+test("signed batch bytes stay encrypted through lock, unlock, and password rotation", async () => {
+  const values = installTestStorage();
+  const keyring = new Keyring(`test-batch-${crypto.randomUUID()}`);
+  await keyring.initialize("first-password");
+  const journal = new ZKasBatchJournal(keyring, async () => false);
+  const intent = {
+    selection: {
+      walletId: "wallet",
+      accountIndex: 0,
+      network: "mainnet" as const,
+    },
+    account: "zkas:" + "a".repeat(80),
+    genesis: "1".repeat(64),
+    origin: "https://example.test",
+    logicalId: "2".repeat(64),
+    outputs: [
+      {
+        recipient: "zkas:" + "b".repeat(80),
+        amountSompi: "1",
+        memoHex: "00".repeat(512),
+      },
+    ],
+    maxFeeSompi: "1000000",
+  };
+  await journal.reserve(intent);
+  const transactionHex = "ab".repeat(100);
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new Uint8Array(100).fill(0xab),
+  );
+  const sha256 = Array.from(new Uint8Array(digest), (byte) =>
+    byte.toString(16).padStart(2, "0"),
+  ).join("");
+  await journal.saveFinalized(intent, {
+    transactionHex,
+    txid: "3".repeat(64),
+    sha256,
+  });
+  expect(JSON.stringify([...values.values()])).not.toContain(transactionHex);
+  await keyring.lock();
+  await expect(journal.get(intent.logicalId)).rejects.toThrow(/locked/i);
+  expect(await keyring.unlock("first-password")).toBe(true);
+  expect((await journal.get(intent.logicalId))?.transactionHex).toBe(
+    transactionHex,
+  );
+  expect(
+    await keyring.changePassword("first-password", "second-password"),
+  ).toBe(true);
+  await keyring.lock();
+  expect(await keyring.unlock("second-password")).toBe(true);
+  expect((await journal.get(intent.logicalId))?.transactionHex).toBe(
+    transactionHex,
+  );
+});
+
 async function createTestKeyring(): Promise<Keyring> {
+  installTestStorage();
+  const keyring = new Keyring(`test-${crypto.randomUUID()}`);
+  (keyring as unknown as { masterKey: CryptoKey }).masterKey =
+    await crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, false, [
+      "encrypt",
+      "decrypt",
+    ]);
+  return keyring;
+}
+
+function installTestStorage(): Map<string, unknown> {
   const values = new Map<string, unknown>();
   Object.assign(globalThis, {
     storage: {
@@ -69,11 +136,5 @@ async function createTestKeyring(): Promise<Keyring> {
       },
     },
   });
-  const keyring = new Keyring(`test-${crypto.randomUUID()}`);
-  (keyring as unknown as { masterKey: CryptoKey }).masterKey =
-    await crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, false, [
-      "encrypt",
-      "decrypt",
-    ]);
-  return keyring;
+  return values;
 }
