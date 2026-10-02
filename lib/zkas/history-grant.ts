@@ -25,6 +25,13 @@ const ContextSchema = z
     indexUrl: z.string(),
   })
   .strict();
+const AccountSchema = ContextSchema.pick({
+  walletId: true,
+  accountIndex: true,
+  address0: true,
+  network: true,
+  genesis: true,
+});
 const GrantSchema = ContextSchema.extend({
   scope: z.literal("mj3ProtocolMessagesRead"),
   revision: z.string().uuid(),
@@ -34,6 +41,24 @@ const DocumentSchema = z
   .strict();
 
 export type HistoryGrantContext = z.infer<typeof ContextSchema>;
+export type HistoryGrantAccount = z.infer<typeof AccountSchema>;
+export type HistoryGrantListView = {
+  account: {
+    walletId: string;
+    accountIndex: number;
+    address0: string;
+    network: "mainnet";
+  };
+  records: Array<{
+    origin: string;
+    scope: "mj3ProtocolMessagesRead";
+    revision: string;
+    daemonUrl: string;
+    indexUrl: string;
+    sourceStatus: "current" | "stale" | "unconfigured";
+    connectionStatus: "connected" | "disconnected";
+  }>;
+};
 type Grant = z.infer<typeof GrantSchema>;
 type Document = z.infer<typeof DocumentSchema>;
 
@@ -97,12 +122,113 @@ function sameContext(a: HistoryGrantContext, b: HistoryGrantContext): boolean {
   );
 }
 
+function sameAccount(a: HistoryGrantAccount, b: HistoryGrantAccount): boolean {
+  return (
+    a.walletId === b.walletId &&
+    a.accountIndex === b.accountIndex &&
+    a.address0 === b.address0 &&
+    a.network === b.network &&
+    a.genesis === b.genesis
+  );
+}
+
+function checkedAccount(value: HistoryGrantAccount): HistoryGrantAccount {
+  const parsed = AccountSchema.parse(value);
+  assertHistoryGenesis(parsed.genesis);
+  return parsed;
+}
+
 /** Background-private grant storage. A record alone cannot issue a read lease. */
 export class HistoryGrantStore {
   private readonly keyring: Keyring;
 
   constructor(keyring: Keyring) {
     this.keyring = keyring;
+  }
+
+  /** Saved website records for one selected account; no source/connection lease. */
+  async listForAccount(
+    captured: HistoryGrantAccount,
+    assertCurrent: () => Promise<void>,
+  ): Promise<Grant[]> {
+    const account = checkedAccount(captured);
+    const session = this.keyring.getSessionVersion();
+    const generation = this.keyring.getMutationGeneration(HISTORY_GRANTS_KEY);
+    if (!this.keyring.isUnlocked()) throw new Error("Unlock Kastle first");
+    await assertCurrent();
+    if (
+      !this.keyring.isUnlocked() ||
+      this.keyring.getSessionVersion() !== session ||
+      this.keyring.getMutationGeneration(HISTORY_GRANTS_KEY) !== generation
+    )
+      throw new Error("History grant context changed");
+    const grants = document(
+      await this.keyring.getValue<unknown>(HISTORY_GRANTS_KEY),
+    );
+    await assertCurrent();
+    if (
+      !this.keyring.isUnlocked() ||
+      this.keyring.getSessionVersion() !== session ||
+      this.keyring.getMutationGeneration(HISTORY_GRANTS_KEY) !== generation
+    )
+      throw new Error("History grant context changed");
+    return grants.records.filter(
+      (record) =>
+        record.audience.kind === "website" && sameAccount(record, account),
+    );
+  }
+
+  /** Remove only the exact saved revision and source under one Keyring actor. */
+  async revokeIfRevision(
+    captured: HistoryGrantContext,
+    expectedRevision: string,
+    assertCurrent: () => Promise<void>,
+  ): Promise<void> {
+    const checked = context(captured);
+    if (checked.audience.kind !== "website")
+      throw new Error("History grant website required");
+    const revision = z.string().uuid().parse(expectedRevision);
+    const session = this.keyring.getSessionVersion();
+    const generation = this.keyring.getMutationGeneration(HISTORY_GRANTS_KEY);
+    if (!this.keyring.isUnlocked()) throw new Error("Unlock Kastle first");
+    await assertCurrent();
+    if (
+      !this.keyring.isUnlocked() ||
+      this.keyring.getSessionVersion() !== session ||
+      this.keyring.getMutationGeneration(HISTORY_GRANTS_KEY) !== generation
+    )
+      throw new Error("History grant context changed");
+    const writtenGeneration =
+      await this.keyring.updateValueIfGeneration<unknown>(
+        HISTORY_GRANTS_KEY,
+        generation,
+        (current) => {
+          const previous = document(current);
+          const index = previous.records.findIndex(
+            (record) => identity(record) === identity(checked),
+          );
+          const record = previous.records[index];
+          if (
+            !record ||
+            record.scope !== "mj3ProtocolMessagesRead" ||
+            record.revision !== revision ||
+            !sameContext(record, checked)
+          )
+            throw new Error("History grant view is stale");
+          return {
+            version: 1,
+            records: previous.records.filter((_, at) => at !== index),
+          };
+        },
+      );
+    await assertCurrent();
+    if (
+      !this.keyring.isUnlocked() ||
+      this.keyring.getSessionVersion() !== session ||
+      this.keyring.getMutationGeneration(HISTORY_GRANTS_KEY) !==
+        writtenGeneration
+    )
+      throw new Error("History grant context changed");
   }
 
   async approve(

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/GeneralHeader";
 import { useSettings } from "@/hooks/useSettings";
@@ -34,6 +34,7 @@ import {
   historyIndexHostPattern,
 } from "@/lib/zkas/history-config";
 import { NetworkType } from "@/lib/network-type";
+import type { HistoryGrantListView } from "@/lib/zkas/history-grant";
 
 export default function ZKasSettings() {
   const navigate = useNavigate();
@@ -59,6 +60,49 @@ export default function ZKasSettings() {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [savingIndex, setSavingIndex] = useState(false);
+  const [historyGrants, setHistoryGrants] =
+    useState<HistoryGrantListView | null>(null);
+  const [historyGrantError, setHistoryGrantError] = useState("");
+  const [loadingHistoryGrants, setLoadingHistoryGrants] = useState(false);
+  const [revokingHistoryOrigin, setRevokingHistoryOrigin] = useState<
+    string | null
+  >(null);
+  const historyRequest = useRef(0);
+  const refreshHistoryGrants = useCallback(async () => {
+    const request = ++historyRequest.current;
+    setLoadingHistoryGrants(true);
+    setHistoryGrantError("");
+    try {
+      const response = await sendMessage<
+        HistoryGrantListView & { error?: string }
+      >(Method.ZKAS_HISTORY_GRANTS_LIST);
+      if (response.error) throw new Error(response.error);
+      if (historyRequest.current === request) setHistoryGrants(response);
+    } catch (cause) {
+      if (historyRequest.current === request) {
+        setHistoryGrants(null);
+        setHistoryGrantError(
+          cause instanceof Error
+            ? cause.message
+            : "Unable to load history access",
+        );
+      }
+    } finally {
+      if (historyRequest.current === request) setLoadingHistoryGrants(false);
+    }
+  }, []);
+  useEffect(() => {
+    setHistoryGrants(null);
+    if (network === "mainnet") void refreshHistoryGrants();
+    return () => {
+      historyRequest.current += 1;
+    };
+  }, [
+    network,
+    walletSettings?.selectedWalletId,
+    walletSettings?.selectedAccountIndex,
+    refreshHistoryGrants,
+  ]);
   useEffect(() => {
     setUrl(network ? (settings?.zkasDaemonUrls?.[network] ?? "") : "");
   }, [settings?.zkasDaemonUrls, network]);
@@ -221,6 +265,31 @@ export default function ZKasSettings() {
     }
   };
 
+  const revokeHistoryGrant = async (
+    origin: string,
+    expectedRevision: string,
+  ) => {
+    setRevokingHistoryOrigin(origin);
+    let failure = "";
+    try {
+      const response = await sendMessage<{ revoked?: boolean; error?: string }>(
+        Method.ZKAS_HISTORY_GRANT_REVOKE_SAVED,
+        { origin, expectedRevision },
+      );
+      if (response.error || !response.revoked)
+        throw new Error(response.error ?? "Unable to revoke history access");
+    } catch (cause) {
+      failure =
+        cause instanceof Error
+          ? cause.message
+          : "Unable to revoke history access";
+    } finally {
+      await refreshHistoryGrants();
+      if (failure) setHistoryGrantError(failure);
+      setRevokingHistoryOrigin(null);
+    }
+  };
+
   return (
     <div className="flex h-full flex-col overflow-y-auto p-4 text-white">
       <Header
@@ -291,6 +360,71 @@ export default function ZKasSettings() {
           >
             {savingIndex ? "Saving index…" : "Save index origin"}
           </button>
+        </section>
+        <section className="space-y-2 pt-4" aria-label="Message history access">
+          <h2 className="font-semibold">Message history access</h2>
+          <p className="text-xs text-daintree-400">
+            Review saved website permissions for the selected ZKas account.
+            Connection and source labels do not mean a website currently has a
+            read session.
+          </p>
+          <button
+            type="button"
+            disabled={loadingHistoryGrants || network !== "mainnet"}
+            onClick={() => void refreshHistoryGrants()}
+            className="rounded border border-daintree-700 px-3 py-2 text-sm disabled:opacity-40"
+          >
+            {loadingHistoryGrants ? "Refreshing…" : "Refresh access list"}
+          </button>
+          {historyGrantError && (
+            <p role="alert" className="text-sm text-red-400">
+              {historyGrantError}
+            </p>
+          )}
+          {historyGrants && (
+            <p className="break-all text-xs text-daintree-400">
+              Wallet {historyGrants.account.walletId} · Account{" "}
+              {historyGrants.account.accountIndex} ·{" "}
+              {historyGrants.account.address0}
+            </p>
+          )}
+          {historyGrants?.records.length === 0 && (
+            <p className="text-xs text-daintree-400">
+              No saved website access for this account.
+            </p>
+          )}
+          {historyGrants?.records.map((record) => (
+            <div
+              key={record.revision}
+              className="space-y-1 rounded-lg bg-daintree-800 p-3 text-xs"
+            >
+              <p className="break-all font-semibold">{record.origin}</p>
+              <p>
+                Source: {record.sourceStatus} · Website:{" "}
+                {record.connectionStatus}
+              </p>
+              <p className="break-all text-daintree-400">
+                Daemon: {record.daemonUrl}
+              </p>
+              <p className="break-all text-daintree-400">
+                Index: {record.indexUrl}
+              </p>
+              <button
+                type="button"
+                disabled={
+                  revokingHistoryOrigin !== null || loadingHistoryGrants
+                }
+                onClick={() =>
+                  void revokeHistoryGrant(record.origin, record.revision)
+                }
+                className="rounded border border-daintree-700 px-2 py-1 disabled:opacity-40"
+              >
+                {revokingHistoryOrigin === record.origin
+                  ? "Revoking…"
+                  : "Revoke history access"}
+              </button>
+            </div>
+          ))}
         </section>
         <section
           className="space-y-2 pt-4"
