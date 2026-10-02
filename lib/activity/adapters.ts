@@ -10,7 +10,6 @@ import {
   IGRA_DEPOSIT_ACTIVITY_TYPE,
   KURVE_BRIDGE_ACTIVITY_TYPE,
   SWAP_ACTIVITY_TYPE,
-  trimDecimal,
 } from "@/lib/activity/mappers";
 import { swapVenueName, toProviderId } from "@/lib/activity/swap-history";
 import { ALL_SWAP_PROVIDERS } from "@/lib/evm/swap/constants";
@@ -54,6 +53,7 @@ export interface DetailRow {
   pill?: PillStatus;
   icon?: string;
   url?: string;
+  subtext?: string;
 }
 
 export interface ActivityItem {
@@ -99,6 +99,7 @@ export function formatDateTime(timestampMs: number): string {
   const date = d.toLocaleDateString("en-GB", {
     day: "numeric",
     month: "short",
+    year: d.getFullYear() !== new Date().getFullYear() ? "numeric" : undefined,
   });
   const time = d.toLocaleTimeString("en-GB", {
     hour: "2-digit",
@@ -111,6 +112,15 @@ const isBridgeRow = (row: ActivityRowDescriptor) =>
   row.type !== SWAP_ACTIVITY_TYPE;
 const isInProgress = (row: ActivityRowDescriptor) =>
   row.status === "pending" || row.status === "submitted";
+
+// The list row's title must never read "Swapped"/"Bridged" when the status
+// is not — same failure/refund signal the detail sheet's Status row uses.
+export function rowTitle(row: ActivityRowDescriptor): string {
+  if (row.status === "failed") return "Failed";
+  if (row.status === "refund_claimable") return "Refunded";
+  if (!isBridgeRow(row)) return isInProgress(row) ? "Swapping" : "Swapped";
+  return isInProgress(row) ? "Bridging" : "Bridged";
+}
 
 function sheetTitle(row: ActivityRowDescriptor): string {
   if (row.type === SWAP_ACTIVITY_TYPE) {
@@ -135,20 +145,23 @@ function sheetTitle(row: ActivityRowDescriptor): string {
 }
 
 /** Dashboard parity with mobile's formatNumber: at most 3 fraction digits. */
-function fmtAmount(value: string): string {
+export function fmtAmount(value: string): string {
+  if (!value) return value;
   const n = Number(value);
-  return value && Number.isFinite(n)
-    ? new Intl.NumberFormat("en-US", { maximumFractionDigits: 3 }).format(n)
-    : value;
+  if (!Number.isFinite(n)) return value;
+  const capped = new Intl.NumberFormat("en-US", {
+    maximumFractionDigits: 3,
+  }).format(n);
+  // A true non-zero amount under 0.001 (e.g. 0.0003 KAS) rounds to a false
+  // "0" at 3dp — keep the original decimal string (swap history carries up to
+  // 36 decimals; re-formatting through Number/toFixed(8) would lose them).
+  return n !== 0 && Number(capped) === 0 ? value : capped;
 }
 
 /** "<num> <SYM>" fee strings: cap like amounts, but never print a false 0. */
-function fmtFee(fee: string): string {
+export function fmtFee(fee: string): string {
   const [num, ...rest] = fee.split(" ");
-  const n = Number(num);
-  const capped = fmtAmount(num);
-  const shown = n !== 0 && Number(capped) === 0 ? trimDecimal(n) : capped;
-  return [shown, ...rest].join(" ").trim();
+  return [fmtAmount(num), ...rest].join(" ").trim();
 }
 
 /** Blank symbols (mappers pass "" through) become undefined. */
@@ -163,7 +176,7 @@ function amountText(amount: ActivityAmount | undefined): string | undefined {
   return sym ? `${fmtAmount(amount.value)} ${sym}` : fmtAmount(amount.value);
 }
 
-function usdText(
+export function usdText(
   amount: ActivityAmount | undefined,
   priceFor: AdapterDeps["priceFor"],
 ): string {
@@ -171,7 +184,10 @@ function usdText(
   const price = priceFor(amount.symbol);
   const value = Number(amount.value);
   if (!price || !Number.isFinite(value)) return "";
-  return `≈ ${formatCurrency(value * price)} USD`;
+  const usd = value * price;
+  // A real value that still rounds to $0.00 is worse than no line at all.
+  if (usd < 0.005) return "";
+  return `≈ ${formatCurrency(usd)} USD`;
 }
 
 function rateText(row: ActivityRowDescriptor): string | null {
@@ -208,17 +224,27 @@ function feeRows(row: ActivityRowDescriptor): DetailRow[] {
 const linkRow = (label: string, url: string | undefined): DetailRow =>
   url ? { label, value: "View", url } : { label, value: "-" };
 
-function buildDetails(row: ActivityRowDescriptor): DetailRow[] {
+export function buildDetails(row: ActivityRowDescriptor): DetailRow[] {
+  const bridge = isBridgeRow(row);
+  const kurve = row.type === KURVE_BRIDGE_ACTIVITY_TYPE;
+  const igraDeposit = row.type === IGRA_DEPOSIT_ACTIVITY_TYPE;
+  // Igra exits reach this feed as KAT rows (see useActivityFeed.ts) running
+  // L2 → Kaspa; Kurve exits are exits too. Classified by route (deposits of
+  // every type carry l1-to-l2); route defaults to exit, same as sheetTitle.
+  const isExit = bridge && row.meta?.route !== "l1-to-l2";
   const details: DetailRow[] = [
     {
       label: "Status",
       value: STATUS_LABEL[row.status],
       pill: STATUS_PILL[row.status],
+      ...(isExit && isInProgress(row)
+        ? { subtext: "Usually done within 48 hours" }
+        : {}),
     },
     ...feeRows(row),
   ];
 
-  if (!isBridgeRow(row)) {
+  if (!bridge) {
     details.push({ label: "Rate", value: rateText(row) ?? "-" });
     if (row.meta?.slippage) {
       details.push({ label: "Slippage", value: row.meta.slippage });
@@ -250,8 +276,6 @@ function buildDetails(row: ActivityRowDescriptor): DetailRow[] {
     return details;
   }
 
-  const kurve = row.type === KURVE_BRIDGE_ACTIVITY_TYPE;
-  const igraDeposit = row.type === IGRA_DEPOSIT_ACTIVITY_TYPE;
   details.push({
     label: "Provider",
     value: kurve
@@ -308,13 +332,7 @@ export function toActivityItem(
 
   return {
     id: row.id,
-    title: swap
-      ? isInProgress(row)
-        ? "Swapping"
-        : "Swapped"
-      : inProgress
-        ? "Bridging"
-        : "Bridged",
+    title: rowTitle(row),
     dateTime,
     fromImage,
     toImage,
