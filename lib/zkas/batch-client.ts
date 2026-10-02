@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { ZKasBatchIntent, ZKasSignedBytes } from "./batch-journal";
+import { assertBatchOrigin } from "./batch-origin";
 
 const hex32 = z.string().regex(/^[0-9a-f]{64}$/);
 const decimal = z.string().regex(/^(0|[1-9][0-9]{0,19})$/);
@@ -119,11 +120,6 @@ function daemonBase(value: string): string {
   return url.origin;
 }
 
-function assertOrigin(value: string): void {
-  if (!/^https:\/\/[a-z0-9.-]+(?::[0-9]+)?$/.test(value) || value.length > 200)
-    throw new Error("Invalid batch application origin");
-}
-
 function hexBytes(value: string): Uint8Array {
   if (value.length % 2 !== 0)
     throw new Error("Finalized transaction hex is not byte aligned");
@@ -198,7 +194,7 @@ export class ZKasBatchCapabilityClient {
     fetch?: typeof fetch;
   }) {
     this.base = daemonBase(config.baseUrl);
-    assertOrigin(config.origin);
+    assertBatchOrigin(config.origin);
     this.origin = config.origin;
     this.currentOrigin =
       config.currentOrigin ?? (() => globalThis.location?.origin ?? "");
@@ -305,7 +301,7 @@ export class ZKasBatchClient {
   async grant(
     intent: ZKasBatchIntent,
   ): Promise<{ capability: string; logicalId: string; expiresAtUnix: number }> {
-    assertOrigin(intent.origin);
+    assertBatchOrigin(intent.origin);
     const response = grantSchema.parse(
       await this.request("/api/wallet/prepare-many/capability", {
         method: "POST",

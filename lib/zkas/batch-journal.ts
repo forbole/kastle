@@ -1,5 +1,6 @@
 import type { ZKasSelection } from "./selection";
 import { withZKasPaymentAccountGate } from "./payment-account-gate";
+import { assertBatchOrigin } from "./batch-origin";
 
 export const BATCH_JOURNAL_KEY = "zkasBatchJournal" as const;
 
@@ -80,12 +81,7 @@ function assertIntent(intent: ZKasBatchIntent): void {
   ) {
     throw new Error("Invalid batch account selection");
   }
-  if (
-    !/^https:\/\/[a-z0-9.-]+(?::[0-9]+)?$/.test(intent.origin) ||
-    intent.origin.length > 200
-  ) {
-    throw new Error("Invalid batch origin");
-  }
+  assertBatchOrigin(intent.origin);
   if (
     !/^zkas:[a-z0-9]+$/.test(intent.account) ||
     intent.account.length > 120 ||

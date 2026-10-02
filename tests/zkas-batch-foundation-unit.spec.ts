@@ -200,6 +200,115 @@ test("batch client sends no wallet token on capability preparation and rejects o
   );
 });
 
+test("literal HTTP loopback origins preserve exact browser binding and an empty credential-free prepare", async () => {
+  for (const origin of [
+    "http://localhost:1",
+    "http://localhost:8765",
+    "http://localhost:65535",
+    "http://127.0.0.1:8765",
+  ]) {
+    const localIntent = { ...intent, origin };
+    const journal = new ZKasBatchJournal(store(), async () => false);
+    await journal.reserve(localIntent);
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const client = new ZKasBatchCapabilityClient({
+      baseUrl: "https://wallet.example.test",
+      origin,
+      currentOrigin: () => origin,
+      fetch: async (url, init) => {
+        calls.push({ url: String(url), init: init ?? {} });
+        return new Response(
+          JSON.stringify({
+            status: "in_progress",
+            logicalId: intent.logicalId,
+          }),
+        );
+      },
+    });
+    await client.prepare("b".repeat(64), intent.logicalId);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].init.body).toBeUndefined();
+    expect(calls[0].init.credentials).toBe("omit");
+    expect(new Headers(calls[0].init.headers).has("X-Wallet-Token")).toBe(
+      false,
+    );
+    expect(new Headers(calls[0].init.headers).has("Origin")).toBe(false);
+    expect(new Headers(calls[0].init.headers).get("Authorization")).toBe(
+      `Batch ${"b".repeat(64)}`,
+    );
+    let grantedOrigin = "";
+    const credentialed = new ZKasBatchClient({
+      baseUrl: "https://wallet.example.test",
+      token: "a".repeat(32),
+      fetch: async (_url, init) => {
+        grantedOrigin = JSON.parse(String(init?.body)).origin;
+        return new Response(
+          JSON.stringify({
+            capability: "b".repeat(64),
+            logicalId: intent.logicalId,
+            expiresAtUnix: 2_000_000_000,
+          }),
+        );
+      },
+    });
+    await credentialed.grant(localIntent);
+    expect(grantedOrigin).toBe(origin);
+  }
+  let called = false;
+  const mismatched = new ZKasBatchCapabilityClient({
+    baseUrl: "https://wallet.example.test",
+    origin: "http://localhost:8765",
+    currentOrigin: () => "http://127.0.0.1:8765",
+    fetch: async () => {
+      called = true;
+      throw new Error("must not fetch");
+    },
+  });
+  await expect(
+    mismatched.prepare("b".repeat(64), intent.logicalId),
+  ).rejects.toThrow(/origin changed/i);
+  expect(called).toBe(false);
+});
+
+test("HTTP application origins reject aliases, noncanonical ports, and URL suffixes", async () => {
+  for (const origin of [
+    "http://localhost",
+    "http://localhost:80",
+    "http://localhost:0",
+    "http://localhost:0001",
+    "http://localhost:65536",
+    "http://LOCALHOST:8765",
+    "http://localhost.local:8765",
+    "http://127.1:8765",
+    "http://[::1]:8765",
+    "http://10.0.0.1:8765",
+    "http://user@localhost:8765",
+    "http://localhost:8765/",
+    "http://localhost:8765?x=1",
+    "http://localhost:8765#hash",
+  ]) {
+    expect(
+      () =>
+        new ZKasBatchCapabilityClient({
+          baseUrl: "https://wallet.example.test",
+          origin,
+          currentOrigin: () => origin,
+          fetch: async () => {
+            throw new Error("must not fetch");
+          },
+        }),
+      origin,
+    ).toThrow(/origin/i);
+    await expect(
+      new ZKasBatchJournal(store(), async () => false).reserve({
+        ...intent,
+        origin,
+      }),
+      origin,
+    ).rejects.toThrow(/origin/i);
+  }
+});
+
 test("credentialed grant sends only the exact approved intent to configured daemon", async () => {
   const calls: Array<{ url: string; init: RequestInit }> = [];
   const client = new ZKasBatchClient({
