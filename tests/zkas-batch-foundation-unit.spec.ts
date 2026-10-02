@@ -55,10 +55,75 @@ async function signedFixture() {
   return { transactionHex, txid: "3".repeat(64), sha256 };
 }
 
+function recoveryFixture() {
+  const preparedPayment = JSON.parse(
+    readFileSync(
+      new URL("./fixtures/zkas-v3-prepared.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  const approved = {
+    ...intent,
+    account: preparedPayment.account as string,
+    outputs: preparedPayment.outputs.map(
+      (output: { recipient: string; amount: string; memo: string }) => ({
+        recipient: output.recipient,
+        amountSompi: output.amount,
+        memoHex: output.memo,
+      }),
+    ),
+    maxFeeSompi: "3000000",
+  };
+  const signatures = [{ actionIndex: 0, signatureHex: "7".repeat(128) }];
+  const signedTicket = JSON.stringify({
+    format: "zkas-private-signed-payment",
+    version: 1,
+    approvalDigest: "8".repeat(64),
+    prepared: preparedPayment,
+    signatures,
+  });
+  return { approved, preparedPayment, signatures, signedTicket };
+}
+
+function preparedForFoundationIntent() {
+  const { preparedPayment } = recoveryFixture();
+  return {
+    ...preparedPayment,
+    account: intent.account,
+    outputs: intent.outputs.map((output) => ({
+      amount: output.amountSompi,
+      memo: output.memoHex,
+      recipient: output.recipient,
+    })),
+    fee: intent.maxFeeSompi,
+  };
+}
+
+function ticketForFoundationIntent() {
+  return JSON.stringify({
+    format: "zkas-private-signed-payment",
+    version: 1,
+    approvalDigest: "8".repeat(64),
+    prepared: preparedForFoundationIntent(),
+    signatures: [{ actionIndex: 0, signatureHex: "7".repeat(128) }],
+  });
+}
+
+async function saveFoundationTicket(journal: ZKasBatchJournal) {
+  await journal.saveSignedTicket(intent, {
+    signedTicket: ticketForFoundationIntent(),
+    session: "6".repeat(48),
+    daemonIdentity: "https://wallet.example.test",
+    preparedChecksum: preparedForFoundationIntent().checksum,
+    signatures: [{ actionIndex: 0, signatureHex: "7".repeat(128) }],
+  });
+}
+
 test("verified full signed bytes survive restart and uncertain retry without new intent", async () => {
   const persisted = store();
   const first = new ZKasBatchJournal(persisted, async () => false);
   await first.reserve(intent);
+  await saveFoundationTicket(first);
   const signed = await signedFixture();
   await first.saveFinalized(intent, signed);
   await first.markUnknown(intent.logicalId);
@@ -364,6 +429,7 @@ test("private signer verifies full bytes before journal write and journal is unc
   const journal = new ZKasBatchJournal(store(), async () => false);
   const signed = await signedFixture();
   const daemon = {
+    identity: "https://wallet.example.test",
     grant: async () => ({
       capability: "5".repeat(64),
       logicalId: intent.logicalId,
@@ -374,7 +440,7 @@ test("private signer verifies full bytes before journal write and journal is unc
         status: "prepared",
         logicalId: intent.logicalId,
         session: "6".repeat(48),
-        preparedPayment: { version: 3 },
+        preparedPayment: preparedForFoundationIntent(),
       }) as ZKasPreparedBatch,
     finalize: async () => {
       events.push("finalize");
@@ -401,6 +467,9 @@ test("private signer verifies full bytes before journal write and journal is unc
       events.push("sign");
       return [{ actionIndex: 0, signatureHex: "7".repeat(128) }];
     },
+    exportTicket: async () => ticketForFoundationIntent(),
+    importTicket: async () => undefined,
+    close: () => undefined,
     verifyFinalized: async () => {
       events.push("verify");
     },
@@ -414,10 +483,10 @@ test("private signer verifies full bytes before journal write and journal is unc
 
 test("failed full transaction verification cannot persist or submit finalized bytes", async () => {
   const journal = new ZKasBatchJournal(store(), async () => false);
-  await journal.reserve(intent);
   let submitted = false;
   const flow = new ZKasBatchPayment(
     {
+      identity: "https://wallet.example.test",
       grant: async () => ({
         capability: "5".repeat(64),
         logicalId: intent.logicalId,
@@ -428,7 +497,7 @@ test("failed full transaction verification cannot persist or submit finalized by
           status: "prepared",
           logicalId: intent.logicalId,
           session: "6".repeat(48),
-          preparedPayment: { version: 3 },
+          preparedPayment: preparedForFoundationIntent(),
         }) as ZKasPreparedBatch,
       finalize: async () => signedFixture(),
       finalizedJournal: async () => signedFixture(),
@@ -440,9 +509,13 @@ test("failed full transaction verification cannot persist or submit finalized by
     journal,
     async () => undefined,
   );
+  await flow.begin(intent);
   await expect(
     flow.complete(intent, async () => ({
       sign: async () => [{ actionIndex: 0, signatureHex: "7".repeat(128) }],
+      exportTicket: async () => ticketForFoundationIntent(),
+      importTicket: async () => undefined,
+      close: () => undefined,
       verifyFinalized: async () => {
         throw new Error("invalid proof");
       },
@@ -454,12 +527,12 @@ test("failed full transaction verification cannot persist or submit finalized by
 
 test("lost finalize response refetches daemon journal while the private handle survives", async () => {
   const journal = new ZKasBatchJournal(store(), async () => false);
-  await journal.reserve(intent);
   const signed = await signedFixture();
   let verified = false;
   let submitted = false;
   const flow = new ZKasBatchPayment(
     {
+      identity: "https://wallet.example.test",
       grant: async () => ({
         capability: "5".repeat(64),
         logicalId: intent.logicalId,
@@ -470,7 +543,7 @@ test("lost finalize response refetches daemon journal while the private handle s
           status: "prepared",
           logicalId: intent.logicalId,
           session: "6".repeat(48),
-          preparedPayment: { version: 3 },
+          preparedPayment: preparedForFoundationIntent(),
         }) as ZKasPreparedBatch,
       finalize: async () => {
         throw new Error("response lost");
@@ -490,8 +563,12 @@ test("lost finalize response refetches daemon journal while the private handle s
     journal,
     async () => undefined,
   );
+  await flow.begin(intent);
   await flow.complete(intent, async () => ({
     sign: async () => [{ actionIndex: 0, signatureHex: "7".repeat(128) }],
+    exportTicket: async () => ticketForFoundationIntent(),
+    importTicket: async () => undefined,
+    close: () => undefined,
     verifyFinalized: async () => {
       verified = true;
     },
@@ -506,10 +583,12 @@ test("submission timeout keeps exact bytes and retries without reopening signer"
   const persisted = store();
   const first = new ZKasBatchJournal(persisted, async () => false);
   await first.reserve(intent);
+  await saveFoundationTicket(first);
   const signed = await signedFixture();
   await first.saveFinalized(intent, signed);
   let attempts = 0;
   const daemon = {
+    identity: "https://wallet.example.test",
     grant: async () => {
       throw new Error("must not grant");
     },
@@ -547,21 +626,23 @@ test("submission timeout keeps exact bytes and retries without reopening signer"
 
 test("selection change after prepared refetch prevents opening the private signer", async () => {
   const journal = new ZKasBatchJournal(store(), async () => false);
-  await journal.reserve(intent);
   let selectionChanged = false;
   let opened = false;
   const flow = new ZKasBatchPayment(
     {
-      grant: async () => {
-        throw new Error("must not grant");
-      },
+      identity: "https://wallet.example.test",
+      grant: async () => ({
+        capability: "5".repeat(64),
+        logicalId: intent.logicalId,
+        expiresAtUnix: 2_000_000_000,
+      }),
       prepared: async () => {
         selectionChanged = true;
         return {
           status: "prepared",
           logicalId: intent.logicalId,
           session: "6".repeat(48),
-          preparedPayment: { version: 3 },
+          preparedPayment: preparedForFoundationIntent(),
         } as ZKasPreparedBatch;
       },
       finalize: async () => {
@@ -579,6 +660,7 @@ test("selection change after prepared refetch prevents opening the private signe
       if (selectionChanged) throw new Error("selected account changed");
     },
   );
+  await flow.begin(intent);
   await expect(
     flow.complete(intent, async () => {
       opened = true;
@@ -602,6 +684,7 @@ test("selection change during journal read prevents credentialed prepared refetc
   let opened = false;
   const flow = new ZKasBatchPayment(
     {
+      identity: "https://wallet.example.test",
       grant: async () => {
         throw new Error("must not grant");
       },
@@ -638,6 +721,7 @@ test("selection change during journal read prevents credentialed prepared refetc
 test("selection change during stored-byte read cannot mark the payment UNKNOWN", async () => {
   const journal = new ZKasBatchJournal(store(), async () => false);
   await journal.reserve(intent);
+  await saveFoundationTicket(journal);
   const signed = await signedFixture();
   await journal.saveFinalized(intent, signed);
   const originalGet = journal.get.bind(journal);
@@ -650,6 +734,7 @@ test("selection change during stored-byte read cannot mark the payment UNKNOWN",
   let submitted = false;
   const flow = new ZKasBatchPayment(
     {
+      identity: "https://wallet.example.test",
       grant: async () => {
         throw new Error("must not grant");
       },
@@ -681,20 +766,22 @@ test("selection change during stored-byte read cannot mark the payment UNKNOWN",
 
 test("selection change during rejected finalization prevents credentialed recovery read", async () => {
   const journal = new ZKasBatchJournal(store(), async () => false);
-  await journal.reserve(intent);
   let stale = false;
   let recoveryReads = 0;
   const flow = new ZKasBatchPayment(
     {
-      grant: async () => {
-        throw new Error("must not grant");
-      },
+      identity: "https://wallet.example.test",
+      grant: async () => ({
+        capability: "5".repeat(64),
+        logicalId: intent.logicalId,
+        expiresAtUnix: 2_000_000_000,
+      }),
       prepared: async () =>
         ({
           status: "prepared",
           logicalId: intent.logicalId,
           session: "6".repeat(48),
-          preparedPayment: { version: 3 },
+          preparedPayment: preparedForFoundationIntent(),
         }) as ZKasPreparedBatch,
       finalize: async () => {
         stale = true;
@@ -713,9 +800,13 @@ test("selection change during rejected finalization prevents credentialed recove
       if (stale) throw new Error("selected account changed");
     },
   );
+  await flow.begin(intent);
   await expect(
     flow.complete(intent, async () => ({
       sign: async () => [{ actionIndex: 0, signatureHex: "7".repeat(128) }],
+      exportTicket: async () => ticketForFoundationIntent(),
+      importTicket: async () => undefined,
+      close: () => undefined,
       verifyFinalized: async () => undefined,
     })),
   ).rejects.toThrow(/selected account changed/);
@@ -725,20 +816,22 @@ test("selection change during rejected finalization prevents credentialed recove
 
 test("selection change during successful finalization prevents private verification", async () => {
   const journal = new ZKasBatchJournal(store(), async () => false);
-  await journal.reserve(intent);
   let stale = false;
   let verified = false;
   const flow = new ZKasBatchPayment(
     {
-      grant: async () => {
-        throw new Error("must not grant");
-      },
+      identity: "https://wallet.example.test",
+      grant: async () => ({
+        capability: "5".repeat(64),
+        logicalId: intent.logicalId,
+        expiresAtUnix: 2_000_000_000,
+      }),
       prepared: async () =>
         ({
           status: "prepared",
           logicalId: intent.logicalId,
           session: "6".repeat(48),
-          preparedPayment: { version: 3 },
+          preparedPayment: preparedForFoundationIntent(),
         }) as ZKasPreparedBatch,
       finalize: async () => {
         stale = true;
@@ -756,9 +849,13 @@ test("selection change during successful finalization prevents private verificat
       if (stale) throw new Error("selected account changed");
     },
   );
+  await flow.begin(intent);
   await expect(
     flow.complete(intent, async () => ({
       sign: async () => [{ actionIndex: 0, signatureHex: "7".repeat(128) }],
+      exportTicket: async () => ticketForFoundationIntent(),
+      importTicket: async () => undefined,
+      close: () => undefined,
       verifyFinalized: async () => {
         verified = true;
       },
@@ -771,11 +868,13 @@ test("selection change during successful finalization prevents private verificat
 test("selection change during submit rejects completion and retains exact UNKNOWN bytes", async () => {
   const journal = new ZKasBatchJournal(store(), async () => false);
   await journal.reserve(intent);
+  await saveFoundationTicket(journal);
   const signed = await signedFixture();
   await journal.saveFinalized(intent, signed);
   let stale = false;
   const flow = new ZKasBatchPayment(
     {
+      identity: "https://wallet.example.test",
       grant: async () => {
         throw new Error("must not grant");
       },
@@ -812,4 +911,615 @@ test("selection change during submit rejects completion and retains exact UNKNOW
     txid: signed.txid,
     sha256: signed.sha256,
   });
+});
+
+test("signed recovery ticket is stored before finalization and survives restart", async () => {
+  const persisted = store();
+  const journal = new ZKasBatchJournal(persisted, async () => false);
+  const preparedPayment = JSON.parse(
+    readFileSync(
+      new URL("./fixtures/zkas-v3-prepared.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  const ticketIntent = {
+    ...intent,
+    account: preparedPayment.account,
+    outputs: preparedPayment.outputs.map(
+      (output: { recipient: string; amount: string; memo: string }) => ({
+        recipient: output.recipient,
+        amountSompi: output.amount,
+        memoHex: output.memo,
+      }),
+    ),
+    maxFeeSompi: "3000000",
+  };
+  await journal.reserve(ticketIntent);
+  const signatures = [{ actionIndex: 0, signatureHex: "7".repeat(128) }];
+  const signedTicket = JSON.stringify({
+    format: "zkas-private-signed-payment",
+    version: 1,
+    approvalDigest: "8".repeat(64),
+    prepared: preparedPayment,
+    signatures,
+  });
+  await journal.saveSignedTicket(ticketIntent, {
+    signedTicket,
+    session: "6".repeat(48),
+    daemonIdentity: "https://wallet.example.test",
+    preparedChecksum: preparedPayment.checksum,
+    signatures,
+  });
+  const restarted = new ZKasBatchJournal(persisted, async () => false);
+  const record = await restarted.get(ticketIntent.logicalId);
+  expect(record?.signedTicket?.value).toBe(signedTicket);
+  expect(record?.status).toBe("preparing");
+  await expect(
+    restarted.reserve({ ...ticketIntent, logicalId: "9".repeat(64) }),
+  ).rejects.toThrow(/unresolved/i);
+});
+
+test("restart imports original signatures and verifies daemon bytes without signing again", async () => {
+  const persisted = store();
+  const original = new ZKasBatchJournal(persisted, async () => false);
+  const preparedPayment = JSON.parse(
+    readFileSync(
+      new URL("./fixtures/zkas-v3-prepared.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  const approved = {
+    ...intent,
+    account: preparedPayment.account,
+    outputs: preparedPayment.outputs.map(
+      (output: { recipient: string; amount: string; memo: string }) => ({
+        recipient: output.recipient,
+        amountSompi: output.amount,
+        memoHex: output.memo,
+      }),
+    ),
+    maxFeeSompi: "3000000",
+  };
+  const signatures = [{ actionIndex: 0, signatureHex: "7".repeat(128) }];
+  const ticket = JSON.stringify({
+    format: "zkas-private-signed-payment",
+    version: 1,
+    approvalDigest: "8".repeat(64),
+    prepared: preparedPayment,
+    signatures,
+  });
+  await original.reserve(approved);
+  await original.saveSignedTicket(approved, {
+    signedTicket: ticket,
+    session: "6".repeat(48),
+    daemonIdentity: "https://wallet.example.test",
+    preparedChecksum: preparedPayment.checksum,
+    signatures,
+  });
+  const signed = await signedFixture();
+  const events: string[] = [];
+  const restarted = new ZKasBatchJournal(persisted, async () => false);
+  const flow = new ZKasBatchPayment(
+    {
+      identity: "https://wallet.example.test",
+      grant: async () => {
+        throw new Error("must not grant");
+      },
+      prepared: async () => {
+        throw new Error("must not prepare");
+      },
+      finalize: async () => {
+        throw new Error("must not finalize");
+      },
+      finalizedJournal: async () => {
+        events.push("refetch");
+        return signed;
+      },
+      submit: async () => {
+        events.push("submit");
+        expect((await restarted.get(approved.logicalId))?.status).toBe(
+          "unknown",
+        );
+        return {
+          status: "unknown",
+          logicalId: approved.logicalId,
+          txid: signed.txid,
+          sha256: signed.sha256,
+        };
+      },
+    },
+    restarted,
+    async () => {
+      events.push("selection");
+    },
+  );
+  await flow.recover(approved, async () => ({
+    sign: async () => {
+      throw new Error("must not sign");
+    },
+    exportTicket: async () => {
+      throw new Error("must not export");
+    },
+    importTicket: async (value) => {
+      expect(value).toBe(ticket);
+      events.push("import");
+    },
+    verifyFinalized: async (value) => {
+      expect(value).toEqual(signed);
+      events.push("verify");
+    },
+    close: () => {
+      events.push("close");
+    },
+  }));
+  expect(events.indexOf("import")).toBeLessThan(events.indexOf("refetch"));
+  expect(events.indexOf("verify")).toBeLessThan(events.indexOf("submit"));
+  expect(events.indexOf("close")).toBeLessThan(events.indexOf("submit"));
+  expect((await restarted.get(approved.logicalId))?.transactionHex).toBe(
+    signed.transactionHex,
+  );
+});
+
+test("restart after ticket persistence retries only its original daemon session and signatures", async () => {
+  const { approved, preparedPayment, signatures, signedTicket } =
+    recoveryFixture();
+  const persisted = store();
+  const original = new ZKasBatchJournal(persisted, async () => false);
+  await original.reserve(approved);
+  await original.saveSignedTicket(approved, {
+    signedTicket,
+    session: "6".repeat(48),
+    daemonIdentity: "https://wallet.example.test",
+    preparedChecksum: preparedPayment.checksum,
+    signatures,
+  });
+  const signed = await signedFixture();
+  const events: string[] = [];
+  const flow = new ZKasBatchPayment(
+    {
+      identity: "https://wallet.example.test",
+      grant: async () => {
+        throw new Error("must not grant");
+      },
+      prepared: async () => {
+        throw new Error("must not prepare");
+      },
+      finalizedJournal: async () => {
+        events.push("refetch");
+        throw new Error("not finalized");
+      },
+      finalize: async (seenIntent, session, map) => {
+        events.push("finalize");
+        expect(seenIntent).toEqual(approved);
+        expect(session).toBe("6".repeat(48));
+        expect(map).toEqual(signatures);
+        return signed;
+      },
+      submit: async () => ({
+        status: "unknown",
+        logicalId: approved.logicalId,
+        txid: signed.txid,
+        sha256: signed.sha256,
+      }),
+    },
+    new ZKasBatchJournal(persisted, async () => false),
+    async () => undefined,
+  );
+  await flow.recover(approved, async (originalApproval) => {
+    expect(originalApproval).toEqual(approved);
+    return {
+      sign: async () => {
+        throw new Error("must not re-sign");
+      },
+      exportTicket: async () => {
+        throw new Error("must not re-export");
+      },
+      importTicket: async (value) => {
+        expect(value).toBe(signedTicket);
+        events.push("import");
+      },
+      verifyFinalized: async (value) => {
+        expect(value).toEqual(signed);
+        events.push("verify");
+      },
+      close: () => {
+        events.push("close");
+      },
+    };
+  });
+  expect(events).toEqual(["import", "refetch", "finalize", "verify", "close"]);
+});
+
+test("completion persists the original ticket before daemon finalization", async () => {
+  const { approved, preparedPayment, signatures, signedTicket } =
+    recoveryFixture();
+  const journal = new ZKasBatchJournal(store(), async () => false);
+  const signed = await signedFixture();
+  const events: string[] = [];
+  const flow = new ZKasBatchPayment(
+    {
+      identity: "https://wallet.example.test",
+      grant: async () => ({
+        capability: "5".repeat(64),
+        logicalId: approved.logicalId,
+        expiresAtUnix: 2_000_000_000,
+      }),
+      prepared: async () => ({
+        status: "prepared",
+        logicalId: approved.logicalId,
+        session: "6".repeat(48),
+        preparedPayment,
+      }),
+      finalize: async () => {
+        events.push("finalize");
+        expect(
+          (await journal.get(approved.logicalId))?.signedTicket?.value,
+        ).toBe(signedTicket);
+        return signed;
+      },
+      finalizedJournal: async () => signed,
+      submit: async () => ({
+        status: "unknown",
+        logicalId: approved.logicalId,
+        txid: signed.txid,
+        sha256: signed.sha256,
+      }),
+    },
+    journal,
+    async () => undefined,
+  );
+  await flow.begin(approved);
+  await flow.complete(approved, async () => ({
+    sign: async () => signatures,
+    exportTicket: async () => {
+      events.push("export");
+      return signedTicket;
+    },
+    importTicket: async () => {
+      throw new Error("must not import");
+    },
+    verifyFinalized: async () => undefined,
+    close: () => {
+      events.push("close");
+    },
+  }));
+  expect(events).toEqual(["export", "finalize", "close"]);
+});
+
+test("failed encrypted ticket write cannot reach daemon finalization", async () => {
+  const { approved, preparedPayment, signatures, signedTicket } =
+    recoveryFixture();
+  const backing = store();
+  let failWrite = false;
+  const guarded = {
+    getValue: backing.getValue,
+    updateValue: async <T>(
+      key: string,
+      update: (current: T | null) => T | Promise<T>,
+    ) => {
+      if (failWrite) throw new Error("encrypted ticket write failed");
+      await backing.updateValue(key, update);
+    },
+  };
+  const journal = new ZKasBatchJournal(guarded, async () => false);
+  let finalized = false;
+  let closed = false;
+  const flow = new ZKasBatchPayment(
+    {
+      identity: "https://wallet.example.test",
+      grant: async () => ({
+        capability: "5".repeat(64),
+        logicalId: approved.logicalId,
+        expiresAtUnix: 2_000_000_000,
+      }),
+      prepared: async () => ({
+        status: "prepared",
+        logicalId: approved.logicalId,
+        session: "6".repeat(48),
+        preparedPayment,
+      }),
+      finalize: async () => {
+        finalized = true;
+        throw new Error("must not finalize");
+      },
+      finalizedJournal: async () => {
+        throw new Error("must not refetch");
+      },
+      submit: async () => {
+        throw new Error("must not submit");
+      },
+    },
+    journal,
+    async () => undefined,
+  );
+  await flow.begin(approved);
+  failWrite = true;
+  await expect(
+    flow.complete(approved, async () => ({
+      sign: async () => signatures,
+      exportTicket: async () => signedTicket,
+      importTicket: async () => {
+        throw new Error("must not import");
+      },
+      verifyFinalized: async () => {
+        throw new Error("must not verify");
+      },
+      close: () => {
+        closed = true;
+      },
+    })),
+  ).rejects.toThrow(/ticket write/i);
+  expect(finalized).toBe(false);
+  expect(closed).toBe(true);
+  expect((await journal.get(approved.logicalId))?.signedTicket).toBeUndefined();
+});
+
+test("a restarted preparing record without a signed ticket cannot authorize a new signature", async () => {
+  const persisted = store();
+  await new ZKasBatchJournal(persisted, async () => false).reserve(intent);
+  const restarted = new ZKasBatchJournal(persisted, async () => false);
+  let preparedReads = 0;
+  let opened = false;
+  const flow = new ZKasBatchPayment(
+    {
+      identity: "https://wallet.example.test",
+      grant: async () => {
+        throw new Error("must not grant");
+      },
+      prepared: async () => {
+        preparedReads++;
+        throw new Error("must not read prepared");
+      },
+      finalize: async () => {
+        throw new Error("must not finalize");
+      },
+      finalizedJournal: async () => {
+        throw new Error("must not refetch");
+      },
+      submit: async () => {
+        throw new Error("must not submit");
+      },
+    },
+    restarted,
+    async () => undefined,
+  );
+  await expect(
+    flow.complete(intent, async () => {
+      opened = true;
+      throw new Error("must not open signer");
+    }),
+  ).rejects.toThrow(/original|ticket|restart/i);
+  expect(preparedReads).toBe(0);
+  expect(opened).toBe(false);
+  expect((await restarted.get(intent.logicalId))?.status).toBe("preparing");
+});
+
+test("ticket persistence rejects malformed signature maps even when caller supplies the same map", async () => {
+  const { approved, preparedPayment, signedTicket } = recoveryFixture();
+  const journal = new ZKasBatchJournal(store(), async () => false);
+  await journal.reserve(approved);
+  for (const signatures of [
+    [{ actionIndex: 1, signatureHex: "7".repeat(128) }],
+    [{ actionIndex: 0, signatureHex: "7".repeat(126) }],
+    [
+      { actionIndex: 0, signatureHex: "7".repeat(128) },
+      { actionIndex: 0, signatureHex: "8".repeat(128) },
+    ],
+  ]) {
+    const altered = JSON.stringify({ ...JSON.parse(signedTicket), signatures });
+    await expect(
+      journal.saveSignedTicket(approved, {
+        signedTicket: altered,
+        session: "6".repeat(48),
+        daemonIdentity: "https://wallet.example.test",
+        preparedChecksum: preparedPayment.checksum,
+        signatures,
+      }),
+    ).rejects.toThrow(/signature|ticket/i);
+  }
+  expect((await journal.get(approved.logicalId))?.signedTicket).toBeUndefined();
+});
+
+test("private ticket persistence rejects noncanonical JSON and changed approval details", async () => {
+  const { approved, preparedPayment, signatures, signedTicket } =
+    recoveryFixture();
+  const journal = new ZKasBatchJournal(store(), async () => false);
+  await journal.reserve(approved);
+  const save = (
+    value: string,
+    daemonIdentity = "https://wallet.example.test",
+  ) =>
+    journal.saveSignedTicket(approved, {
+      signedTicket: value,
+      session: "6".repeat(48),
+      daemonIdentity,
+      preparedChecksum: preparedPayment.checksum,
+      signatures,
+    });
+  const raw = JSON.parse(signedTicket);
+  for (const value of [
+    signedTicket.replace('"version":1,', '"version":1,"version":1,'),
+    JSON.stringify({ ...raw, unknown: true }),
+    JSON.stringify({
+      ...raw,
+      prepared: { ...raw.prepared, account: intent.account },
+    }),
+    JSON.stringify({ ...raw, prepared: { ...raw.prepared, fee: "3000001" } }),
+  ]) {
+    await expect(save(value)).rejects.toThrow(/ticket|payment/i);
+  }
+  for (const daemonIdentity of [
+    "http://wallet.example.test:8080",
+    "https://wallet.example.test:99999",
+    "https://wallet.example.test/path",
+    "https://wallet.example.test:08080",
+  ]) {
+    await expect(save(signedTicket, daemonIdentity)).rejects.toThrow(
+      /metadata/i,
+    );
+  }
+  expect((await journal.get(approved.logicalId))?.signedTicket).toBeUndefined();
+});
+
+test("recovery cannot switch the retained account, origin, or configured daemon", async () => {
+  const { approved, preparedPayment, signatures, signedTicket } =
+    recoveryFixture();
+  const persisted = store();
+  const journal = new ZKasBatchJournal(persisted, async () => false);
+  await journal.reserve(approved);
+  await journal.saveSignedTicket(approved, {
+    signedTicket,
+    session: "6".repeat(48),
+    daemonIdentity: "https://wallet.example.test",
+    preparedChecksum: preparedPayment.checksum,
+    signatures,
+  });
+  let opened = 0;
+  let daemonCalls = 0;
+  const flow = new ZKasBatchPayment(
+    {
+      identity: "https://other.example.test",
+      grant: async () => {
+        daemonCalls++;
+        throw new Error("must not grant");
+      },
+      prepared: async () => {
+        daemonCalls++;
+        throw new Error("must not prepare");
+      },
+      finalize: async () => {
+        daemonCalls++;
+        throw new Error("must not finalize");
+      },
+      finalizedJournal: async () => {
+        daemonCalls++;
+        throw new Error("must not refetch");
+      },
+      submit: async () => {
+        daemonCalls++;
+        throw new Error("must not submit");
+      },
+    },
+    journal,
+    async () => undefined,
+  );
+  for (const different of [
+    approved,
+    { ...approved, account: intent.account },
+    { ...approved, origin: "https://other.example.test" },
+  ]) {
+    await expect(
+      flow.recover(different, async () => {
+        opened++;
+        throw new Error("must not open");
+      }),
+    ).rejects.toThrow(/ticket/i);
+  }
+  expect(opened).toBe(0);
+  expect(daemonCalls).toBe(0);
+  expect((await journal.get(approved.logicalId))?.status).toBe("preparing");
+});
+
+test("stored finalized bytes cannot be submitted through a different daemon", async () => {
+  const journal = new ZKasBatchJournal(store(), async () => false);
+  await journal.reserve(intent);
+  await saveFoundationTicket(journal);
+  await journal.saveFinalized(intent, await signedFixture());
+  let submitted = false;
+  const flow = new ZKasBatchPayment(
+    {
+      identity: "https://other.example.test",
+      grant: async () => {
+        throw new Error("must not grant");
+      },
+      prepared: async () => {
+        throw new Error("must not prepare");
+      },
+      finalize: async () => {
+        throw new Error("must not finalize");
+      },
+      finalizedJournal: async () => {
+        throw new Error("must not refetch");
+      },
+      submit: async () => {
+        submitted = true;
+        throw new Error("must not submit");
+      },
+    },
+    journal,
+    async () => undefined,
+  );
+  await expect(flow.retryStored(intent)).rejects.toThrow(/daemon|ticket/i);
+  expect(submitted).toBe(false);
+  expect((await journal.get(intent.logicalId))?.status).toBe("finalized");
+});
+
+test("failed recovered full-byte verification retains the ticket and account barrier", async () => {
+  const { approved, preparedPayment, signatures, signedTicket } =
+    recoveryFixture();
+  const persisted = store();
+  const journal = new ZKasBatchJournal(persisted, async () => false);
+  await journal.reserve(approved);
+  await journal.saveSignedTicket(approved, {
+    signedTicket,
+    session: "6".repeat(48),
+    daemonIdentity: "https://wallet.example.test",
+    preparedChecksum: preparedPayment.checksum,
+    signatures,
+  });
+  let submitted = false;
+  let closed = false;
+  const flow = new ZKasBatchPayment(
+    {
+      identity: "https://wallet.example.test",
+      grant: async () => {
+        throw new Error("must not grant");
+      },
+      prepared: async () => {
+        throw new Error("must not prepare");
+      },
+      finalize: async () => {
+        throw new Error("must not finalize");
+      },
+      finalizedJournal: signedFixture,
+      submit: async () => {
+        submitted = true;
+        throw new Error("must not submit");
+      },
+    },
+    journal,
+    async () => undefined,
+  );
+  await expect(
+    flow.recover(approved, async () => ({
+      sign: async () => {
+        throw new Error("must not sign");
+      },
+      exportTicket: async () => {
+        throw new Error("must not export");
+      },
+      importTicket: async () => undefined,
+      verifyFinalized: async () => {
+        throw new Error("invalid proof or signed bytes");
+      },
+      close: () => {
+        closed = true;
+      },
+    })),
+  ).rejects.toThrow(/invalid proof/i);
+  expect(closed).toBe(true);
+  expect(submitted).toBe(false);
+  expect((await journal.get(approved.logicalId))?.status).toBe("preparing");
+  await expect(
+    journal.reserve({ ...approved, logicalId: "a".repeat(64) }),
+  ).rejects.toThrow(/unresolved/i);
+});
+
+test("journal cannot accept finalized bytes without a retained original signed ticket", async () => {
+  const journal = new ZKasBatchJournal(store(), async () => false);
+  await journal.reserve(intent);
+  await expect(
+    journal.saveFinalized(intent, await signedFixture()),
+  ).rejects.toThrow(/ticket/i);
+  expect((await journal.get(intent.logicalId))?.status).toBe("preparing");
 });

@@ -19,6 +19,14 @@ export type ZKasSignedBytes = {
   sha256: string;
 };
 
+export type ZKasSignedTicket = {
+  value: string;
+  sha256: string;
+  session: string;
+  daemonIdentity: string;
+  preparedChecksum: string;
+};
+
 export type ZKasBatchRecord = {
   intent: ZKasBatchIntent;
   status:
@@ -32,6 +40,7 @@ export type ZKasBatchRecord = {
   transactionHex?: string;
   txid?: string;
   sha256?: string;
+  signedTicket?: ZKasSignedTicket;
 };
 
 type PrivateStore = {
@@ -123,6 +132,10 @@ function assertRecord(record: ZKasBatchRecord): void {
     throw new Error("Invalid batch journal status");
   }
   if (record.status !== "preparing") {
+    if (!record.signedTicket)
+      throw new Error(
+        "Signed batch ticket is missing from the private journal",
+      );
     if (
       !record.transactionHex ||
       record.transactionHex.length > 1_000_000 ||
@@ -133,6 +146,129 @@ function assertRecord(record: ZKasBatchRecord): void {
     }
     assertHex(record.txid ?? "", 32);
     assertHex(record.sha256 ?? "", 32);
+  }
+  if (record.signedTicket) assertTicketMetadata(record.signedTicket);
+}
+
+function assertTicketMetadata(ticket: ZKasSignedTicket): void {
+  if (
+    typeof ticket.value !== "string" ||
+    ticket.value.length > 640 * 1024 ||
+    ticket.value.length === 0 ||
+    typeof ticket.daemonIdentity !== "string" ||
+    ticket.daemonIdentity.length > 200
+  ) {
+    throw new Error("Invalid private signed ticket metadata");
+  }
+  let canonicalDaemon = false;
+  try {
+    const url = new URL(ticket.daemonIdentity);
+    canonicalDaemon =
+      url.origin === ticket.daemonIdentity &&
+      !url.username &&
+      !url.password &&
+      !url.search &&
+      !url.hash &&
+      url.pathname === "/" &&
+      (url.protocol === "https:" ||
+        (url.protocol === "http:" &&
+          (url.hostname === "localhost" || url.hostname === "127.0.0.1")));
+  } catch {
+    canonicalDaemon = false;
+  }
+  if (
+    !/^[0-9a-f]{48}$/.test(ticket.session) ||
+    !/^[0-9a-f]{64}$/.test(ticket.sha256) ||
+    !/^[0-9a-f]{64}$/.test(ticket.preparedChecksum) ||
+    !canonicalDaemon
+  ) {
+    throw new Error("Invalid private signed ticket metadata");
+  }
+}
+
+async function sha256Text(value: string): Promise<string> {
+  const digest = new Uint8Array(
+    await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value)),
+  );
+  return Array.from(digest, (byte) => byte.toString(16).padStart(2, "0")).join(
+    "",
+  );
+}
+
+function assertTicketContents(
+  intent: ZKasBatchIntent,
+  signedTicket: string,
+  preparedChecksum: string,
+  signatures: { actionIndex: number; signatureHex: string }[],
+): void {
+  let ticket: Record<string, unknown>;
+  try {
+    ticket = JSON.parse(signedTicket);
+  } catch {
+    throw new Error("Invalid private signed ticket");
+  }
+  if (
+    !ticket ||
+    typeof ticket !== "object" ||
+    Array.isArray(ticket) ||
+    JSON.stringify(ticket) !== signedTicket ||
+    Object.keys(ticket).sort().join() !==
+      "approvalDigest,format,prepared,signatures,version" ||
+    ticket.format !== "zkas-private-signed-payment" ||
+    ticket.version !== 1 ||
+    !/^[0-9a-f]{64}$/.test(String(ticket.approvalDigest)) ||
+    JSON.stringify(ticket.signatures) !== JSON.stringify(signatures)
+  ) {
+    throw new Error("Private signed ticket differs from original signatures");
+  }
+  const prepared = ticket.prepared as Record<string, unknown>;
+  if (
+    !prepared ||
+    typeof prepared !== "object" ||
+    prepared.format !== "zkas-prepared-payment-multi" ||
+    prepared.version !== 3 ||
+    prepared.checksum !== preparedChecksum ||
+    prepared.account !== intent.account ||
+    !Array.isArray(prepared.outputs) ||
+    prepared.outputs.length !== intent.outputs.length ||
+    prepared.outputs.some((rawOutput, index) => {
+      const output = rawOutput as Record<string, unknown>;
+      const approved = intent.outputs[index];
+      return (
+        !output ||
+        typeof output !== "object" ||
+        output.recipient !== approved.recipient ||
+        output.amount !== approved.amountSompi ||
+        output.memo !== approved.memoHex
+      );
+    }) ||
+    typeof prepared.fee !== "string" ||
+    !/^(0|[1-9][0-9]{0,19})$/.test(prepared.fee) ||
+    BigInt(prepared.fee) > BigInt(intent.maxFeeSompi)
+  ) {
+    throw new Error("Private signed ticket differs from approved payment");
+  }
+  const spendAuth = prepared.spendAuth;
+  if (
+    !Array.isArray(spendAuth) ||
+    spendAuth.length === 0 ||
+    spendAuth.length > 32 ||
+    !Array.isArray(ticket.signatures) ||
+    ticket.signatures.length !== spendAuth.length ||
+    ticket.signatures.some((signature, index) => {
+      const item = signature as Record<string, unknown>;
+      const request = spendAuth[index] as Record<string, unknown>;
+      return (
+        !item ||
+        typeof item !== "object" ||
+        Object.keys(item).sort().join() !== "actionIndex,signatureHex" ||
+        !Number.isSafeInteger(item.actionIndex) ||
+        item.actionIndex !== request?.actionIndex ||
+        !/^[0-9a-f]{128}$/.test(String(item.signatureHex))
+      );
+    })
+  ) {
+    throw new Error("Invalid private signed ticket signature map");
   }
 }
 
@@ -185,6 +321,19 @@ export class ZKasBatchJournal {
       assertRecord(record);
       if (record.intent.logicalId !== id)
         throw new Error("Invalid private batch journal identity");
+      if (record.signedTicket) {
+        if (
+          (await sha256Text(record.signedTicket.value)) !==
+          record.signedTicket.sha256
+        )
+          throw new Error("Private signed ticket digest mismatch");
+        assertTicketContents(
+          record.intent,
+          record.signedTicket.value,
+          record.signedTicket.preparedChecksum,
+          JSON.parse(record.signedTicket.value).signatures,
+        );
+      }
     }
     return records;
   }
@@ -202,9 +351,10 @@ export class ZKasBatchJournal {
     );
   }
 
-  async reserve(intent: ZKasBatchIntent): Promise<void> {
+  async reserve(intent: ZKasBatchIntent): Promise<boolean> {
     assertIntent(intent);
     return withZKasPaymentAccountGate(async () => {
+      let created = false;
       if (await this.legacyReserved(intent.selection))
         throw new Error(
           "An unresolved legacy ZKas payment reserves this account",
@@ -236,6 +386,7 @@ export class ZKasBatchJournal {
           }
           if (Object.keys(records).length >= 128)
             throw new Error("Private batch journal is full");
+          created = true;
           return {
             ...records,
             [intent.logicalId]: {
@@ -245,7 +396,59 @@ export class ZKasBatchJournal {
           };
         },
       );
+      return created;
     });
+  }
+
+  async saveSignedTicket(
+    intent: ZKasBatchIntent,
+    input: Omit<ZKasSignedTicket, "value" | "sha256"> & {
+      signedTicket: string;
+      signatures: { actionIndex: number; signatureHex: string }[];
+    },
+  ): Promise<void> {
+    assertIntent(intent);
+    if (
+      typeof input.signedTicket !== "string" ||
+      input.signedTicket.length === 0 ||
+      input.signedTicket.length > 640 * 1024
+    ) {
+      throw new Error("Invalid private signed ticket metadata");
+    }
+    const ticket: ZKasSignedTicket = {
+      value: input.signedTicket,
+      sha256: await sha256Text(input.signedTicket),
+      session: input.session,
+      daemonIdentity: input.daemonIdentity,
+      preparedChecksum: input.preparedChecksum,
+    };
+    assertTicketMetadata(ticket);
+    assertTicketContents(
+      intent,
+      ticket.value,
+      ticket.preparedChecksum,
+      input.signatures,
+    );
+    await this.store.updateValue<Record<string, ZKasBatchRecord>>(
+      BATCH_JOURNAL_KEY,
+      (current) => {
+        const records = current ?? {};
+        const record = records[intent.logicalId];
+        if (!record || JSON.stringify(record.intent) !== JSON.stringify(intent))
+          throw new Error("Batch intent changed");
+        if (record.signedTicket) {
+          if (JSON.stringify(record.signedTicket) === JSON.stringify(ticket))
+            return records;
+          throw new Error("Signed payment ticket is immutable");
+        }
+        if (record.status !== "preparing")
+          throw new Error("Batch payment is already finalized");
+        return {
+          ...records,
+          [intent.logicalId]: { ...record, signedTicket: ticket },
+        };
+      },
+    );
   }
 
   async saveFinalized(
@@ -270,6 +473,8 @@ export class ZKasBatchJournal {
         const record = records[intent.logicalId];
         if (!record || JSON.stringify(record.intent) !== JSON.stringify(intent))
           throw new Error("Batch intent changed");
+        if (!record.signedTicket)
+          throw new Error("Original signed batch ticket is unavailable");
         if (record.status !== "preparing") {
           if (
             record.transactionHex === signed.transactionHex &&

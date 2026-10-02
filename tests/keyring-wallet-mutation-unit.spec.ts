@@ -3,6 +3,7 @@ import { Keyring } from "@/lib/keyring-manager";
 import { attachZKasSeed } from "@/lib/zkas/selection";
 import type { WalletSecret } from "@/types/WalletSecret";
 import { ZKasBatchJournal } from "@/lib/zkas/batch-journal";
+import { readFileSync } from "node:fs";
 
 test("concurrent ZKas imports attach only the first seed", async () => {
   const keyring = await createTestKeyring();
@@ -81,6 +82,34 @@ test("signed batch bytes stay encrypted through lock, unlock, and password rotat
     maxFeeSompi: "1000000",
   };
   await journal.reserve(intent);
+  const prepared = JSON.parse(
+    readFileSync(
+      new URL("./fixtures/zkas-v3-prepared.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  prepared.account = intent.account;
+  prepared.outputs = intent.outputs.map((output) => ({
+    recipient: output.recipient,
+    amount: output.amountSompi,
+    memo: output.memoHex,
+  }));
+  prepared.fee = intent.maxFeeSompi;
+  const signatures = [{ actionIndex: 0, signatureHex: "7".repeat(128) }];
+  const signedTicket = JSON.stringify({
+    format: "zkas-private-signed-payment",
+    version: 1,
+    approvalDigest: "8".repeat(64),
+    prepared,
+    signatures,
+  });
+  await journal.saveSignedTicket(intent, {
+    signedTicket,
+    session: "6".repeat(48),
+    daemonIdentity: "https://wallet.example.test",
+    preparedChecksum: prepared.checksum,
+    signatures,
+  });
   const transactionHex = "ab".repeat(100);
   const digest = await crypto.subtle.digest(
     "SHA-256",
@@ -95,11 +124,15 @@ test("signed batch bytes stay encrypted through lock, unlock, and password rotat
     sha256,
   });
   expect(JSON.stringify([...values.values()])).not.toContain(transactionHex);
+  expect(JSON.stringify([...values.values()])).not.toContain(signedTicket);
   await keyring.lock();
   await expect(journal.get(intent.logicalId)).rejects.toThrow(/locked/i);
   expect(await keyring.unlock("first-password")).toBe(true);
   expect((await journal.get(intent.logicalId))?.transactionHex).toBe(
     transactionHex,
+  );
+  expect((await journal.get(intent.logicalId))?.signedTicket?.value).toBe(
+    signedTicket,
   );
   expect(
     await keyring.changePassword("first-password", "second-password"),

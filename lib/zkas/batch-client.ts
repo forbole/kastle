@@ -247,6 +247,7 @@ export class ZKasBatchCapabilityClient {
 
 export class ZKasBatchClient {
   private readonly base: string;
+  readonly identity: string;
   private readonly token: string;
   private readonly fetcher: typeof fetch;
 
@@ -256,6 +257,7 @@ export class ZKasBatchClient {
     fetch?: typeof fetch;
   }) {
     this.base = daemonBase(config.baseUrl);
+    this.identity = this.base;
     if (!/^[0-9a-f]{32}$/.test(config.token))
       throw new Error("Invalid wallet token");
     this.token = config.token;
