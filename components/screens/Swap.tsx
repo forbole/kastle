@@ -93,6 +93,9 @@ type ProviderQuote = {
   feeBps?: bigint;
   path?: Address[];
   amountOut?: bigint;
+  /** What the user receives: amountOut less the proxy's output-side partner fee. */
+  netAmountOut?: bigint;
+  partnerFeeBps?: number;
 };
 
 const TOOLTIPS = {
@@ -274,6 +277,21 @@ export default function Swap() {
               const feeBps = provider.feeCollectorAddress
                 ? await readSwapFeeBps(client, provider.feeCollectorAddress)
                 : 0n;
+              // KaspaCom has no fee collector: its cut is a partner fee held by
+              // the proxy contract and taken from the output token.
+              const viaProxy =
+                !provider.feeCollectorAddress && !!provider.proxyAddress;
+              const partnerFeeBps = viaProxy
+                ? await client
+                    .readContract({
+                      address: provider.proxyAddress as Address,
+                      abi: SWAP_PROXY_ABI,
+                      functionName: "partners",
+                      args: [KASPA_COM_PARTNER_KEY as Hex],
+                    })
+                    .then(([, bps]) => Number(bps))
+                    .catch(() => undefined)
+                : undefined;
               const best = await createPathFinder(
                 provider,
                 client,
@@ -288,6 +306,13 @@ export default function Swap() {
                 feeBps,
                 path: best.path,
                 amountOut: best.amountOut,
+                partnerFeeBps,
+                netAmountOut: !viaProxy
+                  ? best.amountOut
+                  : partnerFeeBps === undefined
+                    ? undefined
+                    : (best.amountOut * BigInt(10_000 - partnerFeeBps)) /
+                      10_000n,
               };
             } catch {
               return { provider };
@@ -308,11 +333,17 @@ export default function Swap() {
     (q) => q.amountOut && matchesRoute(q.path),
   );
   const best = supported.reduce<ProviderQuote | undefined>(
-    (acc, q) => (!acc || q.amountOut! > acc.amountOut! ? q : acc),
+    (acc, q) =>
+      q.netAmountOut !== undefined &&
+      (!acc || q.netAmountOut > acc.netAmountOut!)
+        ? q
+        : acc,
     undefined,
   );
   const selected =
-    supported.find((q) => q.provider.name === providerName) ?? best;
+    supported.find((q) => q.provider.name === providerName) ??
+    best ??
+    supported[0];
 
   const gas =
     (isNativeIn
@@ -336,8 +367,8 @@ export default function Swap() {
 
   const amountNum = Number(amount) || 0;
   const outNum =
-    selected?.amountOut !== undefined && tokenOut
-      ? Number(formatUnits(selected.amountOut, tokenOut.decimals))
+    selected?.netAmountOut !== undefined && tokenOut
+      ? Number(formatUnits(selected.netAmountOut, tokenOut.decimals))
       : undefined;
   const usdIn = amountNum * priceIn;
   const usdOut = (outNum ?? 0) * priceOut;
@@ -347,23 +378,11 @@ export default function Swap() {
   const viaFeeCollector = !!selected?.provider.feeCollectorAddress;
   const feeBps = selected?.feeBps ?? 0n;
 
-  // KaspaCom has no fee collector: its cut is a partner fee encoded in the
-  // proxy contract and taken from the output token, not the input.
-  const { data: partnerFeeBps } = useSWR(
-    !viaFeeCollector && selected?.provider.proxyAddress
-      ? ["swapPartnerFee", chainHex, selected.provider.proxyAddress]
-      : null,
-    async () => {
-      const [, bps] = await client.readContract({
-        address: selected!.provider.proxyAddress as Address,
-        abi: SWAP_PROXY_ABI,
-        functionName: "partners",
-        args: [KASPA_COM_PARTNER_KEY as Hex],
-      });
-      return Number(bps);
-    },
-    { refreshInterval: 3_600_000, revalidateOnFocus: false },
-  );
+  const partnerFeeBps = selected?.partnerFeeBps;
+  const feeUnavailable =
+    !viaFeeCollector &&
+    !!selected?.provider.proxyAddress &&
+    selected.netAmountOut === undefined;
 
   const kastleFeeBps = viaFeeCollector ? Number(feeBps) : (partnerFeeBps ?? 0);
   const kastleFeeSymbol = viaFeeCollector ? tokenIn?.symbol : tokenOut?.symbol;
@@ -372,8 +391,9 @@ export default function Swap() {
       Number(
         formatUnits(swapPathAmountIn(rawIn, feeBps), tokenIn?.decimals ?? 18),
       )
-    : kastleFeeBps > 0 && outNum !== undefined
-      ? outNum * (kastleFeeBps / 10000)
+    : kastleFeeBps > 0 && selected?.amountOut !== undefined && tokenOut
+      ? Number(formatUnits(selected.amountOut, tokenOut.decimals)) *
+        (kastleFeeBps / 10000)
       : 0;
 
   const error = (() => {
@@ -390,6 +410,7 @@ export default function Swap() {
     }
     if (quotes && !quotesLoading && supported.length === 0)
       return "Unsupported token pair";
+    if (feeUnavailable) return "Unable to load the KaspaCom partner fee.";
     return undefined;
   })();
 
@@ -513,11 +534,11 @@ export default function Swap() {
 
   const loading = quotesLoading && supported.length === 0;
   const minReceived =
-    selected?.amountOut !== undefined && tokenOut
+    selected?.netAmountOut !== undefined && tokenOut
       ? formatAmount(
           Number(
             formatUnits(
-              swapMinReceived(selected.amountOut, slippage),
+              swapMinReceived(selected.netAmountOut, slippage),
               tokenOut.decimals,
             ),
           ),
@@ -525,10 +546,10 @@ export default function Swap() {
       : undefined;
   // Hidden when the output token has no price, rather than showing $0.00.
   const minReceivedUsd =
-    selected?.amountOut !== undefined && tokenOut && priceOut > 0
+    selected?.netAmountOut !== undefined && tokenOut && priceOut > 0
       ? Number(
           formatUnits(
-            swapMinReceived(selected.amountOut, slippage),
+            swapMinReceived(selected.netAmountOut, slippage),
             tokenOut.decimals,
           ),
         ) * priceOut
@@ -718,8 +739,9 @@ export default function Swap() {
       >
         {(quotes ?? []).map((q) => {
           const rate =
-            q.amountOut !== undefined && tokenOut && amountNum > 0
-              ? Number(formatUnits(q.amountOut, tokenOut.decimals)) / amountNum
+            q.netAmountOut !== undefined && tokenOut && amountNum > 0
+              ? Number(formatUnits(q.netAmountOut, tokenOut.decimals)) /
+                amountNum
               : undefined;
           return (
             <ProviderRow
