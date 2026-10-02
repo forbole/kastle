@@ -20,20 +20,11 @@ import { evmSignTransactionHandler } from "./handlers/evm/evm-sign-transaction.t
 import { evmSignTypedDataHandler } from "./handlers/evm/evm-sign-typed-data.ts";
 import { evmSignMessageHandler } from "./handlers/evm/evm-sign-message.ts";
 import {
-  zkasCheckSelection,
   zkasGetAccount,
   zkasGetSelectedAddress,
   zkasGetSwitchAccounts,
-  zkasGetCredentials,
-  zkasSign,
   zkasPaymentStatus,
-  zkasPaymentAcquire,
-  zkasPaymentSubmitting,
-  zkasPaymentUncertain,
-  zkasPaymentSuccess,
-  zkasPaymentRelease,
   zkasPaymentClear,
-  zkasPaymentAbortBeforeFetch,
   zkasConnectionRemove,
   zkasPreviewSeed,
   zkasImportSeed,
@@ -54,6 +45,10 @@ import {
   zkasHistoryGrantRevokeSaved,
 } from "./handlers/zkas-history-grants";
 import * as daemonBearerHandlers from "./handlers/zkas-daemon-bearer";
+import {
+  zkasPaymentSendOrdinary,
+  zkasPaymentSendWebsite,
+} from "./handlers/zkas-payment";
 import * as daemonTransport from "./handlers/zkas-daemon-transport";
 export { Method } from "./methods";
 
@@ -95,17 +90,8 @@ export class ExtensionService {
       [Method.ZKAS_GET_SWITCH_ACCOUNTS]: zkasGetSwitchAccounts,
       [Method.ZKAS_PREVIEW_SEED]: zkasPreviewSeed,
       [Method.ZKAS_IMPORT_SEED]: zkasImportSeed,
-      [Method.ZKAS_GET_CREDENTIALS]: zkasGetCredentials,
-      [Method.ZKAS_CHECK_SELECTION]: zkasCheckSelection,
-      [Method.ZKAS_SIGN]: zkasSign,
       [Method.ZKAS_PAYMENT_STATUS]: zkasPaymentStatus,
-      [Method.ZKAS_PAYMENT_ACQUIRE]: zkasPaymentAcquire,
-      [Method.ZKAS_PAYMENT_SUBMITTING]: zkasPaymentSubmitting,
-      [Method.ZKAS_PAYMENT_UNCERTAIN]: zkasPaymentUncertain,
-      [Method.ZKAS_PAYMENT_SUCCESS]: zkasPaymentSuccess,
-      [Method.ZKAS_PAYMENT_RELEASE]: zkasPaymentRelease,
       [Method.ZKAS_PAYMENT_CLEAR]: zkasPaymentClear,
-      [Method.ZKAS_PAYMENT_ABORT_BEFORE_FETCH]: zkasPaymentAbortBeforeFetch,
       [Method.ZKAS_CONNECTION_REMOVE]: zkasConnectionRemove,
       [Method.ZKAS_DAPP_PENDING_GET]: zkasDappPendingGet,
       [Method.ZKAS_DAPP_CHECK]: zkasDappCheck,
@@ -124,6 +110,8 @@ export class ExtensionService {
       [Method.ZKAS_DAEMON_REGISTER]: daemonTransport.daemonRegister,
       [Method.ZKAS_DAEMON_STATE]: daemonTransport.daemonState,
       [Method.ZKAS_DAEMON_RECENT_HISTORY]: daemonTransport.daemonRecentHistory,
+      [Method.ZKAS_PAYMENT_SEND_ORDINARY]: zkasPaymentSendOrdinary,
+      [Method.ZKAS_PAYMENT_SEND_WEBSITE]: zkasPaymentSendWebsite,
     };
   }
 

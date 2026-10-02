@@ -159,6 +159,22 @@ export class ZKasPaymentJournal {
     return this.update(selection, id, "abort-before-fetch");
   }
 
+  // Only the background payment operation may call this after its aborted
+  // continuation has proved that the submit fetch was never entered.
+  clearStoppedBeforeFetch(selection: ZKasSelection, id: string): Promise<void> {
+    return this.run(async () => {
+      const records = await this.all();
+      const key = selectionKey(selection);
+      const current = records[key];
+      if (!current || current.id !== id)
+        throw new Error("ZKas payment reservation changed");
+      if (current.status !== "preparing" && current.status !== "submitting")
+        throw new Error("Submitted ZKas payment must be reconciled");
+      delete records[key];
+      await this.store.setItem(JOURNAL_KEY, records);
+    });
+  }
+
   clearAfterReview(selection: ZKasSelection, id: string): Promise<void> {
     return this.run(async () => {
       const records = await this.all();

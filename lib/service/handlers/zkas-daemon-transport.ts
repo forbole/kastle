@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { SETTINGS_KEY, type Settings } from "@/contexts/SettingsContext";
-import { ZKasClient, probeZKasDaemonBirthday } from "@/lib/zkas/client";
+import {
+  ZKasClient,
+  ZKasPreSubmitError,
+  probeZKasDaemonBirthday,
+} from "@/lib/zkas/client";
 import {
   DaemonBearerStore,
   DAEMON_BEARERS_KEY,
@@ -53,6 +57,10 @@ const routes = new Map([
   ["GET /api/wallet/balance", 16_384],
   ["GET /api/wallet/history?limit=30", 524_288],
 ]);
+const paymentRoutes = new Map([
+  ["POST /api/wallet/prepare", 4 * 1024 * 1024],
+  ["POST /api/wallet/submit", 16_384],
+]);
 const operationTimeoutMs = 30_000;
 
 function checked<T>(schema: z.ZodType<T>, value: unknown): T {
@@ -74,6 +82,7 @@ function assertLive(signal: AbortSignal): void {
 
 async function withinDeadline<T>(
   operation: (signal: AbortSignal) => Promise<T>,
+  timeoutMs = operationTimeoutMs,
 ): Promise<T> {
   const controller = new AbortController();
   let timeout: ReturnType<typeof setTimeout> | undefined;
@@ -84,7 +93,7 @@ async function withinDeadline<T>(
         timeout = setTimeout(() => {
           controller.abort();
           reject(new Error("ZKas daemon operation expired"));
-        }, operationTimeoutMs);
+        }, timeoutMs);
       }),
     ]);
   } finally {
@@ -180,6 +189,8 @@ function fixedFetch(
   assertCurrent: () => Promise<void>,
   signal: AbortSignal,
   assertSynchronous?: () => void,
+  payment = false,
+  onSubmitFetchAttempt?: () => void,
 ): typeof fetch {
   return (async (
     input: RequestInfo | URL,
@@ -190,36 +201,90 @@ function fixedFetch(
     if (!requested.startsWith(`${origin}/`))
       throw new Error("Invalid ZKas daemon route");
     const path = requested.slice(origin.length);
-    const maxBytes = routes.get(`${method} ${path}`);
-    if (maxBytes === undefined) throw new Error("Invalid ZKas daemon route");
+    const beforeSubmit = payment && path === "/api/wallet/submit";
+    const rejectBeforeFetch = (reason: string): never => {
+      const error = new Error(reason);
+      throw beforeSubmit ? new ZKasPreSubmitError(error) : error;
+    };
+    const maxBytes =
+      routes.get(`${method} ${path}`) ??
+      (payment ? paymentRoutes.get(`${method} ${path}`) : undefined);
+    const permittedBytes =
+      maxBytes ?? rejectBeforeFetch("Invalid ZKas daemon route");
     if (method === "POST") {
-      if (typeof init?.body !== "string" || init.body.length > 2_048)
-        throw new Error("Invalid ZKas watch request");
+      const bodyLimit =
+        path === "/api/wallet/submit"
+          ? 131_072
+          : path === "/api/wallet/prepare"
+            ? 4_096
+            : 2_048;
+      const body =
+        typeof init?.body === "string"
+          ? init.body
+          : rejectBeforeFetch("Invalid ZKas daemon payment request");
+      if (new TextEncoder().encode(body).length > bodyLimit)
+        rejectBeforeFetch("Invalid ZKas daemon payment request");
       let parsed: unknown;
       try {
-        parsed = JSON.parse(init.body);
+        parsed = JSON.parse(body);
       } catch {
-        throw new Error("Invalid ZKas watch request");
+        rejectBeforeFetch("Invalid ZKas daemon payment request");
       }
-      if (
-        !z
-          .object({
-            fvk_hex: z.string().regex(/^[0-9a-fA-F]{192}$/),
-            birthday: z.number().int().nonnegative().safe(),
-            recoverable_history: z.literal(true),
-          })
-          .strict()
-          .safeParse(parsed).success
-      )
-        throw new Error("Invalid ZKas watch request");
+      const valid =
+        path === "/api/wallet/watch"
+          ? z
+              .object({
+                fvk_hex: z.string().regex(/^[0-9a-fA-F]{192}$/),
+                birthday: z.number().int().nonnegative().safe(),
+                recoverable_history: z.literal(true),
+              })
+              .strict()
+              .safeParse(parsed).success
+          : path === "/api/wallet/prepare"
+            ? z
+                .object({
+                  fvk_hex: z.string().regex(/^[0-9a-fA-F]{192}$/),
+                  to: z.string().min(1).max(300),
+                  amount_sompi: z.string().regex(/^[1-9]\d*$/),
+                  fee: z.literal("0"),
+                  memo: z.string().optional(),
+                  allow_partial: z.literal(false),
+                })
+                .strict()
+                .safeParse(parsed).success
+            : path === "/api/wallet/submit"
+              ? z
+                  .object({
+                    session: z.string().regex(/^[0-9a-fA-F]{32}$/),
+                    sigs: z
+                      .array(
+                        z
+                          .object({
+                            index: z.number().int().nonnegative().max(511),
+                            sig: z.string().regex(/^[0-9a-fA-F]{128}$/),
+                          })
+                          .strict(),
+                      )
+                      .min(1)
+                      .max(512),
+                  })
+                  .strict()
+                  .safeParse(parsed).success
+              : false;
+      if (!valid) rejectBeforeFetch("Invalid ZKas daemon payment request");
     } else if (init?.body !== undefined) {
-      throw new Error("Invalid ZKas daemon request");
+      rejectBeforeFetch("Invalid ZKas daemon request");
     }
     const incoming = new Headers(init?.headers);
     for (const name of incoming.keys())
       if (name !== "x-wallet-token" && name !== "content-type")
-        throw new Error("Invalid ZKas daemon request");
-    await assertCurrent();
+        rejectBeforeFetch("Invalid ZKas daemon request");
+    try {
+      await assertCurrent();
+    } catch (cause) {
+      if (beforeSubmit) throw new ZKasPreSubmitError(cause);
+      throw cause;
+    }
     assertSynchronous?.();
     assertLive(signal);
     const headers = new Headers(incoming);
@@ -227,6 +292,12 @@ function fixedFetch(
     const combined = init?.signal
       ? AbortSignal.any([signal, init.signal])
       : signal;
+    if (beforeSubmit) {
+      assertSynchronous?.();
+      assertLive(signal);
+      if (combined.aborted) rejectBeforeFetch("ZKas daemon request expired");
+      onSubmitFetchAttempt?.();
+    }
     const response = await globalThis.fetch(requested, {
       method,
       headers,
@@ -241,7 +312,7 @@ function fixedFetch(
     assertLive(signal);
     if (response.url && response.url !== requested)
       throw new Error("ZKas daemon redirected");
-    return boundedResponse(response, maxBytes, assertCurrent, signal);
+    return boundedResponse(response, permittedBytes, assertCurrent, signal);
   }) as typeof fetch;
 }
 
@@ -262,14 +333,26 @@ function matchesAccount(
 async function accountOperation<T>(
   expected: z.infer<typeof selection> | undefined,
   expectedOrigin: string | undefined,
-  operation: (client: ZKasClient, credentials: ZKasCredentials) => Promise<T>,
+  operation: (
+    client: ZKasClient,
+    credentials: ZKasCredentials,
+    assertCurrent: () => Promise<void>,
+  ) => Promise<T>,
   website?: {
     origin: string;
     selection: z.infer<typeof selection>;
-    publish(result: T): void;
+    publish?(result: T): void;
+  },
+  options?: {
+    payment?: boolean;
+    timeoutMs?: number;
+    signal?: AbortSignal;
+    extraGuard?: () => Promise<void>;
+    assertSynchronous?: () => void;
+    onSubmitFetchAttempt?: () => void;
   },
 ): Promise<T> {
-  return withinDeadline(async (signal) => {
+  const run = async (signal: AbortSignal) => {
     const keyring = ExtensionService.getInstance().getKeyring();
     if (!keyring.isUnlocked()) throw new Error("Unlock Kastle first");
     const session = keyring.getSessionVersion();
@@ -296,6 +379,7 @@ async function accountOperation<T>(
         throw new Error("Selected ZKas account changed");
       if (website && zkasConnectionStore.getGeneration() !== websiteGeneration)
         throw new Error("Connect this website to ZKas first");
+      options?.assertSynchronous?.();
     };
     const credentials = await zkasKeyService.credentials();
     assertLive(signal);
@@ -313,6 +397,7 @@ async function accountOperation<T>(
     const bearerGeneration = keyring.getMutationGeneration(DAEMON_BEARERS_KEY);
     const assertCurrent = async () => {
       await assertWebsite();
+      await options?.extraGuard?.();
       await source.assertCurrent();
       assertGenerations();
       await zkasKeyService.checkSelection(
@@ -339,21 +424,101 @@ async function accountOperation<T>(
             assertCurrent,
             signal,
             assertGenerations,
+            options?.payment,
+            options?.onSubmitFetchAttempt,
           ),
           guard: assertCurrent,
         });
-        const result = await operation(client, credentials);
+        const result = await operation(client, credentials, assertCurrent);
         await assertCurrent();
         return result;
       },
     );
-    if (website) {
+    if (website?.publish) {
       await assertCurrent();
       assertGenerations();
       website.publish(result);
     }
     return result;
-  });
+  };
+  return options?.signal
+    ? run(options.signal)
+    : withinDeadline(run, options?.timeoutMs);
+}
+
+export async function privateDaemonPayment(
+  expected: z.infer<typeof selection> & { address: string },
+  payment: {
+    to: string;
+    amountSompi: bigint;
+    maxFeeSompi: bigint;
+    memo?: string;
+  },
+  options: {
+    signal?: AbortSignal;
+    beforeSubmit: () => Promise<void>;
+    onSubmitted: (result: {
+      txid: string;
+      daemonReportedFeeSompi: bigint;
+    }) => Promise<void>;
+    extraGuard?: () => Promise<void>;
+    assertSynchronous?: () => void;
+    onSubmitFetchAttempt?: () => void;
+    website?: { origin: string; selection: z.infer<typeof selection> };
+  },
+): Promise<{ txid: string; daemonReportedFeeSompi: bigint }> {
+  return accountOperation(
+    expected,
+    undefined,
+    async (client, credentials, assertCurrent) => {
+      const result = await client.send({
+        to: payment.to,
+        amountSompi: payment.amountSompi,
+        maxFeeSompi: payment.maxFeeSompi,
+        memo: payment.memo,
+        signer: {
+          address: () => credentials.address,
+          fullViewingKeyHex: async () => {
+            await assertCurrent();
+            return credentials.fullViewingKeyHex;
+          },
+          verifyAndSign: async (prepared) => {
+            await assertCurrent();
+            const signatures = await zkasKeyService.sign({
+              selection: credentials,
+              keyringVersion: credentials.keyringVersion,
+              daemonUrl: credentials.daemonUrl!,
+              recipient: prepared.recipient,
+              amountSompi: prepared.amountSompi.toString(),
+              maxFeeSompi: prepared.maxFeeSompi.toString(),
+              memo: prepared.memo ?? "",
+              bundleHex: prepared.bundleHex,
+              disclosure: prepared.disclosure as unknown[],
+              spendAuth: prepared.spendAuth as unknown[],
+            });
+            await assertCurrent();
+            return signatures;
+          },
+        },
+        beforeSubmit: async () => {
+          await assertCurrent();
+          await options.beforeSubmit();
+          await assertCurrent();
+        },
+      });
+      await options.onSubmitted(result);
+      return result;
+    },
+    options.website,
+    {
+      payment: true,
+      signal: options.signal,
+      timeoutMs: options.signal ? undefined : 660_000,
+      extraGuard: options.extraGuard,
+      assertSynchronous: options.assertSynchronous,
+      onSubmitFetchAttempt: options.onSubmitFetchAttempt,
+    },
+  );
 }
 
 export async function daemonBirthday(

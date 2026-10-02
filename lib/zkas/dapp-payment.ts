@@ -34,6 +34,7 @@ export type ZKasDappPending = {
   memo?: string;
   createdAt: number;
   windowId?: number;
+  processing?: boolean;
 };
 
 export function isZKasDappPopupSender(
@@ -49,6 +50,8 @@ export function isZKasDappPopupSender(
   try {
     const source = new URL(sender.url);
     return (
+      source.pathname === "/popup.html" &&
+      source.searchParams.size === 1 &&
       source.searchParams.get("approvalId") === pending.approvalId &&
       source.hash === "#/zkas-send"
     );
@@ -59,6 +62,7 @@ export function isZKasDappPopupSender(
 
 export class ZKasDappPendingStore {
   private tail: Promise<void> = Promise.resolve();
+  private generation = 0n;
   private readonly now: () => number;
   private readonly adapter: {
     get(): Promise<ZKasDappPending | null>;
@@ -85,7 +89,12 @@ export class ZKasDappPendingStore {
     return result;
   }
 
+  getGeneration(): bigint {
+    return this.generation;
+  }
+
   async acquire(value: ZKasDappPending): Promise<void> {
+    this.generation += 1n;
     await this.run(async () => {
       const current = await this.adapter.get();
       if (current && this.now() - current.createdAt < ZKAS_DAPP_TIMEOUT_MS) {
@@ -109,6 +118,7 @@ export class ZKasDappPendingStore {
   }
 
   async bindWindow(approvalId: string, windowId: number): Promise<void> {
+    this.generation += 1n;
     await this.run(async () => {
       const value = await this.adapter.get();
       if (!value || value.approvalId !== approvalId)
@@ -117,7 +127,26 @@ export class ZKasDappPendingStore {
     });
   }
 
+  async claim(approvalId: string): Promise<ZKasDappPending> {
+    this.generation += 1n;
+    return this.run(async () => {
+      const value = await this.adapter.get();
+      if (
+        !value ||
+        value.approvalId !== approvalId ||
+        value.processing ||
+        value.windowId === undefined ||
+        this.now() - value.createdAt >= ZKAS_DAPP_TIMEOUT_MS
+      )
+        throw new Error("ZKas payment request expired or already approving");
+      const claimed = { ...value, processing: true };
+      await this.adapter.set(claimed);
+      return claimed;
+    });
+  }
+
   async take(approvalId: string): Promise<ZKasDappPending | null> {
+    this.generation += 1n;
     return this.run(async () => {
       const value = await this.adapter.get();
       if (!value || value.approvalId !== approvalId) return null;
@@ -127,6 +156,7 @@ export class ZKasDappPendingStore {
   }
 
   async takeByWindow(windowId: number): Promise<ZKasDappPending | null> {
+    this.generation += 1n;
     return this.run(async () => {
       const value = await this.adapter.get();
       if (!value || value.windowId !== windowId) return null;

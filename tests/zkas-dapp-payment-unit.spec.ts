@@ -79,6 +79,18 @@ test("approval response is bound to its popup window, token, and route", () => {
       tab: { windowId: 42 },
     }),
   ).toBe(false);
+  expect(
+    isZKasDappPopupSender(pending, {
+      url: url.replace("#/zkas-send", "&other=1#/zkas-send"),
+      tab: { windowId: 42 },
+    }),
+  ).toBe(false);
+  expect(
+    isZKasDappPopupSender(pending, {
+      url: url.replace("/popup.html", "/other.html"),
+      tab: { windowId: 42 },
+    }),
+  ).toBe(false);
 });
 
 test("website memos are checked at the request boundary before approval", () => {
@@ -100,4 +112,35 @@ test("website memos are checked at the request boundary before approval", () => 
   for (const memo of ["é".repeat(257), "\ud800", 42]) {
     expect(() => parseZKasDappSendRequest({ ...request, memo })).toThrow();
   }
+});
+
+test("claim binds one website approval and closure invalidates it before an awaited write", async () => {
+  let saved: ZKasDappPending | null = null;
+  let finishWrite: (() => void) | undefined;
+  const store = new ZKasDappPendingStore(
+    {
+      get: async () => saved,
+      set: async (value) => {
+        if (value === null)
+          await new Promise<void>((resolve) => {
+            finishWrite = resolve;
+          });
+        saved = value;
+      },
+    },
+    () => 1_000,
+  );
+  await store.acquire({ ...request("approval-a"), windowId: 42 });
+  const claimed = await store.claim("approval-a");
+  expect(claimed.processing).toBe(true);
+  await expect(store.claim("approval-a")).rejects.toThrow();
+  const generation = store.getGeneration();
+  const closing = store.takeByWindow(42);
+  expect(store.getGeneration()).not.toBe(generation);
+  for (let attempt = 0; !finishWrite && attempt < 10; attempt += 1)
+    await Promise.resolve();
+  expect(finishWrite).toBeDefined();
+  finishWrite?.();
+  await closing;
+  expect(await store.get("approval-a")).toBeNull();
 });

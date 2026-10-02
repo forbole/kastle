@@ -11,16 +11,9 @@ import type { Message } from "../extension-service";
 import { z } from "zod";
 
 const IdSchema = z.string().uuid();
-const OutcomeSchema = z.discriminatedUnion("status", [
-  z.object({
-    status: z.literal("success"),
-    txid: z.string().regex(/^[0-9a-fA-F]{64}$/),
-    daemonReportedFeeSompi: z.string().regex(/^(0|[1-9]\d*)$/),
-  }),
-  z.object({ status: z.enum(["denied", "failed", "uncertain"]) }),
-]);
+const DenialSchema = z.object({ status: z.literal("denied") }).strict();
 
-async function pendingForPopup(
+export async function pendingForPopup(
   approvalId: unknown,
   sender: chrome.runtime.MessageSender,
 ): Promise<ZKasDappPending> {
@@ -32,7 +25,9 @@ async function pendingForPopup(
   return pending;
 }
 
-async function assertCurrentConnected(pending: ZKasDappPending): Promise<void> {
+export async function assertCurrentConnected(
+  pending: ZKasDappPending,
+): Promise<void> {
   const current = await zkasKeyService.publicAccount();
   if (
     !sameZKasSelection(current, pending.account) ||
@@ -83,21 +78,14 @@ export const zkasDappComplete = async (
   sendResponse: (value: unknown) => void,
   sender: chrome.runtime.MessageSender,
 ) => {
-  await pendingForPopup(approvalId, sender);
-  const result = OutcomeSchema.parse(outcome);
-  const publicOutcome =
-    result.status === "success"
-      ? {
-          txid: result.txid,
-          daemonReportedFeeSompi: result.daemonReportedFeeSompi,
-        }
-      : {
-          error:
-            result.status === "denied"
-              ? "User denied ZKas payment"
-              : result.status === "uncertain"
-                ? "ZKas payment outcome is uncertain. Check Kastle activity before retrying."
-                : "ZKas payment failed. Check the Kastle window for details.",
-        };
-  sendResponse(await finishZKasDappPayment(approvalId, publicOutcome));
+  const pending = await pendingForPopup(approvalId, sender);
+  DenialSchema.parse(outcome);
+  if (pending.processing)
+    throw new Error("ZKas payment approval is in progress");
+  await zkasDappPendingStore.claim(approvalId);
+  sendResponse(
+    await finishZKasDappPayment(approvalId, {
+      error: "User denied ZKas payment",
+    }),
+  );
 };

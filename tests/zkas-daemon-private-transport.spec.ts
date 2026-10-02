@@ -51,7 +51,7 @@ async function builtTransport() {
                   ? "export const ExtensionService={getInstance:()=>({getKeyring:()=>globalThis.__privateDeps.keyring})};"
                   : args.path === "settings"
                     ? "export const SETTINGS_KEY='local:settings';"
-                    : "export const zkasKeyService={credentials:async()=>globalThis.__privateDeps.credentials(),checkSelection:async()=>globalThis.__privateDeps.checkSelection()};",
+                    : "export const zkasKeyService={credentials:async()=>globalThis.__privateDeps.credentials(),checkSelection:async()=>globalThis.__privateDeps.checkSelection(),sign:async(input)=>globalThis.__privateDeps.sign(input)};",
               loader: "js",
             }),
           );
@@ -258,6 +258,8 @@ async function builtDispatcher() {
     "zkasDaemonBearerPair",
     "zkasDaemonBearerList",
     "zkasDaemonBearerClear",
+    "zkasPaymentSendOrdinary",
+    "zkasPaymentSendWebsite",
   ];
   const result = await build({
     entryPoints: [resolve("lib/service/extension-service.ts")],
@@ -371,6 +373,7 @@ async function fixture(targetOrigin = origin) {
       checkSelection: async () => {
         if (!keyring.isUnlocked()) throw new Error("Selected wallet changed");
       },
+      sign: async () => [{ index: 0, sig: "e".repeat(128) }],
     },
   });
   const originalFetch = globalThis.fetch;
@@ -486,6 +489,57 @@ test("read and setup have only four named internal operations", () => {
   expect(Object.values(Method)).not.toContain("ZKAS_DAEMON_REQUEST");
 });
 
+test("private single payment uses paired bearer and returns only its actual result", async () => {
+  const flow = await fixture();
+  const txid = "f".repeat(64);
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (input, init) => {
+    const path = new URL(String(input)).pathname;
+    if (path === "/api/wallet/prepare")
+      return new Response(
+        JSON.stringify({
+          session: "b".repeat(32),
+          bundle_hex: "aa",
+          amount_sompi_exact: "1",
+          fee_sompi_exact: "1",
+          remaining_sompi_exact: "0",
+          disclosure: [],
+          spend_auth: [],
+        }),
+      );
+    if (path === "/api/wallet/submit")
+      return new Response(
+        JSON.stringify({ txid, amount_sompi_exact: "1", fee_sompi_exact: "1" }),
+      );
+    return originalFetch(input, init);
+  };
+  try {
+    await flow.pair();
+    const result = await flow.module.privateDaemonPayment(
+      account,
+      {
+        to: "zkas:recipient",
+        amountSompi: 1n,
+        maxFeeSompi: 2n,
+        memo: "memo",
+      },
+      {
+        beforeSubmit: async () => undefined,
+        onSubmitted: async () => undefined,
+      },
+    );
+    expect(result.txid).toBe(txid);
+    expect(result.daemonReportedFeeSompi).toBe(1n);
+    const visible = JSON.stringify(result, (_, value) =>
+      typeof value === "bigint" ? value.toString() : value,
+    );
+    expect(visible).not.toContain(fvk);
+    expect(visible).not.toContain(bearer);
+  } finally {
+    flow.cleanup();
+  }
+});
+
 test("popup read/setup methods send only public expected facts and receive no credentials", async () => {
   const requests: { method: Method; data: object }[] = [];
   Object.assign(globalThis, {
@@ -526,6 +580,53 @@ test("popup read/setup methods send only public expected facts and receive no cr
       expectedOrigin: origin,
       birthday: 700,
     });
+    expect(JSON.stringify(requests)).not.toContain(fvk);
+    expect(JSON.stringify(requests)).not.toContain(bearer);
+  } finally {
+    popup.cleanup();
+  }
+});
+
+test("ordinary and website payment popup calls carry only reviewed public facts", async () => {
+  const requests: { method: Method; data: object }[] = [];
+  Object.assign(globalThis, {
+    __popupDispatch: async (method: Method, data: object) => {
+      requests.push({ method, data });
+      return {
+        status: "submitted",
+        txid: "a".repeat(64),
+        daemonReportedFeeSompi: "7",
+      };
+    },
+  });
+  const popup = await builtPopup();
+  try {
+    await popup.module.sendZKasPayment({
+      to: "zkas:recipient",
+      amount: "1",
+      maxFee: "0.1",
+      memo: "hello",
+      expectedAccount: account,
+    });
+    await popup.module.sendApprovedZKasWebsitePayment(
+      "11111111-1111-4111-8111-111111111111",
+    );
+    expect(requests).toEqual([
+      {
+        method: Method.ZKAS_PAYMENT_SEND_ORDINARY,
+        data: {
+          to: "zkas:recipient",
+          amountSompi: "100000000",
+          maxFeeSompi: "10000000",
+          memo: "hello",
+          expectedAccount: account,
+        },
+      },
+      {
+        method: Method.ZKAS_PAYMENT_SEND_WEBSITE,
+        data: { approvalId: "11111111-1111-4111-8111-111111111111" },
+      },
+    ]);
     expect(JSON.stringify(requests)).not.toContain(fvk);
     expect(JSON.stringify(requests)).not.toContain(bearer);
   } finally {

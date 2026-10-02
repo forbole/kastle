@@ -9,9 +9,15 @@ type PaymentOutcome =
   | { txid: string; daemonReportedFeeSompi: string }
   | { error: string };
 
+type DeliveryFence = {
+  check(): Promise<void>;
+  synchronous(): void;
+};
+
 async function deliver(
   record: ZKasDappPending,
   outcome: PaymentOutcome,
+  fence?: DeliveryFence,
 ): Promise<boolean> {
   const response = ApiResponseSchema.parse({
     id: record.pageRequestId,
@@ -21,6 +27,8 @@ async function deliver(
     ...("error" in outcome ? { error: outcome.error } : {}),
   });
   try {
+    await fence?.check();
+    fence?.synchronous();
     const acknowledgement = await browser.tabs.sendMessage(
       record.tabId,
       {
@@ -42,15 +50,31 @@ async function deliver(
 export async function finishZKasDappPayment(
   approvalId: string,
   outcome: PaymentOutcome,
+  fence?: DeliveryFence,
 ): Promise<{ finalized: boolean; delivered: boolean }> {
   const record = await zkasDappPendingStore.take(approvalId);
   if (!record) return { finalized: false, delivered: false };
+  const afterTakeGeneration = zkasDappPendingStore.getGeneration();
   try {
     await browser.alarms.clear(`${ZKAS_DAPP_ALARM_PREFIX}${approvalId}`);
   } catch {
     /* Delivery still matters. */
   }
-  return { finalized: true, delivered: await deliver(record, outcome) };
+  return {
+    finalized: true,
+    delivered: await deliver(
+      record,
+      outcome,
+      fence && {
+        check: fence.check,
+        synchronous: () => {
+          if (zkasDappPendingStore.getGeneration() !== afterTakeGeneration)
+            throw new Error("ZKas approval changed before delivery");
+          fence.synchronous();
+        },
+      },
+    ),
+  };
 }
 
 export function listenForZKasDappPaymentClosure(): void {

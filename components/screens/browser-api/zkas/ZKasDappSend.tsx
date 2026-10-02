@@ -2,10 +2,9 @@ import { useEffect, useState } from "react";
 import Header from "@/components/GeneralHeader";
 import { formatZkasAmount, parseZkasSompi } from "@/lib/zkas/amount";
 import {
-  sendZKasPayment,
+  sendApprovedZKasWebsitePayment,
   type PublicZKasAccount,
 } from "@/lib/zkas/popup-client";
-import { ZKasSubmissionUncertainError } from "@/lib/zkas/client";
 import { Method } from "@/lib/service/methods";
 import { sendMessage } from "@/lib/utils";
 
@@ -106,33 +105,16 @@ export default function ZKasDappSend() {
     setError("");
     try {
       await check();
-      const result = await sendZKasPayment({
-        to: pending.to,
-        amount: formatZkasAmount(parseZkasSompi(pending.amountSompi)),
-        maxFee: formatZkasAmount(parseZkasSompi(pending.maxFeeSompi)),
-        memo: pending.memo,
-        expectedAccount: pending.account,
-        guard: check,
-      });
+      const result = await sendApprovedZKasWebsitePayment(approvalId);
       setTxid(result.txid);
       setFinished(true);
-      try {
-        const completion = await complete({ status: "success", ...result });
-        if (!completion.delivered)
-          throw new Error("Website result could not be delivered");
-      } catch {
+      if (!result.delivered) {
         setError(
           "Payment was submitted, but the website could not be notified. Check Kastle activity using this transaction ID.",
         );
       }
     } catch (cause) {
       setFinished(true);
-      const uncertain = cause instanceof ZKasSubmissionUncertainError;
-      try {
-        await complete({ status: uncertain ? "uncertain" : "failed" });
-      } catch {
-        // The account journal remains the source of truth after interruption.
-      }
       setError(cause instanceof Error ? cause.message : "ZKas payment failed");
     } finally {
       window.dispatchEvent(

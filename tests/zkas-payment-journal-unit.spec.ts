@@ -79,3 +79,34 @@ test("known pre-fetch cancellation safely clears a submitting journal record", a
   expect(await journal.get(selection)).toBeUndefined();
   await journal.acquire(selection);
 });
+
+test("stopped pre-fetch cleanup clears only the exact preparing or submitting record", async () => {
+  const journal = new ZKasPaymentJournal(fakeStore());
+  const preparing = await journal.acquire(selection);
+  await journal.clearStoppedBeforeFetch(selection, preparing.id);
+  expect(await journal.get(selection)).toBeUndefined();
+  const submitting = await journal.acquire(selection);
+  await journal.markSubmitting(selection, submitting.id);
+  await expect(
+    journal.clearStoppedBeforeFetch(selection, preparing.id),
+  ).rejects.toThrow();
+  await journal.clearStoppedBeforeFetch(selection, submitting.id);
+  expect(await journal.get(selection)).toBeUndefined();
+  const attempted = await journal.acquire(selection);
+  await journal.markSubmitting(selection, attempted.id);
+  await journal.markUncertain(selection, attempted.id);
+  await expect(
+    journal.clearStoppedBeforeFetch(selection, attempted.id),
+  ).rejects.toThrow();
+  expect(await journal.get(selection)).toMatchObject({
+    id: attempted.id,
+    status: "uncertain",
+  });
+  const completed = new ZKasPaymentJournal(fakeStore());
+  const success = await completed.acquire(selection);
+  await completed.markSubmitting(selection, success.id);
+  await completed.markSuccess(selection, success.id, "d".repeat(64));
+  await expect(
+    completed.clearStoppedBeforeFetch(selection, success.id),
+  ).rejects.toThrow();
+});
