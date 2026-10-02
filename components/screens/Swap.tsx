@@ -496,7 +496,6 @@ export default function Swap() {
         <GeneralHeader
           title="Swap"
           showClose={false}
-          lucideBack
           titleClassName="text-gray-200"
         />
         <ActivityHeaderButton type="swap" />

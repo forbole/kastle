@@ -6,7 +6,6 @@ import {
   ArrowRight,
   ArrowUpDown,
   Check,
-  ChevronDown,
   Search,
 } from "lucide-react";
 import kasIcon from "@/assets/images/network-logos/kaspa.svg";
@@ -308,7 +307,7 @@ export function TokenPill({
         />
       </span>
       <span className="truncate text-base font-medium">{symbol}</span>
-      <ChevronDown size={20} strokeWidth={1.5} className="flex-none" />
+      <i className="hn hn-angle-down flex-none text-xl" />
     </button>
   );
 }

@@ -1,6 +1,5 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronLeft } from "lucide-react";
 import { twMerge } from "tailwind-merge";
 
 type Props = {
@@ -9,8 +8,6 @@ type Props = {
   subtitle?: string;
   showPrevious?: boolean;
   showClose?: boolean;
-  /** Figma back button: Lucide chevron-left 20px in a 46px button. */
-  lucideBack?: boolean;
   onBack?: () => Promise<void> | void;
   onClose?: () => Promise<void> | void;
 } & React.HTMLAttributes<HTMLDivElement>;
@@ -21,7 +18,6 @@ export default function GeneralHeader({
   subtitle,
   showPrevious = true,
   showClose = true,
-  lucideBack,
   onBack,
   onClose,
   className,
@@ -33,10 +29,7 @@ export default function GeneralHeader({
       <div className="flex items-center justify-between">
         {showPrevious ? (
           <button
-            className={twMerge(
-              "rounded-lg p-3 text-white hover:bg-gray-800",
-              lucideBack && "flex size-[46px] items-center justify-center p-0",
-            )}
+            className="rounded-lg p-3 text-white hover:bg-gray-800"
             onClick={async () => {
               if (onBack) {
                 await onBack();
@@ -45,11 +38,7 @@ export default function GeneralHeader({
               }
             }}
           >
-            {lucideBack ? (
-              <ChevronLeft size={20} strokeWidth={1.5} />
-            ) : (
-              <i className="hn hn-angle-left flex items-center justify-center text-[1.25rem]" />
-            )}
+            <i className="hn hn-angle-left flex items-center justify-center text-[1.25rem]" />
           </button>
         ) : (
           <div className="p-3">
@@ -73,7 +62,7 @@ export default function GeneralHeader({
             <i className="hn hn-times flex items-center justify-center text-[1.25rem]" />
           </button>
         ) : (
-          <div className={twMerge("p-3", lucideBack && "size-[46px] p-0")}>
+          <div className="p-3">
             <div className="h-5 w-5"></div>
           </div>
         )}

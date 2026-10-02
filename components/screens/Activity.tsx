@@ -321,7 +321,6 @@ export default function Activity() {
         <GeneralHeader
           title={pageType === "bridge" ? "Bridge Activity" : "Swap Activity"}
           showClose={false}
-          lucideBack
           titleClassName="text-gray-200"
         />
         {isMainnet && (

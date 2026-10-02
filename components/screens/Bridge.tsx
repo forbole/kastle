@@ -548,7 +548,6 @@ export default function Bridge() {
         <GeneralHeader
           title="Bridge"
           showClose={false}
-          lucideBack
           titleClassName="text-gray-200"
         />
         <ActivityHeaderButton type="bridge" />
