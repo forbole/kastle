@@ -121,8 +121,8 @@ export default function ImportRecoveryPhrase() {
   }, [inputWords]);
 
   return (
-    <div className="flex h-[56rem] w-[41rem] flex-col items-stretch gap-4 rounded-3xl bg-icy-blue-950">
-      <div className="flex h-full flex-col justify-stretch gap-6 px-10 py-4 pb-6 text-white">
+    <div className="flex h-[min(56rem,calc(100vh-2rem))] w-[41rem] flex-col items-stretch gap-4 rounded-3xl bg-icy-blue-950">
+      <div className="flex h-full min-h-0 flex-col justify-stretch gap-6 px-10 py-4 pb-6 text-white">
         <Header
           title="Import Recovery Phrase"
           subtitle="Please fill in the recovery phrase"
@@ -134,9 +134,9 @@ export default function ImportRecoveryPhrase() {
 
         <form
           onSubmit={onSubmit}
-          className="flex flex-grow flex-col items-stretch gap-4"
+          className="flex min-h-0 flex-grow flex-col items-stretch gap-4"
         >
-          <div className="relative">
+          <div className="no-scrollbar relative min-h-0 flex-1 overflow-y-auto">
             <div className="flex flex-col gap-4">
               {/* Word length switcher */}
               <nav className="flex gap-x-2 rounded-xl bg-daintree-800 p-1">
