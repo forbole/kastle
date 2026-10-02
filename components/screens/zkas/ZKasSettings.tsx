@@ -35,6 +35,7 @@ import {
 } from "@/lib/zkas/history-config";
 import { NetworkType } from "@/lib/network-type";
 import type { HistoryGrantListView } from "@/lib/zkas/history-grant";
+import DaemonBearerPairing from "./DaemonBearerPairing";
 
 export default function ZKasSettings() {
   const navigate = useNavigate();
@@ -334,6 +335,7 @@ export default function ZKasSettings() {
         >
           {saving ? "Connecting wallet…" : "Share viewing key and connect"}
         </button>
+        <DaemonBearerPairing draftOrigin={url} />
         <section className="space-y-2 pt-4" aria-label="History index setup">
           <h2 className="font-semibold">Encrypted history index</h2>
           <p className="text-xs text-daintree-400">
