@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useForm, useFormContext } from "react-hook-form";
 import { twMerge } from "tailwind-merge";
 import { v4 as uuid } from "uuid";
@@ -15,10 +15,7 @@ import { useSettings } from "@/hooks/useSettings";
 import useStorageState from "@/hooks/useStorageState";
 import { isZKasActive, ZKAS_EXPERIMENTAL_KEY } from "@/lib/wallet-network";
 import { requireZKasDaemonUrl } from "@/lib/zkas/setup";
-import {
-  getZKasDaemonBirthday,
-  registerSelectedZKasWallet,
-} from "@/lib/zkas/popup-client";
+import { registerSelectedZKasWallet } from "@/lib/zkas/popup-client";
 import internalToast from "@/components/Toast";
 
 type PhraseLength = 12 | 24;
@@ -45,6 +42,7 @@ export default function ImportRecoveryPhrase() {
     formState: { isValid, dirtyFields },
     watch,
     setValue,
+    reset,
     handleSubmit,
   } = useForm<SeedPhraseFormValues>({
     mode: "all",
@@ -100,18 +98,6 @@ export default function ImportRecoveryPhrase() {
     }
 
     const zkasActive = isZKasActive(settings, experimentalEnabled);
-    let daemonUrl: string | undefined;
-    if (zkasActive) {
-      try {
-        daemonUrl = requireZKasDaemonUrl(settings, "mainnet");
-        await getZKasDaemonBirthday(daemonUrl);
-      } catch (cause) {
-        const detail = cause instanceof Error ? `: ${cause.message}` : "";
-        setSubmitError(`Unable to connect to the ZKas daemon${detail}`);
-        return;
-      }
-    }
-
     if (onboardingForm) {
       await keyringInitialize(onboardingForm.getValues("password"));
     }
@@ -124,19 +110,23 @@ export default function ImportRecoveryPhrase() {
       true,
       undefined,
     );
+    reset();
     if (zkasActive) {
       try {
+        const daemonUrl = requireZKasDaemonUrl(settings, "mainnet");
         await registerSelectedZKasWallet(
           {
             walletId,
             accountIndex: 0,
             network: "mainnet",
           },
-          daemonUrl!,
+          daemonUrl,
+          0,
         );
       } catch {
-        internalToast.error(
-          "Wallet imported, but daemon registration failed. Kastle will retry from genesis.",
+        internalToast.info(
+          "Wallet saved; daemon registration pending. Open ZKas settings to configure access before retrying from genesis.",
+          () => navigate("/zkas/settings"),
         );
       }
     }

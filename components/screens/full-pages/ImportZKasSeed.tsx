@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import Header from "@/components/GeneralHeader";
 import internalToast from "@/components/Toast";
 import {
-  getZKasDaemonBirthday,
   importZKasSeed,
   previewZKasSeed,
   registerSelectedZKasWallet,
@@ -44,30 +43,28 @@ export default function ImportZKasSeed({ onBack }: { onBack: () => void }) {
     if (!preview) return;
     setBusy(true);
     setError("");
-    let imported = false;
     try {
-      const daemonUrl = requireZKasDaemonUrl(settings, "mainnet");
-      await getZKasDaemonBirthday(daemonUrl);
       const importedAccount = await importZKasSeed(seedHex, preview);
-      imported = true;
+      if (seedInput.current) seedInput.current.value = "";
+      setSeedHex("");
+      setPreview(undefined);
       try {
         await switchZKasNetwork();
       } catch {
         // The wallet is saved. The dashboard offers network settings if the
         // experimental network was disabled in another window during import.
       }
-      await registerSelectedZKasWallet(importedAccount, daemonUrl);
-      setSeedHex("");
+      try {
+        const daemonUrl = requireZKasDaemonUrl(settings, "mainnet");
+        await registerSelectedZKasWallet(importedAccount, daemonUrl, 0);
+      } catch {
+        internalToast.info(
+          "Wallet saved; daemon registration pending. Open ZKas settings to configure access before retrying from genesis.",
+          () => navigate("/zkas/settings"),
+        );
+      }
       navigate("/accounts-imported");
     } catch (cause) {
-      if (imported) {
-        setSeedHex("");
-        internalToast.error(
-          "Wallet imported, but daemon registration failed. Kastle will retry from genesis.",
-        );
-        navigate("/accounts-imported");
-        return;
-      }
       setError(
         cause instanceof Error ? cause.message : "Unable to import ZKas seed",
       );

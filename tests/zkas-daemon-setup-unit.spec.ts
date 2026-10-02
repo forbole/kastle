@@ -105,7 +105,6 @@ test("experimental setup, wallet creation, and imports wire daemon registration"
   expect(addWallet).toContain("registerSelectedZKasWallet");
   expect(addWallet).toMatch(/registerSelectedZKasWallet\([\s\S]*birthday/);
   expect(importPhrase).toContain("registerSelectedZKasWallet");
-  expect(importPhrase).toContain("Unable to connect to the ZKas daemon");
   expect(importSeed).toContain("registerSelectedZKasWallet");
   expect(popupClient).toContain("expectedDaemonUrl");
   expect(popupClient).toMatch(
