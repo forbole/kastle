@@ -63,11 +63,12 @@ export const ConfirmStep = ({
   const kaspaPrice = useKaspaPrice();
   const amountNumber = parseFloat(amount ?? "0");
   const fiatAmount = amountNumber * kaspaPrice.kaspaPrice;
-  const fiatFees = parseFloat(formatEther(estimatedFee ?? BigInt(0)));
+  const feesToken = parseFloat(formatEther(estimatedFee ?? BigInt(0)));
   const { amount: amountCurrency, code: amountCurrencyCode } =
     useCurrencyValue(fiatAmount);
-  const { amount: feesCurrency, code: feesCurrencyCode } =
-    useCurrencyValue(fiatFees);
+  const { amount: feesCurrency, code: feesCurrencyCode } = useCurrencyValue(
+    feesToken * kaspaPrice.kaspaPrice,
+  );
 
   const selectedChain = ALL_SUPPORTED_EVM_L2_CHAINS.find(
     (chain) => chain.id === hexToNumber(chainId),
@@ -192,7 +193,7 @@ export const ConfirmStep = ({
               <span className="font-medium">Fee</span>
               <div className="flex flex-col text-right">
                 <span className="font-medium">
-                  {formatToken(fiatFees)} {tokenSymbol}
+                  {formatToken(feesToken)} {tokenSymbol}
                 </span>
                 <span className="text-xs text-daintree-400">
                   {formatCurrency(feesCurrency, feesCurrencyCode)}

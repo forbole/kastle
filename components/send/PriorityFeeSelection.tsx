@@ -28,7 +28,8 @@ export default function PriorityFeeSelection({
       return "<1 sec";
     }
 
-    const roundedSeconds = Math.round(seconds);
+    // Kaspa reports sub-second estimates as fractions; round() made them "<0 secs".
+    const roundedSeconds = Math.max(1, Math.ceil(seconds));
 
     if (roundedSeconds < 90) {
       return `<${roundedSeconds} sec${roundedSeconds === 1 ? "" : "s"}`;
