@@ -396,6 +396,100 @@ export class ZKasBatchJournal {
     });
   }
 
+  // The private coordinator supplies the fresh proof while this shared gate is
+  // held. This method cannot be used as a first-use/enrollment shortcut.
+  async reserveAfterFreshSettlement(
+    incomingIntent: ZKasBatchIntent,
+    assertCurrent: () => void,
+    prove: (records: readonly ZKasBatchRecord[]) => Promise<void>,
+  ): Promise<void> {
+    const intent = structuredClone(incomingIntent);
+    assertIntent(intent);
+    return withZKasPaymentAccountGate(async () => {
+      const checkFence = () => {
+        if ((assertCurrent() as unknown) !== undefined) {
+          throw new Error(
+            "Private admission requires a synchronous context fence",
+          );
+        }
+      };
+      const guarded = async <T>(operation: () => Promise<T>): Promise<T> => {
+        checkFence();
+        const result = await operation();
+        checkFence();
+        return result;
+      };
+      if (
+        await guarded(() =>
+          this.legacyReserved(structuredClone(intent.selection)),
+        )
+      ) {
+        throw new Error(
+          "An unresolved legacy ZKas payment reserves this account",
+        );
+      }
+      const original = await guarded(() => this.all());
+      const originalJson = JSON.stringify(original);
+      if (Object.keys(original).length >= 128) {
+        throw new Error("Private batch journal is full");
+      }
+      if (original[intent.logicalId]) {
+        throw new Error("Batch intent already exists");
+      }
+      const selected = Object.values(original).filter(
+        (record) =>
+          accountKey(record.intent.selection) === accountKey(intent.selection),
+      );
+      if (selected.length === 0) {
+        throw new Error("Private batch history requires separate enrollment");
+      }
+      if (
+        selected.some(
+          (record) =>
+            record.intent.account !== intent.account ||
+            record.intent.genesis !== intent.genesis,
+        )
+      ) {
+        throw new Error("Private batch account or genesis changed");
+      }
+      await guarded(() => prove(structuredClone(selected)));
+      if (
+        await guarded(() =>
+          this.legacyReserved(structuredClone(intent.selection)),
+        )
+      ) {
+        throw new Error(
+          "An unresolved legacy ZKas payment reserves this account",
+        );
+      }
+      await guarded(() =>
+        this.store.updateValue<Record<string, ZKasBatchRecord>>(
+          BATCH_JOURNAL_KEY,
+          (current) => {
+            checkFence();
+            if (JSON.stringify(current ?? {}) !== originalJson) {
+              throw new Error("Private batch journal changed during admission");
+            }
+            const updated = { ...original };
+            for (const [id, record] of Object.entries(original)) {
+              if (
+                accountKey(record.intent.selection) ===
+                accountKey(intent.selection)
+              ) {
+                updated[id] = { ...record, status: "settled" };
+              }
+            }
+            updated[intent.logicalId] = {
+              intent: structuredClone(intent),
+              status: "preparing",
+            };
+            return updated;
+          },
+        ),
+      );
+    });
+  }
+
   async saveSignedTicket(
     intent: ZKasBatchIntent,
     input: Omit<ZKasSignedTicket, "value" | "sha256"> & {

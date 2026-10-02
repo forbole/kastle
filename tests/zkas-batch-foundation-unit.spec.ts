@@ -1,13 +1,23 @@
 import { expect, test } from "@playwright/test";
 import { readFileSync } from "node:fs";
-import { ZKasBatchJournal } from "@/lib/zkas/batch-journal";
+import {
+  BATCH_JOURNAL_KEY,
+  ZKasBatchJournal,
+  type ZKasBatchIntent,
+  type ZKasBatchRecord,
+} from "@/lib/zkas/batch-journal";
 import {
   ZKasBatchClient,
   ZKasBatchCapabilityClient,
   type ZKasPreparedBatch,
+  type ZKasBatchInventory,
+  type ZKasBatchSendStatus,
 } from "@/lib/zkas/batch-client";
 import { ZKasPaymentJournal } from "@/lib/zkas/payment-journal";
-import { ZKasBatchPayment } from "@/lib/zkas/batch-payment";
+import {
+  ZKasBatchPayment,
+  type PrivateBatchSigner,
+} from "@/lib/zkas/batch-payment";
 
 const selection = {
   walletId: "wallet",
@@ -1985,4 +1995,432 @@ test("journal cannot accept finalized bytes without a retained original signed t
     journal.saveFinalized(intent, await signedFixture()),
   ).rejects.toThrow(/ticket/i);
   expect((await journal.get(intent.logicalId))?.status).toBe("preparing");
+});
+
+test("fresh settled history admits one new batch only after original private verification", async () => {
+  const h = await freshAdmissionHarness();
+  expect((await h.flow.beginAfterFreshSettlement(h.next)).logicalId).toBe(
+    h.next.logicalId,
+  );
+  expect(h.events.indexOf("walk")).toBeLessThan(h.events.indexOf("import"));
+  expect(h.events.indexOf("verify")).toBeLessThan(h.events.indexOf("status"));
+  expect(h.events.filter((event) => event === "walk")).toHaveLength(2);
+  expect(h.events.indexOf("status")).toBeLessThan(h.events.indexOf("grant"));
+  expect((await h.journal.get(intent.logicalId))?.status).toBe("settled");
+  expect((await h.journal.get(h.next.logicalId))?.status).toBe("preparing");
+});
+
+async function freshAdmissionHarness() {
+  const backing = store();
+  let legacy = false;
+  const journal = new ZKasBatchJournal(backing, async () => legacy);
+  await journal.reserve(intent);
+  await saveFoundationTicket(journal);
+  const signed = await signedFixture();
+  await journal.saveFinalized(intent, signed);
+  await journal.markUnknown(intent.logicalId);
+  const next = { ...intent, logicalId: "4".repeat(64) };
+  const events: string[] = [];
+  let walk = 0;
+  const inventory = (): ZKasBatchInventory => ({
+    inventoryOnly: true,
+    epoch: (++walk).toString(16).padStart(64, "0"),
+    unlistedReservationCount: 0,
+    entries: [
+      {
+        logicalId: intent.logicalId,
+        revision: walk,
+        status: "unknown",
+        txid: signed.txid,
+        sha256: signed.sha256,
+      },
+    ],
+  });
+  const controls: {
+    inventory: () => ZKasBatchInventory | Promise<ZKasBatchInventory>;
+    status: () => ZKasBatchSendStatus | Promise<ZKasBatchSendStatus>;
+    open: (approved: ZKasBatchIntent) => Promise<PrivateBatchSigner>;
+    fence: () => void;
+    grant: () => Promise<{
+      capability: string;
+      logicalId: string;
+      expiresAtUnix: number;
+    }>;
+    clock: () => number;
+  } = {
+    inventory,
+    status: () => ({
+      status: "settled",
+      logicalId: intent.logicalId,
+      txid: signed.txid,
+      sha256: signed.sha256,
+    }),
+    open: async () => ({
+      sign: async () => {
+        throw new Error("must not sign");
+      },
+      exportTicket: async () => {
+        throw new Error("must not export");
+      },
+      importTicket: async (ticket) => {
+        expect(ticket).toBe(ticketForFoundationIntent());
+        events.push("import");
+      },
+      verifyFinalized: async (bytes) => {
+        expect(bytes).toEqual(signed);
+        events.push("verify");
+      },
+      close: () => {
+        events.push("close");
+      },
+    }),
+    fence: () => undefined,
+    clock: () => 0,
+    grant: async () => ({
+      capability: "5".repeat(64),
+      logicalId: next.logicalId,
+      expiresAtUnix: 2_000_000_000,
+    }),
+  };
+  const flow = new ZKasBatchPayment(
+    {
+      identity: "https://wallet.example.test",
+      grant: async () => {
+        events.push("grant");
+        return controls.grant();
+      },
+      prepared: async () => {
+        throw new Error("must not prepare");
+      },
+      finalize: async () => {
+        throw new Error("must not finalize");
+      },
+      finalizedJournal: async () => {
+        throw new Error("must not refetch");
+      },
+      submit: async () => {
+        throw new Error("must not submit");
+      },
+    },
+    journal,
+    async () => undefined,
+    {
+      assertCurrent: () => controls.fence(),
+      client: {
+        discoverRecords: async () => {
+          events.push("walk");
+          return controls.inventory();
+        },
+        status: async () => {
+          events.push("status");
+          return controls.status();
+        },
+      },
+      openRecoverySigner: async (approved) => {
+        events.push("open");
+        return controls.open(approved);
+      },
+      monotonicNow: () => controls.clock(),
+    },
+  );
+  return {
+    backing,
+    journal,
+    flow,
+    next,
+    signed,
+    events,
+    controls,
+    setLegacy: (value: boolean) => {
+      legacy = value;
+    },
+  };
+}
+
+test("malformed first inventory fails before opening original signer", async () => {
+  const h = await freshAdmissionHarness();
+  const original = h.controls.inventory;
+  h.controls.inventory = () => ({ ...original(), epoch: "invalid" });
+  await expect(h.flow.beginAfterFreshSettlement(h.next)).rejects.toThrow(
+    /inventory/i,
+  );
+  expect(h.events).not.toContain("open");
+  expect(await h.journal.get(h.next.logicalId)).toBeUndefined();
+});
+
+test("a context failure immediately after signer opening still closes that handle", async () => {
+  const h = await freshAdmissionHarness();
+  let current = true;
+  h.controls.fence = () => {
+    if (!current) throw new Error("context changed");
+  };
+  const original = h.controls.open;
+  h.controls.open = async (approved) => {
+    const signer = await original(approved);
+    current = false;
+    return signer;
+  };
+  await expect(h.flow.beginAfterFreshSettlement(h.next)).rejects.toThrow(
+    /context changed/i,
+  );
+  expect(h.events).toContain("close");
+  expect(h.events).not.toContain("status");
+  expect(await h.journal.get(h.next.logicalId)).toBeUndefined();
+});
+
+test("extra or unlisted daemon reservations block before private signer opening", async () => {
+  for (const corrupt of [
+    (walk: ZKasBatchInventory) => ({ ...walk, unlistedReservationCount: 1 }),
+    (walk: ZKasBatchInventory) => ({
+      ...walk,
+      entries: [
+        ...walk.entries,
+        { ...walk.entries[0], logicalId: "e".repeat(64) },
+      ],
+    }),
+  ]) {
+    const h = await freshAdmissionHarness();
+    const original = h.controls.inventory;
+    h.controls.inventory = async () => corrupt(await original());
+    await expect(h.flow.beginAfterFreshSettlement(h.next)).rejects.toThrow(
+      /inventory|reservation/i,
+    );
+    expect(h.events).not.toContain("open");
+    expect(await h.journal.get(h.next.logicalId)).toBeUndefined();
+  }
+});
+
+test("nonsettled exact-ID status or changed second walk retains original UNKNOWN", async () => {
+  const nonsettled = await freshAdmissionHarness();
+  const status = nonsettled.controls.status;
+  nonsettled.controls.status = () => ({
+    ...(status() as ZKasBatchSendStatus),
+    status: "included",
+  });
+  await expect(
+    nonsettled.flow.beginAfterFreshSettlement(nonsettled.next),
+  ).rejects.toThrow(/settled/i);
+  expect(nonsettled.events.filter((event) => event === "walk")).toHaveLength(1);
+  expect((await nonsettled.journal.get(intent.logicalId))?.status).toBe(
+    "unknown",
+  );
+  expect(
+    await nonsettled.journal.get(nonsettled.next.logicalId),
+  ).toBeUndefined();
+
+  const changed = await freshAdmissionHarness();
+  const original = changed.controls.inventory;
+  let count = 0;
+  changed.controls.inventory = async () => {
+    const walk = await original();
+    return ++count === 2
+      ? { ...walk, entries: [{ ...walk.entries[0], sha256: "d".repeat(64) }] }
+      : walk;
+  };
+  await expect(
+    changed.flow.beginAfterFreshSettlement(changed.next),
+  ).rejects.toThrow(/inventory|identity/i);
+  expect(changed.events).not.toContain("grant");
+  expect((await changed.journal.get(intent.logicalId))?.status).toBe("unknown");
+});
+
+test("a late legacy reservation or local journal mutation aborts the final append", async () => {
+  const legacy = await freshAdmissionHarness();
+  const originalStatus = legacy.controls.status;
+  legacy.controls.status = async () => {
+    legacy.setLegacy(true);
+    return originalStatus();
+  };
+  await expect(
+    legacy.flow.beginAfterFreshSettlement(legacy.next),
+  ).rejects.toThrow(/legacy/i);
+  expect(legacy.events).not.toContain("grant");
+  expect(await legacy.journal.get(legacy.next.logicalId)).toBeUndefined();
+
+  const changed = await freshAdmissionHarness();
+  const update = changed.backing.updateValue;
+  let injected = false;
+  changed.backing.updateValue = async <T>(
+    key: string,
+    callback: (current: T | null) => T | Promise<T>,
+  ) => {
+    if (!injected) {
+      injected = true;
+      await update<Record<string, ZKasBatchRecord>>(
+        BATCH_JOURNAL_KEY,
+        (current) => ({
+          ...current,
+          [intent.logicalId]: {
+            ...current![intent.logicalId],
+            status: "included",
+          },
+        }),
+      );
+    }
+    await update(key, callback);
+  };
+  await expect(
+    changed.flow.beginAfterFreshSettlement(changed.next),
+  ).rejects.toThrow(/changed/i);
+  expect(changed.events).not.toContain("grant");
+  expect(await changed.journal.get(changed.next.logicalId)).toBeUndefined();
+});
+
+test("admission deadline and first-use require evidence before any new grant", async () => {
+  const expired = await freshAdmissionHarness();
+  const original = expired.controls.inventory;
+  let elapsed = 0;
+  expired.controls.clock = () => elapsed;
+  expired.controls.inventory = async () => {
+    const walk = await original();
+    elapsed = 120_001;
+    return walk;
+  };
+  await expect(
+    expired.flow.beginAfterFreshSettlement(expired.next),
+  ).rejects.toThrow(/deadline/i);
+  expect(expired.events).not.toContain("open");
+  expect(expired.events).not.toContain("grant");
+
+  const empty = new ZKasBatchJournal(store(), async () => false);
+  let proved = false;
+  await expect(
+    empty.reserveAfterFreshSettlement(
+      intent,
+      () => undefined,
+      async () => {
+        proved = true;
+      },
+    ),
+  ).rejects.toThrow(/enrollment/i);
+  expect(proved).toBe(false);
+});
+
+test("failed grant retains the new preparing reservation and old signed ticket", async () => {
+  const h = await freshAdmissionHarness();
+  h.controls.grant = async () => {
+    throw new Error("grant offline");
+  };
+  await expect(h.flow.beginAfterFreshSettlement(h.next)).rejects.toThrow(
+    /grant offline/i,
+  );
+  expect((await h.journal.get(h.next.logicalId))?.status).toBe("preparing");
+  expect((await h.journal.get(intent.logicalId))?.signedTicket?.value).toBe(
+    ticketForFoundationIntent(),
+  );
+  await expect(
+    h.journal.reserve({ ...h.next, logicalId: "5".repeat(64) }),
+  ).rejects.toThrow(/unresolved/i);
+  h.controls.grant = async () => ({
+    capability: "5".repeat(64),
+    logicalId: h.next.logicalId,
+    expiresAtUnix: 2_000_000_000,
+  });
+  await expect(h.flow.begin(h.next)).rejects.toThrow(/fresh|private/i);
+  expect((await h.flow.beginAfterFreshSettlement(h.next)).logicalId).toBe(
+    h.next.logicalId,
+  );
+});
+
+test("an asynchronous context callback cannot masquerade as the synchronous admission fence", async () => {
+  const h = await freshAdmissionHarness();
+  h.controls.fence = async () => undefined;
+  await expect(h.flow.beginAfterFreshSettlement(h.next)).rejects.toThrow(
+    /synchronous|fence/i,
+  );
+  expect(h.events).not.toContain("walk");
+  expect(h.events).not.toContain("grant");
+  expect(await h.journal.get(h.next.logicalId)).toBeUndefined();
+});
+
+test("failed original private verification closes its handle without polling or appending", async () => {
+  const h = await freshAdmissionHarness();
+  const original = h.controls.open;
+  h.controls.open = async (approved) => {
+    const signer = await original(approved);
+    return {
+      ...signer,
+      verifyFinalized: async () => {
+        throw new Error("invalid original signed proof");
+      },
+    };
+  };
+  await expect(h.flow.beginAfterFreshSettlement(h.next)).rejects.toThrow(
+    /invalid original signed proof/i,
+  );
+  expect(h.events).toContain("import");
+  expect(h.events).toContain("close");
+  expect(h.events).not.toContain("status");
+  expect(h.events).not.toContain("grant");
+  expect((await h.journal.get(intent.logicalId))?.status).toBe("unknown");
+  expect(await h.journal.get(h.next.logicalId)).toBeUndefined();
+});
+
+test("128 retained private records require separate archival before admission", async () => {
+  const h = await freshAdmissionHarness();
+  const original = (await h.journal.get(intent.logicalId))!;
+  await h.backing.updateValue<Record<string, ZKasBatchRecord>>(
+    BATCH_JOURNAL_KEY,
+    (current) => {
+      const records = { ...current };
+      for (let index = 1; index < 128; index++) {
+        const logicalId = index.toString(16).padStart(64, "0");
+        records[logicalId] = {
+          ...structuredClone(original),
+          intent: { ...structuredClone(original.intent), logicalId },
+        };
+      }
+      return records;
+    },
+  );
+  await expect(h.flow.beginAfterFreshSettlement(h.next)).rejects.toThrow(
+    /full/i,
+  );
+  expect(h.events).not.toContain("walk");
+  expect(h.events).not.toContain("grant");
+  expect(await h.journal.get(h.next.logicalId)).toBeUndefined();
+});
+
+test("two different new intents serialize through the shared account gate", async () => {
+  const h = await freshAdmissionHarness();
+  const other = { ...h.next, logicalId: "5".repeat(64) };
+  const results = await Promise.allSettled([
+    h.flow.beginAfterFreshSettlement(h.next),
+    h.flow.beginAfterFreshSettlement(other),
+  ]);
+  expect(results.map((result) => result.status)).toEqual([
+    "fulfilled",
+    "rejected",
+  ]);
+  expect(h.events.filter((event) => event === "grant")).toHaveLength(1);
+  expect((await h.journal.get(h.next.logicalId))?.status).toBe("preparing");
+  expect(await h.journal.get(other.logicalId)).toBeUndefined();
+});
+
+test("cached local settled status still requires private re-verification and fresh status", async () => {
+  const h = await freshAdmissionHarness();
+  await h.backing.updateValue<Record<string, ZKasBatchRecord>>(
+    BATCH_JOURNAL_KEY,
+    (current) => ({
+      ...current,
+      [intent.logicalId]: { ...current![intent.logicalId], status: "settled" },
+    }),
+  );
+  await h.flow.beginAfterFreshSettlement(h.next);
+  expect(h.events).toContain("import");
+  expect(h.events).toContain("verify");
+  expect(h.events).toContain("status");
+  expect(h.events.indexOf("verify")).toBeLessThan(h.events.indexOf("grant"));
+});
+
+test("caller mutation during remote inventory cannot change the approved new intent", async () => {
+  const h = await freshAdmissionHarness();
+  const approved = structuredClone(h.next);
+  const original = h.controls.inventory;
+  h.controls.inventory = async () => {
+    h.next.maxFeeSompi = "2000000";
+    return original();
+  };
+  await h.flow.beginAfterFreshSettlement(h.next);
+  expect((await h.journal.get(approved.logicalId))?.intent).toEqual(approved);
 });
