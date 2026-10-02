@@ -12,6 +12,7 @@ import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import Layer2AssetImage from "@/components/Layer2AssetImage";
 import toast from "@/components/Toast";
 import useStorageState from "@/hooks/useStorageState";
+import { formatAmount } from "@/lib/format-amount";
 import "/node_modules/flag-icons/css/flag-icons.min.css";
 
 export function BottomSheet({
@@ -759,10 +760,7 @@ export function TokenSheet({
   );
 }
 
-export const formatAmount = (n: number, max = 6) =>
-  Number.isFinite(n)
-    ? n.toLocaleString("en-US", { maximumFractionDigits: max })
-    : "0";
+export { formatAmount };
 
 /** USD display: sub-cent values round to 0.00 at 2 decimals, so show more. */
 export const formatUsd = (n: number) =>

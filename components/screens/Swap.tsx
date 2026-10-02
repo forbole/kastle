@@ -64,7 +64,16 @@ import {
   createSwapExecutor,
   readSwapFeeBps,
 } from "@/lib/evm/swap/swapExecutor";
-import { swapMinReceived, swapPathAmountIn } from "@/lib/swap-bridge-quote";
+import {
+  computeSwapKastleFee,
+  swapMinReceived,
+  swapPathAmountIn,
+} from "@/lib/swap-bridge-quote";
+import {
+  FeeRow,
+  SwapFeeFootnote,
+  SwapFeeSummary,
+} from "@/components/swap-bridge/swap-fee-summary";
 
 type ChainKey = "kasplex" | "igra";
 const CHAINS = { kasplex: kasplexMainnet, igra: igraMainnet };
@@ -384,17 +393,18 @@ export default function Swap() {
     !!selected?.provider.proxyAddress &&
     selected.netAmountOut === undefined;
 
-  const kastleFeeBps = viaFeeCollector ? Number(feeBps) : (partnerFeeBps ?? 0);
-  const kastleFeeSymbol = viaFeeCollector ? tokenIn?.symbol : tokenOut?.symbol;
-  const kastleFee = viaFeeCollector
-    ? amountNum -
-      Number(
-        formatUnits(swapPathAmountIn(rawIn, feeBps), tokenIn?.decimals ?? 18),
-      )
-    : kastleFeeBps > 0 && selected?.amountOut !== undefined && tokenOut
-      ? Number(formatUnits(selected.amountOut, tokenOut.decimals)) *
-        (kastleFeeBps / 10000)
-      : 0;
+  const { kastleFeeBps, kastleFeeSymbol, kastleFee } = computeSwapKastleFee({
+    viaFeeCollector,
+    feeBps,
+    partnerFeeBps,
+    amountNum,
+    rawIn,
+    amountOut: tokenOut ? selected?.amountOut : undefined,
+    tokenInDecimals: tokenIn?.decimals ?? 18,
+    tokenInSymbol: tokenIn?.symbol,
+    tokenOutDecimals: tokenOut?.decimals ?? 18,
+    tokenOutSymbol: tokenOut?.symbol,
+  });
 
   const error = (() => {
     if (wallet?.type === "ledger")
@@ -668,12 +678,10 @@ export default function Swap() {
                   ? "-"
                   : `${formatAmount(priceImpact, 2)}%`}
               </QuoteRow>
-              {kastleFee > 0 && (
-                <p className="flex items-center gap-2 border-t border-daintree-700 px-4 py-3 text-xs font-medium text-daintree-400">
-                  <i className="hn hn-info-circle text-base" />
-                  Quote includes {kastleFeeBps / 100}% Kastle Fee
-                </p>
-              )}
+              <SwapFeeFootnote
+                kastleFee={kastleFee}
+                kastleFeeBps={kastleFeeBps}
+              />
             </div>
           )}
       </div>
@@ -824,40 +832,20 @@ export default function Swap() {
         open={sheet === "fee"}
         onClose={() => setSheet(undefined)}
       >
-        {[
-          // "Swap fees" row (in the design) is hidden until the quote carries DEX fee data.
-          {
-            label: "Network fees",
-            value:
-              networkFeeWei !== undefined
-                ? `${formatAmount(Number(formatEther(networkFeeWei)))} ${nativeSymbol}`
-                : "-",
-          },
-          {
-            label: "Kastle fees",
-            value:
-              kastleFee > 0
-                ? `${formatAmount(kastleFee)} ${kastleFeeSymbol}`
-                : "-",
-            note:
-              kastleFee > 0
-                ? `Quote includes ${kastleFeeBps / 100}% Kastle Fee`
-                : undefined,
-          },
-        ].map(({ label, value, note }) => (
-          <div
-            key={label}
-            className="flex flex-col gap-1 rounded-lg px-3 py-2 text-sm"
-          >
-            <div className="flex items-start justify-between gap-2">
-              <span className="min-w-0 font-semibold text-white">{label}</span>
-              <span className="flex-none whitespace-nowrap text-white">
-                {value}
-              </span>
-            </div>
-            {note && <span className="text-xs text-daintree-400">{note}</span>}
-          </div>
-        ))}
+        {/* "Swap fees" row (in the design) is hidden until the quote carries DEX fee data. */}
+        <FeeRow
+          label="Network fees"
+          value={
+            networkFeeWei !== undefined
+              ? `${formatAmount(Number(formatEther(networkFeeWei)))} ${nativeSymbol}`
+              : "-"
+          }
+        />
+        <SwapFeeSummary
+          kastleFee={kastleFee}
+          kastleFeeSymbol={kastleFeeSymbol}
+          kastleFeeBps={kastleFeeBps}
+        />
       </BottomSheet>
     </div>
   );
