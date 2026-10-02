@@ -163,19 +163,30 @@ export async function fetchKcc20Tokens(
 
   const tokens: (Kcc20Token | undefined)[] = await Promise.all(
     [...tickByCovid].map(async ([covid, tick]) => {
-      const amount = await verifiedBalance(indexer, rpc, tick, address, covid);
-      // Skips the genesis-tx fetch; shouldIncludeToken is still the gate.
-      if (amount === 0n) return undefined;
-      const entry = registry?.tokens.find(
-        (t) =>
-          t.network === "mainnet" &&
-          covenantSelect.normalizedCovenantId(t.covenantId) === covid,
-      );
-      return {
-        covenantId: covid,
-        amount,
-        meta: await verifiedMeta(entry, restApi),
-      };
+      try {
+        const amount = await verifiedBalance(
+          indexer,
+          rpc,
+          tick,
+          address,
+          covid,
+        );
+        // Skips the genesis-tx fetch; shouldIncludeToken is still the gate.
+        if (amount === 0n) return undefined;
+        const entry = registry?.tokens.find(
+          (t) =>
+            t.network === "mainnet" &&
+            covenantSelect.normalizedCovenantId(t.covenantId) === covid,
+        );
+        return {
+          covenantId: covid,
+          amount,
+          meta: await verifiedMeta(entry, restApi),
+        };
+      } catch {
+        // One token's lookup failing drops that row; it must not blank the rest.
+        return undefined;
+      }
     }),
   );
   return tokens.filter(
