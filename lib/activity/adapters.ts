@@ -99,6 +99,7 @@ export function formatDateTime(timestampMs: number): string {
   const date = d.toLocaleDateString("en-GB", {
     day: "numeric",
     month: "short",
+    year: d.getFullYear() !== new Date().getFullYear() ? "numeric" : undefined,
   });
   const time = d.toLocaleTimeString("en-GB", {
     hour: "2-digit",
