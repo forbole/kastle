@@ -252,33 +252,40 @@ function ActivityDetail({ item }: { item: ActivityItem }) {
         {item.sheet.details.map((d) => (
           <div
             key={d.label}
-            className="flex items-center justify-between gap-3 py-3 text-sm leading-[21px]"
+            className="flex flex-col gap-1 py-3 text-sm leading-[21px]"
           >
-            <span className="text-daintree-200">{d.label}</span>
-            {d.pill ? (
-              <span
-                className={twMerge(
-                  "rounded-full px-2 py-0.5 text-xs font-medium",
-                  PILL_CLASS[d.pill],
-                )}
-              >
-                {d.value}
-              </span>
-            ) : d.url ? (
-              <button
-                type="button"
-                onClick={() => openUrl(d.url!)}
-                className="flex items-center gap-2 text-icy-blue-400"
-              >
-                <i className="hn hn-external-link text-lg" />
-                {d.value}
-              </button>
-            ) : (
-              <span className="flex items-center gap-2 text-right text-white">
-                {d.icon && (
-                  <img src={d.icon} alt="" className="size-7 rounded-full" />
-                )}
-                {d.value}
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-daintree-200">{d.label}</span>
+              {d.pill ? (
+                <span
+                  className={twMerge(
+                    "rounded-full px-2 py-0.5 text-xs font-medium",
+                    PILL_CLASS[d.pill],
+                  )}
+                >
+                  {d.value}
+                </span>
+              ) : d.url ? (
+                <button
+                  type="button"
+                  onClick={() => openUrl(d.url!)}
+                  className="flex items-center gap-2 text-icy-blue-400"
+                >
+                  <i className="hn hn-external-link text-lg" />
+                  {d.value}
+                </button>
+              ) : (
+                <span className="flex items-center gap-2 text-right text-white">
+                  {d.icon && (
+                    <img src={d.icon} alt="" className="size-7 rounded-full" />
+                  )}
+                  {d.value}
+                </span>
+              )}
+            </div>
+            {d.subtext && (
+              <span className="text-right text-xs text-daintree-200">
+                {d.subtext}
               </span>
             )}
           </div>
