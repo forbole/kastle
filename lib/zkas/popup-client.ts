@@ -1,20 +1,15 @@
 import { Method } from "@/lib/service/methods";
 import { sendMessage } from "@/lib/utils";
-import { parseZkasAmount } from "./amount";
+import { parseZkasAmount, parseZkasSompi } from "./amount";
 import {
   getZKasDaemonOriginPattern,
-  probeZKasDaemonBirthday,
   ZKasClient,
   type ZKasHistory,
   type ZKasSigner,
   type ZKasState,
 } from "./client";
 import type { ZKasCredentials, ZKasSignRequest } from "./key-service";
-import {
-  sameZKasSelection,
-  type ZKasSelection,
-  type ZKasSwitchAccount,
-} from "./selection";
+import { type ZKasSelection, type ZKasSwitchAccount } from "./selection";
 import type { ZKasPaymentRecord } from "./payment-journal";
 import { ZKasPreSubmitError, ZKasSubmissionUncertainError } from "./client";
 import { validateZKasMemo } from "./memo";
@@ -101,7 +96,16 @@ export async function getZKasDaemonBirthday(
   if (!(await browser.permissions.contains({ origins: [pattern] }))) {
     throw new Error("Allow Kastle access to the selected ZKas daemon first");
   }
-  return probeZKasDaemonBirthday(daemonUrl, network);
+  const result = await internal<{ birthday: number }>(
+    Method.ZKAS_DAEMON_BIRTHDAY,
+    {
+      origin: daemonUrl,
+      network,
+    },
+  );
+  if (!Number.isSafeInteger(result.birthday) || result.birthday < 0)
+    throw new Error("Invalid ZKas daemon birthday");
+  return result.birthday;
 }
 
 export async function registerSelectedZKasWallet(
@@ -109,27 +113,11 @@ export async function registerSelectedZKasWallet(
   expectedDaemonUrl: string,
   birthday = 0,
 ): Promise<void> {
-  const credentials = await internal<ZKasCredentials>(
-    Method.ZKAS_GET_CREDENTIALS,
-  );
-  if (!sameZKasSelection(credentials, expectedAccount)) {
-    throw new Error("Selected ZKas account changed. Refresh this screen.");
-  }
-  if (
-    expectedAccount.address !== undefined &&
-    credentials.address !== expectedAccount.address
-  ) {
-    throw new Error("Selected ZKas account changed. Refresh this screen.");
-  }
-  if (credentials.daemonUrl !== expectedDaemonUrl) {
-    throw new Error("Selected ZKas daemon changed. Review and retry.");
-  }
-  const client = await permittedClient(credentials);
-  await client.register(
-    credentials.fullViewingKeyHex,
-    credentials.address,
+  await internal(Method.ZKAS_DAEMON_REGISTER, {
+    expectedAccount,
+    expectedOrigin: expectedDaemonUrl,
     birthday,
-  );
+  });
 }
 
 export async function previewZKasSeed(
@@ -161,24 +149,21 @@ export async function clearZKasPaymentRecord(
 export async function getZKasState(
   expectedAccount?: PublicZKasAccount,
 ): Promise<ZKasState> {
-  const credentials = await internal<ZKasCredentials>(
-    Method.ZKAS_GET_CREDENTIALS,
-  );
-  assertExpectedAccount(credentials, expectedAccount);
-  const client = await permittedClient(credentials);
-  return client.state(credentials.fullViewingKeyHex, credentials.address);
+  const state = await internal<
+    Omit<ZKasState, "balanceSompi"> & { balanceSompi: string }
+  >(Method.ZKAS_DAEMON_STATE, { expectedAccount });
+  return {
+    ...state,
+    balanceSompi: parseZkasSompi(state.balanceSompi, "balance"),
+  };
 }
 
 export async function getZKasHistory(
   expectedAccount?: PublicZKasAccount,
 ): Promise<ZKasHistory> {
-  const credentials = await internal<ZKasCredentials>(
-    Method.ZKAS_GET_CREDENTIALS,
-  );
-  assertExpectedAccount(credentials, expectedAccount);
-  const client = await permittedClient(credentials);
-  await client.state(credentials.fullViewingKeyHex, credentials.address);
-  return client.history();
+  return internal<ZKasHistory>(Method.ZKAS_DAEMON_RECENT_HISTORY, {
+    expectedAccount,
+  });
 }
 
 export async function sendZKasPayment(input: {

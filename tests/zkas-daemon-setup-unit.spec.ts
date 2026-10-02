@@ -81,6 +81,10 @@ test("experimental setup, wallet creation, and imports wire daemon registration"
     path.join(root, "lib/zkas/popup-client.ts"),
     "utf8",
   );
+  const privateTransport = fs.readFileSync(
+    path.join(root, "lib/service/handlers/zkas-daemon-transport.ts"),
+    "utf8",
+  );
   const walletManager = fs.readFileSync(
     path.join(root, "contexts/WalletManagerContext.tsx"),
     "utf8",
@@ -106,9 +110,9 @@ test("experimental setup, wallet creation, and imports wire daemon registration"
   expect(addWallet).toMatch(/registerSelectedZKasWallet\([\s\S]*birthday/);
   expect(importPhrase).toContain("registerSelectedZKasWallet");
   expect(importSeed).toContain("registerSelectedZKasWallet");
-  expect(popupClient).toContain("expectedDaemonUrl");
-  expect(popupClient).toMatch(
-    /credentials\.daemonUrl\s*!==\s*expectedDaemonUrl/,
+  expect(popupClient).toContain("Method.ZKAS_DAEMON_REGISTER");
+  expect(privateTransport).toContain(
+    "origin !== canonicalDaemonBearerOrigin(expectedOrigin)",
   );
   expect(keyService).not.toContain("zkasBirthday");
   expect(popupClient).toContain("birthday = 0");

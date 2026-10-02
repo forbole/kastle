@@ -45,6 +45,7 @@ export function addZKasConnection(
 
 export class ZKasConnectionStore {
   private tail: Promise<void> = Promise.resolve();
+  private generation = 0n;
   private readonly adapter: {
     get(): Promise<ZKasConnections | null>;
     set(value: ZKasConnections): Promise<void>;
@@ -62,9 +63,14 @@ export class ZKasConnectionStore {
     return (await this.adapter.get()) ?? {};
   }
 
+  getGeneration(): bigint {
+    return this.generation;
+  }
+
   private async mutate(
     change: (value: ZKasConnections) => ZKasConnections,
   ): Promise<void> {
+    this.generation += 1n;
     const operation = this.tail.then(async () => {
       const current = (await this.adapter.get()) ?? {};
       const next = change(current);
