@@ -27,6 +27,7 @@ import {
   TokenPill,
   TokenSheet,
   formatAmount,
+  formatUsd,
 } from "@/components/swap-bridge/ui";
 import BottomNav, { ActivityHeaderButton } from "@/components/BottomNav";
 import kaspaIcon from "@/assets/images/network-logos/kaspa.svg";
@@ -564,7 +565,7 @@ export default function Bridge() {
           onChange={setAmount}
           symbol={fromSymbol}
           chainImage={chainImage(route.from)}
-          usd={`$${formatAmount(amountNum * kaspaPrice, 2)}`}
+          usd={`$${formatUsd(amountNum * kaspaPrice)}`}
           onFlip={() => {
             setDirection(reverse);
             setAmount("");
@@ -584,8 +585,7 @@ export default function Bridge() {
                   <span className="flex flex-col items-end">
                     ~ {formatAmount(Math.max(received, 0))} {toSymbol}
                     <span className="text-xs text-daintree-400">
-                      (≈ ${formatAmount(Math.max(received, 0) * kaspaPrice, 2)}{" "}
-                      USD)
+                      (≈ ${formatUsd(Math.max(received, 0) * kaspaPrice)} USD)
                     </span>
                   </span>
                 )}
@@ -634,6 +634,42 @@ export default function Bridge() {
           balance === undefined
             ? undefined
             : `${formatAmount(balance)} ${fromSymbol}`
+        }
+        onMax={
+          balance !== undefined && networkFee !== undefined
+            ? () => {
+                let text: string;
+                if (route.from === "kaspa") {
+                  const max = Math.max(balance - networkFee, 0);
+                  text = max.toFixed(8);
+                } else {
+                  // Exact wei, truncated (not rounded) so amount + fee <= balance.
+                  // `balance` is a formatUnits string: exact for live and cached reads.
+                  const raw = (
+                    route.from === "kasplex" ? kasplexBalance : igraBalance
+                  )?.balance;
+                  let wei =
+                    raw === undefined || evmFeeWei === undefined
+                      ? 0n
+                      : parseEther(String(raw)) - evmFeeWei;
+                  if (direction === "igra-kas" && exitParams) {
+                    const cap = computeMaxExitKas({
+                      balanceKas: balance,
+                      capHeadroomKas: null,
+                      maxExitAmountKas: Number(formatEther(exitParams.maxExit)),
+                      feeRateBps: Number(exitParams.feeRate),
+                    });
+                    const capWei = parseEther(cap.toFixed(18));
+                    if (capWei < wei) wei = capWei;
+                  }
+                  const [whole, frac = ""] = formatEther(
+                    wei > 0n ? wei : 0n,
+                  ).split(".");
+                  text = `${whole}.${frac.padEnd(8, "0").slice(0, 8)}`;
+                }
+                setAmount(text.replace(/\.?0+$/, "") || "0");
+              }
+            : undefined
         }
         disabled={
           !!error ||
