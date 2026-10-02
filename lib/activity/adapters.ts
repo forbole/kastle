@@ -10,7 +10,6 @@ import {
   IGRA_DEPOSIT_ACTIVITY_TYPE,
   KURVE_BRIDGE_ACTIVITY_TYPE,
   SWAP_ACTIVITY_TYPE,
-  trimDecimal,
 } from "@/lib/activity/mappers";
 import { swapVenueName, toProviderId } from "@/lib/activity/swap-history";
 import { ALL_SWAP_PROVIDERS } from "@/lib/evm/swap/constants";
@@ -116,7 +115,7 @@ const isInProgress = (row: ActivityRowDescriptor) =>
 
 // The list row's title must never read "Swapped"/"Bridged" when the status
 // is not — same failure/refund signal the detail sheet's Status row uses.
-function rowTitle(row: ActivityRowDescriptor): string {
+export function rowTitle(row: ActivityRowDescriptor): string {
   if (row.status === "failed") return "Failed";
   if (row.status === "refund_claimable") return "Refunded";
   if (!isBridgeRow(row)) return isInProgress(row) ? "Swapping" : "Swapped";
@@ -146,7 +145,7 @@ function sheetTitle(row: ActivityRowDescriptor): string {
 }
 
 /** Dashboard parity with mobile's formatNumber: at most 3 fraction digits. */
-function fmtAmount(value: string): string {
+export function fmtAmount(value: string): string {
   if (!value) return value;
   const n = Number(value);
   if (!Number.isFinite(n)) return value;
@@ -154,17 +153,15 @@ function fmtAmount(value: string): string {
     maximumFractionDigits: 3,
   }).format(n);
   // A true non-zero amount under 0.001 (e.g. 0.0003 KAS) rounds to a false
-  // "0" at 3dp — fall back to the full-precision trim instead.
-  return n !== 0 && Number(capped) === 0 ? trimDecimal(n) : capped;
+  // "0" at 3dp — keep the original decimal string (swap history carries up to
+  // 36 decimals; re-formatting through Number/toFixed(8) would lose them).
+  return n !== 0 && Number(capped) === 0 ? value : capped;
 }
 
 /** "<num> <SYM>" fee strings: cap like amounts, but never print a false 0. */
-function fmtFee(fee: string): string {
+export function fmtFee(fee: string): string {
   const [num, ...rest] = fee.split(" ");
-  const n = Number(num);
-  const capped = fmtAmount(num);
-  const shown = n !== 0 && Number(capped) === 0 ? trimDecimal(n) : capped;
-  return [shown, ...rest].join(" ").trim();
+  return [fmtAmount(num), ...rest].join(" ").trim();
 }
 
 /** Blank symbols (mappers pass "" through) become undefined. */
@@ -179,7 +176,7 @@ function amountText(amount: ActivityAmount | undefined): string | undefined {
   return sym ? `${fmtAmount(amount.value)} ${sym}` : fmtAmount(amount.value);
 }
 
-function usdText(
+export function usdText(
   amount: ActivityAmount | undefined,
   priceFor: AdapterDeps["priceFor"],
 ): string {
@@ -227,15 +224,14 @@ function feeRows(row: ActivityRowDescriptor): DetailRow[] {
 const linkRow = (label: string, url: string | undefined): DetailRow =>
   url ? { label, value: "View", url } : { label, value: "-" };
 
-function buildDetails(row: ActivityRowDescriptor): DetailRow[] {
+export function buildDetails(row: ActivityRowDescriptor): DetailRow[] {
   const bridge = isBridgeRow(row);
   const kurve = row.type === KURVE_BRIDGE_ACTIVITY_TYPE;
   const igraDeposit = row.type === IGRA_DEPOSIT_ACTIVITY_TYPE;
   // Igra exits reach this feed as KAT rows (see useActivityFeed.ts) running
-  // L2 → Kaspa — not Kurve (its own both-directions type) and not an Igra
-  // deposit (always Kaspa → Igra). Route defaults to exit, same as sheetTitle.
-  const isExit =
-    bridge && !kurve && !igraDeposit && row.meta?.route !== "l1-to-l2";
+  // L2 → Kaspa; Kurve exits are exits too. Classified by route (deposits of
+  // every type carry l1-to-l2); route defaults to exit, same as sheetTitle.
+  const isExit = bridge && row.meta?.route !== "l1-to-l2";
   const details: DetailRow[] = [
     {
       label: "Status",
