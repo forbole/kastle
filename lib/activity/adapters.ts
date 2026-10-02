@@ -104,7 +104,7 @@ export function formatDateTime(timestampMs: number): string {
     hour: "2-digit",
     minute: "2-digit",
   });
-  return `${date} | ${time}`;
+  return `${date}｜${time}`;
 }
 
 const isBridgeRow = (row: ActivityRowDescriptor) =>
@@ -190,15 +190,17 @@ function rateText(row: ActivityRowDescriptor): string | null {
 function feeRows(row: ActivityRowDescriptor): DetailRow[] {
   const rows: DetailRow[] = [
     {
-      label: "Provider Fees",
+      // Swap meta.fee is the gas the tx paid; bridge meta.fee is the
+      // bridge/provider fee (mappers.ts), so it is not a network fee.
+      label: isBridgeRow(row) ? "Provider fee" : "Network fee",
       value: row.meta?.fee ? fmtFee(row.meta.fee) : "-",
     },
   ];
   // Observed → amount; charged but unreadable → "-"; not charged → no row.
   if (row.meta?.kastleFee) {
-    rows.push({ label: "Kastle Fees", value: fmtFee(row.meta.kastleFee) });
+    rows.push({ label: "Kastle fee", value: fmtFee(row.meta.kastleFee) });
   } else if (row.meta?.kastleFeeUnobserved) {
-    rows.push({ label: "Kastle Fees", value: "-" });
+    rows.push({ label: "Kastle fee", value: "-" });
   }
   return rows;
 }

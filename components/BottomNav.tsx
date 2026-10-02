@@ -49,10 +49,11 @@ export function ActivityHeaderButton({ type }: { type: "swap" | "bridge" }) {
     <button
       type="button"
       aria-label="Activity"
+      title="Activity"
       onClick={() => navigate(`/activity?type=${type}`)}
       // Sits over GeneralHeader's empty right slot (same p-3 + 20px box), so
       // the title stays centred.
-      className="absolute right-0 top-0 rounded-lg p-3 text-white hover:bg-gray-800"
+      className="absolute right-4 top-4 rounded-lg p-3 text-white hover:bg-daintree-800"
     >
       <History size={20} strokeWidth={1.5} />
     </button>

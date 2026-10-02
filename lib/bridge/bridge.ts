@@ -1,5 +1,10 @@
 // Bridge routes, fee math and validation shared by the bridge hook and its
-// unit spec. Pure on purpose: no wasm, no images, so tests can import it.
+// unit spec. No wasm, so tests can import it.
+
+import igraLogo from "@/assets/images/providers/igra-logo.png";
+import kurveLogo from "@/assets/images/providers/kurve-logo.png";
+import kasplexLogo from "@/assets/images/network-logos/kasplex.svg";
+import katLogo from "@/assets/images/providers/kat-logo.png";
 
 export type BridgeChain = "kaspa" | "kasplex" | "igra";
 export type BridgeDirection =
@@ -14,6 +19,7 @@ export const BRIDGE_ROUTES: Record<
     from: BridgeChain;
     to: BridgeChain;
     provider: string;
+    logo: string;
     estTime: string;
     mainnetOnly?: boolean;
   }
@@ -22,18 +28,21 @@ export const BRIDGE_ROUTES: Record<
     from: "kaspa",
     to: "igra",
     provider: "IGRA Bridge",
+    logo: igraLogo,
     estTime: "~60s",
   },
   "kas-kasplex": {
     from: "kaspa",
     to: "kasplex",
     provider: "Kurve Bridge",
+    logo: kurveLogo,
     estTime: "~60s",
   },
   "kasplex-kas": {
     from: "kasplex",
     to: "kaspa",
     provider: "Kasplex Bridge",
+    logo: kasplexLogo,
     estTime: "~60s",
   },
   // Testnet has no KAT fee collector deployed.
@@ -41,6 +50,7 @@ export const BRIDGE_ROUTES: Record<
     from: "igra",
     to: "kaspa",
     provider: "KAT Bridge",
+    logo: katLogo,
     estTime: "~8-12 min",
     mainnetOnly: true,
   },

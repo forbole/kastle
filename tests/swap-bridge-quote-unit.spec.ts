@@ -1,3 +1,4 @@
+import { register } from "node:module";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -8,15 +9,26 @@ import init, {
   payToAddressScript,
   signTransaction,
 } from "@/wasm/core/kaspa";
-import { IGRA_ENTRY_ADDRESS, igraEntryPayload } from "@/lib/bridge/bridge";
-import { mineIgraEntry } from "@/lib/bridge/igra-entry";
-import {
+
+register(
+  "data:text/javascript," +
+    encodeURIComponent(
+      `export const load = (url, ctx, next) => /\\.(png|svg)$/.test(url)
+        ? { format: "module", source: "export default ''", shortCircuit: true }
+        : next(url, ctx);`,
+    ),
+);
+const { IGRA_ENTRY_ADDRESS, igraEntryPayload } = await import(
+  "@/lib/bridge/bridge"
+);
+const { mineIgraEntry } = await import("@/lib/bridge/igra-entry");
+const {
   KASTLE_SWAP_FEE_BPS,
   bridgeReceived,
   l1BridgeSplit,
   swapMinReceived,
   swapPathAmountIn,
-} from "@/lib/swap-bridge-quote";
+} = await import("@/lib/swap-bridge-quote");
 
 test("the fee collector's rate comes off the routed amount only", () => {
   expect(String(swapPathAmountIn(10_000n, KASTLE_SWAP_FEE_BPS))).toBe("9925");

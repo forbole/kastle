@@ -116,28 +116,33 @@ function useTokenMaps() {
 }
 
 function TokenIcon({ src, className }: { src?: string; className: string }) {
-  return src ? (
-    <img src={src} alt="" className={twMerge("rounded-full", className)} />
-  ) : (
-    <span className={twMerge("rounded-full bg-daintree-700", className)} />
+  // Same fallback as Layer2AssetImage / AmountInput: the Kaspa logo.
+  return (
+    <img
+      src={src ?? kaspaIcon}
+      alt=""
+      onError={(e) => (e.currentTarget.src = kaspaIcon)}
+      className={twMerge("rounded-full object-cover", className)}
+    />
   );
 }
 
 function PairImage({ item }: { item: ActivityItem }) {
+  // Figma "logo frame": 40px, tokens 24px + 26px, 12px chain badge.
   return (
-    <div className="relative h-10 w-12 shrink-0">
+    <div className="relative size-10 shrink-0">
       <TokenIcon
         src={item.fromImage}
-        className="absolute left-0 top-0 h-7 w-7"
+        className="absolute left-0 top-0 size-6"
       />
       <TokenIcon
         src={item.toImage}
-        className="absolute bottom-0 right-1 h-7 w-7 border-2 border-daintree-800"
+        className="absolute bottom-[3px] right-0 size-[26px] border-2 border-icy-blue-900"
       />
       <img
         src={item.chainImage}
         alt=""
-        className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full"
+        className="absolute -bottom-px left-8 size-3 rounded-full border border-icy-blue-900 bg-black"
       />
     </div>
   );
@@ -154,17 +159,17 @@ function ActivityRow({
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center gap-3 rounded-2xl border border-daintree-700 bg-daintree-800 p-3 text-left hover:border-daintree-400"
+      className="flex h-16 w-full items-center gap-3 rounded-2xl border border-daintree-750 bg-white/5 px-3 text-left hover:border-daintree-400"
     >
       <PairImage item={item} />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <span className="text-sm font-semibold text-white">{item.title}</span>
-        <span className="text-xs text-daintree-400">{item.dateTime}</span>
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+        <span className="text-base font-semibold text-white">{item.title}</span>
+        <span className="text-xs text-daintree-300">{item.dateTime}</span>
       </div>
-      <div className="flex min-w-0 flex-col items-end">
+      <div className="flex min-w-0 flex-col items-end gap-1.5">
         <span
           className={twMerge(
-            "max-w-40 truncate text-sm font-semibold",
+            "max-w-40 truncate text-base font-semibold",
             item.tone === "credit" ? "text-teal-400" : "text-white",
           )}
         >
@@ -172,7 +177,7 @@ function ActivityRow({
           {item.amountSymbol && ` ${item.amountSymbol}`}
         </span>
         {item.amountUsd && (
-          <span className="text-xs text-daintree-400">{item.amountUsd}</span>
+          <span className="text-xs text-daintree-300">{item.amountUsd}</span>
         )}
       </div>
     </button>
@@ -222,7 +227,6 @@ function ActivityDetail({ item }: { item: ActivityItem }) {
   const t = item.sheet.transfer;
   return (
     <>
-      <span className="text-sm text-daintree-400">{item.sheet.subtitle}</span>
       <div className="flex flex-col gap-3 rounded-2xl border border-daintree-700 p-3">
         <TransferLeg
           label={t.sentLabel}
@@ -243,13 +247,14 @@ function ActivityDetail({ item }: { item: ActivityItem }) {
           />
         )}
       </div>
-      <div className="flex flex-col gap-3 py-1">
+      {/* Figma 14040:354930: rows are py-12 with 21px text, no gap between. */}
+      <div className="flex flex-col px-2">
         {item.sheet.details.map((d) => (
           <div
             key={d.label}
-            className="flex items-center justify-between gap-3 text-sm"
+            className="flex items-center justify-between gap-3 py-3 text-sm leading-[21px]"
           >
-            <span className="text-daintree-400">{d.label}</span>
+            <span className="text-daintree-200">{d.label}</span>
             {d.pill ? (
               <span
                 className={twMerge(
@@ -263,15 +268,15 @@ function ActivityDetail({ item }: { item: ActivityItem }) {
               <button
                 type="button"
                 onClick={() => openUrl(d.url!)}
-                className="flex items-center gap-1 text-icy-blue-400"
+                className="flex items-center gap-2 text-icy-blue-400"
               >
+                <i className="hn hn-external-link text-lg" />
                 {d.value}
-                <i className="hn hn-external-link text-sm" />
               </button>
             ) : (
-              <span className="flex items-center gap-1.5 text-right text-white">
+              <span className="flex items-center gap-2 text-right text-white">
                 {d.icon && (
-                  <img src={d.icon} alt="" className="h-4 w-4 rounded-full" />
+                  <img src={d.icon} alt="" className="size-7 rounded-full" />
                 )}
                 {d.value}
               </span>
@@ -312,36 +317,38 @@ export default function Activity() {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="no-scrollbar flex flex-1 flex-col gap-2 overflow-y-auto px-4 pt-4">
+      <div className="relative shrink-0 px-4 pt-4">
         <GeneralHeader
           title={pageType === "bridge" ? "Bridge Activity" : "Swap Activity"}
           showClose={false}
+          titleClassName="text-gray-200"
         />
-
+        {isMainnet && (
+          <button
+            type="button"
+            onClick={feed.refresh}
+            disabled={feed.isRefreshing}
+            aria-label="Refresh"
+            title="Refresh"
+            // Sits over GeneralHeader's empty right slot, like ActivityHeaderButton.
+            className="absolute right-4 top-4 rounded-lg p-3 text-white hover:bg-daintree-800 disabled:opacity-50"
+          >
+            <i
+              className={twMerge(
+                "hn hn-refresh flex text-xl",
+                feed.isRefreshing && "animate-spin",
+              )}
+            />
+          </button>
+        )}
+      </div>
+      <div className="no-scrollbar flex flex-1 flex-col gap-2 overflow-y-auto px-4 pt-2">
         {!isMainnet ? (
           <p className="py-10 text-center text-sm text-daintree-400">
             Activity is available on Mainnet only.
           </p>
         ) : (
           <>
-            <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={feed.refresh}
-                disabled={feed.isRefreshing}
-                aria-label="Refresh"
-                className="flex items-center gap-1 text-sm text-daintree-400 hover:text-white disabled:opacity-50"
-              >
-                <i
-                  className={twMerge(
-                    "hn hn-refresh",
-                    feed.isRefreshing && "animate-spin",
-                  )}
-                />
-                Refresh
-              </button>
-            </div>
-
             {warnings.length > 0 && (
               <div className="flex flex-col gap-1 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2">
                 {warnings.map((m) => (
@@ -405,6 +412,13 @@ export default function Activity() {
 
       <BottomSheet
         title={open?.sheet.title ?? ""}
+        // Figma 14040:354795: date 8px under the title, 16 Regular #c1d5de.
+        subtitle={open?.sheet.subtitle}
+        subtitleClassName="mt-2 pl-0 text-base tracking-normal text-daintree-200"
+        // Header inset = card inset (16px), so title/date/divider line up with it.
+        headerClassName="px-4"
+        titleClassName="pl-0"
+        bodyClassName="px-4"
         open={!!open}
         onClose={() => setOpenId(undefined)}
       >
