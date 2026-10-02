@@ -28,6 +28,11 @@ import {
   type WalletSettings,
 } from "@/contexts/WalletManagerContext";
 import { withWalletSettingsLock } from "@/lib/wallet-settings-storage";
+import { updateSettingsLocked } from "@/lib/settings-storage";
+import {
+  canonicalHistoryIndexOrigin,
+  historyIndexHostPattern,
+} from "@/lib/zkas/history-config";
 import { NetworkType } from "@/lib/network-type";
 
 export default function ZKasSettings() {
@@ -50,11 +55,68 @@ export default function ZKasSettings() {
       ? "mainnet"
       : undefined;
   const [url, setUrl] = useState("");
+  const [indexUrl, setIndexUrl] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [savingIndex, setSavingIndex] = useState(false);
   useEffect(() => {
     setUrl(network ? (settings?.zkasDaemonUrls?.[network] ?? "") : "");
   }, [settings?.zkasDaemonUrls, network]);
+  useEffect(() => {
+    setIndexUrl(
+      network ? (settings?.zkasHistoryIndexUrls?.[network] ?? "") : "",
+    );
+  }, [settings?.zkasHistoryIndexUrls, network]);
+
+  const saveIndex = async () => {
+    setError("");
+    setSavingIndex(true);
+    try {
+      if (
+        isSettingsLoading ||
+        !settings ||
+        network !== "mainnet" ||
+        !walletSettings
+      )
+        throw new Error("Select a ZKas Mainnet wallet first");
+      const origin = canonicalHistoryIndexOrigin(indexUrl);
+      const expectedWalletId = walletSettings.selectedWalletId;
+      const expectedAccountIndex = walletSettings.selectedAccountIndex;
+      if (!expectedWalletId || expectedAccountIndex === undefined)
+        throw new Error("Select a ZKas wallet account first");
+      // Browser host permission must be requested directly from this click.
+      const permissionRequest = browser.permissions.request({
+        origins: [historyIndexHostPattern(origin)],
+      });
+      if (!(await permissionRequest))
+        throw new Error("History index access was not granted");
+      const latestWalletSettings =
+        await storage.getItem<WalletSettings>(WALLET_SETTINGS);
+      if (
+        latestWalletSettings?.selectedWalletId !== expectedWalletId ||
+        latestWalletSettings.selectedAccountIndex !== expectedAccountIndex
+      ) {
+        throw new Error("Selected ZKas account changed. Review and retry.");
+      }
+      await updateSettingsLocked<Settings>(
+        SETTINGS_KEY,
+        (current) => ({
+          ...current,
+          zkasHistoryIndexUrls: {
+            ...current.zkasHistoryIndexUrls,
+            mainnet: origin,
+          },
+        }),
+        { expectedJson: JSON.stringify(settings) },
+      );
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "Unable to save history index",
+      );
+    } finally {
+      setSavingIndex(false);
+    }
+  };
 
   const save = async () => {
     setError("");
@@ -203,6 +265,33 @@ export default function ZKasSettings() {
         >
           {saving ? "Connecting wallet…" : "Share viewing key and connect"}
         </button>
+        <section className="space-y-2 pt-4" aria-label="History index setup">
+          <h2 className="font-semibold">Encrypted history index</h2>
+          <p className="text-xs text-daintree-400">
+            Enter the origin of your own transaction index. This setting grants
+            Kastle access to public encrypted transaction data; it does not let
+            websites read wallet messages.
+          </p>
+          <label className="block text-sm" htmlFor="zkas-history-index-url">
+            Index origin
+          </label>
+          <input
+            id="zkas-history-index-url"
+            type="url"
+            value={indexUrl}
+            onChange={(event) => setIndexUrl(event.target.value)}
+            placeholder="http://127.0.0.1:8786"
+            className="w-full rounded-lg border border-daintree-700 bg-daintree-800 p-3 text-white"
+          />
+          <button
+            type="button"
+            disabled={savingIndex || isSettingsLoading || network !== "mainnet"}
+            onClick={() => void saveIndex()}
+            className="w-full rounded-full border border-daintree-700 p-3 disabled:opacity-40"
+          >
+            {savingIndex ? "Saving index…" : "Save index origin"}
+          </button>
+        </section>
         <section
           className="space-y-2 pt-4"
           aria-label="Connected ZKas websites"

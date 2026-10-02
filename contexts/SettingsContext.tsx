@@ -43,6 +43,7 @@ export type Settings = {
   evmL2ChainId?: Record<NetworkType, number | undefined>;
   isLegacyEvmAddressEnabled?: boolean;
   zkasDaemonUrls?: Partial<Record<ZKasNetwork, string>>;
+  zkasHistoryIndexUrls?: Partial<Record<ZKasNetwork, string>>;
 };
 
 export const RPC_URLS: Record<NetworkType, string[]> = {

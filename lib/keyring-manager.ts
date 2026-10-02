@@ -1,7 +1,11 @@
 import { Buffer } from "buffer";
 import { argon2id } from "hash-wasm";
 
-const ALLOWED_KEYS = ["wallets", "zkasBatchJournal"] as const;
+const ALLOWED_KEYS = [
+  "wallets",
+  "zkasBatchJournal",
+  "zkasHistoryGrants",
+] as const;
 
 type AllowedKey = (typeof ALLOWED_KEYS)[number];
 
@@ -37,6 +41,7 @@ export class Keyring {
   private masterKey: CryptoKey | null = null;
   private sessionVersion = 0;
   private mutationTail: Promise<void> = Promise.resolve();
+  private mutationGenerations = new Map<string, number>();
   private namespace: string;
 
   constructor(namespace: string = "keyring") {
@@ -62,9 +67,22 @@ export class Keyring {
     return this.sessionVersion;
   }
 
+  // This generation belongs to this Keyring actor; it is not a storage CAS.
+  getMutationGeneration(key: AllowedKey): number {
+    return this.mutationGenerations.get(key) ?? 0;
+  }
+
+  private noteMutation(key: string): void {
+    this.mutationGenerations.set(
+      key,
+      (this.mutationGenerations.get(key) ?? 0) + 1,
+    );
+  }
+
   private setMasterKey(key: CryptoKey | null): void {
     this.masterKey = key;
     this.sessionVersion += 1;
+    for (const allowedKey of ALLOWED_KEYS) this.noteMutation(allowedKey);
   }
 
   private serializeMutation<T>(operation: () => Promise<T>): Promise<T> {
@@ -173,13 +191,40 @@ export class Keyring {
     key: AllowedKey,
     update: (current: T | null) => T | Promise<T>,
   ): Promise<void> {
+    await this.updateValueInternal(key, update);
+  }
+
+  async updateValueIfGeneration<T>(
+    key: AllowedKey,
+    expectedGeneration: number,
+    update: (current: T | null) => T | Promise<T>,
+  ): Promise<number> {
+    return this.updateValueInternal(key, update, expectedGeneration);
+  }
+
+  private async updateValueInternal<T>(
+    key: AllowedKey,
+    update: (current: T | null) => T | Promise<T>,
+    expectedGeneration?: number,
+  ): Promise<number> {
     const version = this.sessionVersion;
-    await this.serializeMutation(async () => {
+    return this.serializeMutation(async () => {
       this.assertSessionVersion(version);
+      if (
+        expectedGeneration !== undefined &&
+        this.getMutationGeneration(key) !== expectedGeneration
+      )
+        throw new Error("Keyring value changed during the wallet update");
       const current = await this.getValue<T>(key);
       const value = await update(current);
       this.assertSessionVersion(version);
+      if (
+        expectedGeneration !== undefined &&
+        this.getMutationGeneration(key) !== expectedGeneration
+      )
+        throw new Error("Keyring value changed during the wallet update");
       await this.writeValue(key, value);
+      return this.getMutationGeneration(key);
     });
   }
 
@@ -204,6 +249,7 @@ export class Keyring {
     };
 
     await storage.setItem(`local:${this.namespace}:${key}`, encryptedData);
+    this.noteMutation(key);
   }
 
   async getValue<T>(key: AllowedKey): Promise<T | null> {
@@ -241,6 +287,7 @@ export class Keyring {
       throw new Error("Reserved key name");
     }
     await storage.removeItem(`local:${this.namespace}:${key}`);
+    this.noteMutation(key);
   }
 
   listKeys() {
