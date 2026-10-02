@@ -1,5 +1,5 @@
 import React from "react";
-import { formatAmount } from "@/components/swap-bridge/ui";
+import { formatAmount } from "@/lib/format-amount";
 
 export function FeeRow({
   label,

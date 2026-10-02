@@ -759,10 +759,9 @@ export function TokenSheet({
   );
 }
 
-export const formatAmount = (n: number, max = 6) =>
-  Number.isFinite(n)
-    ? n.toLocaleString("en-US", { maximumFractionDigits: max })
-    : "0";
+import { formatAmount } from "@/lib/format-amount";
+
+export { formatAmount };
 
 /** USD display: sub-cent values round to 0.00 at 2 decimals, so show more. */
 export const formatUsd = (n: number) =>
