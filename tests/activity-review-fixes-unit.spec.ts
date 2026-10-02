@@ -345,3 +345,58 @@ test("registry: pages until hasMore is false, and flags a capped or broken read"
     globalThis.fetch = realFetch;
   }
 });
+
+// ─── Adapter formatting + ETA caption regressions ───────────────────────────
+
+const row = (over: Partial<ActivityRowDescriptor>): ActivityRowDescriptor => ({
+  id: "r",
+  type: "bridge",
+  timestampMs: T0,
+  direction: "out",
+  status: "pending",
+  actions: [],
+  ...over,
+});
+
+test("rowTitle: failed and refund_claimable never read Bridged/Swapped", () => {
+  expect(m.rowTitle(row({ status: "failed" }))).toBe("Failed");
+  expect(m.rowTitle(row({ status: "refund_claimable" }))).toBe("Refunded");
+});
+
+test("fmtAmount/fmtFee: a tiny non-zero amount never renders 0", () => {
+  expect(m.fmtAmount("0.000000000000000001")).toBe("0.000000000000000001");
+  expect(m.fmtAmount("0.0003")).toBe("0.0003");
+  expect(m.fmtAmount("1.23456")).toBe("1.235");
+  expect(m.fmtAmount("0")).toBe("0");
+  expect(m.fmtFee("0.000000000000000001 KAS")).toBe("0.000000000000000001 KAS");
+});
+
+test("usdText: a value under $0.005 yields no line", () => {
+  expect(m.usdText({ value: "0.001", symbol: "KAS" }, () => 0.1)).toBe("");
+  expect(m.usdText({ value: "100", symbol: "KAS" }, () => 0.1)).not.toBe("");
+});
+
+test("buildDetails: pending exits (KAT and Kurve) carry the 48h caption, deposits do not", () => {
+  const caption = (r: ActivityRowDescriptor) =>
+    m.buildDetails(r).find((d: { label: string }) => d.label === "Status")
+      ?.subtext;
+  const eta = "Usually done within 48 hours";
+  expect(caption(row({ meta: { route: "l2-to-l1" } }))).toBe(eta);
+  expect(
+    caption(row({ type: "bridge_kurve", meta: { route: "l2-to-l1" } })),
+  ).toBe(eta);
+  expect(
+    caption(row({ type: "bridge_kurve", meta: { route: "l1-to-l2" } })),
+  ).toBeUndefined();
+  expect(caption(row({ meta: { route: "l1-to-l2" } }))).toBeUndefined();
+});
+
+test("formatDateTime: only a prior-year timestamp shows the year", () => {
+  const y = new Date().getFullYear();
+  expect(m.formatDateTime(new Date(y - 1, 5, 15, 12).getTime())).toContain(
+    String(y - 1),
+  );
+  expect(m.formatDateTime(new Date(y, 0, 1, 12).getTime())).not.toContain(
+    String(y),
+  );
+});
