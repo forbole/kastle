@@ -638,8 +638,36 @@ export default function Bridge() {
         onMax={
           balance !== undefined && networkFee !== undefined
             ? () => {
-                const max = Math.max(balance - networkFee, 0);
-                setAmount(max.toFixed(8).replace(/\.?0+$/, "") || "0");
+                let text: string;
+                if (route.from === "kaspa") {
+                  const max = Math.max(balance - networkFee, 0);
+                  text = max.toFixed(8);
+                } else {
+                  // Exact wei, truncated (not rounded) so amount + fee <= balance.
+                  // `balance` is a formatUnits string: exact for live and cached reads.
+                  const raw = (
+                    route.from === "kasplex" ? kasplexBalance : igraBalance
+                  )?.balance;
+                  let wei =
+                    raw === undefined || evmFeeWei === undefined
+                      ? 0n
+                      : parseEther(String(raw)) - evmFeeWei;
+                  if (direction === "igra-kas" && exitParams) {
+                    const cap = computeMaxExitKas({
+                      balanceKas: balance,
+                      capHeadroomKas: null,
+                      maxExitAmountKas: Number(formatEther(exitParams.maxExit)),
+                      feeRateBps: Number(exitParams.feeRate),
+                    });
+                    const capWei = parseEther(cap.toFixed(18));
+                    if (capWei < wei) wei = capWei;
+                  }
+                  const [whole, frac = ""] = formatEther(
+                    wei > 0n ? wei : 0n,
+                  ).split(".");
+                  text = `${whole}.${frac.padEnd(8, "0").slice(0, 8)}`;
+                }
+                setAmount(text.replace(/\.?0+$/, "") || "0");
               }
             : undefined
         }
