@@ -101,8 +101,48 @@ const sendStatusSchema = z
   })
   .strict();
 
+const discoveryEntrySchema = z
+  .object({
+    logicalId: hex32,
+    revision: z.number().int().nonnegative().safe(),
+    status: z.enum([
+      "finalized_unsent",
+      "unknown",
+      "mempool",
+      "included",
+      "conflicted",
+    ]),
+    txid: hex32,
+    sha256: hex32,
+    includedBlock: hex32.optional(),
+    includedDaa: z.number().int().nonnegative().safe().optional(),
+  })
+  .strict();
+const discoveryPageSchema = z
+  .object({
+    inventoryOnly: z.literal(true),
+    epoch: hex32,
+    entries: z.array(discoveryEntrySchema).max(32),
+    nextAfterLogicalId: hex32.optional(),
+    unlistedReservationCount: z.number().int().nonnegative().safe().max(4096),
+  })
+  .strict();
+const discoveryScopeSchema = z
+  .object({
+    account: z
+      .string()
+      .regex(/^zkas:[a-z0-9]+$/)
+      .max(120),
+    genesis: hex32,
+  })
+  .strict();
+
 export type ZKasPreparedBatch = z.infer<typeof prepareSchema>;
 export type ZKasBatchSendStatus = z.infer<typeof sendStatusSchema>;
+export type ZKasBatchInventory = Pick<
+  z.infer<typeof discoveryPageSchema>,
+  "inventoryOnly" | "epoch" | "entries" | "unlistedReservationCount"
+>;
 
 function daemonBase(value: string): string {
   const url = new URL(value);
@@ -266,6 +306,7 @@ export class ZKasBatchClient {
       method?: "GET" | "POST";
       body?: unknown;
       timeoutMs?: number;
+      responseLimit?: number;
     } = {},
   ): Promise<unknown> {
     if (!path.startsWith("/api/wallet/") || path.includes("//"))
@@ -292,7 +333,10 @@ export class ZKasBatchClient {
         referrerPolicy: "no-referrer",
         signal: controller.signal,
       });
-      return await readBoundedJson(response, 2_000_000);
+      return await readBoundedJson(
+        response,
+        options.responseLimit ?? 2_000_000,
+      );
     } finally {
       clearTimeout(timer);
     }
@@ -423,5 +467,77 @@ export class ZKasBatchClient {
     if (response.logicalId !== intent.logicalId)
       throw new Error("Status changed logical payment");
     return response;
+  }
+
+  async discoverRecords(scope: {
+    account: string;
+    genesis: string;
+  }): Promise<ZKasBatchInventory> {
+    const bound = discoveryScopeSchema.parse(scope);
+    const deadline = performance.now() + 120_000;
+    const entries: ZKasBatchInventory["entries"] = [];
+    let epoch: string | undefined;
+    let unlistedReservationCount: number | undefined;
+    let afterLogicalId: string | undefined;
+    let lastLogicalId: string | undefined;
+    for (let pageNumber = 0; pageNumber < 128; pageNumber++) {
+      const remaining = deadline - performance.now();
+      if (remaining <= 0) throw new Error("Batch inventory deadline exceeded");
+      const query = new URLSearchParams({
+        account: bound.account,
+        genesis: bound.genesis,
+      });
+      if (afterLogicalId) {
+        query.set("afterLogicalId", afterLogicalId);
+        query.set("epoch", epoch!);
+      }
+      const page = discoveryPageSchema.parse(
+        await this.request(`/api/wallet/submit-many/records?${query}`, {
+          timeoutMs: Math.min(30_000, remaining),
+          responseLimit: 32_768,
+        }),
+      );
+      if (epoch === undefined) {
+        epoch = page.epoch;
+        unlistedReservationCount = page.unlistedReservationCount;
+      } else if (
+        page.epoch !== epoch ||
+        page.unlistedReservationCount !== unlistedReservationCount
+      ) {
+        throw new Error("Batch inventory changed during discovery");
+      }
+      if (afterLogicalId !== undefined && page.entries.length === 0) {
+        throw new Error("Empty batch inventory continuation");
+      }
+      if (
+        page.entries.some((entry) => {
+          if (lastLogicalId && entry.logicalId <= lastLogicalId) return true;
+          lastLogicalId = entry.logicalId;
+          return false;
+        })
+      ) {
+        throw new Error("Batch inventory order changed");
+      }
+      entries.push(...page.entries);
+      if (entries.length + unlistedReservationCount! > 4096)
+        throw new Error("Batch inventory exceeds record bound");
+      if (!page.nextAfterLogicalId) {
+        return {
+          inventoryOnly: true,
+          epoch,
+          entries,
+          unlistedReservationCount: unlistedReservationCount!,
+        };
+      }
+      if (
+        page.entries.length !== 32 ||
+        page.nextAfterLogicalId !== lastLogicalId ||
+        entries.length >= 4096
+      ) {
+        throw new Error("Invalid batch inventory cursor");
+      }
+      afterLogicalId = page.nextAfterLogicalId;
+    }
+    throw new Error("Batch inventory exceeds page bound");
   }
 }

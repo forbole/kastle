@@ -392,6 +392,360 @@ test("credentialed batch reads use the daemon's exact camel-case query contract"
   ]);
 });
 
+function discoveryEntry(index: number) {
+  return {
+    logicalId: index.toString(16).padStart(64, "0"),
+    revision: 1,
+    status: "unknown",
+    txid: "3".repeat(64),
+    sha256: "4".repeat(64),
+  };
+}
+
+test("credentialed discovery gathers exact ordered pages from the configured daemon", async () => {
+  const calls: Array<{ url: URL; init: RequestInit }> = [];
+  const entries = Array.from({ length: 33 }, (_, index) =>
+    discoveryEntry(index),
+  );
+  const client = new ZKasBatchClient({
+    baseUrl: "https://wallet.example.test",
+    token: "a".repeat(32),
+    fetch: async (url, init) => {
+      const parsed = new URL(String(url));
+      calls.push({ url: parsed, init: init ?? {} });
+      const offset = parsed.searchParams.has("afterLogicalId") ? 32 : 0;
+      return new Response(
+        JSON.stringify({
+          inventoryOnly: true,
+          epoch: "5".repeat(64),
+          entries: entries.slice(offset, offset + 32),
+          ...(offset === 0
+            ? { nextAfterLogicalId: entries[31].logicalId }
+            : {}),
+          unlistedReservationCount: 2,
+        }),
+      );
+    },
+  });
+  const result = await client.discoverRecords({
+    account: intent.account,
+    genesis: intent.genesis,
+  });
+  expect(result.entries).toEqual(entries);
+  expect(result.epoch).toBe("5".repeat(64));
+  expect(result.unlistedReservationCount).toBe(2);
+  expect(calls).toHaveLength(2);
+  for (const call of calls) {
+    expect(call.url.origin).toBe("https://wallet.example.test");
+    expect(call.url.pathname).toBe("/api/wallet/submit-many/records");
+    expect(call.url.searchParams.get("account")).toBe(intent.account);
+    expect(call.url.searchParams.get("genesis")).toBe(intent.genesis);
+    expect(new Headers(call.init.headers).get("X-Wallet-Token")).toBe(
+      "a".repeat(32),
+    );
+    expect(new Headers(call.init.headers).has("Authorization")).toBe(false);
+    expect(call.init.body).toBeUndefined();
+  }
+  expect([...calls[0].url.searchParams.keys()].sort()).toEqual([
+    "account",
+    "genesis",
+  ]);
+  expect(calls[1].url.searchParams.get("afterLogicalId")).toBe(
+    entries[31].logicalId,
+  );
+  expect(calls[1].url.searchParams.get("epoch")).toBe("5".repeat(64));
+});
+
+test("credentialed discovery covers the full 4096 record bound", async () => {
+  const entries = Array.from({ length: 4096 }, (_, index) =>
+    discoveryEntry(index),
+  );
+  let calls = 0;
+  const client = new ZKasBatchClient({
+    baseUrl: "https://wallet.example.test",
+    token: "a".repeat(32),
+    fetch: async (url) => {
+      const parsed = new URL(String(url));
+      const after = parsed.searchParams.get("afterLogicalId");
+      const offset = after ? Number.parseInt(after, 16) + 1 : 0;
+      calls++;
+      return new Response(
+        JSON.stringify({
+          inventoryOnly: true,
+          epoch: "5".repeat(64),
+          entries: entries.slice(offset, offset + 32),
+          ...(offset + 32 < entries.length
+            ? { nextAfterLogicalId: entries[offset + 31].logicalId }
+            : {}),
+          unlistedReservationCount: 0,
+        }),
+      );
+    },
+  });
+  const result = await client.discoverRecords({
+    account: intent.account,
+    genesis: intent.genesis,
+  });
+  expect(calls).toBe(128);
+  expect(result.entries).toEqual(entries);
+  const overflow = new ZKasBatchClient({
+    baseUrl: "https://wallet.example.test",
+    token: "a".repeat(32),
+    fetch: async (url) => {
+      const after = new URL(String(url)).searchParams.get("afterLogicalId");
+      const offset = after ? Number.parseInt(after, 16) + 1 : 0;
+      return new Response(
+        JSON.stringify({
+          inventoryOnly: true,
+          epoch: "5".repeat(64),
+          entries: entries.slice(offset, offset + 32),
+          nextAfterLogicalId: entries[offset + 31].logicalId,
+          unlistedReservationCount: 0,
+        }),
+      );
+    },
+  });
+  await expect(
+    overflow.discoverRecords({
+      account: intent.account,
+      genesis: intent.genesis,
+    }),
+  ).rejects.toThrow(/bound|cursor/i);
+});
+
+test("credentialed discovery rejects malformed, unstable, and unsafe inventory", async () => {
+  const base = {
+    inventoryOnly: true,
+    epoch: "5".repeat(64),
+    entries: [discoveryEntry(0)],
+    unlistedReservationCount: 0,
+  };
+  for (const altered of [
+    { ...base, inventoryOnly: false },
+    { ...base, extra: true },
+    { ...base, entries: [{ ...discoveryEntry(0), revision: 2 ** 53 }] },
+    { ...base, entries: [{ ...discoveryEntry(0), includedDaa: 2 ** 53 }] },
+    {
+      ...base,
+      entries: Array.from({ length: 33 }, (_, index) => discoveryEntry(index)),
+    },
+    { ...base, entries: [discoveryEntry(1), discoveryEntry(1)] },
+    { ...base, entries: [discoveryEntry(1), discoveryEntry(0)] },
+    { ...base, entries: [{ ...discoveryEntry(0), extra: true }] },
+    { ...base, entries: [discoveryEntry(0)], unlistedReservationCount: 4097 },
+    { ...base, entries: [discoveryEntry(0)], unlistedReservationCount: 4096 },
+    { ...base, entries: [discoveryEntry(0)], unlistedReservationCount: -1 },
+    { ...base, entries: [discoveryEntry(0)], epoch: "A".repeat(64) },
+    {
+      ...base,
+      entries: [discoveryEntry(0)],
+      nextAfterLogicalId: "9".repeat(64),
+    },
+  ]) {
+    const client = new ZKasBatchClient({
+      baseUrl: "https://wallet.example.test",
+      token: "a".repeat(32),
+      fetch: async () => new Response(JSON.stringify(altered)),
+    });
+    await expect(
+      client.discoverRecords({
+        account: intent.account,
+        genesis: intent.genesis,
+      }),
+    ).rejects.toThrow();
+  }
+});
+
+test("credentialed discovery fails closed on epoch or count change and HTTP 409", async () => {
+  for (const change of ["epoch", "count", "conflict"]) {
+    let calls = 0;
+    const client = new ZKasBatchClient({
+      baseUrl: "https://wallet.example.test",
+      token: "a".repeat(32),
+      fetch: async () => {
+        calls++;
+        if (calls === 2 && change === "conflict")
+          return new Response("inventory changed", { status: 409 });
+        return new Response(
+          JSON.stringify({
+            inventoryOnly: true,
+            epoch: (calls === 2 && change === "epoch" ? "6" : "5").repeat(64),
+            entries:
+              calls === 1
+                ? Array.from({ length: 32 }, (_, index) =>
+                    discoveryEntry(index),
+                  )
+                : [discoveryEntry(32)],
+            ...(calls === 1
+              ? { nextAfterLogicalId: discoveryEntry(31).logicalId }
+              : {}),
+            unlistedReservationCount: calls === 2 && change === "count" ? 1 : 0,
+          }),
+        );
+      },
+    });
+    await expect(
+      client.discoverRecords({
+        account: intent.account,
+        genesis: intent.genesis,
+      }),
+    ).rejects.toThrow();
+    expect(calls).toBe(2);
+  }
+});
+
+test("credentialed discovery rejects overlap and premature continuation", async () => {
+  for (const secondEntries of [
+    [discoveryEntry(31)],
+    [discoveryEntry(30), discoveryEntry(32)],
+  ]) {
+    let calls = 0;
+    const client = new ZKasBatchClient({
+      baseUrl: "https://wallet.example.test",
+      token: "a".repeat(32),
+      fetch: async () => {
+        calls++;
+        return new Response(
+          JSON.stringify({
+            inventoryOnly: true,
+            epoch: "5".repeat(64),
+            entries:
+              calls === 1
+                ? Array.from({ length: 32 }, (_, index) =>
+                    discoveryEntry(index),
+                  )
+                : secondEntries,
+            ...(calls === 1
+              ? { nextAfterLogicalId: discoveryEntry(31).logicalId }
+              : {}),
+            unlistedReservationCount: 0,
+          }),
+        );
+      },
+    });
+    await expect(
+      client.discoverRecords({
+        account: intent.account,
+        genesis: intent.genesis,
+      }),
+    ).rejects.toThrow();
+    expect(calls).toBe(2);
+  }
+  const shortPage = new ZKasBatchClient({
+    baseUrl: "https://wallet.example.test",
+    token: "a".repeat(32),
+    fetch: async () =>
+      new Response(
+        JSON.stringify({
+          inventoryOnly: true,
+          epoch: "5".repeat(64),
+          entries: [discoveryEntry(0)],
+          nextAfterLogicalId: discoveryEntry(0).logicalId,
+          unlistedReservationCount: 0,
+        }),
+      ),
+  });
+  await expect(
+    shortPage.discoverRecords({
+      account: intent.account,
+      genesis: intent.genesis,
+    }),
+  ).rejects.toThrow(/cursor/i);
+});
+
+test("credentialed discovery rejects an empty terminal continuation", async () => {
+  let calls = 0;
+  const client = new ZKasBatchClient({
+    baseUrl: "https://wallet.example.test",
+    token: "a".repeat(32),
+    fetch: async () => {
+      calls++;
+      return new Response(
+        JSON.stringify({
+          inventoryOnly: true,
+          epoch: "5".repeat(64),
+          entries:
+            calls === 1
+              ? Array.from({ length: 32 }, (_, index) => discoveryEntry(index))
+              : [],
+          ...(calls === 1
+            ? { nextAfterLogicalId: discoveryEntry(31).logicalId }
+            : {}),
+          unlistedReservationCount: 0,
+        }),
+      );
+    },
+  });
+  await expect(
+    client.discoverRecords({
+      account: intent.account,
+      genesis: intent.genesis,
+    }),
+  ).rejects.toThrow(/empty|continuation|cursor/i);
+  expect(calls).toBe(2);
+});
+
+test("credentialed discovery bounds stalled body reads", async () => {
+  const originalSetTimeout = globalThis.setTimeout;
+  globalThis.setTimeout = ((callback: TimerHandler) =>
+    originalSetTimeout(callback, 20)) as typeof setTimeout;
+  try {
+    const client = new ZKasBatchClient({
+      baseUrl: "https://wallet.example.test",
+      token: "a".repeat(32),
+      fetch: async (_url, init) =>
+        new Response(
+          new ReadableStream({
+            start(controller) {
+              init?.signal?.addEventListener("abort", () =>
+                controller.error(new Error("discovery body aborted")),
+              );
+            },
+          }),
+        ),
+    });
+    const outcome = await Promise.race([
+      client
+        .discoverRecords({
+          account: intent.account,
+          genesis: intent.genesis,
+        })
+        .then(
+          () => "resolved",
+          () => "rejected",
+        ),
+      new Promise<string>((resolve) =>
+        originalSetTimeout(() => resolve("hung"), 150),
+      ),
+    ]);
+    expect(outcome).toBe("rejected");
+  } finally {
+    globalThis.setTimeout = originalSetTimeout;
+  }
+});
+
+test("credentialed discovery returns a positive opaque barrier without clearing it", async () => {
+  const client = new ZKasBatchClient({
+    baseUrl: "https://wallet.example.test",
+    token: "a".repeat(32),
+    fetch: async () =>
+      new Response(
+        JSON.stringify({
+          inventoryOnly: true,
+          epoch: "5".repeat(64),
+          entries: [],
+          unlistedReservationCount: 1,
+        }),
+      ),
+  });
+  const result = await client.discoverRecords({
+    account: intent.account,
+    genesis: intent.genesis,
+  });
+  expect(result.entries).toEqual([]);
+  expect(result.unlistedReservationCount).toBe(1);
+});
+
 test("prepared response preserves a real SDK V3 envelope and rejects malformed accounts", async () => {
   // Public dummy envelope extracted from ZKas SDK browser-signer v3-payment.json.
   const envelope = JSON.parse(
