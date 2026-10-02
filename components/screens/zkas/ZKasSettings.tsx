@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import Header from "@/components/GeneralHeader";
 import { useSettings } from "@/hooks/useSettings";
 import { getZKasDaemonOriginPattern } from "@/lib/zkas/client";
@@ -39,6 +39,18 @@ import DaemonBearerPairing from "./DaemonBearerPairing";
 
 export default function ZKasSettings() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const onBack = () => {
+    const pairingReturn = (location.state as { pairingReturn?: unknown } | null)
+      ?.pairingReturn;
+    if (pairingReturn === "add-wallet") {
+      navigate("/add-wallet");
+    } else if (pairingReturn === "import-zkas-seed") {
+      navigate("/import-private-key", { state: { showZKasSeed: true } });
+    } else {
+      navigate("/zkas-asset");
+    }
+  };
   const [settings, , isSettingsLoading] = useSettings();
   const { walletSettings, refreshKaspaAddresses } = useWalletManager();
   const { switchZKasNetwork } = useSwitchNetwork();
@@ -295,7 +307,7 @@ export default function ZKasSettings() {
     <div className="flex h-full flex-col overflow-y-auto p-4 text-white">
       <Header
         title="ZKas daemon"
-        onBack={() => navigate("/zkas-asset")}
+        onBack={onBack}
         onClose={() => navigate("/dashboard")}
       />
       <div className="space-y-4">

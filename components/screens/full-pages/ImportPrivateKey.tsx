@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useForm, useFormContext } from "react-hook-form";
 import { twMerge } from "tailwind-merge";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { v4 as uuid } from "uuid";
 import useAnalytics from "@/hooks/useAnalytics.ts";
 import { PrivateKey } from "@/wasm/core/kaspa";
@@ -20,7 +20,12 @@ import ImportZKasSeed from "./ImportZKasSeed";
 type PrivateKeyFormValues = { privateKey: string };
 
 export default function ImportPrivateKey() {
-  const [walletNetwork, setWalletNetwork] = useState<"kaspa" | "zkas">("kaspa");
+  const location = useLocation();
+  const [walletNetwork, setWalletNetwork] = useState<"kaspa" | "zkas">(
+    (location.state as { showZKasSeed?: unknown } | null)?.showZKasSeed === true
+      ? "zkas"
+      : "kaspa",
+  );
   const [settings] = useSettings();
   const [experimentalEnabled, , gateLoading] = useStorageState<boolean | null>(
     ZKAS_EXPERIMENTAL_KEY,

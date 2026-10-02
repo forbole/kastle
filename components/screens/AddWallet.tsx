@@ -7,7 +7,12 @@ import AddWalletPage from "@/ui/popup/add-wallet/AddWalletPage";
 import { openFullPage } from "@/lib/utils";
 import { useSettings } from "@/hooks/useSettings";
 import useStorageState from "@/hooks/useStorageState";
-import { isZKasActive, ZKAS_EXPERIMENTAL_KEY } from "@/lib/wallet-network";
+import {
+  getVisibleWalletNetworks,
+  isZKasActive,
+  ZKAS_EXPERIMENTAL_KEY,
+  ZKAS_MAINNET,
+} from "@/lib/wallet-network";
 import { requireZKasDaemonUrl } from "@/lib/zkas/setup";
 import {
   getZKasDaemonBirthday,
@@ -19,10 +24,16 @@ export default function AddWallet() {
   const navigate = useNavigate();
   const { emitWalletCreated } = useAnalytics();
   const [settings] = useSettings();
-  const [experimentalEnabled] = useStorageState<boolean | null>(
+  const [experimentalEnabled, , gateLoading] = useStorageState<boolean | null>(
     ZKAS_EXPERIMENTAL_KEY,
     null,
   );
+  const zkasVisible =
+    !gateLoading &&
+    !!settings &&
+    getVisibleWalletNetworks(settings, experimentalEnabled).includes(
+      ZKAS_MAINNET,
+    );
 
   const newWallet = async () => {
     let created = false;
@@ -90,6 +101,19 @@ export default function AddWallet() {
         },
       ]}
       advancedOptions={[
+        ...(zkasVisible
+          ? [
+              {
+                label: "Configure ZKas daemon credential",
+                description:
+                  "Save a private daemon credential before selecting a ZKas account.",
+                onClick: () =>
+                  navigate("/zkas/settings", {
+                    state: { pairingReturn: "add-wallet" },
+                  }),
+              },
+            ]
+          : []),
         {
           label: "Import Recovery phrase with passphrase",
           description:

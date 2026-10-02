@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/GeneralHeader";
 import internalToast from "@/components/Toast";
@@ -16,6 +16,7 @@ export default function ImportZKasSeed({ onBack }: { onBack: () => void }) {
   const navigate = useNavigate();
   const { switchZKasNetwork } = useSwitchNetwork();
   const [settings] = useSettings();
+  const seedInput = useRef<HTMLInputElement>(null);
   const [seedHex, setSeedHex] = useState("");
   const [showSeed, setShowSeed] = useState(false);
   const [preview, setPreview] = useState<{
@@ -90,6 +91,26 @@ export default function ImportZKasSeed({ onBack }: { onBack: () => void }) {
         wallet. Compare its address before saving, and keep your original
         backup.
       </p>
+      <div className="space-y-1 text-sm">
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => {
+            if (seedInput.current) seedInput.current.value = "";
+            setSeedHex("");
+            setPreview(undefined);
+            navigate("/zkas/settings", {
+              state: { pairingReturn: "import-zkas-seed" },
+            });
+          }}
+          className="text-icy-blue-400 disabled:opacity-50"
+        >
+          Configure ZKas daemon credential
+        </button>
+        <p className="text-xs text-daintree-400">
+          Leaving this screen clears the entered seed and address preview.
+        </p>
+      </div>
       {preview ? (
         <div className="space-y-4">
           <p className="text-sm">
@@ -123,6 +144,7 @@ export default function ImportZKasSeed({ onBack }: { onBack: () => void }) {
           </label>
           <input
             id="zkas-seed"
+            ref={seedInput}
             type={showSeed ? "text" : "password"}
             value={seedHex}
             autoComplete="off"

@@ -541,7 +541,7 @@ test("Settings screen displays a disconnected saved grant and refreshes after re
             (args) => ({
               contents:
                 args.path === "router"
-                  ? "export const useNavigate = () => () => {};"
+                  ? "export const useNavigate = () => () => {}; export const useLocation = () => ({state:null});"
                   : mocks[args.path],
               loader: "js",
             }),

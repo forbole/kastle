@@ -193,7 +193,7 @@ async function settingsBundle() {
             (args) => ({
               contents:
                 args.path === "router"
-                  ? "export const useNavigate = () => () => {};"
+                  ? "export const useNavigate = () => () => {}; export const useLocation = () => ({state:null});"
                   : mocks[args.path],
               loader: "js",
             }),
