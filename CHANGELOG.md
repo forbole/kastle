@@ -1,5 +1,31 @@
 # Changelog
 
+## [2.61.0](https://github.com/forbole/kastle/compare/v2.60.1...v2.61.0) (2026-10-02)
+
+
+### Features
+
+* **activity:** Activity page for swap + bridge (mobile parity) ([#363](https://github.com/forbole/kastle/issues/363)) ([66b17f9](https://github.com/forbole/kastle/commit/66b17f96cc66c27e28741572980b835854e01aaf))
+* **analytics:** register swap/bridge PostHog events (mobile parity) ([#361](https://github.com/forbole/kastle/issues/361)) ([027ae51](https://github.com/forbole/kastle/commit/027ae51d6c29e47114f2b03775a2c7e87a117e61))
+* **extension:** PostHog feature flags to disable swap and bridge ([#358](https://github.com/forbole/kastle/issues/358)) ([23ba870](https://github.com/forbole/kastle/commit/23ba870d65a8545fc224889736b293835b8a3281))
+* **swap-bridge:** swap + bridge (mobile parity) ([#354](https://github.com/forbole/kastle/issues/354)) ([755cae5](https://github.com/forbole/kastle/commit/755cae5ccdd0392933e0a069416b9dcb5009c5a4))
+
+
+### Bug Fixes
+
+* **activity:** UAT logic fixes — status, precision, year, usd, eta caption ([#373](https://github.com/forbole/kastle/issues/373)) ([a5fa1ac](https://github.com/forbole/kastle/commit/a5fa1ac30a5fbfa9ffb1464794019b701e50e1b1))
+* **bridge/send:** UAT logic fixes — max, min-amount, fee usd, fee tiers, igra fee, token filter, output pill ([#375](https://github.com/forbole/kastle/issues/375)) ([64ee5d1](https://github.com/forbole/kastle/commit/64ee5d12bfc90db4cda25aa3559042d9fd6c8f5f))
+* **flags:** document kill-switch usage + handle string values ([#365](https://github.com/forbole/kastle/issues/365)) ([c74ef20](https://github.com/forbole/kastle/commit/c74ef20885a3941faa69b430fa905804743a9972))
+* **ins:** align INS asset screen wording/UI to mobile ([#362](https://github.com/forbole/kastle/issues/362)) ([d31a710](https://github.com/forbole/kastle/commit/d31a710b1350c4c31d3415c11d575ed37da3fb20))
+* **krc721:** render KSPR, keep failed cards, gate Transfer on listing, testnet indexer host ([#347](https://github.com/forbole/kastle/issues/347)) ([2e98d70](https://github.com/forbole/kastle/commit/2e98d70413a9073a6da16e6f9e1bc5e0f58c0835))
+* **nav:** remove Activity tab from bottom navigation ([#368](https://github.com/forbole/kastle/issues/368)) ([66755cc](https://github.com/forbole/kastle/commit/66755cc7cbbf1c697a8b05fde8c24fb5c497614d))
+* send and import visual fixes ([#371](https://github.com/forbole/kastle/issues/371)) ([344b48e](https://github.com/forbole/kastle/commit/344b48ec2276517522feb5003eda36bd3aa3fefa))
+* **signtx:** correct Single sighash handling (reject out-of-range + preserve through fallback) ([#364](https://github.com/forbole/kastle/issues/364)) ([c785b29](https://github.com/forbole/kastle/commit/c785b291250ce9b257e50b2da7077ff9cf5c3635))
+* **swap-bridge:** cap token-list balances to 8 decimals ([#360](https://github.com/forbole/kastle/issues/360)) ([3094052](https://github.com/forbole/kastle/commit/30940524f5ae649e9eca095bed62cacaf3e7b5ce))
+* swap, bridge, activity visual fixes from 2.61 UAT ([#370](https://github.com/forbole/kastle/issues/370)) ([e9b7a5f](https://github.com/forbole/kastle/commit/e9b7a5f92b012e2c1737b9e33bfffa351e8134f0))
+* **swap:** UAT logic fixes — custom slippage, kastle fee, usd precision, max ([#374](https://github.com/forbole/kastle/issues/374)) ([cfa5257](https://github.com/forbole/kastle/commit/cfa5257815535b9419946d7437a8790e9bae8719))
+* **test:** stub isProduction in feature-flags unit test ([#367](https://github.com/forbole/kastle/issues/367)) ([774c3ed](https://github.com/forbole/kastle/commit/774c3ed5605fc3db41fbc9fff35b316a48217e5c))
+
 ## [2.60.1](https://github.com/forbole/kastle/compare/v2.60.0...v2.60.1) (2026-09-10)
 
 
