@@ -19,7 +19,11 @@ import useFeeEstimate from "@/hooks/evm/useFeeEstimate";
 import { formatToken, truncToDecimals } from "@/lib/utils";
 import useCurrencyValue from "@/hooks/useCurrencyValue";
 import Layer2AssetImage from "@/components/Layer2AssetImage";
-import { getChainImage, isInsSupportedChain } from "@/lib/layer2";
+import {
+  getChainImage,
+  getChainTokenSymbol,
+  isInsSupportedChain,
+} from "@/lib/layer2";
 import useEvmAddress from "@/hooks/evm/useEvmAddress";
 import { useIns } from "@/hooks/ins/useIns";
 import { lookupInsNameOnChain } from "@/lib/ins/insRegistry";
@@ -160,6 +164,8 @@ export default function DetailsStep({
     }
   };
 
+  const gasSymbol = getChainTokenSymbol(asset.chainId);
+
   const amountValidator = async (value: string | undefined) => {
     const amountNumber = parseFloat(value ?? "0");
 
@@ -173,7 +179,7 @@ export default function DetailsStep({
 
     const kasBalance = kasBalanceInfo?.rawBalance ?? 0n;
     if (!kasBalance || kasBalance < (estimatedFee ?? 0n)) {
-      return "You don't have enough KAS to cover the estimated fees";
+      return `You don't have enough ${gasSymbol} to cover the estimated fees`;
     }
 
     return true;
@@ -419,12 +425,13 @@ export default function DetailsStep({
             <i
               className="hn hn-info-circle text-[16px]"
               data-tooltip-id="fee-estimation-tooltip"
-              data-tooltip-content={`${formatToken(parseFloat(formatEther(estimatedFee ?? 0n)))} KAS for EVM miner fees.`}
+              data-tooltip-content={`${formatToken(parseFloat(formatEther(estimatedFee ?? 0n)))} ${gasSymbol} for EVM miner fees.`}
             ></i>
 
             <span>Estimated</span>
             <span>
-              {formatToken(parseFloat(formatEther(estimatedFee ?? 0n)))} KAS
+              {formatToken(parseFloat(formatEther(estimatedFee ?? 0n)))}{" "}
+              {gasSymbol}
             </span>
           </div>
         </div>

@@ -27,6 +27,7 @@ import {
   TokenPill,
   TokenSheet,
   formatAmount,
+  formatUsd,
 } from "@/components/swap-bridge/ui";
 import BottomNav, { ActivityHeaderButton } from "@/components/BottomNav";
 import kaspaIcon from "@/assets/images/network-logos/kaspa.svg";
@@ -149,7 +150,7 @@ export default function Bridge() {
     !isMainnet && BRIDGE_ROUTES[picked].mainnetOnly ? "kas-igra" : picked;
   const route = BRIDGE_ROUTES[direction];
   const [amount, setAmount] = useState("");
-  const [sheet, setSheet] = useState<"token" | "provider" | "fee">();
+  const [sheet, setSheet] = useState<"token" | "to" | "provider" | "fee">();
   const [sheetChain, setSheetChain] = useState<BridgeChain>(route.from);
   const [submitting, setSubmitting] = useState(false);
 
@@ -516,17 +517,32 @@ export default function Bridge() {
 
   const sheetTokens: SheetToken[] = (
     ["kaspa", "kasplex", "igra"] as BridgeChain[]
-  ).map((c) => {
-    const b = balanceOf(c);
-    return {
-      key: c,
-      chain: c,
-      symbol: BRIDGE_TOKEN_NAME[c],
-      chainImage: chainImage(c),
-      balance: b === undefined ? undefined : formatAmount(b, 8),
-      disabled: bridgeDirectionsFrom(c, isMainnet).length === 0,
-    };
-  });
+  )
+    // The "from" sheet only lists what can actually be spent.
+    .filter((c) => (balanceOf(c) ?? 0) > 0)
+    .map((c) => {
+      const b = balanceOf(c);
+      return {
+        key: c,
+        chain: c,
+        symbol: BRIDGE_TOKEN_NAME[c],
+        chainImage: chainImage(c),
+        balance: b === undefined ? undefined : formatAmount(b, 8),
+        disabled: bridgeDirectionsFrom(c, isMainnet).length === 0,
+      };
+    });
+  // Reachable destinations from the current source, one per chain.
+  const toTokens: SheetToken[] = [];
+  for (const d of bridgeDirectionsFrom(route.from, isMainnet)) {
+    const r = BRIDGE_ROUTES[d];
+    if (toTokens.some((t) => t.chain === r.to)) continue;
+    toTokens.push({
+      key: d,
+      chain: r.to,
+      symbol: BRIDGE_TOKEN_NAME[r.to],
+      chainImage: chainImage(r.to),
+    });
+  }
   const reverse = REVERSE[direction];
   const canFlip = bridgeDirectionsFrom(route.to, isMainnet).includes(reverse);
   const loadingQuote = direction === "igra-kas" && !exitParams;
@@ -555,7 +571,10 @@ export default function Bridge() {
           <TokenPill
             symbol={toSymbol}
             chainImage={chainImage(route.to)}
-            onClick={() => setSheet("provider")}
+            onClick={() => {
+              setSheetChain(route.to);
+              setSheet("to");
+            }}
           />
         </div>
 
@@ -564,7 +583,7 @@ export default function Bridge() {
           onChange={setAmount}
           symbol={fromSymbol}
           chainImage={chainImage(route.from)}
-          usd={`$${formatAmount(amountNum * kaspaPrice, 2)}`}
+          usd={`$${formatUsd(amountNum * kaspaPrice)}`}
           onFlip={() => {
             setDirection(reverse);
             setAmount("");
@@ -584,8 +603,7 @@ export default function Bridge() {
                   <span className="flex flex-col items-end">
                     ~ {formatAmount(Math.max(received, 0))} {toSymbol}
                     <span className="text-xs text-daintree-400">
-                      (≈ ${formatAmount(Math.max(received, 0) * kaspaPrice, 2)}{" "}
-                      USD)
+                      (≈ ${formatUsd(Math.max(received, 0) * kaspaPrice)} USD)
                     </span>
                   </span>
                 )}
@@ -635,6 +653,42 @@ export default function Bridge() {
             ? undefined
             : `${formatAmount(balance)} ${fromSymbol}`
         }
+        onMax={
+          balance !== undefined && networkFee !== undefined
+            ? () => {
+                let text: string;
+                if (route.from === "kaspa") {
+                  const max = Math.max(balance - networkFee, 0);
+                  text = max.toFixed(8);
+                } else {
+                  // Exact wei, truncated (not rounded) so amount + fee <= balance.
+                  // `balance` is a formatUnits string: exact for live and cached reads.
+                  const raw = (
+                    route.from === "kasplex" ? kasplexBalance : igraBalance
+                  )?.balance;
+                  let wei =
+                    raw === undefined || evmFeeWei === undefined
+                      ? 0n
+                      : parseEther(String(raw)) - evmFeeWei;
+                  if (direction === "igra-kas" && exitParams) {
+                    const cap = computeMaxExitKas({
+                      balanceKas: balance,
+                      capHeadroomKas: null,
+                      maxExitAmountKas: Number(formatEther(exitParams.maxExit)),
+                      feeRateBps: Number(exitParams.feeRate),
+                    });
+                    const capWei = parseEther(cap.toFixed(18));
+                    if (capWei < wei) wei = capWei;
+                  }
+                  const [whole, frac = ""] = formatEther(
+                    wei > 0n ? wei : 0n,
+                  ).split(".");
+                  text = `${whole}.${frac.padEnd(8, "0").slice(0, 8)}`;
+                }
+                setAmount(text.replace(/\.?0+$/, "") || "0");
+              }
+            : undefined
+        }
         disabled={
           !!error ||
           amountNum <= 0 ||
@@ -666,6 +720,21 @@ export default function Bridge() {
           setAmount("");
         }}
         recentKey="local:bridge_recent_tokens"
+      />
+
+      <TokenSheet
+        open={sheet === "to"}
+        onClose={() => setSheet(undefined)}
+        chains={toTokens.map((t) => ({
+          key: t.chain,
+          label: CHAIN_LABEL[t.chain as BridgeChain],
+          image: chainImage(t.chain as BridgeChain),
+        }))}
+        chain={sheetChain}
+        onChain={(c) => setSheetChain(c as BridgeChain)}
+        tokens={toTokens}
+        onSelect={(t) => setDirection(t.key as BridgeDirection)}
+        recentKey="local:bridge_recent_to_tokens"
       />
 
       <BottomSheet

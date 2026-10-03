@@ -60,7 +60,9 @@ export default function DetailsStep({
             address && isAddress(address ?? "")
               ? (address as `0x${string}`)
               : evmAddress,
-          value: amount ? parseEther(amount) : (rawBalance ?? 0n),
+          // Gas for a plain native transfer doesn't depend on value; estimating
+          // against the typed amount reverts (fee falls back to 0) near balance.
+          value: 0n,
         }
       : undefined,
   );
@@ -145,7 +147,12 @@ export default function DetailsStep({
   const amountValidator = async (value: string | undefined) => {
     const amountNumber = parseEther(value ?? "0");
 
-    if (amountNumber < 0 || amountNumber > currentBalance) {
+    // Same floor as mobile's L2 KAS send.
+    if (amountNumber < parseEther("0.2")) {
+      return `Oh, please enter an amount of at least 0.2 ${tokenSymbol}`;
+    }
+
+    if (amountNumber > currentBalance) {
       return "Oh, you don’t have enough funds";
     }
 
@@ -192,6 +199,11 @@ export default function DetailsStep({
       setValue("amountFiat", undefined);
     }
   }, [amount, estimatedFee]);
+
+  // Re-validate once the fee round-trip lands so amount + fee > balance fails here.
+  useEffect(() => {
+    if (amount) trigger("amount");
+  }, [estimatedFee, currentBalance]);
 
   useEffect(() => {
     trigger("userInput");
