@@ -17,6 +17,7 @@ description: Small reviewed milestones
 - [x] M7: Move ZKas seed import into Import Wallet as a separate wallet, filter the wallet switcher by active network, preserve old attached seeds for reading, and guard Kaspa-only balance and signing paths. TypeScript, lint, Chrome build, and 54 focused tests pass. Astra found no remaining P0–P2 issue. Final Codex Security scan `04e9e70f-74d9-4a33-811f-76b81e4c7b87` reviewed 26 changed source files with zero attacker-reachable findings. Initialized-wallet UI and funded-payment checks remain external release checks.
 - [x] M9: Require and validate daemon setup before ZKas selection or wallet creation/import; disclose FVK visibility; use the current daemon birthday only for immediate new-wallet registration and use genesis for restored wallets and every later registration; bind registration to the approved daemon; protect cross-window settings writes; verify, review, document, and build the unpacked extension.
 - [x] M10: Make setup and import status probes compatible with a token-requiring public proxy by using fresh temporary tokens; document the required non-custodial proxy routes. The public daemon remains an external deployment dependency.
+- [x] M11 step 1: Add mainnet daemon and history-index defaults to new and old settings, prefill setup, preserve custom origins, and use effective origins in source guards. Explicit save still controls permission and FVK registration; optional bearer behavior remains separate.
 
 ## Task Breakdown
 

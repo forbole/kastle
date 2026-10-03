@@ -161,7 +161,7 @@ async function settingsBundle() {
     "@/lib/settings-storage":
       "export const updateSettingsLocked = async () => {};",
     "@/lib/zkas/history-config":
-      "export const canonicalHistoryIndexOrigin = x => x; export const historyIndexHostPattern = x => x;",
+      "export const DEFAULT_ZKAS_DAEMON_ORIGIN = 'https://zkwd.mooncake.space'; export const DEFAULT_ZKAS_HISTORY_INDEX_ORIGIN = 'https://matjam.mooncake.space'; export const canonicalHistoryIndexOrigin = x => x; export const historyIndexHostPattern = x => x;",
     "@/lib/network-type": "export const NetworkType = { Mainnet: 'mainnet' };",
   };
   const result = await build({

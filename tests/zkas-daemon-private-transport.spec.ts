@@ -260,6 +260,8 @@ async function builtDispatcher() {
     "zkasDaemonBearerClear",
     "zkasPaymentSendOrdinary",
     "zkasPaymentSendWebsite",
+    "zkasDirectActionComplete",
+    "zkasDirectActionPendingGet",
   ];
   const result = await build({
     entryPoints: [resolve("lib/service/extension-service.ts")],
@@ -951,6 +953,18 @@ test("actual internal dispatcher rejects a webpage and only the extension receiv
     });
     expect(accepted).toEqual({ birthday: 765 });
     expect(flow.calls).toHaveLength(1);
+    flow.setPermission(true);
+    flow.values.set("local:settings", {
+      networkId: "mainnet",
+      zkasDaemonUrls: { mainnet: "" },
+    });
+    expect(
+      await flow.invoke(flow.module.daemonBirthday, {
+        method: Method.ZKAS_DAEMON_BIRTHDAY,
+        origin,
+        network: "mainnet",
+      }),
+    ).toEqual({ birthday: 765 });
   } finally {
     dispatcher.cleanup();
     flow.cleanup();

@@ -91,6 +91,8 @@ export const initialSettings = {
     [NetworkType.TestnetT10]: kasplexTestnet.id,
   },
   isLegacyEvmAddressEnabled: false,
+  // Missing ZKas origins resolve to public defaults when read. Setup still
+  // needs an explicit save before any wallet viewing key is registered.
 } satisfies Settings;
 
 export const SettingsContext = createContext<SettingsContextType>({

@@ -3,13 +3,15 @@ import path from "node:path";
 import { expect, test } from "@playwright/test";
 import type { Settings } from "@/contexts/SettingsContext";
 import {
+  hasConfiguredZKasDaemon,
   requireZKasDaemonUrl,
   selectZKasNetworkWithDaemon,
 } from "@/lib/zkas/setup";
+import { effectiveZKasSource } from "@/lib/zkas/history-config";
 
 const root = process.cwd();
 
-test("ZKas wallet creation requires a configured daemon", () => {
+test("ZKas wallet creation still requires explicit daemon setup", () => {
   const settings = {
     networkId: "mainnet",
     preview: true,
@@ -29,6 +31,25 @@ test("ZKas wallet creation requires a configured daemon", () => {
   ).toBe("https://daemon.example");
 });
 
+test("a default endpoint does not count as first-use daemon approval", () => {
+  expect(hasConfiguredZKasDaemon({} as Settings)).toBe(false);
+  expect(
+    hasConfiguredZKasDaemon({
+      zkasDaemonUrls: { mainnet: "https://zkwd.mooncake.space" },
+    } as Settings),
+  ).toBe(true);
+  expect(
+    hasConfiguredZKasDaemon({
+      zkasDaemonUrls: { mainnet: "" },
+    } as Settings),
+  ).toBe(false);
+  expect(
+    hasConfiguredZKasDaemon({
+      zkasDaemonUrls: { mainnet: "http://remote.example" },
+    } as Settings),
+  ).toBe(false);
+});
+
 test("ZKas selection rechecks the current settings snapshot for a daemon", () => {
   const staleWindow = {
     networkId: "mainnet",
@@ -46,6 +67,55 @@ test("ZKas selection rechecks the current settings snapshot for a daemon", () =>
     activeChain: "zkas",
     zkasDaemonUrls: { mainnet: "https://new.example" },
   });
+});
+
+test("effective source is stable across migration and changes with either explicit override", () => {
+  const legacy = { networkId: "mainnet" } as Settings;
+  const migrated = {
+    ...legacy,
+    zkasDaemonUrls: { mainnet: "https://zkwd.mooncake.space" },
+    zkasHistoryIndexUrls: { mainnet: "https://matjam.mooncake.space" },
+  } as Settings;
+  expect(effectiveZKasSource(legacy)).toEqual(effectiveZKasSource(migrated));
+  expect(
+    effectiveZKasSource({
+      ...legacy,
+      zkasDaemonUrls: { mainnet: "https://other.example" },
+    } as Settings),
+  ).not.toEqual(effectiveZKasSource(legacy));
+  expect(
+    effectiveZKasSource({
+      ...legacy,
+      zkasHistoryIndexUrls: { mainnet: "https://other.example" },
+    } as Settings),
+  ).not.toEqual(effectiveZKasSource(legacy));
+  expect(() =>
+    effectiveZKasSource({
+      ...legacy,
+      zkasDaemonUrls: { mainnet: "" },
+    } as Settings),
+  ).toThrow();
+});
+
+test("stale daemon save cannot replace a changed custom endpoint", () => {
+  const earlier = {
+    networkId: "mainnet",
+    preview: true,
+    activeChain: "kaspa",
+    zkasDaemonUrls: { mainnet: "https://earlier.example" },
+  } as Settings;
+  const latest = {
+    ...earlier,
+    zkasDaemonUrls: { mainnet: "https://latest.example" },
+  };
+  expect(() =>
+    selectZKasNetworkWithDaemon(
+      latest,
+      true,
+      "https://new.example",
+      earlier.zkasDaemonUrls?.mainnet,
+    ),
+  ).toThrow(/changed in another window/i);
 });
 
 test("experimental setup, wallet creation, and imports wire daemon registration", () => {

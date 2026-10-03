@@ -30,7 +30,10 @@ export default function useSwitchNetwork() {
 
   const switchZKasNetwork = async (
     daemonUrl?: string,
-    options: { deferKaspaAddressRefresh?: boolean } = {},
+    options: {
+      deferKaspaAddressRefresh?: boolean;
+      expectedCurrentDaemon?: string | null;
+    } = {},
   ): Promise<boolean> => {
     if (!settings) throw new Error("Settings not loaded");
     const enabled = await storage.getItem<boolean>(ZKAS_EXPERIMENTAL_KEY);
@@ -39,7 +42,12 @@ export default function useSwitchNetwork() {
     let needsKaspaAddressRefresh = false;
     await setSettings((prev) => {
       needsKaspaAddressRefresh = prev.networkId !== NetworkType.Mainnet;
-      return selectZKasNetworkWithDaemon(prev, enabled, daemonUrl);
+      return selectZKasNetworkWithDaemon(
+        prev,
+        enabled,
+        daemonUrl,
+        options.expectedCurrentDaemon,
+      );
     });
     if (needsKaspaAddressRefresh && options.deferKaspaAddressRefresh !== true) {
       await refreshKaspaAddresses(NetworkType.Mainnet);

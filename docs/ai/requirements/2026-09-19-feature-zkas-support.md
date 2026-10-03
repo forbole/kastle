@@ -17,6 +17,7 @@ Kastle handles Kaspa transparent accounts and transfers. ZKas is a separate mand
 - Add ZKAS asset, receive, balance/sync, and send screens with details → confirm → result; show fees and incomplete-history warnings.
 - Use a user-selected wallet daemon for scanning and proof generation. Register only a full viewing key; verify and sign on the device.
 - Require daemon setup before entering ZKas or creating/importing a ZKas wallet. Explain that the daemon can see addresses, balance, and transaction history. Register a newly created wallet once from the daemon's current DAA birthday, without persisting that untrusted value. Register restored phrases, spending seeds, retries, and daemon changes from genesis. Bind registration to the approved daemon URL and serialize cross-window settings changes.
+- Default the mainnet daemon to `https://zkwd.mooncake.space` and the standalone history index to `https://matjam.mooncake.space` for new and existing settings. Keep custom origins, reject explicit blank or malformed origins, and require the existing user gesture, host permission, and viewing-key disclosure before registration.
 - Provide connected-origin dApp read methods and a fresh payment approval. Provide a standalone localhost extension test page.
 - Preserve KAS and EVM behavior.
 - Non-goals: custodial daemon endpoints, local Halo 2 proving, Ledger ZKas signing, automatic multi-transaction payments.
@@ -43,11 +44,11 @@ Kastle handles Kaspa transparent accounts and transfers. ZKas is a separate mand
 - ZKas Mainnet appears in the existing Network picker only while Experimental features is enabled. Selecting it shows the ZKAS dashboard; disabling Experimental features restores Kaspa Mainnet and makes all ZKas account and signing operations fail closed. ZKas testnet is not exposed in the picker until its payment signer can be validated.
 - Pin `firecash/zkas-signer` source `44209c7f9b7ada554a40b633a8025888f625418f` and the reference binary from `firecash/zkas-wallet` `ae576a86a47df0e52ab0fdf7f1103ba818b09609` (SHA-256 `ea0ec55a2cef0bb7f3cd6ce80b0e5c218693e0e97be49c80a73587b1eefcd409`). Check the genesis domain before release.
 - `@zkas/sdk` returned npm 404 on 2026-09-19; implement a narrow, typed daemon adapter based on upstream source.
-- Named assumptions pending user reply: existing ordinary BIP39 phrase derives ZKas; user configures a daemon rather than silently using a hosted operator.
+- Existing ordinary BIP39 phrase derives ZKas. Hosted mainnet endpoint defaults are prefilled, while connecting and sharing a viewing key remain explicit.
 - Upstream says its novel shielded consensus code has no independent audit. Kastle integration review is not a consensus audit.
 
 ## Questions & Open Items
 
-- Confirm same phrase versus separate ZKas phrase and daemon default.
+- Confirm same phrase versus separate ZKas phrase.
 - Obtain a compatible mainnet daemon and funded account for live payment validation, and a reviewed testnet signer before testnet payment testing.
 - Upstream signer needs a reviewed passphrase API and hardware signing before those account types are enabled.

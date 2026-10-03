@@ -227,6 +227,10 @@ async function buildManagementService() {
     "zkasDappPendingGet",
     "zkasHistoryGrantComplete",
     "zkasHistoryGrantPendingGet",
+    "zkasDirectActionComplete",
+    "zkasDirectActionPendingGet",
+    "zkasPaymentSendOrdinary",
+    "zkasPaymentSendWebsite",
   ];
   const mocks: Record<string, string> = {
     "@/lib/keyring-manager.ts":
@@ -244,7 +248,7 @@ async function buildManagementService() {
     "@/lib/zkas/selection":
       "export const sameZKasSelection = (a, b) => a.walletId === b.walletId && a.accountIndex === b.accountIndex && a.network === b.network;",
     "@/lib/wallet-network":
-      "export const ZKAS_EXPERIMENTAL_KEY = 'local:zkas-enabled'; export const assertZKasActive = (settings, enabled) => { if (!settings?.active || enabled !== true) throw Error('ZKas unavailable'); };",
+      "export const ZKAS_EXPERIMENTAL_KEY = 'local:zkas-enabled'; export const ZKAS_MAINNET = 'zkas-mainnet'; export const selectWalletNetwork = x => x; export const assertZKasActive = (settings, enabled) => { if (!settings?.active || enabled !== true) throw Error('ZKas unavailable'); };",
   };
   const output = await build({
     entryPoints: [resolve(root, "lib/service/extension-service.ts")],
@@ -509,7 +513,7 @@ test("Settings screen displays a disconnected saved grant and refreshes after re
     "@/lib/settings-storage":
       "export const updateSettingsLocked = async () => {};",
     "@/lib/zkas/history-config":
-      "export const canonicalHistoryIndexOrigin = x => x; export const historyIndexHostPattern = x => x;",
+      "export const DEFAULT_ZKAS_DAEMON_ORIGIN = 'https://zkwd.mooncake.space'; export const DEFAULT_ZKAS_HISTORY_INDEX_ORIGIN = 'https://matjam.mooncake.space'; export const canonicalHistoryIndexOrigin = x => x; export const historyIndexHostPattern = x => x;",
     "@/lib/network-type": "export const NetworkType = { Mainnet: 'mainnet' };",
   };
   const output = await build({

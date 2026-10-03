@@ -1,4 +1,9 @@
 import type { Settings } from "@/contexts/SettingsContext";
+import type { ZKasNetwork } from "./client";
+
+export const DEFAULT_ZKAS_DAEMON_ORIGIN = "https://zkwd.mooncake.space";
+export const DEFAULT_ZKAS_HISTORY_INDEX_ORIGIN =
+  "https://matjam.mooncake.space";
 
 export const ZKAS_MAINNET_GENESIS =
   "b63f7fe8e50402af34790265e299bb1ba63e943b91a59a670e5971b7a9e84e6f";
@@ -38,8 +43,31 @@ function canonicalHistoryOrigin(value: string): string {
 
 export function requireHistoryIndexOrigin(settings: Settings): string {
   const value = settings.zkasHistoryIndexUrls?.mainnet;
-  if (!value) throw new Error("Configure a history index in Kastle first");
-  return canonicalHistoryIndexOrigin(value);
+  return canonicalHistoryIndexOrigin(
+    value === undefined ? DEFAULT_ZKAS_HISTORY_INDEX_ORIGIN : value,
+  );
+}
+
+export function effectiveZKasDaemonOrigin(
+  settings: Settings,
+  network: ZKasNetwork = "mainnet",
+): string {
+  const value = settings.zkasDaemonUrls?.[network];
+  if (value === undefined && network !== "mainnet")
+    throw new Error("Add a ZKas wallet daemon before using this network");
+  return canonicalHistoryDaemonOrigin(
+    value === undefined ? DEFAULT_ZKAS_DAEMON_ORIGIN : value,
+  );
+}
+
+export function effectiveZKasSource(settings: Settings): {
+  daemonUrl: string;
+  indexUrl: string;
+} {
+  return {
+    daemonUrl: effectiveZKasDaemonOrigin(settings),
+    indexUrl: requireHistoryIndexOrigin(settings),
+  };
 }
 
 export function canonicalHistoryIndexOrigin(value: string): string {

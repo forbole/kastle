@@ -2,10 +2,10 @@ import { z } from "zod";
 import { SETTINGS_KEY, type Settings } from "@/contexts/SettingsContext";
 import { hasZKasConnection, zkasConnectionStore } from "@/lib/zkas/connection";
 import {
-  canonicalHistoryDaemonOrigin,
-  canonicalHistoryIndexOrigin,
+  effectiveZKasSource,
   ZKAS_MAINNET_GENESIS,
 } from "@/lib/zkas/history-config";
+import { hasConfiguredZKasDaemon } from "@/lib/zkas/setup";
 import {
   HISTORY_GRANTS_KEY,
   HistoryGrantStore,
@@ -40,17 +40,8 @@ function sourcePair(
   settings: Settings | null,
 ): { daemonUrl: string; indexUrl: string } | null {
   try {
-    if (
-      !settings?.zkasDaemonUrls?.mainnet ||
-      !settings.zkasHistoryIndexUrls?.mainnet
-    )
-      return null;
-    return {
-      daemonUrl: canonicalHistoryDaemonOrigin(settings.zkasDaemonUrls.mainnet),
-      indexUrl: canonicalHistoryIndexOrigin(
-        settings.zkasHistoryIndexUrls.mainnet,
-      ),
-    };
+    if (!hasConfiguredZKasDaemon(settings) || !settings) return null;
+    return effectiveZKasSource(settings);
   } catch {
     return null;
   }
@@ -111,8 +102,7 @@ export const zkasHistoryGrantsList = async (
   await current.assertCurrent();
   assertZKasActive(settings, enabled);
   const sourceSnapshot = JSON.stringify([
-    settings?.zkasDaemonUrls?.mainnet ?? null,
-    settings?.zkasHistoryIndexUrls?.mainnet ?? null,
+    sourcePair(settings),
     enabled,
     connections,
   ]);
@@ -128,8 +118,7 @@ export const zkasHistoryGrantsList = async (
     assertZKasActive(latestSettings, latestEnabled);
     if (
       JSON.stringify([
-        latestSettings?.zkasDaemonUrls?.mainnet ?? null,
-        latestSettings?.zkasHistoryIndexUrls?.mainnet ?? null,
+        sourcePair(latestSettings),
         latestEnabled,
         latestConnections,
       ]) !== sourceSnapshot

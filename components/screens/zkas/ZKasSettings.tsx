@@ -31,6 +31,8 @@ import { withWalletSettingsLock } from "@/lib/wallet-settings-storage";
 import { updateSettingsLocked } from "@/lib/settings-storage";
 import {
   canonicalHistoryIndexOrigin,
+  DEFAULT_ZKAS_DAEMON_ORIGIN,
+  DEFAULT_ZKAS_HISTORY_INDEX_ORIGIN,
   historyIndexHostPattern,
 } from "@/lib/zkas/history-config";
 import { NetworkType } from "@/lib/network-type";
@@ -117,11 +119,18 @@ export default function ZKasSettings() {
     refreshHistoryGrants,
   ]);
   useEffect(() => {
-    setUrl(network ? (settings?.zkasDaemonUrls?.[network] ?? "") : "");
+    setUrl(
+      network
+        ? (settings?.zkasDaemonUrls?.[network] ?? DEFAULT_ZKAS_DAEMON_ORIGIN)
+        : "",
+    );
   }, [settings?.zkasDaemonUrls, network]);
   useEffect(() => {
     setIndexUrl(
-      network ? (settings?.zkasHistoryIndexUrls?.[network] ?? "") : "",
+      network
+        ? (settings?.zkasHistoryIndexUrls?.[network] ??
+            DEFAULT_ZKAS_HISTORY_INDEX_ORIGIN)
+        : "",
     );
   }, [settings?.zkasHistoryIndexUrls, network]);
 
@@ -234,6 +243,7 @@ export default function ZKasSettings() {
           }
           needsKaspaAddressRefresh = await switchZKasNetwork(daemonUrl, {
             deferKaspaAddressRefresh: true,
+            expectedCurrentDaemon: settings.zkasDaemonUrls?.mainnet ?? null,
           });
           if (account) await registerSelectedZKasWallet(account, daemonUrl);
         });

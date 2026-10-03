@@ -4,10 +4,8 @@ import {
 } from "@/api/message";
 import { SETTINGS_KEY, type Settings } from "@/contexts/SettingsContext";
 import { hasZKasConnection, zkasConnectionStore } from "@/lib/zkas/connection";
-import {
-  canonicalHistoryDaemonOrigin,
-  requireHistoryIndexOrigin,
-} from "@/lib/zkas/history-config";
+import { effectiveZKasSource } from "@/lib/zkas/history-config";
+import { requireZKasDaemonUrl } from "@/lib/zkas/setup";
 import {
   HISTORY_GRANTS_KEY,
   HistoryGrantStore,
@@ -74,11 +72,12 @@ async function assertCurrent(
   ]);
   keyringFor(pending);
   assertZKasActive(settings, enabled);
+  if (!settings) throw new Error("History source configuration changed");
+  requireZKasDaemonUrl(settings);
+  const source = effectiveZKasSource(settings);
   if (
-    !settings?.zkasDaemonUrls?.mainnet ||
-    canonicalHistoryDaemonOrigin(settings.zkasDaemonUrls.mainnet) !==
-      pending.context.daemonUrl ||
-    requireHistoryIndexOrigin(settings) !== pending.context.indexUrl
+    source.daemonUrl !== pending.context.daemonUrl ||
+    source.indexUrl !== pending.context.indexUrl
   )
     throw new Error("History source configuration changed");
   const connections = await zkasConnectionStore.list();

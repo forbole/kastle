@@ -23,7 +23,8 @@ import type {
   NativeDirectReview,
   NativeDirectSealed,
 } from "./direct-action-codec";
-import { ZKAS_MAINNET_GENESIS } from "./history-config";
+import { effectiveZKasSource, ZKAS_MAINNET_GENESIS } from "./history-config";
+import { requireZKasDaemonUrl } from "./setup";
 import {
   addOrRecoverZKasSeed,
   getSelectedAvailableZKasAddress,
@@ -231,8 +232,9 @@ export class ZKasKeyService {
       const selected = await this.selected();
       const { selection, settings, keyringVersion } = selected;
       const walletsGeneration = keyring.getMutationGeneration("wallets");
-      const daemon = settings.zkasDaemonUrls?.mainnet;
-      const index = settings.zkasHistoryIndexUrls?.mainnet;
+      requireZKasDaemonUrl(settings, selection.network);
+      const { daemonUrl: daemon, indexUrl: index } =
+        effectiveZKasSource(settings);
       let selectedAddress0 = "";
       const synchronous = () => {
         if (
@@ -252,8 +254,9 @@ export class ZKasKeyService {
         synchronous();
         if (
           !sameZKasSelection(selection, current.selection) ||
-          current.settings.zkasDaemonUrls?.mainnet !== daemon ||
-          current.settings.zkasHistoryIndexUrls?.mainnet !== index
+          requireZKasDaemonUrl(current.settings, selection.network) !==
+            daemon ||
+          effectiveZKasSource(current.settings).indexUrl !== index
         ) {
           throw new Error("Selected messaging source changed");
         }
@@ -502,7 +505,7 @@ export class ZKasKeyService {
     }
     if (
       daemonUrl !== undefined &&
-      current.settings.zkasDaemonUrls?.[selection.network] !== daemonUrl
+      requireZKasDaemonUrl(current.settings, selection.network) !== daemonUrl
     ) {
       throw new Error("Selected ZKas daemon changed");
     }
@@ -689,19 +692,16 @@ export class ZKasKeyService {
   async credentials(): Promise<ZKasCredentials> {
     const { selection, settings, keyringVersion, derived } =
       await this.account();
+    const daemonUrl = requireZKasDaemonUrl(settings, selection.network);
     const fullViewingKeyHex = await derived.signer.fullViewingKeyHex();
-    await this.checkSelection(
-      selection,
-      settings.zkasDaemonUrls?.[selection.network],
-      keyringVersion,
-    );
+    await this.checkSelection(selection, daemonUrl, keyringVersion);
     return {
       ...selection,
       keyringVersion,
       address: derived.address,
       fullViewingKeyHex,
       walletToken: derived.token,
-      daemonUrl: settings.zkasDaemonUrls?.[selection.network],
+      daemonUrl,
     };
   }
 

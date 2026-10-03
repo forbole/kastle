@@ -157,7 +157,7 @@ async function buildRealHandlers() {
     "@/lib/zkas/selection":
       "export const sameZKasSelection = (a, b) => a.walletId === b.walletId && a.accountIndex === b.accountIndex && a.network === b.network;",
     "@/lib/wallet-network":
-      "export const ZKAS_EXPERIMENTAL_KEY = 'local:zkas-enabled'; export const assertZKasActive = (settings, enabled) => { if (!settings || !enabled) throw Error('ZKas unavailable') };",
+      "export const ZKAS_EXPERIMENTAL_KEY = 'local:zkas-enabled'; export const ZKAS_MAINNET = 'zkas-mainnet'; export const selectWalletNetwork = x => x; export const assertZKasActive = (settings, enabled) => { if (!settings || !enabled) throw Error('ZKas unavailable') };",
     "@/lib/utils":
       "export const POPUP_WINDOW_HEIGHT = 600; export const POPUP_WINDOW_WIDTH = 375;",
     "@/api/background/utils":

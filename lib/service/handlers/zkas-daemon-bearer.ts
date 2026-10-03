@@ -4,6 +4,7 @@ import {
   canonicalDaemonBearerOrigin,
   DaemonBearerStore,
 } from "@/lib/zkas/daemon-bearer";
+import { effectiveZKasDaemonOrigin } from "@/lib/zkas/history-config";
 import { ExtensionService, type Message } from "../extension-service";
 import { Method } from "../methods";
 
@@ -83,9 +84,16 @@ async function context(origin?: string) {
     }
   };
   await assertCurrent();
+  let configured: string | null = null;
+  try {
+    if (originalSettings)
+      configured = effectiveZKasDaemonOrigin(originalSettings);
+  } catch {
+    // A malformed saved origin must not block pairing a valid replacement.
+  }
   return {
     keyring,
-    configured: originalSettings?.zkasDaemonUrls,
+    configured,
     assertCurrent,
   };
 }
@@ -117,8 +125,8 @@ export const zkasDaemonBearerList = async (
   );
   let selectedOrigin: string | null = null;
   try {
-    if (current.configured?.mainnet)
-      selectedOrigin = canonicalDaemonBearerOrigin(current.configured.mainnet);
+    if (current.configured)
+      selectedOrigin = canonicalDaemonBearerOrigin(current.configured);
   } catch {
     // Invalid settings cannot make a saved credential current.
   }

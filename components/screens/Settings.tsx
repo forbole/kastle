@@ -20,6 +20,7 @@ import {
   ZKAS_MAINNET,
 } from "@/lib/wallet-network";
 import useStorageState from "@/hooks/useStorageState";
+import { hasConfiguredZKasDaemon } from "@/lib/zkas/setup";
 
 export const explorerTxLinks = {
   [NetworkType.Mainnet]: "https://explorer.kaspa.org/txs/",
@@ -225,7 +226,7 @@ export default function Settings() {
                   onClick={async () => {
                     if (
                       network.id === ZKAS_MAINNET &&
-                      !settings?.zkasDaemonUrls?.mainnet
+                      !hasConfiguredZKasDaemon(settings)
                     ) {
                       setNetworkDropdownOpen(false);
                       navigate("/zkas/settings");

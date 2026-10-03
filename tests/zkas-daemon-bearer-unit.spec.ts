@@ -236,6 +236,10 @@ async function buildPairingService() {
     "zkasHistoryGrantPendingGet",
     "zkasHistoryGrantsList",
     "zkasHistoryGrantRevokeSaved",
+    "zkasDirectActionComplete",
+    "zkasDirectActionPendingGet",
+    "zkasPaymentSendOrdinary",
+    "zkasPaymentSendWebsite",
   ];
   const mocks: Record<string, string> = {
     "@/lib/keyring-manager.ts":
@@ -402,6 +406,8 @@ test("actual dispatcher refuses page senders and exposes only sanitized pair/lis
     expect(
       (await send({ method: LiveMethod.ZKAS_DAEMON_BEARER_LIST })).records,
     ).toEqual([]);
+    values.set("local:settings", { zkasDaemonUrls: { mainnet: "" } });
+    expect(await send(pair)).toMatchObject({ origin, present: true });
   } finally {
     artifact.cleanup();
   }

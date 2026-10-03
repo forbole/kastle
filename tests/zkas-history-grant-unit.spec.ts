@@ -8,7 +8,7 @@ test("history grants have a dedicated encrypted keyring slot", () => {
   expect(keyring.listKeys()).toContain("zkasHistoryGrants");
 });
 
-test("history index setting requires a canonical explicit origin", async () => {
+test("history index defaults only when mainnet setting is absent", async () => {
   const { requireHistoryIndexOrigin, historyIndexHostPattern } = await import(
     "@/lib/zkas/history-config"
   );
@@ -19,7 +19,14 @@ test("history index setting requires a canonical explicit origin", async () => {
   expect(historyIndexHostPattern("http://127.0.0.1:8786")).toBe(
     "http://127.0.0.1/*",
   );
-  expect(() => requireHistoryIndexOrigin({} as Settings)).toThrow();
+  expect(requireHistoryIndexOrigin({} as Settings)).toBe(
+    "https://matjam.mooncake.space",
+  );
+  expect(() =>
+    requireHistoryIndexOrigin({
+      zkasHistoryIndexUrls: { mainnet: "" },
+    } as Settings),
+  ).toThrow();
   for (const denied of [
     "http://index.example:8786",
     "http://localhost",
