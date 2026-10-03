@@ -7,6 +7,10 @@ import init, {
 } from "../../wasm/zkas-signer/firecash_signer.js";
 import { createPrivateMessagingAccount } from "./message-profile";
 import type { PrivateMessagingAccount } from "./message-profile";
+import { createPrivateBatchSigner } from "./private-batch-signer";
+import type { PrivateBatchSigner } from "./batch-payment";
+import type { ZKasPreparedBatch } from "./batch-client";
+import type { ZKasBatchIntent } from "./batch-journal";
 
 let ready: Promise<void> | undefined;
 const PINNED_WASM_SHA256 =
@@ -151,6 +155,68 @@ export async function openSelectedPrivateMessagingAccount(
     throw new Error("Selected messaging account changed");
   }
   return handle;
+}
+
+/** Wallet-internal only. This address-0 check uses the older pinned signer independently. */
+export async function openSelectedPrivateBatchSigner(
+  source: { type: "mnemonic" | "seed"; value: string },
+  accountIndex: number,
+  selectedAddress0: string,
+  approved: ZKasBatchIntent,
+  prepared: ZKasPreparedBatch | undefined,
+  signal: AbortSignal,
+): Promise<PrivateBatchSigner> {
+  if (!ready) throw new Error("ZKas signer is not initialized");
+  // The wallet grant, selected credential, and prepared envelope are one
+  // synchronous call snapshot. `await ready` yields even when already resolved.
+  const sourceSnapshot = { type: source.type, value: source.value };
+  const approvedSnapshot = structuredClone(approved);
+  const preparedSnapshot =
+    prepared === undefined ? undefined : structuredClone(prepared);
+  await ready;
+  if (
+    signal.aborted ||
+    !selectedAddress0.startsWith("zkas:") ||
+    approvedSnapshot.account !== selectedAddress0 ||
+    approvedSnapshot.selection.accountIndex !== accountIndex ||
+    approvedSnapshot.selection.network !== "mainnet"
+  )
+    throw new Error("Selected private batch account changed");
+  if (
+    !Number.isSafeInteger(accountIndex) ||
+    accountIndex < 0 ||
+    accountIndex >= 0x80000000 ||
+    (sourceSnapshot.type !== "mnemonic" && sourceSnapshot.type !== "seed") ||
+    (sourceSnapshot.type === "seed" && accountIndex !== 0)
+  )
+    throw new Error("Invalid selected private batch account");
+  const seedHex =
+    sourceSnapshot.type === "mnemonic"
+      ? account_seed_hex(sourceSnapshot.value, accountIndex)
+      : sourceSnapshot.value;
+  if (
+    !/^[0-9a-f]{64}$/.test(seedHex) ||
+    address_from_seed(seedHex, "mainnet") !== selectedAddress0
+  )
+    throw new Error("Selected private batch address changed");
+  const bytes = Uint8Array.from(seedHex.match(/.{2}/g)!, (pair) =>
+    Number.parseInt(pair, 16),
+  );
+  let opening: Promise<PrivateBatchSigner>;
+  try {
+    opening = createPrivateBatchSigner(
+      bytes,
+      selectedAddress0,
+      approvedSnapshot,
+      preparedSnapshot,
+      signal,
+    );
+  } finally {
+    bytes.fill(0);
+  }
+  // The copied bytes are consumed before this return can await the loader.
+  // The loader retains the abort listener and closes any opened native handle.
+  return opening;
 }
 
 async function deriveWalletToken(

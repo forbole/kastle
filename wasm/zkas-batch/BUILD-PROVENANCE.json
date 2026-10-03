@@ -1,0 +1,35 @@
+{
+  "sourceRevision": "2bdd5af9032c07273a67a607669fb288ab1435af",
+  "rust": "1.98.1",
+  "wasmBindgen": "0.2.100",
+  "build": "PASS locked offline release wasm32-unknown-unknown",
+  "verification": "PASS browser-v3.mjs signatures, exact approved effects, recovery-ticket restoration, full proof/spend/binding checks and negative controls",
+  "sourceFiles": {
+    "Cargo.lock": "733ebe00b2b6ec3213da1a6acc887144ab1160a7a847d7e4e6691618b0bcd162",
+    "Cargo.toml": "98a6bcc8744dff90c8092ea98d0fa73329026800f42997d7994e7251f53938ba",
+    "sdk/browser-signer/Cargo.toml": "55b7b688f44d1aef9c72ad181d91d56e85f3b939557e275d6837bfb05f19a6bc",
+    "sdk/browser-signer/src/lib.rs": "b4e06004329b99eae6ab5468cb5ce124c16ca78b063bc143fac2329d7a1321d0",
+    "sdk/signer/src/lib.rs": "d2caa67dca73b08560e45139e7c1ae640865737e6ae10c57cdae10a2713be32d",
+    "sdk/core/src/lib.rs": "66e7e3790e33bc5f2f79e90da320de0abacb9f4c322aed051246d4e852818e81",
+    "shielded-core/src/wallet.rs": "db33335d79f1d2407b9a5235ceeedd06b99d923ae59f8271c876a1beb07444e3"
+  },
+  "releaseFiles": {
+    "zkas_browser_signer.js": {
+      "sha256": "d666299a34d206e9f72d9b96ea18a9cdb815fe35198e26823a510c4543a731b6",
+      "bytes": 35550
+    },
+    "zkas_browser_signer.d.ts": {
+      "sha256": "bef19c4fe8d433cbc123ca3ba1662b5f331561d63b313ee2e8fe16f5aab98676",
+      "bytes": 9161
+    },
+    "zkas_browser_signer_bg.wasm": {
+      "sha256": "390de75c80ea88159e6f47f8e5747bf3d75a504106beb2b99d2a3605c5885261",
+      "bytes": 2286004
+    },
+    "zkas_browser_signer_bg.wasm.d.ts": {
+      "sha256": "8fb86485f60f72cb1d4980c3eda3152e7bc2c04f5805d410ada590f96e85a3d6",
+      "bytes": 2576
+    }
+  },
+  "limits": "Public dummy proof fixtures only; no live wallet, network send or deployment."
+}
