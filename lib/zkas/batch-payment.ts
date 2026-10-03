@@ -1,9 +1,11 @@
 import type {
+  DirectActionApproval,
   ZKasBatchIntent,
   ZKasBatchRecord,
   ZKasSignedBytes,
 } from "./batch-journal";
 import { ZKasBatchJournal } from "./batch-journal";
+import { withZKasPaymentAccountGate } from "./payment-account-gate";
 import type {
   ZKasBatchInventory,
   ZKasPreparedBatch,
@@ -91,6 +93,20 @@ function sameIntent(left: ZKasBatchIntent, right: ZKasBatchIntent): boolean {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
+function assertEmptyDirectInventory(value: ZKasBatchInventory): void {
+  if (
+    !value ||
+    Object.keys(value).sort().join() !==
+      "entries,epoch,inventoryOnly,unlistedReservationCount" ||
+    value.inventoryOnly !== true ||
+    !/^[0-9a-f]{64}$/.test(value.epoch) ||
+    value.unlistedReservationCount !== 0 ||
+    !Array.isArray(value.entries) ||
+    value.entries.length !== 0
+  )
+    throw new Error("Incomplete or nonempty direct first-use inventory");
+}
+
 export class ZKasBatchPayment {
   private readonly daemon: BatchDaemon;
   private readonly journal: ZKasBatchJournal;
@@ -109,6 +125,125 @@ export class ZKasBatchPayment {
     this.journal = journal;
     this.checkSelection = checkSelection;
     this.settledAdmission = settledAdmission;
+  }
+
+  /** Wallet-private first use: the caller must witness an immutable, ready FromBirth actor. */
+  async beginDirectFirstUse(
+    incomingIntent: ZKasBatchIntent,
+    incomingApproval: DirectActionApproval,
+    assertReadyFromBirth: () => Promise<void>,
+  ): Promise<{ capability: string; logicalId: string; expiresAtUnix: number }> {
+    const intent = structuredClone(incomingIntent);
+    const approval = structuredClone(incomingApproval);
+    const admission = this.settledAdmission;
+    if (!admission)
+      throw new Error("Private direct admission provider is unavailable");
+    const now = admission.monotonicNow ?? (() => performance.now());
+    const started = now();
+    const assertCurrent = () => {
+      if (
+        (admission.assertCurrent(structuredClone(intent)) as unknown) !==
+        undefined
+      )
+        throw new Error(
+          "Private admission requires a synchronous context fence",
+        );
+      const elapsed = now() - started;
+      if (!Number.isFinite(elapsed) || elapsed < 0 || elapsed > 120_000)
+        throw new Error("Direct first-use admission deadline exceeded");
+    };
+    const guarded = async <T>(operation: () => Promise<T>): Promise<T> => {
+      assertCurrent();
+      const result = await operation();
+      assertCurrent();
+      return result;
+    };
+    await guarded(() => this.checkSelection(structuredClone(intent)));
+    await guarded(assertReadyFromBirth);
+    const existing = await guarded(() => this.journal.get(intent.logicalId));
+    if (existing)
+      throw new Error("Original direct first-use approval requires resume");
+    await guarded(() =>
+      this.journal.reserveDirectFirstUse(
+        intent,
+        approval,
+        assertCurrent,
+        async () => {
+          await guarded(assertReadyFromBirth);
+          const before = structuredClone(
+            await guarded(() =>
+              admission.client.discoverRecords({
+                account: intent.account,
+                genesis: intent.genesis,
+              }),
+            ),
+          );
+          assertEmptyDirectInventory(before);
+          await guarded(assertReadyFromBirth);
+          const after = structuredClone(
+            await guarded(() =>
+              admission.client.discoverRecords({
+                account: intent.account,
+                genesis: intent.genesis,
+              }),
+            ),
+          );
+          assertEmptyDirectInventory(after);
+          await guarded(assertReadyFromBirth);
+        },
+      ),
+    );
+    this.begunHere.add(intent.logicalId);
+    this.freshBegunHere.add(intent.logicalId);
+    const grant = await guarded(() =>
+      this.daemon.grant(structuredClone(intent)),
+    );
+    if (grant.logicalId !== intent.logicalId)
+      throw new Error("Batch capability changed logical payment");
+    return grant;
+  }
+
+  /** Regrant only the exact encrypted original after a lost first-use reply. */
+  async resumeDirectGrant(
+    logicalId: string,
+    assertReadyFromBirth: () => Promise<void>,
+  ): Promise<{ capability: string; logicalId: string; expiresAtUnix: number }> {
+    const admission = this.settledAdmission;
+    if (!admission)
+      throw new Error("Private direct admission provider is unavailable");
+    return withZKasPaymentAccountGate(async () => {
+      const record = await this.journal.get(logicalId);
+      if (
+        !record?.directApproval ||
+        record.status !== "preparing" ||
+        record.signedTicket
+      )
+        throw new Error("Original direct approval is unavailable");
+      const intent = record.intent;
+      const check = () => {
+        if (
+          (admission.assertCurrent(structuredClone(intent)) as unknown) !==
+          undefined
+        )
+          throw new Error(
+            "Private admission requires a synchronous context fence",
+          );
+      };
+      check();
+      await this.journal.assertNoLegacyReservation(intent.selection);
+      check();
+      await this.checkSelection(structuredClone(intent));
+      check();
+      await assertReadyFromBirth();
+      check();
+      await this.journal.assertNoLegacyReservation(intent.selection);
+      check();
+      const grant = await this.daemon.grant(structuredClone(intent));
+      check();
+      if (grant.logicalId !== intent.logicalId)
+        throw new Error("Batch capability changed logical payment");
+      return grant;
+    });
   }
 
   async beginAfterFreshSettlement(
@@ -283,6 +418,33 @@ export class ZKasBatchPayment {
       approved: ZKasBatchIntent,
     ) => Promise<PrivateBatchSigner>,
   ): Promise<ZKasBatchSendStatus> {
+    return this.completeCore(intent, openPrivateSigner, false);
+  }
+
+  /** Restart-safe only for the exact durable native direct approval. */
+  async completeDirectFromJournal(
+    logicalId: string,
+    openPrivateSigner: (
+      prepared: ZKasPreparedBatch,
+      approved: ZKasBatchIntent,
+    ) => Promise<PrivateBatchSigner>,
+  ): Promise<ZKasBatchSendStatus> {
+    return withZKasPaymentAccountGate(async () => {
+      const record = await this.journal.get(logicalId);
+      if (!record?.directApproval)
+        throw new Error("Original direct approval is unavailable");
+      return this.completeCore(record.intent, openPrivateSigner, true);
+    });
+  }
+
+  private async completeCore(
+    intent: ZKasBatchIntent,
+    openPrivateSigner: (
+      prepared: ZKasPreparedBatch,
+      approved: ZKasBatchIntent,
+    ) => Promise<PrivateBatchSigner>,
+    durableDirect: boolean,
+  ): Promise<ZKasBatchSendStatus> {
     await this.checkSelection(intent);
     const record = await this.journal.get(intent.logicalId);
     await this.checkSelection(intent);
@@ -295,7 +457,9 @@ export class ZKasBatchPayment {
     }
     if (record.signedTicket)
       throw new Error("Original signed batch ticket requires recovery");
-    if (!this.begunHere.has(intent.logicalId))
+    if (durableDirect !== !!record.directApproval)
+      throw new Error("Original direct approval path changed");
+    if (!durableDirect && !this.begunHere.has(intent.logicalId))
       throw new Error("Original batch approval is unavailable after restart");
     const prepared = await this.daemon.prepared(intent.logicalId);
     if (
@@ -307,6 +471,13 @@ export class ZKasBatchPayment {
       throw new Error("Batch preparation is incomplete");
     }
     await this.checkSelection(intent);
+    if (durableDirect) {
+      await this.journal.pinDirectPrepared(record.intent, {
+        session: prepared.session,
+        checksum: prepared.preparedPayment.checksum,
+      });
+      await this.checkSelection(intent);
+    }
     const signer = await openPrivateSigner(prepared, record.intent);
     try {
       await this.checkSelection(intent);

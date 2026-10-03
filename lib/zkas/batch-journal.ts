@@ -28,8 +28,27 @@ export type ZKasSignedTicket = {
   preparedChecksum: string;
 };
 
+/** Native-sealed, wallet-private approval metadata. The exact memos live in intent. */
+export type DirectActionApproval = {
+  version: 1;
+  actionId: string;
+  idempotencyKey: string;
+  exactDigest: string;
+  birthHash: string;
+  sessionId: string;
+  sourceGeneration: string;
+  ownerPeerId: string;
+  recipientPeerId: string;
+  recipientCardHex: string;
+  kind: "invite" | "decision" | "text";
+  referenceActionId: string | null;
+  text: string;
+};
+
 export type ZKasBatchRecord = {
   intent: ZKasBatchIntent;
+  directApproval?: DirectActionApproval;
+  directPrepared?: { session: string; checksum: string };
   status:
     | "preparing"
     | "finalized"
@@ -43,6 +62,57 @@ export type ZKasBatchRecord = {
   sha256?: string;
   signedTicket?: ZKasSignedTicket;
 };
+
+const DIRECT_COLLECTOR =
+  "zkas:pxm8d4su40hc95vr0llq7rrf5gqzhmdhh5m3c8qtve2dllfxrqrsh6wlugnyp3krnxe2cgs4fmfwagv";
+
+function assertDirectApproval(
+  intent: ZKasBatchIntent,
+  approval: DirectActionApproval,
+): void {
+  if (
+    !approval ||
+    Object.keys(approval).sort().join() !==
+      "actionId,birthHash,exactDigest,idempotencyKey,kind,ownerPeerId,recipientCardHex,recipientPeerId,referenceActionId,sessionId,sourceGeneration,text,version" ||
+    approval.version !== 1 ||
+    !/^[0-9a-f]{32}$/.test(approval.actionId) ||
+    !/^[0-9a-f]{64}$/.test(approval.idempotencyKey) ||
+    approval.idempotencyKey !== intent.logicalId ||
+    !/^[0-9a-f]{64}$/.test(approval.exactDigest) ||
+    !/^[0-9a-f]{64}$/.test(approval.birthHash) ||
+    !/^[0-9a-f]{32}$/.test(approval.sessionId) ||
+    !/^[0-9a-f]{32}$/.test(approval.ownerPeerId) ||
+    !/^[0-9a-f]{32}$/.test(approval.recipientPeerId) ||
+    approval.ownerPeerId === approval.recipientPeerId ||
+    !/^[0-9a-f]{368}$/.test(approval.recipientCardHex) ||
+    approval.recipientCardHex.slice(0, 2) !== "03" ||
+    !/^[1-9][0-9]{0,19}$/.test(approval.sourceGeneration) ||
+    BigInt(approval.sourceGeneration) > (1n << 64n) - 1n ||
+    !["invite", "decision", "text"].includes(approval.kind) ||
+    (approval.kind === "invite"
+      ? approval.referenceActionId !== null
+      : !/^[0-9a-f]{32}$/.test(approval.referenceActionId ?? "")) ||
+    typeof approval.text !== "string" ||
+    new TextEncoder().encode(approval.text).length >
+      (approval.kind === "text"
+        ? 216
+        : approval.kind === "decision"
+          ? 32
+          : 33) ||
+    intent.outputs.length !== 4 ||
+    intent.outputs.some(
+      (output, index) =>
+        output.amountSompi !== (index === 3 ? "10000000" : "1") ||
+        (index === 3
+          ? output.recipient !== DIRECT_COLLECTOR ||
+            !/^0{1024}$/.test(output.memoHex)
+          : !output.memoHex.startsWith("4d4a333a")),
+    ) ||
+    BigInt(intent.maxFeeSompi) > 5_000_000n
+  ) {
+    throw new Error("Invalid original direct-action approval");
+  }
+}
 
 type PrivateStore = {
   getValue<T>(key: typeof BATCH_JOURNAL_KEY): Promise<T | null>;
@@ -114,6 +184,19 @@ function assertIntent(intent: ZKasBatchIntent): void {
 
 function assertRecord(record: ZKasBatchRecord): void {
   assertIntent(record.intent);
+  if (record.directApproval)
+    assertDirectApproval(record.intent, record.directApproval);
+  if (
+    record.directPrepared &&
+    (!record.directApproval ||
+      !/^[0-9a-f]{48}$/.test(record.directPrepared.session) ||
+      !/^[0-9a-f]{64}$/.test(record.directPrepared.checksum) ||
+      (record.signedTicket &&
+        (record.signedTicket.session !== record.directPrepared.session ||
+          record.signedTicket.preparedChecksum !==
+            record.directPrepared.checksum)))
+  )
+    throw new Error("Original direct preparation changed");
   if (
     ![
       "preparing",
@@ -347,6 +430,13 @@ export class ZKasBatchJournal {
     );
   }
 
+  async assertNoLegacyReservation(selection: ZKasSelection): Promise<void> {
+    if (await this.legacyReserved(structuredClone(selection)))
+      throw new Error(
+        "An unresolved legacy ZKas payment reserves this account",
+      );
+  }
+
   async reserve(intent: ZKasBatchIntent): Promise<boolean> {
     assertIntent(intent);
     return withZKasPaymentAccountGate(async () => {
@@ -394,6 +484,132 @@ export class ZKasBatchJournal {
       );
       return created;
     });
+  }
+
+  /** Only the privileged FromBirth factory may supply the proof while the account gate is held. */
+  async reserveDirectFirstUse(
+    incomingIntent: ZKasBatchIntent,
+    incomingApproval: DirectActionApproval,
+    assertCurrent: () => void,
+    proveEmpty: () => Promise<void>,
+  ): Promise<void> {
+    const intent = structuredClone(incomingIntent);
+    const approval = structuredClone(incomingApproval);
+    assertIntent(intent);
+    assertDirectApproval(intent, approval);
+    return withZKasPaymentAccountGate(async () => {
+      const checkFence = () => {
+        if ((assertCurrent() as unknown) !== undefined)
+          throw new Error(
+            "Direct admission requires a synchronous context fence",
+          );
+      };
+      const guarded = async <T>(operation: () => Promise<T>): Promise<T> => {
+        checkFence();
+        const result = await operation();
+        checkFence();
+        return result;
+      };
+      if (
+        await guarded(() =>
+          this.legacyReserved(structuredClone(intent.selection)),
+        )
+      )
+        throw new Error(
+          "An unresolved legacy ZKas payment reserves this account",
+        );
+      const original = await guarded(() => this.all());
+      const originalJson = JSON.stringify(original);
+      if (Object.keys(original).length >= 128)
+        throw new Error("Private batch journal is full");
+      if (
+        original[intent.logicalId] ||
+        Object.values(original).some(
+          (record) =>
+            accountKey(record.intent.selection) ===
+            accountKey(intent.selection),
+        )
+      )
+        throw new Error(
+          "Direct first-use account already has a payment reservation",
+        );
+      await guarded(proveEmpty);
+      if (
+        await guarded(() =>
+          this.legacyReserved(structuredClone(intent.selection)),
+        )
+      )
+        throw new Error(
+          "An unresolved legacy ZKas payment reserves this account",
+        );
+      await guarded(() =>
+        this.store.updateValue<Record<string, ZKasBatchRecord>>(
+          BATCH_JOURNAL_KEY,
+          (current) => {
+            checkFence();
+            if (JSON.stringify(current ?? {}) !== originalJson)
+              throw new Error(
+                "Private batch journal changed during direct enrollment",
+              );
+            return {
+              ...original,
+              [intent.logicalId]: {
+                intent: structuredClone(intent),
+                directApproval: structuredClone(approval),
+                status: "preparing",
+              },
+            };
+          },
+        ),
+      );
+    });
+  }
+
+  /** Durable first observed prepared envelope identity, before opening a signer. */
+  async pinDirectPrepared(
+    incomingIntent: ZKasBatchIntent,
+    prepared: { session: string; checksum: string },
+  ): Promise<void> {
+    const intent = structuredClone(incomingIntent);
+    if (
+      !/^[0-9a-f]{48}$/.test(prepared.session) ||
+      !/^[0-9a-f]{64}$/.test(prepared.checksum)
+    )
+      throw new Error("Invalid direct preparation identity");
+    await this.store.updateValue<Record<string, ZKasBatchRecord>>(
+      BATCH_JOURNAL_KEY,
+      (current) => {
+        const records = current ?? {};
+        const record = records[intent.logicalId];
+        if (
+          !record ||
+          !record.directApproval ||
+          JSON.stringify(record.intent) !== JSON.stringify(intent) ||
+          record.status !== "preparing" ||
+          record.signedTicket
+        )
+          throw new Error("Original direct approval is unavailable");
+        assertRecord(record);
+        if (record.directPrepared) {
+          if (
+            record.directPrepared.session !== prepared.session ||
+            record.directPrepared.checksum !== prepared.checksum
+          )
+            throw new Error("Original direct preparation changed");
+          return records;
+        }
+        return {
+          ...records,
+          [intent.logicalId]: {
+            ...record,
+            directPrepared: {
+              session: prepared.session,
+              checksum: prepared.checksum,
+            },
+          },
+        };
+      },
+    );
   }
 
   // The private coordinator supplies the fresh proof while this shared gate is
@@ -533,6 +749,13 @@ export class ZKasBatchJournal {
         }
         if (record.status !== "preparing")
           throw new Error("Batch payment is already finalized");
+        if (
+          record.directApproval &&
+          (!record.directPrepared ||
+            record.directPrepared.session !== ticket.session ||
+            record.directPrepared.checksum !== ticket.preparedChecksum)
+        )
+          throw new Error("Original direct preparation changed");
         return {
           ...records,
           [intent.logicalId]: { ...record, signedTicket: ticket },
