@@ -29,6 +29,7 @@
   "dependencies": {
     "@fontsource/figtree": "^5.1.2",
     "@hackernoon/pixel-icon-library": "^1.0.2",
+    "@kronsdk/kron-sdk": "0.18.2",
     "@ledgerhq/hw-transport": "^6.30.0",
     "@ledgerhq/hw-transport-webhid": "^6.28.0",
     "@noble/secp256k1": "^2.2.3",
