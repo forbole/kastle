@@ -1,6 +1,7 @@
 import { ExtensionService } from "@/lib/service/extension-service";
 import { zkasKeyService } from "./key-service";
 import { DirectBirthStore } from "./direct-birth";
+import { DirectPinStore, DIRECT_PINS_KEY } from "./direct-pins";
 import {
   decodeNativeDirectView,
   witnessDirectBirth,
@@ -76,6 +77,7 @@ async function privateLease(origin: string, profile: Profile): Promise<Lease> {
     const keyring = ExtensionService.getInstance().getKeyring();
     const grantSession = keyring.getSessionVersion();
     const grantGeneration = keyring.getMutationGeneration(HISTORY_GRANTS_KEY);
+    const pinGeneration = keyring.getMutationGeneration(DIRECT_PINS_KEY);
     const connectionGeneration = zkasConnectionStore.getGeneration();
     if (
       actor.address !== profile.accountAddress ||
@@ -95,6 +97,7 @@ async function privateLease(origin: string, profile: Profile): Promise<Lease> {
     const assertBase = async () => {
       if (
         keyring.getSessionVersion() !== grantSession ||
+        keyring.getMutationGeneration(DIRECT_PINS_KEY) !== pinGeneration ||
         keyring.isPrivateWalletWorkPending() ||
         zkasConnectionStore.getGeneration() !== connectionGeneration
       )
@@ -153,6 +156,7 @@ async function privateLease(origin: string, profile: Profile): Promise<Lease> {
         keyring.isPrivateWalletWorkPending() ||
         keyring.getSessionVersion() !== grantSession ||
         keyring.getMutationGeneration(HISTORY_GRANTS_KEY) !== grantGeneration ||
+        keyring.getMutationGeneration(DIRECT_PINS_KEY) !== pinGeneration ||
         zkasConnectionStore.getGeneration() !== connectionGeneration
       )
         throw new Error("Private direct lease changed");
@@ -160,6 +164,9 @@ async function privateLease(origin: string, profile: Profile): Promise<Lease> {
       actor.publicCard();
     };
     const unsubscribe = keyring.subscribeKeyMutation(HISTORY_GRANTS_KEY, () =>
+      actor.close(),
+    );
+    const unsubscribePins = keyring.subscribeKeyMutation(DIRECT_PINS_KEY, () =>
       actor.close(),
     );
     return {
@@ -174,6 +181,7 @@ async function privateLease(origin: string, profile: Profile): Promise<Lease> {
       assertImmediate,
       close: () => {
         unsubscribe();
+        unsubscribePins();
         actor.close();
       },
     };
@@ -396,7 +404,15 @@ export class DirectReceiveRegistry {
         BigInt(birth.birthBlue),
         current.sourceGeneration,
       );
-      actor.directConfigure(bytes(COLLECTOR_RAW), new Uint8Array(0));
+      const pins = await new DirectPinStore(keyring).read(
+        context,
+        birth,
+        lease.assertCurrent,
+      );
+      const pinnedCards = new Uint8Array(pins.length * 184);
+      pins.forEach((card, index) => pinnedCards.set(card, index * 184));
+      await lease.assertCurrent();
+      actor.directConfigure(bytes(COLLECTOR_RAW), pinnedCards);
       // Limit the prospective session window. A longer gap remains explicit.
       let status = actor.directReceiveStatus();
       let bodies = 0;

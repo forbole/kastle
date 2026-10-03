@@ -248,3 +248,22 @@ test("private direct receive methods remain handle-bound and expose no raw key m
   `),
   ).toEqual({ bounded: true, closed: true });
 });
+
+test("private receive configuration authenticates every persisted peer card", async () => {
+  expect(
+    run(`
+    globalThis.fetch = async () => new Response(wasm);
+    const collector = raw("b676d61cabef82d1837ffe0f0c69a2002bedb7bd371c1c0b6654dffd2618070be9dfe22640c6c399b2ac22");
+    const owner = await createPrivateMessagingAccount(raw(vectors[2].seed), vectors[2].address, new AbortController().signal);
+    owner.directSessionStart("mainnet", "https://wallet.example.test", raw("01".repeat(16)), raw("02".repeat(32)), 4n, 4n, 7n);
+    owner.directConfigure(collector, raw(vectors[0].card));
+    owner.close();
+    const retry = await createPrivateMessagingAccount(raw(vectors[2].seed), vectors[2].address, new AbortController().signal);
+    retry.directSessionStart("mainnet", "https://wallet.example.test", raw("01".repeat(16)), raw("02".repeat(32)), 4n, 4n, 7n);
+    const modified = raw(vectors[0].card); modified[180] ^= 1;
+    assert.throws(() => retry.directConfigure(collector, modified));
+    retry.close();
+    console.log(JSON.stringify({valid:true,mutatedRejected:true}));
+  `),
+  ).toEqual({ valid: true, mutatedRejected: true });
+});

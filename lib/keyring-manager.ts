@@ -7,6 +7,7 @@ const ALLOWED_KEYS = [
   "zkasHistoryGrants",
   "zkasDaemonBearers",
   "zkasDirectBirths",
+  "zkasDirectPins",
 ] as const;
 
 type AllowedKey = (typeof ALLOWED_KEYS)[number];
