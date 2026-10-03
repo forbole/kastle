@@ -101,6 +101,7 @@ import ZKasSettings from "@/components/screens/zkas/ZKasSettings";
 import ZKasConnect from "@/components/screens/browser-api/zkas/ZKasConnect";
 import ZKasDappSend from "@/components/screens/browser-api/zkas/ZKasDappSend";
 import ZKasHistoryGrant from "@/components/screens/browser-api/zkas/ZKasHistoryGrant";
+import ZKasDirectAction from "@/components/screens/browser-api/zkas/ZKasDirectAction";
 import { useState, type ReactNode } from "react";
 import { useSettings } from "@/hooks/useSettings";
 import {
@@ -594,6 +595,11 @@ export const router = createHashRouter([
               {
                 path: "zkas-history-grant",
                 element: <ZKasHistoryGrant />,
+                loader: browserAPIKeyringGuard,
+              },
+              {
+                path: "zkas-direct-action",
+                element: <ZKasDirectAction />,
                 loader: browserAPIKeyringGuard,
               },
 

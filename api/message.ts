@@ -24,6 +24,13 @@ export enum Action {
   ZKAS_HISTORY_GRANT,
   MJ3_REQUEST_PROFILE,
   MJ3_GET_DIRECT_VIEW,
+  MJ3_INVITE,
+  MJ3_DECIDE_INVITATION,
+  MJ3_SEND_DIRECT_MESSAGE,
+  MJ3_COMPLETE_DIRECT_ACTION,
+  MJ3_ACTION_STATUS,
+  MJ3_PENDING_DIRECT_ACTION,
+  MJ3_RESUME_DIRECT_ACTION,
 }
 
 // ================================================================================================

@@ -165,6 +165,13 @@ export class KastleBrowserAPI {
       "zkas:request_message_history_access": Action.ZKAS_HISTORY_GRANT,
       "mj3:request_profile": Action.MJ3_REQUEST_PROFILE,
       "mj3:get_direct_view": Action.MJ3_GET_DIRECT_VIEW,
+      "mj3:invite": Action.MJ3_INVITE,
+      "mj3:decide_invitation": Action.MJ3_DECIDE_INVITATION,
+      "mj3:send_direct_message": Action.MJ3_SEND_DIRECT_MESSAGE,
+      "mj3:complete_direct_action": Action.MJ3_COMPLETE_DIRECT_ACTION,
+      "mj3:action_status": Action.MJ3_ACTION_STATUS,
+      "mj3:pending_direct_action": Action.MJ3_PENDING_DIRECT_ACTION,
+      "mj3:resume_direct_action": Action.MJ3_RESUME_DIRECT_ACTION,
     }[method];
 
     if (!action) {
@@ -178,22 +185,29 @@ export class KastleBrowserAPI {
       throw new Error("History access request takes no arguments");
     }
     if (
-      (method === "mj3:request_profile" || method === "mj3:get_direct_view") &&
+      (method === "mj3:request_profile" ||
+        method === "mj3:get_direct_view" ||
+        method === "mj3:pending_direct_action") &&
       args !== undefined
     ) {
       throw new Error("Private messaging request takes no arguments");
     }
 
+    const paidDirect =
+      method === "mj3:invite" ||
+      method === "mj3:decide_invitation" ||
+      method === "mj3:send_direct_message";
     const request = createApiRequest(action, requestId, args);
     const response = this.receiveMessageWithTimeout(
       requestId,
-      method === "zkas:send"
+      method === "zkas:send" || paidDirect
         ? 20 * 60_000
         : method === "zkas:request_message_history_access"
           ? 190_000
           : 180_000,
       method === "zkas:send" ||
-        method === "zkas:request_message_history_access",
+        method === "zkas:request_message_history_access" ||
+        paidDirect,
     );
     window.postMessage(request, "*");
 

@@ -41,6 +41,10 @@ import {
   zkasHistoryGrantPendingGet,
 } from "./handlers/zkas-history-grant";
 import {
+  zkasDirectActionComplete,
+  zkasDirectActionPendingGet,
+} from "./handlers/zkas-direct-action";
+import {
   zkasHistoryGrantsList,
   zkasHistoryGrantRevokeSaved,
 } from "./handlers/zkas-history-grants";
@@ -98,6 +102,8 @@ export class ExtensionService {
       [Method.ZKAS_DAPP_COMPLETE]: zkasDappComplete,
       [Method.ZKAS_HISTORY_GRANT_PENDING_GET]: zkasHistoryGrantPendingGet,
       [Method.ZKAS_HISTORY_GRANT_COMPLETE]: zkasHistoryGrantComplete,
+      [Method.ZKAS_DIRECT_ACTION_PENDING_GET]: zkasDirectActionPendingGet,
+      [Method.ZKAS_DIRECT_ACTION_COMPLETE]: zkasDirectActionComplete,
       [Method.ZKAS_HISTORY_GRANTS_LIST]: zkasHistoryGrantsList,
       [Method.ZKAS_HISTORY_GRANT_REVOKE_SAVED]: zkasHistoryGrantRevokeSaved,
       [Method.ZKAS_DAEMON_BEARER_PAIR]:
