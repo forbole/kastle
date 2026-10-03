@@ -48,6 +48,8 @@ type PrivateFreshSettledAdmission = {
   // The future background factory must capture authoritative wallet, grant,
   // origin, daemon, and unlock generations. A page value is not a fence.
   assertCurrent(intent: ZKasBatchIntent): void;
+  /** Short writer-compatible fence for the final journal commit, after RPC proof. */
+  withTerminalContext?<T>(operation: () => Promise<T>): Promise<T>;
   monotonicNow?: () => number;
 };
 
@@ -249,7 +251,25 @@ export class ZKasBatchPayment {
   async beginAfterFreshSettlement(
     incomingIntent: ZKasBatchIntent,
   ): Promise<{ capability: string; logicalId: string; expiresAtUnix: number }> {
+    return this.beginSettledCore(incomingIntent);
+  }
+
+  async beginDirectAfterFreshSettlement(
+    incomingIntent: ZKasBatchIntent,
+    incomingApproval: DirectActionApproval,
+  ): Promise<{ capability: string; logicalId: string; expiresAtUnix: number }> {
+    return this.beginSettledCore(incomingIntent, incomingApproval);
+  }
+
+  private async beginSettledCore(
+    incomingIntent: ZKasBatchIntent,
+    incomingApproval?: DirectActionApproval,
+  ): Promise<{ capability: string; logicalId: string; expiresAtUnix: number }> {
     const intent = structuredClone(incomingIntent);
+    const approval =
+      incomingApproval === undefined
+        ? undefined
+        : structuredClone(incomingApproval);
     const admission = this.settledAdmission;
     if (!admission)
       throw new Error("Private batch admission provider is unavailable");
@@ -283,98 +303,38 @@ export class ZKasBatchPayment {
       if (
         !existing ||
         !sameIntent(existing.intent, intent) ||
+        JSON.stringify(existing.directApproval ?? null) !==
+          JSON.stringify(approval ?? null) ||
         existing.status !== "preparing" ||
         existing.signedTicket
       ) {
         throw new Error("Original private batch approval is unavailable");
       }
     } else {
+      const reserveSettled = (
+        prove: (records: readonly ZKasBatchRecord[]) => Promise<void>,
+      ) =>
+        approval
+          ? this.journal.reserveDirectAfterFreshSettlement(
+              structuredClone(intent),
+              approval,
+              assertCurrent,
+              prove,
+            )
+          : this.journal.reserveAfterFreshSettlement(
+              structuredClone(intent),
+              assertCurrent,
+              prove,
+            );
       await guarded(() =>
-        this.journal.reserveAfterFreshSettlement(
-          structuredClone(intent),
-          assertCurrent,
-          async (records) => {
-            const before = structuredClone(
-              await guarded(() =>
-                admission.client.discoverRecords({
-                  account: intent.account,
-                  genesis: intent.genesis,
-                }),
-              ),
-            );
-            assertFirstInventory(before, records);
-            const statuses: ZKasBatchSendStatus[] = [];
-            for (const record of records) {
-              assertCurrent();
-              if (
-                !record.signedTicket ||
-                !record.transactionHex ||
-                !record.txid ||
-                !record.sha256 ||
-                record.signedTicket.daemonIdentity !== this.daemon.identity
-              ) {
-                throw new Error(
-                  "Original signed batch ticket or bytes are unavailable",
-                );
-              }
-              assertCurrent();
-              const signer = await admission.openRecoverySigner(
-                structuredClone(record.intent),
-              );
-              try {
-                assertCurrent();
-                await guarded(() =>
-                  signer.importTicket(record.signedTicket!.value),
-                );
-                await guarded(() =>
-                  signer.verifyFinalized({
-                    transactionHex: record.transactionHex!,
-                    txid: record.txid!,
-                    sha256: record.sha256!,
-                  }),
-                );
-              } finally {
-                signer.close();
-              }
-              assertCurrent();
-              const status = structuredClone(
-                await guarded(() =>
-                  admission.client.status(structuredClone(record.intent)),
-                ),
-              );
-              if (
-                status.status !== "settled" ||
-                status.logicalId !== record.intent.logicalId ||
-                status.txid !== record.txid ||
-                status.sha256 !== record.sha256
-              ) {
-                throw new Error(
-                  "Original batch payment is not freshly settled",
-                );
-              }
-              statuses.push(status);
-            }
-            const after = structuredClone(
-              await guarded(() =>
-                admission.client.discoverRecords({
-                  account: intent.account,
-                  genesis: intent.genesis,
-                }),
-              ),
-            );
-            await guarded(() =>
-              assertFreshSettledBatchEvidence({
-                selection: intent.selection,
-                account: intent.account,
-                genesis: intent.genesis,
-                daemonIdentity: this.daemon.identity,
-                records,
-                before,
-                statuses,
-                after,
-              }),
-            );
-          },
+        reserveSettled((records) =>
+          this.proveFreshSettledHistory(
+            intent,
+            records,
+            admission,
+            guarded,
+            assertCurrent,
+          ),
         ),
       );
       this.freshBegunHere.add(intent.logicalId);
@@ -387,6 +347,137 @@ export class ZKasBatchPayment {
       throw new Error("Batch capability changed logical payment");
     }
     return grant;
+  }
+
+  /** Reconcile an original without allocating another action, grant, or fee. */
+  async reconcileAccountAfterFreshSettlement(
+    incomingOriginal: ZKasBatchIntent,
+  ): Promise<void> {
+    const intent = structuredClone(incomingOriginal);
+    const admission = this.settledAdmission;
+    if (!admission)
+      throw new Error("Private batch admission provider is unavailable");
+    const now = admission.monotonicNow ?? (() => performance.now());
+    const started = now();
+    const assertCurrent = () => {
+      if (
+        (admission.assertCurrent(structuredClone(intent)) as unknown) !==
+        undefined
+      )
+        throw new Error(
+          "Private admission requires a synchronous context fence",
+        );
+      const elapsed = now() - started;
+      if (!Number.isFinite(elapsed) || elapsed < 0 || elapsed > 120_000)
+        throw new Error("Fresh batch admission deadline exceeded");
+    };
+    const guarded = async <T>(operation: () => Promise<T>): Promise<T> => {
+      assertCurrent();
+      const result = await operation();
+      assertCurrent();
+      return result;
+    };
+    await guarded(() => this.checkSelection(structuredClone(intent)));
+    await guarded(() =>
+      this.journal.reconcileAccountAfterFreshSettlement(
+        intent,
+        assertCurrent,
+        (records) =>
+          this.proveFreshSettledHistory(
+            intent,
+            records,
+            admission,
+            guarded,
+            assertCurrent,
+          ),
+        admission.withTerminalContext,
+      ),
+    );
+  }
+
+  private async proveFreshSettledHistory(
+    intent: ZKasBatchIntent,
+    records: readonly ZKasBatchRecord[],
+    admission: PrivateFreshSettledAdmission,
+    guarded: <T>(operation: () => Promise<T>) => Promise<T>,
+    assertCurrent: () => void,
+  ): Promise<void> {
+    const before = structuredClone(
+      await guarded(() =>
+        admission.client.discoverRecords({
+          account: intent.account,
+          genesis: intent.genesis,
+        }),
+      ),
+    );
+    assertFirstInventory(before, records);
+    const statuses: ZKasBatchSendStatus[] = [];
+    for (const record of records) {
+      assertCurrent();
+      if (
+        !record.signedTicket ||
+        !record.transactionHex ||
+        !record.txid ||
+        !record.sha256 ||
+        record.signedTicket.daemonIdentity !== this.daemon.identity
+      ) {
+        throw new Error(
+          "Original signed batch ticket or bytes are unavailable",
+        );
+      }
+      assertCurrent();
+      const signer = await admission.openRecoverySigner(
+        structuredClone(record.intent),
+      );
+      try {
+        assertCurrent();
+        await guarded(() => signer.importTicket(record.signedTicket!.value));
+        await guarded(() =>
+          signer.verifyFinalized({
+            transactionHex: record.transactionHex!,
+            txid: record.txid!,
+            sha256: record.sha256!,
+          }),
+        );
+      } finally {
+        signer.close();
+      }
+      assertCurrent();
+      const status = structuredClone(
+        await guarded(() =>
+          admission.client.status(structuredClone(record.intent)),
+        ),
+      );
+      if (
+        status.status !== "settled" ||
+        status.logicalId !== record.intent.logicalId ||
+        status.txid !== record.txid ||
+        status.sha256 !== record.sha256
+      ) {
+        throw new Error("Original batch payment is not freshly settled");
+      }
+      statuses.push(status);
+    }
+    const after = structuredClone(
+      await guarded(() =>
+        admission.client.discoverRecords({
+          account: intent.account,
+          genesis: intent.genesis,
+        }),
+      ),
+    );
+    await guarded(() =>
+      assertFreshSettledBatchEvidence({
+        selection: intent.selection,
+        account: intent.account,
+        genesis: intent.genesis,
+        daemonIdentity: this.daemon.identity,
+        records,
+        before,
+        statuses,
+        after,
+      }),
+    );
   }
 
   async begin(

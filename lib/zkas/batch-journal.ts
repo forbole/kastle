@@ -34,6 +34,8 @@ export type DirectActionApproval = {
   actionId: string;
   idempotencyKey: string;
   exactDigest: string;
+  commitment: string;
+  fanoutDigest: string;
   birthHash: string;
   sessionId: string;
   sourceGeneration: string;
@@ -73,12 +75,16 @@ function assertDirectApproval(
   if (
     !approval ||
     Object.keys(approval).sort().join() !==
-      "actionId,birthHash,exactDigest,idempotencyKey,kind,ownerPeerId,recipientCardHex,recipientPeerId,referenceActionId,sessionId,sourceGeneration,text,version" ||
+      "actionId,birthHash,commitment,exactDigest,fanoutDigest,idempotencyKey,kind,ownerPeerId,recipientCardHex,recipientPeerId,referenceActionId,sessionId,sourceGeneration,text,version" ||
     approval.version !== 1 ||
     !/^[0-9a-f]{32}$/.test(approval.actionId) ||
     !/^[0-9a-f]{64}$/.test(approval.idempotencyKey) ||
     approval.idempotencyKey !== intent.logicalId ||
     !/^[0-9a-f]{64}$/.test(approval.exactDigest) ||
+    !/^[0-9a-f]{64}$/.test(approval.commitment) ||
+    /^0+$/.test(approval.commitment) ||
+    !/^[0-9a-f]{64}$/.test(approval.fanoutDigest) ||
+    /^0+$/.test(approval.fanoutDigest) ||
     !/^[0-9a-f]{64}$/.test(approval.birthHash) ||
     !/^[0-9a-f]{32}$/.test(approval.sessionId) ||
     !/^[0-9a-f]{32}$/.test(approval.ownerPeerId) ||
@@ -424,6 +430,146 @@ export class ZKasBatchJournal {
     return record;
   }
 
+  /** Narrow restart lookup; no memo, card or capability is projected by callers. */
+  async findDirectAction(
+    origin: string,
+    actionId: string,
+  ): Promise<ZKasBatchRecord | undefined> {
+    assertBatchOrigin(origin);
+    assertHex(actionId, 16);
+    const matches = Object.values(await this.all()).filter(
+      (record) =>
+        record.intent.origin === origin &&
+        record.directApproval?.actionId === actionId,
+    );
+    if (matches.length > 1) throw new Error("Repeated direct action identity");
+    return matches[0] ? structuredClone(matches[0]) : undefined;
+  }
+
+  async pendingDirectFor(
+    origin: string,
+    selection: ZKasSelection,
+  ): Promise<ZKasBatchRecord | undefined> {
+    assertBatchOrigin(origin);
+    const selected = accountKey(selection);
+    const matches = Object.values(await this.all()).filter(
+      (record) =>
+        record.intent.origin === origin &&
+        accountKey(record.intent.selection) === selected &&
+        !!record.directApproval &&
+        record.status !== "settled" &&
+        record.status !== "conflicted",
+    );
+    if (matches.length > 1) throw new Error("Repeated pending direct action");
+    return matches[0] ? structuredClone(matches[0]) : undefined;
+  }
+
+  /** A new native action cannot be born while this account owns an unresolved intent. */
+  async assertNoUnresolvedAccountAction(
+    selection: ZKasSelection,
+  ): Promise<void> {
+    await withZKasPaymentAccountGate(async () => {
+      await this.assertNoLegacyReservation(selection);
+      const selected = accountKey(selection);
+      if (
+        Object.values(await this.all()).some(
+          (record) =>
+            accountKey(record.intent.selection) === selected &&
+            record.status !== "settled" &&
+            record.status !== "conflicted",
+        )
+      )
+        throw new Error("An original account action is already pending");
+    });
+  }
+
+  /** Wallet-private lookup across origins, before allocating a replacement action. */
+  async unresolvedForAccount(
+    selection: ZKasSelection,
+  ): Promise<ZKasBatchRecord | undefined> {
+    const selected = accountKey(selection);
+    const pending = Object.values(await this.all()).filter(
+      (record) =>
+        accountKey(record.intent.selection) === selected &&
+        record.status !== "settled" &&
+        record.status !== "conflicted",
+    );
+    if (pending.length > 1) throw new Error("Repeated pending account action");
+    return pending[0] ? structuredClone(pending[0]) : undefined;
+  }
+
+  /** Mark only an already-stored original after the full private settlement proof. */
+  async reconcileAccountAfterFreshSettlement(
+    incomingOriginal: ZKasBatchIntent,
+    assertCurrent: () => void,
+    prove: (records: readonly ZKasBatchRecord[]) => Promise<void>,
+    withTerminalContext: <T>(
+      operation: () => Promise<T>,
+    ) => Promise<T> = async (operation) => operation(),
+  ): Promise<void> {
+    const originalIntent = structuredClone(incomingOriginal);
+    assertIntent(originalIntent);
+    await withZKasPaymentAccountGate(async () => {
+      const check = () => {
+        if ((assertCurrent() as unknown) !== undefined)
+          throw new Error(
+            "Private settlement requires a synchronous context fence",
+          );
+      };
+      check();
+      await this.assertNoLegacyReservation(originalIntent.selection);
+      check();
+      const original = await this.all();
+      check();
+      const selected = Object.values(original).filter(
+        (record) =>
+          accountKey(record.intent.selection) ===
+          accountKey(originalIntent.selection),
+      );
+      if (
+        selected.length === 0 ||
+        !selected.some(
+          (record) =>
+            record.intent.logicalId === originalIntent.logicalId &&
+            JSON.stringify(record.intent) === JSON.stringify(originalIntent),
+        ) ||
+        selected.some(
+          (record) =>
+            record.intent.account !== originalIntent.account ||
+            record.intent.genesis !== originalIntent.genesis,
+        )
+      )
+        throw new Error("Original private account history changed");
+      const originalJson = JSON.stringify(original);
+      await prove(structuredClone(selected));
+      await withTerminalContext(async () => {
+        check();
+        await this.assertNoLegacyReservation(originalIntent.selection);
+        check();
+        await this.store.updateValue<Record<string, ZKasBatchRecord>>(
+          BATCH_JOURNAL_KEY,
+          (current) => {
+            check();
+            if (JSON.stringify(current ?? {}) !== originalJson)
+              throw new Error(
+                "Private batch journal changed during settlement",
+              );
+            const updated = { ...original };
+            for (const [id, record] of Object.entries(original)) {
+              if (
+                accountKey(record.intent.selection) ===
+                accountKey(originalIntent.selection)
+              )
+                updated[id] = { ...record, status: "settled" };
+            }
+            return updated;
+          },
+        );
+        check();
+      });
+    });
+  }
+
   async hasReservation(selection: ZKasSelection): Promise<boolean> {
     return Object.values(await this.all()).some(
       (record) => accountKey(record.intent.selection) === accountKey(selection),
@@ -619,8 +765,36 @@ export class ZKasBatchJournal {
     assertCurrent: () => void,
     prove: (records: readonly ZKasBatchRecord[]) => Promise<void>,
   ): Promise<void> {
+    return this.reserveSettledCore(incomingIntent, assertCurrent, prove);
+  }
+
+  async reserveDirectAfterFreshSettlement(
+    incomingIntent: ZKasBatchIntent,
+    incomingApproval: DirectActionApproval,
+    assertCurrent: () => void,
+    prove: (records: readonly ZKasBatchRecord[]) => Promise<void>,
+  ): Promise<void> {
+    return this.reserveSettledCore(
+      incomingIntent,
+      assertCurrent,
+      prove,
+      incomingApproval,
+    );
+  }
+
+  private async reserveSettledCore(
+    incomingIntent: ZKasBatchIntent,
+    assertCurrent: () => void,
+    prove: (records: readonly ZKasBatchRecord[]) => Promise<void>,
+    incomingApproval?: DirectActionApproval,
+  ): Promise<void> {
     const intent = structuredClone(incomingIntent);
+    const approval =
+      incomingApproval === undefined
+        ? undefined
+        : structuredClone(incomingApproval);
     assertIntent(intent);
+    if (approval) assertDirectApproval(intent, approval);
     return withZKasPaymentAccountGate(async () => {
       const checkFence = () => {
         if ((assertCurrent() as unknown) !== undefined) {
@@ -697,6 +871,7 @@ export class ZKasBatchJournal {
             }
             updated[intent.logicalId] = {
               intent: structuredClone(intent),
+              ...(approval ? { directApproval: approval } : {}),
               status: "preparing",
             };
             return updated;

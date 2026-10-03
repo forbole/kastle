@@ -45,6 +45,8 @@ const approval = {
   actionId: "2".repeat(32),
   idempotencyKey: intent.logicalId,
   exactDigest: "3".repeat(64),
+  commitment: "a".repeat(64),
+  fanoutDigest: "b".repeat(64),
   birthHash: "4".repeat(64),
   sessionId: "5".repeat(32),
   sourceGeneration: "7",
@@ -102,6 +104,52 @@ test("a fresh direct action reserves one encrypted-journal record only after enr
   expect(proofs).toBe(1);
 });
 
+test("a later direct action cannot bypass the settled-history proof", async () => {
+  const journal = new ZKasBatchJournal(store(), async () => false);
+  await journal.reserveDirectFirstUse(
+    intent,
+    approval,
+    () => {},
+    async () => {},
+  );
+  const later = { ...intent, logicalId: "8".repeat(64) };
+  const laterApproval = {
+    ...approval,
+    actionId: "9".repeat(32),
+    idempotencyKey: later.logicalId,
+  };
+  let priorCount = 0;
+  await expect(
+    journal.reserveDirectAfterFreshSettlement(
+      later,
+      laterApproval,
+      () => {},
+      async (prior) => {
+        priorCount = prior.length;
+        throw new Error("Original signed settlement is unavailable");
+      },
+    ),
+  ).rejects.toThrow("Original signed settlement is unavailable");
+  expect(priorCount).toBe(1);
+  expect(await journal.get(later.logicalId)).toBeUndefined();
+});
+
+test("later direct payment requires verified prior settlement before a capability", async () => {
+  const h = paymentHarness();
+  await h.flow.beginDirectFirstUse(intent, approval, h.ready);
+  const later = { ...intent, logicalId: "8".repeat(64) };
+  const laterApproval = {
+    ...approval,
+    actionId: "9".repeat(32),
+    idempotencyKey: later.logicalId,
+  };
+  await expect(
+    h.flow.beginDirectAfterFreshSettlement(later, laterApproval),
+  ).rejects.toThrow(/inventory|settled|ticket/i);
+  expect(h.events.filter((event) => event === "grant")).toHaveLength(1);
+  expect(await h.journal.get(later.logicalId)).toBeUndefined();
+});
+
 test("first-use admission remains closed when inventory proof or legacy reservation fails", async () => {
   const persisted = store();
   const journal = new ZKasBatchJournal(persisted, async () => false);
@@ -149,6 +197,14 @@ test("malformed native approval or four-output service payment cannot enter the 
     journal.reserveDirectFirstUse(
       { ...intent, maxFeeSompi: "5000001" },
       approval,
+      () => undefined,
+      proof,
+    ),
+  ).rejects.toThrow(/approval/i);
+  await expect(
+    journal.reserveDirectFirstUse(
+      intent,
+      { ...approval, commitment: "0".repeat(64) },
       () => undefined,
       proof,
     ),

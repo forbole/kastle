@@ -13,8 +13,16 @@ import {
   deriveZKasAccountFromSeed,
   initZKasSigner,
   openSelectedPrivateMessagingAccount,
+  openSelectedPrivateBatchSigner,
 } from "./signer";
+import type { ZKasBatchIntent } from "./batch-journal";
+import type { ZKasPreparedBatch } from "./batch-client";
+import type { PrivateBatchSigner } from "./batch-payment";
 import type { PrivateMessagingAccount } from "./message-profile";
+import type {
+  NativeDirectReview,
+  NativeDirectSealed,
+} from "./direct-action-codec";
 import { ZKAS_MAINNET_GENESIS } from "./history-config";
 import {
   addOrRecoverZKasSeed,
@@ -57,6 +65,99 @@ export type ZKasSignRequest = {
 export class ZKasKeyService {
   private importTail: Promise<void> = Promise.resolve();
 
+  /** Wallet-private signer opening; selected credential and original intent are fenced together. */
+  async openPrivateBatchSigner(
+    original: ZKasBatchIntent,
+    incomingPrepared?: ZKasPreparedBatch,
+  ): Promise<PrivateBatchSigner> {
+    const approved = structuredClone(original);
+    const prepared =
+      incomingPrepared === undefined
+        ? undefined
+        : structuredClone(incomingPrepared);
+    const keyring = ExtensionService.getInstance().getKeyring();
+    const controller = new AbortController();
+    let signer: PrivateBatchSigner | undefined;
+    let closed = false;
+    const unsubscribe = keyring.subscribePrivateWalletInvalidation(() => {
+      controller.abort();
+      signer?.close();
+    });
+    const close = () => {
+      if (closed) return;
+      closed = true;
+      controller.abort();
+      signer?.close();
+      unsubscribe();
+    };
+    try {
+      const selected = await this.selected();
+      const { selection, keyringVersion } = selected;
+      const walletGeneration = keyring.getMutationGeneration("wallets");
+      if (!sameZKasSelection(selection, approved.selection))
+        throw new Error("Selected direct payment account changed");
+      await initZKasSigner(signerAssetUrl);
+      await this.checkSelection(selection, undefined, keyringVersion);
+      const secrets = (await keyring.getValue<WalletSecret[]>("wallets")) ?? [];
+      const source = getZKasSecretSource(secrets, selection);
+      if (keyring.getMutationGeneration("wallets") !== walletGeneration)
+        throw new Error("Selected direct payment credential changed");
+      const selectedAddress = (
+        await storage.getItem<WalletSettings>(WALLET_SETTINGS)
+      )?.wallets
+        .find((wallet) => wallet.id === selection.walletId)
+        ?.accounts.find(
+          (account) => account.index === selection.accountIndex,
+        )?.address;
+      if (!selectedAddress || selectedAddress !== approved.account)
+        throw new Error("Selected direct payment address changed");
+      await this.checkSelection(selection, undefined, keyringVersion);
+      signer = await openSelectedPrivateBatchSigner(
+        source,
+        selection.accountIndex,
+        selectedAddress,
+        approved,
+        prepared,
+        controller.signal,
+      );
+      const check = async () => {
+        if (
+          closed ||
+          controller.signal.aborted ||
+          keyring.getMutationGeneration("wallets") !== walletGeneration
+        )
+          throw new Error("Selected direct payment credential changed");
+        await this.checkSelection(selection, undefined, keyringVersion);
+        if (
+          closed ||
+          controller.signal.aborted ||
+          keyring.getMutationGeneration("wallets") !== walletGeneration
+        )
+          throw new Error("Selected direct payment credential changed");
+      };
+      await check();
+      const runFenced = async <T>(operation: () => Promise<T>): Promise<T> => {
+        await check();
+        const result = await operation();
+        await check();
+        return result;
+      };
+      const privateSigner = signer;
+      return {
+        sign: () => runFenced(() => privateSigner.sign()),
+        exportTicket: () => runFenced(() => privateSigner.exportTicket()),
+        importTicket: (ticket) =>
+          runFenced(() => privateSigner.importTicket(ticket)),
+        verifyFinalized: (signed) =>
+          runFenced(() => privateSigner.verifyFinalized(signed)),
+        close,
+      };
+    } catch (error) {
+      close();
+      throw error;
+    }
+  }
+
   /** Internal selected-account actor. No website-facing method may return it. */
   async openPrivateMessagingSession(): Promise<{
     address: string;
@@ -82,6 +183,30 @@ export class ZKasKeyService {
     directAcceptBody(raw: Uint8Array): number;
     directReceiveStatus(): number;
     directReceiveSnapshot(): Uint8Array;
+    directReviewInvite(
+      card: Uint8Array,
+      note: string,
+      fee: string,
+    ): NativeDirectReview;
+    directReviewDecision(
+      inviter: Uint8Array,
+      invitation: Uint8Array,
+      decision: 0 | 1,
+      note: string,
+      fee: string,
+    ): NativeDirectReview;
+    directReviewText(
+      peer: Uint8Array,
+      text: string,
+      fee: string,
+    ): NativeDirectReview;
+    directApproveAndSeal(
+      review: NativeDirectReview,
+      selectedReview: { hash: string; daa: bigint; sourceGeneration: bigint },
+    ): NativeDirectSealed;
+    directSealedStatus(): ReturnType<
+      PrivateMessagingAccount["directSealedStatus"]
+    >;
     assertCurrent(): Promise<void>;
     close(): void;
   }> {
@@ -207,6 +332,13 @@ export class ZKasKeyService {
         directAcceptBody: (raw) => handle().directAcceptBody(raw),
         directReceiveStatus: () => handle().directReceiveStatus(),
         directReceiveSnapshot: () => handle().directReceiveSnapshot(),
+        directReviewInvite: (...args) => handle().directReviewInvite(...args),
+        directReviewDecision: (...args) =>
+          handle().directReviewDecision(...args),
+        directReviewText: (...args) => handle().directReviewText(...args),
+        directApproveAndSeal: (...args) =>
+          handle().directApproveAndSeal(...args),
+        directSealedStatus: () => handle().directSealedStatus(),
         assertCurrent: async () => {
           try {
             await assertCurrent();

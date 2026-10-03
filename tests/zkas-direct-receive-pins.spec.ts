@@ -46,7 +46,7 @@ async function receive() {
     class FixedHistoryIndexClient { close() {} }
     class DaemonBearerStore {}
     const witnessDirectBirth = () => ({daa:1n,blue:1n,sourceGeneration:1n});
-    const decodeNativeDirectView = () => { throw Error("unused"); };
+    const decodeNativeDirectView = () => globalThis.__directDecodedView;
     const witnessReviewedCursor = () => {};
   `;
   const output = await transform(prelude + body, {
@@ -57,10 +57,19 @@ async function receive() {
   });
   return new Function(output.code + "\nreturn PinnedReceive;")() as {
     DirectReceiveRegistry: new () => {
+      close(): void;
       read(
         origin: string,
         profile: unknown,
       ): Promise<{ assertImmediate(): void }>;
+      withRetainedReady<T>(
+        origin: string,
+        use: (lease: {
+          birth: { birthHash: string };
+          sourceGeneration: bigint;
+          actor: unknown;
+        }) => Promise<T>,
+      ): Promise<T>;
     };
   };
 }
@@ -103,6 +112,65 @@ test("receive reopens with exact persisted cards and invalidates a changed pin s
   (globalThis as unknown as { __pinsGeneration: number }).__pinsGeneration++;
   listeners.get("zkasDirectPins")?.();
   expect(() => result.assertImmediate()).toThrow();
+});
+
+test("only a ready retained direct actor can be borrowed for a private review", async () => {
+  const listeners = new Map<string, () => void>();
+  const address = "zkas:" + "a".repeat(79);
+  Object.assign(globalThis, {
+    __pinsGeneration: 0,
+    __pinListeners: listeners,
+    __pinCard: new Uint8Array(184).fill(7),
+    __directDecodedView: {
+      sessionId: "33".repeat(16),
+      birthHash: "22".repeat(32),
+      birthDaa: 1n,
+      sourceGeneration: 1n,
+      invitations: [],
+      contacts: [],
+      messages: [],
+    },
+    __pinActor: {
+      address,
+      selection: { walletId: "wallet-1", accountIndex: 0 },
+      daemonUrl: "https://daemon.example",
+      indexUrl: "https://index.example",
+      publicCard: () => new Uint8Array(184).fill(9),
+      assertCurrent: async () => {},
+      close: () => {},
+      directSessionStart: () => {},
+      directConfigure: () => {},
+      directReceiveStatus: () => 1,
+      directReceiveSnapshot: () => new Uint8Array(0),
+    },
+  });
+  const { DirectReceiveRegistry } = await receive();
+  const registry = new DirectReceiveRegistry();
+  await registry.read("https://messages.example", {
+    accountAddress: address,
+    publicCard: Buffer.alloc(184, 9).toString("hex"),
+    peerId: "b".repeat(32),
+  });
+  await expect(
+    registry.withRetainedReady("https://other.example", async () => 1),
+  ).rejects.toThrow();
+  const witnessed = await registry.withRetainedReady(
+    "https://messages.example",
+    async (lease) => ({
+      birth: lease.birth.birthHash,
+      generation: lease.sourceGeneration,
+      actor: lease.actor,
+    }),
+  );
+  expect(witnessed.birth).toBe("22".repeat(32));
+  expect(witnessed.generation).toBe(1n);
+  expect(witnessed.actor).toBe(
+    (globalThis as unknown as { __pinActor: unknown }).__pinActor,
+  );
+  registry.close();
+  await expect(
+    registry.withRetainedReady("https://messages.example", async () => 1),
+  ).rejects.toThrow();
 });
 
 test("pin mutation during replay rejects the old plaintext result", async () => {

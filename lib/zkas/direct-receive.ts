@@ -32,6 +32,7 @@ type Actor = Awaited<
 type Profile = Awaited<
   ReturnType<typeof zkasKeyService.publicMessagingProfile>
 >;
+type Birth = NonNullable<Awaited<ReturnType<DirectBirthStore["read"]>>>;
 export type ScopedDirectView = {
   protocolId: "matjam-onchain-v3";
   accountAddress: string;
@@ -247,12 +248,34 @@ function notReady(
 
 /** One private actor for the currently granted website; no page-owned cursor or key. */
 export class DirectReceiveRegistry {
-  private entry?: Lease & { sourceGeneration: bigint };
+  private entry?: Lease & {
+    sourceGeneration: bigint;
+    birth: Birth;
+    ready: boolean;
+  };
   private tail: Promise<void> = Promise.resolve();
 
   close(): void {
     this.entry?.close();
     this.entry = undefined;
+  }
+
+  /** Wallet-private only: a ready actor remains fenced throughout a review operation. */
+  async withRetainedReady<T>(
+    origin: string,
+    operation: (
+      lease: Lease & { sourceGeneration: bigint; birth: Birth },
+    ) => Promise<T>,
+  ): Promise<T> {
+    const entry = this.entry;
+    if (!entry || !entry.ready || entry.origin !== origin)
+      throw new Error("Ready direct-chat review is unavailable");
+    await entry.assertCurrent();
+    entry.assertImmediate();
+    const result = await operation(entry);
+    entry.assertImmediate();
+    await entry.assertCurrent();
+    return result;
   }
 
   /** Later action adapter: witness its retained review stamp without retargeting it. */
@@ -434,7 +457,6 @@ export class DirectReceiveRegistry {
         status = actor.directReceiveStatus();
       }
       await lease.assertCurrent();
-      this.entry = { ...lease, sourceGeneration: current.sourceGeneration };
       let view: ScopedDirectView;
       if (status === 1) {
         const decoded = decodeNativeDirectView(actor.directReceiveSnapshot());
@@ -449,6 +471,12 @@ export class DirectReceiveRegistry {
       } else {
         view = notReady(profile, status === 2 ? "unknown" : "gap");
       }
+      this.entry = {
+        ...lease,
+        birth,
+        sourceGeneration: current.sourceGeneration,
+        ready: status === 1,
+      };
       return {
         view,
         assertCurrent: lease.assertCurrent,

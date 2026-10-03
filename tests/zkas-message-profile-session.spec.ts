@@ -55,7 +55,17 @@ async function loadService() {
       export const openSelectedPrivateMessagingAccount = async (_source, _index, _address, signal) => {
         if (globalThis.__messageProfileDeps.opening) await globalThis.__messageProfileDeps.opening;
         if (signal.aborted) throw Error('Selected private messaging account changed');
-        return { publicCard: () => Uint8Array.from(${JSON.stringify(Array.from(card))}), close: () => { globalThis.__messageProfileDeps.closed += 1 } };
+        return {
+          publicCard: () => Uint8Array.from(${JSON.stringify(Array.from(card))}),
+          directReviewInvite: (_card, note, fee) => ({ text: note, maxNetworkFeeSompi: fee }),
+          directApproveAndSeal: () => ({ actionId: 'aa'.repeat(16) }),
+          directSealedStatus: () => null,
+          close: () => { globalThis.__messageProfileDeps.closed += 1 },
+        };
+      };
+      export const openSelectedPrivateBatchSigner = async (_source, _index, _address, approved, _prepared, signal) => {
+        if (signal.aborted) throw Error('aborted');
+        return { sign: async () => [{ actionIndex: 0, signatureHex: 'aa'.repeat(64) }], exportTicket: async () => approved.logicalId, importTicket: async () => {}, verifyFinalized: async () => {}, close: () => { globalThis.__messageProfileDeps.closed += 1 } };
       };
     `,
     "./selection": `
@@ -90,11 +100,64 @@ async function loadService() {
     }>;
     openPrivateMessagingSession(): Promise<{
       publicCard(): Uint8Array;
+      directReviewInvite(
+        card: Uint8Array,
+        note: string,
+        fee: string,
+      ): { text: string; maxNetworkFeeSompi: string };
+      directApproveAndSeal(
+        review: unknown,
+        witness: unknown,
+      ): { actionId: string };
+      directSealedStatus(): null;
       assertCurrent(): Promise<void>;
       close(): void;
     }>;
+    openPrivateBatchSigner(
+      approved: {
+        selection: Dependencies["selection"];
+        account: string;
+        logicalId: string;
+      },
+      prepared?: unknown,
+    ): Promise<{ sign(): Promise<unknown>; close(): void }>;
   };
 }
+
+test("selected-account private lease forwards native review and seal without a page-facing method", async () => {
+  await fixture();
+  const Service = await loadService();
+  const actor = await new Service().openPrivateMessagingSession();
+  expect(
+    actor.directReviewInvite(new Uint8Array(184), "hello", "5000000"),
+  ).toEqual({
+    text: "hello",
+    maxNetworkFeeSompi: "5000000",
+  });
+  expect(actor.directApproveAndSeal({}, {})).toEqual({
+    actionId: "aa".repeat(16),
+  });
+  expect(actor.directSealedStatus()).toBeNull();
+  actor.close();
+  expect(() =>
+    actor.directReviewInvite(new Uint8Array(184), "hello", "5000000"),
+  ).toThrow();
+});
+
+test("private batch signer remains bound to the selected account and closes", async () => {
+  await fixture();
+  const Service = await loadService();
+  const signer = await new Service().openPrivateBatchSigner({
+    selection: globalThis.__messageProfileDeps.selection,
+    account: address,
+    logicalId: "11".repeat(32),
+  });
+  expect(await signer.sign()).toEqual([
+    { actionIndex: 0, signatureHex: "aa".repeat(64) },
+  ]);
+  signer.close();
+  expect(globalThis.__messageProfileDeps.closed).toBe(1);
+});
 
 async function loadSignerHelper() {
   const source = readFileSync(

@@ -2010,6 +2010,130 @@ test("fresh settled history admits one new batch only after original private ver
   expect((await h.journal.get(h.next.logicalId))?.status).toBe("preparing");
 });
 
+test("a settled original permits the next native direct approval without resetting account history", async () => {
+  const h = await freshAdmissionHarness();
+  const fixture = JSON.parse(
+    readFileSync(
+      new URL("./fixtures/zkas-direct-action-flow.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  const memo = "4d4a333a" + "00".repeat(508);
+  const next = {
+    ...h.next,
+    outputs: [
+      {
+        recipient:
+          "zkas:p8vmwuwk2npzsjc4udm4zurtdpd76rwyqwma3j9fdda3lc4yhsp30tcesf54ehq29t66jysxg9mc25s",
+        amountSompi: "1",
+        memoHex: memo,
+      },
+      { recipient: "zkas:" + "c".repeat(80), amountSompi: "1", memoHex: memo },
+      { recipient: "zkas:" + "d".repeat(80), amountSompi: "1", memoHex: memo },
+      {
+        recipient:
+          "zkas:pxm8d4su40hc95vr0llq7rrf5gqzhmdhh5m3c8qtve2dllfxrqrsh6wlugnyp3krnxe2cgs4fmfwagv",
+        amountSompi: "10000000",
+        memoHex: "00".repeat(512),
+      },
+    ],
+    maxFeeSompi: "5000000",
+  };
+  const approval = {
+    version: 1 as const,
+    actionId: "55".repeat(16),
+    idempotencyKey: next.logicalId,
+    exactDigest: "66".repeat(32),
+    commitment: "bb".repeat(32),
+    fanoutDigest: "cc".repeat(32),
+    birthHash: "77".repeat(32),
+    sessionId: "88".repeat(16),
+    sourceGeneration: "7",
+    ownerPeerId: "99".repeat(16),
+    recipientPeerId: "aa".repeat(16),
+    recipientCardHex: fixture.bobCardHex,
+    kind: "invite" as const,
+    referenceActionId: null,
+    text: "hello",
+  };
+  expect(
+    (await h.flow.beginDirectAfterFreshSettlement(next, approval)).logicalId,
+  ).toBe(next.logicalId);
+  expect((await h.journal.get(next.logicalId))?.directApproval).toEqual(
+    approval,
+  );
+  expect((await h.journal.get(intent.logicalId))?.status).toBe("settled");
+  expect(h.events.indexOf("verify")).toBeLessThan(h.events.indexOf("grant"));
+});
+
+test("freshly proven original settlement becomes local before the next native review", async () => {
+  const h = await freshAdmissionHarness();
+  await expect(
+    h.journal.assertNoUnresolvedAccountAction(intent.selection),
+  ).rejects.toThrow(/already pending/i);
+  await h.flow.reconcileAccountAfterFreshSettlement(intent);
+  expect((await h.journal.get(intent.logicalId))?.status).toBe("settled");
+  expect(h.events.filter((event) => event === "walk")).toHaveLength(2);
+  expect(h.events.indexOf("verify")).toBeLessThan(h.events.indexOf("status"));
+  expect(h.events).not.toContain("grant");
+  await expect(
+    h.journal.assertNoUnresolvedAccountAction(intent.selection),
+  ).resolves.toBeUndefined();
+});
+
+test("pre-review settlement refuses unsettled status, changed inventory, and failed byte verification", async () => {
+  const nonsettled = await freshAdmissionHarness();
+  const originalStatus = nonsettled.controls.status;
+  nonsettled.controls.status = () => ({
+    ...(originalStatus() as ZKasBatchSendStatus),
+    status: "included",
+  });
+  await expect(
+    nonsettled.flow.reconcileAccountAfterFreshSettlement(intent),
+  ).rejects.toThrow(/settled/i);
+  expect((await nonsettled.journal.get(intent.logicalId))?.status).toBe(
+    "unknown",
+  );
+
+  const changed = await freshAdmissionHarness();
+  const originalInventory = changed.controls.inventory;
+  let walks = 0;
+  changed.controls.inventory = async () => {
+    const inventory = await originalInventory();
+    return ++walks === 2
+      ? {
+          ...inventory,
+          entries: [{ ...inventory.entries[0], sha256: "d".repeat(64) }],
+        }
+      : inventory;
+  };
+  await expect(
+    changed.flow.reconcileAccountAfterFreshSettlement(intent),
+  ).rejects.toThrow(/inventory|identity/i);
+  expect((await changed.journal.get(intent.logicalId))?.status).toBe("unknown");
+
+  const unverified = await freshAdmissionHarness();
+  unverified.controls.open = async () => ({
+    sign: async () => {
+      throw new Error("must not sign");
+    },
+    exportTicket: async () => {
+      throw new Error("must not export");
+    },
+    importTicket: async () => undefined,
+    verifyFinalized: async () => {
+      throw new Error("Original bytes failed verification");
+    },
+    close: () => undefined,
+  });
+  await expect(
+    unverified.flow.reconcileAccountAfterFreshSettlement(intent),
+  ).rejects.toThrow(/verification/i);
+  expect((await unverified.journal.get(intent.logicalId))?.status).toBe(
+    "unknown",
+  );
+});
+
 async function freshAdmissionHarness() {
   const backing = store();
   let legacy = false;
