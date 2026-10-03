@@ -1,7 +1,46 @@
 import type { Settings } from "@/contexts/SettingsContext";
 import { selectWalletNetwork, ZKAS_MAINNET } from "@/lib/wallet-network";
 import type { ZKasNetwork } from "./client";
-import { effectiveZKasDaemonOrigin } from "./history-config";
+import {
+  canonicalHistoryDaemonOrigin,
+  canonicalHistoryIndexOrigin,
+  effectiveZKasDaemonOrigin,
+} from "./history-config";
+
+export type ZKasConnectionSources = {
+  daemonUrl: string;
+  indexUrl: string;
+  expectedDaemon: string | null;
+  expectedIndex: string | null;
+};
+
+export function selectZKasNetworkWithSources(
+  settings: Settings,
+  experimentalEnabled: boolean | null,
+  sources: ZKasConnectionSources,
+): Settings {
+  if (
+    (settings.zkasDaemonUrls?.mainnet ?? null) !== sources.expectedDaemon ||
+    (settings.zkasHistoryIndexUrls?.mainnet ?? null) !== sources.expectedIndex
+  )
+    throw new Error(
+      "ZKas sources changed in another window. Review and retry.",
+    );
+  const daemonUrl = canonicalHistoryDaemonOrigin(sources.daemonUrl);
+  const indexUrl = canonicalHistoryIndexOrigin(sources.indexUrl);
+  return selectWalletNetwork(
+    {
+      ...settings,
+      zkasDaemonUrls: { ...settings.zkasDaemonUrls, mainnet: daemonUrl },
+      zkasHistoryIndexUrls: {
+        ...settings.zkasHistoryIndexUrls,
+        mainnet: indexUrl,
+      },
+    },
+    ZKAS_MAINNET,
+    experimentalEnabled,
+  );
+}
 
 export function requireZKasDaemonUrl(
   settings: Settings | null | undefined,

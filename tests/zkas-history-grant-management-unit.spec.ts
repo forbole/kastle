@@ -513,7 +513,7 @@ test("Settings screen displays a disconnected saved grant and refreshes after re
     "@/lib/settings-storage":
       "export const updateSettingsLocked = async () => {};",
     "@/lib/zkas/history-config":
-      "export const DEFAULT_ZKAS_DAEMON_ORIGIN = 'https://zkwd.mooncake.space'; export const DEFAULT_ZKAS_HISTORY_INDEX_ORIGIN = 'https://matjam.mooncake.space'; export const canonicalHistoryIndexOrigin = x => x; export const historyIndexHostPattern = x => x;",
+      "export const DEFAULT_ZKAS_DAEMON_ORIGIN = 'https://zkwd.mooncake.space'; export const DEFAULT_ZKAS_HISTORY_INDEX_ORIGIN = 'https://matjam.mooncake.space'; export const canonicalHistoryDaemonOrigin = x => x; export const canonicalHistoryIndexOrigin = x => x; export const historyIndexHostPattern = x => x;",
     "@/lib/network-type": "export const NetworkType = { Mainnet: 'mainnet' };",
   };
   const output = await build({

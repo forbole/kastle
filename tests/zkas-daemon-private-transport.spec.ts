@@ -491,6 +491,42 @@ test("read and setup have only four named internal operations", () => {
   expect(Object.values(Method)).not.toContain("ZKAS_DAEMON_REQUEST");
 });
 
+test("registration binds the chosen history index before sharing a viewing key", async () => {
+  const flow = await fixture();
+  try {
+    flow.values.set("local:settings", {
+      networkId: "mainnet",
+      zkasDaemonUrls: { mainnet: origin },
+      zkasHistoryIndexUrls: { mainnet: "https://index.example" },
+    });
+    const request = {
+      method: Method.ZKAS_DAEMON_REGISTER,
+      expectedAccount: account,
+      expectedOrigin: origin,
+      expectedIndexOrigin: "https://index.example",
+      birthday: 0,
+    };
+    expect(await flow.invoke(flow.module.daemonRegister, request)).toEqual({
+      registered: true,
+    });
+    expect(flow.calls.some((call) => call.path === "/api/wallet/watch")).toBe(
+      true,
+    );
+    flow.calls.length = 0;
+    flow.values.set("local:settings", {
+      networkId: "mainnet",
+      zkasDaemonUrls: { mainnet: origin },
+      zkasHistoryIndexUrls: { mainnet: "https://different.example" },
+    });
+    await expect(
+      flow.invoke(flow.module.daemonRegister, request),
+    ).rejects.toThrow();
+    expect(flow.calls).toHaveLength(0);
+  } finally {
+    flow.cleanup();
+  }
+});
+
 test("private single payment uses paired bearer and returns only its actual result", async () => {
   const flow = await fixture();
   const txid = "f".repeat(64);

@@ -9,7 +9,11 @@ import {
   selectWalletNetwork,
   ZKAS_EXPERIMENTAL_KEY,
 } from "@/lib/wallet-network";
-import { selectZKasNetworkWithDaemon } from "@/lib/zkas/setup";
+import {
+  selectZKasNetworkWithDaemon,
+  selectZKasNetworkWithSources,
+  type ZKasConnectionSources,
+} from "@/lib/zkas/setup";
 
 export default function useSwitchNetwork() {
   const [settings, setSettings] = useSettings();
@@ -33,6 +37,7 @@ export default function useSwitchNetwork() {
     options: {
       deferKaspaAddressRefresh?: boolean;
       expectedCurrentDaemon?: string | null;
+      sources?: ZKasConnectionSources;
     } = {},
   ): Promise<boolean> => {
     if (!settings) throw new Error("Settings not loaded");
@@ -42,12 +47,14 @@ export default function useSwitchNetwork() {
     let needsKaspaAddressRefresh = false;
     await setSettings((prev) => {
       needsKaspaAddressRefresh = prev.networkId !== NetworkType.Mainnet;
-      return selectZKasNetworkWithDaemon(
-        prev,
-        enabled,
-        daemonUrl,
-        options.expectedCurrentDaemon,
-      );
+      return options.sources
+        ? selectZKasNetworkWithSources(prev, enabled, options.sources)
+        : selectZKasNetworkWithDaemon(
+            prev,
+            enabled,
+            daemonUrl,
+            options.expectedCurrentDaemon,
+          );
     });
     if (needsKaspaAddressRefresh && options.deferKaspaAddressRefresh !== true) {
       await refreshKaspaAddresses(NetworkType.Mainnet);

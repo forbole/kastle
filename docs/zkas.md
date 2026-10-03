@@ -5,7 +5,7 @@ Kastle can manage ZKas shielded accounts alongside its existing Kaspa wallets. T
 ## Choose a network and wallet
 
 1. Unlock Kastle and turn on **Settings → Experimental features**. Kastle immediately opens the required wallet-daemon setup.
-2. Review the prefilled wallet daemon or enter a compatible custom URL, then approve access. The setup page explains that Kastle shares the selected wallet's full viewing key, allowing the daemon to see its addresses, balance, and transaction history. The spending key remains inside Kastle.
+2. Review the prefilled wallet daemon and history index, then choose **Share viewing key and connect** and approve access to both hosts. Custom origins and an optional private daemon credential are under **Advanced settings**. The setup page explains that Kastle shares the selected wallet's full viewing key, allowing the daemon to see its addresses, balance, and transaction history. The spending key remains inside Kastle.
 3. After the daemon is connected, Kastle selects **ZKas Mainnet · Experimental**. Open the wallet switcher and select a recovery-phrase account or imported ZKas spending-seed wallet.
 4. To return to Kaspa, select **Mainnet** or **Testnet T10** in the network picker. Turning off Experimental features returns the dashboard to Kaspa Mainnet and blocks ZKas requests.
 
@@ -32,7 +32,7 @@ Kastle prefills `https://zkwd.mooncake.space` as the mainnet wallet daemon and `
 
 1. Run a compatible `zkas-walletd` with complete shielded history and point its `--rpc-server` setting to a ZKas full node. A mining-only or history-pruned node cannot establish a final balance. See [upstream walletd documentation](https://github.com/firecash/zkas-rusty/blob/main/docs/WALLETD.md).
 2. Unlock Kastle and enable **Settings → Experimental features**. Kastle opens the daemon page before allowing ZKas wallet creation, import, or network selection.
-3. Review or replace the prefilled walletd URL, review the viewing-key disclosure, and approve the browser's host permission prompt. Use HTTPS for a remote daemon, or `http://localhost` / `http://127.0.0.1` for a local one. Kastle verifies the daemon network and current DAA score when you connect; merely having a default URL does not grant host access or share a viewing key.
+3. Review the prefilled walletd and history-index origins, or edit either under **Advanced settings**. Review the viewing-key disclosure and approve the browser's prompt for both hosts. Use HTTPS for a remote daemon, or `http://localhost` / `http://127.0.0.1` for a local one. Kastle verifies the daemon network and current DAA score when you connect; merely having default URLs does not grant host access or share a viewing key.
 4. Choose **Share viewing key and connect**. If the selected wallet supports ZKas, Kastle immediately registers its FVK and requests recoverable history. A newly generated recovery-phrase wallet uses the daemon's current DAA score only for that first registration. Kastle does not store that daemon-provided score. A restored recovery phrase, imported ZKas seed, registration retry, or later daemon change registers with birthday `0` and scans from genesis so a daemon cannot persistently suppress older notes with a false birthday.
 5. Reopen the ZKAS asset screen to refresh its status while walletd syncs; it does not poll automatically. Continue only when **Shielded balance synced** appears. A syncing or incomplete-history warning means the balance is not final and sending stays disabled. Receive uses the ZKas address shown there or its QR code.
 

@@ -18,6 +18,7 @@ description: Small reviewed milestones
 - [x] M9: Require and validate daemon setup before ZKas selection or wallet creation/import; disclose FVK visibility; use the current daemon birthday only for immediate new-wallet registration and use genesis for restored wallets and every later registration; bind registration to the approved daemon; protect cross-window settings writes; verify, review, document, and build the unpacked extension.
 - [x] M10: Make setup and import status probes compatible with a token-requiring public proxy by using fresh temporary tokens; document the required non-custodial proxy routes. The public daemon remains an external deployment dependency.
 - [x] M11 step 1: Add mainnet daemon and history-index defaults to new and old settings, prefill setup, preserve custom origins, and use effective origins in source guards. Explicit save still controls permission and FVK registration; optional bearer behavior remains separate.
+- [x] M11 step 2: Connect both selected sources with one user-gesture permission request and one guarded settings write; keep custom sources and private bearer in Advanced settings; allow direct actions without a global bearer only for the exact default public daemon.
 
 ## Task Breakdown
 

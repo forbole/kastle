@@ -192,7 +192,9 @@ export default function DaemonBearerPairing({
         throw new Error("Pairing context changed");
       if (result.error || result.present !== true)
         throw new Error("Pairing failed");
-      setNotice("Credential saved. This does not connect the daemon yet.");
+      setNotice(
+        "Credential saved for authenticated requests to this origin. Connect the wallet to validate the daemon and share its viewing key.",
+      );
       await refresh(serial);
     } catch {
       if (current(serial, capturedDraft)) {
@@ -247,8 +249,9 @@ export default function DaemonBearerPairing({
     >
       <h2 className="font-semibold">Daemon transport credential</h2>
       <p className="text-xs text-daintree-400">
-        Save a private daemon token in this wallet. A saved token does not
-        connect the daemon or enable authenticated wallet requests yet.
+        Custom daemon operators may require a private bearer token. Kastle uses
+        a saved token for authenticated requests to its exact origin. Saving it
+        alone does not validate or connect the daemon.
       </p>
       <label className="block text-sm" htmlFor="zkas-daemon-bearer">
         Daemon bearer token
@@ -307,7 +310,10 @@ export default function DaemonBearerPairing({
           className="space-y-1 rounded-lg bg-daintree-800 p-3 text-xs"
         >
           <p className="break-all">{row.origin}</p>
-          <p>Source: {row.sourceStatus}. Credential saved only.</p>
+          <p>
+            Source: {row.sourceStatus}. Saved for authenticated requests;
+            connection status is separate.
+          </p>
           <button
             type="button"
             disabled={!ready || busy}

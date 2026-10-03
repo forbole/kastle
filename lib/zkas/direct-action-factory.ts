@@ -17,6 +17,7 @@ import { ExtensionService } from "@/lib/service/extension-service";
 import { assertBatchOrigin } from "./batch-origin";
 import { DaemonBearerStore, DAEMON_BEARERS_KEY } from "./daemon-bearer";
 import {
+  DEFAULT_ZKAS_DAEMON_ORIGIN,
   historyIndexHostPattern,
   ZKAS_MAINNET_GENESIS,
 } from "./history-config";
@@ -571,14 +572,24 @@ async function openPayment(
       expected.daemonOrigin,
       view.assertCurrent,
       async (bearer) => {
-        if (!bearer) throw new Error("Pair the configured direct daemon first");
+        if (!bearer && expected.daemonOrigin !== DEFAULT_ZKAS_DAEMON_ORIGIN)
+          throw new Error("Pair the configured direct daemon first");
         view.assertImmediate();
         assertBearer();
         const headers = new Headers(init?.headers);
-        headers.set("Authorization", `Bearer ${bearer}`);
-        const response = await fetch(url, { ...init, headers });
+        if (bearer) headers.set("Authorization", `Bearer ${bearer}`);
+        else headers.delete("Authorization");
+        const response = await fetch(url, {
+          ...init,
+          headers,
+          credentials: "omit",
+          redirect: "error",
+          cache: "no-store",
+        });
         view.assertImmediate();
         assertBearer();
+        if (response.redirected || (response.url && response.url !== url))
+          throw new Error("Direct daemon redirected");
         return response;
       },
     );

@@ -11,6 +11,8 @@ test("private production coordinator replays and seals only after popup approval
   const body = source.slice(source.indexOf("export class DirectActionFactory"));
   const prelude = `
     const events = globalThis.__factoryEvents;
+    const daemonOrigin = globalThis.__factoryDaemonOrigin ?? 'https://daemon.example';
+    const DEFAULT_ZKAS_DAEMON_ORIGIN = 'https://zkwd.mooncake.space';
     const withWalletSettingsLock = async (operation) => operation();
     const withSettingsLock = async (operation) => operation();
     const WALLET_SETTINGS = 'local:wallet-settings';
@@ -33,20 +35,20 @@ test("private production coordinator replays and seals only after popup approval
       publicCard:()=>card,
       directReceiveSnapshot:()=>new Uint8Array(0),
     });
-    class DirectReceiveRegistry {constructor(){this.actor=makeActor();this.lease={actor:this.actor,birth,sourceGeneration:7n,context:{daemonUrl:'https://daemon.example',indexUrl:'https://index.example'},revision:'grant-one',connectionGeneration:1n,grantSession:1,assertCurrent:async()=>{},assertImmediate:()=>{}};}
+    class DirectReceiveRegistry {constructor(){this.actor=makeActor();this.lease={actor:this.actor,birth,sourceGeneration:7n,context:{daemonUrl:daemonOrigin,indexUrl:'https://index.example'},revision:'grant-one',connectionGeneration:1n,grantSession:1,assertCurrent:async()=>{},assertImmediate:()=>{}};}
       async read(){events.push('replay');this.actor=makeActor();this.lease.actor=this.actor;return {view:{history:'session-from-birth'},assertCurrent:async()=>{},assertImmediate:()=>{}};}
       async withRetainedReady(_origin,operation){return operation(this.lease);}
       async witnessRetainedReview(){events.push('witness');}
       close(){events.push('close');}
     }
     const directReceiveRegistry = new DirectReceiveRegistry();
-    const zkasKeyService = {publicMessagingProfile:async()=>globalThis.__factoryOtherAccount?{...profile,accountAddress:'zkas:other'}:profile,publicAccount:async()=>({walletId:globalThis.__factoryOtherAccount||globalThis.__factoryOtherWalletSameAddress?'other':'wallet',accountIndex:0,network:'mainnet',address:globalThis.__factoryOtherAccount?'zkas:other':profile.accountAddress}),credentials:async()=>({address:profile.accountAddress,daemonUrl:'https://daemon.example',walletToken:'aa'.repeat(16),keyringVersion:1}),checkSelection:async()=>{}};
+    const zkasKeyService = {publicMessagingProfile:async()=>globalThis.__factoryOtherAccount?{...profile,accountAddress:'zkas:other'}:profile,publicAccount:async()=>({walletId:globalThis.__factoryOtherAccount||globalThis.__factoryOtherWalletSameAddress?'other':'wallet',accountIndex:0,network:'mainnet',address:globalThis.__factoryOtherAccount?'zkas:other':profile.accountAddress}),credentials:async()=>({address:profile.accountAddress,daemonUrl:daemonOrigin,walletToken:'aa'.repeat(16),keyringVersion:1}),checkSelection:async()=>{}};
     const HISTORY_GRANTS_KEY='grants',DIRECT_PINS_KEY='pins';
     const keyring={isUnlocked:()=>true,getSessionVersion:()=>1,getMutationGeneration:key=>key===DIRECT_PINS_KEY?(globalThis.__factoryPinGeneration??0):key===DAEMON_BEARERS_KEY?(globalThis.__generation??0):0};
     const ExtensionService={getInstance:()=>({getKeyring:()=>keyring})};
     const DAEMON_BEARERS_KEY='bearers';
     class DirectPinStore {constructor(){} async recordNativeApproved(){events.push('pin');globalThis.__factoryPinGeneration=(globalThis.__factoryPinGeneration??0)+1;} async read(){return [card];}}
-    class DaemonBearerStore {constructor(){} async withBearer(_origin,_assert,operation){return operation('bb'.repeat(32));}}
+    class DaemonBearerStore {constructor(){} async withBearer(_origin,_assert,operation){return operation(globalThis.__factoryBearer === null ? undefined : 'bb'.repeat(32));}}
     const browser={permissions:{contains:async()=>true}};
     const historyIndexHostPattern=()=> 'https://daemon.example/*';
     const ZKAS_MAINNET_GENESIS='b63f7fe8e50402af34790265e299bb1ba63e943b91a59a670e5971b7a9e84e6f';
@@ -54,11 +56,11 @@ test("private production coordinator replays and seals only after popup approval
     const assertBatchOrigin=()=>{};
     const journal={hasReservation:async()=>false,pendingDirectFor:async()=>null,unresolvedForAccount:async()=>null,findDirectAction:async()=>globalThis.__factoryRecord,assertNoUnresolvedAccountAction:async()=>{}};
     const getZKasBatchJournal=async()=>journal;
-    class ZKasBatchClient {constructor(config){this.identity=config.baseUrl;this.config=config;} async grant(){const headers=new Headers({'X-Wallet-Token':this.config.token});await this.config.fetch(this.identity+'/api/wallet/prepare-many/capability',{method:'POST',headers});return {logicalId:'66'.repeat(32),capability:'cc'.repeat(32),expiresAtUnix:2000000000};}}
+    class ZKasBatchClient {constructor(config){this.identity=config.baseUrl;this.config=config;} async grant(){const headers=new Headers({'X-Wallet-Token':this.config.token});const response=await this.config.fetch(this.identity+'/api/wallet/prepare-many/capability',{method:'POST',headers});if(!response.ok)throw Error('daemon HTTP '+response.status);return {logicalId:'66'.repeat(32),capability:'cc'.repeat(32),expiresAtUnix:2000000000};}}
     class ZKasBatchPayment {constructor(client){this.client=client;} async beginDirectFirstUse(intent,approval,ready){events.push('journal');globalThis.__factoryRecord={intent,directApproval:approval,status:'preparing'};await ready();events.push('grant');return this.client.grant(intent);}
       async completeDirectFromJournal(){events.push('complete-original');return {status:'unknown'};}
       async recover(){events.push('recover-original');return {status:'unknown'};}}
-    const fetch=async(_url,init)=>{events.push('fetch');globalThis.__factoryHeaders=Object.fromEntries(new Headers(init.headers));return new Response('{}',{status:200});};
+    const fetch=async(url,init)=>{events.push('fetch');globalThis.__factoryUrl=url;globalThis.__factoryHeaders=Object.fromEntries(new Headers(init.headers));return new Response('{}',{status:globalThis.__factoryStatus??200});};
   `;
   const output = await transform(prelude + body, {
     loader: "ts",
@@ -196,4 +198,62 @@ test("private production coordinator replays and seals only after popup approval
   expect(
     (globalThis as unknown as { __factoryEvents: string[] }).__factoryEvents,
   ).not.toContain("pin");
+
+  const runBearerCase = async (daemonOrigin: string, status = 200) => {
+    Object.assign(globalThis, {
+      __factoryDaemonOrigin: daemonOrigin,
+      __factoryBearer: null,
+      __factoryStatus: status,
+      __factoryEvents: [],
+      __factoryHeaders: undefined,
+      __factoryUrl: undefined,
+      __factoryRecord: undefined,
+      __factoryWrongRecipient: false,
+      __factoryOtherAccount: false,
+      __factoryOtherWalletSameAddress: false,
+      __factoryPinGeneration: 0,
+    });
+    const factory = new Function(
+      output.code + "\nreturn FactoryProduction;",
+    )() as typeof import("../lib/zkas/direct-action-factory");
+    const started = await factory.directActionFactory.startReview(
+      "https://messages.example",
+      { kind: "invite", publicCard: "03" + "07".repeat(183), note: "hello" },
+    );
+    const result = await factory.directActionFactory.acceptApproval(
+      started.approvalId,
+      { assertCurrent: () => {} },
+    );
+    return {
+      result,
+      headers: (
+        globalThis as unknown as { __factoryHeaders?: Record<string, string> }
+      ).__factoryHeaders,
+      url: (globalThis as unknown as { __factoryUrl?: string }).__factoryUrl,
+    };
+  };
+
+  const publicDefault = await runBearerCase("https://zkwd.mooncake.space");
+  expect(publicDefault.result.state).toBe("pending");
+  expect(publicDefault.headers?.authorization).toBeUndefined();
+  expect(publicDefault.headers?.["x-wallet-token"]).toBe("aa".repeat(16));
+  expect(publicDefault.url).toBe(
+    "https://zkwd.mooncake.space/api/wallet/prepare-many/capability",
+  );
+
+  const custom = await runBearerCase("https://daemon.example");
+  expect(custom.result.state).toBe("unknown");
+  expect(custom.headers).toBeUndefined();
+  const lookalike = await runBearerCase(
+    "https://zkwd.mooncake.space.evil.example",
+  );
+  expect(lookalike.result.state).toBe("unknown");
+  expect(lookalike.headers).toBeUndefined();
+
+  const unauthorized = await runBearerCase("https://zkwd.mooncake.space", 401);
+  expect(unauthorized.result.state).toBe("unknown");
+  expect(unauthorized.headers?.authorization).toBeUndefined();
+  expect(unauthorized.url).toBe(
+    "https://zkwd.mooncake.space/api/wallet/prepare-many/capability",
+  );
 });

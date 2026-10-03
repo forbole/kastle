@@ -60,11 +60,13 @@ export async function registerSelectedZKasWallet(
   expectedAccount: ZKasSelection & { address?: string },
   expectedDaemonUrl: string,
   birthday = 0,
+  expectedIndexOrigin?: string,
 ): Promise<void> {
   await internal(Method.ZKAS_DAEMON_REGISTER, {
     expectedAccount,
     expectedOrigin: expectedDaemonUrl,
     birthday,
+    ...(expectedIndexOrigin === undefined ? {} : { expectedIndexOrigin }),
   });
 }
 

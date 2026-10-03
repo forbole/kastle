@@ -28,8 +28,8 @@ import {
   type WalletSettings,
 } from "@/contexts/WalletManagerContext";
 import { withWalletSettingsLock } from "@/lib/wallet-settings-storage";
-import { updateSettingsLocked } from "@/lib/settings-storage";
 import {
+  canonicalHistoryDaemonOrigin,
   canonicalHistoryIndexOrigin,
   DEFAULT_ZKAS_DAEMON_ORIGIN,
   DEFAULT_ZKAS_HISTORY_INDEX_ORIGIN,
@@ -74,7 +74,7 @@ export default function ZKasSettings() {
   const [indexUrl, setIndexUrl] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
-  const [savingIndex, setSavingIndex] = useState(false);
+  const [advanced, setAdvanced] = useState(false);
   const [historyGrants, setHistoryGrants] =
     useState<HistoryGrantListView | null>(null);
   const [historyGrantError, setHistoryGrantError] = useState("");
@@ -134,56 +134,6 @@ export default function ZKasSettings() {
     );
   }, [settings?.zkasHistoryIndexUrls, network]);
 
-  const saveIndex = async () => {
-    setError("");
-    setSavingIndex(true);
-    try {
-      if (
-        isSettingsLoading ||
-        !settings ||
-        network !== "mainnet" ||
-        !walletSettings
-      )
-        throw new Error("Select a ZKas Mainnet wallet first");
-      const origin = canonicalHistoryIndexOrigin(indexUrl);
-      const expectedWalletId = walletSettings.selectedWalletId;
-      const expectedAccountIndex = walletSettings.selectedAccountIndex;
-      if (!expectedWalletId || expectedAccountIndex === undefined)
-        throw new Error("Select a ZKas wallet account first");
-      // Browser host permission must be requested directly from this click.
-      const permissionRequest = browser.permissions.request({
-        origins: [historyIndexHostPattern(origin)],
-      });
-      if (!(await permissionRequest))
-        throw new Error("History index access was not granted");
-      const latestWalletSettings =
-        await storage.getItem<WalletSettings>(WALLET_SETTINGS);
-      if (
-        latestWalletSettings?.selectedWalletId !== expectedWalletId ||
-        latestWalletSettings.selectedAccountIndex !== expectedAccountIndex
-      ) {
-        throw new Error("Selected ZKas account changed. Review and retry.");
-      }
-      await updateSettingsLocked<Settings>(
-        SETTINGS_KEY,
-        (current) => ({
-          ...current,
-          zkasHistoryIndexUrls: {
-            ...current.zkasHistoryIndexUrls,
-            mainnet: origin,
-          },
-        }),
-        { expectedJson: JSON.stringify(settings) },
-      );
-    } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : "Unable to save history index",
-      );
-    } finally {
-      setSavingIndex(false);
-    }
-  };
-
   const save = async () => {
     setError("");
     setSaving(true);
@@ -191,18 +141,24 @@ export default function ZKasSettings() {
       if (isSettingsLoading || !settings || !network)
         throw new Error("Select a supported Kastle network first");
       if (!walletSettings) throw new Error("Wallet settings are still loading");
-      if (!url.trim()) throw new Error("Enter a ZKas daemon URL");
-      const daemonUrl = url.trim();
+      const daemonUrl = canonicalHistoryDaemonOrigin(url);
+      const selectedIndex = canonicalHistoryIndexOrigin(indexUrl);
       const expectedWalletId = walletSettings.selectedWalletId;
       const expectedAccountIndex = walletSettings.selectedAccountIndex;
-      const pattern = getZKasDaemonOriginPattern(daemonUrl);
+      const origins = [
+        ...new Set([
+          getZKasDaemonOriginPattern(daemonUrl),
+          historyIndexHostPattern(selectedIndex),
+        ]),
+      ];
       // Invoke this directly from the click handler. Firefox drops the required
       // user-action status after the first awaited operation.
       const permissionRequest = browser.permissions.request({
-        origins: [pattern],
+        origins,
       });
       const granted = await permissionRequest;
-      if (!granted) throw new Error("Daemon access was not granted");
+      if (!granted)
+        throw new Error("Daemon and history index access was not granted");
       const account = await getSelectedZKasAddress();
       if (
         account &&
@@ -243,9 +199,20 @@ export default function ZKasSettings() {
           }
           needsKaspaAddressRefresh = await switchZKasNetwork(daemonUrl, {
             deferKaspaAddressRefresh: true,
-            expectedCurrentDaemon: settings.zkasDaemonUrls?.mainnet ?? null,
+            sources: {
+              daemonUrl,
+              indexUrl: selectedIndex,
+              expectedDaemon: settings.zkasDaemonUrls?.mainnet ?? null,
+              expectedIndex: settings.zkasHistoryIndexUrls?.mainnet ?? null,
+            },
           });
-          if (account) await registerSelectedZKasWallet(account, daemonUrl);
+          if (account)
+            await registerSelectedZKasWallet(
+              account,
+              daemonUrl,
+              0,
+              selectedIndex,
+            );
         });
       } catch (cause) {
         setupFailed = true;
@@ -328,17 +295,45 @@ export default function ZKasSettings() {
           monitor shielded notes, and prepare proofs. Kastle keeps the spending
           key and signs payments locally.
         </p>
-        <label className="block text-sm" htmlFor="zkas-daemon-url">
-          Daemon URL
-        </label>
-        <input
-          id="zkas-daemon-url"
-          type="url"
-          value={url}
-          onChange={(event) => setUrl(event.target.value)}
-          placeholder="https://daemon.example"
-          className="w-full rounded-lg border border-daintree-700 bg-daintree-800 p-3 text-white"
-        />
+        <div className="space-y-1 rounded-lg bg-daintree-800 p-3 text-xs">
+          <p className="break-all">Wallet daemon: {url || "Not set"}</p>
+          <p className="break-all">History index: {indexUrl || "Not set"}</p>
+        </div>
+        <button
+          type="button"
+          aria-expanded={advanced}
+          onClick={() => setAdvanced((value) => !value)}
+          className="rounded border border-daintree-700 px-3 py-2 text-sm"
+        >
+          Advanced settings
+        </button>
+        {advanced && (
+          <section className="space-y-3" aria-label="Advanced ZKas settings">
+            <label className="block text-sm" htmlFor="zkas-daemon-url">
+              Daemon URL
+            </label>
+            <input
+              id="zkas-daemon-url"
+              type="url"
+              value={url}
+              onChange={(event) => setUrl(event.target.value)}
+              placeholder="https://daemon.example"
+              className="w-full rounded-lg border border-daintree-700 bg-daintree-800 p-3 text-white"
+            />
+            <label className="block text-sm" htmlFor="zkas-history-index-url">
+              Index origin
+            </label>
+            <input
+              id="zkas-history-index-url"
+              type="url"
+              value={indexUrl}
+              onChange={(event) => setIndexUrl(event.target.value)}
+              placeholder="https://index.example"
+              className="w-full rounded-lg border border-daintree-700 bg-daintree-800 p-3 text-white"
+            />
+            <DaemonBearerPairing draftOrigin={url} />
+          </section>
+        )}
         <p className="text-xs text-daintree-400">
           HTTPS is required except for localhost. Anyone controlling this daemon
           can see this wallet’s addresses, balance, and transaction history.
@@ -357,34 +352,6 @@ export default function ZKasSettings() {
         >
           {saving ? "Connecting wallet…" : "Share viewing key and connect"}
         </button>
-        <DaemonBearerPairing draftOrigin={url} />
-        <section className="space-y-2 pt-4" aria-label="History index setup">
-          <h2 className="font-semibold">Encrypted history index</h2>
-          <p className="text-xs text-daintree-400">
-            Enter the origin of your own transaction index. This setting grants
-            Kastle access to public encrypted transaction data; it does not let
-            websites read wallet messages.
-          </p>
-          <label className="block text-sm" htmlFor="zkas-history-index-url">
-            Index origin
-          </label>
-          <input
-            id="zkas-history-index-url"
-            type="url"
-            value={indexUrl}
-            onChange={(event) => setIndexUrl(event.target.value)}
-            placeholder="http://127.0.0.1:8786"
-            className="w-full rounded-lg border border-daintree-700 bg-daintree-800 p-3 text-white"
-          />
-          <button
-            type="button"
-            disabled={savingIndex || isSettingsLoading || network !== "mainnet"}
-            onClick={() => void saveIndex()}
-            className="w-full rounded-full border border-daintree-700 p-3 disabled:opacity-40"
-          >
-            {savingIndex ? "Saving index…" : "Save index origin"}
-          </button>
-        </section>
         <section className="space-y-2 pt-4" aria-label="Message history access">
           <h2 className="font-semibold">Message history access</h2>
           <p className="text-xs text-daintree-400">

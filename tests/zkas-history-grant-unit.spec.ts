@@ -72,19 +72,24 @@ test("history context pins the exact mainnet genesis and daemon", async () => {
   ).toThrow();
 });
 
-test("history index setup requests host permission from its own click before saving", () => {
+test("Connect requests both source hosts from its click before switching network", () => {
   const source = readFileSync(
     new URL("../components/screens/zkas/ZKasSettings.tsx", import.meta.url),
     "utf8",
   );
-  const saveIndex = source.slice(source.indexOf("const saveIndex ="));
-  expect(saveIndex).toContain("browser.permissions.request");
-  expect(saveIndex).toContain("updateSettingsLocked");
-  expect(saveIndex.indexOf("browser.permissions.request")).toBeLessThan(
-    saveIndex.indexOf("await permissionRequest"),
+  const connect = source.slice(
+    source.indexOf("const save ="),
+    source.indexOf("const disconnect ="),
   );
-  expect(saveIndex.indexOf("await permissionRequest")).toBeLessThan(
-    saveIndex.indexOf("updateSettingsLocked"),
+  expect(connect).toContain("getZKasDaemonOriginPattern(daemonUrl)");
+  expect(connect).toContain("historyIndexHostPattern(selectedIndex)");
+  expect(connect).toContain("browser.permissions.request");
+  expect(connect).toContain("switchZKasNetwork(daemonUrl");
+  expect(connect.indexOf("browser.permissions.request")).toBeLessThan(
+    connect.indexOf("await permissionRequest"),
+  );
+  expect(connect.indexOf("await permissionRequest")).toBeLessThan(
+    connect.indexOf("switchZKasNetwork(daemonUrl"),
   );
 });
 

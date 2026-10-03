@@ -12,6 +12,7 @@ import {
 } from "@/lib/zkas/daemon-bearer";
 import { zkasKeyService, type ZKasCredentials } from "@/lib/zkas/key-service";
 import { hasZKasConnection, zkasConnectionStore } from "@/lib/zkas/connection";
+import { requireHistoryIndexOrigin } from "@/lib/zkas/history-config";
 import { ExtensionService, type Message } from "../extension-service";
 import { Method } from "../methods";
 
@@ -35,6 +36,7 @@ const registerRequest = z
     method: z.literal(Method.ZKAS_DAEMON_REGISTER),
     expectedAccount: selection,
     expectedOrigin: z.string().max(256),
+    expectedIndexOrigin: z.string().max(256).optional(),
     birthday: z.number().int().nonnegative().safe(),
   })
   .strict();
@@ -568,6 +570,18 @@ export async function daemonRegister(
         credentials.address,
         request.birthday,
       );
+    },
+    undefined,
+    {
+      extraGuard: async () => {
+        if (request.expectedIndexOrigin === undefined) return;
+        const settings = await storage.getItem<Settings>(SETTINGS_KEY);
+        if (
+          !settings ||
+          requireHistoryIndexOrigin(settings) !== request.expectedIndexOrigin
+        )
+          throw new Error("Selected ZKas history index changed");
+      },
     },
   );
   sendResponse({ registered: true });

@@ -5,6 +5,7 @@ import type { Settings } from "@/contexts/SettingsContext";
 import {
   hasConfiguredZKasDaemon,
   requireZKasDaemonUrl,
+  selectZKasNetworkWithSources,
   selectZKasNetworkWithDaemon,
 } from "@/lib/zkas/setup";
 import { effectiveZKasSource } from "@/lib/zkas/history-config";
@@ -114,6 +115,37 @@ test("stale daemon save cannot replace a changed custom endpoint", () => {
       true,
       "https://new.example",
       earlier.zkasDaemonUrls?.mainnet,
+    ),
+  ).toThrow(/changed in another window/i);
+});
+
+test("Connect writes both selected origins together and rejects a stale index", () => {
+  const settings = {
+    networkId: "mainnet",
+    preview: true,
+    activeChain: "kaspa",
+    zkasDaemonUrls: { mainnet: "https://old-daemon.example" },
+    zkasHistoryIndexUrls: { mainnet: "https://old-index.example" },
+  } as Settings;
+  const selected = {
+    daemonUrl: "https://new-daemon.example",
+    indexUrl: "https://new-index.example",
+    expectedDaemon: "https://old-daemon.example",
+    expectedIndex: "https://old-index.example",
+  };
+  expect(selectZKasNetworkWithSources(settings, true, selected)).toMatchObject({
+    activeChain: "zkas",
+    zkasDaemonUrls: { mainnet: selected.daemonUrl },
+    zkasHistoryIndexUrls: { mainnet: selected.indexUrl },
+  });
+  expect(() =>
+    selectZKasNetworkWithSources(
+      {
+        ...settings,
+        zkasHistoryIndexUrls: { mainnet: "https://another-index.example" },
+      },
+      true,
+      selected,
     ),
   ).toThrow(/changed in another window/i);
 });

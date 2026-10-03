@@ -71,6 +71,10 @@ async function pairingService() {
     "zkasHistoryGrantPendingGet",
     "zkasHistoryGrantsList",
     "zkasHistoryGrantRevokeSaved",
+    "zkasDirectActionComplete",
+    "zkasDirectActionPendingGet",
+    "zkasPaymentSendOrdinary",
+    "zkasPaymentSendWebsite",
   ];
   const mocks: Record<string, string> = {
     "@/lib/keyring-manager.ts":
@@ -127,21 +131,26 @@ async function pairingService() {
   };
 }
 
-async function settingsBundle() {
+async function settingsBundle(
+  settingsValue = "{ zkasDaemonUrls: { mainnet: 'http://localhost:8765' }, zkasHistoryIndexUrls: { mainnet: 'http://127.0.0.1:8786' } }",
+  connectFixture = false,
+) {
   const root = process.cwd();
   const mocks: Record<string, string> = {
     "@/components/GeneralHeader":
       "export default function Header() { return null; }",
-    "@/hooks/useSettings":
-      "export const useSettings = () => [{ zkasDaemonUrls: { mainnet: 'http://localhost:8765' }, zkasHistoryIndexUrls: { mainnet: 'http://127.0.0.1:8786' } }, null, false];",
-    "@/hooks/wallet/useWalletManager":
-      "export default function useWalletManager() { return { walletSettings: { selectedWalletId: undefined, selectedAccountIndex: undefined }, refreshKaspaAddresses: async () => {} }; }",
-    "@/hooks/useSwitchNetwork":
-      "export default function useSwitchNetwork() { return { switchZKasNetwork: async () => {} }; }",
+    "@/hooks/useSettings": `export const useSettings = () => [${settingsValue}, null, false];`,
+    "@/hooks/wallet/useWalletManager": connectFixture
+      ? "export default function useWalletManager() { return { walletSettings: { selectedWalletId: 'wallet-1', selectedAccountIndex: 0 }, refreshKaspaAddresses: async () => {} }; }"
+      : "export default function useWalletManager() { return { walletSettings: { selectedWalletId: undefined, selectedAccountIndex: undefined }, refreshKaspaAddresses: async () => {} }; }",
+    "@/hooks/useSwitchNetwork": connectFixture
+      ? "export default function useSwitchNetwork() { return { switchZKasNetwork: (origin, options) => window.__connectSwitch(origin, options) }; }"
+      : "export default function useSwitchNetwork() { return { switchZKasNetwork: async () => {} }; }",
     "@/hooks/useStorageState":
       "export default function useStorageState(key) { return key.includes('connections') ? [{}, null, false] : [true, null, false]; }",
-    "@/lib/zkas/client":
-      "export const getZKasDaemonOriginPattern = () => 'http://localhost/*';",
+    "@/lib/zkas/client": connectFixture
+      ? "export const getZKasDaemonOriginPattern = x => `${new URL(x).protocol}//${new URL(x).hostname}/*`;"
+      : "export const getZKasDaemonOriginPattern = () => 'http://localhost/*';",
     "@/contexts/SettingsContext":
       "export const SETTINGS_KEY = 'local:settings';",
     "@/lib/zkas/connection":
@@ -152,16 +161,18 @@ async function settingsBundle() {
       "export const sendMessage = (method, data) => window.__pairingBridge(method, data);",
     "@/lib/wallet-network":
       "export const ZKAS_EXPERIMENTAL_KEY = 'local:zkas-enabled'; export const ZKAS_MAINNET = 'zkas-mainnet'; export const getVisibleWalletNetworks = () => ['zkas-mainnet'];",
-    "@/lib/zkas/popup-client":
-      "export const getZKasDaemonBirthday = async () => {}; export const getSelectedZKasAddress = async () => null; export const registerSelectedZKasWallet = async () => {};",
+    "@/lib/zkas/popup-client": connectFixture
+      ? "export const getZKasDaemonBirthday = x => window.__connectBirthday(x); export const getSelectedZKasAddress = () => window.__connectAccount(); export const registerSelectedZKasWallet = (...args) => window.__connectRegister(...args);"
+      : "export const getZKasDaemonBirthday = async () => {}; export const getSelectedZKasAddress = async () => null; export const registerSelectedZKasWallet = async () => {};",
     "@/contexts/WalletManagerContext":
       "export const WALLET_SETTINGS = 'local:wallet-settings';",
     "@/lib/wallet-settings-storage":
       "export const withWalletSettingsLock = async fn => fn();",
     "@/lib/settings-storage":
       "export const updateSettingsLocked = async () => {};",
-    "@/lib/zkas/history-config":
-      "export const DEFAULT_ZKAS_DAEMON_ORIGIN = 'https://zkwd.mooncake.space'; export const DEFAULT_ZKAS_HISTORY_INDEX_ORIGIN = 'https://matjam.mooncake.space'; export const canonicalHistoryIndexOrigin = x => x; export const historyIndexHostPattern = x => x;",
+    "@/lib/zkas/history-config": connectFixture
+      ? "export const DEFAULT_ZKAS_DAEMON_ORIGIN = 'https://zkwd.mooncake.space'; export const DEFAULT_ZKAS_HISTORY_INDEX_ORIGIN = 'https://matjam.mooncake.space'; export const canonicalHistoryDaemonOrigin = x => x; export const canonicalHistoryIndexOrigin = x => x; export const historyIndexHostPattern = x => `${new URL(x).protocol}//${new URL(x).hostname}/*`;"
+      : "export const DEFAULT_ZKAS_DAEMON_ORIGIN = 'https://zkwd.mooncake.space'; export const DEFAULT_ZKAS_HISTORY_INDEX_ORIGIN = 'https://matjam.mooncake.space'; export const canonicalHistoryDaemonOrigin = x => x; export const canonicalHistoryIndexOrigin = x => x; export const historyIndexHostPattern = x => x;",
     "@/lib/network-type": "export const NetworkType = { Mainnet: 'mainnet' };",
   };
   const result = await build({
@@ -307,9 +318,7 @@ async function lifecycleFixture() {
               ),
             );
       if (method === "KEYRING_STATUS" && statusGate) {
-        const gate = statusGate;
-        statusGate = undefined;
-        await gate();
+        await statusGate();
       }
       if (method === "ZKAS_DAEMON_BEARER_LIST" && listGate) {
         const gate = listGate;
@@ -354,7 +363,7 @@ async function lifecycleFixture() {
 }
 
 test("wallet settings offers daemon credential pairing without a selected ZKas account", async () => {
-  const bundle = await settingsBundle();
+  const bundle = await settingsBundle("{}");
   const browser = await chromium.launch({
     headless: true,
     executablePath: process.env.KASTLE_TEST_CHROMIUM_EXECUTABLE,
@@ -387,6 +396,24 @@ test("wallet settings offers daemon credential pairing without a selected ZKas a
     });
     await page.goto("http://127.0.0.1:19454/settings.html");
     await expect(
+      page.getByText("Wallet daemon: https://zkwd.mooncake.space"),
+    ).toBeVisible();
+    await expect(
+      page.getByText("History index: https://matjam.mooncake.space"),
+    ).toBeVisible();
+    await expect(page.getByLabel("Daemon URL")).toHaveCount(0);
+    await expect(page.getByLabel("Index origin")).toHaveCount(0);
+    await expect(
+      page.getByRole("region", { name: "Daemon transport credential" }),
+    ).toHaveCount(0);
+    await page.getByRole("button", { name: "Advanced settings" }).click();
+    await expect(page.getByLabel("Daemon URL")).toHaveValue(
+      "https://zkwd.mooncake.space",
+    );
+    await expect(page.getByLabel("Index origin")).toHaveValue(
+      "https://matjam.mooncake.space",
+    );
+    await expect(
       page.getByRole("region", { name: "Daemon transport credential" }),
     ).toBeVisible();
   } finally {
@@ -394,7 +421,135 @@ test("wallet settings offers daemon credential pairing without a selected ZKas a
   }
 });
 
+test("Connect requests both hosts and only saves or registers after permission and account checks", async () => {
+  const settings = { networkId: "mainnet", preview: true };
+  const bundle = await settingsBundle(JSON.stringify(settings), true);
+  const requests: string[][] = [];
+  const switches: Array<{ origin: string; options: any }> = [];
+  const registrations: unknown[][] = [];
+  let allowed = true;
+  let accountIndex = 0;
+  const browser = await chromium.launch({
+    headless: true,
+    executablePath: process.env.KASTLE_TEST_CHROMIUM_EXECUTABLE,
+  });
+  try {
+    const page = await browser.newPage();
+    await page.exposeFunction(
+      "__connectPermission",
+      async (value: { origins: string[] }) => {
+        requests.push(value.origins);
+        return allowed;
+      },
+    );
+    await page.exposeFunction("__connectAccount", async () => ({
+      walletId: "wallet-1",
+      accountIndex,
+    }));
+    await page.exposeFunction("__connectBirthday", async () => undefined);
+    await page.exposeFunction(
+      "__connectSwitch",
+      async (origin: string, options: any) => {
+        switches.push({ origin, options });
+        return false;
+      },
+    );
+    await page.exposeFunction(
+      "__connectRegister",
+      async (...args: unknown[]) => {
+        registrations.push(args);
+      },
+    );
+    await page.exposeFunction("__pairingBridge", async (method: string) =>
+      method === "ZKAS_HISTORY_GRANTS_LIST"
+        ? {
+            account: {
+              walletId: "wallet-1",
+              accountIndex: 0,
+              address0: "",
+              network: "mainnet",
+            },
+            records: [],
+          }
+        : { records: [] },
+    );
+    await page.addInitScript((currentSettings) => {
+      (window as any).browser = {
+        permissions: {
+          request: (value: unknown) =>
+            (window as any).__connectPermission(value),
+        },
+      };
+      (window as any).storage = {
+        getItem: async (key: string) =>
+          key === "local:settings"
+            ? currentSettings
+            : key === "local:wallet-settings"
+              ? { selectedWalletId: "wallet-1", selectedAccountIndex: 0 }
+              : true,
+      };
+    }, settings);
+    await page.route("**/*", async (route) => {
+      if (new URL(route.request().url()).pathname === "/settings.js")
+        await route.fulfill({ contentType: "text/javascript", body: bundle });
+      else
+        await route.fulfill({
+          contentType: "text/html",
+          body: '<div id="root"></div><script src="/settings.js"></script>',
+        });
+    });
+    await page.goto("http://127.0.0.1:19457/settings.html");
+    const connect = page.getByRole("button", {
+      name: "Share viewing key and connect",
+    });
+    await connect.click();
+    await expect.poll(() => registrations.length).toBe(1);
+    expect(requests).toEqual([
+      ["https://zkwd.mooncake.space/*", "https://matjam.mooncake.space/*"],
+    ]);
+    expect(switches).toEqual([
+      {
+        origin: "https://zkwd.mooncake.space",
+        options: {
+          deferKaspaAddressRefresh: true,
+          sources: {
+            daemonUrl: "https://zkwd.mooncake.space",
+            indexUrl: "https://matjam.mooncake.space",
+            expectedDaemon: null,
+            expectedIndex: null,
+          },
+        },
+      },
+    ]);
+    expect(registrations[0].slice(1)).toEqual([
+      "https://zkwd.mooncake.space",
+      0,
+      "https://matjam.mooncake.space",
+    ]);
+
+    allowed = false;
+    await connect.click();
+    await expect(page.getByRole("alert")).toContainText(
+      "access was not granted",
+    );
+    expect(switches).toHaveLength(1);
+    expect(registrations).toHaveLength(1);
+
+    allowed = true;
+    accountIndex = 1;
+    await connect.click();
+    await expect(page.getByRole("alert")).toContainText(
+      "Selected ZKas account changed",
+    );
+    expect(switches).toHaveLength(1);
+    expect(registrations).toHaveLength(1);
+  } finally {
+    await browser.close();
+  }
+});
+
 test("wallet-owned UI pairs and clears via the trusted encrypted dispatcher without revealing the token", async () => {
+  test.setTimeout(90_000);
   const entries = encryptedStorage();
   const keyring = new Keyring(`pairing-ui-${crypto.randomUUID()}`);
   await keyring.initialize("dummy-password");
@@ -495,6 +650,7 @@ test("wallet-owned UI pairs and clears via the trusted encrypted dispatcher with
         });
     });
     await page.goto("http://127.0.0.1:19455/settings.html");
+    await page.getByRole("button", { name: "Advanced settings" }).click();
     const section = page.getByRole("region", {
       name: "Daemon transport credential",
     });
@@ -507,7 +663,7 @@ test("wallet-owned UI pairs and clears via the trusted encrypted dispatcher with
     await input.fill(token);
     await pair.click();
     await expect(section).toContainText(
-      "Credential saved. This does not connect the daemon yet.",
+      "Credential saved for authenticated requests to this origin. Connect the wallet to validate the daemon and share its viewing key.",
     );
     await expect(input).toHaveValue("");
     await expect(section).toContainText(`${origin}`);
@@ -524,14 +680,14 @@ test("wallet-owned UI pairs and clears via the trusted encrypted dispatcher with
       .getByRole("button", { name: "Refresh saved credentials" })
       .click();
     await expect(section).toContainText(
-      "Source: stale. Credential saved only.",
+      "Source: stale. Saved for authenticated requests; connection status is separate.",
     );
     entries.set("local:settings", {});
     await page
       .getByRole("button", { name: "Refresh saved credentials" })
       .click();
     await expect(section).toContainText(
-      "Source: unconfigured. Credential saved only.",
+      "Source: stale. Saved for authenticated requests; connection status is separate.",
     );
     const hostile = await dispatch(
       Method.ZKAS_DAEMON_BEARER_LIST,
