@@ -148,6 +148,97 @@ export class FixedHistoryIndexClient {
     this.active?.abort();
   }
 
+  /** Untrusted cursor hint only. The configured daemon must witness selection. */
+  async getCursorHint(): Promise<{ genesis: string; cursor: string }> {
+    if (this.stopped || this.active)
+      throw new Error("Private index context unavailable");
+    const controller = new AbortController();
+    this.active = controller;
+    let expired = false;
+    let timeout: (() => void) | undefined;
+    const deadline = new Promise<never>((_, reject) => {
+      timeout = () => {
+        expired = true;
+        controller.abort();
+        reject(new Error("Private index hint deadline exceeded"));
+      };
+    });
+    const timer = setTimeout(() => timeout?.(), this.deadlineMs);
+    const bounded = <T>(operation: () => Promise<T>) =>
+      Promise.race([operation(), deadline]);
+    try {
+      const checked = async () => {
+        if (this.lease.indexUrl !== this.base || this.stopped || expired)
+          throw new Error("Private index context changed");
+        await bounded(() => this.lease.assertCurrent());
+        if (this.lease.indexUrl !== this.base || this.stopped || expired)
+          throw new Error("Private index context changed");
+      };
+      await checked();
+      await bounded(() => this.lease.assertHostPermission());
+      await checked();
+      const response = await bounded(() =>
+        this.fetcher(`${this.base}/v1/status`, {
+          method: "GET",
+          credentials: "omit",
+          redirect: "error",
+          cache: "no-store",
+          referrerPolicy: "no-referrer",
+          signal: controller.signal,
+        }),
+      );
+      await checked();
+      if (
+        response.status !== 200 ||
+        !response.body ||
+        Number(response.headers.get("content-length") ?? 0) > 65_536
+      )
+        throw new Error("Private index hint unavailable");
+      const reader = response.body.getReader();
+      const bytes = new Uint8Array(65_536);
+      let length = 0;
+      try {
+        for (;;) {
+          const part = await bounded(() => reader.read());
+          if (part.done) break;
+          if (length + part.value.length > bytes.length)
+            throw new Error("Private index hint exceeds limit");
+          bytes.set(part.value, length);
+          length += part.value.length;
+          await checked();
+        }
+      } finally {
+        reader.cancel().catch(() => undefined);
+        reader.releaseLock();
+      }
+      const value: unknown = JSON.parse(
+        new TextDecoder("utf-8", { fatal: true }).decode(
+          bytes.subarray(0, length),
+        ),
+      );
+      if (!value || typeof value !== "object" || Array.isArray(value))
+        throw new Error("Private index hint unavailable");
+      const row = value as Record<string, unknown>;
+      if (
+        typeof row.genesis !== "string" ||
+        !ID.test(row.genesis) ||
+        !row.cursor ||
+        typeof row.cursor !== "object" ||
+        Array.isArray(row.cursor)
+      )
+        throw new Error("Private index hint unavailable");
+      const cursor = (row.cursor as Record<string, unknown>).hash;
+      if (typeof cursor !== "string" || !ID.test(cursor))
+        throw new Error("Private index hint unavailable");
+      await checked();
+      return { genesis: row.genesis, cursor };
+    } finally {
+      clearTimeout(timer);
+      controller.abort();
+      this.active = undefined;
+    }
+  }
+
   async getRawTransaction(txid: string): Promise<Uint8Array> {
     if (!ID.test(txid)) throw new Error("Invalid indexed transaction ID");
     if (this.stopped) throw new Error("Private index context must be reopened");

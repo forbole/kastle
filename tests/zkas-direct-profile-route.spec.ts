@@ -96,6 +96,15 @@ async function handlers() {
       publicMessagingProfile: async () => { if (globalThis.__directRouteDeps.waitProfile) await globalThis.__directRouteDeps.waitProfile; return { ...globalThis.__directRouteDeps.profile }; },
       openPrivateMessagingSession: async () => ({ address: globalThis.__directRouteDeps.account.address, publicCard: () => Uint8Array.from(globalThis.__directRouteDeps.profile.publicCard.match(/.{2}/g), value => Number.parseInt(value, 16)), assertCurrent: async () => { if (globalThis.__directRouteDeps.pendingPrivateWork) throw Error('account changed'); }, close: () => {} }),
     };
+    const directReceiveRegistry = {
+      read: async (_, selected) => ({
+        view: { protocolId:'matjam-onchain-v3', accountAddress:selected.accountAddress,
+          history:'session-from-birth', invitations:[], contacts:[], threads:[] },
+        assertCurrent: async () => { if (globalThis.__directRouteDeps.pendingPrivateWork) throw Error('account changed'); },
+        assertImmediate: () => { if (globalThis.__directRouteDeps.pendingPrivateWork) throw Error('account changed'); },
+      }),
+      close: () => {},
+    };
     const sameZKasSelection = (a, b) => a.walletId === b.walletId && a.accountIndex === b.accountIndex && a.network === b.network;
   `;
   const result = await transform(`${prelude}\n${body}`, {
@@ -240,7 +249,7 @@ function setup() {
   return { message, sender };
 }
 
-test("connected profile returns only public card fields and view stays honestly unknown", async () => {
+test("connected profile returns only public card fields and view uses the private session scope", async () => {
   const { message, sender } = setup();
   const route = await handlers();
   let result: unknown;
@@ -266,7 +275,7 @@ test("connected profile returns only public card fields and view stays honestly 
     response: {
       protocolId: "matjam-onchain-v3",
       accountAddress: account.address,
-      history: "unknown",
+      history: "session-from-birth",
       invitations: [],
       contacts: [],
       threads: [],

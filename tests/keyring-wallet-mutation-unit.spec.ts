@@ -5,6 +5,21 @@ import type { WalletSecret } from "@/types/WalletSecret";
 import { ZKasBatchJournal } from "@/lib/zkas/batch-journal";
 import { readFileSync } from "node:fs";
 
+test("a saved history-grant mutation synchronously closes private receive subscribers", async () => {
+  const keyring = await createTestKeyring();
+  let closed = 0;
+  const unsubscribe = keyring.subscribeKeyMutation("zkasHistoryGrants", () => {
+    closed++;
+  });
+  await keyring.setValue("zkasHistoryGrants", { version: 1, records: [] });
+  expect(closed).toBe(1);
+  await keyring.removeValue("zkasHistoryGrants");
+  expect(closed).toBe(2);
+  unsubscribe();
+  await keyring.setValue("zkasHistoryGrants", { version: 1, records: [] });
+  expect(closed).toBe(2);
+});
+
 test("concurrent ZKas imports attach only the first seed", async () => {
   const keyring = await createTestKeyring();
   const selection = {

@@ -6,7 +6,7 @@ import {
 import wasmAssetUrl from "../../wasm/mj3-wallet/mj3_message_wallet_bindings_bg.wasm?url";
 
 const PINNED_WASM_SHA256 =
-  "3a5d2548e7db335b057489abf13d1e2fdceb22163db7b83488493f7ad476adbf";
+  "3a03deb43c478c54ca7c29c3726f1f9f47142761b838e3e9bf4514c198765809";
 const MAX_WASM_BYTES = 4 * 1024 * 1024;
 const LOAD_DEADLINE_MS = 10_000;
 const GENESIS = Uint8Array.from(
@@ -25,6 +25,23 @@ export type PrivateMessagingAccount = {
     expectedOrigin: string,
     trustedNowSeconds: bigint,
   ): Uint8Array;
+  directSessionStart(
+    network: string,
+    daemon: string,
+    sessionId: Uint8Array,
+    birthHash: Uint8Array,
+    birthDaa: bigint,
+    birthBlue: bigint,
+    sourceGeneration: bigint,
+  ): void;
+  directConfigure(collector: Uint8Array, pinnedCardsFlat: Uint8Array): void;
+  directRefreshStart(): void;
+  directNextRequest(limit: number): string;
+  directAcceptPage(raw: Uint8Array): number;
+  directNextBodyRequest(): string | undefined;
+  directAcceptBody(raw: Uint8Array): number;
+  directReceiveStatus(): number;
+  directReceiveSnapshot(): Uint8Array;
   close(): void;
 };
 
@@ -203,6 +220,17 @@ export async function createPrivateMessagingAccount(
             trustedNowSeconds,
           ),
         ),
+      directSessionStart: (...args) => current().direct_session_start(...args),
+      directConfigure: (collector, pinnedCardsFlat) =>
+        current().direct_receive_configure(collector, pinnedCardsFlat),
+      directRefreshStart: () => current().direct_refresh_start(),
+      directNextRequest: (limit) => current().direct_next_request(limit),
+      directAcceptPage: (raw) => current().direct_accept_page(raw),
+      directNextBodyRequest: () => current().direct_next_body_request(),
+      directAcceptBody: (raw) => current().direct_accept_body(raw),
+      directReceiveStatus: () => current().direct_receive_status(),
+      directReceiveSnapshot: () =>
+        Uint8Array.from(current().direct_receive_snapshot()),
       close,
     };
   } catch {

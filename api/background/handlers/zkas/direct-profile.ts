@@ -13,6 +13,7 @@ import { withWalletSettingsLock } from "@/lib/wallet-settings-storage";
 import { withSettingsLock } from "@/lib/settings-storage";
 import { SETTINGS_KEY, type Settings } from "@/contexts/SettingsContext";
 import { isZKasActive, ZKAS_EXPERIMENTAL_KEY } from "@/lib/wallet-network";
+import { directReceiveRegistry } from "@/lib/zkas/direct-receive";
 
 const protocolId = "matjam-onchain-v3";
 type PublicProfile = Awaited<
@@ -23,7 +24,7 @@ async function connectedProfile(
   origin: string | undefined,
   payload: unknown,
   sender: chrome.runtime.MessageSender,
-  deliver: (profile: PublicProfile) => void,
+  deliver: (profile: PublicProfile) => void | Promise<void>,
 ): Promise<void> {
   if (
     payload !== undefined ||
@@ -115,7 +116,7 @@ async function connectedProfile(
         if (currentCard !== profile.publicCard)
           throw new Error("Selected private messaging profile changed");
         assertLease();
-        deliver(profile);
+        await deliver(profile);
       }),
     );
   } finally {
@@ -140,16 +141,33 @@ export const zkasDirectViewHandler: Handler = async (
   sendResponse,
   sender,
 ) => {
-  await connectedProfile(message.origin, message.payload, sender, (profile) =>
-    sendResponse(
-      ApiUtils.createApiResponse(message.id, {
-        protocolId,
-        accountAddress: profile.accountAddress,
-        history: "unknown",
-        invitations: [],
-        contacts: [],
-        threads: [],
-      }),
-    ),
-  );
+  let initial: PublicProfile | undefined;
+  await connectedProfile(message.origin, message.payload, sender, (profile) => {
+    initial = profile;
+  });
+  if (!initial || !message.origin)
+    throw new Error("Private direct profile unavailable");
+  const prepared = await directReceiveRegistry.read(message.origin, initial);
+  try {
+    await connectedProfile(
+      message.origin,
+      message.payload,
+      sender,
+      async (profile) => {
+        if (
+          !initial ||
+          profile.accountAddress !== initial.accountAddress ||
+          profile.peerId !== initial.peerId ||
+          profile.publicCard !== initial.publicCard
+        )
+          throw new Error("Private direct account changed");
+        await prepared.assertCurrent();
+        prepared.assertImmediate();
+        sendResponse(ApiUtils.createApiResponse(message.id, prepared.view));
+      },
+    );
+  } catch (error) {
+    directReceiveRegistry.close();
+    throw error;
+  }
 };

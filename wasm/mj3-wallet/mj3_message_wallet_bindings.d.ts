@@ -533,6 +533,15 @@ export class NetworkId {
 export class PrivateMj3Account {
   free(): void;
   public_card(): Uint8Array;
+  direct_session_start(network: string, daemon: string, session_id: Uint8Array, birth_hash: Uint8Array, birth_daa: bigint, birth_blue: bigint, source_generation: bigint): void;
+  direct_receive_configure(collector: Uint8Array, pins_flat: Uint8Array): void;
+  direct_refresh_start(): void;
+  direct_next_request(limit: number): string;
+  direct_accept_page(raw: Uint8Array): number;
+  direct_next_body_request(): string | undefined;
+  direct_accept_body(raw: Uint8Array): number;
+  direct_receive_status(): number;
+  direct_receive_snapshot(): Uint8Array;
   /**
    * Candidate stream setup. These supplied strings are not privileged attestations.
    */

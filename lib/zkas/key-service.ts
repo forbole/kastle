@@ -60,7 +60,28 @@ export class ZKasKeyService {
   /** Internal selected-account actor. No website-facing method may return it. */
   async openPrivateMessagingSession(): Promise<{
     address: string;
+    selection: ZKasSelection;
+    daemonUrl: string | undefined;
+    indexUrl: string | undefined;
+    keyringSession: number;
     publicCard(): Uint8Array;
+    directSessionStart(
+      network: string,
+      daemon: string,
+      sessionId: Uint8Array,
+      birthHash: Uint8Array,
+      birthDaa: bigint,
+      birthBlue: bigint,
+      sourceGeneration: bigint,
+    ): void;
+    directConfigure(collector: Uint8Array, pinnedCardsFlat: Uint8Array): void;
+    directRefreshStart(): void;
+    directNextRequest(limit: number): string;
+    directAcceptPage(raw: Uint8Array): number;
+    directNextBodyRequest(): string | undefined;
+    directAcceptBody(raw: Uint8Array): number;
+    directReceiveStatus(): number;
+    directReceiveSnapshot(): Uint8Array;
     assertCurrent(): Promise<void>;
     close(): void;
   }> {
@@ -162,14 +183,30 @@ export class ZKasKeyService {
         controller.signal,
       );
       await assertCurrent();
+      const handle = () => {
+        synchronous();
+        if (!privateHandle)
+          throw new Error("Selected private messaging account closed");
+        return privateHandle;
+      };
       return {
         address: selectedAddress0,
+        selection: { ...selection },
+        daemonUrl: daemon,
+        indexUrl: index,
+        keyringSession: keyringVersion,
         publicCard: () => {
-          synchronous();
-          if (!privateHandle)
-            throw new Error("Selected private messaging account closed");
-          return new Uint8Array(privateHandle.publicCard());
+          return new Uint8Array(handle().publicCard());
         },
+        directSessionStart: (...args) => handle().directSessionStart(...args),
+        directConfigure: (...args) => handle().directConfigure(...args),
+        directRefreshStart: () => handle().directRefreshStart(),
+        directNextRequest: (limit) => handle().directNextRequest(limit),
+        directAcceptPage: (raw) => handle().directAcceptPage(raw),
+        directNextBodyRequest: () => handle().directNextBodyRequest(),
+        directAcceptBody: (raw) => handle().directAcceptBody(raw),
+        directReceiveStatus: () => handle().directReceiveStatus(),
+        directReceiveSnapshot: () => handle().directReceiveSnapshot(),
         assertCurrent: async () => {
           try {
             await assertCurrent();

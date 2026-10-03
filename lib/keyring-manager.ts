@@ -6,6 +6,7 @@ const ALLOWED_KEYS = [
   "zkasBatchJournal",
   "zkasHistoryGrants",
   "zkasDaemonBearers",
+  "zkasDirectBirths",
 ] as const;
 
 type AllowedKey = (typeof ALLOWED_KEYS)[number];
@@ -51,6 +52,10 @@ export class Keyring {
   private sessionVersion = 0;
   private mutationTail: Promise<void> = Promise.resolve();
   private mutationGenerations = new Map<string, number>();
+  private readonly privateKeyMutationListeners = new Map<
+    AllowedKey,
+    Set<() => void>
+  >();
   private privateWalletInvalidation = new Set<
     (reason: "lock" | "master-key" | "wallets") => void
   >();
@@ -88,6 +93,17 @@ export class Keyring {
   // This generation belongs to this Keyring actor; it is not a storage CAS.
   getMutationGeneration(key: AllowedKey): number {
     return this.mutationGenerations.get(key) ?? 0;
+  }
+
+  /** Background-private notice after a named encrypted record changes. */
+  subscribeKeyMutation(key: AllowedKey, listener: () => void): () => void {
+    let listeners = this.privateKeyMutationListeners.get(key);
+    if (!listeners) {
+      listeners = new Set();
+      this.privateKeyMutationListeners.set(key, listeners);
+    }
+    listeners.add(listener);
+    return () => listeners?.delete(listener);
   }
 
   /** Same-actor private handle fence; it is not a cross-process storage notification. */
@@ -130,6 +146,15 @@ export class Keyring {
       key,
       (this.mutationGenerations.get(key) ?? 0) + 1,
     );
+    for (const listener of [
+      ...(this.privateKeyMutationListeners.get(key as AllowedKey) ?? []),
+    ]) {
+      try {
+        listener();
+      } catch {
+        /* A notice cannot obstruct encrypted writes. */
+      }
+    }
   }
 
   private setMasterKey(key: CryptoKey | null): void {

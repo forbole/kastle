@@ -956,6 +956,85 @@ export class PrivateMj3Account {
         }
     }
     /**
+     * @param {Uint8Array} raw
+     * @returns {number}
+     */
+    direct_accept_body(raw) {
+        const ptr0 = passArray8ToWasm0(raw, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.privatemj3account_direct_accept_body(this.__wbg_ptr, ptr0, len0);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return ret[0];
+    }
+    /**
+     * @param {Uint8Array} raw
+     * @returns {number}
+     */
+    direct_accept_page(raw) {
+        const ptr0 = passArray8ToWasm0(raw, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.privatemj3account_direct_accept_page(this.__wbg_ptr, ptr0, len0);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return ret[0];
+    }
+    /**
+     * @param {number} limit
+     * @returns {string}
+     */
+    direct_next_request(limit) {
+        let deferred2_0;
+        let deferred2_1;
+        try {
+            const ret = wasm.privatemj3account_direct_next_request(this.__wbg_ptr, limit);
+            var ptr1 = ret[0];
+            var len1 = ret[1];
+            if (ret[3]) {
+                ptr1 = 0; len1 = 0;
+                throw takeFromExternrefTable0(ret[2]);
+            }
+            deferred2_0 = ptr1;
+            deferred2_1 = len1;
+            return getStringFromWasm0(ptr1, len1);
+        } finally {
+            wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+        }
+    }
+    direct_refresh_start() {
+        const ret = wasm.privatemj3account_direct_refresh_start(this.__wbg_ptr);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
+    }
+    /**
+     * Candidate-only fresh-wallet suffix. The keyring-private factory must
+     * witness the birth and fixed source before supplying these arguments.
+     * @param {string} network
+     * @param {string} daemon
+     * @param {Uint8Array} session_id
+     * @param {Uint8Array} birth_hash
+     * @param {bigint} birth_daa
+     * @param {bigint} birth_blue
+     * @param {bigint} source_generation
+     */
+    direct_session_start(network, daemon, session_id, birth_hash, birth_daa, birth_blue, source_generation) {
+        const ptr0 = passStringToWasm0(network, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(daemon, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passArray8ToWasm0(session_id, wasm.__wbindgen_malloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ptr3 = passArray8ToWasm0(birth_hash, wasm.__wbindgen_malloc);
+        const len3 = WASM_VECTOR_LEN;
+        const ret = wasm.privatemj3account_direct_session_start(this.__wbg_ptr, ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, birth_daa, birth_blue, source_generation);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
+    }
+    /**
      * Returns only the next lowercase cursor; the caller retains the requested limit.
      * @param {number} limit
      * @returns {string}
@@ -1024,6 +1103,17 @@ export class PrivateMj3Account {
         return v3;
     }
     /**
+     * 0 scanning, 1 bounded session tail ready, 2 protocol unknown, 3 halted.
+     * @returns {number}
+     */
+    direct_receive_status() {
+        const ret = wasm.privatemj3account_direct_receive_status(this.__wbg_ptr);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return ret[0];
+    }
+    /**
      * @param {number} limit
      * @returns {string}
      */
@@ -1046,6 +1136,19 @@ export class PrivateMj3Account {
         }
     }
     /**
+     * Binary direct-only view with session-from-birth coverage; no memo or key bytes.
+     * @returns {Uint8Array}
+     */
+    direct_receive_snapshot() {
+        const ret = wasm.privatemj3account_direct_receive_snapshot(this.__wbg_ptr);
+        if (ret[3]) {
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        var v1 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        return v1;
+    }
+    /**
      * Codes: 0 scanning, 1 observed tail, 2 ID support unknown, 3 gap, 4 unknown.
      * @param {Uint8Array} raw
      * @returns {number}
@@ -1058,6 +1161,37 @@ export class PrivateMj3Account {
             throw takeFromExternrefTable0(ret[1]);
         }
         return ret[0];
+    }
+    /**
+     * @returns {string | undefined}
+     */
+    direct_next_body_request() {
+        const ret = wasm.privatemj3account_direct_next_body_request(this.__wbg_ptr);
+        if (ret[3]) {
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        let v1;
+        if (ret[0] !== 0) {
+            v1 = getStringFromWasm0(ret[0], ret[1]).slice();
+            wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        }
+        return v1;
+    }
+    /**
+     * Privileged factory-only collector and exact locally approved cards.
+     * `pins_flat` is a concatenation of 184-byte signed cards.
+     * @param {Uint8Array} collector
+     * @param {Uint8Array} pins_flat
+     */
+    direct_receive_configure(collector, pins_flat) {
+        const ptr0 = passArray8ToWasm0(collector, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passArray8ToWasm0(pins_flat, wasm.__wbindgen_malloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.privatemj3account_direct_receive_configure(this.__wbg_ptr, ptr0, len0, ptr1, len1);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
     }
     /**
      * Wallet-private caller supplies the selected canonical mainnet address.

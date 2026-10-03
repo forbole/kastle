@@ -10,6 +10,39 @@ const id = "ab".repeat(32);
 const block = "cd".repeat(32);
 const raw = new TextEncoder().encode('{"daa":9007199254740993,"memo":"dummy"}');
 
+test("the bounded status cursor is only an untrusted fixed-origin hint", async () => {
+  const requests: string[] = [];
+  const client = new FixedHistoryIndexClient({
+    lease: lease(),
+    fetch: async (input) => {
+      requests.push(String(input));
+      return new Response(
+        JSON.stringify({
+          genesis: block,
+          cursor: { hash: id, daa: "9007199254740993" },
+        }),
+      );
+    },
+  });
+  expect(await client.getCursorHint()).toEqual({ genesis: block, cursor: id });
+  expect(requests).toEqual(["https://index.example.test/v1/status"]);
+  client.close();
+  await expect(client.getCursorHint()).rejects.toThrow();
+});
+
+test("a stalled status body remains inside the fixed deadline", async () => {
+  const stalled = new ReadableStream<Uint8Array>({
+    pull: () => new Promise(() => undefined),
+  });
+  const client = new FixedHistoryIndexClient({
+    lease: lease(),
+    deadlineMs: 20,
+    fetch: async () => new Response(stalled),
+  });
+  await expect(client.getCursorHint()).rejects.toThrow("deadline");
+  client.close();
+});
+
 function b64(bytes: Uint8Array): string {
   return Buffer.from(bytes).toString("base64url");
 }
