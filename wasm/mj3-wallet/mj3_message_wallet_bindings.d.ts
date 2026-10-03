@@ -533,20 +533,31 @@ export class NetworkId {
 export class PrivateMj3Account {
   free(): void;
   public_card(): Uint8Array;
-  direct_session_start(network: string, daemon: string, session_id: Uint8Array, birth_hash: Uint8Array, birth_daa: bigint, birth_blue: bigint, source_generation: bigint): void;
-  direct_receive_configure(collector: Uint8Array, pins_flat: Uint8Array): void;
-  direct_refresh_start(): void;
-  direct_next_request(limit: number): string;
-  direct_accept_page(raw: Uint8Array): number;
-  direct_next_body_request(): string | undefined;
-  direct_accept_body(raw: Uint8Array): number;
-  direct_receive_status(): number;
-  direct_receive_snapshot(): Uint8Array;
   /**
    * Candidate stream setup. These supplied strings are not privileged attestations.
    */
   history_start(expected_network: string, daemon_identity: string): void;
   recovery_start(network: string, daemon: string): void;
+  direct_accept_body(raw: Uint8Array): number;
+  direct_accept_page(raw: Uint8Array): number;
+  direct_review_text(peer_id: Uint8Array, text: string, max_network_fee_sompi: string): Uint8Array;
+  direct_next_request(limit: number): string;
+  direct_refresh_start(): void;
+  /**
+   * Privileged wallet popup review only; this returns public facts and
+   * one opaque token, without generating any output memo or commitment.
+   */
+  direct_review_invite(recipient_card: Uint8Array, note: string, max_network_fee_sompi: string): Uint8Array;
+  /**
+   * Journal identity after a completed seal, including a lost JS reply.
+   * This carries no token, memo, key, or new send capability.
+   */
+  direct_sealed_status(): Uint8Array | undefined;
+  /**
+   * Candidate-only fresh-wallet suffix. The keyring-private factory must
+   * witness the birth and fixed source before supplying these arguments.
+   */
+  direct_session_start(network: string, daemon: string, session_id: Uint8Array, birth_hash: Uint8Array, birth_daa: bigint, birth_blue: bigint, source_generation: bigint): void;
   /**
    * Returns only the next lowercase cursor; the caller retains the requested limit.
    */
@@ -554,11 +565,32 @@ export class PrivateMj3Account {
   recovery_accept_body(raw: Uint8Array): number;
   recovery_accept_page(raw: Uint8Array): number;
   sign_login_assertion(claim: Uint8Array, expected_origin: string, trusted_now: bigint): Uint8Array;
+  /**
+   * 0 scanning, 1 bounded session tail ready, 2 protocol unknown, 3 halted.
+   */
+  direct_receive_status(): number;
   recovery_next_request(limit: number): string;
+  direct_review_decision(inviter_id: Uint8Array, invitation_action_id: Uint8Array, decision: number, note: string, max_network_fee_sompi: string): Uint8Array;
+  /**
+   * The private keyring/popup controller calls this after exact human
+   * approval and a fixed-source check that the reviewed tip remains
+   * selected; a newer append-only head does not change this review.
+   */
+  direct_approve_and_seal(token: Uint8Array, selected_review_tip_hash: Uint8Array, selected_review_tip_daa: bigint, selected_source_generation: bigint): Uint8Array;
+  /**
+   * Binary direct-only view with session-from-birth coverage; no memo or key bytes.
+   */
+  direct_receive_snapshot(): Uint8Array;
   /**
    * Codes: 0 scanning, 1 observed tail, 2 ID support unknown, 3 gap, 4 unknown.
    */
   history_accept_response(raw: Uint8Array): number;
+  direct_next_body_request(): string | undefined;
+  /**
+   * Privileged factory-only collector and exact locally approved cards.
+   * `pins_flat` is a concatenation of 184-byte signed cards.
+   */
+  direct_receive_configure(collector: Uint8Array, pins_flat: Uint8Array): void;
   /**
    * Wallet-private caller supplies the selected canonical mainnet address.
    */
@@ -862,6 +894,20 @@ export interface InitOutput {
   readonly memory: WebAssembly.Memory;
   readonly __wbg_privatemj3account_free: (a: number, b: number) => void;
   readonly privatemj3account_close: (a: number) => void;
+  readonly privatemj3account_direct_accept_body: (a: number, b: number, c: number) => [number, number, number];
+  readonly privatemj3account_direct_accept_page: (a: number, b: number, c: number) => [number, number, number];
+  readonly privatemj3account_direct_approve_and_seal: (a: number, b: number, c: number, d: number, e: number, f: bigint, g: bigint) => [number, number, number, number];
+  readonly privatemj3account_direct_next_body_request: (a: number) => [number, number, number, number];
+  readonly privatemj3account_direct_next_request: (a: number, b: number) => [number, number, number, number];
+  readonly privatemj3account_direct_receive_configure: (a: number, b: number, c: number, d: number, e: number) => [number, number];
+  readonly privatemj3account_direct_receive_snapshot: (a: number) => [number, number, number, number];
+  readonly privatemj3account_direct_receive_status: (a: number) => [number, number, number];
+  readonly privatemj3account_direct_refresh_start: (a: number) => [number, number];
+  readonly privatemj3account_direct_review_decision: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => [number, number, number, number];
+  readonly privatemj3account_direct_review_invite: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number, number, number];
+  readonly privatemj3account_direct_review_text: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number, number, number];
+  readonly privatemj3account_direct_sealed_status: (a: number) => [number, number, number, number];
+  readonly privatemj3account_direct_session_start: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: bigint, k: bigint, l: bigint) => [number, number];
   readonly privatemj3account_history_accept_response: (a: number, b: number, c: number) => [number, number, number];
   readonly privatemj3account_history_next_request: (a: number, b: number) => [number, number, number, number];
   readonly privatemj3account_history_start: (a: number, b: number, c: number, d: number, e: number) => [number, number];

@@ -982,6 +982,27 @@ export class PrivateMj3Account {
         return ret[0];
     }
     /**
+     * @param {Uint8Array} peer_id
+     * @param {string} text
+     * @param {string} max_network_fee_sompi
+     * @returns {Uint8Array}
+     */
+    direct_review_text(peer_id, text, max_network_fee_sompi) {
+        const ptr0 = passArray8ToWasm0(peer_id, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(text, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(max_network_fee_sompi, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ret = wasm.privatemj3account_direct_review_text(this.__wbg_ptr, ptr0, len0, ptr1, len1, ptr2, len2);
+        if (ret[3]) {
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        var v4 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        return v4;
+    }
+    /**
      * @param {number} limit
      * @returns {string}
      */
@@ -1008,6 +1029,46 @@ export class PrivateMj3Account {
         if (ret[1]) {
             throw takeFromExternrefTable0(ret[0]);
         }
+    }
+    /**
+     * Privileged wallet popup review only; this returns public facts and
+     * one opaque token, without generating any output memo or commitment.
+     * @param {Uint8Array} recipient_card
+     * @param {string} note
+     * @param {string} max_network_fee_sompi
+     * @returns {Uint8Array}
+     */
+    direct_review_invite(recipient_card, note, max_network_fee_sompi) {
+        const ptr0 = passArray8ToWasm0(recipient_card, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(note, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(max_network_fee_sompi, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ret = wasm.privatemj3account_direct_review_invite(this.__wbg_ptr, ptr0, len0, ptr1, len1, ptr2, len2);
+        if (ret[3]) {
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        var v4 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        return v4;
+    }
+    /**
+     * Journal identity after a completed seal, including a lost JS reply.
+     * This carries no token, memo, key, or new send capability.
+     * @returns {Uint8Array | undefined}
+     */
+    direct_sealed_status() {
+        const ret = wasm.privatemj3account_direct_sealed_status(this.__wbg_ptr);
+        if (ret[3]) {
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        let v1;
+        if (ret[0] !== 0) {
+            v1 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+            wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        }
+        return v1;
     }
     /**
      * Candidate-only fresh-wallet suffix. The keyring-private factory must
@@ -1134,6 +1195,54 @@ export class PrivateMj3Account {
         } finally {
             wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
         }
+    }
+    /**
+     * @param {Uint8Array} inviter_id
+     * @param {Uint8Array} invitation_action_id
+     * @param {number} decision
+     * @param {string} note
+     * @param {string} max_network_fee_sompi
+     * @returns {Uint8Array}
+     */
+    direct_review_decision(inviter_id, invitation_action_id, decision, note, max_network_fee_sompi) {
+        const ptr0 = passArray8ToWasm0(inviter_id, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passArray8ToWasm0(invitation_action_id, wasm.__wbindgen_malloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(note, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ptr3 = passStringToWasm0(max_network_fee_sompi, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len3 = WASM_VECTOR_LEN;
+        const ret = wasm.privatemj3account_direct_review_decision(this.__wbg_ptr, ptr0, len0, ptr1, len1, decision, ptr2, len2, ptr3, len3);
+        if (ret[3]) {
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        var v5 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        return v5;
+    }
+    /**
+     * The private keyring/popup controller calls this after exact human
+     * approval and a fixed-source check that the reviewed tip remains
+     * selected; a newer append-only head does not change this review.
+     * @param {Uint8Array} token
+     * @param {Uint8Array} selected_review_tip_hash
+     * @param {bigint} selected_review_tip_daa
+     * @param {bigint} selected_source_generation
+     * @returns {Uint8Array}
+     */
+    direct_approve_and_seal(token, selected_review_tip_hash, selected_review_tip_daa, selected_source_generation) {
+        const ptr0 = passArray8ToWasm0(token, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passArray8ToWasm0(selected_review_tip_hash, wasm.__wbindgen_malloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.privatemj3account_direct_approve_and_seal(this.__wbg_ptr, ptr0, len0, ptr1, len1, selected_review_tip_daa, selected_source_generation);
+        if (ret[3]) {
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        var v3 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        return v3;
     }
     /**
      * Binary direct-only view with session-from-birth coverage; no memo or key bytes.

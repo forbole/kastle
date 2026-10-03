@@ -4,9 +4,16 @@ import {
   PrivateMj3Account,
 } from "../../wasm/mj3-wallet/mj3_message_wallet_bindings.js";
 import wasmAssetUrl from "../../wasm/mj3-wallet/mj3_message_wallet_bindings_bg.wasm?url";
+import {
+  decodeNativeDirectReview,
+  decodeNativeDirectSealed,
+  decodeNativeDirectSealedStatus,
+  type NativeDirectReview,
+  type NativeDirectSealed,
+} from "./direct-action-codec";
 
 const PINNED_WASM_SHA256 =
-  "3a03deb43c478c54ca7c29c3726f1f9f47142761b838e3e9bf4514c198765809";
+  "8e902ca1bedbf30103a09f5bd74efc60229dcf218d11f17260ca83d3a3227259";
 const MAX_WASM_BYTES = 4 * 1024 * 1024;
 const LOAD_DEADLINE_MS = 10_000;
 const GENESIS = Uint8Array.from(
@@ -42,6 +49,35 @@ export type PrivateMessagingAccount = {
   directAcceptBody(raw: Uint8Array): number;
   directReceiveStatus(): number;
   directReceiveSnapshot(): Uint8Array;
+  directReviewInvite(
+    card: Uint8Array,
+    note: string,
+    maxNetworkFeeSompi: string,
+  ): NativeDirectReview;
+  directReviewDecision(
+    inviterId: Uint8Array,
+    invitationActionId: Uint8Array,
+    decision: 0 | 1,
+    note: string,
+    maxNetworkFeeSompi: string,
+  ): NativeDirectReview;
+  directReviewText(
+    peerId: Uint8Array,
+    text: string,
+    maxNetworkFeeSompi: string,
+  ): NativeDirectReview;
+  /** Privileged caller must first prove this reviewed selected tip remains selected. */
+  directApproveAndSeal(
+    review: NativeDirectReview,
+    selectedReview: {
+      hash: string;
+      daa: bigint;
+      sourceGeneration: bigint;
+    },
+  ): NativeDirectSealed;
+  directSealedStatus(): ReturnType<
+    typeof decodeNativeDirectSealedStatus
+  > | null;
   close(): void;
 };
 
@@ -152,12 +188,14 @@ export async function createPrivateMessagingAccount(
     seed.fill(0);
   }
   let native: PrivateMj3Account | undefined;
+  let configuredCollector: Uint8Array | undefined;
   let closed = false;
   let abortWait: ((reason: Error) => void) | undefined;
   const close = () => {
     if (closed) return;
     closed = true;
     privateSeed.fill(0);
+    configuredCollector = undefined;
     signal.removeEventListener("abort", onAbort);
     if (native) {
       try {
@@ -198,6 +236,11 @@ export async function createPrivateMessagingAccount(
         throw new Error("Private messaging account is closed");
       return native;
     };
+    const collector = () => {
+      if (!configuredCollector)
+        throw new Error("Direct collector is not configured");
+      return configuredCollector;
+    };
     return {
       publicCard: () => Uint8Array.from(current().public_card()),
       signLoginAssertion: (claim, expectedOrigin, trustedNowSeconds) =>
@@ -221,8 +264,10 @@ export async function createPrivateMessagingAccount(
           ),
         ),
       directSessionStart: (...args) => current().direct_session_start(...args),
-      directConfigure: (collector, pinnedCardsFlat) =>
-        current().direct_receive_configure(collector, pinnedCardsFlat),
+      directConfigure: (address, pinnedCardsFlat) => {
+        current().direct_receive_configure(address, pinnedCardsFlat);
+        configuredCollector = Uint8Array.from(address);
+      },
       directRefreshStart: () => current().direct_refresh_start(),
       directNextRequest: (limit) => current().direct_next_request(limit),
       directAcceptPage: (raw) => current().direct_accept_page(raw),
@@ -231,6 +276,51 @@ export async function createPrivateMessagingAccount(
       directReceiveStatus: () => current().direct_receive_status(),
       directReceiveSnapshot: () =>
         Uint8Array.from(current().direct_receive_snapshot()),
+      directReviewInvite: (card, note, fee) =>
+        decodeNativeDirectReview(
+          current().direct_review_invite(card, note, fee),
+          collector(),
+        ),
+      directReviewDecision: (inviter, invitation, decision, note, fee) =>
+        decodeNativeDirectReview(
+          current().direct_review_decision(
+            inviter,
+            invitation,
+            decision,
+            note,
+            fee,
+          ),
+          collector(),
+        ),
+      directReviewText: (peer, text, fee) =>
+        decodeNativeDirectReview(
+          current().direct_review_text(peer, text, fee),
+          collector(),
+        ),
+      directApproveAndSeal: (review, selectedReview) => {
+        if (
+          selectedReview.hash !== review.selectedReviewTipHash ||
+          selectedReview.daa !== review.selectedReviewTipDaa ||
+          selectedReview.sourceGeneration !== review.sourceGeneration
+        )
+          throw new Error("Reviewed direct selected tip changed");
+        const tip = Uint8Array.from(selectedReview.hash.match(/../g)!, (pair) =>
+          parseInt(pair, 16),
+        );
+        const sealed = current().direct_approve_and_seal(
+          Uint8Array.from(review.token),
+          tip,
+          selectedReview.daa,
+          selectedReview.sourceGeneration,
+        );
+        return decodeNativeDirectSealed(sealed, review);
+      },
+      directSealedStatus: () => {
+        const status = current().direct_sealed_status();
+        return status === undefined
+          ? null
+          : decodeNativeDirectSealedStatus(status);
+      },
       close,
     };
   } catch {

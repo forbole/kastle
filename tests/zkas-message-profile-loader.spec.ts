@@ -13,7 +13,7 @@ const wasmPath = path.join(
   "wasm/mj3-wallet/mj3_message_wallet_bindings_bg.wasm",
 );
 const pinnedWasm =
-  "3a03deb43c478c54ca7c29c3726f1f9f47142761b838e3e9bf4514c198765809";
+  "8e902ca1bedbf30103a09f5bd74efc60229dcf218d11f17260ca83d3a3227259";
 const origin = "https://matjam.mooncake.space";
 const vectors = [
   {
@@ -231,9 +231,11 @@ test("private direct receive methods remain handle-bound and expose no raw key m
     globalThis.fetch = async () => new Response(wasm);
     const account = await createPrivateMessagingAccount(raw(vectors[2].seed), vectors[2].address, new AbortController().signal);
     assert.deepEqual(Object.keys(account).sort(), [
-      "close", "directAcceptBody", "directAcceptPage", "directConfigure", "directNextBodyRequest",
-      "directNextRequest", "directReceiveSnapshot", "directReceiveStatus", "directRefreshStart",
-      "directSessionStart", "publicCard", "signCardPublicationAssertion", "signLoginAssertion",
+      "close", "directAcceptBody", "directAcceptPage", "directApproveAndSeal", "directConfigure",
+      "directNextBodyRequest", "directNextRequest", "directReceiveSnapshot", "directReceiveStatus",
+      "directRefreshStart", "directReviewDecision", "directReviewInvite", "directReviewText",
+      "directSealedStatus", "directSessionStart", "publicCard", "signCardPublicationAssertion",
+      "signLoginAssertion",
     ].sort());
     account.directSessionStart("mainnet", "https://wallet.example.test", raw("01".repeat(16)), raw("02".repeat(32)), 4n, 4n, 7n);
     account.directConfigure(raw("b676d61cabef82d1837ffe0f0c69a2002bedb7bd371c1c0b6654dffd2618070be9dfe22640c6c399b2ac22"), new Uint8Array());
