@@ -5,14 +5,14 @@ import { formatToken } from "@/lib/utils.ts";
 import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import Header from "@/components/GeneralHeader.tsx";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
-import { Address, PublicKey, sompiToKaspaString } from "@/wasm/core/kaspa";
+import { PublicKey, sompiToKaspaString } from "@/wasm/core/kaspa";
 import { twMerge } from "tailwind-merge";
 import { useBoolean } from "usehooks-ts";
 import { useTokenBalance } from "@/hooks/kasplex/useTokenBalance";
 import { applyDecimal, buildCommitRevealScript } from "@/lib/krc20.ts";
 import RecentAddresses from "@/components/send/RecentAddresses.tsx";
 import spinner from "@/assets/images/spinner.svg";
-import { useKns } from "@/hooks/kns/useKns";
+import { useResolveRecipient } from "@/hooks/names/useResolveRecipient";
 import { Tooltip } from "react-tooltip";
 import PriorityFeeSelection from "@/components/send/PriorityFeeSelection.tsx";
 import { useKasFeeEstimate } from "@/hooks/useKasFeeEstimate";
@@ -34,7 +34,7 @@ export const DetailsStep = () => {
   const [settings] = useSettings();
   const { account } = useWalletManager();
   const { mempoolCongestionLevel } = useMempoolStatus();
-  const { fetchDomainInfo } = useKns();
+  const resolveRecipient = useResolveRecipient();
   const { value: isAddressFieldFocused, setValue: setAddressFieldFocused } =
     useBoolean(false);
 
@@ -128,36 +128,25 @@ export const DetailsStep = () => {
       return "You cannot send KRC20 to yourself";
     }
 
-    const domainInfo = value.endsWith(".kas")
-      ? await fetchDomainInfo(value)
-      : undefined;
-    const resolvedAddress = domainInfo?.data?.owner;
+    try {
+      const resolved = await resolveRecipient(value);
 
-    const isValidKnsRecord = () => {
-      const outcome = !!resolvedAddress && Address.validate(resolvedAddress);
-
-      if (outcome) {
-        setValue("address", resolvedAddress);
-        setValue("domain", value);
-        setError("userInput", { message: undefined });
-      } else {
+      if (!resolved.address) {
         setValue("address", undefined);
         setValue("domain", undefined);
+        return resolved.fault ?? genericErrorMessage;
       }
 
-      return outcome;
-    };
+      if (resolved.address === account?.address) {
+        setValue("address", undefined);
+        setValue("domain", undefined);
+        return "You cannot send KRC20 to yourself";
+      }
 
-    const isValidKaspaAddress = () => {
-      const isValid = Address.validate(value);
-
-      setValue("address", isValid ? value : undefined);
-
-      return isValid;
-    };
-
-    try {
-      return isValidKnsRecord() || isValidKaspaAddress() || genericErrorMessage;
+      setValue("address", resolved.address);
+      setValue("domain", resolved.domain);
+      if (resolved.domain) setError("userInput", { message: undefined });
+      return true;
     } catch (error) {
       console.error(error);
       return genericErrorMessage;

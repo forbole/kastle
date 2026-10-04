@@ -5,7 +5,7 @@ import igraLockup from "@/assets/images/network-logos/igra-lockup.png";
 
 type NameCardProps = {
   name: string;
-  source: "kas" | "igra";
+  source: "kas" | "igra" | "dotk";
   isVerified?: boolean;
   size?: "sm" | "lg";
   onClick: () => void;
@@ -103,8 +103,8 @@ export default function NameCard({
         </span>
 
         {source === "kas" ? (
-          // ponytail: two exported leaves rather than one merged file -- the
-          // combined Figma export is a padded 39x18 box that would misalign.
+          // Two exported leaves rather than one merged file: the combined Figma
+          // export is a padded 39x18 box that would misalign.
           <span
             style={{ height: px(10), width: px(30.8) }}
             className="relative block"
@@ -126,6 +126,18 @@ export default function NameCard({
               }}
               className="absolute"
             />
+          </span>
+        ) : source === "dotk" ? (
+          // Text lockup: no dotK brand asset has been designed yet.
+          <span
+            style={{
+              height: px(10),
+              fontSize: px(9),
+              textShadow: `0px 0px ${px(4)} rgba(0,19,58,0.4)`,
+            }}
+            className="block font-bold leading-none text-white"
+          >
+            dotK
           </span>
         ) : (
           <img

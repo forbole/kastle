@@ -51,6 +51,7 @@ import ConfirmDeploy from "@/components/screens/full-pages/ConfirmDeploy.tsx";
 import DeployingToken from "@/components/screens/full-pages/DeployingToken.tsx";
 import { RecentAddressesProvider } from "@/contexts/RecentAddressesContext.tsx";
 import KNSAsset from "@/components/screens/KNSAsset";
+import DotkAsset from "@/components/screens/DotkAsset";
 import INSAsset from "@/components/screens/INSAsset";
 import InsSetTarget from "@/components/screens/InsSetTarget";
 import InsTransfer from "@/components/screens/InsTransfer";
@@ -176,6 +177,11 @@ const SwapRoute = () => {
 const BridgeRoute = () => {
   const { isBridgeEnabled } = useFeatureFlags();
   return isBridgeEnabled ? <Bridge /> : <Navigate to="/dashboard" replace />;
+};
+
+const DotkRoute = () => {
+  const { isDotkEnabled } = useFeatureFlags();
+  return isDotkEnabled ? <DotkAsset /> : <Navigate to="/dashboard" replace />;
 };
 
 const ActivityRoute = () => {
@@ -320,6 +326,10 @@ export const router = createHashRouter([
                   {
                     path: "ins/:name",
                     element: <INSAsset />,
+                  },
+                  {
+                    path: "dotk/:name",
+                    element: <DotkRoute />,
                   },
                   {
                     path: "ins/:name/set-target",
