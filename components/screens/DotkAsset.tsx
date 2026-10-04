@@ -9,8 +9,10 @@ import { NetworkType } from "@/contexts/SettingsContext";
 import { textEllipsis } from "@/lib/utils";
 import Copy from "@/components/Copy";
 import HoverShowAllCopy from "@/components/HoverShowAllCopy";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
+import { useFeatureFlags } from "@/hooks/useFeatureFlags";
 
-// Read-only. TODO(dotk): transfer / records / release are covenant-tx write
+// Read-only apart from Transfer. TODO(dotk): records / release are covenant-tx write
 // paths and live in later phases, not here.
 function AddressRow({
   label,
@@ -47,6 +49,8 @@ export default function DotkAsset() {
   const { name } = useParams();
   const { networkId } = useRpcClientStateful();
   const { lookup, isLoading, error } = useDotkName(name);
+  const { account, wallet } = useWalletManager();
+  const { isDotkEnabled } = useFeatureFlags();
 
   const explorer =
     explorerAddressLinks[networkId ?? NetworkType.Mainnet] ?? undefined;
@@ -55,6 +59,11 @@ export default function DotkAsset() {
     resolved?.deedAddress ??
     (lookup?.kind === "pending" ? lookup.deedAddress : undefined);
   const records = resolved?.records ?? {};
+  const isLedger = wallet?.type === "ledger";
+  const canTransfer =
+    isDotkEnabled &&
+    !!resolved?.address &&
+    resolved.address === account?.address;
 
   // Not-found is not "free": a failed or unanswered lookup says so rather than
   // implying the name is unowned.
@@ -139,6 +148,25 @@ export default function DotkAsset() {
           </div>
         )}
       </div>
+
+      {canTransfer && (
+        <div className="flex shrink-0 flex-col gap-2 pt-2">
+          {isLedger && (
+            <span className="text-center text-xs text-daintree-400">
+              Ledger can’t sign covenant (version 1) transactions, so .k names
+              can’t be transferred from it.
+            </span>
+          )}
+          <button
+            type="button"
+            className="inline-flex w-full items-center justify-center rounded-full border border-white px-4 py-[14px] text-[15px] font-semibold text-white disabled:border-[#093446] disabled:text-[#083344]"
+            disabled={isLedger}
+            onClick={() => navigate(`/dotk/${name}/transfer`)}
+          >
+            Transfer
+          </button>
+        </div>
+      )}
     </div>
   );
 }
