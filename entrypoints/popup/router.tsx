@@ -52,6 +52,7 @@ import DeployingToken from "@/components/screens/full-pages/DeployingToken.tsx";
 import { RecentAddressesProvider } from "@/contexts/RecentAddressesContext.tsx";
 import KNSAsset from "@/components/screens/KNSAsset";
 import DotkAsset from "@/components/screens/DotkAsset";
+import DotkTransfer from "@/components/dotk-transfer/DotkTransfer";
 import INSAsset from "@/components/screens/INSAsset";
 import InsSetTarget from "@/components/screens/InsSetTarget";
 import InsTransfer from "@/components/screens/InsTransfer";
@@ -325,6 +326,10 @@ export const router = createHashRouter([
                   {
                     path: "dotk/:name",
                     element: <DotkAsset />,
+                  },
+                  {
+                    path: "dotk/:name/transfer",
+                    element: <DotkTransfer />,
                   },
                   {
                     path: "ins/:name/set-target",
