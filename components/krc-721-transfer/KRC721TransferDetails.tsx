@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/GeneralHeader.tsx";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
-import { Address, PublicKey } from "@/wasm/core/kaspa";
+import { PublicKey } from "@/wasm/core/kaspa";
 import { twMerge } from "tailwind-merge";
 import { useBoolean } from "usehooks-ts";
 import RecentAddresses from "@/components/send/RecentAddresses.tsx";
@@ -12,7 +12,7 @@ import { Tooltip } from "react-tooltip";
 import { KRC721TransferFormData } from "@/components/screens/KRC721Transfer.tsx";
 import { buildKrc721TransferScript } from "@/lib/krc721";
 import { useKasFeeEstimate } from "@/hooks/useKasFeeEstimate";
-import { useKns } from "@/hooks/kns/useKns";
+import { useResolveRecipient } from "@/hooks/names/useResolveRecipient";
 import { formatToken } from "@/lib/utils.ts";
 import useKaspaBalance from "@/hooks/wallet/useKaspaBalance";
 import { useKRC721Details, useKRC721Image } from "@/hooks/krc721/useKRC721";
@@ -29,7 +29,7 @@ export const KRC721TransferDetails = ({
 }: KRC721TransferDetailsProps) => {
   const navigate = useNavigate();
   const { account } = useWalletManager();
-  const { fetchDomainInfo } = useKns();
+  const resolveRecipient = useResolveRecipient();
   const {
     register,
     watch,
@@ -90,38 +90,19 @@ export const KRC721TransferDetails = ({
       return "You cannot send NFT to yourself";
     }
 
-    const domainInfo = value.endsWith(".kas")
-      ? await fetchDomainInfo(value)
-      : undefined;
-    const resolvedAddress = domainInfo?.data?.owner;
+    try {
+      const resolved = await resolveRecipient(value);
 
-    const isValidKRC721Record = () => {
-      const outcome = !!resolvedAddress && Address.validate(resolvedAddress);
-
-      if (outcome) {
-        setValue("address", resolvedAddress);
-        setValue("domain", value);
-        setError("userInput", { message: undefined });
-      } else {
+      if (!resolved.address) {
         setValue("address", undefined);
         setValue("domain", undefined);
+        return resolved.fault ?? genericErrorMessage;
       }
 
-      return outcome;
-    };
-
-    const isValidKaspaAddress = () => {
-      const isValid = Address.validate(value);
-
-      setValue("address", isValid ? value : undefined);
-
-      return isValid;
-    };
-
-    try {
-      return (
-        isValidKRC721Record() || isValidKaspaAddress() || genericErrorMessage
-      );
+      setValue("address", resolved.address);
+      setValue("domain", resolved.domain);
+      if (resolved.domain) setError("userInput", { message: undefined });
+      return true;
     } catch (error) {
       console.error(error);
       return genericErrorMessage;

@@ -3,11 +3,12 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/GeneralHeader.tsx";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
-import { Address, PublicKey } from "@/wasm/core/kaspa";
+import { PublicKey } from "@/wasm/core/kaspa";
 import { twMerge } from "tailwind-merge";
 import { useBoolean } from "usehooks-ts";
 import spinner from "@/assets/images/spinner.svg";
-import { useAssetDetails, useKns } from "@/hooks/kns/useKns";
+import { useAssetDetails } from "@/hooks/kns/useKns";
+import { useResolveRecipient } from "@/hooks/names/useResolveRecipient";
 import { formatToken } from "@/lib/utils.ts";
 import { Tooltip } from "react-tooltip";
 import { KNSTransferFormData } from "@/components/screens/KNSTransfer.tsx";
@@ -27,7 +28,7 @@ export const KNSTransferDetails = ({
 }: KNSTransferDetailsProps) => {
   const navigate = useNavigate();
   const { account } = useWalletManager();
-  const { fetchDomainInfo } = useKns();
+  const resolveRecipient = useResolveRecipient();
   const {
     register,
     watch,
@@ -88,36 +89,19 @@ export const KNSTransferDetails = ({
       return "You cannot send KNS to yourself";
     }
 
-    const domainInfo = value.endsWith(".kas")
-      ? await fetchDomainInfo(value)
-      : undefined;
-    const resolvedAddress = domainInfo?.data?.owner;
+    try {
+      const resolved = await resolveRecipient(value);
 
-    const isValidKnsRecord = () => {
-      const outcome = !!resolvedAddress && Address.validate(resolvedAddress);
-
-      if (outcome) {
-        setValue("address", resolvedAddress);
-        setValue("domain", value);
-        setError("userInput", { message: undefined });
-      } else {
+      if (!resolved.address) {
         setValue("address", undefined);
         setValue("domain", undefined);
+        return resolved.fault ?? genericErrorMessage;
       }
 
-      return outcome;
-    };
-
-    const isValidKaspaAddress = () => {
-      const isValid = Address.validate(value);
-
-      setValue("address", isValid ? value : undefined);
-
-      return isValid;
-    };
-
-    try {
-      return isValidKnsRecord() || isValidKaspaAddress() || genericErrorMessage;
+      setValue("address", resolved.address);
+      setValue("domain", resolved.domain);
+      if (resolved.domain) setError("userInput", { message: undefined });
+      return true;
     } catch (error) {
       console.error(error);
       return genericErrorMessage;
