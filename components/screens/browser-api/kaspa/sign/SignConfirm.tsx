@@ -16,7 +16,7 @@ import { twMerge } from "tailwind-merge";
 import { useSettings } from "@/hooks/useSettings";
 import { useBoolean } from "usehooks-ts";
 import ledgerSignImage from "@/assets/images/ledger-on-sign.svg";
-import { formatCurrency } from "@/lib/utils.ts";
+import { formatUsdAmount } from "@/lib/utils.ts";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 import { deserializeTransaction } from "@/lib/kaspa-compat";
 import { hasZeroOutputCommitment } from "@/lib/wallet/sign-script.ts";
@@ -245,7 +245,7 @@ export default function SignConfirm({
                       {differenceInKas.toFixed(3)} KAS
                     </span>
                     <span className="text-xs text-daintree-400">
-                      {formatCurrency(
+                      {formatUsdAmount(
                         differenceCurrency,
                         differenceCurrencyCode,
                       )}
@@ -264,7 +264,7 @@ export default function SignConfirm({
                       {parseFloat(sendingAmountInKas).toFixed(3)} KAS
                     </span>
                     <span className="text-xs text-daintree-400">
-                      {formatCurrency(amountCurrency, amountCurrencyCode)}
+                      {formatUsdAmount(amountCurrency, amountCurrencyCode)}
                     </span>
                   </div>
                 </div>
@@ -277,7 +277,7 @@ export default function SignConfirm({
                       {parseFloat(feesInKas).toFixed(3)} KAS
                     </span>
                     <span className="text-xs text-daintree-400">
-                      {formatCurrency(feesCurrency, feesCurrencyCode)}
+                      {formatUsdAmount(feesCurrency, feesCurrencyCode)}
                     </span>
                   </div>
                 </div>

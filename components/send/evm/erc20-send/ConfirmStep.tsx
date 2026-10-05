@@ -9,7 +9,7 @@ import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { IWalletWithGetAddress } from "@/lib/ethereum/wallet/wallet-interface.ts";
 import { captureException } from "@sentry/react";
 import { twMerge } from "tailwind-merge";
-import { formatCurrency } from "@/lib/utils.ts";
+import { formatUsdAmount } from "@/lib/utils.ts";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 import useEvmAddress from "@/hooks/evm/useEvmAddress";
 import useFeeEstimate from "@/hooks/evm/useFeeEstimate";
@@ -200,7 +200,7 @@ export const ConfirmStep = ({
                   {amountNumber.toFixed(3)} {asset.symbol}
                 </span>
                 <span className="text-xs text-daintree-400">
-                  {formatCurrency(amountCurrency, amountCurrencyCode)}
+                  {formatUsdAmount(amountCurrency, amountCurrencyCode)}
                 </span>
               </div>
             </div>
@@ -213,7 +213,7 @@ export const ConfirmStep = ({
                   {formatToken(feesToken)} {gasSymbol}
                 </span>
                 <span className="text-xs text-daintree-400">
-                  {formatCurrency(feesCurrency, feesCurrencyCode)}
+                  {formatUsdAmount(feesCurrency, feesCurrencyCode)}
                 </span>
               </div>
             </div>

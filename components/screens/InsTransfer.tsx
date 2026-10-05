@@ -16,7 +16,7 @@ import useEvmHotWalletSigner from "@/hooks/wallet/useEvmHotWalletSigner";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { sendEvmTransaction } from "@/lib/ethereum/transaction";
 import { toInsLabel } from "@/lib/ins/insRegistry";
-import { formatCurrency, formatFeeInKas, textEllipsis } from "@/lib/utils";
+import { formatUsdAmount, formatFeeInKas, textEllipsis } from "@/lib/utils";
 import useCurrencyValue from "@/hooks/useCurrencyValue";
 import useKaspaPrice from "@/hooks/useKaspaPrice";
 import carriageImage from "@/assets/images/carriage.png";
@@ -488,7 +488,7 @@ function TransferConfirm({
                 {feeInKas} KAS
               </span>
               <span className="text-xs text-daintree-400">
-                {formatCurrency(feesCurrency, feesCurrencyCode)}
+                {formatUsdAmount(feesCurrency, feesCurrencyCode)}
               </span>
             </div>
           </div>
