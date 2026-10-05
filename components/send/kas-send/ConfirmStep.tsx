@@ -59,7 +59,7 @@ export const ConfirmStep = ({
   const { fee: baseFee } = useKasFeeEstimate({ extraOutputCount: 1 });
   const feeKas = sompiToKaspaString(BigInt(baseFee ?? 0) + priorityFee);
   const fiatAmount = amountNumber * kaspaPrice.kaspaPrice;
-  const fiatFees = parseFloat(feeKas);
+  const fiatFees = parseFloat(feeKas) * kaspaPrice.kaspaPrice;
   const { amount: amountCurrency, code: amountCurrencyCode } =
     useCurrencyValue(fiatAmount);
   const { amount: feesCurrency, code: feesCurrencyCode } =
