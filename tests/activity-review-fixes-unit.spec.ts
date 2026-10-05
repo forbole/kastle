@@ -364,15 +364,27 @@ test("rowTitle: failed and refund_claimable never read Bridged/Swapped", () => {
 });
 
 test("fmtAmount/fmtFee: a tiny non-zero amount never renders 0", () => {
-  expect(m.fmtAmount("0.000000000000000001")).toBe("0.000000000000000001");
+  expect(m.fmtAmount("0.000000000000000001")).toBe("<0.00000001");
   expect(m.fmtAmount("0.0003")).toBe("0.0003");
+  expect(m.fmtAmount("0.0004")).toBe("0.0004");
+  expect(m.fmtAmount("0.00000004")).toBe("0.00000004");
+  expect(m.fmtAmount("0.000412345678901234")).toBe("0.00041235");
   expect(m.fmtAmount("1.23456")).toBe("1.235");
   expect(m.fmtAmount("0")).toBe("0");
-  expect(m.fmtFee("0.000000000000000001 KAS")).toBe("0.000000000000000001 KAS");
+  expect(m.fmtFee("0.000000000000000001 KAS")).toBe("<0.00000001 KAS");
 });
 
-test("usdText: a value under $0.005 yields no line", () => {
-  expect(m.usdText({ value: "0.001", symbol: "KAS" }, () => 0.1)).toBe("");
+test("usdText: small USD keeps precision, only a missing price hides it", () => {
+  expect(m.usdText({ value: "0.0123", symbol: "KAS" }, () => 0.1)).toBe(
+    "≈ $0.00123 USD",
+  );
+  expect(m.usdText({ value: "0.00000001", symbol: "KAS" }, () => 0.1)).toBe(
+    "≈ <$0.00001 USD",
+  );
+  expect(m.usdText({ value: "-0.00000001", symbol: "KAS" }, () => 0.1)).toBe(
+    "≈ >-$0.00001 USD",
+  );
+  expect(m.usdText({ value: "1", symbol: "KAS" }, () => 0)).toBe("");
   expect(m.usdText({ value: "100", symbol: "KAS" }, () => 0.1)).not.toBe("");
 });
 

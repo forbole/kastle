@@ -6,6 +6,7 @@ type HoverTooltipProps = {
   text: string;
   tooltipWidth?: string;
   style?: React.CSSProperties;
+  openOnFocus?: boolean;
   place?:
     | "top"
     | "bottom"
@@ -26,6 +27,7 @@ export default function HoverTooltip({
   text,
   tooltipWidth = "auto",
   style,
+  openOnFocus = false,
   place = "bottom",
   className,
   children,
@@ -36,6 +38,8 @@ export default function HoverTooltip({
     <div
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      onFocus={openOnFocus ? () => setIsHovered(true) : undefined}
+      onBlur={openOnFocus ? () => setIsHovered(false) : undefined}
       className={className}
     >
       <Tooltip

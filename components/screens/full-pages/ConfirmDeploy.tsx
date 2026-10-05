@@ -1,7 +1,7 @@
 import Header from "@/components/GeneralHeader.tsx";
 import { Tooltip } from "react-tooltip";
 import React from "react";
-import { formatCurrency } from "@/lib/utils.ts";
+import { formatUsdAmount } from "@/lib/utils.ts";
 import { applyDecimal, computeOperationFees } from "@/lib/krc20.ts";
 import { useNavigate } from "react-router-dom";
 import { useLocation } from "react-router";
@@ -102,7 +102,7 @@ export default function ConfirmDeploy() {
                 <div className="flex flex-col text-right">
                   <span className="font-medium">{totalFees} KAS</span>
                   <span className="text-xs text-daintree-400">
-                    {formatCurrency(feesCurrency, feesCurrencyCode)}
+                    {formatUsdAmount(feesCurrency, feesCurrencyCode)}
                   </span>
                 </div>
               </div>

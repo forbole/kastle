@@ -5,7 +5,7 @@ import {
   ActivityRowDescriptor,
   ActivityStatusToken,
 } from "@/lib/activity/types";
-import { formatCurrency } from "@/lib/utils";
+import { formatUsdAmount } from "@/lib/utils";
 import {
   IGRA_DEPOSIT_ACTIVITY_TYPE,
   KURVE_BRIDGE_ACTIVITY_TYPE,
@@ -149,13 +149,16 @@ export function fmtAmount(value: string): string {
   if (!value) return value;
   const n = Number(value);
   if (!Number.isFinite(n)) return value;
-  const capped = new Intl.NumberFormat("en-US", {
-    maximumFractionDigits: 3,
-  }).format(n);
-  // A true non-zero amount under 0.001 (e.g. 0.0003 KAS) rounds to a false
-  // "0" at 3dp — keep the original decimal string (swap history carries up to
-  // 36 decimals; re-formatting through Number/toFixed(8) would lose them).
-  return n !== 0 && Number(capped) === 0 ? value : capped;
+  // A true non-zero amount under 0.001 (e.g. 0.0004 KAS) would round to a false
+  // "0" at 3dp. Show up to 8 decimals instead (>= 5 significant for anything
+  // down to 0.00001), bounded so a 36-decimal raw value never prints in full.
+  if (n !== 0 && Math.abs(n) < 0.001) {
+    const tiny = new Intl.NumberFormat("en-US", {
+      maximumFractionDigits: 8,
+    }).format(n);
+    return Number(tiny) === 0 ? `${n < 0 ? "-" : ""}<0.00000001` : tiny;
+  }
+  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 3 }).format(n);
 }
 
 /** "<num> <SYM>" fee strings: cap like amounts, but never print a false 0. */
@@ -185,9 +188,7 @@ export function usdText(
   const value = Number(amount.value);
   if (!price || !Number.isFinite(value)) return "";
   const usd = value * price;
-  // A real value that still rounds to $0.00 is worse than no line at all.
-  if (usd < 0.005) return "";
-  return `≈ ${formatCurrency(usd)} USD`;
+  return `≈ ${formatUsdAmount(usd)} USD`;
 }
 
 function rateText(row: ActivityRowDescriptor): string | null {

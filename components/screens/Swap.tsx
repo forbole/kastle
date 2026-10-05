@@ -11,6 +11,7 @@ import {
   formatUnits,
   http,
   numberToHex,
+  parseAbi,
   parseUnits,
 } from "viem";
 import { toAccount } from "viem/accounts";
@@ -33,6 +34,7 @@ import {
 } from "@/components/swap-bridge/ui";
 import BottomNav, { ActivityHeaderButton } from "@/components/BottomNav";
 import { NetworkType } from "@/contexts/SettingsContext";
+import useSwitchNetwork from "@/hooks/useSwitchNetwork";
 import useEvmAddress from "@/hooks/evm/useEvmAddress";
 import useEvmHotWalletSigner from "@/hooks/wallet/useEvmHotWalletSigner";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
@@ -78,6 +80,11 @@ import {
 type ChainKey = "kasplex" | "igra";
 const CHAINS = { kasplex: kasplexMainnet, igra: igraMainnet };
 const NATIVE = "native";
+const WKAS_ABI = parseAbi([
+  "function deposit() payable",
+  "function withdraw(uint256 wad)",
+]);
+
 const SLIPPAGES = [0.5, 1, 2];
 const MIN_SLIPPAGE = 0.1;
 const MAX_SLIPPAGE = 50;
@@ -96,7 +103,8 @@ const SWAP_PROXY_ABI = [
   },
 ] as const;
 
-type SwapToken = SheetToken & { decimals: number };
+/** `rawBalance` is the numeric balance (formatted `balance` is for display). */
+type SwapToken = SheetToken & { decimals: number; rawBalance?: number };
 type ProviderQuote = {
   provider: SwapProvider;
   feeBps?: bigint;
@@ -139,13 +147,15 @@ const NETWORK_FEE_ERROR = "Oh, you need more for the network fees";
 export default function Swap() {
   const { networkId } = useRpcClientStateful();
   const isMainnet = (networkId ?? NetworkType.Mainnet) === NetworkType.Mainnet;
+  const { switchKaspaNetwork } = useSwitchNetwork();
+  const [mainnetPromptDismissed, setMainnetPromptDismissed] = useState(false);
   const { wallet } = useWalletManager();
   const evmAddress = useEvmAddress();
   const signer = useEvmHotWalletSigner();
   const { kaspaPrice } = useKaspaPrice();
   const { emitSwapCompleted } = useAnalytics();
 
-  const [chainKey, setChainKey] = useState<ChainKey>("kasplex");
+  const [chainKey, setChainKey] = useState<ChainKey>("igra");
   const chain = CHAINS[chainKey];
   const chainHex = numberToHex(chain.id) as Hex;
   const client = useMemo(
@@ -167,17 +177,30 @@ export default function Swap() {
   const { data: nativeBalances } = useEvmKasBalances();
   const { data: erc20Balances } = useErc20Balances();
   const tokens = useMemo(() => {
-    const erc20Balance = (chainId: Hex, address: string) => {
+    const erc20Entry = (chainId: Hex, address: string) => {
       const b = erc20Balances?.find(
         (b) =>
           !("error" in b) &&
           b.chainId === chainId &&
           b.tokenAddress.toLowerCase() === address.toLowerCase(),
       );
-      return b && !("error" in b)
-        ? formatAmount(b.balance, Math.min(b.decimals, 8))
-        : undefined;
+      return b && !("error" in b) ? b : undefined;
     };
+    const erc20Balance = (chainId: Hex, address: string) => {
+      const b = erc20Entry(chainId, address);
+      return b ? formatAmount(b.balance, Math.min(b.decimals, 8)) : undefined;
+    };
+    const erc20Raw = (chainId: Hex, address: string) => {
+      const b = erc20Entry(chainId, address);
+      return b ? Number(b.balance) : undefined;
+    };
+    // The dashboard's icon wins so a token shows the same logo on both screens.
+    const dashboardIcon = (chainId: Hex, address: string) =>
+      assets.find(
+        (a) =>
+          a.chainId === chainId &&
+          a.address.toLowerCase() === address.toLowerCase(),
+      )?.image;
     const list: SwapToken[] = [];
     for (const key of ["kasplex", "igra"] as ChainKey[]) {
       const c = CHAINS[key];
@@ -191,6 +214,7 @@ export default function Swap() {
         chainImage: c.icon,
         balance:
           native === undefined ? undefined : formatAmount(Number(native), 8),
+        rawBalance: native === undefined ? undefined : Number(native),
       });
       const zealous = key === "igra" ? zealousIgra : zealousKasplex;
       const imageBase =
@@ -202,9 +226,10 @@ export default function Swap() {
           symbol: t.symbol,
           address: t.address,
           decimals: t.decimals,
-          image: `${imageBase}${t.logoURI}`,
+          image: dashboardIcon(hex, t.address) || `${imageBase}${t.logoURI}`,
           chainImage: c.icon,
           balance: erc20Balance(hex, t.address),
+          rawBalance: erc20Raw(hex, t.address),
         });
       }
       for (const a of assets.filter((a) => a.chainId === hex)) {
@@ -219,16 +244,37 @@ export default function Swap() {
           image: a.image,
           chainImage: c.icon,
           balance: erc20Balance(hex, a.address),
+          rawBalance: erc20Raw(hex, a.address),
         });
       }
+      // Default swap target (WiKAS on Igra) must resolve even if unlisted.
+      const wrapped = getWkasAddress(hex)?.toLowerCase();
+      if (
+        key === "igra" &&
+        wrapped &&
+        !list.some((t) => t.key === `igra:${wrapped}`)
+      )
+        list.push({
+          key: `igra:${wrapped}`,
+          chain: key,
+          symbol: "WiKAS",
+          address: getWkasAddress(hex),
+          decimals: 18,
+          image: dashboardIcon(hex, wrapped),
+          chainImage: c.icon,
+          balance: erc20Balance(hex, wrapped),
+          rawBalance: erc20Raw(hex, wrapped),
+        });
     }
     return list;
   }, [zealousKasplex, zealousIgra, assets, nativeBalances, erc20Balances]);
 
   const [tokenInKey, setTokenInKey] = useState<string | undefined>(
-    `kasplex:${NATIVE}`,
+    `igra:${NATIVE}`,
   );
-  const [tokenOutKey, setTokenOutKey] = useState<string>();
+  const [tokenOutKey, setTokenOutKey] = useState<string | undefined>(
+    `igra:${getWkasAddress(numberToHex(CHAINS.igra.id) as Hex)?.toLowerCase()}`,
+  );
   const tokenIn = tokens.find((t) => t.key === tokenInKey);
   const tokenOut = tokens.find((t) => t.key === tokenOutKey);
   const [amount, setAmount] = useState("");
@@ -245,6 +291,16 @@ export default function Swap() {
   const wkas = getWkasAddress(chainHex);
   const routeIn = (tokenIn?.address as Address | undefined) ?? wkas;
   const routeOut = (tokenOut?.address as Address | undefined) ?? wkas;
+  // Native <-> WKAS is a 1:1 WETH9 deposit/withdraw, not a DEX swap.
+  const isWrap =
+    isNativeIn &&
+    !!wkas &&
+    tokenOut?.address?.toLowerCase() === wkas.toLowerCase();
+  const isUnwrap =
+    isNativeOut &&
+    !!wkas &&
+    tokenIn?.address?.toLowerCase() === wkas.toLowerCase();
+  const isWrapPair = isWrap || isUnwrap;
 
   let rawIn = 0n;
   try {
@@ -273,9 +329,9 @@ export default function Swap() {
     { refreshInterval: 10_000 },
   );
 
-  const samePair = routeIn.toLowerCase() === routeOut.toLowerCase();
+  const samePair = !!tokenIn && tokenIn.key === tokenOut?.key;
   const { data: quotes, isLoading: quotesLoading } = useSWR(
-    isMainnet && tokenOut && rawIn > 0n && !samePair
+    isMainnet && tokenOut && rawIn > 0n && !samePair && !isWrapPair
       ? ["swapQuotes", chainHex, routeIn, routeOut, rawIn.toString()]
       : null,
     () =>
@@ -354,13 +410,16 @@ export default function Swap() {
     best ??
     supported[0];
 
-  const gas =
-    (isNativeIn
-      ? SWAP_GAS_ESTIMATES.KAS_TO_ERC20
-      : isNativeOut
-        ? SWAP_GAS_ESTIMATES.ERC20_TO_KAS
-        : SWAP_GAS_ESTIMATES.ERC20_TO_ERC20) +
-    (isNativeIn ? 0n : SWAP_GAS_ESTIMATES.APPROVAL);
+  const gas = isWrapPair
+    ? isUnwrap
+      ? SWAP_GAS_ESTIMATES.UNWRAP
+      : SWAP_GAS_ESTIMATES.WRAP
+    : (isNativeIn
+        ? SWAP_GAS_ESTIMATES.KAS_TO_ERC20
+        : isNativeOut
+          ? SWAP_GAS_ESTIMATES.ERC20_TO_KAS
+          : SWAP_GAS_ESTIMATES.ERC20_TO_ERC20) +
+      (isNativeIn ? 0n : SWAP_GAS_ESTIMATES.APPROVAL);
   const { data: networkFeeWei } = useFeeEstimateByGas(gas, chainHex);
 
   const { price: erc20PriceIn } = useErc20Price(
@@ -375,8 +434,9 @@ export default function Swap() {
   const priceOut = isNativeOut ? kaspaPrice : erc20PriceOut;
 
   const amountNum = Number(amount) || 0;
-  const outNum =
-    selected?.netAmountOut !== undefined && tokenOut
+  const outNum = isWrapPair
+    ? amountNum
+    : selected?.netAmountOut !== undefined && tokenOut
       ? Number(formatUnits(selected.netAmountOut, tokenOut.decimals))
       : undefined;
   const usdIn = amountNum * priceIn;
@@ -418,7 +478,7 @@ export default function Swap() {
       const needNative = (isNativeIn ? rawIn : 0n) + networkFeeWei;
       if (needNative > balances.native) return NETWORK_FEE_ERROR;
     }
-    if (quotes && !quotesLoading && supported.length === 0)
+    if (!isWrapPair && quotes && !quotesLoading && supported.length === 0)
       return "Unsupported token pair";
     if (feeUnavailable) return "Unable to load the KaspaCom partner fee.";
     return undefined;
@@ -426,14 +486,11 @@ export default function Swap() {
 
   const pickToken = (side: "in" | "out", t: SheetToken) => {
     const setThis = side === "in" ? setTokenInKey : setTokenOutKey;
-    const otherKey = side === "in" ? tokenOutKey : tokenInKey;
     const setOther = side === "in" ? setTokenOutKey : setTokenInKey;
     if (t.chain !== chainKey) {
       // Both legs live on one chain: switching chain resets the other side.
       setChainKey(t.chain as ChainKey);
       setOther(side === "in" ? undefined : `${t.chain}:${NATIVE}`);
-    } else if (otherKey === t.key) {
-      setOther(side === "in" ? tokenInKey : tokenOutKey);
     }
     setThis(t.key);
     setProviderName(undefined);
@@ -447,29 +504,22 @@ export default function Swap() {
   };
 
   const onConfirm = async () => {
-    if (
-      !selected?.path ||
-      !matchesRoute(selected.path) ||
-      !signer ||
-      !evmAddress ||
-      !tokenIn ||
-      !tokenOut
-    )
+    if (!isWrapPair && (!selected?.path || !matchesRoute(selected.path)))
       return;
+    if (!signer || !evmAddress || !tokenIn || !tokenOut) return;
     // Sign against this chain's own record of the provider, never the quote's
     // object (see resolveSwapProviderForChain).
-    const provider = resolveSwapProviderForChain(
-      selected.provider.name,
-      chainHex,
-    );
-    if (!provider) return;
+    const provider = isWrapPair
+      ? undefined
+      : resolveSwapProviderForChain(selected!.provider.name, chainHex);
+    if (!isWrapPair && !provider) return;
     const trackSwap = (status: "success" | "failed") =>
       emitSwapCompleted({
         status,
         chainId: chain.id,
         from: tokenIn.address ?? null,
         to: tokenOut.address ?? null,
-        router: provider.routerAddress,
+        router: provider?.routerAddress ?? null,
         sender: evmAddress,
         value_native: amountNum,
         native_asset: tokenIn.symbol,
@@ -493,8 +543,27 @@ export default function Swap() {
         chain,
         transport: http(),
       });
+      if (isWrapPair) {
+        const hash = await walletClient.writeContract({
+          address: wkas!,
+          abi: WKAS_ABI,
+          ...(isWrap
+            ? { functionName: "deposit" as const, value: rawIn }
+            : { functionName: "withdraw" as const, args: [rawIn] as const }),
+          gasPrice: await client.getGasPrice(),
+        } as Parameters<typeof walletClient.writeContract>[0]);
+        const receipt = await client.waitForTransactionReceipt({ hash });
+        if (receipt.status !== "success")
+          throw new Error(isWrap ? "Wrap reverted" : "Unwrap reverted");
+        toast.success(
+          isWrap ? "Wrapped successfully!" : "Unwrapped successfully!",
+        );
+        trackSwap("success");
+        setAmount("");
+        return;
+      }
       const executor = createSwapExecutor(
-        provider,
+        provider!,
         client,
         walletClient,
         wkas,
@@ -506,7 +575,7 @@ export default function Swap() {
         onApproved();
         const receipt = await executor.swapKASForTokens(
           rawIn,
-          selected.path,
+          selected!.path!,
           slippage,
         );
         if (receipt.status !== "success") throw new Error("Swap reverted");
@@ -516,14 +585,14 @@ export default function Swap() {
           ? await executor.swapTokensForKAS(
               tokenIn.address as Address,
               rawIn,
-              selected.path,
+              selected!.path!,
               slippage,
               onApproved,
             )
           : await executor.swapTokensForTokens(
               tokenIn.address as Address,
               rawIn,
-              selected.path,
+              selected!.path!,
               slippage,
               onApproved,
             );
@@ -542,9 +611,10 @@ export default function Swap() {
     }
   };
 
-  const loading = quotesLoading && supported.length === 0;
-  const minReceived =
-    selected?.netAmountOut !== undefined && tokenOut
+  const loading = !isWrapPair && quotesLoading && supported.length === 0;
+  const minReceived = isWrapPair
+    ? formatAmount(amountNum)
+    : selected?.netAmountOut !== undefined && tokenOut
       ? formatAmount(
           Number(
             formatUnits(
@@ -555,8 +625,10 @@ export default function Swap() {
         )
       : undefined;
   // Hidden when the output token has no price, rather than showing $0.00.
-  const minReceivedUsd =
-    selected?.netAmountOut !== undefined && tokenOut && priceOut > 0
+  // Wrap/unwrap is 1:1 with KAS, so value it at the native price.
+  const minReceivedUsd = isWrapPair
+    ? amountNum * kaspaPrice || undefined
+    : selected?.netAmountOut !== undefined && tokenOut && priceOut > 0
       ? Number(
           formatUnits(
             swapMinReceived(selected.netAmountOut, slippage),
@@ -646,38 +718,46 @@ export default function Swap() {
                   `${formatAmount(Number(formatEther(networkFeeWei)))} ${nativeSymbol}`
                 )}
               </QuoteRow>
-              <QuoteRow
-                label="Provider"
-                tooltip={TOOLTIPS.provider}
-                onClick={() => setSheet("provider")}
-              >
-                {selected ? (
-                  <>
-                    <img
-                      src={selected.provider.image}
-                      alt=""
-                      className="size-[26px] rounded-full"
-                    />
-                    {selected.provider.name}
-                  </>
-                ) : loading ? (
-                  <Skeleton />
-                ) : (
-                  "-"
-                )}
-              </QuoteRow>
-              <QuoteRow
-                label="Slippage"
-                tooltip={TOOLTIPS.slippage}
-                onClick={() => setSheet("slippage")}
-              >
-                {slippage}%
-              </QuoteRow>
-              <QuoteRow label="Price Impact" tooltip={TOOLTIPS.priceImpact}>
-                {priceImpact === undefined
-                  ? "-"
-                  : `${formatAmount(priceImpact, 2)}%`}
-              </QuoteRow>
+              {isWrapPair ? (
+                <QuoteRow label="Type">{isWrap ? "Wrap" : "Unwrap"}</QuoteRow>
+              ) : (
+                <QuoteRow
+                  label="Provider"
+                  tooltip={TOOLTIPS.provider}
+                  onClick={() => setSheet("provider")}
+                >
+                  {selected ? (
+                    <>
+                      <img
+                        src={selected.provider.image}
+                        alt=""
+                        className="size-[26px] rounded-full"
+                      />
+                      {selected.provider.name}
+                    </>
+                  ) : loading ? (
+                    <Skeleton />
+                  ) : (
+                    "-"
+                  )}
+                </QuoteRow>
+              )}
+              {!isWrapPair && (
+                <>
+                  <QuoteRow
+                    label="Slippage"
+                    tooltip={TOOLTIPS.slippage}
+                    onClick={() => setSheet("slippage")}
+                  >
+                    {slippage}%
+                  </QuoteRow>
+                  <QuoteRow label="Price Impact" tooltip={TOOLTIPS.priceImpact}>
+                    {priceImpact === undefined
+                      ? "-"
+                      : `${formatAmount(priceImpact, 2)}%`}
+                  </QuoteRow>
+                </>
+              )}
               <SwapFeeFootnote
                 kastleFee={kastleFee}
                 kastleFeeBps={kastleFeeBps}
@@ -711,7 +791,9 @@ export default function Swap() {
               : () => setAmount(formatUnits(balances.input, tokenIn.decimals))
             : undefined
         }
-        disabled={!!error || !selected?.path || rawIn === 0n || !signer}
+        disabled={
+          !!error || (!isWrapPair && !selected?.path) || rawIn === 0n || !signer
+        }
         loading={submitting}
         onClick={onConfirm}
       />
@@ -733,11 +815,37 @@ export default function Swap() {
             setTokenInKey(`${k}:${NATIVE}`);
             setTokenOutKey(undefined);
           }}
-          tokens={tokens}
+          tokens={
+            side === "in"
+              ? tokens
+                  .filter((t) => (t.rawBalance ?? 0) > 0)
+                  .map((t) => ({ ...t, disabled: t.key === tokenOutKey }))
+              : tokens.map((t) => ({ ...t, disabled: t.key === tokenInKey }))
+          }
           onSelect={(t) => pickToken(side, t)}
           recentKey="local:swap_recent_tokens"
         />
       ))}
+
+      <BottomSheet
+        title="Switch to mainnet"
+        open={!isMainnet && !mainnetPromptDismissed}
+        onClose={() => setMainnetPromptDismissed(true)}
+      >
+        <p className="px-3 py-2 text-sm text-white">
+          Swap is only available on mainnet. Switch networks to continue.
+        </p>
+        <button
+          className="mt-4 w-full rounded-full bg-icy-blue-400 py-3 text-base font-semibold text-white"
+          onClick={() => {
+            switchKaspaNetwork(NetworkType.Mainnet).catch(() =>
+              toast.error("Failed to switch network. Please try again."),
+            );
+          }}
+        >
+          Switch to mainnet
+        </button>
+      </BottomSheet>
 
       <BottomSheet
         title="Select Provider"
@@ -775,6 +883,7 @@ export default function Swap() {
 
       <BottomSheet
         title="Slippage"
+        subtitle="Your transaction will revert if the price moves unfavorably by more than this percentage."
         open={sheet === "slippage"}
         onClose={() => setSheet(undefined)}
         tall
@@ -812,8 +921,8 @@ export default function Swap() {
             }}
             className={
               customSlippageInput
-                ? "w-[72px] rounded-lg border border-icy-blue-400 bg-white/10 px-3 py-2.5 text-center text-[15px] font-semibold text-white placeholder:text-daintree-400 focus:outline-none"
-                : "w-[72px] rounded-lg border border-transparent bg-white/10 px-3 py-2.5 text-center text-[15px] font-semibold text-white placeholder:text-daintree-400 focus:outline-none"
+                ? "w-[96px] rounded-lg border border-icy-blue-400 bg-white/10 px-3 py-2.5 text-center text-[15px] font-semibold text-white placeholder:text-daintree-400 focus:outline-none"
+                : "w-[96px] rounded-lg border border-transparent bg-white/10 px-3 py-2.5 text-center text-[15px] font-semibold text-white placeholder:text-daintree-400 focus:outline-none"
             }
           />
         </div>
