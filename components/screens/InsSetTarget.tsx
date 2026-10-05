@@ -25,7 +25,7 @@ import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { sendEvmTransaction } from "@/lib/ethereum/transaction";
 import { TARGET_ABI, toInsLabel } from "@/lib/ins/insRegistry";
 import { igraMainnet } from "@/lib/layer2";
-import { formatCurrency, formatFeeInKas, textEllipsis } from "@/lib/utils";
+import { formatUsdAmount, formatFeeInKas, textEllipsis } from "@/lib/utils";
 import useCurrencyValue from "@/hooks/useCurrencyValue";
 import useKaspaPrice from "@/hooks/useKaspaPrice";
 import signImage from "@/assets/images/sign.png";
@@ -464,7 +464,7 @@ function SetTargetConfirm({
               {feeInKas} KAS
             </span>
             <span className="text-xs text-daintree-400">
-              {formatCurrency(feesCurrency, feesCurrencyCode)}
+              {formatUsdAmount(feesCurrency, feesCurrencyCode)}
             </span>
           </div>
         </div>

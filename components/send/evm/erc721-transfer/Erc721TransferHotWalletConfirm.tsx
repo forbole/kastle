@@ -8,7 +8,7 @@ import { encodeFunctionData, erc721Abi, isAddress } from "viem";
 import useFeeEstimate from "@/hooks/evm/useFeeEstimate";
 import signImage from "@/assets/images/sign.png";
 import useErc721Info from "@/hooks/evm/useErc721Info";
-import { formatCurrency, formatToken, textEllipsis } from "@/lib/utils";
+import { formatUsdAmount, formatToken, textEllipsis } from "@/lib/utils";
 import useCurrencyValue from "@/hooks/useCurrencyValue";
 import useKaspaPrice from "@/hooks/useKaspaPrice";
 import { useState } from "react";
@@ -147,7 +147,7 @@ export default function Erc721TransferHotWalletConfirm({
               {feeInKas} KAS
             </span>
             <span className="text-xs text-daintree-400">
-              {formatCurrency(feesCurrency, feesCurrencyCode)}
+              {formatUsdAmount(feesCurrency, feesCurrencyCode)}
             </span>
           </div>
         </div>
