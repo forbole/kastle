@@ -65,6 +65,7 @@ type WalletManagerContextType = {
   markWalletBacked: (walletId: string) => Promise<void>;
   getBalancesByAddresses: (addresses: string[]) => Promise<number>;
   refreshKaspaAddresses: (networkId: NetworkType) => Promise<void>;
+  isWalletSettingsLoading: boolean;
 };
 
 export const defaultValue = {
@@ -91,6 +92,7 @@ export const WalletManagerContext = createContext<WalletManagerContextType>({
   resetWallet: defaultAsyncFunction,
   getBalancesByAddresses: defaultAsyncFunction,
   refreshKaspaAddresses: defaultAsyncFunction,
+  isWalletSettingsLoading: false,
 });
 
 const getCurrentWalletInfo = (walletSettings: WalletSettings) => {
@@ -460,6 +462,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
         markWalletBacked,
         getBalancesByAddresses,
         refreshKaspaAddresses,
+        isWalletSettingsLoading,
       }}
     >
       {children}

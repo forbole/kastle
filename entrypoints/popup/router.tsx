@@ -84,6 +84,7 @@ import Swap from "@/components/screens/Swap";
 import Bridge from "@/components/screens/Bridge";
 import Activity from "@/components/screens/Activity";
 import { useFeatureFlags } from "@/hooks/useFeatureFlags";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 import CommitRevealConfirm from "@/components/screens/browser-api/kaspa/CommitRevealConfirm";
 import ShowWalletSecret from "@/components/screens/full-pages/show-wallet-secret/ShowWalletSecret";
 import { KeyringStatusCheckerProvider } from "@/contexts/KeyringStatusChecker";
@@ -170,12 +171,24 @@ const fullPageKeyringGuard = async ({ request }: LoaderFunctionArgs) => {
 
 const SwapRoute = () => {
   const { isSwapEnabled } = useFeatureFlags();
-  return isSwapEnabled ? <Swap /> : <Navigate to="/dashboard" replace />;
+  const { wallet, isWalletSettingsLoading } = useWalletManager();
+  if (isWalletSettingsLoading) return null;
+  return isSwapEnabled && wallet?.type !== "ledger" ? (
+    <Swap />
+  ) : (
+    <Navigate to="/dashboard" replace />
+  );
 };
 
 const BridgeRoute = () => {
   const { isBridgeEnabled } = useFeatureFlags();
-  return isBridgeEnabled ? <Bridge /> : <Navigate to="/dashboard" replace />;
+  const { wallet, isWalletSettingsLoading } = useWalletManager();
+  if (isWalletSettingsLoading) return null;
+  return isBridgeEnabled && wallet?.type !== "ledger" ? (
+    <Bridge />
+  ) : (
+    <Navigate to="/dashboard" replace />
+  );
 };
 
 const ActivityRoute = () => {
