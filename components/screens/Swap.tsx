@@ -403,7 +403,9 @@ export default function Swap() {
     supported[0];
 
   const gas = isWrapPair
-    ? SWAP_GAS_ESTIMATES.WRAP
+    ? isUnwrap
+      ? SWAP_GAS_ESTIMATES.UNWRAP
+      : SWAP_GAS_ESTIMATES.WRAP
     : (isNativeIn
         ? SWAP_GAS_ESTIMATES.KAS_TO_ERC20
         : isNativeOut
@@ -615,8 +617,9 @@ export default function Swap() {
         )
       : undefined;
   // Hidden when the output token has no price, rather than showing $0.00.
+  // Wrap/unwrap is 1:1 with KAS, so value it at the native price.
   const minReceivedUsd = isWrapPair
-    ? amountNum * priceOut || undefined
+    ? amountNum * kaspaPrice || undefined
     : selected?.netAmountOut !== undefined && tokenOut && priceOut > 0
       ? Number(
           formatUnits(
@@ -830,7 +833,6 @@ export default function Swap() {
             switchKaspaNetwork(NetworkType.Mainnet).catch(() =>
               toast.error("Failed to switch network. Please try again."),
             );
-            setMainnetPromptDismissed(true);
           }}
         >
           Switch to mainnet
