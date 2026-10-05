@@ -194,6 +194,13 @@ export default function Swap() {
       const b = erc20Entry(chainId, address);
       return b ? Number(b.balance) : undefined;
     };
+    // The dashboard's icon wins so a token shows the same logo on both screens.
+    const dashboardIcon = (chainId: Hex, address: string) =>
+      assets.find(
+        (a) =>
+          a.chainId === chainId &&
+          a.address.toLowerCase() === address.toLowerCase(),
+      )?.image;
     const list: SwapToken[] = [];
     for (const key of ["kasplex", "igra"] as ChainKey[]) {
       const c = CHAINS[key];
@@ -219,7 +226,7 @@ export default function Swap() {
           symbol: t.symbol,
           address: t.address,
           decimals: t.decimals,
-          image: `${imageBase}${t.logoURI}`,
+          image: dashboardIcon(hex, t.address) || `${imageBase}${t.logoURI}`,
           chainImage: c.icon,
           balance: erc20Balance(hex, t.address),
           rawBalance: erc20Raw(hex, t.address),
@@ -253,6 +260,7 @@ export default function Swap() {
           symbol: "WiKAS",
           address: getWkasAddress(hex),
           decimals: 18,
+          image: dashboardIcon(hex, wrapped),
           chainImage: c.icon,
           balance: erc20Balance(hex, wrapped),
           rawBalance: erc20Raw(hex, wrapped),

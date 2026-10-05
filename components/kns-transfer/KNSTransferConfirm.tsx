@@ -5,7 +5,7 @@ import Header from "@/components/GeneralHeader.tsx";
 import signImage from "@/assets/images/sign.png";
 import { useNavigate } from "react-router-dom";
 import { buildKnsTransferScript } from "@/lib/kns.ts";
-import { formatCurrency, formatToken } from "@/lib/utils.ts";
+import { formatUsdAmount, formatToken } from "@/lib/utils.ts";
 import useKaspaPrice from "@/hooks/useKaspaPrice.ts";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 import { PublicKey } from "@/wasm/core/kaspa";
@@ -92,7 +92,7 @@ export default function KNSTransferConfirm({
               ~{formatToken(totalFee, 3)} KAS
             </span>
             <span className="text-xs text-daintree-400">
-              {formatCurrency(feesCurrency, feesCurrencyCode)}
+              {formatUsdAmount(feesCurrency, feesCurrencyCode)}
             </span>
           </div>
         </div>

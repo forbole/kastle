@@ -374,8 +374,17 @@ test("fmtAmount/fmtFee: a tiny non-zero amount never renders 0", () => {
   expect(m.fmtFee("0.000000000000000001 KAS")).toBe("<0.00000001 KAS");
 });
 
-test("usdText: a value under $0.005 yields no line", () => {
-  expect(m.usdText({ value: "0.001", symbol: "KAS" }, () => 0.1)).toBe("");
+test("usdText: small USD keeps precision, only a missing price hides it", () => {
+  expect(m.usdText({ value: "0.0123", symbol: "KAS" }, () => 0.1)).toBe(
+    "≈ $0.00123 USD",
+  );
+  expect(m.usdText({ value: "0.00000001", symbol: "KAS" }, () => 0.1)).toBe(
+    "≈ <$0.00001 USD",
+  );
+  expect(m.usdText({ value: "-0.00000001", symbol: "KAS" }, () => 0.1)).toBe(
+    "≈ >-$0.00001 USD",
+  );
+  expect(m.usdText({ value: "1", symbol: "KAS" }, () => 0)).toBe("");
   expect(m.usdText({ value: "100", symbol: "KAS" }, () => 0.1)).not.toBe("");
 });
 

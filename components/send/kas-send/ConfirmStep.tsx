@@ -12,7 +12,7 @@ import useRecentAddresses from "@/hooks/useRecentAddresses.ts";
 import { captureException } from "@sentry/react";
 import { kaspaToSompi, sompiToKaspaString } from "@/wasm/core/kaspa";
 import { twMerge } from "tailwind-merge";
-import { formatCurrency } from "@/lib/utils.ts";
+import { formatUsdAmount } from "@/lib/utils.ts";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 import { createTransactions } from "@/wasm/core/kaspa";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
@@ -193,7 +193,7 @@ export const ConfirmStep = ({
                     {amountNumber.toFixed(3)} KAS
                   </span>
                   <span className="text-xs text-daintree-400">
-                    {formatCurrency(amountCurrency, amountCurrencyCode)}
+                    {formatUsdAmount(amountCurrency, amountCurrencyCode)}
                   </span>
                 </div>
               </div>
@@ -204,7 +204,7 @@ export const ConfirmStep = ({
                 <div className="flex flex-col text-right">
                   <span className="font-medium">{feeKas} KAS</span>
                   <span className="text-xs text-daintree-400">
-                    {formatCurrency(feesCurrency, feesCurrencyCode)}
+                    {formatUsdAmount(feesCurrency, feesCurrencyCode)}
                   </span>
                 </div>
               </div>

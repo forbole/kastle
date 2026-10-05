@@ -13,7 +13,7 @@ import { PublicKey } from "@/wasm/core/kaspa";
 import { useKasFeeEstimate } from "@/hooks/useKasFeeEstimate";
 import { formatToken } from "@/lib/utils.ts";
 import { useTokenInfo } from "@/hooks/kasplex/useTokenInfo";
-import { formatCurrency } from "@/lib/utils.ts";
+import { formatUsdAmount } from "@/lib/utils.ts";
 import useKaspaPrice from "@/hooks/useKaspaPrice.ts";
 import { Tooltip } from "react-tooltip";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
@@ -158,7 +158,7 @@ export const ConfirmTokenOperationStep = ({
                 <div className="flex flex-col text-right">
                   <span className="font-medium">{amount}</span>
                   <span className="text-xs text-daintree-400">
-                    {formatCurrency(amountCurrency, amountCurrencyCode)}
+                    {formatUsdAmount(amountCurrency, amountCurrencyCode)}
                   </span>
                 </div>
               </div>
@@ -192,7 +192,7 @@ export const ConfirmTokenOperationStep = ({
                     {formatToken(totalFees, 3)} KAS
                   </span>
                   <span className="text-xs text-daintree-400">
-                    {formatCurrency(feesCurrency, feesCurrencyCode)}
+                    {formatUsdAmount(feesCurrency, feesCurrencyCode)}
                   </span>
                 </div>
               </div>

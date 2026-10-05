@@ -6,7 +6,7 @@ import Header from "@/components/GeneralHeader.tsx";
 import signImage from "@/assets/images/sign.png";
 import { applyDecimal, computeOperationFees } from "@/lib/krc20.ts";
 import { Tooltip } from "react-tooltip";
-import { formatCurrency } from "@/lib/utils.ts";
+import { formatUsdAmount } from "@/lib/utils.ts";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 
 export default function ConfirmMint() {
@@ -113,7 +113,7 @@ export default function ConfirmMint() {
                     <span className="font-medium">{totalFees} KAS</span>
                   </div>
                   <span className="text-xs text-daintree-400">
-                    {formatCurrency(feesCurrency, feesCurrencyCode)}
+                    {formatUsdAmount(feesCurrency, feesCurrencyCode)}
                   </span>
                 </div>
               </div>
