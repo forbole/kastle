@@ -72,7 +72,11 @@ export function formatUsdAmount(number: number, code: string = "USD") {
   if (abs === 0 || abs >= 1 || !Number.isFinite(number)) {
     return formatCurrency(number, code);
   }
-  if (abs < 0.00001) return `<${formatTokenPrice(0.00001, code)}`;
+  if (abs < 0.00001) {
+    const negative = number < 0;
+    const threshold = formatTokenPrice(negative ? -0.00001 : 0.00001, code);
+    return `${negative ? ">" : "<"}${threshold}`;
+  }
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: code,

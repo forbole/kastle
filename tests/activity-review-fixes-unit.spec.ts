@@ -381,6 +381,9 @@ test("usdText: small USD keeps precision, only a missing price hides it", () => 
   expect(m.usdText({ value: "0.00000001", symbol: "KAS" }, () => 0.1)).toBe(
     "≈ <$0.00001 USD",
   );
+  expect(m.usdText({ value: "-0.00000001", symbol: "KAS" }, () => 0.1)).toBe(
+    "≈ >-$0.00001 USD",
+  );
   expect(m.usdText({ value: "1", symbol: "KAS" }, () => 0)).toBe("");
   expect(m.usdText({ value: "100", symbol: "KAS" }, () => 0.1)).not.toBe("");
 });
