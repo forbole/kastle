@@ -5,6 +5,8 @@ import { twMerge } from "tailwind-merge";
 import homeIcon from "@/assets/images/home.svg";
 import homeFilledIcon from "@/assets/images/home-filled.svg";
 import { useFeatureFlags } from "@/hooks/useFeatureFlags";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
+import HoverTooltip from "@/components/HoverTooltip";
 
 // Icon Park outline "bridge-two": the shape Figma renders for its
 // `icon-park-outline:bridge-one` layer (Iconify's bridge-one is an arch).
@@ -65,6 +67,8 @@ export default function BottomNav() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const { isSwapEnabled, isBridgeEnabled } = useFeatureFlags();
+  const { wallet } = useWalletManager();
+  const isLedger = wallet?.type === "ledger";
 
   const tabs = TABS.filter(
     ([path]) =>
@@ -77,20 +81,47 @@ export default function BottomNav() {
       <div className="flex h-[54px] justify-between border-t border-daintree-800 px-2 shadow-[0_3px_20px_-4px_rgba(10,10,10,0.1)]">
         {tabs.map(([path, label, icon]) => {
           const active = pathname === path;
-          return (
+          const gated = isLedger && (path === "/swap" || path === "/bridge");
+          // Figma's Swap frame reads "Bridge" (copy-paste leftover); use the tab's own label.
+          const message = `Ledger doesn't support ${label} function currently.`;
+          const button = (
             <button
               key={path}
               type="button"
               aria-label={label}
               aria-current={active ? "page" : undefined}
-              onClick={() => navigate(path)}
+              aria-disabled={gated ? "true" : undefined}
+              title={gated ? message : undefined}
+              onClick={() => !gated && navigate(path)}
               className={twMerge(
                 "flex w-[70px] justify-center px-4 pb-3 pt-[18px]",
                 active ? "text-[#00C4E7]" : "text-white",
+                gated && "cursor-default opacity-20",
               )}
             >
               {icon(active)}
             </button>
+          );
+          return gated ? (
+            <HoverTooltip
+              key={path}
+              id={`ledger-${label.toLowerCase()}`}
+              place="top"
+              openOnFocus
+              text={message}
+              style={{
+                fontSize: 14,
+                lineHeight: "20px",
+                fontWeight: 500,
+                padding: "8px 10px",
+                borderRadius: 4,
+                color: "#ffffff",
+              }}
+            >
+              {button}
+            </HoverTooltip>
+          ) : (
+            button
           );
         })}
       </div>
