@@ -5,7 +5,7 @@ import {
   ActivityRowDescriptor,
   ActivityStatusToken,
 } from "@/lib/activity/types";
-import { formatCurrency } from "@/lib/utils";
+import { formatUsdAmount } from "@/lib/utils";
 import {
   IGRA_DEPOSIT_ACTIVITY_TYPE,
   KURVE_BRIDGE_ACTIVITY_TYPE,
@@ -188,9 +188,7 @@ export function usdText(
   const value = Number(amount.value);
   if (!price || !Number.isFinite(value)) return "";
   const usd = value * price;
-  // A real value that still rounds to $0.00 is worse than no line at all.
-  if (usd < 0.005) return "";
-  return `≈ ${formatCurrency(usd)} USD`;
+  return `≈ ${formatUsdAmount(usd)} USD`;
 }
 
 function rateText(row: ActivityRowDescriptor): string | null {

@@ -65,6 +65,23 @@ export function formatCurrency(number: number, code: string = "USD") {
   return formatter.format(number);
 }
 
+// formatCurrency rounds to 2 decimals, so a real $0.00123 reads "$0.00".
+// Sub-dollar amounts keep up to 8 decimals, floored to "<$0.00001".
+export function formatUsdAmount(number: number, code: string = "USD") {
+  const abs = Math.abs(number);
+  if (abs === 0 || abs >= 1 || !Number.isFinite(number)) {
+    return formatCurrency(number, code);
+  }
+  if (abs < 0.00001) return `<${formatTokenPrice(0.00001, code)}`;
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: code,
+    currencyDisplay: CURRENCY_SYMBOL_MAPPING[code] ?? "symbol",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 8,
+  }).format(number);
+}
+
 export function symbolForCurrencyCode(currencyCode: string): string {
   return CURRENCIES.find((value) => value[0] === currencyCode)?.[2] ?? "$";
 }
