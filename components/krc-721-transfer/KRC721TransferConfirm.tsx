@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { buildKrc721TransferScript } from "@/lib/krc721";
 import { PublicKey } from "@/wasm/core/kaspa";
 import { useKasFeeEstimate } from "@/hooks/useKasFeeEstimate";
-import { formatCurrency, formatToken } from "@/lib/utils.ts";
+import { formatUsdAmount, formatToken } from "@/lib/utils.ts";
 import useKaspaPrice from "@/hooks/useKaspaPrice.ts";
 import { KRC721TransferFormData } from "@/components/screens/KRC721Transfer.tsx";
 import useWalletManager from "@/hooks/wallet/useWalletManager.ts";
@@ -88,7 +88,7 @@ export default function KRC721TransferConfirm({
               ~{formatToken(totalFee, 3)} KAS
             </span>
             <span className="text-xs text-daintree-400">
-              {formatCurrency(feesCurrency, feesCurrencyCode)}
+              {formatUsdAmount(feesCurrency, feesCurrencyCode)}
             </span>
           </div>
         </div>

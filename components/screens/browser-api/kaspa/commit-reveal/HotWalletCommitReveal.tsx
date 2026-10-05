@@ -8,7 +8,7 @@ import Header from "@/components/GeneralHeader";
 import signImage from "@/assets/images/sign.png";
 import { twMerge } from "tailwind-merge";
 import useKaspaPrice from "@/hooks/useKaspaPrice";
-import { formatCurrency, formatToken } from "@/lib/utils.ts";
+import { formatUsdAmount, formatToken } from "@/lib/utils.ts";
 import { useSettings } from "@/hooks/useSettings";
 import { NetworkType } from "@/contexts/SettingsContext";
 import ScriptDetailsBox from "./ScriptDetailsBox";
@@ -230,7 +230,7 @@ export default function HotWalletCommitReveal({
                           {formatToken(differenceInKas, 3)} KAS
                         </span>
                         <span className="text-xs text-daintree-400">
-                          {formatCurrency(
+                          {formatUsdAmount(
                             differenceCurrency,
                             differenceCurrencyCode,
                           )}
@@ -250,7 +250,7 @@ export default function HotWalletCommitReveal({
                           {formatToken(feesInKas, 3)} KAS
                         </span>
                         <span className="text-xs text-daintree-400">
-                          {formatCurrency(feesCurrency, feesCurrencyCode)}
+                          {formatUsdAmount(feesCurrency, feesCurrencyCode)}
                         </span>
                       </div>
                     </div>

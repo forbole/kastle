@@ -768,7 +768,7 @@ export const formatUsd = (n: number) =>
     ? // Significant digits, so any non-zero amount stays visibly non-zero.
       `${n < 0 ? "-" : ""}${Math.abs(n).toLocaleString("en-US", {
         minimumSignificantDigits: 2,
-        maximumSignificantDigits: 2,
+        maximumSignificantDigits: 5,
         maximumFractionDigits: 20,
       })}`
     : formatAmount(n, 2);
