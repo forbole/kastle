@@ -1,7 +1,13 @@
 import { client, covenantSelect, kcc20, spend } from "@kronsdk/kron-sdk";
 import { hexToBytes } from "viem";
 import * as kaspa from "@/wasm/core/kaspa";
-import { payToAddressScript, RpcClient, Transaction } from "@/wasm/core/kaspa";
+import {
+  payToAddressScript,
+  RpcClient,
+  Transaction,
+  TransactionOutput,
+} from "@/wasm/core/kaspa";
+import { KASTLE_FEE_ADDRESS } from "@/lib/bridge/bridge";
 import { IWallet } from "@/lib/wallet/wallet-interface.ts";
 import {
   KRON_INDEXER_URL,
@@ -29,6 +35,11 @@ export class Kcc20TransferError extends Error {
     super(message);
   }
 }
+
+type Funding = {
+  amount: bigint | number | string;
+  entry: { covenantId?: unknown };
+};
 
 export type BuiltKcc20Transfer = {
   transaction: Transaction;
@@ -138,15 +149,11 @@ export function assembleKcc20Transfer({
   address,
   recipient,
   amount,
-  // sompi per gram of mass.
-  feeRate = spend.MIN_RELAY_FEERATE,
+  feeRate,
 }: {
   covenantId: string;
   pieces: Kcc20Piece[];
-  funding: {
-    amount: bigint | number | string;
-    entry: { covenantId?: unknown };
-  }[];
+  funding: Funding[];
   address: string;
   recipient: string;
   amount: bigint;
@@ -169,18 +176,56 @@ export function assembleKcc20Transfer({
     covenantId,
   );
 
+  return {
+    ...fundCovenantSpend({ spend: send, funding: utxos, address, feeRate }),
+    amount,
+  };
+}
+
+/**
+ * Funds a covenant spend from the wallet's plain-KAS UTXOs and sizes the
+ * network fee. A `kastleFee` is paid to KASTLE_FEE_ADDRESS as the very last
+ * output, after change, so every output index the SDK lays out stays put.
+ */
+export function fundCovenantSpend({
+  spend: covenantSpend,
+  funding: utxos,
+  address,
+  // sompi per gram of mass.
+  feeRate = spend.MIN_RELAY_FEERATE,
+  kastleFee = 0n,
+}: {
+  spend: spend.CovenantSpend;
+  funding: Funding[];
+  address: string;
+  feeRate?: number;
+  kastleFee?: bigint;
+}): Omit<BuiltKcc20Transfer, "amount"> {
+  const k = kaspa as unknown as Parameters<typeof spend.assembleNativeTx>[0];
   // Plain KAS only: a covenant-bound UTXO here would be spent as a fee input.
   const funding = utxos
     .filter((e) => !covenantSelect.normalizedCovenantId(e.entry.covenantId))
     .sort((a, b) => (BigInt(a.amount) < BigInt(b.amount) ? 1 : -1));
 
-  const assemble = (n: number, networkFee: bigint) =>
-    spend.assembleNativeTx(k, {
-      spend: send,
+  // The Kastle fee is taken out of change, then appended as its own output.
+  const assemble = (n: number, networkFee: bigint) => {
+    const asm = spend.assembleNativeTx(k, {
+      spend: covenantSpend,
       fundingEntries: funding.slice(0, n),
       changeAddress: address,
-      networkFee,
+      networkFee: networkFee + kastleFee,
     });
+    if (kastleFee > 0n) {
+      asm.transaction.outputs = [
+        ...asm.transaction.outputs,
+        new TransactionOutput(
+          kastleFee,
+          payToAddressScript(KASTLE_FEE_ADDRESS.mainnet),
+        ),
+      ];
+    }
+    return asm;
+  };
 
   // The fee depends on the input count, so grow the funding set until
   // totalIn covers outputs + fee. A token input carrying less than the dust it
@@ -195,21 +240,21 @@ export function assembleKcc20Transfer({
       );
       const asm = assemble(n, fee);
       // Zero change is a consensus reject and dust change a mempool reject:
-      // drop the change output (always last) and let the miner keep it.
+      // drop the change output (last before the Kastle fee) and let the miner keep it.
       if (asm.change < DUST_CHANGE) {
-        asm.transaction.outputs = asm.transaction.outputs.slice(0, -1);
+        const outputs = asm.transaction.outputs;
+        outputs.splice(outputs.length - (kastleFee > 0n ? 2 : 1), 1);
+        asm.transaction.outputs = outputs;
         return {
           transaction: asm.transaction,
           fundingInputIndexes: asm.fundingInputIndexes,
           fee: fee + asm.change,
-          amount,
         };
       }
       return {
         transaction: asm.transaction,
         fundingInputIndexes: asm.fundingInputIndexes,
         fee,
-        amount,
       };
     } catch (e) {
       if (!(e instanceof Error && e.message.startsWith("insufficient funding")))
@@ -227,7 +272,10 @@ export function assembleKcc20Transfer({
  * the covenant inputs already carry their signature scripts. Spelling the
  * indexes out keeps signTx off its sign-every-owned-input fallback.
  */
-export function signKcc20Transfer(wallet: IWallet, built: BuiltKcc20Transfer) {
+export function signKcc20Transfer(
+  wallet: IWallet,
+  built: Pick<BuiltKcc20Transfer, "transaction" | "fundingInputIndexes">,
+) {
   return wallet.signTx(
     built.transaction,
     built.fundingInputIndexes.map((inputIndex) => ({
@@ -239,7 +287,7 @@ export function signKcc20Transfer(wallet: IWallet, built: BuiltKcc20Transfer) {
 
 export async function sendKcc20Transfer(
   wallet: IWallet,
-  built: BuiltKcc20Transfer,
+  built: Pick<BuiltKcc20Transfer, "transaction" | "fundingInputIndexes">,
   rpc: RpcClient,
 ) {
   const signed = await signKcc20Transfer(wallet, built);

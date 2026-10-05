@@ -11,7 +11,7 @@ import {
 export const KRON_INDEXER_URL = "https://idx.kron.technology/v1/kcc20";
 export const KRON_REGISTRY_URL = "https://api.kron.technology";
 
-type TokenListEntry = verify.SignedTokenList["tokens"][number];
+export type TokenListEntry = verify.SignedTokenList["tokens"][number];
 
 export type Kcc20Token = {
   covenantId: string;
@@ -58,6 +58,20 @@ export type Kcc20Piece = {
   value: bigint;
 };
 
+/** The node's UTXOs at `addresses`, in the shape the SDK's covenantSelect helpers read. */
+export async function liveEntries(rpc: RpcClient, addresses: string[]) {
+  const { entries } = await rpc.getUtxosByAddresses(addresses);
+  return entries.map((e) => ({
+    outpoint: {
+      transactionId: e.outpoint.transactionId,
+      index: e.outpoint.index,
+    },
+    covenantId: covenantSelect.normalizedCovenantId(e.entry.covenantId),
+    address: e.address?.toString(),
+    amount: BigInt(e.entry.amount),
+  }));
+}
+
 export async function verifiedPieces(
   indexer: client.IndexerClient,
   rpc: RpcClient,
@@ -98,18 +112,9 @@ export async function verifiedPieces(
   }
   if (claimed.size === 0) return [];
 
-  const { entries } = await rpc.getUtxosByAddresses([
+  const live = await liveEntries(rpc, [
     ...new Set([...claimed.values()].map((c) => c.p2sh)),
   ]);
-  const live = entries.map((e) => ({
-    outpoint: {
-      transactionId: e.outpoint.transactionId,
-      index: e.outpoint.index,
-    },
-    covenantId: covenantSelect.normalizedCovenantId(e.entry.covenantId),
-    address: e.address?.toString(),
-    amount: BigInt(e.entry.amount),
-  }));
 
   const pieces: Kcc20Piece[] = [];
   for (const c of claimed.values()) {

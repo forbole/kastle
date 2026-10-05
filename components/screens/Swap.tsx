@@ -76,10 +76,27 @@ import {
   SwapFeeFootnote,
   SwapFeeSummary,
 } from "@/components/swap-bridge/swap-fee-summary";
+import kaspaIcon from "@/assets/images/network-logos/kaspa.svg";
+import { useFeatureFlags } from "@/hooks/useFeatureFlags.ts";
+import useKaspaBalance from "@/hooks/wallet/useKaspaBalance";
+import useKaspaHotWalletSigner from "@/hooks/wallet/useKaspaHotWalletSigner";
+import useKcc20Tokens from "@/lib/kcc20/useKcc20Tokens";
+import { restApis } from "@/components/screens/Settings";
+import { sendKcc20Transfer } from "@/lib/kcc20/transfer";
+import {
+  assertKronVerified,
+  buildKronSwap,
+  fetchKronMarkets,
+  kronErrorCopy,
+  kronKastleFeeBps,
+} from "@/lib/kcc20/swap";
 
-type ChainKey = "kasplex" | "igra";
+type EvmChainKey = "kasplex" | "igra";
+// "kaspa" is L1: KAS and KCC-20 tokens traded on their KRON bonding curve.
+type ChainKey = EvmChainKey | "kaspa";
 const CHAINS = { kasplex: kasplexMainnet, igra: igraMainnet };
 const NATIVE = "native";
+const KAS_DECIMALS = 8;
 const WKAS_ABI = parseAbi([
   "function deposit() payable",
   "function withdraw(uint256 wad)",
@@ -145,18 +162,33 @@ const TOOLTIPS = {
 const NETWORK_FEE_ERROR = "Oh, you need more for the network fees";
 
 export default function Swap() {
-  const { networkId } = useRpcClientStateful();
+  const { networkId, rpcClient } = useRpcClientStateful();
   const isMainnet = (networkId ?? NetworkType.Mainnet) === NetworkType.Mainnet;
   const { switchKaspaNetwork } = useSwitchNetwork();
   const [mainnetPromptDismissed, setMainnetPromptDismissed] = useState(false);
-  const { wallet } = useWalletManager();
+  const { wallet, account } = useWalletManager();
   const evmAddress = useEvmAddress();
   const signer = useEvmHotWalletSigner();
   const { kaspaPrice } = useKaspaPrice();
   const { emitSwapCompleted } = useAnalytics();
+  const kaspaSigner = useKaspaHotWalletSigner();
+  const kasBalance = useKaspaBalance(account?.address);
+  const { isKcc20Enabled } = useFeatureFlags();
+  // Ledger cannot sign v1 covenant transactions.
+  const kronEnabled = isKcc20Enabled && isMainnet && wallet?.type !== "ledger";
+  const { data: kronMarkets } = useSWR(
+    kronEnabled ? "kronMarkets" : null,
+    fetchKronMarkets,
+    { refreshInterval: 60_000 },
+  );
+  const { data: kcc20Tokens } = useKcc20Tokens(
+    kronEnabled ? account?.address : undefined,
+  );
 
   const [chainKey, setChainKey] = useState<ChainKey>("igra");
-  const chain = CHAINS[chainKey];
+  const isKron = chainKey === "kaspa";
+  // The EVM hooks below always run; on Kaspa L1 their results go unused.
+  const chain = CHAINS[isKron ? "igra" : chainKey];
   const chainHex = numberToHex(chain.id) as Hex;
   const client = useMemo(
     () =>
@@ -202,7 +234,7 @@ export default function Swap() {
           a.address.toLowerCase() === address.toLowerCase(),
       )?.image;
     const list: SwapToken[] = [];
-    for (const key of ["kasplex", "igra"] as ChainKey[]) {
+    for (const key of ["kasplex", "igra"] as EvmChainKey[]) {
       const c = CHAINS[key];
       const hex = numberToHex(c.id) as Hex;
       const native = nativeBalances?.[hex]?.balance;
@@ -266,8 +298,50 @@ export default function Swap() {
           rawBalance: erc20Raw(hex, wrapped),
         });
     }
+    if (kronEnabled) {
+      list.push({
+        key: `kaspa:${NATIVE}`,
+        chain: "kaspa",
+        symbol: "KAS",
+        decimals: KAS_DECIMALS,
+        image: kaspaIcon,
+        chainImage: kaspaIcon,
+        balance:
+          kasBalance === undefined ? undefined : formatAmount(kasBalance, 8),
+        rawBalance: kasBalance,
+      });
+      // `address` carries the covenant id. Registry display fields; the
+      // quote refuses a token whose entry does not verify.
+      for (const m of kronMarkets ?? []) {
+        const held = kcc20Tokens?.find((t) => t.covenantId === m.covenantId);
+        const raw = held
+          ? Number(formatUnits(held.amount, m.entry.decimals))
+          : undefined;
+        list.push({
+          key: `kaspa:${m.covenantId}`,
+          chain: "kaspa",
+          symbol: m.entry.symbol,
+          address: m.covenantId,
+          decimals: m.entry.decimals,
+          image: m.entry.logoURI,
+          chainImage: kaspaIcon,
+          balance: raw === undefined ? undefined : formatAmount(raw, 8),
+          rawBalance: raw,
+        });
+      }
+    }
     return list;
-  }, [zealousKasplex, zealousIgra, assets, nativeBalances, erc20Balances]);
+  }, [
+    zealousKasplex,
+    zealousIgra,
+    assets,
+    nativeBalances,
+    erc20Balances,
+    kronEnabled,
+    kronMarkets,
+    kcc20Tokens,
+    kasBalance,
+  ]);
 
   const [tokenInKey, setTokenInKey] = useState<string | undefined>(
     `igra:${NATIVE}`,
@@ -311,7 +385,7 @@ export default function Swap() {
 
   // Balance of the input token plus native, for the network-fee check.
   const { data: balances } = useSWR(
-    evmAddress && tokenIn
+    !isKron && evmAddress && tokenIn
       ? ["swapBalances", chainHex, tokenIn.key, evmAddress]
       : null,
     async () => {
@@ -331,7 +405,7 @@ export default function Swap() {
 
   const samePair = !!tokenIn && tokenIn.key === tokenOut?.key;
   const { data: quotes, isLoading: quotesLoading } = useSWR(
-    isMainnet && tokenOut && rawIn > 0n && !samePair && !isWrapPair
+    !isKron && isMainnet && tokenOut && rawIn > 0n && !samePair && !isWrapPair
       ? ["swapQuotes", chainHex, routeIn, routeOut, rawIn.toString()]
       : null,
     () =>
@@ -410,6 +484,45 @@ export default function Swap() {
     best ??
     supported[0];
 
+  // KRON: KAS -> token is a curve buy, token -> KAS a sell; token <-> token has no route.
+  const kronMarket = isKron
+    ? kronMarkets?.find(
+        (m) => m.covenantId === (isNativeIn ? tokenOut : tokenIn)?.address,
+      )
+    : undefined;
+  const kronSide = isNativeIn ? "buy" : "sell";
+  const kronPair = !!kronMarket && isNativeIn !== isNativeOut;
+  // Built with no minOut only to quote and size the network fee; confirm
+  // rebuilds against the live curve with the slippage floor.
+  const {
+    data: kronBuilt,
+    error: kronError,
+    isLoading: kronLoading,
+  } = useSWR(
+    kronMarket && kronPair && rawIn > 0n && account && rpcClient
+      ? [
+          "kronSwap",
+          kronMarket.covenantId,
+          kronSide,
+          rawIn.toString(),
+          account.address,
+        ]
+      : null,
+    async () => {
+      await assertKronVerified(kronMarket!, restApis[NetworkType.Mainnet]);
+      return buildKronSwap({
+        rpc: rpcClient!,
+        market: kronMarket!,
+        side: kronSide,
+        amountIn: rawIn,
+        minOut: 0n,
+        address: account!.address,
+      });
+    },
+    { refreshInterval: 15_000 },
+  );
+  const kronQuote = kronError ? undefined : kronBuilt?.quote;
+
   const gas = isWrapPair
     ? isUnwrap
       ? SWAP_GAS_ESTIMATES.UNWRAP
@@ -422,22 +535,25 @@ export default function Swap() {
       (isNativeIn ? 0n : SWAP_GAS_ESTIMATES.APPROVAL);
   const { data: networkFeeWei } = useFeeEstimateByGas(gas, chainHex);
 
+  // KCC-20 tokens have no price feed: their USD rows stay hidden.
   const { price: erc20PriceIn } = useErc20Price(
     chainHex,
-    tokenIn?.address as Address | undefined,
+    isKron ? undefined : (tokenIn?.address as Address | undefined),
   );
   const { price: erc20PriceOut } = useErc20Price(
     chainHex,
-    tokenOut?.address as Address | undefined,
+    isKron ? undefined : (tokenOut?.address as Address | undefined),
   );
   const priceIn = isNativeIn ? kaspaPrice : erc20PriceIn;
   const priceOut = isNativeOut ? kaspaPrice : erc20PriceOut;
 
   const amountNum = Number(amount) || 0;
+  // What the user receives, before slippage.
+  const netOut = isKron ? kronQuote?.amountOut : selected?.netAmountOut;
   const outNum = isWrapPair
     ? amountNum
-    : selected?.netAmountOut !== undefined && tokenOut
-      ? Number(formatUnits(selected.netAmountOut, tokenOut.decimals))
+    : netOut !== undefined && tokenOut
+      ? Number(formatUnits(netOut, tokenOut.decimals))
       : undefined;
   const usdIn = amountNum * priceIn;
   const usdOut = (outNum ?? 0) * priceOut;
@@ -453,7 +569,7 @@ export default function Swap() {
     !!selected?.provider.proxyAddress &&
     selected.netAmountOut === undefined;
 
-  const { kastleFeeBps, kastleFeeSymbol, kastleFee } = computeSwapKastleFee({
+  const evmFee = computeSwapKastleFee({
     viaFeeCollector,
     feeBps,
     partnerFeeBps,
@@ -465,6 +581,24 @@ export default function Swap() {
     tokenOutDecimals: tokenOut?.decimals ?? 18,
     tokenOutSymbol: tokenOut?.symbol,
   });
+  // KRON's fee is a KAS output on the swap tx itself.
+  const { kastleFeeBps, kastleFeeSymbol, kastleFee } = isKron
+    ? {
+        kastleFeeBps: kronQuote ? kronKastleFeeBps(kronQuote) : 0,
+        kastleFeeSymbol: "KAS",
+        kastleFee: kronQuote
+          ? Number(formatUnits(kronQuote.kastleFee, KAS_DECIMALS))
+          : 0,
+      }
+    : evmFee;
+  const kronHeld = kcc20Tokens?.find(
+    (t) => t.covenantId === tokenIn?.address,
+  )?.amount;
+  const kronBalanceIn = isNativeIn
+    ? kasBalance === undefined
+      ? undefined
+      : BigInt(Math.round(kasBalance * 10 ** KAS_DECIMALS))
+    : kcc20Tokens && (kronHeld ?? 0n);
 
   const error = (() => {
     if (wallet?.type === "ledger")
@@ -472,6 +606,17 @@ export default function Swap() {
     if (!isMainnet) return "Swap is only available on mainnet.";
     if (rawIn === 0n || !tokenOut) return undefined;
     if (samePair) return "Unsupported token pair";
+    if (isKron) {
+      if (!kronPair) return "Unsupported token pair";
+      if (kronBalanceIn !== undefined && rawIn > kronBalanceIn)
+        return "Oh, you don't have enough funds";
+      if (kronError)
+        return kronErrorCopy(
+          kronError,
+          "Unable to get a quote. Please try again.",
+        );
+      return undefined;
+    }
     if (balances && rawIn > balances.input)
       return "Oh, you don't have enough funds";
     if (balances && networkFeeWei !== undefined) {
@@ -611,16 +756,46 @@ export default function Swap() {
     }
   };
 
-  const loading = !isWrapPair && quotesLoading && supported.length === 0;
+  const onConfirmKron = async () => {
+    if (!kronMarket || !kronQuote || !kaspaSigner || !rpcClient || !account)
+      return;
+    setSubmitting(true);
+    try {
+      await assertKronVerified(kronMarket, restApis[NetworkType.Mainnet]);
+      // Re-quoted against the live curve; refuses below the slippage floor.
+      const built = await buildKronSwap({
+        rpc: rpcClient,
+        market: kronMarket,
+        side: kronSide,
+        amountIn: rawIn,
+        minOut: swapMinReceived(kronQuote.amountOut, slippage),
+        address: account.address,
+      });
+      toast.info(`Swapping ${tokenIn?.symbol} for ${tokenOut?.symbol}`);
+      await sendKcc20Transfer(kaspaSigner, built, rpcClient);
+      toast.success("Swapped successfully!");
+      setAmount("");
+    } catch (e) {
+      console.error(e);
+      toast.error(kronErrorCopy(e, "Swap failed. Please try again."));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const loading = isKron
+    ? kronLoading && !kronQuote
+    : !isWrapPair && quotesLoading && supported.length === 0;
+  const kronNetworkFee =
+    kronBuilt && !kronError
+      ? `${formatAmount(Number(formatUnits(kronBuilt.fee, KAS_DECIMALS)))} KAS`
+      : undefined;
   const minReceived = isWrapPair
     ? formatAmount(amountNum)
-    : selected?.netAmountOut !== undefined && tokenOut
+    : netOut !== undefined && tokenOut
       ? formatAmount(
           Number(
-            formatUnits(
-              swapMinReceived(selected.netAmountOut, slippage),
-              tokenOut.decimals,
-            ),
+            formatUnits(swapMinReceived(netOut, slippage), tokenOut.decimals),
           ),
         )
       : undefined;
@@ -628,12 +803,9 @@ export default function Swap() {
   // Wrap/unwrap is 1:1 with KAS, so value it at the native price.
   const minReceivedUsd = isWrapPair
     ? amountNum * kaspaPrice || undefined
-    : selected?.netAmountOut !== undefined && tokenOut && priceOut > 0
+    : netOut !== undefined && tokenOut && priceOut > 0
       ? Number(
-          formatUnits(
-            swapMinReceived(selected.netAmountOut, slippage),
-            tokenOut.decimals,
-          ),
+          formatUnits(swapMinReceived(netOut, slippage), tokenOut.decimals),
         ) * priceOut
       : undefined;
 
@@ -712,7 +884,13 @@ export default function Swap() {
                 noChevron
                 infoOpensRow
               >
-                {networkFeeWei === undefined ? (
+                {isKron ? (
+                  loading ? (
+                    <Skeleton />
+                  ) : (
+                    (kronNetworkFee ?? "-")
+                  )
+                ) : networkFeeWei === undefined ? (
                   <Skeleton />
                 ) : (
                   `${formatAmount(Number(formatEther(networkFeeWei)))} ${nativeSymbol}`
@@ -720,6 +898,10 @@ export default function Swap() {
               </QuoteRow>
               {isWrapPair ? (
                 <QuoteRow label="Type">{isWrap ? "Wrap" : "Unwrap"}</QuoteRow>
+              ) : isKron ? (
+                <QuoteRow label="Provider" tooltip={TOOLTIPS.provider}>
+                  KRON
+                </QuoteRow>
               ) : (
                 <QuoteRow
                   label="Provider"
@@ -768,34 +950,49 @@ export default function Swap() {
       <ConfirmButton
         error={error}
         balance={
-          balances && tokenIn
-            ? `${formatAmount(
-                Number(formatUnits(balances.input, tokenIn.decimals)),
-              )} ${tokenIn.symbol}`
-            : undefined
+          isKron
+            ? kronBalanceIn !== undefined && tokenIn
+              ? `${formatAmount(
+                  Number(formatUnits(kronBalanceIn, tokenIn.decimals)),
+                )} ${tokenIn.symbol}`
+              : undefined
+            : balances && tokenIn
+              ? `${formatAmount(
+                  Number(formatUnits(balances.input, tokenIn.decimals)),
+                )} ${tokenIn.symbol}`
+              : undefined
         }
         onMax={
-          balances && tokenIn
-            ? isNativeIn
-              ? networkFeeWei !== undefined
-                ? () =>
-                    setAmount(
-                      formatUnits(
-                        balances.native > networkFeeWei
-                          ? balances.native - networkFeeWei
-                          : 0n,
-                        tokenIn.decimals,
-                      ),
-                    )
-                : undefined
-              : () => setAmount(formatUnits(balances.input, tokenIn.decimals))
-            : undefined
+          isKron
+            ? // KAS Max would need the network and curve fees held back.
+              !isNativeIn && kronBalanceIn !== undefined && tokenIn
+              ? () => setAmount(formatUnits(kronBalanceIn, tokenIn.decimals))
+              : undefined
+            : balances && tokenIn
+              ? isNativeIn
+                ? networkFeeWei !== undefined
+                  ? () =>
+                      setAmount(
+                        formatUnits(
+                          balances.native > networkFeeWei
+                            ? balances.native - networkFeeWei
+                            : 0n,
+                          tokenIn.decimals,
+                        ),
+                      )
+                  : undefined
+                : () => setAmount(formatUnits(balances.input, tokenIn.decimals))
+              : undefined
         }
         disabled={
-          !!error || (!isWrapPair && !selected?.path) || rawIn === 0n || !signer
+          !!error ||
+          rawIn === 0n ||
+          (isKron
+            ? !kronQuote || !kaspaSigner
+            : (!isWrapPair && !selected?.path) || !signer)
         }
         loading={submitting}
-        onClick={onConfirm}
+        onClick={isKron ? onConfirmKron : onConfirm}
       />
       <BottomNav />
       <TermsGate kind="Swap" />
@@ -808,6 +1005,9 @@ export default function Swap() {
           chains={[
             { key: "kasplex", label: "Kasplex", image: CHAINS.kasplex.icon },
             { key: "igra", label: "Igra", image: CHAINS.igra.icon },
+            ...(kronEnabled
+              ? [{ key: "kaspa", label: "Kaspa", image: kaspaIcon }]
+              : []),
           ]}
           chain={chainKey}
           onChain={(k) => {
@@ -945,11 +1145,24 @@ export default function Swap() {
         <FeeRow
           label="Network fees"
           value={
-            networkFeeWei !== undefined
-              ? `${formatAmount(Number(formatEther(networkFeeWei)))} ${nativeSymbol}`
-              : "-"
+            isKron
+              ? (kronNetworkFee ?? "-")
+              : networkFeeWei !== undefined
+                ? `${formatAmount(Number(formatEther(networkFeeWei)))} ${nativeSymbol}`
+                : "-"
           }
         />
+        {isKron && kronQuote && (
+          <FeeRow
+            label="Curve fees"
+            value={`${formatAmount(Number(formatUnits(kronQuote.curveFee, KAS_DECIMALS)))} KAS`}
+            note={
+              kronSide === "buy"
+                ? "Creator and platform fees, paid on top of the amount"
+                : "Creator and platform fees, taken from the KAS you receive"
+            }
+          />
+        )}
         <SwapFeeSummary
           kastleFee={kastleFee}
           kastleFeeSymbol={kastleFeeSymbol}

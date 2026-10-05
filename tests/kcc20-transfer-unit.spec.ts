@@ -10,8 +10,10 @@ import init, {
   payToAddressScript,
 } from "@/wasm/core/kaspa";
 import { signTxWithScriptOptions } from "@/lib/wallet/sign-script";
+import { KASTLE_FEE_ADDRESS } from "@/lib/bridge/bridge";
 import {
   assembleKcc20Transfer,
+  fundCovenantSpend,
   recipientPubkey,
   selectPieces,
   signKcc20Transfer,
@@ -227,4 +229,44 @@ test("safe-JSON bridge keeps v1 fields and the signature survives it", async () 
   );
   const direct = await signKcc20Transfer(wallet(), assembleKcc20Transfer(args));
   expect(back.id).toBe(direct.id);
+});
+
+test("Kastle fee is the last output, after change, and comes out of change", async () => {
+  const send = kcc20.buildKcc20Send(
+    (await import("@/wasm/core/kaspa")) as any,
+    template,
+    [
+      {
+        ...piece(1, 100n).outpoint,
+        value: 50_000_000n,
+        state: piece(1, 100n).state,
+      },
+    ],
+    xonly,
+    40n,
+    1,
+    COVID,
+  );
+  const args = {
+    spend: send,
+    funding: [fundingUtxo(1_000_000_000n)],
+    address,
+  };
+  const plain = fundCovenantSpend(args);
+  const built = fundCovenantSpend({ ...args, kastleFee: 30_000_000n });
+  const signed = await signKcc20Transfer(wallet(), built);
+
+  const { values, covenants } = shape(signed);
+  // recipient, token change, KAS change, then the fee: SDK indexes untouched.
+  expect(covenants).toEqual([`0:${COVID}`, `0:${COVID}`, null, null]);
+  expect(values[3]).toBe("30000000");
+  expect(signed.outputs[3].scriptPublicKey.toString()).toBe(
+    payToAddressScript(KASTLE_FEE_ADDRESS.mainnet).toString(),
+  );
+  // The fee output costs the user exactly its value plus its own mass.
+  const changeDelta =
+    BigInt(shape(plain.transaction).values[2]) - BigInt(values[2]);
+  expect(String(changeDelta - 30_000_000n)).toBe(String(built.fee - plain.fee));
+  const outTotal = values.reduce((s, v) => s + BigInt(v), 0n);
+  expect(String(1_050_000_000n - outTotal)).toBe(String(built.fee));
 });
