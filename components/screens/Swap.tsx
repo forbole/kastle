@@ -96,7 +96,8 @@ const SWAP_PROXY_ABI = [
   },
 ] as const;
 
-type SwapToken = SheetToken & { decimals: number };
+/** `rawBalance` is the numeric balance (formatted `balance` is for display). */
+type SwapToken = SheetToken & { decimals: number; rawBalance?: number };
 type ProviderQuote = {
   provider: SwapProvider;
   feeBps?: bigint;
@@ -145,7 +146,7 @@ export default function Swap() {
   const { kaspaPrice } = useKaspaPrice();
   const { emitSwapCompleted } = useAnalytics();
 
-  const [chainKey, setChainKey] = useState<ChainKey>("kasplex");
+  const [chainKey, setChainKey] = useState<ChainKey>("igra");
   const chain = CHAINS[chainKey];
   const chainHex = numberToHex(chain.id) as Hex;
   const client = useMemo(
@@ -167,16 +168,22 @@ export default function Swap() {
   const { data: nativeBalances } = useEvmKasBalances();
   const { data: erc20Balances } = useErc20Balances();
   const tokens = useMemo(() => {
-    const erc20Balance = (chainId: Hex, address: string) => {
+    const erc20Entry = (chainId: Hex, address: string) => {
       const b = erc20Balances?.find(
         (b) =>
           !("error" in b) &&
           b.chainId === chainId &&
           b.tokenAddress.toLowerCase() === address.toLowerCase(),
       );
-      return b && !("error" in b)
-        ? formatAmount(b.balance, Math.min(b.decimals, 8))
-        : undefined;
+      return b && !("error" in b) ? b : undefined;
+    };
+    const erc20Balance = (chainId: Hex, address: string) => {
+      const b = erc20Entry(chainId, address);
+      return b ? formatAmount(b.balance, Math.min(b.decimals, 8)) : undefined;
+    };
+    const erc20Raw = (chainId: Hex, address: string) => {
+      const b = erc20Entry(chainId, address);
+      return b ? Number(b.balance) : undefined;
     };
     const list: SwapToken[] = [];
     for (const key of ["kasplex", "igra"] as ChainKey[]) {
@@ -191,6 +198,7 @@ export default function Swap() {
         chainImage: c.icon,
         balance:
           native === undefined ? undefined : formatAmount(Number(native), 8),
+        rawBalance: native === undefined ? undefined : Number(native),
       });
       const zealous = key === "igra" ? zealousIgra : zealousKasplex;
       const imageBase =
@@ -205,6 +213,7 @@ export default function Swap() {
           image: `${imageBase}${t.logoURI}`,
           chainImage: c.icon,
           balance: erc20Balance(hex, t.address),
+          rawBalance: erc20Raw(hex, t.address),
         });
       }
       for (const a of assets.filter((a) => a.chainId === hex)) {
@@ -219,16 +228,36 @@ export default function Swap() {
           image: a.image,
           chainImage: c.icon,
           balance: erc20Balance(hex, a.address),
+          rawBalance: erc20Raw(hex, a.address),
         });
       }
+      // Default swap target (WiKAS on Igra) must resolve even if unlisted.
+      const wrapped = getWkasAddress(hex)?.toLowerCase();
+      if (
+        key === "igra" &&
+        wrapped &&
+        !list.some((t) => t.key === `igra:${wrapped}`)
+      )
+        list.push({
+          key: `igra:${wrapped}`,
+          chain: key,
+          symbol: "WiKAS",
+          address: getWkasAddress(hex),
+          decimals: 18,
+          chainImage: c.icon,
+          balance: erc20Balance(hex, wrapped),
+          rawBalance: erc20Raw(hex, wrapped),
+        });
     }
     return list;
   }, [zealousKasplex, zealousIgra, assets, nativeBalances, erc20Balances]);
 
   const [tokenInKey, setTokenInKey] = useState<string | undefined>(
-    `kasplex:${NATIVE}`,
+    `igra:${NATIVE}`,
   );
-  const [tokenOutKey, setTokenOutKey] = useState<string>();
+  const [tokenOutKey, setTokenOutKey] = useState<string | undefined>(
+    `igra:${getWkasAddress(numberToHex(CHAINS.igra.id) as Hex)?.toLowerCase()}`,
+  );
   const tokenIn = tokens.find((t) => t.key === tokenInKey);
   const tokenOut = tokens.find((t) => t.key === tokenOutKey);
   const [amount, setAmount] = useState("");
@@ -426,14 +455,11 @@ export default function Swap() {
 
   const pickToken = (side: "in" | "out", t: SheetToken) => {
     const setThis = side === "in" ? setTokenInKey : setTokenOutKey;
-    const otherKey = side === "in" ? tokenOutKey : tokenInKey;
     const setOther = side === "in" ? setTokenOutKey : setTokenInKey;
     if (t.chain !== chainKey) {
       // Both legs live on one chain: switching chain resets the other side.
       setChainKey(t.chain as ChainKey);
       setOther(side === "in" ? undefined : `${t.chain}:${NATIVE}`);
-    } else if (otherKey === t.key) {
-      setOther(side === "in" ? tokenInKey : tokenOutKey);
     }
     setThis(t.key);
     setProviderName(undefined);
@@ -733,7 +759,13 @@ export default function Swap() {
             setTokenInKey(`${k}:${NATIVE}`);
             setTokenOutKey(undefined);
           }}
-          tokens={tokens}
+          tokens={
+            side === "in"
+              ? tokens
+                  .filter((t) => (t.rawBalance ?? 0) > 0)
+                  .map((t) => ({ ...t, disabled: t.key === tokenOutKey }))
+              : tokens.map((t) => ({ ...t, disabled: t.key === tokenInKey }))
+          }
           onSelect={(t) => pickToken(side, t)}
           recentKey="local:swap_recent_tokens"
         />
@@ -775,6 +807,7 @@ export default function Swap() {
 
       <BottomSheet
         title="Slippage"
+        subtitle="Your transaction will revert if the price moves unfavorably by more than this percentage."
         open={sheet === "slippage"}
         onClose={() => setSheet(undefined)}
         tall
@@ -812,8 +845,8 @@ export default function Swap() {
             }}
             className={
               customSlippageInput
-                ? "w-[72px] rounded-lg border border-icy-blue-400 bg-white/10 px-3 py-2.5 text-center text-[15px] font-semibold text-white placeholder:text-daintree-400 focus:outline-none"
-                : "w-[72px] rounded-lg border border-transparent bg-white/10 px-3 py-2.5 text-center text-[15px] font-semibold text-white placeholder:text-daintree-400 focus:outline-none"
+                ? "w-[96px] rounded-lg border border-icy-blue-400 bg-white/10 px-3 py-2.5 text-center text-[15px] font-semibold text-white placeholder:text-daintree-400 focus:outline-none"
+                : "w-[96px] rounded-lg border border-transparent bg-white/10 px-3 py-2.5 text-center text-[15px] font-semibold text-white placeholder:text-daintree-400 focus:outline-none"
             }
           />
         </div>
