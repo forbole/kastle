@@ -69,7 +69,8 @@ type FeeCompleted = FungibleSendCompleted & {
 
 export type SwapCompletedProperties = {
   status: "success" | "failed";
-  chainId: number;
+  // "l1" is Kaspa L1 (KRON), a number is an EVM chain id.
+  chainId: number | "l1";
   from: string | null;
   to: string | null;
   router: string | null;

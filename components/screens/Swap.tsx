@@ -82,13 +82,13 @@ import useKaspaBalance from "@/hooks/wallet/useKaspaBalance";
 import useKaspaHotWalletSigner from "@/hooks/wallet/useKaspaHotWalletSigner";
 import useKcc20Tokens from "@/lib/kcc20/useKcc20Tokens";
 import { restApis } from "@/components/screens/Settings";
-import { sendKcc20Transfer } from "@/lib/kcc20/transfer";
 import {
   assertKronVerified,
   buildKronSwap,
   fetchKronMarkets,
   kronErrorCopy,
   kronKastleFeeBps,
+  submitKronSwap,
 } from "@/lib/kcc20/swap";
 
 type EvmChainKey = "kasplex" | "igra";
@@ -608,7 +608,11 @@ export default function Swap() {
     if (samePair) return "Unsupported token pair";
     if (isKron) {
       if (!kronPair) return "Unsupported token pair";
-      if (kronBalanceIn !== undefined && rawIn > kronBalanceIn)
+      // A buy spends the curve fee and network fee on top of the amount in.
+      const kronSpend = isNativeIn
+        ? rawIn + (kronQuote?.curveFee ?? 0n) + (kronBuilt?.fee ?? 0n)
+        : rawIn;
+      if (kronBalanceIn !== undefined && kronSpend > kronBalanceIn)
         return "Oh, you don't have enough funds";
       if (kronError)
         return kronErrorCopy(
@@ -759,6 +763,19 @@ export default function Swap() {
   const onConfirmKron = async () => {
     if (!kronMarket || !kronQuote || !kaspaSigner || !rpcClient || !account)
       return;
+    const trackSwap = (status: "success" | "failed") =>
+      emitSwapCompleted({
+        status,
+        chainId: "l1",
+        from: tokenIn?.address ?? null,
+        to: tokenOut?.address ?? null,
+        router: "kron",
+        sender: account.address,
+        value_native: amountNum,
+        native_asset: tokenIn?.symbol ?? "",
+        ...(usdIn > 0 && { value_usd: usdIn }),
+        ...(kastleFee > 0 && { fee_amount: kastleFee, fee_asset: "KAS" }),
+      });
     setSubmitting(true);
     try {
       await assertKronVerified(kronMarket, restApis[NetworkType.Mainnet]);
@@ -772,12 +789,14 @@ export default function Swap() {
         address: account.address,
       });
       toast.info(`Swapping ${tokenIn?.symbol} for ${tokenOut?.symbol}`);
-      await sendKcc20Transfer(kaspaSigner, built, rpcClient);
+      await submitKronSwap(kaspaSigner, built, rpcClient, kronMarket);
       toast.success("Swapped successfully!");
+      trackSwap("success");
       setAmount("");
     } catch (e) {
       console.error(e);
       toast.error(kronErrorCopy(e, "Swap failed. Please try again."));
+      trackSwap("failed");
     } finally {
       setSubmitting(false);
     }

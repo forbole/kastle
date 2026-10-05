@@ -13,6 +13,7 @@ import { hexToBytes } from "viem";
 import * as kaspa from "@/wasm/core/kaspa";
 import { RpcClient } from "@/wasm/core/kaspa";
 import { KASTLE_SWAP_FEE_BPS } from "@/lib/swap-bridge-quote";
+import { IWallet } from "@/lib/wallet/wallet-interface.ts";
 import {
   KRON_INDEXER_URL,
   KRON_REGISTRY_URL,
@@ -27,6 +28,8 @@ import {
   fundCovenantSpend,
   recipientPubkey,
   selectPieces,
+  sendKcc20Transfer,
+  signKcc20Transfer,
 } from "@/lib/kcc20/transfer";
 
 export const KRON_SEQUENCER_URL = "https://seq.kron.technology";
@@ -104,6 +107,9 @@ export type KronQuote = {
   curveFee: bigint;
   // The curve leg the builder signs: kasIn (buy) or kasOut (sell).
   curveKas: bigint;
+  // The curve's reserves after this trade, declared to the sequencer.
+  newRealKas: bigint;
+  newTokenReserve: bigint;
 };
 
 /**
@@ -128,6 +134,8 @@ export function quoteKron(
       kastleFee,
       curveFee: q.fee,
       curveKas: q.kasIn,
+      newRealKas: q.newRealKas,
+      newTokenReserve: q.newTokenReserve,
     };
   }
   const q = curve.quoteCpSell(state, amountIn);
@@ -141,6 +149,8 @@ export function quoteKron(
     kastleFee,
     curveFee: q.fee,
     curveKas: q.kasOut,
+    newRealKas: q.newRealKas,
+    newTokenReserve: q.newTokenReserve,
   };
 }
 
@@ -171,6 +181,13 @@ export function kronMeta(market: KronMarket, restApi: string) {
   if (!meta) {
     meta = verifiedMeta(market.entry, restApi);
     metas.set(market.covenantId, meta);
+    // An unverified result may be a transient REST failure: retry next time.
+    meta.then(
+      (m) => {
+        if (!m) metas.delete(market.covenantId);
+      },
+      () => metas.delete(market.covenantId),
+    );
   }
   return meta;
 }
@@ -231,6 +248,8 @@ async function liveCurve(
     const { poolOutpoint, poolTokenOutpoint, reserves } = seq.head;
     const tokenReserve = BigInt(reserves.tokenReserve);
     return {
+      // Built on an in-flight chain: must queue behind it via the sequencer.
+      head: seq.head,
       curve: {
         ...poolOutpoint,
         realKas: BigInt(reserves.realKas),
@@ -279,6 +298,7 @@ async function liveCurve(
     throw new KronSwapError("curve-busy", "The curve just traded; try again");
   }
   return {
+    head: undefined,
     curve: { ...c.outpoint, realKas: c.amount as bigint, state },
     inventory: {
       ...inv.outpoint,
@@ -317,6 +337,13 @@ export async function quoteKronSwap(
 
 export type BuiltKronSwap = Omit<BuiltKcc20Transfer, "amount"> & {
   quote: KronQuote;
+  // The sequencer head the trade was built on; undefined: confirmed state.
+  head?: NonNullable<
+    Extract<
+      Awaited<ReturnType<client.SequencerClient["curveHead"]>>,
+      { ok: true }
+    >["head"]
+  >;
 };
 
 /** Re-quotes against the live curve, refuses below `minOut`, and builds the unsigned trade. */
@@ -337,7 +364,14 @@ export async function buildKronSwap({
   address: string;
   feeRate?: number;
 }): Promise<BuiltKronSwap> {
-  const { k, tpls, curve: c, inventory, state } = await loadCurve(rpc, market);
+  const {
+    k,
+    tpls,
+    head,
+    curve: c,
+    inventory,
+    state,
+  } = await loadCurve(rpc, market);
   const quote = quoteKron(state, side, amountIn);
   if (!quote) {
     throw new KronSwapError("too-small", `Amount too small to ${side}`);
@@ -405,7 +439,34 @@ export async function buildKronSwap({
       kastleFee: quote.kastleFee,
     }),
     quote,
+    head,
   };
+}
+
+/**
+ * Signs and submits the trade. One built on an in-flight sequencer head is
+ * queued behind it; straight to the node it would race the queued trades.
+ */
+export async function submitKronSwap(
+  wallet: IWallet,
+  built: BuiltKronSwap,
+  rpc: RpcClient,
+  market: KronMarket,
+) {
+  if (!built.head) return sendKcc20Transfer(wallet, built, rpc);
+  const signed = await signKcc20Transfer(wallet, built);
+  const res = await new client.SequencerClient(KRON_SEQUENCER_URL).curveSubmit({
+    covid: market.curveCovenantId,
+    signedTx: signed.serializeToSafeJSON(),
+    prevHead: built.head,
+    declaredReserves: {
+      realKas: built.quote.newRealKas.toString(),
+      tokenReserve: built.quote.newTokenReserve.toString(),
+      vKas: built.head.reserves.vKas,
+    },
+  });
+  if (!res.ok) throw new KronSwapError("curve-busy", res.reason);
+  return res.txid;
 }
 
 /** Refuses a market whose registry entry did not verify against its genesis tx, or whose verified decimals differ from the ones amounts were parsed with. */
