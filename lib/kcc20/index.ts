@@ -15,6 +15,8 @@ type TokenListEntry = verify.SignedTokenList["tokens"][number];
 
 export type Kcc20Token = {
   covenantId: string;
+  // The indexer's route to this token's UTXOs; the send flow re-reads them with it.
+  tick: string;
   // Base units, summed from UTXOs the node confirmed; never the indexer's figure.
   amount: bigint;
   // Set only when the registry entry for this covenant id verified against its genesis tx.
@@ -48,19 +50,28 @@ export function shouldIncludeToken(
 // piece counts only if the node holds that outpoint at P2SH(redeem) under the
 // token's covenant id: consensus lets only the covenant (or its genesis)
 // create such a UTXO, which binds the decoded amount to real lineage.
-async function verifiedBalance(
+export type Kcc20Piece = {
+  outpoint: { transactionId: string; index: number };
+  state: kcc20.Kcc20State;
+  redeem: Uint8Array;
+  // Native KAS the node holds on this outpoint; never assumed, always read off the entry.
+  value: bigint;
+};
+
+export async function verifiedPieces(
   indexer: client.IndexerClient,
   rpc: RpcClient,
   tick: string,
   address: string,
   covid: string,
-) {
+): Promise<Kcc20Piece[]> {
   const walletSpk = payToAddressScript(address).script;
   const claimed = new Map<
     string,
     {
       outpoint: { transactionId: string; index: number };
-      amount: bigint;
+      state: kcc20.Kcc20State;
+      redeem: Uint8Array;
       p2sh: string;
     }
   >();
@@ -77,14 +88,15 @@ async function verifiedBalance(
       const { transactionId, index } = utxo.outpoint;
       claimed.set(`${transactionId}:${index}`, {
         outpoint: { transactionId, index },
-        amount: state.amount,
+        state,
+        redeem,
         p2sh,
       });
     } catch {
       // Not a kcc20 redeem script: nothing to count.
     }
   }
-  if (claimed.size === 0) return 0n;
+  if (claimed.size === 0) return [];
 
   const { entries } = await rpc.getUtxosByAddresses([
     ...new Set([...claimed.values()].map((c) => c.p2sh)),
@@ -96,18 +108,37 @@ async function verifiedBalance(
     },
     covenantId: covenantSelect.normalizedCovenantId(e.entry.covenantId),
     address: e.address?.toString(),
+    amount: BigInt(e.entry.amount),
   }));
 
-  let total = 0n;
+  const pieces: Kcc20Piece[] = [];
   for (const c of claimed.values()) {
     const hit = covenantSelect.selectCovenantTokenOutpoint(
       live,
       c.outpoint,
       covid,
     );
-    if (hit?.address === c.p2sh) total += c.amount;
+    if (hit?.address === c.p2sh) {
+      pieces.push({
+        outpoint: c.outpoint,
+        state: c.state,
+        redeem: c.redeem,
+        value: hit.amount,
+      });
+    }
   }
-  return total;
+  return pieces;
+}
+
+async function verifiedBalance(
+  indexer: client.IndexerClient,
+  rpc: RpcClient,
+  tick: string,
+  address: string,
+  covid: string,
+) {
+  const pieces = await verifiedPieces(indexer, rpc, tick, address, covid);
+  return pieces.reduce((sum, p) => sum + p.state.amount, 0n);
 }
 
 export async function verifiedMeta(
@@ -180,6 +211,7 @@ export async function fetchKcc20Tokens(
         );
         return {
           covenantId: covid,
+          tick,
           amount,
           meta: await verifiedMeta(entry, restApi),
         };
