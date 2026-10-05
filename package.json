@@ -80,6 +80,7 @@
     "eslint": "^9.32.0",
     "eslint-plugin-react": "^7.37.3",
     "globals": "^15.14.0",
+    "happy-dom": "^20.14.5",
     "postcss": "^8.5.26",
     "prettier": "^3.4.2",
     "prettier-plugin-tailwindcss": "^0.6.9",
