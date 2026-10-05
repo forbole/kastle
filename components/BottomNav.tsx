@@ -88,7 +88,7 @@ export default function BottomNav() {
             <button
               key={path}
               type="button"
-              aria-label={label}
+              aria-label={gated ? `${label}. ${message}` : label}
               aria-current={active ? "page" : undefined}
               aria-disabled={gated ? "true" : undefined}
               title={gated ? message : undefined}

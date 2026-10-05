@@ -171,7 +171,8 @@ const fullPageKeyringGuard = async ({ request }: LoaderFunctionArgs) => {
 
 const SwapRoute = () => {
   const { isSwapEnabled } = useFeatureFlags();
-  const { wallet } = useWalletManager();
+  const { wallet, isWalletSettingsLoading } = useWalletManager();
+  if (isWalletSettingsLoading) return null;
   return isSwapEnabled && wallet?.type !== "ledger" ? (
     <Swap />
   ) : (
@@ -181,7 +182,8 @@ const SwapRoute = () => {
 
 const BridgeRoute = () => {
   const { isBridgeEnabled } = useFeatureFlags();
-  const { wallet } = useWalletManager();
+  const { wallet, isWalletSettingsLoading } = useWalletManager();
+  if (isWalletSettingsLoading) return null;
   return isBridgeEnabled && wallet?.type !== "ledger" ? (
     <Bridge />
   ) : (

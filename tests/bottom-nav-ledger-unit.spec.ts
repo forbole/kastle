@@ -120,7 +120,9 @@ async function mountNav(walletType: string, navigate: (p: string) => void) {
   const root = createRoot(container);
   await act(async () => root.render(React.createElement(Nav)));
   const button = (label: string) =>
-    container.querySelector(`button[aria-label="${label}"]`) as any;
+    container.querySelector(
+      `button[aria-label="${label}"], button[aria-label^="${label}. "]`,
+    ) as any;
   const tipOpen = (label: string) =>
     button(label)
       .closest("[data-tooltip-id]")
@@ -140,7 +142,7 @@ test("ledger wallet: Swap and Bridge are aria-disabled with tooltip", () => {
     const tip = `Ledger doesn&#x27;t support ${label} function currently.`;
     expect(html).toContain(`data-tooltip-content="${tip}"`);
     const btn = html.match(
-      new RegExp(`<button[^>]*aria-label="${label}"[^>]*>`),
+      new RegExp(`<button[^>]*aria-label="${label}\\. [^"]*"[^>]*>`),
     );
     expect(btn?.[0]).toContain('aria-disabled="true"');
     expect(btn?.[0]).toContain("opacity-20");
