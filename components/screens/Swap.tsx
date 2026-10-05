@@ -34,6 +34,7 @@ import {
 } from "@/components/swap-bridge/ui";
 import BottomNav, { ActivityHeaderButton } from "@/components/BottomNav";
 import { NetworkType } from "@/contexts/SettingsContext";
+import useSwitchNetwork from "@/hooks/useSwitchNetwork";
 import useEvmAddress from "@/hooks/evm/useEvmAddress";
 import useEvmHotWalletSigner from "@/hooks/wallet/useEvmHotWalletSigner";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
@@ -146,6 +147,8 @@ const NETWORK_FEE_ERROR = "Oh, you need more for the network fees";
 export default function Swap() {
   const { networkId } = useRpcClientStateful();
   const isMainnet = (networkId ?? NetworkType.Mainnet) === NetworkType.Mainnet;
+  const { switchKaspaNetwork } = useSwitchNetwork();
+  const [mainnetPromptDismissed, setMainnetPromptDismissed] = useState(false);
   const { wallet } = useWalletManager();
   const evmAddress = useEvmAddress();
   const signer = useEvmHotWalletSigner();
@@ -399,13 +402,14 @@ export default function Swap() {
     best ??
     supported[0];
 
-  const gas =
-    (isNativeIn
-      ? SWAP_GAS_ESTIMATES.KAS_TO_ERC20
-      : isNativeOut
-        ? SWAP_GAS_ESTIMATES.ERC20_TO_KAS
-        : SWAP_GAS_ESTIMATES.ERC20_TO_ERC20) +
-    (isNativeIn || isUnwrap ? 0n : SWAP_GAS_ESTIMATES.APPROVAL);
+  const gas = isWrapPair
+    ? SWAP_GAS_ESTIMATES.WRAP
+    : (isNativeIn
+        ? SWAP_GAS_ESTIMATES.KAS_TO_ERC20
+        : isNativeOut
+          ? SWAP_GAS_ESTIMATES.ERC20_TO_KAS
+          : SWAP_GAS_ESTIMATES.ERC20_TO_ERC20) +
+      (isNativeIn ? 0n : SWAP_GAS_ESTIMATES.APPROVAL);
   const { data: networkFeeWei } = useFeeEstimateByGas(gas, chainHex);
 
   const { price: erc20PriceIn } = useErc20Price(
@@ -505,7 +509,7 @@ export default function Swap() {
         chainId: chain.id,
         from: tokenIn.address ?? null,
         to: tokenOut.address ?? null,
-        router: provider?.routerAddress ?? wkas,
+        router: provider?.routerAddress ?? null,
         sender: evmAddress,
         value_native: amountNum,
         native_asset: tokenIn.symbol,
@@ -811,6 +815,27 @@ export default function Swap() {
           recentKey="local:swap_recent_tokens"
         />
       ))}
+
+      <BottomSheet
+        title="Switch to mainnet"
+        open={!isMainnet && !mainnetPromptDismissed}
+        onClose={() => setMainnetPromptDismissed(true)}
+      >
+        <p className="px-3 py-2 text-sm text-white">
+          Swap is only available on mainnet. Switch networks to continue.
+        </p>
+        <button
+          className="mt-4 w-full rounded-full bg-icy-blue-400 py-3 text-base font-semibold text-white"
+          onClick={() => {
+            switchKaspaNetwork(NetworkType.Mainnet).catch(() =>
+              toast.error("Failed to switch network. Please try again."),
+            );
+            setMainnetPromptDismissed(true);
+          }}
+        >
+          Switch to mainnet
+        </button>
+      </BottomSheet>
 
       <BottomSheet
         title="Select Provider"

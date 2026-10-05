@@ -743,22 +743,24 @@ export default function Bridge() {
         onClose={() => setSheet(undefined)}
         tall
       >
-        {bridgeDirectionsFrom(route.from, isMainnet).map((d) => {
-          const r = BRIDGE_ROUTES[d];
-          return (
-            <ProviderRow
-              key={d}
-              image={r.logo}
-              name={r.provider}
-              subtitle={`${BRIDGE_TOKEN_NAME[r.to]} on ${CHAIN_LABEL[r.to]} · ${r.estTime}`}
-              selected={d === direction}
-              onClick={() => {
-                setDirection(d);
-                setSheet(undefined);
-              }}
-            />
-          );
-        })}
+        {bridgeDirectionsFrom(route.from, isMainnet)
+          .filter((d) => BRIDGE_ROUTES[d].to === route.to)
+          .map((d) => {
+            const r = BRIDGE_ROUTES[d];
+            return (
+              <ProviderRow
+                key={d}
+                image={r.logo}
+                name={r.provider}
+                subtitle={`${BRIDGE_TOKEN_NAME[r.to]} on ${CHAIN_LABEL[r.to]} · ${r.estTime}`}
+                selected={d === direction}
+                onClick={() => {
+                  setDirection(d);
+                  setSheet(undefined);
+                }}
+              />
+            );
+          })}
       </BottomSheet>
 
       <BottomSheet
