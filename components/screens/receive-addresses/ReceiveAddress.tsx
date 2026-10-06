@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import QRCode from "qrcode";
-import { createCanvas, loadImage } from "canvas";
 import { useCopyToClipboard } from "usehooks-ts";
 import { Tooltip } from "react-tooltip";
 import Header from "@/components/GeneralHeader";
@@ -27,7 +26,9 @@ const Receive = ({
       return;
     }
     try {
-      const canvas = createCanvas(192, 192);
+      const canvas = document.createElement("canvas");
+      canvas.width = 192;
+      canvas.height = 192;
       await QRCode.toCanvas(canvas, address, {
         color: {
           dark: "#000000", // Black dots
@@ -37,10 +38,16 @@ const Receive = ({
         width: 192,
       });
       const ctx = canvas.getContext("2d");
+      if (!ctx) return;
 
       ctx.imageSmoothingEnabled = true;
 
-      const img = await loadImage(iconUrl);
+      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const el = new Image();
+        el.onload = () => resolve(el);
+        el.onerror = () => reject(new Error("Failed to load icon"));
+        el.src = iconUrl;
+      });
       const center = canvas.width / 2;
       const logoStartPositionX = center - logoSize / 2;
       const logoStartPositionY = center - logoSize / 2;
