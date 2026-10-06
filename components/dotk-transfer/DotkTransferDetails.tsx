@@ -36,6 +36,7 @@ export default function DotkTransferDetails({
   const { rpcClient, networkId } = useRpcClientStateful();
   const walletSigner = useKaspaHotWalletSigner();
   const resolveRecipient = useResolveRecipient();
+  const resolutionSeq = useRef(0);
   const {
     register,
     watch,
@@ -59,10 +60,13 @@ export default function DotkTransferDetails({
 
   const addressValidator = async (value: string | undefined) => {
     const genericErrorMessage = "Invalid address or KNS domain";
+    const seq = ++resolutionSeq.current;
     if (!value) return false;
 
     try {
       const resolved = await resolveRecipient(value);
+      // A newer keystroke superseded this lookup -- let that one own the form.
+      if (seq !== resolutionSeq.current) return genericErrorMessage;
 
       if (!resolved.address) {
         setValue("address", undefined);

@@ -30,6 +30,7 @@ export const KRC721TransferDetails = ({
   const navigate = useNavigate();
   const { account } = useWalletManager();
   const resolveRecipient = useResolveRecipient();
+  const resolutionSeq = useRef(0);
   const {
     register,
     watch,
@@ -80,6 +81,7 @@ export const KRC721TransferDetails = ({
 
   const addressValidator = async (value: string | undefined) => {
     const genericErrorMessage = "Invalid Kaspa address or .kas domain";
+    const seq = ++resolutionSeq.current;
     if (!value) return false;
 
     if (currentBalance < ((commitFee ?? 0) + (revealFee ?? 0)) / 1e8) {
@@ -92,6 +94,8 @@ export const KRC721TransferDetails = ({
 
     try {
       const resolved = await resolveRecipient(value);
+      // A newer keystroke superseded this lookup -- let that one own the form.
+      if (seq !== resolutionSeq.current) return genericErrorMessage;
 
       if (!resolved.address) {
         setValue("address", undefined);

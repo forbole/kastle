@@ -33,19 +33,25 @@ export default function DotkTransferBroadcast({
       // the recent-addresses list.
       const txId = await planned.registrar.submit(planned.plan);
       setOutTxs([txId]);
-
-      if (address) {
-        await addRecentAddress({
-          kaspaAddress: address,
-          usedAt: new Date().getTime(),
-          domain,
-        });
-      }
       onSuccess();
     } catch (e) {
       captureException(e);
       console.error(e);
       onFail(e instanceof Error ? e.message : undefined);
+      return;
+    }
+
+    // Best-effort: the transfer is already on-chain, so a failure here must
+    // never surface as a failed transfer (and invite a re-send).
+    if (address) {
+      addRecentAddress({
+        kaspaAddress: address,
+        usedAt: new Date().getTime(),
+        domain,
+      }).catch((e) => {
+        captureException(e);
+        console.error(e);
+      });
     }
   };
 

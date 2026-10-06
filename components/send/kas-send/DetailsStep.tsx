@@ -36,6 +36,7 @@ export function DetailsStep({
   const { account } = useWalletManager();
   const { mempoolCongestionLevel } = useMempoolStatus();
   const resolveRecipient = useResolveRecipient();
+  const resolutionSeq = useRef(0);
   const { value: isAddressFieldFocused, setValue: setAddressFieldFocused } =
     useBoolean(false);
 
@@ -131,10 +132,13 @@ export function DetailsStep({
 
   const addressValidator = async (value: string | undefined) => {
     const genericErrorMessage = "Invalid Kaspa address or .kas domain";
+    const seq = ++resolutionSeq.current;
     if (!value) return undefined;
 
     try {
       const resolved = await resolveRecipient(value);
+      // A newer keystroke superseded this lookup -- let that one own the form.
+      if (seq !== resolutionSeq.current) return genericErrorMessage;
 
       if (!resolved.address) {
         setValue("address", undefined);
