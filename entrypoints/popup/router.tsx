@@ -1,3 +1,4 @@
+import Kcc20Send from "@/components/send/kcc20-send/Kcc20Send";
 import {
   createHashRouter,
   LoaderFunctionArgs,
@@ -191,6 +192,18 @@ const BridgeRoute = () => {
   );
 };
 
+const Kcc20SendRoute = () => {
+  const { isKcc20Enabled } = useFeatureFlags();
+  const { wallet, isWalletSettingsLoading } = useWalletManager();
+  if (isWalletSettingsLoading) return null;
+  // Ledger cannot sign v1 covenant transactions.
+  return isKcc20Enabled && wallet?.type !== "ledger" ? (
+    <Kcc20Send />
+  ) : (
+    <Navigate to="/dashboard" replace />
+  );
+};
+
 const ActivityRoute = () => {
   const { isActivityEnabled, isActivityLoading } = useFeatureFlags();
   if (isActivityLoading) return null;
@@ -260,6 +273,10 @@ export const router = createHashRouter([
                   { path: "token-transfer", element: <Krc20Transfer /> },
                   { path: "kas/send", element: <KasSend /> },
                   { path: "krc20/send/:tick", element: <Krc20Send /> },
+                  {
+                    path: "kcc20/send/:covenantId",
+                    element: <Kcc20SendRoute />,
+                  },
                   { path: "evm-kas/send/:chainId", element: <EvmKasSend /> },
                   {
                     path: "erc20/send/:chainId/:tokenId",
