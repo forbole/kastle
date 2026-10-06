@@ -42,7 +42,13 @@ export async function resolveRecipient(
       recipient.fault ||
       !Address.validate(recipient.address)
     ) {
-      return { fault: "fault" in recipient ? recipient.fault : undefined };
+      const fault =
+        "fault" in recipient && recipient.fault === "unresolved"
+          ? "This name is not registered yet or cannot be resolved now"
+          : "fault" in recipient
+            ? recipient.fault
+            : undefined;
+      return { fault };
     }
     return { address: recipient.address, domain: input.trim() };
   }
