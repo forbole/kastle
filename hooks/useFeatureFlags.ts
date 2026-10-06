@@ -4,6 +4,7 @@ import { isProduction } from "@/lib/utils.ts";
 
 const SWAP_FLAG_KEY = "swap_enabled_extension";
 const BRIDGE_FLAG_KEY = "bridge_enabled_extension";
+const KCC20_FLAG_KEY = "kcc20_enabled_extension";
 // Extension-only (mobile uses `activity_v2_enabled`). Opt-in, unlike the kill switches above.
 const ACTIVITY_FLAG_KEY = "activity_enabled_extension";
 // Kill switch like swap/bridge: switch off with active + 0% rollout, never "inactive".
@@ -44,6 +45,7 @@ export function useFeatureFlags() {
         [SWAP_FLAG_KEY]: postHog.getFeatureFlags()?.[SWAP_FLAG_KEY],
         [BRIDGE_FLAG_KEY]: postHog.getFeatureFlags()?.[BRIDGE_FLAG_KEY],
         [DOTK_FLAG_KEY]: postHog.getFeatureFlags()?.[DOTK_FLAG_KEY],
+        [KCC20_FLAG_KEY]: postHog.getFeatureFlags()?.[KCC20_FLAG_KEY],
         // undefined = flags not fetched yet; a loaded map without the key = off.
         [ACTIVITY_FLAG_KEY]:
           postHog.getFeatureFlags()?.[ACTIVITY_FLAG_KEY] ??
@@ -58,6 +60,7 @@ export function useFeatureFlags() {
     isSwapEnabled: isFlagEnabled(flags[SWAP_FLAG_KEY]),
     isBridgeEnabled: isFlagEnabled(flags[BRIDGE_FLAG_KEY]),
     isDotkEnabled: isFlagEnabled(flags[DOTK_FLAG_KEY]),
+    isKcc20Enabled: isFlagEnabled(flags[KCC20_FLAG_KEY]),
     // Only an explicit `true` enables; dev builds force it on (mobile: __DEV__).
     isActivityEnabled: !isProduction || flags[ACTIVITY_FLAG_KEY] === true,
     // Deciding before PostHog's flags arrive would bounce a flagged-on user,

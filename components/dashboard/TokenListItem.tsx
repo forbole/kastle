@@ -4,6 +4,7 @@ import {
   formatToken,
   formatTokenPrice,
   symbolForCurrencyCode,
+  textEllipsis,
 } from "@/lib/utils.ts";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -14,6 +15,10 @@ import { useTokenInfo } from "@/hooks/kasplex/useTokenInfo";
 import Layer2AssetImage from "../Layer2AssetImage";
 import { useKrc20Prices } from "@/hooks/kasplex/useKrc20Prices";
 import useKrc20Logo from "@/hooks/kasplex/useKrc20Logo";
+import { formatUnits } from "viem";
+import { Kcc20Token } from "@/lib/kcc20";
+import { useFeatureFlags } from "@/hooks/useFeatureFlags.ts";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 
 type TokenListItemProps = {
   token: TokenItem;
@@ -73,6 +78,42 @@ export default function TokenListItem({ token }: TokenListItemProps) {
               ? formatCurrency(totalBalanceCurrency, currencyCode)
               : `${symbolForCurrencyCode(currencyCode)}*****`}
           </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function Kcc20TokenListItem({ token }: { token: Kcc20Token }) {
+  const navigate = useNavigate();
+  const [settings] = useSettings();
+  const { isKcc20Enabled } = useFeatureFlags();
+  const { meta } = token;
+  const { wallet } = useWalletManager();
+  // Only verified tokens are sendable, and never from a Ledger wallet.
+  const canSend = isKcc20Enabled && !!meta && wallet?.type !== "ledger";
+  // Without verified decimals, show base units rather than guess a scale.
+  const balance = meta
+    ? formatUnits(token.amount, meta.decimals)
+    : token.amount.toString();
+
+  return (
+    <div
+      className={`flex items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3 ${canSend ? "cursor-pointer" : ""}`}
+      onClick={
+        canSend ? () => navigate(`/kcc20/send/${token.covenantId}`) : undefined
+      }
+    >
+      <Layer2AssetImage tokenImage={meta?.logoURI} chainImage={kasIcon} />
+      <div className="flex min-w-0 flex-grow flex-col gap-1">
+        <div className="flex items-start justify-between gap-2 text-base text-white">
+          <span>{meta?.symbol ?? textEllipsis(token.covenantId)}</span>
+          <span className="break-all text-right">
+            {settings?.hideBalances ? "*****" : balance}
+          </span>
+        </div>
+        <div className="text-sm text-daintree-400">
+          {meta?.name ?? "Unverified KCC-20 (base units)"}
         </div>
       </div>
     </div>
