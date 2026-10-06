@@ -126,7 +126,8 @@ export function quoteKron(
     const kastleFee = kronKastleFee(amountIn);
     if (amountIn <= kastleFee) return undefined;
     const q = curve.quoteCpBuy(state, amountIn - kastleFee);
-    if (!q) return undefined;
+    // Fees above the curve leg itself: a dust buy paying many times its worth.
+    if (!q || kastleFee + q.fee > q.kasIn) return undefined;
     return {
       side,
       amountIn,
@@ -339,7 +340,7 @@ export async function quoteKronSwap(
   return quoteKron(state, side, amountIn);
 }
 
-export type BuiltKronSwap = Omit<BuiltKcc20Transfer, "amount"> & {
+export type BuiltKronSwap = Omit<BuiltKcc20Transfer, "amount" | "kasDebit"> & {
   quote: KronQuote;
   // The sequencer head the trade was built on; undefined: confirmed state.
   head?: NonNullable<
@@ -418,6 +419,7 @@ export async function buildKronSwap({
       ),
       amountIn,
       market.entry.decimals,
+      "sell",
     );
     covenantSpend = curveCp.buildCpSell(
       k,
@@ -435,17 +437,18 @@ export async function buildKronSwap({
   }
 
   const { entries } = await rpc.getUtxosByAddresses([address]);
-  return {
-    ...fundCovenantSpend({
-      spend: covenantSpend,
-      funding: entries,
-      address,
-      feeRate,
-      kastleFee: quote.kastleFee,
-    }),
-    quote,
-    head,
-  };
+  const funded = fundCovenantSpend({
+    spend: covenantSpend,
+    funding: entries,
+    address,
+    feeRate,
+    kastleFee: quote.kastleFee,
+  });
+  // A sell whose network fee eats the KAS out nets the user nothing or less.
+  if (side === "sell" && quote.amountOut <= funded.fee) {
+    throw new KronSwapError("too-small", "Amount too small to sell");
+  }
+  return { ...funded, quote, head };
 }
 
 /**

@@ -7,6 +7,7 @@ import SendConfirmPage from "@/ui/popup/kcc20/SendConfirmPage";
 import { explorerTxLinks } from "@/components/screens/Settings.tsx";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import useKcc20Tokens from "@/lib/kcc20/useKcc20Tokens";
+import { decimalsError } from "@/lib/kcc20";
 import useKaspaHotWalletSigner from "@/hooks/wallet/useKaspaHotWalletSigner";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
@@ -34,8 +35,13 @@ export default function Kcc20Send() {
   const [recipient, setRecipient] = useState("");
   const [amountInput, setAmountInput] = useState("");
   const [built, setBuilt] = useState<BuiltKcc20Transfer>();
-  // Snapshot at build time: SWR drops a fully-spent token, which must not change the confirm/success display.
-  const [sent, setSent] = useState<{ decimals: number; symbol: string }>();
+  // Snapshot at build time: SWR drops a fully-spent token, and the recipient
+  // input may change mid-build; neither may change what confirm displays.
+  const [sent, setSent] = useState<{
+    decimals: number;
+    symbol: string;
+    recipient: string;
+  }>();
   const [txId, setTxId] = useState<string>();
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
@@ -44,7 +50,10 @@ export default function Kcc20Send() {
   const decimals = token?.meta?.decimals ?? 0;
   const symbol = token?.meta?.symbol ?? "";
 
+  // parseUnits rounds excess decimals: "0.6" of a 0-decimal token would send 1.
+  const amountError = decimalsError(amountInput, decimals, symbol);
   const parseAmount = () => {
+    if (amountError) return undefined;
     try {
       const value = parseUnits(amountInput.trim(), decimals);
       return value > 0n ? value : undefined;
@@ -57,17 +66,18 @@ export default function Kcc20Send() {
   const onReview = async () => {
     if (!token?.meta || !account || !rpcClient || amount === undefined) return;
     const { decimals, symbol } = token.meta;
+    const to = recipient.trim();
     setBusy(true);
     setError(undefined);
     try {
       const result = await buildKcc20Transfer({
         token,
         address: account.address,
-        recipient: recipient.trim(),
+        recipient: to,
         amount,
         rpc: rpcClient,
       });
-      setSent({ decimals, symbol });
+      setSent({ decimals, symbol, recipient: to });
       setBuilt(result);
       setStep("confirm");
     } catch (e) {
@@ -110,10 +120,16 @@ export default function Kcc20Send() {
     return (
       <SendConfirmPage
         senderAddress={account.address}
-        recipientAddress={recipient.trim()}
+        recipientAddress={sent.recipient}
         network="kcc20"
         amount={`${formatUnits(built.amount, sent.decimals)} ${sent.symbol}`}
         estFee={`${formatUnits(built.fee, KAS_DECIMALS)} KAS`}
+        // Covenant outputs carry KAS dust on top of the fee.
+        estFeeFiat={
+          built.kasDebit > built.fee
+            ? `Total ${formatUnits(built.kasDebit, KAS_DECIMALS)} KAS with token dust`
+            : undefined
+        }
         isConfirmDisabled={!signer}
         isConfirmLoading={busy}
         onConfirm={onConfirm}
@@ -193,6 +209,7 @@ export default function Kcc20Send() {
           placeholder="Recipient address (kaspa:q...)"
           autoComplete="off"
           spellCheck={false}
+          disabled={busy}
           value={recipient}
           onChange={(e) => setRecipient(e.target.value)}
         />
@@ -201,10 +218,13 @@ export default function Kcc20Send() {
           placeholder={`Amount (spendable ${spendable} ${symbol})`}
           inputMode="decimal"
           autoComplete="off"
+          disabled={busy}
           value={amountInput}
           onChange={(e) => setAmountInput(e.target.value)}
         />
-        {error && <span className="text-sm text-red-400">{error}</span>}
+        {(amountError ?? error) && (
+          <span className="text-sm text-red-400">{amountError ?? error}</span>
+        )}
       </div>
       <div className="px-4 pb-6 pt-3">
         <Button

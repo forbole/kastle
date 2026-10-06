@@ -23,6 +23,7 @@ import { numberToHex } from "viem";
 import useKaspaPrice from "@/hooks/useKaspaPrice";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import useKaspaBalance from "@/hooks/wallet/useKaspaBalance";
+import { useFeatureFlags } from "@/hooks/useFeatureFlags.ts";
 
 export default function Assets() {
   const navigate = useNavigate();
@@ -52,7 +53,11 @@ export default function Assets() {
     );
   });
 
-  const { data: kcc20Tokens } = useKcc20Tokens(address);
+  // Kill switch off: no indexer polling, so the address never leaves the wallet.
+  const { isKcc20Enabled } = useFeatureFlags();
+  const { data: kcc20Tokens } = useKcc20Tokens(
+    isKcc20Enabled ? address : undefined,
+  );
 
   const isAssetListLoading = balance === undefined;
 

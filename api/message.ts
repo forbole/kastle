@@ -79,6 +79,11 @@ export const RPC_ERRORS = {
   // (compounding transactions first, the payment last). sendKaspa and
   // compoundUtxos can sign exactly one transaction and return one id, so they
   // refuse the batch rather than broadcast only its first, non-paying element.
+  COVENANT_TX_UNSUPPORTED: RpcErrorSchema.parse({
+    code: RpcErrorCode.METHOD_NOT_SUPPORTED,
+    message:
+      "Kastle does not sign covenant (version 1+) transactions requested by dApps yet: they can move KCC-20 tokens, which the confirm screen cannot show.",
+  }),
   BATCH_REQUIRED: RpcErrorSchema.parse({
     code: RpcErrorCode.BATCH_REQUIRED,
     message:

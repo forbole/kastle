@@ -81,6 +81,7 @@ import { useFeatureFlags } from "@/hooks/useFeatureFlags.ts";
 import useKaspaBalance from "@/hooks/wallet/useKaspaBalance";
 import useKaspaHotWalletSigner from "@/hooks/wallet/useKaspaHotWalletSigner";
 import useKcc20Tokens from "@/lib/kcc20/useKcc20Tokens";
+import { decimalsError } from "@/lib/kcc20";
 import { restApis } from "@/components/screens/Settings";
 import {
   assertKronVerified,
@@ -315,7 +316,7 @@ export default function Swap() {
       for (const m of kronMarkets ?? []) {
         const held = kcc20Tokens?.find((t) => t.covenantId === m.covenantId);
         const raw = held
-          ? Number(formatUnits(held.amount, m.entry.decimals))
+          ? Number(formatUnits(held.spendable, m.entry.decimals))
           : undefined;
         list.push({
           key: `kaspa:${m.covenantId}`,
@@ -593,7 +594,7 @@ export default function Swap() {
     : evmFee;
   const kronHeld = kcc20Tokens?.find(
     (t) => t.covenantId === tokenIn?.address,
-  )?.amount;
+  )?.spendable;
   const kronBalanceIn = isNativeIn
     ? kasBalance === undefined
       ? undefined
@@ -604,6 +605,15 @@ export default function Swap() {
     if (wallet?.type === "ledger")
       return "Ledger doesn’t support swap currently.";
     if (!isMainnet) return "Swap is only available on mainnet.";
+    // parseUnits rounds excess decimals: "0.6" of a 0-decimal token would swap 1.
+    if (isKron && tokenIn) {
+      const tooPrecise = decimalsError(
+        amount,
+        tokenIn.decimals,
+        tokenIn.symbol,
+      );
+      if (tooPrecise) return tooPrecise;
+    }
     if (rawIn === 0n || !tokenOut) return undefined;
     if (samePair) return "Unsupported token pair";
     if (isKron) {
