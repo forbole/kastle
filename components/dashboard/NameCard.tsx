@@ -2,6 +2,7 @@ import badgeVerified from "@/assets/images/badge-verified.svg";
 import kaspaLockupMark from "@/assets/images/network-logos/kaspa-lockup-mark.svg";
 import kaspaLockupText from "@/assets/images/network-logos/kaspa-lockup-text.svg";
 import igraLockup from "@/assets/images/network-logos/igra-lockup.png";
+import dotkLockup from "@/assets/images/network-logos/dotk-lockup.svg";
 
 type NameCardProps = {
   name: string;
@@ -128,17 +129,15 @@ export default function NameCard({
             />
           </span>
         ) : source === "dotk" ? (
-          // Text lockup: no dotK brand asset has been designed yet.
-          <span
+          <img
+            src={dotkLockup}
+            alt=""
             style={{
               height: px(10),
-              fontSize: px(9),
-              textShadow: `0px 0px ${px(4)} rgba(0,19,58,0.4)`,
+              width: px(10),
+              filter: `drop-shadow(0 0 ${px(4)} rgba(0,19,58,0.4))`,
             }}
-            className="block font-bold leading-none text-white"
-          >
-            dotK
-          </span>
+          />
         ) : (
           <img
             src={igraLockup}

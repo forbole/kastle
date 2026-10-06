@@ -146,7 +146,7 @@ export default function DotkTransferDetails({
   }, [userInput]);
 
   const plan = planned?.plan;
-  const feeKas = plan ? formatToken(Number(plan.fee) / 1e8, 3) : undefined;
+  const feeKas = plan ? formatToken(Number(plan.fee) / 1e8) : undefined;
 
   return (
     <>

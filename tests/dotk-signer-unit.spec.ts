@@ -13,7 +13,8 @@ import init, { PrivateKey, payToAddressScript } from "@/wasm/core/kaspa";
 import { makeDotkSigner } from "@/lib/dotk/signer";
 import { signTxWithScriptOptions } from "@/lib/wallet/sign-script";
 import { deedAddressOfState } from "@dotk/sdk-tx";
-import { Transaction } from "@/wasm/core/kaspa";
+import { Transaction, type RpcClient } from "@/wasm/core/kaspa";
+import { makeTxNode } from "@/lib/dotk/node";
 
 const TESTS_DIR = path.dirname(fileURLToPath(import.meta.url));
 const NETWORK = "testnet-10";
@@ -133,6 +134,25 @@ test("dotK transfer signed through the Kastle adapter is accepted by sdk-tx", as
   expect(
     Transaction.deserializeFromSafeJSON(toSafeJson(tx)).inputs.length,
   ).toBe(tx.inputs.length);
+});
+
+test("makeTxNode submits a wasm Transaction, not safe JSON with a string lockTime", async () => {
+  const { registrar, plan, sent } = await transferWith(TEST_KEY);
+  await registrar.submit(plan);
+
+  let submitted: unknown;
+  const rpc = {
+    submitTransaction: async (args: { transaction: unknown }) => {
+      submitted = args.transaction;
+      return { transactionId: "dd".repeat(32) };
+    },
+  } as unknown as RpcClient;
+  const txId = await makeTxNode(() => rpc, NETWORK).submit(sent[0]);
+
+  expect(txId).toBe("dd".repeat(32));
+  expect(submitted).toBeInstanceOf(Transaction);
+  expect(typeof (submitted as Transaction).lockTime).not.toBe("string");
+  expect((submitted as Transaction).inputs.length).toBe(sent[0].inputs.length);
 });
 
 test("a signature from the wrong key is rejected by sdk-tx and never sent", async () => {

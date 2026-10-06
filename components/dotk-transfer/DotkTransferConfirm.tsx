@@ -3,7 +3,7 @@ import { useFormContext } from "react-hook-form";
 import type { TransferPlanned } from "@dotk/sdk-tx";
 import Header from "@/components/GeneralHeader.tsx";
 import signImage from "@/assets/images/sign.png";
-import { formatCurrency, formatToken } from "@/lib/utils.ts";
+import { formatToken, formatUsdAmount } from "@/lib/utils.ts";
 import useKaspaPrice from "@/hooks/useKaspaPrice.ts";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
@@ -77,10 +77,10 @@ export default function DotkTransferConfirm({
           <span className="text-base font-medium">Fee</span>
           <div className="flex flex-col items-end break-all">
             <span className="text-base font-medium text-white">
-              {formatToken(feeKas, 3)} KAS
+              {formatToken(feeKas)} KAS
             </span>
             <span className="text-xs text-daintree-400">
-              {formatCurrency(feesCurrency, feesCurrencyCode)}
+              {formatUsdAmount(feesCurrency, feesCurrencyCode)}
             </span>
           </div>
         </div>
