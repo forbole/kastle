@@ -60,7 +60,8 @@ export function useFeatureFlags() {
     isSwapEnabled: isFlagEnabled(flags[SWAP_FLAG_KEY]),
     isBridgeEnabled: isFlagEnabled(flags[BRIDGE_FLAG_KEY]),
     isDotkEnabled: isFlagEnabled(flags[DOTK_FLAG_KEY]),
-    isKcc20Enabled: isFlagEnabled(flags[KCC20_FLAG_KEY]),
+    // Covenant spends fail closed: only an explicit `true` enables in production.
+    isKcc20Enabled: !isProduction || flags[KCC20_FLAG_KEY] === true,
     // Only an explicit `true` enables; dev builds force it on (mobile: __DEV__).
     isActivityEnabled: !isProduction || flags[ACTIVITY_FLAG_KEY] === true,
     // Deciding before PostHog's flags arrive would bounce a flagged-on user,

@@ -19,6 +19,8 @@ export type Kcc20Token = {
   tick: string;
   // Base units, summed from UTXOs the node confirmed; never the indexer's figure.
   amount: bigint;
+  // The ADDRESS-owned part of `amount`: the only pieces the send builder can spend.
+  spendable: bigint;
   // Set only when the registry entry for this covenant id verified against its genesis tx.
   meta?: { symbol: string; name: string; decimals: number; logoURI?: string };
 };
@@ -143,7 +145,13 @@ async function verifiedBalance(
   covid: string,
 ) {
   const pieces = await verifiedPieces(indexer, rpc, tick, address, covid);
-  return pieces.reduce((sum, p) => sum + p.state.amount, 0n);
+  const sum = (ps: Kcc20Piece[]) => ps.reduce((s, p) => s + p.state.amount, 0n);
+  return {
+    amount: sum(pieces),
+    spendable: sum(
+      pieces.filter((p) => p.state.identifierType === kcc20.IDENTIFIER.ADDRESS),
+    ),
+  };
 }
 
 export async function verifiedMeta(
@@ -200,7 +208,7 @@ export async function fetchKcc20Tokens(
   const tokens: (Kcc20Token | undefined)[] = await Promise.all(
     [...tickByCovid].map(async ([covid, tick]) => {
       try {
-        const amount = await verifiedBalance(
+        const { amount, spendable } = await verifiedBalance(
           indexer,
           rpc,
           tick,
@@ -218,6 +226,7 @@ export async function fetchKcc20Tokens(
           covenantId: covid,
           tick,
           amount,
+          spendable,
           meta: await verifiedMeta(entry, restApi),
         };
       } catch {
