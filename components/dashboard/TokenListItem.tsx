@@ -98,11 +98,11 @@ export function Kcc20TokenListItem({ token }: { token: Kcc20Token }) {
     : token.amount.toString();
 
   return (
-    <div
-      className={`flex items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3 ${canSend ? "cursor-pointer" : ""}`}
-      onClick={
-        canSend ? () => navigate(`/kcc20/send/${token.covenantId}`) : undefined
-      }
+    <button
+      type="button"
+      className={`flex w-full items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3 text-left ${canSend ? "cursor-pointer" : "cursor-default"}`}
+      disabled={!canSend}
+      onClick={() => navigate(`/kcc20/send/${token.covenantId}`)}
     >
       <Layer2AssetImage tokenImage={meta?.logoURI} chainImage={kasIcon} />
       <div className="flex min-w-0 flex-grow flex-col gap-1">
@@ -116,6 +116,6 @@ export function Kcc20TokenListItem({ token }: { token: Kcc20Token }) {
           {meta?.name ?? "Unverified KCC-20 (base units)"}
         </div>
       </div>
-    </div>
+    </button>
   );
 }

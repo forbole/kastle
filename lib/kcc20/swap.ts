@@ -223,6 +223,7 @@ async function outputValue(
  * The live curve and inventory UTXOs. The sequencer's head includes trades
  * still in the mempool (the curve's address changes on every trade); with
  * none in flight it is null and the confirmed state is read off the node.
+ * A failed lookup fails closed: submitting direct would race queued trades.
  * A wrong head only gets the trade rejected: the P2SH binds every value.
  */
 async function liveCurve(
@@ -244,7 +245,10 @@ async function liveCurve(
   const seq = await new client.SequencerClient(KRON_SEQUENCER_URL)
     .curveHead(market.curveCovenantId)
     .catch(() => undefined);
-  if (seq?.ok && seq.head) {
+  if (!seq?.ok) {
+    throw new KronSwapError("curve-busy", "The curve sequencer is unavailable");
+  }
+  if (seq.head) {
     const { poolOutpoint, poolTokenOutpoint, reserves } = seq.head;
     const tokenReserve = BigInt(reserves.tokenReserve);
     return {
@@ -413,6 +417,7 @@ export async function buildKronSwap({
         market.covenantId,
       ),
       amountIn,
+      market.entry.decimals,
     );
     covenantSpend = curveCp.buildCpSell(
       k,

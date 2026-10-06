@@ -93,6 +93,14 @@ test("pieces: presence-owned only, largest first, at most 3 inputs", () => {
       4n,
     ),
   ).toThrow(/pieces/);
+  // The error names the max: the three largest pieces, in display units.
+  expect(() =>
+    selectPieces(
+      [100n, 200n, 300n, 400n].map((a, n) => piece(n, a)),
+      1000n,
+      2,
+    ),
+  ).toThrow(/send at most 9 at once/);
 });
 
 function fundingUtxo(amount: bigint, n = 1) {

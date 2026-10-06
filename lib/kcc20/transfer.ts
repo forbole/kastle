@@ -1,5 +1,5 @@
 import { client, covenantSelect, kcc20, spend } from "@kronsdk/kron-sdk";
-import { hexToBytes } from "viem";
+import { formatUnits, hexToBytes } from "viem";
 import * as kaspa from "@/wasm/core/kaspa";
 import {
   payToAddressScript,
@@ -74,7 +74,12 @@ export function recipientPubkey(address: string): Uint8Array {
  * are authorised by a co-present wallet-signed input, while a PUBKEY-owned
  * piece needs a covenant-level signature the SDK send builder does not produce.
  */
-export function selectPieces(pieces: Kcc20Piece[], amount: bigint) {
+export function selectPieces(
+  pieces: Kcc20Piece[],
+  amount: bigint,
+  // Only formats the fragmented error's maximum.
+  decimals = 0,
+) {
   const sendable = pieces
     .filter((p) => p.state.identifierType === kcc20.IDENTIFIER.ADDRESS)
     .sort((a, b) => (a.state.amount < b.state.amount ? 1 : -1));
@@ -93,9 +98,12 @@ export function selectPieces(pieces: Kcc20Piece[], amount: bigint) {
     sum += p.state.amount;
   }
   if (sum < amount || picked.length > MAX_TOKEN_INPUTS) {
+    const max = sendable
+      .slice(0, MAX_TOKEN_INPUTS)
+      .reduce((s, p) => s + p.state.amount, 0n);
     throw new Kcc20TransferError(
       "fragmented",
-      `Balance is split across more than ${MAX_TOKEN_INPUTS} pieces; send a smaller amount`,
+      `Balance is split across more than ${MAX_TOKEN_INPUTS} pieces; send at most ${formatUnits(max, decimals)} at once`,
     );
   }
   return picked;
@@ -109,7 +117,7 @@ export async function buildKcc20Transfer({
   rpc,
   feeRate,
 }: {
-  token: Pick<Kcc20Token, "tick" | "covenantId">;
+  token: Pick<Kcc20Token, "tick" | "covenantId" | "meta">;
   address: string;
   recipient: string;
   amount: bigint;
@@ -138,6 +146,7 @@ export async function buildKcc20Transfer({
     recipient,
     amount,
     feeRate,
+    decimals: token.meta?.decimals,
   });
 }
 
@@ -150,6 +159,7 @@ export function assembleKcc20Transfer({
   recipient,
   amount,
   feeRate,
+  decimals,
 }: {
   covenantId: string;
   pieces: Kcc20Piece[];
@@ -158,9 +168,10 @@ export function assembleKcc20Transfer({
   recipient: string;
   amount: bigint;
   feeRate?: number;
+  decimals?: number;
 }): BuiltKcc20Transfer {
   const recipientKey = recipientPubkey(recipient);
-  const pieces = selectPieces(allPieces, amount);
+  const pieces = selectPieces(allPieces, amount, decimals);
   const k = kaspa as unknown as Parameters<typeof spend.assembleNativeTx>[0];
   const { template } = kcc20.decodeKcc20Redeem(pieces[0].redeem);
 
