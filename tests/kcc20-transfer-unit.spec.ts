@@ -297,15 +297,22 @@ test("Kastle fee is the last output, after change, and comes out of change", asy
 
 test("final fee covers the final tx; change under the fee-output minimum takes another input", () => {
   const k = kaspa as unknown as Parameters<typeof spend.estimateNativeFee>[0];
+  const args = {
+    covenantId: COVID,
+    pieces: [piece(1, 100n)],
+    address,
+    recipient: address,
+    amount: 40n,
+  };
+  // From 73M (past the ~72.4M build threshold) one input alone covers the
+  // send, so a second input is only taken for change under FEE_OUT_MIN.
+  assembleKcc20Transfer({ ...args, funding: [fundingUtxo(73_000_000n)] });
   let usedSecondInput = false;
-  for (let big = 100_000_000n; big <= 140_000_000n; big += 500_000n) {
+  for (let big = 73_000_000n; big <= 140_000_000n; big += 500_000n) {
     const built = assembleKcc20Transfer({
-      covenantId: COVID,
-      pieces: [piece(1, 100n)],
-      funding: [fundingUtxo(big, 1), fundingUtxo(100_000_000n, 2)],
-      address,
-      recipient: address,
-      amount: 40n,
+      ...args,
+      // Smaller than big, so it sorts second and only joins when needed.
+      funding: [fundingUtxo(big, 1), fundingUtxo(30_000_000n, 2)],
     });
     const asm = { ...built, totalIn: 0n, covenantOut: 0n, change: 0n };
     expect(built.fee >= spend.estimateNativeFee(k, "mainnet", asm, 1)).toBe(
