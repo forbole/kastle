@@ -82,7 +82,7 @@ export default function Kcc20Send() {
   };
 
   const onConfirm = async () => {
-    if (!built || !signer || !rpcClient) return;
+    if (busy || !built || !signer || !rpcClient) return;
     setBusy(true);
     try {
       setTxId(await sendKcc20Transfer(signer, built, rpcClient));
@@ -157,7 +157,21 @@ export default function Kcc20Send() {
               {error}
             </span>
           )}
-          <Button variant="primary" size="md" onClick={onClose}>
+          {step === "fail" && (
+            // Back to details, not confirm: the built tx may be stale, so Review rebuilds it.
+            <Button
+              variant="primary"
+              size="md"
+              onClick={() => setStep("details")}
+            >
+              Try again
+            </Button>
+          )}
+          <Button
+            variant={step === "fail" ? "secondary" : "primary"}
+            size="md"
+            onClick={onClose}
+          >
             Close
           </Button>
         </div>
@@ -166,7 +180,8 @@ export default function Kcc20Send() {
   }
 
   if (!token?.meta) return null;
-  const balance = formatUnits(token.amount, decimals);
+  // Only ADDRESS-owned pieces are sendable; the dashboard balance may be higher.
+  const spendable = formatUnits(token.spendable, decimals);
   const inputClass =
     "w-full rounded-xl border border-search-border bg-daintree-800 p-3 text-base text-white placeholder-daintree-300 focus:ring-0";
   return (
@@ -183,7 +198,7 @@ export default function Kcc20Send() {
         />
         <input
           className={inputClass}
-          placeholder={`Amount (balance ${balance} ${symbol})`}
+          placeholder={`Amount (spendable ${spendable} ${symbol})`}
           inputMode="decimal"
           autoComplete="off"
           value={amountInput}
