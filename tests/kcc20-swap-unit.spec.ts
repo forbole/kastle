@@ -68,6 +68,8 @@ test("the 0.2 KAS floor shows as its effective rate; dust trades do not quote", 
   expect(String(q.kastleFee)).toBe(String(curve.FEE_OUT_MIN));
   expect(kronKastleFeeBps(q)).toBe(200);
   expect(quoteKron(state, "buy", curve.FEE_OUT_MIN)).toBeUndefined();
+  // 0.3 KAS: the 0.2 KAS fee floor would exceed the ~0.1 KAS curve leg.
+  expect(quoteKron(state, "buy", (3n * KAS) / 10n)).toBeUndefined();
 });
 
 test("swap errors map to user copy, never the raw throw", () => {

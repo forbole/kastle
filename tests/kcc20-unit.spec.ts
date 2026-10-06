@@ -5,7 +5,12 @@ import { expect, test } from "@playwright/test";
 import { kcc20 } from "@kronsdk/kron-sdk";
 import { hexToBytes } from "viem";
 import init, { PrivateKey, payToAddressScript } from "@/wasm/core/kaspa";
-import { isOwnedBy, shouldIncludeToken, verifiedMeta } from "@/lib/kcc20";
+import {
+  decimalsError,
+  isOwnedBy,
+  shouldIncludeToken,
+  verifiedMeta,
+} from "@/lib/kcc20";
 
 const TESTS_DIR = path.dirname(fileURLToPath(import.meta.url));
 
@@ -57,4 +62,12 @@ test("a kcc20 token whose verification throws is dropped, not the whole list", a
   expect(
     await verifiedMeta(entry, undefined as unknown as string),
   ).toBeUndefined();
+});
+
+test("amounts with more decimals than the token are rejected, not rounded", () => {
+  expect(decimalsError("0.6", 0, "TKN")).toMatch(/no decimal places/);
+  expect(decimalsError("1.234", 2, "TKN")).toMatch(/at most 2 decimal/);
+  expect(decimalsError("1.23", 2, "TKN")).toBeUndefined();
+  expect(decimalsError("5", 0, "TKN")).toBeUndefined();
+  expect(decimalsError("", 0, "TKN")).toBeUndefined();
 });
