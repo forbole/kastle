@@ -144,7 +144,10 @@ async function verifiedBalance(
   address: string,
   covid: string,
 ) {
-  const pieces = await verifiedPieces(indexer, rpc, tick, address, covid);
+  // A minter piece's amount is mint authority, not a balance.
+  const pieces = (
+    await verifiedPieces(indexer, rpc, tick, address, covid)
+  ).filter((p) => !p.state.isMinter);
   const sum = (ps: Kcc20Piece[]) => ps.reduce((s, p) => s + p.state.amount, 0n);
   return {
     amount: sum(pieces),
@@ -239,4 +242,12 @@ export async function fetchKcc20Tokens(
     (t): t is Kcc20Token =>
       t !== undefined && shouldIncludeToken(t.meta, t.amount),
   );
+}
+
+/** An error for an amount with more fractional digits than the token has: parseUnits would silently round it. */
+export function decimalsError(input: string, decimals: number, symbol: string) {
+  if ((input.trim().split(".")[1]?.length ?? 0) <= decimals) return undefined;
+  return decimals === 0
+    ? `${symbol} has no decimal places`
+    : `${symbol} has at most ${decimals} decimal places`;
 }

@@ -2,8 +2,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
-import { kcc20 } from "@kronsdk/kron-sdk";
+import { curve, kcc20, spend } from "@kronsdk/kron-sdk";
 import { bytesToHex, hexToBytes } from "viem";
+import * as kaspa from "@/wasm/core/kaspa";
 import init, {
   PrivateKey,
   Transaction,
@@ -101,6 +102,19 @@ test("pieces: presence-owned only, largest first, at most 3 inputs", () => {
       2,
     ),
   ).toThrow(/send at most 9 at once/);
+  expect(() =>
+    selectPieces(
+      [100n, 200n, 300n, 400n].map((a, n) => piece(n, a)),
+      1000n,
+      2,
+      "sell",
+    ),
+  ).toThrow(/sell at most 9 at once/);
+
+  // A minter piece's amount is mint authority, not spendable balance.
+  const minter = piece(1, 9n);
+  minter.state = { ...minter.state, isMinter: true };
+  expect(() => selectPieces([minter], 1n)).toThrow(/spendable/);
 });
 
 function fundingUtxo(amount: bigint, n = 1) {
@@ -149,6 +163,8 @@ test("transfer signs only the funding input; outputs and covenant bindings are e
   });
   expect(built.fundingInputIndexes).toEqual([1]);
   expect(String(built.amount)).toBe("40");
+  // The fee plus the 50M dust the second covenant output adds.
+  expect(String(built.kasDebit)).toBe(String(built.fee + 50_000_000n));
 
   const covScript = built.transaction.inputs[0].signatureScript;
   const signed = await signKcc20Transfer(wallet(), built);
@@ -277,4 +293,27 @@ test("Kastle fee is the last output, after change, and comes out of change", asy
   expect(String(changeDelta - 30_000_000n)).toBe(String(built.fee - plain.fee));
   const outTotal = values.reduce((s, v) => s + BigInt(v), 0n);
   expect(String(1_050_000_000n - outTotal)).toBe(String(built.fee));
+});
+
+test("final fee covers the final tx; change under the fee-output minimum takes another input", () => {
+  const k = kaspa as unknown as Parameters<typeof spend.estimateNativeFee>[0];
+  let usedSecondInput = false;
+  for (let big = 100_000_000n; big <= 140_000_000n; big += 500_000n) {
+    const built = assembleKcc20Transfer({
+      covenantId: COVID,
+      pieces: [piece(1, 100n)],
+      funding: [fundingUtxo(big, 1), fundingUtxo(100_000_000n, 2)],
+      address,
+      recipient: address,
+      amount: 40n,
+    });
+    const asm = { ...built, totalIn: 0n, covenantOut: 0n, change: 0n };
+    expect(built.fee >= spend.estimateNativeFee(k, "mainnet", asm, 1)).toBe(
+      true,
+    );
+    const change = built.transaction.outputs[2];
+    if (change) expect(BigInt(change.value) >= curve.FEE_OUT_MIN).toBe(true);
+    if (built.fundingInputIndexes.length === 2) usedSecondInput = true;
+  }
+  expect(usedSecondInput).toBe(true);
 });

@@ -1,4 +1,4 @@
-import { client, covenantSelect, kcc20, spend } from "@kronsdk/kron-sdk";
+import { client, covenantSelect, curve, kcc20, spend } from "@kronsdk/kron-sdk";
 import { formatUnits, hexToBytes } from "viem";
 import * as kaspa from "@/wasm/core/kaspa";
 import {
@@ -18,9 +18,6 @@ import {
 
 // ADR-009: the covenant is compiled for at most 3 token inputs and outputs.
 export const MAX_TOKEN_INPUTS = 3;
-
-// Standard-relay dust limit for a P2PK change output, in sompi.
-const DUST_CHANGE = 546n;
 
 export class Kcc20TransferError extends Error {
   constructor(
@@ -48,6 +45,8 @@ export type BuiltKcc20Transfer = {
   fee: bigint;
   // Token base units actually signed.
   amount: bigint;
+  // Sompi leaving the wallet's plain KAS: the fee plus the dust the covenant outputs carry beyond their inputs.
+  kasDebit: bigint;
 };
 
 /** The recipient's x-only pubkey; only a plain mainnet Schnorr address can hold a presence-owned balance. */
@@ -77,11 +76,16 @@ export function recipientPubkey(address: string): Uint8Array {
 export function selectPieces(
   pieces: Kcc20Piece[],
   amount: bigint,
-  // Only formats the fragmented error's maximum.
+  // Only format the fragmented error.
   decimals = 0,
+  action = "send",
 ) {
   const sendable = pieces
-    .filter((p) => p.state.identifierType === kcc20.IDENTIFIER.ADDRESS)
+    .filter(
+      (p) =>
+        p.state.identifierType === kcc20.IDENTIFIER.ADDRESS &&
+        !p.state.isMinter,
+    )
     .sort((a, b) => (a.state.amount < b.state.amount ? 1 : -1));
   const total = sendable.reduce((s, p) => s + p.state.amount, 0n);
   if (total < amount) {
@@ -103,7 +107,7 @@ export function selectPieces(
       .reduce((s, p) => s + p.state.amount, 0n);
     throw new Kcc20TransferError(
       "fragmented",
-      `Balance is split across more than ${MAX_TOKEN_INPUTS} pieces; send at most ${formatUnits(max, decimals)} at once`,
+      `Balance is split across more than ${MAX_TOKEN_INPUTS} pieces; ${action} at most ${formatUnits(max, decimals)} at once`,
     );
   }
   return picked;
@@ -187,9 +191,17 @@ export function assembleKcc20Transfer({
     covenantId,
   );
 
+  const funded = fundCovenantSpend({
+    spend: send,
+    funding: utxos,
+    address,
+    feeRate,
+  });
+  const sum = (xs: { value: bigint }[]) => xs.reduce((s, x) => s + x.value, 0n);
   return {
-    ...fundCovenantSpend({ spend: send, funding: utxos, address, feeRate }),
+    ...funded,
     amount,
+    kasDebit: funded.fee + sum(send.outputs) - sum(send.inputs),
   };
 }
 
@@ -211,7 +223,7 @@ export function fundCovenantSpend({
   address: string;
   feeRate?: number;
   kastleFee?: bigint;
-}): Omit<BuiltKcc20Transfer, "amount"> {
+}): Omit<BuiltKcc20Transfer, "amount" | "kasDebit"> {
   const k = kaspa as unknown as Parameters<typeof spend.assembleNativeTx>[0];
   // Plain KAS only: a covenant-bound UTXO here would be spent as a fee input.
   const funding = utxos
@@ -238,21 +250,31 @@ export function fundCovenantSpend({
     return asm;
   };
 
+  const estimate = (asm: ReturnType<typeof assemble>) =>
+    spend.estimateNativeFee(k, "mainnet", asm, feeRate);
+
   // The fee depends on the input count, so grow the funding set until
   // totalIn covers outputs + fee. A token input carrying less than the dust it
   // is re-emitted at (carrierShortfall) is covered by the same check.
   for (let n = 1; n <= funding.length; n++) {
     try {
-      const fee = spend.estimateNativeFee(
-        k,
-        "mainnet",
-        assemble(n, 10_000n),
-        feeRate,
-      );
-      const asm = assemble(n, fee);
-      // Zero change is a consensus reject and dust change a mempool reject:
-      // drop the change output (last before the Kastle fee) and let the miner keep it.
-      if (asm.change < DUST_CHANGE) {
+      let fee = estimate(assemble(n, 10_000n));
+      let asm = assemble(n, fee);
+      // The guess's large change hides the final change's storage mass:
+      // re-price the final tx until its fee covers it.
+      for (
+        let next = estimate(asm);
+        next > fee && asm.change >= curve.FEE_OUT_MIN;
+        next = estimate(asm)
+      ) {
+        fee = next;
+        asm = assemble(n, fee);
+      }
+      // A change below the fee-output minimum is priced out by its storage
+      // mass: add an input. With none left, drop the change output (last
+      // before the Kastle fee) and let the miner keep it.
+      if (asm.change < curve.FEE_OUT_MIN && n < funding.length) continue;
+      if (asm.change < curve.FEE_OUT_MIN) {
         const outputs = asm.transaction.outputs;
         outputs.splice(outputs.length - (kastleFee > 0n ? 2 : 1), 1);
         asm.transaction.outputs = outputs;
