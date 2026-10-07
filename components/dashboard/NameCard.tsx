@@ -23,15 +23,20 @@ const BOX = {
 };
 const SCALE = { sm: 1, lg: 1.6 };
 
-// Design steps the name down through four sizes so long names still fit the
-// text box. The buckets are length thresholds, so they hold at both sizes: the
-// text box scales by the same 1.6, so a name wraps to the same line count.
-// Tracking is -2% throughout, which scales for free.
-const baseNameSize = (length: number) => {
-  if (length <= 12) return 16;
-  if (length <= 24) return 14;
-  if (length <= 40) return 12;
-  return 10;
+// Design steps the name down through five sizes so long names still fit the
+// text box. Buckets are label-length thresholds (the label is the longest
+// rendered line; the TLD drops to its own line past 7 chars), so they hold at
+// both sizes: the text box scales by the same 1.6, so a name wraps to the
+// same line count. Tracking is -2% throughout, which scales for free.
+// The 50.98px name box fits three lines of leading-normal (1.5) at 11px
+// (3 * 1.5 * 11 = 49.5), so anything past a 16-char label must drop below 12px
+// or a long label wraps to three lines and clips.
+const baseNameSize = (labelLength: number) => {
+  if (labelLength <= 12) return 16;
+  if (labelLength <= 16) return 14;
+  if (labelLength <= 24) return 11;
+  if (labelLength <= 34) return 10;
+  return 9;
 };
 
 export default function NameCard({
@@ -89,7 +94,7 @@ export default function NameCard({
         <span
           style={{
             height: px(50.98),
-            fontSize: px(baseNameSize(name.length)),
+            fontSize: px(baseNameSize(label.length)),
             textShadow: `0px 0px ${px(4)} rgba(0,19,58,0.4)`,
           }}
           className="overflow-hidden font-bold leading-normal tracking-[-0.02em] text-white"
