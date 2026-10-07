@@ -4,6 +4,8 @@ import useWalletManager from "@/hooks/wallet/useWalletManager";
 import useEvmAddress from "@/hooks/evm/useEvmAddress";
 import { useAssetsByAddress } from "@/hooks/kns/useKns";
 import { useInsDomainsByAddress } from "@/hooks/ins/useIns";
+import { useDotkNames } from "@/hooks/dotk/useDotkNames";
+import { useFeatureFlags } from "@/hooks/useFeatureFlags";
 import NameCard from "@/components/dashboard/NameCard";
 
 export default function Names() {
@@ -23,6 +25,13 @@ export default function Names() {
     isLoading: isInsLoading,
     error: insError,
   } = useInsDomainsByAddress(evmAddress);
+
+  const { isDotkEnabled } = useFeatureFlags();
+  const {
+    names: dotkNames,
+    isLoading: isDotkLoading,
+    error: dotkError,
+  } = useDotkNames(account?.address, isDotkEnabled);
 
   const pagination = knsData && knsData[knsSize - 1]?.data?.pagination;
   const hasNextPage =
@@ -48,29 +57,38 @@ export default function Names() {
   const isEmpty =
     !knsFirstLoading &&
     insDomains.length === 0 &&
+    dotkNames.length === 0 &&
     (knsData?.[0]?.data?.assets?.length ?? 0) === 0;
 
   // A failed fetch is not an empty wallet. Telling someone they own no names
   // when the request never landed is the one wrong answer here, so the error
   // takes the empty state's place whenever either source failed.
-  const failed = !!knsError || !!insError;
+  const failed = !!knsError || !!insError || !!dotkError;
 
   return (
     <div className="flex flex-wrap gap-[12px] pb-4">
       {/* isEmpty itself stays KNS-only (see above) -- this extra gate just
           keeps the message from rendering underneath the skeletons below,
           which key off both sources. */}
-      {failed && isEmpty && !isKnsLoading && !isInsLoading && (
-        <div className="flex w-full justify-center py-6 text-center text-sm text-daintree-400">
-          Couldn’t load your names. Check your connection and try again.
-        </div>
-      )}
+      {failed &&
+        isEmpty &&
+        !isKnsLoading &&
+        !isInsLoading &&
+        !isDotkLoading && (
+          <div className="flex w-full justify-center py-6 text-center text-sm text-daintree-400">
+            Couldn’t load your names. Check your connection and try again.
+          </div>
+        )}
 
-      {!failed && isEmpty && !isKnsLoading && !isInsLoading && (
-        <div className="flex w-full justify-center py-6 text-sm text-daintree-400">
-          No names found
-        </div>
-      )}
+      {!failed &&
+        isEmpty &&
+        !isKnsLoading &&
+        !isInsLoading &&
+        !isDotkLoading && (
+          <div className="flex w-full justify-center py-6 text-sm text-daintree-400">
+            No names found
+          </div>
+        )}
 
       {/* KNS domains */}
       {knsData?.flatMap((page) =>
@@ -99,11 +117,21 @@ export default function Names() {
         />
       ))}
 
+      {/* dotK names (behind the `dotk` flag; ACTIVE names only) */}
+      {dotkNames.map((n) => (
+        <NameCard
+          key={n.name}
+          name={n.display}
+          source="dotk"
+          onClick={() => navigate(`/dotk/${n.display}`)}
+        />
+      ))}
+
       {/* Placeholder cards, not a spinner: they sit in the grid flow so the
           row keeps its shape and nothing jumps as pages land. Rendered after
           the real cards, which puts them at the start on a first load (there
           are none yet) and at the end while a further page resolves. */}
-      {(isKnsLoading || isInsLoading) &&
+      {(isKnsLoading || isInsLoading || isDotkLoading) &&
         Array.from({ length: 2 }).map((_, index) => (
           <div
             key={`skeleton-${index}`}

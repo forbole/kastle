@@ -90,6 +90,23 @@ test.describe("useFeatureFlags", () => {
     });
   });
 
+  test("dotK kill switch: default-on, explicit false disables only dotK", () => {
+    expect(renderFeatureFlags(undefined)).toMatchObject({
+      isDotkEnabled: true,
+    });
+    expect(renderFeatureFlags({})).toMatchObject({ isDotkEnabled: true });
+    expect(renderFeatureFlags({ dotk_enabled_extension: false })).toMatchObject(
+      {
+        isDotkEnabled: false,
+        isSwapEnabled: true,
+        isBridgeEnabled: true,
+      },
+    );
+    expect(
+      renderFeatureFlags({ dotk_enabled_extension: "false" }),
+    ).toMatchObject({ isDotkEnabled: false });
+  });
+
   test("inactive flags, omitted from the /decide v3 map, stay enabled", () => {
     expect(renderFeatureFlags({ swap_enabled: false })).toMatchObject({
       isSwapEnabled: true,

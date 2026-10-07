@@ -27,6 +27,8 @@
     "e2e:ui": "playwright test --ui"
   },
   "dependencies": {
+    "@dotk/sdk": "^2.1.0",
+    "@dotk/sdk-tx": "^2.1.0",
     "@fontsource/figtree": "^5.1.2",
     "@hackernoon/pixel-icon-library": "^1.0.2",
     "@ledgerhq/hw-transport": "^6.30.0",

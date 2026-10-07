@@ -56,6 +56,11 @@ export type SendCompletedProperties =
       status: "success" | "failed";
     } & CommonSendCompleted)
   | ({
+      type: "DOTK";
+      id: string;
+      status: "success" | "failed";
+    } & CommonSendCompleted)
+  | ({
       type: "ERC721";
       id: string;
       chainId: number;
