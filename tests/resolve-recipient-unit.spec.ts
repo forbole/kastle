@@ -63,7 +63,9 @@ test("`.k` with the flag ON resolves through dotK", async () => {
     dotk: true,
   });
   expect(out).toEqual({ address: ADDRESS, domain: "alice.k" });
-  expect(dotkCalls).toEqual([" alice.k "]);
+  // resolveRecipient now trims once up front, so the client sees the
+  // normalized name rather than the raw " alice.k " the caller typed.
+  expect(dotkCalls).toEqual(["alice.k"]);
   expect(kns).toEqual([]);
 });
 

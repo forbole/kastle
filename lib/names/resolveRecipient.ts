@@ -26,6 +26,7 @@ export async function resolveRecipient(
     dotk,
   }: { fetchDomainInfo: FetchDomainInfo; networkId: string; dotk: boolean },
 ): Promise<ResolvedRecipient> {
+  input = input.trim();
   if (input.endsWith(".kas")) {
     const owner = (await fetchDomainInfo(input))?.data?.owner;
     return owner && Address.validate(owner)
@@ -50,7 +51,7 @@ export async function resolveRecipient(
             : undefined;
       return { fault };
     }
-    return { address: recipient.address, domain: input.trim() };
+    return { address: recipient.address, domain: input };
   }
 
   return Address.validate(input) ? { address: input } : {};

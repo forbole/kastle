@@ -207,7 +207,7 @@ export default function DotkTransferDetails({
           />
 
           <div className="pointer-events-none absolute end-0 top-10 flex h-16 items-center pe-3">
-            {(validatingFields.address || isPlanning) && (
+            {(validatingFields.userInput || isPlanning) && (
               <img
                 alt="spinner"
                 className="size-5 animate-spin"
