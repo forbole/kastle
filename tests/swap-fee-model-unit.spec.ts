@@ -1,14 +1,12 @@
-import { register } from "node:module";
+import { registerHooks } from "node:module";
 import { test, expect } from "@playwright/test";
 
-register(
-  "data:text/javascript," +
-    encodeURIComponent(
-      `export const load = (url, ctx, next) => /\\.(png|svg)$/.test(url)
-        ? { format: "module", source: "export default ''", shortCircuit: true }
-        : next(url, ctx);`,
-    ),
-);
+registerHooks({
+  load: (url, ctx, next) =>
+    /\.(png|svg)$/.test(url)
+      ? { format: "module", source: "export default ''", shortCircuit: true }
+      : next(url, ctx),
+});
 const { computeSwapKastleFee } = await import("@/lib/swap-bridge-quote");
 
 const base = {

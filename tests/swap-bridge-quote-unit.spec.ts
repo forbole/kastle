@@ -1,4 +1,4 @@
-import { register } from "node:module";
+import { registerHooks } from "node:module";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,14 +10,12 @@ import init, {
   signTransaction,
 } from "@/wasm/core/kaspa";
 
-register(
-  "data:text/javascript," +
-    encodeURIComponent(
-      `export const load = (url, ctx, next) => /\\.(png|svg)$/.test(url)
-        ? { format: "module", source: "export default ''", shortCircuit: true }
-        : next(url, ctx);`,
-    ),
-);
+registerHooks({
+  load: (url, ctx, next) =>
+    /\.(png|svg)$/.test(url)
+      ? { format: "module", source: "export default ''", shortCircuit: true }
+      : next(url, ctx),
+});
 const { IGRA_ENTRY_ADDRESS, igraEntryPayload } = await import(
   "@/lib/bridge/bridge"
 );
