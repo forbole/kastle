@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="dotk">
+  <defs>
+    <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#89f1dd" />
+      <stop offset="1" stop-color="#26b998" />
+    </linearGradient>
+  </defs>
+  <!-- A disc of the dark theme's card colour under everything. The teal is the default theme's
+       accent and does not clear 3:1 against a white tab bar on its own; a dark coin does, and at
+       the size of a browser tab the disc, the ring and the mark read as one shape. A literal hex
+       rather than the theme token: a favicon is rendered with no document to inherit from. -->
+  <circle cx="64" cy="64" r="64" fill="#071c19" />
+  <!-- The keyspace: a ring in three arcs with gaps between them, which is what the registry IS —
+       a partition of gaps and deeds around one circle. Round caps so the gaps read as gaps and
+       not as breaks, the gaps wide enough that three arcs are still three at 16px, and a
+       gradient of the teal so the ring has a light side. The dashes sum to the circumference. -->
+  <circle cx="64" cy="64" r="56" fill="none" stroke="url(#ring)" stroke-width="9" stroke-linecap="round" stroke-dasharray="95.3 22" transform="rotate(-100 64 64)" />
+  <!-- The suffix every name in this registry ends in: a drawn dot rather than a typed period, so
+       its size and its distance from the letter are the mark's own and not the font's, and a
+       shade lighter than the letter, so the two parts of the suffix read as two. The `k` is an
+       outline, because a logo cannot depend on which typeface the machine rendering it happens
+       to call `system-ui`. Scaled about the frame's centre to clear the ring; the lockup's own
+       centring is what it is scaled from. -->
+  <g transform="translate(64 64) scale(0.784) translate(-64 -64) translate(18.27 -0.09)">
+    <circle cx="12" cy="84" r="12" fill="#a5f7e6" />
+    <path fill="#49eacb" transform="translate(41.05 96) scale(1.15) translate(-41.05 -96)" d="M41.05 32.18H55.74V66.92L72.64 50.06H89.70L67.26 71.14L91.46 96.00H73.66L55.74 76.85V96.00H41.05Z" />
+  </g>
+</svg>

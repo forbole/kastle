@@ -1,34 +1,40 @@
 import { useFormContext } from "react-hook-form";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import Header from "@/components/GeneralHeader.tsx";
-import useWalletManager from "@/hooks/wallet/useWalletManager";
-import { PublicKey } from "@/wasm/core/kaspa";
 import { twMerge } from "tailwind-merge";
 import { useBoolean } from "usehooks-ts";
-import RecentAddresses from "@/components/send/RecentAddresses.tsx";
-import spinner from "@/assets/images/spinner.svg";
 import { Tooltip } from "react-tooltip";
-import { KRC721TransferFormData } from "@/components/screens/KRC721Transfer.tsx";
-import { buildKrc721TransferScript } from "@/lib/krc721";
-import { useKasFeeEstimate } from "@/hooks/useKasFeeEstimate";
+import Header from "@/components/GeneralHeader.tsx";
+import spinner from "@/assets/images/spinner.svg";
+import RecentAddresses from "@/components/send/RecentAddresses.tsx";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
+import useRpcClientStateful from "@/hooks/useRpcClientStateful.ts";
+import useKaspaHotWalletSigner from "@/hooks/wallet/useKaspaHotWalletSigner";
 import { useResolveRecipient } from "@/hooks/names/useResolveRecipient";
+import { makeRegistrar } from "@/lib/dotk/registrar";
 import { formatToken } from "@/lib/utils.ts";
-import useKaspaBalance from "@/hooks/wallet/useKaspaBalance";
-import { useKRC721Details, useKRC721Image } from "@/hooks/krc721/useKRC721";
-import FeeSegment from "../nft-transfer/FeeSegment";
+import type {
+  DotkTransferFormData,
+  DotkTransferPlan,
+} from "@/components/dotk-transfer/DotkTransfer.tsx";
 
-type KRC721TransferDetailsProps = {
+type DotkTransferDetailsProps = {
+  planned: DotkTransferPlan | undefined;
+  setPlanned: (value: DotkTransferPlan | undefined) => void;
   onNext: () => void;
   onBack?: () => void;
 };
 
-export const KRC721TransferDetails = ({
+export default function DotkTransferDetails({
+  planned,
+  setPlanned,
   onNext,
   onBack,
-}: KRC721TransferDetailsProps) => {
+}: DotkTransferDetailsProps) {
   const navigate = useNavigate();
   const { account } = useWalletManager();
+  const { rpcClient, networkId } = useRpcClientStateful();
+  const walletSigner = useKaspaHotWalletSigner();
   const resolveRecipient = useResolveRecipient();
   const resolutionSeq = useRef(0);
   const {
@@ -37,60 +43,25 @@ export const KRC721TransferDetails = ({
     setValue,
     setError,
     formState: { isValid, errors, validatingFields },
-  } = useFormContext<KRC721TransferFormData>();
-  const { tick, tokenId, userInput, address, domain } = watch();
-
-  const scriptHex = useMemo(() => {
-    const pubKeyHex = account?.publicKeys?.[0];
-    if (!pubKeyHex || !tick || !tokenId || !address) return undefined;
-    try {
-      return buildKrc721TransferScript(new PublicKey(pubKeyHex), {
-        tick,
-        tokenId,
-        to: address,
-      }).toString();
-    } catch {
-      return undefined;
-    }
-  }, [account?.publicKeys?.[0], tick, tokenId, address]);
-
-  const { fee: commitFee } = useKasFeeEstimate();
-  const { fee: revealFee } = useKasFeeEstimate(
-    scriptHex ? { scriptsHexes: [scriptHex] } : undefined,
-  );
-  const estimatedFeeKas = formatToken(
-    ((commitFee ?? 0) + (revealFee ?? 0)) / 1e8,
-    3,
-  );
+  } = useFormContext<DotkTransferFormData>();
+  const { name, userInput, address, domain } = watch();
+  const [planError, setPlanError] = useState<string>();
+  const [isPlanning, setIsPlanning] = useState(false);
 
   const {
     value: isRecentAddressShown,
     setFalse: hideRecentAddress,
     setTrue: showRecentAddress,
   } = useBoolean(false);
-
-  const { data } = useKRC721Details(tick, tokenId);
-  const image = useKRC721Image(tick, tokenId, data?.image);
-
   const { value: isAddressFieldFocused, setValue: setAddressFieldFocused } =
     useBoolean(false);
-  const kasBalance = useKaspaBalance(account?.address) ?? 0;
-  const currentBalance = kasBalance;
 
   const onClose = () => navigate("/dashboard");
 
   const addressValidator = async (value: string | undefined) => {
-    const genericErrorMessage = "Invalid Kaspa address or .kas domain";
+    const genericErrorMessage = "Invalid address or KNS domain";
     const seq = ++resolutionSeq.current;
     if (!value) return false;
-
-    if (currentBalance < ((commitFee ?? 0) + (revealFee ?? 0)) / 1e8) {
-      return "Oh, you don’t have enough funds";
-    }
-
-    if (value === account?.address) {
-      return "You cannot send NFT to yourself";
-    }
 
     try {
       const resolved = await resolveRecipient(value);
@@ -103,10 +74,11 @@ export const KRC721TransferDetails = ({
         return resolved.fault ?? genericErrorMessage;
       }
 
+      // A transfer to oneself is a records save, a separate flow.
       if (resolved.address === account?.address) {
         setValue("address", undefined);
         setValue("domain", undefined);
-        return "You cannot send NFT to yourself";
+        return "You cannot transfer a name to yourself";
       }
 
       setValue("address", resolved.address);
@@ -118,6 +90,43 @@ export const KRC721TransferDetails = ({
       return genericErrorMessage;
     }
   };
+
+  // Plan on every resolved recipient: the fee and the cards come from sdk-tx's
+  // own measurement, never from an estimate. One Registrar per operation.
+  useEffect(() => {
+    setPlanned(undefined);
+    setPlanError(undefined);
+    if (!address || !account?.address || !rpcClient || !networkId) return;
+    if (!walletSigner) return;
+
+    let cancelled = false;
+    setIsPlanning(true);
+    const registrar = makeRegistrar({
+      networkId,
+      rpcClient,
+      walletSigner,
+      address: account.address,
+    });
+    registrar
+      .planTransfer(name, address)
+      .then((plan) => {
+        if (!cancelled) setPlanned({ registrar, plan });
+      })
+      .catch((e) => {
+        console.error(e);
+        if (!cancelled) {
+          setPlanError(
+            e instanceof Error ? e.message : "Couldn’t plan this transfer",
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setIsPlanning(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [address, name, networkId, account?.address]);
 
   // Handle recent address list visibility
   useEffect(() => {
@@ -136,25 +145,18 @@ export const KRC721TransferDetails = ({
     }
   }, [userInput]);
 
+  const plan = planned?.plan;
+  const feeKas = plan ? formatToken(Number(plan.fee) / 1e8) : undefined;
+
   return (
     <>
       <Header title="Transfer" onClose={onClose} onBack={onBack} />
 
       <div className="relative flex h-full flex-col gap-4">
-        <div className="relative mx-auto max-h-28 max-w-48 rounded-xl bg-daintree-800">
-          {!!image.src && (
-            <img
-              src={image.src}
-              onError={image.onError}
-              alt="KRC721"
-              className="m-auto max-h-28 max-w-48 rounded-xl"
-            />
-          )}
-        </div>
         <div className="flex items-center justify-between">
           <label className="flex gap-1 text-base font-medium">
             <span>Transfer</span>
-            <span className="text-icy-blue-400">{`${tick} #${tokenId}`}</span>
+            <span className="text-icy-blue-400">{name}</span>
             <span>from</span>
           </label>
         </div>
@@ -175,12 +177,11 @@ export const KRC721TransferDetails = ({
           <Tooltip
             id="info-tooltip"
             style={{
-              backgroundColor: "#203C49",
+              backgroundColor: "#374151",
               fontSize: "12px",
               fontWeight: 600,
               padding: "2px 8px",
             }}
-            opacity={1}
             className="flex flex-col items-center"
           >
             <span>Check the address carefully.</span>
@@ -190,7 +191,7 @@ export const KRC721TransferDetails = ({
         </div>
 
         {/* Address input group */}
-        <div>
+        <div className="relative">
           <textarea
             onFocus={() => setAddressFieldFocused(true)}
             {...register("userInput", {
@@ -199,14 +200,14 @@ export const KRC721TransferDetails = ({
             })}
             className={twMerge(
               "no-scrollbar w-full resize-none rounded-lg border border-daintree-700 bg-daintree-800 px-4 py-3 pe-12 text-sm placeholder-daintree-200 ring-0 hover:placeholder-daintree-50 focus:border-daintree-700 focus:ring-0",
-              errors.userInput &&
+              (errors.userInput || planError) &&
                 "ring ring-red-500/25 focus:ring focus:ring-red-500/25",
             )}
-            placeholder="Enter wallet address or KNS"
+            placeholder="Enter wallet address or name"
           />
 
           <div className="pointer-events-none absolute end-0 top-10 flex h-16 items-center pe-3">
-            {validatingFields.address && (
+            {(validatingFields.userInput || isPlanning) && (
               <img
                 alt="spinner"
                 className="size-5 animate-spin"
@@ -224,22 +225,53 @@ export const KRC721TransferDetails = ({
               {errors.userInput.message}
             </span>
           )}
+          {planError && (
+            <span className="inline-block text-sm text-red-500">
+              {planError}
+            </span>
+          )}
+          <RecentAddresses
+            isShown={isRecentAddressShown}
+            hideAddressSelect={hideRecentAddress}
+          />
         </div>
 
-        <RecentAddresses
-          isShown={isRecentAddressShown}
-          hideAddressSelect={hideRecentAddress}
-        />
+        {/* Subnames end with the transfer: the seller reads them before signing. */}
+        {!!plan?.cards.subnamesDropped.length && (
+          <div className="flex flex-col gap-1 rounded-lg border border-red-500/40 bg-daintree-800 p-3 text-sm">
+            <span className="font-medium text-red-500">
+              {plan.cards.subnamesDropped.length} subname
+              {plan.cards.subnamesDropped.length > 1 ? "s" : ""} will end
+            </span>
+            {plan.cards.subnamesDropped.map((s) => (
+              <span
+                key={s.label}
+                className="break-all text-xs text-daintree-400"
+              >
+                {s.label}
+                {s.address ? ` → ${s.address}` : ""}
+              </span>
+            ))}
+          </div>
+        )}
 
-        <FeeSegment
-          feeTooltipText="KRC721 fees are handled automatically by Kastle."
-          estimatedFeeTooltipText={`~${estimatedFeeKas} KAS for miner fees.`}
-          estimatedFee={estimatedFeeKas}
-        />
+        {/* Fee segment */}
+        <div className="flex items-center justify-between gap-2 text-sm">
+          <span>Fee</span>
+          <div className="flex items-center gap-2">
+            <span>{feeKas ? `${feeKas} KAS` : "—"}</span>
+          </div>
+        </div>
+        {plan && plan.cards.swept > 0 && (
+          <span className="text-xs text-daintree-400">
+            Reclaims {plan.cards.swept} old record card
+            {plan.cards.swept > 1 ? "s" : ""} in the same transaction.
+          </span>
+        )}
 
         <div className="mt-auto">
           <button
-            disabled={!isValid}
+            disabled={!isValid || !plan}
             onClick={onNext}
             className="mt-auto w-full rounded-full bg-icy-blue-400 py-4 text-base font-medium text-white transition-colors hover:bg-icy-blue-600 disabled:bg-daintree-800 disabled:text-[#4B5563]"
           >
@@ -249,4 +281,4 @@ export const KRC721TransferDetails = ({
       </div>
     </>
   );
-};
+}
