@@ -111,7 +111,6 @@ import {
   ZKAS_MAINNET,
 } from "@/lib/wallet-network";
 import useStorageState from "@/hooks/useStorageState";
-import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { SideMenu } from "@/components/side-menu/SideMenu";
 
 function ChooseKaspaWallet() {
