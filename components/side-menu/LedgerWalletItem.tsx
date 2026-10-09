@@ -6,11 +6,13 @@ import { useNavigate } from "react-router-dom";
 interface LedgerWalletItemProps {
   wallet: WalletInfo;
   onClose: () => void;
+  onSelectAccount?: (walletId: string, accountIndex: number) => Promise<void>;
 }
 
 export const LedgerWalletItem = ({
   wallet,
   onClose,
+  onSelectAccount,
 }: LedgerWalletItemProps) => {
   const navigate = useNavigate();
 
@@ -47,6 +49,7 @@ export const LedgerWalletItem = ({
                 account={account}
                 walletId={wallet.id}
                 onClose={onClose}
+                onSelectAccount={onSelectAccount}
               />
             ))}
 

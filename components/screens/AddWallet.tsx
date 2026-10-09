@@ -5,20 +5,74 @@ import useWalletImporter from "@/hooks/wallet/useWalletImporter";
 import useAnalytics from "@/hooks/useAnalytics";
 import AddWalletPage from "@/ui/popup/add-wallet/AddWalletPage";
 import { openFullPage } from "@/lib/utils";
+import { useSettings } from "@/hooks/useSettings";
+import useStorageState from "@/hooks/useStorageState";
+import {
+  getVisibleWalletNetworks,
+  isZKasActive,
+  ZKAS_EXPERIMENTAL_KEY,
+  ZKAS_MAINNET,
+} from "@/lib/wallet-network";
+import { requireZKasDaemonUrl } from "@/lib/zkas/setup";
+import {
+  getZKasDaemonBirthday,
+  registerSelectedZKasWallet,
+} from "@/lib/zkas/popup-client";
 
 export default function AddWallet() {
   const { createNewWallet } = useWalletImporter();
   const navigate = useNavigate();
   const { emitWalletCreated } = useAnalytics();
+  const [settings] = useSettings();
+  const [experimentalEnabled, , gateLoading] = useStorageState<boolean | null>(
+    ZKAS_EXPERIMENTAL_KEY,
+    null,
+  );
+  const zkasVisible =
+    !gateLoading &&
+    !!settings &&
+    getVisibleWalletNetworks(settings, experimentalEnabled).includes(
+      ZKAS_MAINNET,
+    );
 
   const newWallet = async () => {
+    let created = false;
     try {
-      const address = await createNewWallet(uuid());
+      const zkasActive = isZKasActive(settings, experimentalEnabled);
+      const daemonUrl = zkasActive
+        ? requireZKasDaemonUrl(settings, "mainnet")
+        : undefined;
+      const birthday = daemonUrl
+        ? await getZKasDaemonBirthday(daemonUrl)
+        : undefined;
+      const walletId = uuid();
+      const address = await createNewWallet(walletId);
+      created = true;
+      if (zkasActive) {
+        await registerSelectedZKasWallet(
+          {
+            walletId,
+            accountIndex: 0,
+            network: "mainnet",
+          },
+          daemonUrl!,
+          birthday,
+        );
+      }
       emitWalletCreated({ method: "new", sender: address ?? undefined });
       internalToast.success("Wallet has been created successfully !");
       navigate("/dashboard");
-    } catch {
-      internalToast.error("Failed to create wallet");
+    } catch (cause) {
+      if (created) {
+        internalToast.error(
+          "Wallet created, but daemon registration failed. Kastle will retry from genesis.",
+        );
+        navigate("/dashboard");
+      } else {
+        internalToast.error(
+          cause instanceof Error ? cause.message : "Failed to create wallet",
+        );
+      }
     }
   };
 
@@ -47,6 +101,19 @@ export default function AddWallet() {
         },
       ]}
       advancedOptions={[
+        ...(zkasVisible
+          ? [
+              {
+                label: "Configure ZKas daemon credential",
+                description:
+                  "Save a private daemon credential before selecting a ZKas account.",
+                onClick: () =>
+                  navigate("/zkas/settings", {
+                    state: { pairingReturn: "add-wallet" },
+                  }),
+              },
+            ]
+          : []),
         {
           label: "Import Recovery phrase with passphrase",
           description:

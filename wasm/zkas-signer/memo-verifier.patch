@@ -1,0 +1,225 @@
+diff --git a/Cargo.toml b/Cargo.toml
+index d532ae1..03b0fda 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -22,0 +23 @@ orchard = { package = "zakura-orchard", version = "1.0.1", default-features = fa
++zcash_note_encryption = "0.4"
+diff --git a/src/lib.rs b/src/lib.rs
+index 2f61b61..bfa37b1 100644
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -354,0 +355,86 @@ pub fn verify_and_sign_payment(
++) -> Result<String, String> {
++    verify_and_sign_payment_inner(seed_hex, network, to_address, amount_sompi, max_fee_sompi, None, bundle_hex, disclosure_json, alphas_json)
++}
++
++/// Signs only if the intended UTF-8 memo is encrypted into the actual recipient
++/// output of the bundle. This binds deposit references to the payment signature.
++#[wasm_bindgen]
++pub fn verify_and_sign_payment_with_memo(
++    seed_hex: &str,
++    network: &str,
++    to_address: &str,
++    amount_sompi: u64,
++    max_fee_sompi: u64,
++    memo: &str,
++    bundle_hex: &str,
++    disclosure_json: &str,
++    alphas_json: &str,
++) -> Result<String, String> {
++    verify_and_sign_payment_inner(seed_hex, network, to_address, amount_sompi, max_fee_sompi, Some(memo), bundle_hex, disclosure_json, alphas_json)
++}
++
++fn verify_recipient_memo(
++    bundle: &kaspa_shielded_core::bundle::ShieldedBundle,
++    disclosure: &[kaspa_shielded_core::payment_check::ActionDisclosure],
++    fvk_bytes: &[u8; 96],
++    to: &[u8; 43],
++    amount: u64,
++    memo: &str,
++) -> Result<(), String> {
++    use kaspa_shielded_core::payment_check::check_prepared_payment;
++    use orchard::{
++        keys::FullViewingKey,
++        note::{Note, NoteVersion, RandomSeed, Rho},
++        note_encryption::{OrchardDomain, OrchardNoteEncryption},
++        value::NoteValue,
++    };
++    use zcash_note_encryption::Domain;
++
++    let utf8 = memo.as_bytes();
++    if utf8.len() > 512 {
++        return Err("memo exceeds 512 UTF-8 bytes".to_string());
++    }
++    let mut padded = [0u8; 512];
++    padded[..utf8.len()].copy_from_slice(utf8);
++
++    // The same full value/recipient/commitment check as the SDK signer, but
++    // before any signature exists. It also requires exactly one recipient note.
++    let fee = u64::try_from(bundle.value_balance).map_err(|_| "invalid fee".to_string())?;
++    let fvk = FullViewingKey::from_bytes(fvk_bytes).ok_or("invalid viewing key")?;
++    check_prepared_payment(bundle, disclosure, &fvk, to, amount, fee)
++        .map_err(|e| e.to_string())?;
++
++    let (action, output) = bundle.actions.iter().zip(disclosure).find(|(_, d)| {
++        d.out_recipient == *to && d.out_value == amount
++    }).ok_or("recipient note is missing")?;
++    let rho = Option::<Rho>::from(Rho::from_bytes(&action.nullifier))
++        .ok_or("invalid recipient rho")?;
++    let rseed = Option::<RandomSeed>::from(RandomSeed::from_bytes(output.out_rseed, &rho))
++        .ok_or("invalid recipient random seed")?;
++    let recipient = Option::<orchard::Address>::from(
++        orchard::Address::from_raw_address_bytes(&output.out_recipient),
++    ).ok_or("invalid recipient address")?;
++    let note = Option::<Note>::from(Note::from_parts(
++        recipient, NoteValue::from_raw(output.out_value), rho, rseed, NoteVersion::V2,
++    )).ok_or("invalid recipient note")?;
++    // Orchard v2 derives its ephemeral secret from this committed note. Rebuild
++    // the exact recipient ciphertext and compare it with the signed bundle.
++    let encryptor = OrchardNoteEncryption::new(None, note, padded);
++    if OrchardDomain::epk_bytes(encryptor.epk()).0 != action.ephemeral_key
++        || encryptor.encrypt_note_plaintext() != action.enc_ciphertext
++    {
++        return Err("prepared payment memo does not match the approved memo".to_string());
++    }
++    Ok(())
++}
++
++fn verify_and_sign_payment_inner(
++    seed_hex: &str,
++    network: &str,
++    to_address: &str,
++    amount_sompi: u64,
++    max_fee_sompi: u64,
++    memo: Option<&str>,
++    bundle_hex: &str,
++    disclosure_json: &str,
++    alphas_json: &str,
+@@ -453,0 +540,10 @@ pub fn verify_and_sign_payment(
++    if let Some(memo) = memo {
++        verify_recipient_memo(
++            &prepared.bundle,
++            &prepared.disclosure,
++            &signer.full_viewing_key(),
++            &to,
++            amount_sompi,
++            memo,
++        )?;
++    }
+@@ -469,0 +566,116 @@ mod tests {
++    use kaspa_shielded_core::{
++        bundle::{ActionWire, ShieldedBundle},
++        payment_check::ActionDisclosure,
++    };
++    use orchard::{
++        note::{ExtractedNoteCommitment, Note, NoteVersion, RandomSeed, Rho},
++        note_encryption::{OrchardDomain, OrchardNoteEncryption},
++        value::{NoteValue, ValueCommitTrapdoor, ValueCommitment},
++    };
++    use zcash_note_encryption::Domain;
++
++    fn memo_payment(memo: &str, to: [u8; 43]) -> (ShieldedBundle, Vec<ActionDisclosure>, [u8; 96]) {
++        let signer = zkas_signer::SoftwareSigner::new([1; 32]).unwrap();
++        let nullifier = [1u8; 32];
++        let rho = Option::<Rho>::from(Rho::from_bytes(&nullifier)).unwrap();
++        let rseed_bytes = [7u8; 32];
++        let rseed = Option::<RandomSeed>::from(RandomSeed::from_bytes(rseed_bytes, &rho)).unwrap();
++        let recipient = Option::<orchard::Address>::from(orchard::Address::from_raw_address_bytes(&to)).unwrap();
++        let note = Option::<Note>::from(Note::from_parts(recipient, NoteValue::from_raw(100), rho, rseed, NoteVersion::V2)).unwrap();
++        let mut padded = [0u8; 512];
++        padded[..memo.len()].copy_from_slice(memo.as_bytes());
++        let encryptor = OrchardNoteEncryption::new(None, note, padded);
++        let rcv_bytes = [3u8; 32];
++        let rcv = Option::<ValueCommitTrapdoor>::from(ValueCommitTrapdoor::from_bytes(rcv_bytes)).unwrap();
++        let action = ActionWire {
++            nullifier,
++            cmx: ExtractedNoteCommitment::from(note.commitment()).to_bytes(),
++            cv_net: ValueCommitment::derive(NoteValue::from_raw(110) - NoteValue::from_raw(100), rcv).to_bytes(),
++            rk: [0; 32],
++            ephemeral_key: OrchardDomain::epk_bytes(encryptor.epk()).0,
++            enc_ciphertext: encryptor.encrypt_note_plaintext(),
++            out_ciphertext: [0; 80],
++            spend_auth_sig: [0; 64],
++        };
++        let bundle = ShieldedBundle {
++            actions: vec![action],
++            flags: 3,
++            value_balance: 10,
++            anchor: [0; 32],
++            proof: Vec::new(),
++            binding_sig: [0; 64],
++            burn: None,
++        };
++        let disclosure = vec![ActionDisclosure {
++            spend_value: 110,
++            out_value: 100,
++            out_recipient: to,
++            out_rseed: rseed_bytes,
++            rcv: rcv_bytes,
++        }];
++        (bundle, disclosure, signer.full_viewing_key())
++    }
++
++    #[test]
++    fn intended_memo_is_bound_to_recipient_ciphertext() {
++        let recipient = zkas_signer::SoftwareSigner::new([2; 32]).unwrap().address_bytes();
++        let (bundle, disclosure, fvk) = memo_payment(" exchange 42\n", recipient);
++        assert!(verify_recipient_memo(&bundle, &disclosure, &fvk, &recipient, 100, " exchange 42\n").is_ok());
++        for memo in ["exchange 42\n", " exchange 43\n", ""] {
++            assert!(verify_recipient_memo(&bundle, &disclosure, &fvk, &recipient, 100, memo).is_err());
++        }
++        let mut ciphertext_mutated = bundle.clone();
++        ciphertext_mutated.actions[0].enc_ciphertext[12] ^= 1;
++        assert!(verify_recipient_memo(&ciphertext_mutated, &disclosure, &fvk, &recipient, 100, " exchange 42\n").is_err());
++        let mut epk_mutated = bundle.clone();
++        epk_mutated.actions[0].ephemeral_key[0] ^= 1;
++        assert!(verify_recipient_memo(&epk_mutated, &disclosure, &fvk, &recipient, 100, " exchange 42\n").is_err());
++        assert!(verify_recipient_memo(&bundle, &disclosure, &fvk, &recipient, 101, " exchange 42\n").is_err());
++        assert!(verify_recipient_memo(&bundle, &[], &fvk, &recipient, 100, " exchange 42\n").is_err());
++    }
++
++    #[test]
++    fn memo_limits_empty_and_self_send() {
++        let signer = zkas_signer::SoftwareSigner::new([1; 32]).unwrap();
++        let self_address = signer.address_bytes();
++        for memo in ["", &"é".repeat(256)] {
++            let (bundle, disclosure, fvk) = memo_payment(memo, self_address);
++            assert!(verify_recipient_memo(&bundle, &disclosure, &fvk, &self_address, 100, memo).is_ok());
++        }
++        let (bundle, disclosure, fvk) = memo_payment("", self_address);
++        assert!(verify_recipient_memo(&bundle, &disclosure, &fvk, &self_address, 100, &"a".repeat(513)).is_err());
++    }
++
++    #[test]
++    fn memo_aware_entry_point_checks_before_returning_signatures() {
++        let seed = "01".repeat(32);
++        let to_address = address_from_seed(&"02".repeat(32), "mainnet").unwrap();
++        let recipient = zkas_signer::SoftwareSigner::new([2; 32]).unwrap().address_bytes();
++        let (bundle, disclosure, _) = memo_payment("deposit 42", recipient);
++        let disclosure_json = serde_json::json!([{
++            "spend_value": disclosure[0].spend_value,
++            "out_value": disclosure[0].out_value,
++            "out_recipient": hex::encode(disclosure[0].out_recipient),
++            "out_rseed": hex::encode(disclosure[0].out_rseed),
++            "rcv": hex::encode(disclosure[0].rcv),
++        }]).to_string();
++        let bundle_hex = hex::encode(bundle.to_bytes());
++        if std::env::var_os("ZKAS_EXPORT_FIXTURE").is_some() {
++            println!("ZKAS_MEMO_FIXTURE={}", serde_json::json!({
++                "seed": seed,
++                "to": to_address,
++                "amountSompi": "100",
++                "maxFeeSompi": "20",
++                "memo": "deposit 42",
++                "bundleHex": bundle_hex,
++                "disclosure": disclosure_json,
++                "spendAuth": "[]",
++            }));
++        }
++        let sign = |memo: &str| verify_and_sign_payment_with_memo(
++            &seed, "mainnet", &to_address, 100, 20, memo,
++            &bundle_hex, &disclosure_json, "[]",
++        );
++        assert_eq!(sign("deposit 42").unwrap(), "[]");
++        assert!(sign("wrong reference").unwrap_err().contains("memo"));
++    }

@@ -1,0 +1,112 @@
+import { expect, test } from "@playwright/test";
+import { ZKasPaymentJournal } from "@/lib/zkas/payment-journal";
+
+const selection = {
+  walletId: "wallet-1",
+  accountIndex: 0,
+  network: "mainnet" as const,
+};
+
+function fakeStore() {
+  const items = new Map<string, unknown>();
+  return {
+    getItem: async <T>(key: string): Promise<T | null> =>
+      (items.get(key) as T | undefined) ?? null,
+    setItem: async <T>(key: string, value: T): Promise<void> => {
+      items.set(key, structuredClone(value));
+    },
+  };
+}
+
+test("concurrent extension windows cannot reserve the same account twice", async () => {
+  const journal = new ZKasPaymentJournal(fakeStore());
+  const results = await Promise.allSettled([
+    journal.acquire(selection),
+    journal.acquire(selection),
+  ]);
+  expect(
+    results.filter((result) => result.status === "fulfilled"),
+  ).toHaveLength(1);
+  expect(results.filter((result) => result.status === "rejected")).toHaveLength(
+    1,
+  );
+  const other = await journal.acquire({ ...selection, accountIndex: 1 });
+  expect(other.selection.accountIndex).toBe(1);
+});
+
+test("submission state survives a service restart and blocks retry until reviewed", async () => {
+  const store = fakeStore();
+  let now = 1_000_000;
+  const first = new ZKasPaymentJournal(store, () => now);
+  const record = await first.acquire(selection);
+  await first.markSubmitting(selection, record.id);
+  const restarted = new ZKasPaymentJournal(store, () => now);
+  expect((await restarted.get(selection))?.status).toBe("submitting");
+  await expect(restarted.acquire(selection)).rejects.toThrow(/review/i);
+  await expect(restarted.release(selection, record.id)).rejects.toThrow(
+    /reconciled/i,
+  );
+  await expect(
+    restarted.clearAfterReview(selection, record.id),
+  ).rejects.toThrow(/reconciled/i);
+  now += 10 * 60 * 1000;
+  await expect(
+    restarted.clearAfterReview(selection, record.id),
+  ).rejects.toThrow(/reconciled/i);
+  expect((await restarted.get(selection))?.status).toBe("submitting");
+});
+
+test("a failed preparation releases its reservation; an uncertain submission retains it", async () => {
+  const journal = new ZKasPaymentJournal(fakeStore());
+  const failed = await journal.acquire(selection);
+  await journal.release(selection, failed.id);
+  const next = await journal.acquire(selection);
+  await journal.markSubmitting(selection, next.id);
+  await journal.markUncertain(selection, next.id, "a".repeat(64));
+  expect((await journal.get(selection))?.txid).toBe("a".repeat(64));
+  await expect(journal.acquire(selection)).rejects.toThrow(/review/i);
+  await expect(journal.clearAfterReview(selection, next.id)).rejects.toThrow(
+    /reconciled/i,
+  );
+  await expect(journal.acquire(selection)).rejects.toThrow(/review/i);
+});
+
+test("known pre-fetch cancellation safely clears a submitting journal record", async () => {
+  const journal = new ZKasPaymentJournal(fakeStore());
+  const record = await journal.acquire(selection);
+  await journal.markSubmitting(selection, record.id);
+  await journal.abortBeforeFetch(selection, record.id);
+  expect(await journal.get(selection)).toBeUndefined();
+  await journal.acquire(selection);
+});
+
+test("stopped pre-fetch cleanup clears only the exact preparing or submitting record", async () => {
+  const journal = new ZKasPaymentJournal(fakeStore());
+  const preparing = await journal.acquire(selection);
+  await journal.clearStoppedBeforeFetch(selection, preparing.id);
+  expect(await journal.get(selection)).toBeUndefined();
+  const submitting = await journal.acquire(selection);
+  await journal.markSubmitting(selection, submitting.id);
+  await expect(
+    journal.clearStoppedBeforeFetch(selection, preparing.id),
+  ).rejects.toThrow();
+  await journal.clearStoppedBeforeFetch(selection, submitting.id);
+  expect(await journal.get(selection)).toBeUndefined();
+  const attempted = await journal.acquire(selection);
+  await journal.markSubmitting(selection, attempted.id);
+  await journal.markUncertain(selection, attempted.id);
+  await expect(
+    journal.clearStoppedBeforeFetch(selection, attempted.id),
+  ).rejects.toThrow();
+  expect(await journal.get(selection)).toMatchObject({
+    id: attempted.id,
+    status: "uncertain",
+  });
+  const completed = new ZKasPaymentJournal(fakeStore());
+  const success = await completed.acquire(selection);
+  await completed.markSubmitting(selection, success.id);
+  await completed.markSuccess(selection, success.id, "d".repeat(64));
+  await expect(
+    completed.clearStoppedBeforeFetch(selection, success.id),
+  ).rejects.toThrow();
+});

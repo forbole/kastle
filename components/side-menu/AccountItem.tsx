@@ -12,6 +12,7 @@ type AccountItemProps = {
   walletId: string;
   account: Account;
   onClose: () => void;
+  onSelectAccount?: (walletId: string, accountIndex: number) => Promise<void>;
   children?: React.ReactNode;
 };
 
@@ -19,6 +20,7 @@ export default function AccountItem({
   walletId,
   account,
   onClose,
+  onSelectAccount,
   children,
 }: AccountItemProps) {
   const [settings] = useSettings();
@@ -47,7 +49,11 @@ export default function AccountItem({
         <button
           className="flex flex-grow items-center justify-stretch gap-2 px-2 py-3"
           onClick={async () => {
-            selectAccount(walletId, account.index);
+            if (onSelectAccount) {
+              await onSelectAccount(walletId, account.index);
+              return;
+            }
+            await selectAccount(walletId, account.index);
             onClose();
           }}
         >

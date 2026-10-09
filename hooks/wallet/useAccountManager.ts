@@ -35,6 +35,9 @@ export default function useAccountManager() {
     if (!wallet) {
       throw new Error(`Wallet ${walletId} not found`);
     }
+    if (wallet.type === "zkasSeed") {
+      throw new Error("Imported ZKas seed wallets support only account 0");
+    }
 
     const lastAccount = wallet.accounts[wallet.accounts.length - 1];
     const nextIndex = lastAccount.index + 1;
@@ -210,11 +213,12 @@ export default function useAccountManager() {
     }
 
     account.name = name;
+    walletSettings.selectedWalletId = walletId;
+    walletSettings.selectedAccountIndex = accountIndex;
 
     await setWalletSettings({
       ...walletSettings,
     });
-    await selectAccount(walletId, accountIndex);
   };
 
   const getAccountPrivateKey = async ({

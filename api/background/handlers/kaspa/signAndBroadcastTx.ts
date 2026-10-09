@@ -1,3 +1,4 @@
+import { isKeyringInitialized } from "@/api/background/keyring-status";
 import { Handler } from "@/api/background/utils";
 import { ApiRequestWithHost } from "@/api/message";
 import { ApiUtils } from "@/api/background/utils";
@@ -17,7 +18,7 @@ export const signAndBroadcastTxHandler: Handler = async (
   }
 
   // Check if extension is initialized
-  if (!(await ApiUtils.isInitialized())) {
+  if (!(await isKeyringInitialized())) {
     sendResponse(
       ApiUtils.createApiResponse(
         message.id,

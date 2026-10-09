@@ -1,0 +1,243 @@
+import type { ZKasSigner, ZKasNetwork } from "./client";
+import init, {
+  account_seed_hex,
+  address_from_seed,
+  fvk_hex,
+  verify_and_sign_payment_with_memo,
+} from "../../wasm/zkas-signer/firecash_signer.js";
+import { createPrivateMessagingAccount } from "./message-profile";
+import type { PrivateMessagingAccount } from "./message-profile";
+import { createPrivateBatchSigner } from "./private-batch-signer";
+import type { PrivateBatchSigner } from "./batch-payment";
+import type { ZKasPreparedBatch } from "./batch-client";
+import type { ZKasBatchIntent } from "./batch-journal";
+
+let ready: Promise<void> | undefined;
+const PINNED_WASM_SHA256 =
+  "89e75959878d113154212fa901e6599b21d4a3823ac12fbd92287d4be6a23914";
+
+export function initZKasSigner(bytesOrUrl: Uint8Array | string): Promise<void> {
+  if (!ready) {
+    ready = (async () => {
+      const bytes =
+        typeof bytesOrUrl === "string"
+          ? await fetchSignerBytes(bytesOrUrl)
+          : bytesOrUrl;
+      const copy = new Uint8Array(bytes.length);
+      copy.set(bytes);
+      const digest = new Uint8Array(
+        await crypto.subtle.digest("SHA-256", copy.buffer),
+      );
+      const hash = Array.from(digest, (byte) =>
+        byte.toString(16).padStart(2, "0"),
+      ).join("");
+      if (hash !== PINNED_WASM_SHA256) {
+        throw new Error("ZKas signer binary does not match the pinned version");
+      }
+      await init({ module_or_path: copy });
+    })()
+      .then(() => undefined)
+      .catch((error: unknown) => {
+        ready = undefined;
+        throw error;
+      });
+  }
+  return ready;
+}
+
+async function fetchSignerBytes(url: string): Promise<Uint8Array> {
+  const response = await fetch(url, {
+    credentials: "omit",
+    redirect: "error",
+    cache: "no-store",
+    referrerPolicy: "no-referrer",
+  });
+  if (!response.ok) throw new Error("Unable to load the ZKas signer");
+  return new Uint8Array(await response.arrayBuffer());
+}
+
+export async function deriveZKasAccount(
+  mnemonic: string,
+  accountIndex: number,
+  network: ZKasNetwork,
+): Promise<{ address: string; token: string; signer: ZKasSigner }> {
+  if (!ready) throw new Error("ZKas signer is not initialized");
+  await ready;
+  if (
+    !Number.isSafeInteger(accountIndex) ||
+    accountIndex < 0 ||
+    accountIndex >= 0x80000000
+  ) {
+    throw new Error("Invalid ZKas account index");
+  }
+  const seedHex = account_seed_hex(mnemonic, accountIndex);
+  return deriveZKasAccountFromSeed(seedHex, network);
+}
+
+export async function deriveZKasAccountFromSeed(
+  seedHex: string,
+  network: ZKasNetwork,
+): Promise<{ address: string; token: string; signer: ZKasSigner }> {
+  if (!ready) throw new Error("ZKas signer is not initialized");
+  await ready;
+  if (!/^[0-9a-f]{64}$/.test(seedHex))
+    throw new Error("Invalid ZKas spending seed");
+  const address = address_from_seed(seedHex, network);
+  const token = await deriveWalletToken(seedHex, network);
+  const signer: ZKasSigner = {
+    address: () => address,
+    fullViewingKeyHex: async () => fvk_hex(seedHex),
+    verifyAndSign: async (input) => {
+      if (input.network !== network) {
+        throw new Error("ZKas signing network changed");
+      }
+      try {
+        const signatures = verify_and_sign_payment_with_memo(
+          seedHex,
+          network,
+          input.recipient,
+          input.amountSompi,
+          input.maxFeeSompi,
+          input.memo ?? "",
+          input.bundleHex,
+          JSON.stringify(input.disclosure),
+          JSON.stringify(input.spendAuth),
+        );
+        return JSON.parse(signatures);
+      } catch {
+        throw new Error("ZKas signer rejected the prepared payment");
+      }
+    },
+  };
+  return { address, token, signer };
+}
+
+/** Wallet-internal only. The pinned loader consumes the copied seed before its first await. */
+export async function openSelectedPrivateMessagingAccount(
+  source: { type: "mnemonic" | "seed"; value: string },
+  accountIndex: number,
+  selectedAddress0: string,
+  signal: AbortSignal,
+): Promise<PrivateMessagingAccount> {
+  if (!ready) throw new Error("ZKas signer is not initialized");
+  await ready;
+  if (signal.aborted || !selectedAddress0.startsWith("zkas:"))
+    throw new Error("Selected messaging account changed");
+  if (
+    !Number.isSafeInteger(accountIndex) ||
+    accountIndex < 0 ||
+    accountIndex >= 0x80000000 ||
+    (source.type !== "mnemonic" && source.type !== "seed") ||
+    (source.type === "seed" && accountIndex !== 0)
+  )
+    throw new Error("Invalid selected messaging account");
+  const seedHex =
+    source.type === "mnemonic"
+      ? account_seed_hex(source.value, accountIndex)
+      : source.value;
+  if (
+    !/^[0-9a-f]{64}$/.test(seedHex) ||
+    address_from_seed(seedHex, "mainnet") !== selectedAddress0
+  )
+    throw new Error("Selected messaging address changed");
+  const bytes = Uint8Array.from(seedHex.match(/.{2}/g)!, (pair) =>
+    Number.parseInt(pair, 16),
+  );
+  let opening: Promise<PrivateMessagingAccount>;
+  try {
+    opening = createPrivateMessagingAccount(bytes, selectedAddress0, signal);
+  } finally {
+    bytes.fill(0);
+  }
+  const handle = await opening;
+  if (signal.aborted) {
+    handle.close();
+    throw new Error("Selected messaging account changed");
+  }
+  return handle;
+}
+
+/** Wallet-internal only. This address-0 check uses the older pinned signer independently. */
+export async function openSelectedPrivateBatchSigner(
+  source: { type: "mnemonic" | "seed"; value: string },
+  accountIndex: number,
+  selectedAddress0: string,
+  approved: ZKasBatchIntent,
+  prepared: ZKasPreparedBatch | undefined,
+  signal: AbortSignal,
+): Promise<PrivateBatchSigner> {
+  if (!ready) throw new Error("ZKas signer is not initialized");
+  // The wallet grant, selected credential, and prepared envelope are one
+  // synchronous call snapshot. `await ready` yields even when already resolved.
+  const sourceSnapshot = { type: source.type, value: source.value };
+  const approvedSnapshot = structuredClone(approved);
+  const preparedSnapshot =
+    prepared === undefined ? undefined : structuredClone(prepared);
+  await ready;
+  if (
+    signal.aborted ||
+    !selectedAddress0.startsWith("zkas:") ||
+    approvedSnapshot.account !== selectedAddress0 ||
+    approvedSnapshot.selection.accountIndex !== accountIndex ||
+    approvedSnapshot.selection.network !== "mainnet"
+  )
+    throw new Error("Selected private batch account changed");
+  if (
+    !Number.isSafeInteger(accountIndex) ||
+    accountIndex < 0 ||
+    accountIndex >= 0x80000000 ||
+    (sourceSnapshot.type !== "mnemonic" && sourceSnapshot.type !== "seed") ||
+    (sourceSnapshot.type === "seed" && accountIndex !== 0)
+  )
+    throw new Error("Invalid selected private batch account");
+  const seedHex =
+    sourceSnapshot.type === "mnemonic"
+      ? account_seed_hex(sourceSnapshot.value, accountIndex)
+      : sourceSnapshot.value;
+  if (
+    !/^[0-9a-f]{64}$/.test(seedHex) ||
+    address_from_seed(seedHex, "mainnet") !== selectedAddress0
+  )
+    throw new Error("Selected private batch address changed");
+  const bytes = Uint8Array.from(seedHex.match(/.{2}/g)!, (pair) =>
+    Number.parseInt(pair, 16),
+  );
+  let opening: Promise<PrivateBatchSigner>;
+  try {
+    opening = createPrivateBatchSigner(
+      bytes,
+      selectedAddress0,
+      approvedSnapshot,
+      preparedSnapshot,
+      signal,
+    );
+  } finally {
+    bytes.fill(0);
+  }
+  // The copied bytes are consumed before this return can await the loader.
+  // The loader retains the abort listener and closes any opened native handle.
+  return opening;
+}
+
+async function deriveWalletToken(
+  seedHex: string,
+  network: ZKasNetwork,
+): Promise<string> {
+  const bytes = Uint8Array.from(seedHex.match(/.{2}/g) ?? [], (byte) =>
+    Number.parseInt(byte, 16),
+  );
+  const key = await crypto.subtle.importKey(
+    "raw",
+    bytes,
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const message = new TextEncoder().encode(
+    `kastle:zkas:wallet-token:v1:${network}`,
+  );
+  const mac = new Uint8Array(await crypto.subtle.sign("HMAC", key, message));
+  return Array.from(mac.slice(0, 16), (byte) =>
+    byte.toString(16).padStart(2, "0"),
+  ).join("");
+}

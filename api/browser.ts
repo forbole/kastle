@@ -5,7 +5,10 @@ import { EthereumBrowserAPI } from "./ethereum";
 import { ConnectPayloadSchema } from "@/api/background/handlers/kaspa/connect";
 import { SignTxPayloadSchema } from "@/api/background/handlers/kaspa/utils";
 import { SignMessagePayloadSchema } from "@/api/background/handlers/kaspa/signMessage";
-import { sendSompiPayloadSchema } from "./background/handlers/kaspa/sendSompi";
+import {
+  sendSompiPayloadSchema,
+  sendKaspaManyPayloadSchema,
+} from "@/lib/kaspa-send-request";
 import {
   CommitRevealResponse,
   CommitRevealResponseSchema,
@@ -155,16 +158,60 @@ export class KastleBrowserAPI {
       "kas:build_transaction": Action.BUILD_TRANSACTION,
       "kas:get_version": Action.GET_VERSION,
       "kas:compound_utxos": Action.COMPOUND_UTXOS,
+      "zkas:connect": Action.ZKAS_CONNECT,
+      "zkas:get_account": Action.ZKAS_GET_ACCOUNT,
+      "zkas:get_balance": Action.ZKAS_GET_BALANCE,
+      "zkas:send": Action.ZKAS_SEND,
+      "zkas:request_message_history_access": Action.ZKAS_HISTORY_GRANT,
+      "mj3:request_profile": Action.MJ3_REQUEST_PROFILE,
+      "mj3:get_direct_view": Action.MJ3_GET_DIRECT_VIEW,
+      "mj3:invite": Action.MJ3_INVITE,
+      "mj3:decide_invitation": Action.MJ3_DECIDE_INVITATION,
+      "mj3:send_direct_message": Action.MJ3_SEND_DIRECT_MESSAGE,
+      "mj3:complete_direct_action": Action.MJ3_COMPLETE_DIRECT_ACTION,
+      "mj3:action_status": Action.MJ3_ACTION_STATUS,
+      "mj3:pending_direct_action": Action.MJ3_PENDING_DIRECT_ACTION,
+      "mj3:resume_direct_action": Action.MJ3_RESUME_DIRECT_ACTION,
     }[method];
 
     if (!action) {
       return;
     }
 
+    if (
+      method === "zkas:request_message_history_access" &&
+      args !== undefined
+    ) {
+      throw new Error("History access request takes no arguments");
+    }
+    if (
+      (method === "mj3:request_profile" ||
+        method === "mj3:get_direct_view" ||
+        method === "mj3:pending_direct_action") &&
+      args !== undefined
+    ) {
+      throw new Error("Private messaging request takes no arguments");
+    }
+
+    const paidDirect =
+      method === "mj3:invite" ||
+      method === "mj3:decide_invitation" ||
+      method === "mj3:send_direct_message";
     const request = createApiRequest(action, requestId, args);
+    const response = this.receiveMessageWithTimeout(
+      requestId,
+      method === "zkas:send" || paidDirect
+        ? 20 * 60_000
+        : method === "zkas:request_message_history_access"
+          ? 190_000
+          : 180_000,
+      method === "zkas:send" ||
+        method === "zkas:request_message_history_access" ||
+        paidDirect,
+    );
     window.postMessage(request, "*");
 
-    return await this.receiveMessageWithTimeout(requestId);
+    return await response;
   }
 
   async getVersion(): Promise<string> {
@@ -345,6 +392,21 @@ export class KastleBrowserAPI {
     return await this.receiveMessageWithTimeout(requestId);
   }
 
+  /** Sends all outputs in one transaction, or rejects without broadcasting. */
+  async sendKaspaMany(
+    outputs: { address: string; amount: string }[],
+    options?: { priorityFee?: string; payload?: string },
+  ): Promise<string> {
+    const requestId = uuid();
+    const request = createApiRequest(
+      Action.SEND_SOMPI,
+      requestId,
+      sendKaspaManyPayloadSchema.parse({ outputs, options }),
+    );
+    window.postMessage(request, "*");
+    return await this.receiveMessageWithTimeout(requestId);
+  }
+
   async sendKaspa(
     toAddress: string,
     sompi: number,
@@ -398,26 +460,42 @@ export class KastleBrowserAPI {
   private async receiveMessageWithTimeout<T>(
     id: string,
     timeout = 180_000, // 3 minute
+    ignorePending = false,
   ): Promise<T> {
     return new Promise<T>((resolve, reject) => {
       const callback = this.createReceiveCallback<T>(id);
-      const onMessage = async (event: MessageEvent<unknown>) => {
+      const onMessage = (event: MessageEvent<unknown>) => {
+        if (ignorePending && event.origin === window.location.origin) {
+          const pending = ApiResponseSchema.safeParse(event.data);
+          if (
+            pending.success &&
+            pending.data.id === id &&
+            typeof pending.data.response === "object" &&
+            pending.data.response !== null &&
+            "pending" in pending.data.response &&
+            pending.data.response.pending === true
+          )
+            return;
+        }
         try {
           const result = callback(event);
           if (result === undefined) {
             return; // Skip if the result is empty, which means the message is not for this channel
           }
 
+          window.removeEventListener("message", onMessage);
+          clearTimeout(timeoutId);
           resolve(result);
         } catch (error) {
           window.removeEventListener("message", onMessage);
+          clearTimeout(timeoutId);
           reject(error);
         }
       };
 
       window.addEventListener("message", onMessage);
 
-      setTimeout(() => {
+      const timeoutId = setTimeout(() => {
         window.removeEventListener("message", onMessage);
         reject(new Error("Timeout"));
       }, timeout);

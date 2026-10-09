@@ -18,9 +18,34 @@ import { getUtxoEntriesHandler } from "./handlers/kaspa/getUtxoEntries";
 import { buildTransactionHandler } from "./handlers/kaspa/buildTransaction";
 import { getVersionHandler } from "./handlers/kaspa/getVersion";
 import { compoundUtxosHandler } from "./handlers/kaspa/compoundUtxos";
+import { zkasConnectHandler } from "./handlers/zkas/connect";
+import { zkasGetAccountHandler } from "./handlers/zkas/get-account";
+import { zkasGetBalanceHandler } from "./handlers/zkas/get-balance";
+import { zkasSendHandler } from "./handlers/zkas/send";
+import { isTrustedZKasPageRequest } from "./zkas-origin";
+import { listenForZKasDappPaymentClosure } from "./zkas-dapp-payment";
+import {
+  listenForHistoryGrantClosure,
+  zkasHistoryGrantHandler,
+} from "./handlers/zkas/history-grant";
+import {
+  zkasDirectProfileHandler,
+  zkasDirectViewHandler,
+} from "./handlers/zkas/direct-profile";
+import {
+  listenForDirectActionClosure,
+  zkasDirectActionStartHandler,
+  zkasDirectActionCompleteHandler,
+  zkasDirectActionStatusHandler,
+  zkasDirectActionPendingHandler,
+  zkasDirectActionResumeHandler,
+} from "./handlers/zkas/direct-action";
 
 export class BackgroundService {
   public listen(): void {
+    listenForZKasDappPaymentClosure();
+    listenForHistoryGrantClosure();
+    listenForDirectActionClosure();
     browser.runtime.onMessage.addListener(
       (message: unknown, sender, sendResponse) => {
         const result = ApiRequestWithHostSchema.safeParse(message);
@@ -29,6 +54,39 @@ export class BackgroundService {
         }
 
         const parsedMessage = ApiRequestWithHostSchema.parse(message);
+
+        if (
+          [
+            Action.ZKAS_CONNECT,
+            Action.ZKAS_GET_ACCOUNT,
+            Action.ZKAS_GET_BALANCE,
+            Action.ZKAS_SEND,
+            Action.ZKAS_HISTORY_GRANT,
+            Action.MJ3_REQUEST_PROFILE,
+            Action.MJ3_GET_DIRECT_VIEW,
+            Action.MJ3_INVITE,
+            Action.MJ3_DECIDE_INVITATION,
+            Action.MJ3_SEND_DIRECT_MESSAGE,
+            Action.MJ3_COMPLETE_DIRECT_ACTION,
+            Action.MJ3_ACTION_STATUS,
+            Action.MJ3_PENDING_DIRECT_ACTION,
+            Action.MJ3_RESUME_DIRECT_ACTION,
+          ].includes(parsedMessage.action) &&
+          !isTrustedZKasPageRequest(
+            parsedMessage.origin,
+            sender,
+            browser.runtime.id,
+          )
+        ) {
+          sendResponse({
+            id: parsedMessage.id,
+            source: "background",
+            target: "browser",
+            response: null,
+            error: "ZKas request origin did not match its tab",
+          });
+          return true;
+        }
 
         const handler = this.getHandler(parsedMessage.action);
 
@@ -49,7 +107,7 @@ export class BackgroundService {
         const tabId = sender.tab?.id;
         if (tabId) {
           const handleMessage = async () => {
-            await handler(tabId, parsedMessage, sendResponse);
+            await handler(tabId, parsedMessage, sendResponse, sender);
           };
 
           handleMessage().catch((error) => {
@@ -97,6 +155,20 @@ export class BackgroundService {
       [Action.BUILD_TRANSACTION]: buildTransactionHandler,
       [Action.GET_VERSION]: getVersionHandler,
       [Action.COMPOUND_UTXOS]: compoundUtxosHandler,
+      [Action.ZKAS_CONNECT]: zkasConnectHandler,
+      [Action.ZKAS_GET_ACCOUNT]: zkasGetAccountHandler,
+      [Action.ZKAS_GET_BALANCE]: zkasGetBalanceHandler,
+      [Action.ZKAS_SEND]: zkasSendHandler,
+      [Action.ZKAS_HISTORY_GRANT]: zkasHistoryGrantHandler,
+      [Action.MJ3_REQUEST_PROFILE]: zkasDirectProfileHandler,
+      [Action.MJ3_GET_DIRECT_VIEW]: zkasDirectViewHandler,
+      [Action.MJ3_INVITE]: zkasDirectActionStartHandler,
+      [Action.MJ3_DECIDE_INVITATION]: zkasDirectActionStartHandler,
+      [Action.MJ3_SEND_DIRECT_MESSAGE]: zkasDirectActionStartHandler,
+      [Action.MJ3_COMPLETE_DIRECT_ACTION]: zkasDirectActionCompleteHandler,
+      [Action.MJ3_ACTION_STATUS]: zkasDirectActionStatusHandler,
+      [Action.MJ3_PENDING_DIRECT_ACTION]: zkasDirectActionPendingHandler,
+      [Action.MJ3_RESUME_DIRECT_ACTION]: zkasDirectActionResumeHandler,
     };
 
     return handlers[action];

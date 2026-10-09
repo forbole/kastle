@@ -1,3 +1,4 @@
+import { isKeyringInitialized } from "@/api/background/keyring-status";
 import { ApiUtils, Handler } from "@/api/background/utils";
 import { ApiRequestWithHost, RPC_ERRORS } from "@/api/message";
 import { z } from "zod";
@@ -27,7 +28,7 @@ export const compoundUtxosHandler: Handler = async (
   }
 
   // Check if extension is initialized
-  if (!(await ApiUtils.isInitialized())) {
+  if (!(await isKeyringInitialized())) {
     sendResponse(
       ApiUtils.createApiResponse(
         message.id,

@@ -1,7 +1,14 @@
 import { Buffer } from "buffer";
 import { argon2id } from "hash-wasm";
 
-const ALLOWED_KEYS = ["wallets"] as const;
+const ALLOWED_KEYS = [
+  "wallets",
+  "zkasBatchJournal",
+  "zkasHistoryGrants",
+  "zkasDaemonBearers",
+  "zkasDirectBirths",
+  "zkasDirectPins",
+] as const;
 
 type AllowedKey = (typeof ALLOWED_KEYS)[number];
 
@@ -23,6 +30,14 @@ const VERIFICATION_KEY = "verification";
 export const KEYRING_CHANGE_TIME = "KEYRING_CHANGE_TIME";
 const VERIFICATION_VALUE = "keyring-verification-value";
 
+async function allSettledOrThrow<T>(operations: Promise<T>[]): Promise<T[]> {
+  const results = await Promise.allSettled(operations);
+  return results.map((result) => {
+    if (result.status === "rejected") throw result.reason;
+    return result.value;
+  });
+}
+
 // PBKDF2 configuration
 const PBKDF2_ITERATIONS = 100000;
 const PBKDF2_SALT_LENGTH = 16;
@@ -35,6 +50,17 @@ const ARGON2ID_SALT_LENGTH = 32; // bytes
 
 export class Keyring {
   private masterKey: CryptoKey | null = null;
+  private sessionVersion = 0;
+  private mutationTail: Promise<void> = Promise.resolve();
+  private mutationGenerations = new Map<string, number>();
+  private readonly privateKeyMutationListeners = new Map<
+    AllowedKey,
+    Set<() => void>
+  >();
+  private privateWalletInvalidation = new Set<
+    (reason: "lock" | "master-key" | "wallets") => void
+  >();
+  private pendingPrivateWalletWork = 0;
   private namespace: string;
 
   constructor(namespace: string = "keyring") {
@@ -54,6 +80,104 @@ export class Keyring {
 
   isUnlocked(): boolean {
     return this.masterKey !== null;
+  }
+
+  getSessionVersion(): number {
+    return this.sessionVersion;
+  }
+
+  /** A request-start fence for private handles while serialized key work is pending. */
+  isPrivateWalletWorkPending(): boolean {
+    return this.pendingPrivateWalletWork !== 0;
+  }
+
+  // This generation belongs to this Keyring actor; it is not a storage CAS.
+  getMutationGeneration(key: AllowedKey): number {
+    return this.mutationGenerations.get(key) ?? 0;
+  }
+
+  /** Background-private notice after a named encrypted record changes. */
+  subscribeKeyMutation(key: AllowedKey, listener: () => void): () => void {
+    let listeners = this.privateKeyMutationListeners.get(key);
+    if (!listeners) {
+      listeners = new Set();
+      this.privateKeyMutationListeners.set(key, listeners);
+    }
+    listeners.add(listener);
+    return () => listeners?.delete(listener);
+  }
+
+  /** Same-actor private handle fence; it is not a cross-process storage notification. */
+  subscribePrivateWalletInvalidation(
+    listener: (reason: "lock" | "master-key" | "wallets") => void,
+  ): () => void {
+    this.privateWalletInvalidation.add(listener);
+    return () => {
+      this.privateWalletInvalidation.delete(listener);
+    };
+  }
+
+  private invalidatePrivateWallet(
+    reason: "lock" | "master-key" | "wallets",
+  ): void {
+    for (const listener of [...this.privateWalletInvalidation]) {
+      try {
+        listener(reason);
+      } catch {
+        /* Invalidation cannot obstruct lock or wallet updates. */
+      }
+    }
+  }
+
+  private beginPrivateWalletWork(
+    reason: "lock" | "master-key" | "wallets",
+  ): () => void {
+    this.pendingPrivateWalletWork += 1;
+    this.invalidatePrivateWallet(reason);
+    let finished = false;
+    return () => {
+      if (finished) return;
+      finished = true;
+      this.pendingPrivateWalletWork -= 1;
+    };
+  }
+
+  private noteMutation(key: string): void {
+    this.mutationGenerations.set(
+      key,
+      (this.mutationGenerations.get(key) ?? 0) + 1,
+    );
+    for (const listener of [
+      ...(this.privateKeyMutationListeners.get(key as AllowedKey) ?? []),
+    ]) {
+      try {
+        listener();
+      } catch {
+        /* A notice cannot obstruct encrypted writes. */
+      }
+    }
+  }
+
+  private setMasterKey(key: CryptoKey | null): void {
+    this.invalidatePrivateWallet("master-key");
+    this.masterKey = key;
+    this.sessionVersion += 1;
+    for (const allowedKey of ALLOWED_KEYS) this.noteMutation(allowedKey);
+  }
+
+  private serializeMutation<T>(operation: () => Promise<T>): Promise<T> {
+    const result = this.mutationTail.then(operation);
+    this.mutationTail = result.then(
+      () => undefined,
+      () => undefined,
+    );
+    return result;
+  }
+
+  private assertSessionVersion(version: number): void {
+    if (!this.masterKey || this.sessionVersion !== version) {
+      throw new Error("Keyring lock state changed during the wallet update");
+    }
   }
 
   async initialize(password: string): Promise<void> {
@@ -79,7 +203,7 @@ export class Keyring {
     const key = await this.deriveKey(password, salt, method);
     await this.storeVerificationValue(key);
 
-    this.masterKey = key;
+    this.setMasterKey(key);
     await this.updateWalletChangeTime();
   }
 
@@ -113,11 +237,11 @@ export class Keyring {
 
     const isValid = await this.verifyKey(key);
     if (!isValid) {
-      this.masterKey = null;
+      this.setMasterKey(null);
       return false;
     }
 
-    this.masterKey = key;
+    this.setMasterKey(key);
     await this.updateWalletChangeTime();
 
     // If using legacy PBKDF2, migrate to Argon2id
@@ -129,11 +253,79 @@ export class Keyring {
   }
 
   async lock(): Promise<void> {
-    this.masterKey = null;
-    await this.updateWalletChangeTime();
+    const finish = this.beginPrivateWalletWork("lock");
+    try {
+      await this.serializeMutation(async () => {
+        this.setMasterKey(null);
+        await this.updateWalletChangeTime();
+      });
+    } finally {
+      finish();
+    }
   }
 
   async setValue<T>(key: AllowedKey, value: T): Promise<void> {
+    const finish =
+      key === "wallets" ? this.beginPrivateWalletWork("wallets") : () => {};
+    const version = this.sessionVersion;
+    try {
+      await this.serializeMutation(async () => {
+        this.assertSessionVersion(version);
+        await this.writeValue(key, value);
+      });
+    } finally {
+      finish();
+    }
+  }
+
+  async updateValue<T>(
+    key: AllowedKey,
+    update: (current: T | null) => T | Promise<T>,
+  ): Promise<void> {
+    await this.updateValueInternal(key, update);
+  }
+
+  async updateValueIfGeneration<T>(
+    key: AllowedKey,
+    expectedGeneration: number,
+    update: (current: T | null) => T | Promise<T>,
+  ): Promise<number> {
+    return this.updateValueInternal(key, update, expectedGeneration);
+  }
+
+  private async updateValueInternal<T>(
+    key: AllowedKey,
+    update: (current: T | null) => T | Promise<T>,
+    expectedGeneration?: number,
+  ): Promise<number> {
+    const finish =
+      key === "wallets" ? this.beginPrivateWalletWork("wallets") : () => {};
+    const version = this.sessionVersion;
+    try {
+      return await this.serializeMutation(async () => {
+        this.assertSessionVersion(version);
+        if (
+          expectedGeneration !== undefined &&
+          this.getMutationGeneration(key) !== expectedGeneration
+        )
+          throw new Error("Keyring value changed during the wallet update");
+        const current = await this.getValue<T>(key);
+        const value = await update(current);
+        this.assertSessionVersion(version);
+        if (
+          expectedGeneration !== undefined &&
+          this.getMutationGeneration(key) !== expectedGeneration
+        )
+          throw new Error("Keyring value changed during the wallet update");
+        await this.writeValue(key, value);
+        return this.getMutationGeneration(key);
+      });
+    } finally {
+      finish();
+    }
+  }
+
+  private async writeValue<T>(key: AllowedKey, value: T): Promise<void> {
     if (!this.masterKey) {
       throw new Error("Keyring is locked");
     }
@@ -154,6 +346,7 @@ export class Keyring {
     };
 
     await storage.setItem(`local:${this.namespace}:${key}`, encryptedData);
+    this.noteMutation(key);
   }
 
   async getValue<T>(key: AllowedKey): Promise<T | null> {
@@ -183,10 +376,21 @@ export class Keyring {
   }
 
   async removeValue(key: string): Promise<void> {
+    const finish =
+      key === "wallets" ? this.beginPrivateWalletWork("wallets") : () => {};
+    try {
+      await this.serializeMutation(() => this.removeValueDirect(key));
+    } finally {
+      finish();
+    }
+  }
+
+  private async removeValueDirect(key: string): Promise<void> {
     if (key === VERIFICATION_KEY) {
       throw new Error("Reserved key name");
     }
     await storage.removeItem(`local:${this.namespace}:${key}`);
+    this.noteMutation(key);
   }
 
   listKeys() {
@@ -224,6 +428,20 @@ export class Keyring {
   }
 
   async changePassword(
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<boolean> {
+    const finish = this.beginPrivateWalletWork("master-key");
+    try {
+      return await this.serializeMutation(() =>
+        this.changePasswordDirect(currentPassword, newPassword),
+      );
+    } finally {
+      finish();
+    }
+  }
+
+  private async changePasswordDirect(
     currentPassword: string,
     newPassword: string,
   ): Promise<boolean> {
@@ -267,7 +485,7 @@ export class Keyring {
 
     // Get all current data
     const keys = this.listKeys();
-    const dataToMigrate = await Promise.all(
+    const dataToMigrate = await allSettledOrThrow(
       keys.map(async (key) => {
         const data = await this.getValue(key);
         return data ? { key, value: data } : null;
@@ -286,12 +504,12 @@ export class Keyring {
     );
 
     // Update master key and re-encrypt all data
-    this.masterKey = newKey;
+    this.setMasterKey(newKey);
     await this.updateWalletChangeTime();
-    await Promise.all(
+    await allSettledOrThrow(
       dataToMigrate.map(async (item) => {
         if (!item) return;
-        await this.setValue(item.key, item.value);
+        await this.writeValue(item.key, item.value);
       }),
     );
 
@@ -307,22 +525,35 @@ export class Keyring {
   }
 
   async clear(): Promise<void> {
+    const finish = this.beginPrivateWalletWork("lock");
+    try {
+      await this.serializeMutation(() => this.clearDirect());
+    } finally {
+      finish();
+    }
+  }
+
+  private async clearDirect(): Promise<void> {
     const keys = this.listKeys();
-    await Promise.all([
-      ...keys.map((key) => this.removeValue(key)),
+    await allSettledOrThrow([
+      ...keys.map((key) => this.removeValueDirect(key)),
       storage.removeItem(`local:${this.namespace}:salt`),
       storage.removeItem(`local:${this.namespace}:keyDerivationInfo`),
       storage.removeItem(`local:${this.namespace}:${VERIFICATION_KEY}`),
     ]);
 
-    this.masterKey = null;
+    this.setMasterKey(null);
     await this.updateWalletChangeTime();
   }
 
   private async migrateToArgon2id(password: string): Promise<void> {
+    await this.serializeMutation(() => this.migrateToArgon2idDirect(password));
+  }
+
+  private async migrateToArgon2idDirect(password: string): Promise<void> {
     // Get all current data
     const keys = this.listKeys();
-    const dataToMigrate = await Promise.all(
+    const dataToMigrate = await allSettledOrThrow(
       keys.map(async (key) => {
         const data = await this.getValue(key);
         return data ? { key, value: data } : null;
@@ -346,13 +577,13 @@ export class Keyring {
     );
 
     // Update master key
-    this.masterKey = newKey;
+    this.setMasterKey(newKey);
 
     // Re-encrypt all data with the new key
-    await Promise.all(
+    await allSettledOrThrow(
       dataToMigrate.map(async (item) => {
         if (!item) return;
-        await this.setValue(item.key, item.value);
+        await this.writeValue(item.key, item.value);
       }),
     );
 
