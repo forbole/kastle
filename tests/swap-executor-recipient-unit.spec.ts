@@ -1,4 +1,4 @@
-import { register } from "node:module";
+import { registerHooks } from "node:module";
 import { test, expect } from "@playwright/test";
 import {
   Address,
@@ -11,14 +11,12 @@ import type { SwapProvider } from "@/lib/evm/swap/constants";
 
 // The swap constants import provider and chain logos; node cannot load an
 // image, so stub them before the dynamic imports below pull the executor in.
-register(
-  "data:text/javascript," +
-    encodeURIComponent(
-      `export const load = (url, ctx, next) => /\\.(png|svg)$/.test(url)
-        ? { format: "module", source: "export default ''", shortCircuit: true }
-        : next(url, ctx);`,
-    ),
-);
+registerHooks({
+  load: (url, ctx, next) =>
+    /\.(png|svg)$/.test(url)
+      ? { format: "module", source: "export default ''", shortCircuit: true }
+      : next(url, ctx),
+});
 const { createSwapExecutor } = await import("@/lib/evm/swap/swapExecutor");
 const { FEE_COLLECTOR_SWAP_ABI, KASPA_COM_ROUTER_ABI, ZEALOUS_ROUTER_ABI } =
   await import("@/lib/evm/swap/utils");
