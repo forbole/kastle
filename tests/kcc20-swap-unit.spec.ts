@@ -1,20 +1,18 @@
 import fs from "node:fs";
 import path from "node:path";
-import { register } from "node:module";
+import { registerHooks } from "node:module";
 import { fileURLToPath } from "node:url";
 import { test, expect } from "@playwright/test";
 import { curve, curveCp, kcc20 } from "@kronsdk/kron-sdk";
 import { hexToBytes } from "viem";
 import * as kaspa from "@/wasm/core/kaspa";
 
-register(
-  "data:text/javascript," +
-    encodeURIComponent(
-      `export const load = (url, ctx, next) => /\\.(png|svg)$/.test(url)
-        ? { format: "module", source: "export default ''", shortCircuit: true }
-        : next(url, ctx);`,
-    ),
-);
+registerHooks({
+  load: (url, ctx, next) =>
+    /\.(png|svg)$/.test(url)
+      ? { format: "module", source: "export default ''", shortCircuit: true }
+      : next(url, ctx),
+});
 const {
   KronSwapError,
   kronErrorCopy,
