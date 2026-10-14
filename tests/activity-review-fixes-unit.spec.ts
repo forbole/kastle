@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { build } from "esbuild";
+import { build, type Plugin } from "esbuild";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -15,9 +15,43 @@ type Modules = typeof import("@/lib/activity/mappers") &
   typeof import("@/lib/activity/adapters") &
   typeof import("@/lib/activity/kurve-completion") &
   typeof import("@/lib/bridge/igra-credits") &
-  typeof import("@/lib/bridge/kat-registry");
+  typeof import("@/lib/bridge/kat-registry") &
+  typeof import("@/lib/bridge/kat-bridge-history") &
+  typeof import("@/lib/activity/swap-history") & {
+    igraExitStore: Map<string, unknown>;
+  };
 
 let m: Modules;
+
+// igra-exit-local-history.ts gets an in-memory wxt/storage, re-exported to the
+// tests as igraExitStore. Only that importer: every other module keeps the
+// real one, so what the rest of this file exercises is unchanged.
+const STORAGE_STUB = "igra-exit-storage-stub";
+const igraExitStorageStub: Plugin = {
+  name: STORAGE_STUB,
+  setup(b) {
+    b.onResolve({ filter: /^wxt\/storage$/ }, (args) =>
+      args.importer.endsWith(
+        path.join("lib", "bridge", "igra-exit-local-history.ts"),
+      )
+        ? { path: STORAGE_STUB, namespace: STORAGE_STUB }
+        : undefined,
+    );
+    b.onResolve({ filter: new RegExp(`^${STORAGE_STUB}$`) }, () => ({
+      path: STORAGE_STUB,
+      namespace: STORAGE_STUB,
+    }));
+    b.onLoad({ filter: /.*/, namespace: STORAGE_STUB }, () => ({
+      contents: `
+        export const store = new Map();
+        export const storage = {
+          getItem: async (k) => structuredClone(store.get(k) ?? null),
+          setItem: async (k, v) => void store.set(k, structuredClone(v)),
+        };`,
+      loader: "js",
+    }));
+  },
+};
 
 test.beforeAll(async () => {
   const repo = path.resolve(import.meta.dirname, "..");
@@ -30,8 +64,11 @@ test.beforeAll(async () => {
         "@/lib/activity/kurve-completion",
         "@/lib/bridge/igra-credits",
         "@/lib/bridge/kat-registry",
+        "@/lib/bridge/kat-bridge-history",
+        "@/lib/activity/swap-history",
       ]
         .map((p) => `export * from ${JSON.stringify(p)};`)
+        .concat(`export { store as igraExitStore } from "${STORAGE_STUB}";`)
         .join("\n"),
       resolveDir: repo,
       loader: "ts",
@@ -42,6 +79,7 @@ test.beforeAll(async () => {
     outfile,
     tsconfig: path.join(repo, "tsconfig.json"),
     loader: { ".png": "empty", ".svg": "empty" },
+    plugins: [igraExitStorageStub],
     logLevel: "error",
   });
   m = await import(pathToFileURL(outfile).href);
@@ -411,4 +449,244 @@ test("formatDateTime: only a prior-year timestamp shows the year", () => {
   expect(m.formatDateTime(new Date(y, 0, 1, 12).getTime())).not.toContain(
     String(y),
   );
+});
+
+// ─── KAT exits routed through the Igra fee collector ────────────────────────
+
+const COLLECTOR = "0x9d01E8a2f3DD0B1Fc739d32ca8d79509b501eAb8";
+const KASPA = "kaspa:qrUSER";
+const IGRA_EXITS = "local:igra_exit_history";
+const katRow = (id: string, over: Record<string, unknown> = {}) => ({
+  id,
+  direction: "WITHDRAW",
+  fromChainId: 38833,
+  toChainId: 1,
+  fromWallet: EVM,
+  toWallet: KASPA,
+  tokenContract: "",
+  tokenTick: "KAS",
+  amount: "10",
+  status: "COMPLETED",
+  // No txid ⇒ attachKatObservedFees reads nothing from chain.
+  l1TxId: null,
+  l2TxHash: null,
+  completedAt: null,
+  createdAt: "2026-10-01T00:00:00Z",
+  ...over,
+});
+const ok = (rows: unknown[]) =>
+  Response.json({
+    success: true,
+    data: {
+      transactions: rows,
+      pagination: { total: rows.length, hasMore: false },
+    },
+  });
+
+test("kat history: collector-routed exits paying this account are merged, others dropped", async () => {
+  const realFetch = globalThis.fetch;
+  m.igraExitStore.clear();
+  try {
+    let collectorDown = false;
+    const asked: string[] = [];
+    globalThis.fetch = (async (url: string) => {
+      const q = new URL(url).searchParams;
+      const l2 = q.get("fromL2Wallet");
+      asked.push(q.get("fromL1Wallet") ? "l1" : l2 === COLLECTOR ? "c" : "l2");
+      if (q.get("fromL1Wallet")) return ok([]);
+      if (l2 === EVM) return ok([katRow("direct")]);
+      if (collectorDown) return new Response("", { status: 500 });
+      return ok([
+        katRow("mine", {
+          fromWallet: COLLECTOR,
+          toWallet: KASPA.toUpperCase(),
+        }),
+        katRow("theirs", { fromWallet: COLLECTOR, toWallet: "kaspa:qother" }),
+        katRow("direct", { fromWallet: COLLECTOR }),
+      ]);
+    }) as typeof fetch;
+
+    const both = await m.fetchKatBridgeHistory({
+      kaspaAddress: KASPA,
+      evmAddress: EVM,
+    });
+    expect(both.txs.map((t) => t.id).sort()).toEqual(["direct", "mine"]);
+    expect(both.degraded).toBeNull();
+
+    // A failed collector read is not a banner, and the exit already seen
+    // stays: it was persisted on the read above.
+    collectorDown = true;
+    const down = await m.fetchKatBridgeHistory({
+      kaspaAddress: KASPA,
+      evmAddress: EVM,
+    });
+    expect(down.txs.map((t) => t.id).sort()).toEqual(["direct", "mine"]);
+    expect(down.degraded).toBeNull();
+
+    // No EVM address ⇒ no Igra account to exit from ⇒ the collector is not asked.
+    asked.length = 0;
+    await m.fetchKatBridgeHistory({ kaspaAddress: KASPA, evmAddress: null });
+    expect(asked).toEqual(["l1"]);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
+test("kat history: persisted collector exits merge with the fresh scan, deduped by id", async () => {
+  const realFetch = globalThis.fetch;
+  m.igraExitStore.clear();
+  // Seen on earlier polls: one exit since pushed past the collector window,
+  // one still in it but PENDING then, and another account's exit.
+  m.igraExitStore.set(IGRA_EXITS, [
+    katRow("old", { fromWallet: COLLECTOR }),
+    katRow("mine", { fromWallet: COLLECTOR, status: "PENDING" }),
+    katRow("theirs", { fromWallet: COLLECTOR, toWallet: "kaspa:qother" }),
+  ]);
+  try {
+    globalThis.fetch = (async (url: string) => {
+      const q = new URL(url).searchParams;
+      if (q.get("fromL2Wallet") !== COLLECTOR) return ok([]);
+      return ok([
+        katRow("mine", {
+          fromWallet: COLLECTOR,
+          toWallet: KASPA.toUpperCase(),
+          observedFees: { stale: true },
+        }),
+        katRow("new", { fromWallet: COLLECTOR }),
+      ]);
+    }) as typeof fetch;
+
+    const { txs, degraded } = await m.fetchKatBridgeHistory({
+      kaspaAddress: KASPA,
+      evmAddress: EVM,
+    });
+    expect(degraded).toBeNull();
+    expect(txs.map((t) => t.id).sort()).toEqual(["mine", "new", "old"]);
+    // The fresh row wins over the stored one.
+    expect(txs.find((t) => t.id === "mine")?.status).toBe("COMPLETED");
+
+    const stored = m.igraExitStore.get(IGRA_EXITS) as Record<string, unknown>[];
+    expect(stored.map((t) => t.id).sort()).toEqual([
+      "mine",
+      "new",
+      "old",
+      "theirs",
+    ]);
+    expect(stored.some((t) => "observedFees" in t)).toBe(false);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
+// ─── swap history: selector, not the `to` address, makes a swap ─────────────
+
+test("swaps: collector sweeps are not swaps; a reverted swap still gets its row", () => {
+  const OWNER = "0x4be2c073aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  const COLLECTOR = "0x2f15c748bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+  const tx = (hash: string, selector: string, over = {}) => ({
+    hash,
+    from: OWNER,
+    to: COLLECTOR,
+    value: "0",
+    input: `${selector}${"00".repeat(64)}`,
+    isError: "0",
+    txreceipt_status: "1",
+    timeStamp: "1760000000",
+    gasUsed: "21000",
+    gasPrice: "1",
+    ...over,
+  });
+  const records = m.buildSwapRecords({
+    txs: [
+      tx("0xsweep", "0x09cae2c8"),
+      tx("0xclaim", "0xd9f66db1"),
+      tx("0xswap", "0x38ed1739"),
+      tx("0xreverted", "0x0a1193dd", {
+        value: "1000000000000000000",
+        isError: "1",
+        txreceipt_status: "0",
+      }),
+    ],
+    transfers: [
+      // The sweep's only leg: collector → owner, nothing sent.
+      {
+        hash: "0xsweep",
+        from: COLLECTOR,
+        to: OWNER,
+        value: "5",
+        tokenSymbol: "ZEAL",
+        tokenDecimal: "0",
+      },
+      {
+        hash: "0xswap",
+        from: OWNER,
+        to: "0xpair",
+        value: "2",
+        tokenSymbol: "ZEAL",
+        tokenDecimal: "0",
+      },
+      {
+        hash: "0xswap",
+        from: "0xpair",
+        to: OWNER,
+        value: "3",
+        tokenSymbol: "NACHO",
+        tokenDecimal: "0",
+      },
+    ],
+    account: OWNER,
+    routers: [
+      {
+        providerId: "zealous",
+        name: "Zealous",
+        routerAddress: null,
+        chainId: 38833,
+        entryAddresses: [COLLECTOR],
+        feeCollectorAddress: COLLECTOR,
+      },
+    ],
+    nativeSymbol: "iKAS",
+  });
+  expect(records.map((r) => r.txHash).sort()).toEqual(["0xreverted", "0xswap"]);
+  expect(records.find((r) => r.txHash === "0xreverted")?.status).toBe("failed");
+});
+
+test("swaps: collector sweeps cost no receipt probe; a swap through it does", () => {
+  const OWNER = "0x4be2c073aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  const COLLECTOR = "0x2f15c748bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+  const tx = (hash: string, selector: string) => ({
+    hash,
+    from: OWNER,
+    to: COLLECTOR,
+    value: "0",
+    input: `${selector}${"00".repeat(64)}`,
+    isError: "0",
+    txreceipt_status: "1",
+    blockNumber: "100",
+    timeStamp: "1760000000",
+    gasUsed: "21000",
+    gasPrice: "1",
+  });
+  const probes = m.swapReceiptProbes({
+    txs: [
+      tx("0xsweep", "0x09cae2c8"),
+      tx("0xclaim", "0xd9f66db1"),
+      tx("0xswap", "0x38ed1739"),
+    ],
+    transfers: [],
+    internals: [],
+    account: OWNER,
+    routers: [
+      {
+        providerId: "zealous",
+        name: "Zealous",
+        routerAddress: null,
+        chainId: 38833,
+        entryAddresses: [COLLECTOR],
+        feeCollectorAddress: COLLECTOR,
+      },
+    ],
+    wkas: "0xwkas",
+  });
+  expect(probes.map((p) => p.hash)).toEqual(["0xswap"]);
 });

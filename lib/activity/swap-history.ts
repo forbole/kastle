@@ -239,6 +239,22 @@ const EXACT_INPUT_SELECTORS: ReadonlySet<string> = new Set([
   "0x18cbafe5", // swapExactTokensForETH(uint256,uint256,address[],address,uint256) — ABI only
 ]);
 
+/**
+ * Every entrypoint this module counts as a swap — the EXACT_INPUT_SELECTORS
+ * set plus the exact-output and Launchpad selectors documented beside it. A
+ * `to` match on an entry address is not enough on its own: the Igra swap
+ * FeeCollector also hosts non-swap functions, observed on Igra mainnet —
+ * 0x09cae2c8 (address token, address recipient; value 0, one ERC-20 Transfer
+ * collector → user, no pair Sync/Swap) and 0xd9f66db1 — fee sweeps/claims
+ * with no input leg, which rendered as swaps with an empty "sent" amount.
+ */
+const SWAP_SELECTORS: ReadonlySet<string> = new Set([
+  ...EXACT_INPUT_SELECTORS,
+  "0xfb3bdb41", // swapETHForExactTokens(uint256,address[],address,uint256)
+  "0xed9772b6", // sellTokens(uint256,uint256) — Launchpad
+  "0x3610724e", // buyTokens(uint256) — Launchpad
+]);
+
 /** First four calldata bytes, or "" when the explorer gave neither field. */
 function selectorOf(tx: ExplorerTx): string {
   return (tx.input ?? tx.methodId ?? "").slice(0, 10).toLowerCase();
@@ -462,6 +478,9 @@ export function buildSwapRecords({
     if (!hash) continue;
     const provider = providerByEntry.get(tx.to?.toLowerCase() ?? "");
     if (!provider) continue; // plain send / unrelated contract call
+    // Selector, not legs, decides: a reverted swap moved nothing and still
+    // gets its failed row; a collector sweep that moved tokens gets none.
+    if (!SWAP_SELECTORS.has(selectorOf(tx))) continue;
 
     const legs = transfersByHash.get(hash) ?? [];
     const sentLeg = legs.find((t) => t.from?.toLowerCase() === owner);
@@ -845,6 +864,8 @@ export function swapReceiptProbes(input: {
     const to = tx.to?.toLowerCase() ?? "";
     const provider = providerByEntry.get(to);
     if (!hash || !provider) continue;
+    // Mirrors buildSwapRecords, so probes and rows never disagree.
+    if (!SWAP_SELECTORS.has(selectorOf(tx))) continue;
     // A reverted swap retained nothing and paid nothing out — the call rolled
     // back, fee, unwrap and all.
     if (tx.isError === "1" || tx.txreceipt_status === "0") continue;
