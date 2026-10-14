@@ -19,6 +19,9 @@ import {
 // ADR-009: the covenant is compiled for at most 3 token inputs and outputs.
 export const MAX_TOKEN_INPUTS = 3;
 
+// Kastle's KRON partner tag, committed on-chain as tx.payload so trades are attributed.
+const KRON_PARTNER_REF = "kastlewallet";
+
 export class Kcc20TransferError extends Error {
   constructor(
     readonly code:
@@ -237,6 +240,7 @@ export function fundCovenantSpend({
       fundingEntries: funding.slice(0, n),
       changeAddress: address,
       networkFee: networkFee + kastleFee,
+      ref: KRON_PARTNER_REF,
     });
     if (kastleFee > 0n) {
       asm.transaction.outputs = [

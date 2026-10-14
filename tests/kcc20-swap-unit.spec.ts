@@ -3,7 +3,7 @@ import path from "node:path";
 import { registerHooks } from "node:module";
 import { fileURLToPath } from "node:url";
 import { test, expect } from "@playwright/test";
-import { client, curve, curveCp, kcc20 } from "@kronsdk/kron-sdk";
+import { client, curve, curveCp, kcc20, partnerTag } from "@kronsdk/kron-sdk";
 import { hexToBytes } from "viem";
 import * as kaspa from "@/wasm/core/kaspa";
 
@@ -242,6 +242,31 @@ test.describe("recipient-bound curve schema", () => {
     ).id;
     expect(safe).toBe(transaction.id);
     expect(json).toBe(transaction.id);
+  });
+
+  test("a curve trade carries the Kastle partner tag through SafeJSON", () => {
+    const s = curveCp.buildCpBuy(
+      k,
+      cpTpl,
+      tokenTpl,
+      utxo(),
+      inventory(),
+      COVID,
+      xonly,
+      1000n * KAS,
+      KAS,
+      [],
+      2,
+    );
+    const { transaction } = fund(s);
+    const tag = partnerTag.encodePartnerTag("kastlewallet");
+    expect(tag).not.toBe("");
+    expect(transaction.payload).toBe(tag);
+    // SafeJSON is what the sequencer receives.
+    const sent = kaspa.Transaction.deserializeFromSafeJSON(
+      transaction.serializeToSafeJSON(),
+    );
+    expect(partnerTag.parsePartnerTag(sent.payload)).toBe("kastlewallet");
   });
 
   test.describe("sequencer submit", () => {
