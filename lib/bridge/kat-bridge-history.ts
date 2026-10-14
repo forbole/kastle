@@ -27,6 +27,10 @@ import {
   type KatObservedFees,
 } from "@/lib/bridge/kat-observed-fees";
 import { KAT_IGRA_FEE_COLLECTOR_BRIDGE_ADDRESS } from "@/lib/bridge/fee-collector";
+import {
+  mergeLocalIgraExits,
+  paysTo,
+} from "@/lib/bridge/igra-exit-local-history";
 
 /** Kaspa L1's id in KAT's chain table for this endpoint (0 elsewhere — see kat-registry). */
 export const KAT_L1_CHAIN_ID = 1;
@@ -191,17 +195,19 @@ export async function fetchKatBridgeHistory({
   // read that fails or hits MAX_PAGES says nothing about THIS wallet's exits,
   // and a banner keyed to global volume would sooner or later show for
   // everyone, permanently. A failed read keeps the direct-exit rows as they
-  // were before this query existed. Ceiling: past MAX_PAGES * PAGE_SIZE rows,
-  // older collector exits drop out of the feed. Upgrade path: a server-side
-  // toWallet filter.
-  const ownCollectorExits =
+  // were before this query existed. Only the newest MAX_PAGES * PAGE_SIZE
+  // collector rows are read (KAT has no toWallet filter — unknown params are a
+  // 400), so every match is persisted locally (igra-exit-local-history.ts) and
+  // stays in the feed once older rows fall past that window. Accepted
+  // ceiling: a fresh install or restored wallet only recovers exits still
+  // within the newest MAX_PAGES * PAGE_SIZE collector rows.
+  const freshCollectorExits =
     collectorExits?.ok && kaspaAddress
-      ? collectorExits.txs.filter(
-          // toWallet is not checked by isBridgeTx — guard before folding case.
-          (tx) =>
-            typeof tx.toWallet === "string" &&
-            tx.toWallet.toLowerCase() === kaspaAddress.toLowerCase(),
-        )
+      ? collectorExits.txs.filter((tx) => paysTo(tx, kaspaAddress))
+      : [];
+  const ownCollectorExits =
+    kaspaAddress && evmAddress
+      ? await mergeLocalIgraExits(kaspaAddress, freshCollectorExits)
       : [];
 
   const depositsFailed = deposits !== null && !deposits.ok;

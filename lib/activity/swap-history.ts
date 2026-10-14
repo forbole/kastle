@@ -864,6 +864,8 @@ export function swapReceiptProbes(input: {
     const to = tx.to?.toLowerCase() ?? "";
     const provider = providerByEntry.get(to);
     if (!hash || !provider) continue;
+    // Mirrors buildSwapRecords, so probes and rows never disagree.
+    if (!SWAP_SELECTORS.has(selectorOf(tx))) continue;
     // A reverted swap retained nothing and paid nothing out — the call rolled
     // back, fee, unwrap and all.
     if (tx.isError === "1" || tx.txreceipt_status === "0") continue;
