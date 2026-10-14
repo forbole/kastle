@@ -33,6 +33,12 @@ export default defineConfig({
   manifest: {
     ...(versionName && { version_name: versionName }),
     permissions: ["storage", "alarms", "clipboardRead"],
+    // The KRON sequencer's CORS is locked to KRON's own site, so a plain web
+    // page gets a CORS failure, not a response. Declaring host_permissions lets
+    // the extension page / service worker call seq.kron.technology directly —
+    // never from a content script, and never relayed through kstl-scanner
+    // (its rate limits are per IP, so a relay would bucket all users together).
+    host_permissions: ["https://seq.kron.technology/*"],
     content_security_policy: {
       extension_pages:
         "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'",
