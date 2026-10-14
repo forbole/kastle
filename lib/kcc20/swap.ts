@@ -515,17 +515,25 @@ export async function submitKronSwap(
   const signed = await signKcc20Transfer(wallet, built);
   const signedTx = signed.serializeToSafeJSON();
   const txid = signed.id;
+  // A thrown submit (dropped connection) is as ambiguous as an `ambiguous`
+  // response: the sequencer may already hold the trade. Reconcile before the
+  // error can reach a rebuild; only a provably dead tx re-throws it.
   const submit = () =>
-    sequencer.curveSubmit({
-      covid: market.curveCovenantId,
-      signedTx,
-      prevHead: head,
-      declaredReserves: {
-        realKas: built.quote.newRealKas.toString(),
-        tokenReserve: built.quote.newTokenReserve.toString(),
-        vKas: head.reserves.vKas,
-      },
-    });
+    sequencer
+      .curveSubmit({
+        covid: market.curveCovenantId,
+        signedTx,
+        prevHead: head,
+        declaredReserves: {
+          realKas: built.quote.newRealKas.toString(),
+          tokenReserve: built.quote.newTokenReserve.toString(),
+          vKas: head.reserves.vKas,
+        },
+      })
+      .catch(async (e: unknown) => {
+        await assertCurveTradeDead(sequencer, market, txid, rpc);
+        throw e;
+      });
 
   let res = await submit();
   // Stale-head / full is normal contention: resend the same stored string
