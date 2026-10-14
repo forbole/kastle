@@ -15,7 +15,9 @@ type Modules = typeof import("@/lib/activity/mappers") &
   typeof import("@/lib/activity/adapters") &
   typeof import("@/lib/activity/kurve-completion") &
   typeof import("@/lib/bridge/igra-credits") &
-  typeof import("@/lib/bridge/kat-registry");
+  typeof import("@/lib/bridge/kat-registry") &
+  typeof import("@/lib/bridge/kat-bridge-history") &
+  typeof import("@/lib/activity/swap-history");
 
 let m: Modules;
 
@@ -30,6 +32,8 @@ test.beforeAll(async () => {
         "@/lib/activity/kurve-completion",
         "@/lib/bridge/igra-credits",
         "@/lib/bridge/kat-registry",
+        "@/lib/bridge/kat-bridge-history",
+        "@/lib/activity/swap-history",
       ]
         .map((p) => `export * from ${JSON.stringify(p)};`)
         .join("\n"),
@@ -411,4 +415,154 @@ test("formatDateTime: only a prior-year timestamp shows the year", () => {
   expect(m.formatDateTime(new Date(y, 0, 1, 12).getTime())).not.toContain(
     String(y),
   );
+});
+
+// ─── KAT exits routed through the Igra fee collector ────────────────────────
+
+test("kat history: collector-routed exits paying this account are merged, others dropped", async () => {
+  const realFetch = globalThis.fetch;
+  const COLLECTOR = "0x9d01E8a2f3DD0B1Fc739d32ca8d79509b501eAb8";
+  const KASPA = "kaspa:qrUSER";
+  const katRow = (id: string, over: Record<string, unknown> = {}) => ({
+    id,
+    direction: "WITHDRAW",
+    fromChainId: 38833,
+    toChainId: 1,
+    fromWallet: EVM,
+    toWallet: KASPA,
+    tokenContract: "",
+    tokenTick: "KAS",
+    amount: "10",
+    status: "COMPLETED",
+    // No txid ⇒ attachKatObservedFees reads nothing from chain.
+    l1TxId: null,
+    l2TxHash: null,
+    completedAt: null,
+    createdAt: "2026-10-01T00:00:00Z",
+    ...over,
+  });
+  const ok = (rows: unknown[]) =>
+    Response.json({
+      success: true,
+      data: {
+        transactions: rows,
+        pagination: { total: rows.length, hasMore: false },
+      },
+    });
+  try {
+    let collectorDown = false;
+    const asked: string[] = [];
+    globalThis.fetch = (async (url: string) => {
+      const q = new URL(url).searchParams;
+      const l2 = q.get("fromL2Wallet");
+      asked.push(q.get("fromL1Wallet") ? "l1" : l2 === COLLECTOR ? "c" : "l2");
+      if (q.get("fromL1Wallet")) return ok([]);
+      if (l2 === EVM) return ok([katRow("direct")]);
+      if (collectorDown) return new Response("", { status: 500 });
+      return ok([
+        katRow("mine", {
+          fromWallet: COLLECTOR,
+          toWallet: KASPA.toUpperCase(),
+        }),
+        katRow("theirs", { fromWallet: COLLECTOR, toWallet: "kaspa:qother" }),
+        katRow("direct", { fromWallet: COLLECTOR }),
+      ]);
+    }) as typeof fetch;
+
+    const both = await m.fetchKatBridgeHistory({
+      kaspaAddress: KASPA,
+      evmAddress: EVM,
+    });
+    expect(both.txs.map((t) => t.id).sort()).toEqual(["direct", "mine"]);
+    expect(both.degraded).toBeNull();
+
+    // A failed collector read is not a banner: the direct exits stand.
+    collectorDown = true;
+    const down = await m.fetchKatBridgeHistory({
+      kaspaAddress: KASPA,
+      evmAddress: EVM,
+    });
+    expect(down.txs.map((t) => t.id)).toEqual(["direct"]);
+    expect(down.degraded).toBeNull();
+
+    // No EVM address ⇒ no Igra account to exit from ⇒ the collector is not asked.
+    asked.length = 0;
+    await m.fetchKatBridgeHistory({ kaspaAddress: KASPA, evmAddress: null });
+    expect(asked).toEqual(["l1"]);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
+// ─── swap history: selector, not the `to` address, makes a swap ─────────────
+
+test("swaps: collector sweeps are not swaps; a reverted swap still gets its row", () => {
+  const OWNER = "0x4be2c073aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  const COLLECTOR = "0x2f15c748bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+  const tx = (hash: string, selector: string, over = {}) => ({
+    hash,
+    from: OWNER,
+    to: COLLECTOR,
+    value: "0",
+    input: `${selector}${"00".repeat(64)}`,
+    isError: "0",
+    txreceipt_status: "1",
+    timeStamp: "1760000000",
+    gasUsed: "21000",
+    gasPrice: "1",
+    ...over,
+  });
+  const records = m.buildSwapRecords({
+    txs: [
+      tx("0xsweep", "0x09cae2c8"),
+      tx("0xclaim", "0xd9f66db1"),
+      tx("0xswap", "0x38ed1739"),
+      tx("0xreverted", "0x0a1193dd", {
+        value: "1000000000000000000",
+        isError: "1",
+        txreceipt_status: "0",
+      }),
+    ],
+    transfers: [
+      // The sweep's only leg: collector → owner, nothing sent.
+      {
+        hash: "0xsweep",
+        from: COLLECTOR,
+        to: OWNER,
+        value: "5",
+        tokenSymbol: "ZEAL",
+        tokenDecimal: "0",
+      },
+      {
+        hash: "0xswap",
+        from: OWNER,
+        to: "0xpair",
+        value: "2",
+        tokenSymbol: "ZEAL",
+        tokenDecimal: "0",
+      },
+      {
+        hash: "0xswap",
+        from: "0xpair",
+        to: OWNER,
+        value: "3",
+        tokenSymbol: "NACHO",
+        tokenDecimal: "0",
+      },
+    ],
+    account: OWNER,
+    routers: [
+      {
+        providerId: "zealous",
+        name: "Zealous",
+        routerAddress: null,
+        chainId: 38833,
+        entryAddresses: [COLLECTOR],
+        feeCollectorAddress: COLLECTOR,
+      },
+    ],
+    nativeSymbol: "iKAS",
+  });
+  expect(records.map((r) => r.txHash).sort()).toEqual(["0xreverted", "0xswap"]);
+  expect(records.find((r) => r.txHash === "0xreverted")?.status).toBe("failed");
 });

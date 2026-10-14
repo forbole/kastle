@@ -26,6 +26,7 @@ import {
   attachKatObservedFees,
   type KatObservedFees,
 } from "@/lib/bridge/kat-observed-fees";
+import { KAT_IGRA_FEE_COLLECTOR_BRIDGE_ADDRESS } from "@/lib/bridge/fee-collector";
 
 /** Kaspa L1's id in KAT's chain table for this endpoint (0 elsewhere — see kat-registry). */
 export const KAT_L1_CHAIN_ID = 1;
@@ -160,8 +161,16 @@ async function fetchWalletSide(
 
 /**
  * Full KAT history for an account: deposits from the Kaspa address, exits from
- * the EVM address. A missing address is "nothing to ask", never a degradation.
- * Never throws.
+ * the EVM address, plus exits the user routed through the Igra fee collector.
+ * A missing address is "nothing to ask", never a degradation. Never throws.
+ *
+ * The third query exists because the Igra exit (Bridge.tsx, "igra-kas") calls
+ * bridgeToL1 on KAT_IGRA_FEE_COLLECTOR_BRIDGE_ADDRESS, not on the KasBridge, so
+ * KAT records those exits with `fromWallet` = the collector (verified live: the
+ * user's own fromL2Wallet query returns only the old direct exits). The
+ * collector side is every Kastle user's exits, so only rows paying out to this
+ * account's Kaspa address are kept. Needs both addresses: the Kaspa one to
+ * filter on, the EVM one because without it there is no Igra account to exit.
  */
 export async function fetchKatBridgeHistory({
   kaspaAddress,
@@ -170,10 +179,30 @@ export async function fetchKatBridgeHistory({
   kaspaAddress?: string | null;
   evmAddress?: string | null;
 }): Promise<{ txs: KatBridgeTx[]; degraded: BridgeHistoryDegradation | null }> {
-  const [deposits, exits] = await Promise.all([
+  const [deposits, exits, collectorExits] = await Promise.all([
     kaspaAddress ? fetchWalletSide("fromL1Wallet", kaspaAddress) : null,
     evmAddress ? fetchWalletSide("fromL2Wallet", evmAddress) : null,
+    kaspaAddress && evmAddress
+      ? fetchWalletSide("fromL2Wallet", KAT_IGRA_FEE_COLLECTOR_BRIDGE_ADDRESS)
+      : null,
   ]);
+  // Deliberately absent from `degraded`, failed or truncated alike: the
+  // collector's history is shared by all users (258 rows on 2026-10-14), so a
+  // read that fails or hits MAX_PAGES says nothing about THIS wallet's exits,
+  // and a banner keyed to global volume would sooner or later show for
+  // everyone, permanently. A failed read keeps the direct-exit rows as they
+  // were before this query existed. Ceiling: past MAX_PAGES * PAGE_SIZE rows,
+  // older collector exits drop out of the feed. Upgrade path: a server-side
+  // toWallet filter.
+  const ownCollectorExits =
+    collectorExits?.ok && kaspaAddress
+      ? collectorExits.txs.filter(
+          // toWallet is not checked by isBridgeTx — guard before folding case.
+          (tx) =>
+            typeof tx.toWallet === "string" &&
+            tx.toWallet.toLowerCase() === kaspaAddress.toLowerCase(),
+        )
+      : [];
 
   const depositsFailed = deposits !== null && !deposits.ok;
   const exitsFailed = exits !== null && !exits.ok;
@@ -198,10 +227,14 @@ export async function fetchKatBridgeHistory({
                 ? "bridge_history_exits_partial"
                 : null;
 
-  // The two sides are disjoint by construction, but id is the only universally
+  // The sides are disjoint by construction, but id is the only universally
   // present identifier (l2TxHash is null on Igra deposits) — dedupe on it.
   const byId = new Map<string, KatBridgeTx>();
-  for (const tx of [...(deposits?.txs ?? []), ...(exits?.txs ?? [])]) {
+  for (const tx of [
+    ...(deposits?.txs ?? []),
+    ...(exits?.txs ?? []),
+    ...ownCollectorExits,
+  ]) {
     byId.set(tx.id, tx);
   }
   // Fees are not in the API response — they are on chain, and this is the only
