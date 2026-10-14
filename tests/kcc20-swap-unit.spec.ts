@@ -212,4 +212,33 @@ test.describe("recipient-bound curve schema", () => {
     );
     expect(fund(s).fundingInputIndexes[0]).toBe(2 + pieces.length);
   });
+
+  test("both serializers round-trip a curve trade to the same txid", () => {
+    const s = curveCp.buildCpBuy(
+      k,
+      cpTpl,
+      tokenTpl,
+      utxo(),
+      inventory(),
+      COVID,
+      xonly,
+      1000n * KAS,
+      KAS,
+      [],
+      2,
+    );
+    const { transaction } = fund(s);
+    // The sequencer re-decodes the submitted signedTx and recomputes its txid
+    // (which excludes signature scripts), so any serializer that decodes to
+    // the same transaction must produce the same id. SafeJSON is what we send;
+    // plain JSON is the other serializer worth pinning in CI.
+    const safe = kaspa.Transaction.deserializeFromSafeJSON(
+      transaction.serializeToSafeJSON(),
+    ).id;
+    const json = kaspa.Transaction.deserializeFromJSON(
+      transaction.serializeToJSON(),
+    ).id;
+    expect(safe).toBe(transaction.id);
+    expect(json).toBe(transaction.id);
+  });
 });
