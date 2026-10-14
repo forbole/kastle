@@ -6,7 +6,10 @@ import {
   formatTokenPrice,
   symbolForCurrencyCode,
 } from "@/lib/utils.ts";
-import TokenListItem from "@/components/dashboard/TokenListItem.tsx";
+import TokenListItem, {
+  Kcc20TokenListItem,
+} from "@/components/dashboard/TokenListItem.tsx";
+import useKcc20Tokens from "@/lib/kcc20/useKcc20Tokens";
 import { applyDecimal } from "@/lib/krc20.ts";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 import { useTokenListByAddress } from "@/hooks/kasplex/useTokenListByAddress";
@@ -20,6 +23,7 @@ import { numberToHex } from "viem";
 import useKaspaPrice from "@/hooks/useKaspaPrice";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import useKaspaBalance from "@/hooks/wallet/useKaspaBalance";
+import { useFeatureFlags } from "@/hooks/useFeatureFlags.ts";
 
 export default function Assets() {
   const navigate = useNavigate();
@@ -48,6 +52,12 @@ export default function Assets() {
       bToFloat(parseInt(b.balance, 10)) - aToFloat(parseInt(a.balance, 10))
     );
   });
+
+  // Kill switch off: no indexer polling, so the address never leaves the wallet.
+  const { isKcc20Enabled } = useFeatureFlags();
+  const { data: kcc20Tokens } = useKcc20Tokens(
+    isKcc20Enabled ? address : undefined,
+  );
 
   const isAssetListLoading = balance === undefined;
 
@@ -96,6 +106,11 @@ export default function Assets() {
 
       {/*KRC20 tokens*/}
       {tokens?.map((token) => <TokenListItem key={token.id} token={token} />)}
+
+      {/*KCC20 tokens*/}
+      {kcc20Tokens?.map((token) => (
+        <Kcc20TokenListItem key={token.covenantId} token={token} />
+      ))}
 
       {/* ERC20 tokens */}
       <Erc20Assets />
