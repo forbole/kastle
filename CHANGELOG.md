@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.61.1](https://github.com/forbole/kastle/compare/v2.61.0...v2.61.1) (2026-10-14)
+
+
+### Bug Fixes
+
+* bridge + swap activity feed ([#394](https://github.com/forbole/kastle/issues/394)) ([8b1d070](https://github.com/forbole/kastle/commit/8b1d070a77e8fcf22f674fc907e69e4462f750ff))
+* **send:** mention dotK and KNS in the send-address caption ([#395](https://github.com/forbole/kastle/issues/395)) ([1e0816e](https://github.com/forbole/kastle/commit/1e0816e029a7e68fad5dda4fb1645c247709a8c2))
+
 ## [2.61.0](https://github.com/forbole/kastle/compare/v2.60.1...v2.61.0) (2026-10-05)
 
 
