@@ -3,7 +3,7 @@ import path from "node:path";
 import { registerHooks } from "node:module";
 import { fileURLToPath } from "node:url";
 import { test, expect } from "@playwright/test";
-import { curve, curveCp, kcc20 } from "@kronsdk/kron-sdk";
+import { client, curve, curveCp, kcc20 } from "@kronsdk/kron-sdk";
 import { hexToBytes } from "viem";
 import * as kaspa from "@/wasm/core/kaspa";
 
@@ -19,6 +19,7 @@ const {
   kronKastleFee,
   kronKastleFeeBps,
   quoteKron,
+  submitKronSwap,
 } = await import("@/lib/kcc20/swap");
 const { Kcc20TransferError, fundCovenantSpend } = await import(
   "@/lib/kcc20/transfer"
@@ -78,6 +79,7 @@ test("swap errors map to user copy, never the raw throw", () => {
     "graduated",
     "curve-busy",
     "unverified",
+    "processing",
   ] as const) {
     const copy = kronErrorCopy(new KronSwapError(code, "raw"), fallback);
     expect(copy).not.toBe("raw");
@@ -211,5 +213,182 @@ test.describe("recipient-bound curve schema", () => {
       2 + pieces.length,
     );
     expect(fund(s).fundingInputIndexes[0]).toBe(2 + pieces.length);
+  });
+
+  test("both serializers round-trip a curve trade to the same txid", () => {
+    const s = curveCp.buildCpBuy(
+      k,
+      cpTpl,
+      tokenTpl,
+      utxo(),
+      inventory(),
+      COVID,
+      xonly,
+      1000n * KAS,
+      KAS,
+      [],
+      2,
+    );
+    const { transaction } = fund(s);
+    // The sequencer re-decodes the submitted signedTx and recomputes its txid
+    // (which excludes signature scripts), so any serializer that decodes to
+    // the same transaction must produce the same id. SafeJSON is what we send;
+    // plain JSON is the other serializer worth pinning in CI.
+    const safe = kaspa.Transaction.deserializeFromSafeJSON(
+      transaction.serializeToSafeJSON(),
+    ).id;
+    const json = kaspa.Transaction.deserializeFromJSON(
+      transaction.serializeToJSON(),
+    ).id;
+    expect(safe).toBe(transaction.id);
+    expect(json).toBe(transaction.id);
+  });
+
+  test.describe("sequencer submit", () => {
+    type Seq = InstanceType<typeof client.SequencerClient>;
+    type SubmitResult = Awaited<ReturnType<Seq["curveSubmit"]>>;
+    type StatusResult = Awaited<ReturnType<Seq["curveStatus"]>>;
+    const proto = client.SequencerClient.prototype;
+    const original = {
+      curveSubmit: proto.curveSubmit,
+      curveStatus: proto.curveStatus,
+    };
+    let submits: string[];
+    let statusCalls: number;
+    let mempoolCalls: number;
+
+    // Each call to curveSubmit takes the next scripted response.
+    const stub = (
+      responses: SubmitResult[],
+      status?: Partial<StatusResult>,
+    ) => {
+      submits = [];
+      statusCalls = 0;
+      proto.curveSubmit = async (body) => {
+        submits.push(body.signedTx);
+        return responses[submits.length - 1];
+      };
+      proto.curveStatus = async (_covid, txid) => {
+        statusCalls++;
+        if (!status) throw new Error("sequencer down");
+        return { ok: true, known: true, state: "unknown", txid, ...status };
+      };
+    };
+    test.afterEach(() => Object.assign(proto, original));
+
+    const head = {
+      poolOutpoint: outpoint(1),
+      poolTokenOutpoint: outpoint(2),
+      reserves: {
+        realKas: state.realKas.toString(),
+        tokenReserve: RESERVE.toString(),
+        vKas: state.vKas.toString(),
+      },
+    };
+    const market = {
+      covenantId: "ab".repeat(32),
+      curveCovenantId: "cd".repeat(32),
+      tick: "TEST",
+    } as Parameters<typeof submitKronSwap>[3];
+    // Signing is out of scope here: the wallet hands the tx back as-is.
+    const wallet = {
+      signTx: async (tx: kaspa.Transaction) => tx,
+    } as unknown as Parameters<typeof submitKronSwap>[0];
+    const rpc = (inMempool: boolean) =>
+      ({
+        getMempoolEntry: async () => {
+          mempoolCalls++;
+          return { mempoolEntry: inMempool ? {} : undefined };
+        },
+      }) as unknown as Parameters<typeof submitKronSwap>[2];
+    const built = () => ({
+      ...fund(
+        curveCp.buildCpBuy(
+          k,
+          cpTpl,
+          tokenTpl,
+          utxo(),
+          inventory(),
+          COVID,
+          xonly,
+          1000n * KAS,
+          KAS,
+          [],
+          2,
+        ),
+      ),
+      quote: quoteKron(state, "buy", 1000n * KAS)!,
+      head,
+    });
+    const stale = {
+      ok: false,
+      reason: "stale-head",
+      retry: true,
+    } as const satisfies SubmitResult;
+    const accepted = (txid: string) =>
+      ({ ok: true, txid, position: 0 }) as const satisfies SubmitResult;
+    const run = async (b: ReturnType<typeof built>, inMempool = false) => {
+      mempoolCalls = 0;
+      return submitKronSwap(wallet, b, rpc(inMempool), market);
+    };
+    const codeOf = (p: Promise<unknown>) =>
+      p.then(
+        () => "resolved",
+        (e) => (e instanceof KronSwapError ? e.code : String(e)),
+      );
+
+    test("a stale head is resent once with the identical string", async () => {
+      const b = built();
+      stub([stale, accepted(b.transaction.id)]);
+      expect(await run(b)).toBe(b.transaction.id);
+      expect(submits).toHaveLength(2);
+      expect(submits[1]).toBe(submits[0]);
+      expect(submits[0]).toBe(b.transaction.serializeToSafeJSON());
+      expect(statusCalls).toBe(0);
+    });
+
+    test("a live trade surfaces as processing, never a rebuild", async () => {
+      for (const st of ["accepted", "broadcasting", "broadcast-ambiguous"]) {
+        stub([stale, stale], { state: st as StatusResult["state"] });
+        expect(await codeOf(run(built()))).toBe("processing");
+        expect(mempoolCalls).toBe(0);
+      }
+    });
+
+    test("ambiguous broadcast reconciles without a resend", async () => {
+      stub([{ ok: false, reason: "timeout", ambiguous: true }], {
+        state: "confirmed",
+      });
+      expect(await codeOf(run(built()))).toBe("processing");
+      expect(submits).toHaveLength(1);
+      expect(statusCalls).toBe(1);
+    });
+
+    test("a rejected or dropped trade is safe to rebuild", async () => {
+      for (const st of ["rejected", "dropped"] as const) {
+        stub([stale, stale], { state: st });
+        expect(await codeOf(run(built()))).toBe("curve-busy");
+        expect(mempoolCalls).toBe(0);
+      }
+    });
+
+    test("a txid the sequencer forgot falls back to the node mempool", async () => {
+      stub([stale, stale], { known: false });
+      expect(await codeOf(run(built(), true))).toBe("processing");
+      expect(mempoolCalls).toBe(1);
+      stub([stale, stale], { known: false });
+      expect(await codeOf(run(built(), false))).toBe("curve-busy");
+      expect(mempoolCalls).toBe(1);
+      // curveStatus unreachable: same chain fallback.
+      stub([stale, stale]);
+      expect(await codeOf(run(built(), true))).toBe("processing");
+    });
+
+    test("a hard refusal is not reconciled", async () => {
+      stub([{ ok: false, reason: "bad reserves" }]);
+      expect(await codeOf(run(built()))).toBe("curve-busy");
+      expect(submits).toHaveLength(1);
+      expect(statusCalls).toBe(0);
+    });
   });
 });
