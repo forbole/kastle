@@ -3,6 +3,10 @@
 ## [2.61.1](https://github.com/forbole/kastle/compare/v2.61.0...v2.61.1) (2026-10-14)
 
 
+### Features
+
+* dotK integration (read-only + transfer) ([#381](https://github.com/forbole/kastle/issues/381)) ([28abb23](https://github.com/forbole/kastle/commit/28abb2395ab13fe122882451b791c7e0636e5223))
+
 ### Bug Fixes
 
 * bridge + swap activity feed ([#394](https://github.com/forbole/kastle/issues/394)) ([8b1d070](https://github.com/forbole/kastle/commit/8b1d070a77e8fcf22f674fc907e69e4462f750ff))
