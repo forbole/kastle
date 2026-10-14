@@ -257,16 +257,19 @@ test.describe("recipient-bound curve schema", () => {
     let statusCalls: number;
     let mempoolCalls: number;
 
-    // Each call to curveSubmit takes the next scripted response.
+    // Each call to curveSubmit takes the next scripted response; an Error is
+    // thrown, like a dropped connection.
     const stub = (
-      responses: SubmitResult[],
+      responses: (SubmitResult | Error)[],
       status?: Partial<StatusResult>,
     ) => {
       submits = [];
       statusCalls = 0;
       proto.curveSubmit = async (body) => {
         submits.push(body.signedTx);
-        return responses[submits.length - 1];
+        const res = responses[submits.length - 1];
+        if (res instanceof Error) throw res;
+        return res;
       };
       proto.curveStatus = async (_covid, txid) => {
         statusCalls++;
@@ -382,6 +385,36 @@ test.describe("recipient-bound curve schema", () => {
       // curveStatus unreachable: same chain fallback.
       stub([stale, stale]);
       expect(await codeOf(run(built(), true))).toBe("processing");
+    });
+
+    test("a dropped submit on a live trade surfaces as processing", async () => {
+      const dropped = new TypeError("Failed to fetch");
+      for (const st of ["accepted", "confirmed"] as const) {
+        stub([dropped], { state: st });
+        expect(await codeOf(run(built()))).toBe("processing");
+        expect(submits).toHaveLength(1);
+        expect(statusCalls).toBe(1);
+      }
+      // Dropped on the resend after a stale head.
+      stub([stale, dropped], { state: "broadcasting" });
+      expect(await codeOf(run(built()))).toBe("processing");
+      expect(submits).toHaveLength(2);
+      // Forgotten by the sequencer but still in the node mempool.
+      stub([dropped], { known: false });
+      expect(await codeOf(run(built(), true))).toBe("processing");
+      expect(mempoolCalls).toBe(1);
+    });
+
+    test("a dropped submit on a dead trade re-throws for a rebuild", async () => {
+      const dropped = new TypeError("Failed to fetch");
+      stub([dropped], { state: "rejected" });
+      await expect(run(built())).rejects.toBe(dropped);
+      expect(statusCalls).toBe(1);
+      // Forgotten by the sequencer and absent from the node mempool.
+      stub([dropped], { known: false });
+      await expect(run(built(), false)).rejects.toBe(dropped);
+      expect(statusCalls).toBe(1);
+      expect(mempoolCalls).toBe(1);
     });
 
     test("a hard refusal is not reconciled", async () => {
