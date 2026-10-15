@@ -1,10 +1,7 @@
-import { SignTypedDataParameters } from "viem";
 import { ExtensionService } from "@/lib/service/extension-service.ts";
 import { getSigner } from "./utils";
 import { Hex } from "viem";
-import z from "zod";
-
-export const signTypedDataSchema = z.custom<SignTypedDataParameters>();
+import { signTypedDataSchema } from "@/lib/ethereum/typed-data";
 
 export interface EvmSignTypedDataRequest {
   walletId: string;
@@ -39,7 +36,7 @@ export async function evmSignTypedDataHandler(
     throw new Error("Keyring not initialized or locked");
   }
 
-  const parsed = signTypedDataSchema.safeParse(JSON.parse(data));
+  const parsed = signTypedDataSchema.safeParse(data);
 
   if (!parsed.success) {
     throw new Error(

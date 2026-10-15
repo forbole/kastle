@@ -1,7 +1,22 @@
 import { Buffer } from "buffer";
 import { argon2id } from "hash-wasm";
+import { captureException } from "@sentry/react";
 
 const ALLOWED_KEYS = ["wallets"] as const;
+
+const CORRUPTED_WALLET_DATA_MESSAGE =
+  "Wallet data corrupted, please re-import your wallet";
+
+// Keys already reported as corrupted, so a broken record is captured once.
+const reportedCorruptedKeys = new Set<string>();
+
+// Decrypted bytes exist but are not valid JSON. Never carries the payload.
+class CorruptedWalletDataError extends Error {
+  constructor(readonly key: AllowedKey) {
+    super(CORRUPTED_WALLET_DATA_MESSAGE);
+    this.name = "CorruptedWalletDataError";
+  }
+}
 
 type AllowedKey = (typeof ALLOWED_KEYS)[number];
 
@@ -157,6 +172,32 @@ export class Keyring {
   }
 
   async getValue<T>(key: AllowedKey): Promise<T | null> {
+    try {
+      return await this.readValueStrict<T>(key);
+    } catch (error) {
+      if (!(error instanceof CorruptedWalletDataError)) {
+        throw error;
+      }
+      console.error(`${CORRUPTED_WALLET_DATA_MESSAGE} (key: ${key})`);
+      if (!reportedCorruptedKeys.has(key)) {
+        reportedCorruptedKeys.add(key);
+        captureException(new Error(CORRUPTED_WALLET_DATA_MESSAGE), {
+          extra: { key },
+        });
+      }
+      return null;
+    }
+  }
+
+  // For read-modify-write callers: overwriting a corrupted record after a
+  // lenient null read would destroy recoverable data.
+  async getValueStrict<T>(key: AllowedKey): Promise<T | null> {
+    return this.readValueStrict<T>(key);
+  }
+
+  // Returns null only when the key is absent; throws CorruptedWalletDataError
+  // when the decrypted payload is not valid JSON.
+  private async readValueStrict<T>(key: AllowedKey): Promise<T | null> {
     if (!this.masterKey) {
       throw new Error("Keyring is locked");
     }
@@ -179,7 +220,12 @@ export class Keyring {
 
     const decoder = new TextDecoder();
     const decodedData = decoder.decode(decrypted);
-    return JSON.parse(decodedData);
+    try {
+      return JSON.parse(decodedData);
+    } catch {
+      // Never attach the payload: it is the decrypted wallet secret.
+      throw new CorruptedWalletDataError(key);
+    }
   }
 
   async removeValue(key: string): Promise<void> {
@@ -269,7 +315,9 @@ export class Keyring {
     const keys = this.listKeys();
     const dataToMigrate = await Promise.all(
       keys.map(async (key) => {
-        const data = await this.getValue(key);
+        // Strict read: a corrupted record must abort before the key rotates,
+        // or its ciphertext is left unreadable under the old key.
+        const data = await this.readValueStrict(key);
         return data ? { key, value: data } : null;
       }),
     );
@@ -324,7 +372,9 @@ export class Keyring {
     const keys = this.listKeys();
     const dataToMigrate = await Promise.all(
       keys.map(async (key) => {
-        const data = await this.getValue(key);
+        // Strict read: a corrupted record must abort before the key rotates,
+        // or its ciphertext is left unreadable under the old key.
+        const data = await this.readValueStrict(key);
         return data ? { key, value: data } : null;
       }),
     );
