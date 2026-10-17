@@ -2,9 +2,14 @@ import Copy from "@/components/Copy";
 
 export default function ScriptDetailsBox({ content }: { content: string }) {
   const isParsable = content.startsWith("{") && content.endsWith("}");
-  const formatted = isParsable
-    ? JSON.stringify(JSON.parse(content), null, 2)
-    : content;
+  let formatted = content;
+  if (isParsable) {
+    try {
+      formatted = JSON.stringify(JSON.parse(content), null, 2);
+    } catch {
+      // dApp-supplied data; show it verbatim rather than crash the screen
+    }
+  }
 
   return (
     <div className="rounded-lg bg-[#102832] font-mono text-[#7B9AAA]">

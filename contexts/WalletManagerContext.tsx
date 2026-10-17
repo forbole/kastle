@@ -1,15 +1,18 @@
 import { createContext, ReactNode, useEffect, useRef, useState } from "react";
+import { captureException } from "@sentry/react";
 import { WalletSecretType } from "@/types/WalletSecret.ts";
 import useKeyring from "@/hooks/useKeyring.ts";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful.ts";
 import useStorageState from "@/hooks/useStorageState.ts";
 import {
+  Address,
   IUtxosChanged,
   PublicKey,
   sompiToKaspaString,
   UtxoEntryReference,
 } from "@/wasm/core/kaspa";
 import { deriveKaspaAddress } from "@/lib/kaspa";
+import { redactString } from "@/lib/sentry-scrub";
 import internalToast from "@/components/Toast.tsx";
 import { explorerTxLinks } from "@/components/screens/Settings.tsx";
 import useKaspaBackgroundSigner from "@/hooks/wallet/useKaspaBackgroundSigner";
@@ -94,6 +97,25 @@ export const WalletManagerContext = createContext<WalletManagerContextType>({
   refreshKaspaAddresses: defaultAsyncFunction,
   isWalletSettingsLoading: false,
 });
+
+// A malformed `account.address` in storage makes the RPC client reject with
+// "missing field addresses" / "invalid character" / "prefix is missing".
+// Report the first offending value once so the real bad string reaches Sentry.
+let hasReportedInvalidAddress = false;
+
+const isValidWatchedAddress = (address: unknown) => {
+  if (typeof address === "string" && Address.validate(address)) {
+    return true;
+  }
+
+  if (!hasReportedInvalidAddress) {
+    hasReportedInvalidAddress = true;
+    captureException(new Error("Invalid watched Kaspa address"), {
+      extra: { address: redactString(String(address)) },
+    });
+  }
+  return false;
+};
 
 const getCurrentWalletInfo = (walletSettings: WalletSettings) => {
   if (walletSettings.selectedWalletId === null) {
@@ -221,13 +243,14 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
             new PublicKey(publicKey).toAddress(networkId).toString(),
           )
         : [account.address];
+    const validAddresses = addressesToWatch.filter(isValidWatchedAddress);
 
     // skip if the addresses are the same
-    if (addressesToWatch.join() === addresses.join()) {
+    if (validAddresses.join() === addresses.join()) {
       return;
     }
 
-    setAddresses(addressesToWatch);
+    setAddresses(validAddresses);
   }, [account, wallet, networkId]);
 
   useEffect(() => {
@@ -246,17 +269,21 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
 
     const fetchBalance = async () => {
-      const balance = await getBalancesByAddresses(addresses);
+      try {
+        const balance = await getBalancesByAddresses(addresses);
 
-      // Don't update if this fetch was cancelled
-      if (cancelled) {
-        return;
+        // Don't update if this fetch was cancelled
+        if (cancelled) {
+          return;
+        }
+
+        setKaspaBalances((prev) => ({
+          ...prev,
+          [currentAccountAddress]: balance,
+        }));
+      } catch (error) {
+        console.error("Failed to fetch Kaspa balance:", error);
       }
-
-      setKaspaBalances((prev) => ({
-        ...prev,
-        [currentAccountAddress]: balance,
-      }));
     };
 
     function checkIncomingUtxos(event: {
@@ -304,10 +331,22 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
 
     rpcClient.addEventListener("utxos-changed", listenUtxosChanged);
 
-    rpcClient.subscribeUtxosChanged(addresses);
+    (async () => {
+      try {
+        await rpcClient.subscribeUtxosChanged(addresses);
+      } catch (error) {
+        console.error("Failed to subscribe to UTXO changes:", error);
+      }
+    })();
     return () => {
       cancelled = true;
-      rpcClient.unsubscribeUtxosChanged(addresses);
+      (async () => {
+        try {
+          await rpcClient.unsubscribeUtxosChanged(addresses);
+        } catch (error) {
+          console.error("Failed to unsubscribe from UTXO changes:", error);
+        }
+      })();
 
       rpcClient.removeEventListener("utxos-changed", listenUtxosChanged);
     };
@@ -349,6 +388,7 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
         return result;
       } catch (error) {
         // Keep original state and retry on next dependency change
+        console.error("Wallet settings migration failed", error);
         return prev;
       } finally {
         isMigratingRef.current = false;
@@ -411,11 +451,13 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
   }, [isWalletSettingsLoading, settings?.isLegacyEvmAddressEnabled, networkId]);
 
   // 4. Update Kaspa addresses when network changes (mainnet ↔ testnet)
+  // Also self-heals a malformed stored address, so it must not wait for
+  // `version` — settings that never got one would otherwise never be repaired.
   useEffect(() => {
     if (!walletSettings || isWalletSettingsLoading || !networkId) return;
 
-    // Wait for migration to complete first
-    if (!walletSettings.version || isMigratingRef.current) return;
+    // Wait for an in-flight migration to complete first
+    if (isMigratingRef.current) return;
 
     const updateKaspaAddresses = async (prev: WalletSettings) => {
       const wallets = prev.wallets;
@@ -426,9 +468,19 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
         const newAccounts = wallet.accounts.map((account) => {
           if (!account.publicKeys?.length) return account;
 
-          const expectedAddress = new PublicKey(account.publicKeys[0])
-            .toAddress(networkId)
-            .toString();
+          // One malformed public key must not block repair of the others.
+          let expectedAddress: string;
+          try {
+            expectedAddress = new PublicKey(account.publicKeys[0])
+              .toAddress(networkId)
+              .toString();
+          } catch (error) {
+            console.error(
+              `Failed to derive Kaspa address for account ${account.index}`,
+              error,
+            );
+            return account;
+          }
 
           if (account.address === expectedAddress) return account;
 
@@ -447,7 +499,8 @@ export function WalletManagerProvider({ children }: { children: ReactNode }) {
     };
 
     setWalletSettings(updateKaspaAddresses);
-  }, [isWalletSettingsLoading, networkId]);
+    // `version` re-runs the heal once a skipped migration has stored its result
+  }, [isWalletSettingsLoading, networkId, walletSettings?.version]);
 
   return (
     <WalletManagerContext.Provider

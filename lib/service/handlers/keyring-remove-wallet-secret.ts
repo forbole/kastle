@@ -18,7 +18,7 @@ export const keyringRemoveWalletSecret = async (
   }
 
   const walletSecrets =
-    (await keyring.getValue<WalletSecret[]>("wallets")) ?? [];
+    (await keyring.getValueStrict<WalletSecret[]>("wallets")) ?? [];
   const wallets = walletSecrets.filter((w) => w.id !== walletId);
 
   await keyring.setValue<WalletSecret[]>("wallets", wallets);
