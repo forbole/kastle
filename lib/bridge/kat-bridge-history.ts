@@ -168,7 +168,7 @@ async function fetchWalletSide(
  * the EVM address, plus exits the user routed through the Igra fee collector.
  * A missing address is "nothing to ask", never a degradation. Never throws.
  *
- * The third query exists because the Igra exit (Bridge.tsx, "igra-kas") calls
+ * The third query exists because the former Igra exit (Bridge "igra-kas") called
  * bridgeToL1 on KAT_IGRA_FEE_COLLECTOR_BRIDGE_ADDRESS, not on the KasBridge, so
  * KAT records those exits with `fromWallet` = the collector (verified live: the
  * user's own fromL2Wallet query returns only the old direct exits). The

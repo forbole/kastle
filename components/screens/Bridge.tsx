@@ -1,5 +1,4 @@
-import React, { useMemo, useState } from "react";
-import useSWR from "swr";
+import React, { useState } from "react";
 import {
   Hex,
   PublicClient,
@@ -47,46 +46,19 @@ import {
   BRIDGE_TOKEN_NAME,
   BridgeChain,
   BridgeDirection,
-  IGRA_ENTRY_ADDRESS,
   KASPLEX_BRIDGE_CONTRACT,
   KASTLE_FEE_ADDRESS,
   KURVE_ENTRY_ADDRESS,
   KURVE_SERVICE_FEE,
   KASPLEX_EXIT_FEE_RATE,
   bridgeDirectionsFrom,
-  igraEntryPayload,
-  validateKasToIgra,
   validateKasToKasplex,
-} from "@/lib/bridge/bridge";
-import {
-  EXIT_GATE_MESSAGES,
-  computeContractFeeWei,
-  computeMaxExitKas,
-  evaluateExitGate,
-  mapExitRevertToMessage,
-  readExitGateValues,
-  validateKaspaPayoutAddress,
   validateKurveExitAmount,
-} from "@/lib/bridge/exit-liquidity";
-import {
-  FEE_COLLECTOR_BRIDGE_ABI,
-  KAT_IGRA_FEE_COLLECTOR_BRIDGE_ADDRESS,
-} from "@/lib/bridge/fee-collector";
-import {
-  IGRA_EXIT_BRIDGE_ABI,
-  IGRA_EXIT_BRIDGE_MAINNET,
-  IGRA_KAS_VAULT_MAINNET,
-} from "@/lib/bridge/igra-exit-abi";
+} from "@/lib/bridge/bridge";
 import { KASPLEX_BRIDGE_ABI } from "@/lib/bridge/kurve-abi";
 import { trackKurveBridge } from "@/lib/bridge/kurve-local-history";
 import { BRIDGE_SUBMITTED_MESSAGE } from "@/lib/bridge/messages";
-import { mineIgraEntry } from "@/lib/bridge/igra-entry";
-import {
-  igraMainnet,
-  igraTestnet,
-  kasplexMainnet,
-  kasplexTestnet,
-} from "@/lib/layer2";
+import { kasplexMainnet, kasplexTestnet } from "@/lib/layer2";
 import { sendEvmTransaction } from "@/lib/ethereum/transaction";
 import { bridgeReceived, l1BridgeSplit } from "@/lib/swap-bridge-quote";
 import { createTransactions, kaspaToSompi } from "@/wasm/core/kaspa";
@@ -95,15 +67,12 @@ import { signAndSubmitBatch } from "@/lib/wallet/transaction-batch";
 // Display-only gas for the fee row; the send path estimates for real.
 const EVM_BRIDGE_GAS = 150_000n;
 const REVERSE: Record<BridgeDirection, BridgeDirection> = {
-  "kas-igra": "igra-kas",
-  "igra-kas": "kas-igra",
   "kas-kasplex": "kasplex-kas",
   "kasplex-kas": "kas-kasplex",
 };
 const CHAIN_LABEL: Record<BridgeChain, string> = {
   kaspa: "Kaspa",
   kasplex: "Kasplex",
-  igra: "Igra",
 };
 
 const TOOLTIPS = {
@@ -138,16 +107,12 @@ export default function Bridge() {
 
   const evmChains = {
     kasplex: isMainnet ? kasplexMainnet : kasplexTestnet,
-    igra: isMainnet ? igraMainnet : igraTestnet,
   };
   const chainImage = (c: BridgeChain) =>
     c === "kaspa" ? kaspaIcon : evmChains[c].icon;
-  const hexOf = (c: "kasplex" | "igra") => numberToHex(evmChains[c].id) as Hex;
+  const hexOf = (c: "kasplex") => numberToHex(evmChains[c].id) as Hex;
 
-  const [picked, setDirection] = useState<BridgeDirection>("kas-igra");
-  // A mainnet-only route picked before switching to testnet falls back.
-  const direction =
-    !isMainnet && BRIDGE_ROUTES[picked].mainnetOnly ? "kas-igra" : picked;
+  const [direction, setDirection] = useState<BridgeDirection>("kas-kasplex");
   const route = BRIDGE_ROUTES[direction];
   const [amount, setAmount] = useState("");
   const [sheet, setSheet] = useState<"token" | "to" | "provider" | "fee">();
@@ -156,13 +121,10 @@ export default function Bridge() {
 
   const kaspaBalance = useKaspaBalance(account?.address);
   const { data: kasplexBalance } = useEvmKasBalance(hexOf("kasplex"));
-  const { data: igraBalance } = useEvmKasBalance(hexOf("igra"));
   const balanceOf = (c: BridgeChain) =>
     c === "kaspa"
       ? kaspaBalance
-      : c === "kasplex"
-        ? kasplexBalance && Number(kasplexBalance.balance)
-        : igraBalance && Number(igraBalance.balance);
+      : kasplexBalance && Number(kasplexBalance.balance);
   const balance = balanceOf(route.from);
 
   const { fee: l1FeeSompi } = useKasFeeEstimate({ extraOutputCount: 1 });
@@ -180,72 +142,13 @@ export default function Bridge() {
         ? Number(formatEther(evmFeeWei))
         : undefined;
 
-  const igraClient = useMemo(
-    () =>
-      createPublicClient({
-        chain: igraMainnet,
-        transport: http(),
-      }) as unknown as PublicClient,
-    [],
-  );
-  // igra-kas limits and fees live on-chain.
-  const { data: exitParams } = useSWR(
-    direction === "igra-kas" ? "igraExitParams" : null,
-    async () => {
-      const read = (functionName: string) =>
-        igraClient.readContract({
-          address: IGRA_EXIT_BRIDGE_MAINNET,
-          abi: IGRA_EXIT_BRIDGE_ABI,
-          functionName,
-        } as Parameters<PublicClient["readContract"]>[0]) as Promise<bigint>;
-      const [feeRate, feePercentBps, minFeeFloor, minExit, maxExit] =
-        await Promise.all([
-          igraClient
-            .readContract({
-              address: KAT_IGRA_FEE_COLLECTOR_BRIDGE_ADDRESS,
-              abi: FEE_COLLECTOR_BRIDGE_ABI,
-              functionName: "feeRate",
-            })
-            .catch(() => 75n),
-          read("feePercentBps"),
-          read("MIN_FEE_FLOOR"),
-          read("MIN_EXIT_AMOUNT"),
-          read("maxExitAmount"),
-        ]);
-      return { feeRate, feePercentBps, minFeeFloor, minExit, maxExit };
-    },
-    { refreshInterval: 30_000 },
-  );
-
   const amountNum = Number(amount) || 0;
-  const igraExit = (() => {
-    if (!exitParams || amountNum <= 0) return undefined;
-    let grossWei: bigint;
-    try {
-      grossWei = parseEther(amount);
-    } catch {
-      // "1." or >18 decimals: parseEther throws on a string Number accepts.
-      return undefined;
-    }
-    const netWei = (grossWei * (10_000n - exitParams.feeRate)) / 10_000n;
-    const upstreamFeeWei = computeContractFeeWei(
-      netWei,
-      exitParams.feePercentBps,
-      exitParams.minFeeFloor,
-    );
-    return {
-      feeRateBps: Number(exitParams.feeRate),
-      upstreamFeeKas: Number(formatEther(upstreamFeeWei)),
-    };
-  })();
   const received =
-    amountNum > 0 ? bridgeReceived(direction, amountNum, igraExit) : undefined;
+    amountNum > 0 ? bridgeReceived(direction, amountNum) : undefined;
 
   const fees = (() => {
     if (amountNum <= 0) return undefined;
     switch (direction) {
-      case "kas-igra":
-        return { bridge: 0, kastle: l1BridgeSplit(amountNum).kastleFee };
       case "kas-kasplex":
         return {
           bridge: KURVE_SERVICE_FEE,
@@ -253,13 +156,6 @@ export default function Bridge() {
         };
       case "kasplex-kas":
         return { bridge: amountNum * KASPLEX_EXIT_FEE_RATE, kastle: 0 };
-      case "igra-kas":
-        return igraExit
-          ? {
-              bridge: igraExit.upstreamFeeKas,
-              kastle: (amountNum * igraExit.feeRateBps) / 10_000,
-            }
-          : undefined;
     }
   })();
   const fromSymbol = BRIDGE_TOKEN_NAME[route.from];
@@ -270,43 +166,16 @@ export default function Bridge() {
       return "Ledger doesn’t support bridge currently.";
     if (amountNum <= 0 || balance === undefined || networkFee === undefined)
       return undefined;
-    const ctx = { balance, networkFee, isMainnet };
+    const ctx = { balance, networkFee };
     switch (direction) {
-      case "kas-igra":
-        return validateKasToIgra(amountNum, ctx);
       case "kas-kasplex":
         return validateKasToKasplex(amountNum, ctx);
-      case "kasplex-kas":
-      case "igra-kas": {
-        if (direction === "kasplex-kas") {
-          const min = validateKurveExitAmount(amountNum);
-          if (min) return min;
-        } else if (exitParams) {
-          const rate = Number(exitParams.feeRate) / 10_000;
-          const minNet = Number(
-            formatEther(
-              exitParams.minExit > exitParams.minFeeFloor
-                ? exitParams.minExit
-                : exitParams.minFeeFloor,
-            ),
-          );
-          const minGross = Math.ceil((minNet / (1 - rate)) * 100) / 100;
-          if (amountNum < minGross)
-            return `Oh, minimum bridge amount is ${minGross} ${fromSymbol}`;
-        }
+      case "kasplex-kas": {
+        const min = validateKurveExitAmount(amountNum);
+        if (min) return min;
         if (amountNum > balance) return "Oh, you don't have enough funds";
         if (amountNum + networkFee > balance)
           return `Oh, you need ${fromSymbol} for the network fees`;
-        if (direction === "igra-kas" && exitParams) {
-          const max = computeMaxExitKas({
-            balanceKas: balance,
-            capHeadroomKas: null,
-            maxExitAmountKas: Number(formatEther(exitParams.maxExit)),
-            feeRateBps: Number(exitParams.feeRate),
-          });
-          if (amountNum > max)
-            return `Oh, bridge supports exits up to ${formatAmount(max, 2)} ${fromSymbol}`;
-        }
         return undefined;
       }
     }
@@ -321,68 +190,38 @@ export default function Bridge() {
     const amountSompi = kaspaToSompi(amount);
     if (!feeSompi || !amountSompi) throw new Error("Invalid amount");
     const entrySompi = amountSompi - feeSompi;
-    const isIgra = direction === "kas-igra";
-    const payload = isIgra
-      ? igraEntryPayload(evmAddress, entrySompi)
-      : stringToHex(evmAddress).slice(2);
     const { transactions } = await createTransactions({
       entries,
       outputs: [
-        {
-          address: (isIgra ? IGRA_ENTRY_ADDRESS : KURVE_ENTRY_ADDRESS)[net],
-          amount: entrySompi,
-        },
+        { address: KURVE_ENTRY_ADDRESS[net], amount: entrySompi },
         { address: KASTLE_FEE_ADDRESS[net], amount: feeSompi },
       ],
       priorityFee: 0n,
       changeAddress: account.address,
       networkId,
-      payload,
+      payload: stringToHex(evmAddress).slice(2),
     });
-    if (!isIgra) {
-      // The payment is the last transaction of the batch.
-      const ids = await signAndSubmitBatch(
-        transactions,
-        kaspaSigner,
-        rpcClient,
+    // The payment is the last transaction of the batch.
+    const ids = await signAndSubmitBatch(transactions, kaspaSigner, rpcClient);
+    // Register in KAT's Kurve registry + local backup so the deposit shows
+    // in Activity. Fire-and-forget; registry chain ids are mainnet-only.
+    if (isMainnet)
+      void trackKurveBridge(
+        {
+          mechanism: "kas-kurve",
+          direction: "l1-to-l2",
+          originChainId: 0, // Kaspa L1 (KAT chain-id table)
+          destChainId: kasplexMainnet.id,
+          originTxHash: ids[ids.length - 1],
+          sender: account.address,
+          recipient: evmAddress,
+          tokenSymbol: "KAS",
+          tokenAddress: null,
+          // What actually enters the vault (Kastle fee is a separate output).
+          amount: formatUnits(entrySompi, 8),
+        },
+        Date.now(),
       );
-      // Register in KAT's Kurve registry + local backup so the deposit shows
-      // in Activity. Fire-and-forget; registry chain ids are mainnet-only.
-      if (isMainnet)
-        void trackKurveBridge(
-          {
-            mechanism: "kas-kurve",
-            direction: "l1-to-l2",
-            originChainId: 0, // Kaspa L1 (KAT chain-id table)
-            destChainId: kasplexMainnet.id,
-            originTxHash: ids[ids.length - 1],
-            sender: account.address,
-            recipient: evmAddress,
-            tokenSymbol: "KAS",
-            tokenAddress: null,
-            // What actually enters the vault (Kastle fee is a separate output).
-            amount: formatUnits(entrySompi, 8),
-          },
-          Date.now(),
-        );
-      return;
-    }
-    if (transactions.length !== 1)
-      throw new Error("IGRA bridge amount exceeds single-transaction limit");
-    const mined = mineIgraEntry(
-      transactions[0].serializeToSafeJSON(),
-      payload,
-      isMainnet,
-    );
-    const signed = await kaspaSigner.signTx(mined);
-    signed.finalize();
-    // Signatures are not part of the id; fail closed if that ever changes,
-    // an entry without the prefix is never credited.
-    if (signed.id !== mined.id) throw new Error("IGRA entry id changed");
-    await rpcClient.submitTransaction({
-      transaction: signed,
-      allowOrphan: false,
-    });
   };
 
   const bridgeL2 = async () => {
@@ -394,52 +233,12 @@ export default function Bridge() {
       transport: http(),
     }) as unknown as PublicClient;
     const value = parseEther(amount);
-    let to: Hex;
-    let data: Hex;
-    if (direction === "kasplex-kas") {
-      to = KASPLEX_BRIDGE_CONTRACT[net];
-      data = encodeFunctionData({
-        abi: KASPLEX_BRIDGE_ABI,
-        functionName: "lockForBridge",
-        args: [stringToHex(account.address)],
-      });
-    } else {
-      // The exit gate reads mainnet contracts; never sign it on testnet.
-      if (!isMainnet) throw new Error("Igra exit is mainnet-only");
-      const addressError = validateKaspaPayoutAddress(account.address);
-      if (addressError) throw new Error(addressError);
-      let feeRate: bigint;
-      try {
-        feeRate = await client.readContract({
-          address: KAT_IGRA_FEE_COLLECTOR_BRIDGE_ADDRESS,
-          abi: FEE_COLLECTOR_BRIDGE_ABI,
-          functionName: "feeRate",
-        });
-      } catch {
-        throw new Error(EXIT_GATE_MESSAGES.unavailable);
-      }
-      const gate = evaluateExitGate(
-        await readExitGateValues({
-          client,
-          bridgeAddress: IGRA_EXIT_BRIDGE_MAINNET,
-          netWei: (value * (10_000n - feeRate)) / 10_000n,
-          getVaultBalanceSompi: async () =>
-            (
-              await rpcClient!.getBalanceByAddress({
-                address: IGRA_KAS_VAULT_MAINNET,
-              })
-            ).balance,
-        }),
-      );
-      if (!gate.ok) throw new Error(gate.message);
-      if (gate.notice) toast.info(gate.notice);
-      to = KAT_IGRA_FEE_COLLECTOR_BRIDGE_ADDRESS;
-      data = encodeFunctionData({
-        abi: FEE_COLLECTOR_BRIDGE_ABI,
-        functionName: "bridgeToL1",
-        args: [account.address],
-      });
-    }
+    const to: Hex = KASPLEX_BRIDGE_CONTRACT[net];
+    const data = encodeFunctionData({
+      abi: KASPLEX_BRIDGE_ABI,
+      functionName: "lockForBridge",
+      args: [stringToHex(account.address)],
+    });
     const gas = await client.estimateGas({
       account: evmAddress,
       to,
@@ -457,7 +256,7 @@ export default function Bridge() {
       data,
     });
     // Kurve exit: same registry + local backup as the deposit above.
-    if (direction === "kasplex-kas" && isMainnet)
+    if (isMainnet)
       void trackKurveBridge(
         {
           mechanism: "kas-kurve",
@@ -502,22 +301,14 @@ export default function Bridge() {
       setAmount("");
     } catch (e) {
       console.error(e);
-      toast.error(
-        mapExitRevertToMessage(e) ??
-          (e instanceof Error &&
-          (Object.values(EXIT_GATE_MESSAGES) as string[]).includes(e.message)
-            ? e.message
-            : "Bridge failed. Please try again."),
-      );
+      toast.error("Bridge failed. Please try again.");
       emitBridgeCompleted({ ...tracked, status: "failed" });
     } finally {
       setSubmitting(false);
     }
   };
 
-  const sheetTokens: SheetToken[] = (
-    ["kaspa", "kasplex", "igra"] as BridgeChain[]
-  )
+  const sheetTokens: SheetToken[] = (["kaspa", "kasplex"] as BridgeChain[])
     // The "from" sheet only lists what can actually be spent.
     .filter((c) => (balanceOf(c) ?? 0) > 0)
     .map((c) => {
@@ -528,12 +319,12 @@ export default function Bridge() {
         symbol: BRIDGE_TOKEN_NAME[c],
         chainImage: chainImage(c),
         balance: b === undefined ? undefined : formatAmount(b, 8),
-        disabled: bridgeDirectionsFrom(c, isMainnet).length === 0,
+        disabled: bridgeDirectionsFrom(c).length === 0,
       };
     });
   // Reachable destinations from the current source, one per chain.
   const toTokens: SheetToken[] = [];
-  for (const d of bridgeDirectionsFrom(route.from, isMainnet)) {
+  for (const d of bridgeDirectionsFrom(route.from)) {
     const r = BRIDGE_ROUTES[d];
     if (toTokens.some((t) => t.chain === r.to)) continue;
     toTokens.push({
@@ -544,8 +335,7 @@ export default function Bridge() {
     });
   }
   const reverse = REVERSE[direction];
-  const canFlip = bridgeDirectionsFrom(route.to, isMainnet).includes(reverse);
-  const loadingQuote = direction === "igra-kas" && !exitParams;
+  const canFlip = bridgeDirectionsFrom(route.to).includes(reverse);
 
   return (
     <div className="flex h-full flex-col">
@@ -635,12 +425,10 @@ export default function Bridge() {
               <QuoteRow label="Est. Time" tooltip={TOOLTIPS.estTime}>
                 {route.estTime}
               </QuoteRow>
-              {(route.from === "kaspa" || direction === "igra-kas") && (
+              {route.from === "kaspa" && (
                 <p className="flex items-center gap-2 border-t border-daintree-700 px-4 py-3 text-xs font-medium text-daintree-400">
                   <i className="hn hn-info-circle text-base" />
-                  {route.from === "kaspa"
-                    ? "Quote includes 0.2 $KAS + 0.75% Kastle Fee"
-                    : "Quote includes 0.75% Kastle Fee"}
+                  Quote includes 0.2 $KAS + 0.75% Kastle Fee
                 </p>
               )}
             </div>
@@ -663,23 +451,11 @@ export default function Bridge() {
                 } else {
                   // Exact wei, truncated (not rounded) so amount + fee <= balance.
                   // `balance` is a formatUnits string: exact for live and cached reads.
-                  const raw = (
-                    route.from === "kasplex" ? kasplexBalance : igraBalance
-                  )?.balance;
-                  let wei =
+                  const raw = kasplexBalance?.balance;
+                  const wei =
                     raw === undefined || evmFeeWei === undefined
                       ? 0n
                       : parseEther(String(raw)) - evmFeeWei;
-                  if (direction === "igra-kas" && exitParams) {
-                    const cap = computeMaxExitKas({
-                      balanceKas: balance,
-                      capHeadroomKas: null,
-                      maxExitAmountKas: Number(formatEther(exitParams.maxExit)),
-                      feeRateBps: Number(exitParams.feeRate),
-                    });
-                    const capWei = parseEther(cap.toFixed(18));
-                    if (capWei < wei) wei = capWei;
-                  }
                   const [whole, frac = ""] = formatEther(
                     wei > 0n ? wei : 0n,
                   ).split(".");
@@ -693,7 +469,6 @@ export default function Bridge() {
           !!error ||
           amountNum <= 0 ||
           received === undefined ||
-          loadingQuote ||
           networkFee === undefined
         }
         loading={submitting}
@@ -705,7 +480,7 @@ export default function Bridge() {
       <TokenSheet
         open={sheet === "token"}
         onClose={() => setSheet(undefined)}
-        chains={(["kaspa", "kasplex", "igra"] as BridgeChain[]).map((c) => ({
+        chains={(["kaspa", "kasplex"] as BridgeChain[]).map((c) => ({
           key: c,
           label: CHAIN_LABEL[c],
           image: chainImage(c),
@@ -715,8 +490,7 @@ export default function Bridge() {
         tokens={sheetTokens}
         onSelect={(t) => {
           const from = t.chain as BridgeChain;
-          if (from !== route.from)
-            setDirection(bridgeDirectionsFrom(from, isMainnet)[0]);
+          if (from !== route.from) setDirection(bridgeDirectionsFrom(from)[0]);
           setAmount("");
         }}
         recentKey="local:bridge_recent_tokens"
@@ -743,7 +517,7 @@ export default function Bridge() {
         onClose={() => setSheet(undefined)}
         tall
       >
-        {bridgeDirectionsFrom(route.from, isMainnet)
+        {bridgeDirectionsFrom(route.from)
           .filter((d) => BRIDGE_ROUTES[d].to === route.to)
           .map((d) => {
             const r = BRIDGE_ROUTES[d];
@@ -778,9 +552,7 @@ export default function Bridge() {
             note:
               route.from === "kaspa"
                 ? "Quote includes 0.2 $KAS + 0.75% Kastle Fee"
-                : direction === "igra-kas"
-                  ? "Quote includes 0.75% Kastle Fee"
-                  : undefined,
+                : undefined,
           },
         ].map(({ label, value, note }) => (
           <div

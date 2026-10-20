@@ -1,17 +1,12 @@
 // Bridge routes, fee math and validation shared by the bridge hook and its
 // unit spec. No wasm, so tests can import it.
 
-import igraLogo from "@/assets/images/providers/igra-logo.png";
 import kurveLogo from "@/assets/images/providers/kurve-logo.png";
 import kasplexLogo from "@/assets/images/network-logos/kasplex.svg";
-import katLogo from "@/assets/images/providers/kat-logo.png";
 
-export type BridgeChain = "kaspa" | "kasplex" | "igra";
-export type BridgeDirection =
-  | "kas-igra"
-  | "kas-kasplex"
-  | "kasplex-kas"
-  | "igra-kas";
+// Igra was removed: KAT blocked the Igra chain (38833).
+export type BridgeChain = "kaspa" | "kasplex";
+export type BridgeDirection = "kas-kasplex" | "kasplex-kas";
 
 export const BRIDGE_ROUTES: Record<
   BridgeDirection,
@@ -21,16 +16,8 @@ export const BRIDGE_ROUTES: Record<
     provider: string;
     logo: string;
     estTime: string;
-    mainnetOnly?: boolean;
   }
 > = {
-  "kas-igra": {
-    from: "kaspa",
-    to: "igra",
-    provider: "IGRA Bridge",
-    logo: igraLogo,
-    estTime: "~60s",
-  },
   "kas-kasplex": {
     from: "kaspa",
     to: "kasplex",
@@ -45,28 +32,16 @@ export const BRIDGE_ROUTES: Record<
     logo: kasplexLogo,
     estTime: "~60s",
   },
-  // Testnet has no KAT fee collector deployed.
-  "igra-kas": {
-    from: "igra",
-    to: "kaspa",
-    provider: "KAT Bridge",
-    logo: katLogo,
-    estTime: "~8-12 min",
-    mainnetOnly: true,
-  },
 };
 
 export const BRIDGE_TOKEN_NAME: Record<BridgeChain, string> = {
   kaspa: "KAS",
   kasplex: "KAS",
-  igra: "iKAS",
 };
 
-export const bridgeDirectionsFrom = (from: BridgeChain, isMainnet: boolean) =>
+export const bridgeDirectionsFrom = (from: BridgeChain) =>
   (Object.keys(BRIDGE_ROUTES) as BridgeDirection[]).filter(
-    (d) =>
-      BRIDGE_ROUTES[d].from === from &&
-      (isMainnet || !BRIDGE_ROUTES[d].mainnetOnly),
+    (d) => BRIDGE_ROUTES[d].from === from,
   );
 
 export const KASTLE_FEE_ADDRESS = {
@@ -76,6 +51,7 @@ export const KASTLE_FEE_ADDRESS = {
     "kaspatest:qrdk4gs8y5dvw57qh0pxrg6xts9khwamy7php9gfxe9tr57vftffcexzsulw6",
 };
 
+// Still read by the Activity feed to list past Igra deposits.
 export const IGRA_ENTRY_ADDRESS = {
   mainnet:
     "kaspa:ppvnxxzm0rr37zpnwux2f2ntvfpr4uqdpm7zsvsztg3en92r7gs0wkmr72q9n",
@@ -95,13 +71,6 @@ export const KASPLEX_BRIDGE_CONTRACT = {
   testnet: "0x6181D079FE60b44077E7a461d31519A53124FD54",
 } as const;
 
-// IGRA entry: tx id must start with the network prefix; mainnet also rides the
-// KIP-21 lane (version 1, subnetwork = lane id zero-padded to 20 bytes).
-export const IGRA_TX_ID_PREFIX = { mainnet: "97b1", testnet: "97b4" };
-export const IGRA_MAINNET_LANE_ID = "97b10000";
-export const IGRA_MIN_NET_KAS = { mainnet: 10, testnet: 1 };
-export const IGRA_MAX_ENTRY_KAS = 5000;
-
 // Kastle fee on L1 → L2: fixed 0.2 KAS + 0.75%, paid as an extra output.
 export const KASTLE_BRIDGE_BASE_FEE = 0.2;
 export const KASTLE_BRIDGE_FEE_RATE = 0.0075;
@@ -119,24 +88,13 @@ export const minGrossForNet = (minNet: number) =>
     ((minNet + KASTLE_BRIDGE_BASE_FEE) / (1 - KASTLE_BRIDGE_FEE_RATE)) * 100,
   ) / 100;
 
-type L1Ctx = { balance: number; networkFee: number; isMainnet: boolean };
+type L1Ctx = { balance: number; networkFee: number };
 
 function checkL1Funds(amount: number, { balance, networkFee }: L1Ctx) {
   if (amount > balance) return "Oh, you don't have enough funds";
   if (amount + networkFee > balance)
     return "Oh, you need KAS for the network fees";
   return undefined;
-}
-
-export function validateKasToIgra(amount: number, ctx: L1Ctx) {
-  const minNet = IGRA_MIN_NET_KAS[ctx.isMainnet ? "mainnet" : "testnet"];
-  if (amount - kastleL1BridgeFee(amount) < minNet) {
-    return `Oh, please enter an amount above ${minGrossForNet(minNet)} KAS`;
-  }
-  if (amount > IGRA_MAX_ENTRY_KAS) {
-    return `Oh, bridge supports entries up to ${IGRA_MAX_ENTRY_KAS} KAS`;
-  }
-  return checkL1Funds(amount, ctx);
 }
 
 export function validateKasToKasplex(amount: number, ctx: L1Ctx) {
@@ -146,28 +104,12 @@ export function validateKasToKasplex(amount: number, ctx: L1Ctx) {
   return checkL1Funds(amount, ctx);
 }
 
-/**
- * IGRA entry payload, 33 bytes as hex:
- * [0x92][20B L2 address][8B amount sompi LE][4B nonce BE].
- */
-export function igraEntryPayload(
-  evmAddress: string,
-  amountSompi: bigint,
-  nonce = 0,
-) {
-  if (!/^0x[0-9a-fA-F]{40}$/.test(evmAddress)) {
-    throw new Error("Invalid IGRA recipient address");
+// Kurve (kasplex-kas) bridge minimum exit amount, in KAS.
+export const KURVE_MIN_EXIT_KAS = 10;
+
+export function validateKurveExitAmount(amount: number): string | undefined {
+  if (amount < KURVE_MIN_EXIT_KAS) {
+    return `Oh, minimum bridge amount is ${KURVE_MIN_EXIT_KAS} KAS`;
   }
-  if (amountSompi <= 0n || amountSompi >= 1n << 64n) {
-    throw new Error("Invalid IGRA entry amount");
-  }
-  const amountLe = Array.from({ length: 8 }, (_, i) =>
-    ((amountSompi >> BigInt(8 * i)) & 0xffn).toString(16).padStart(2, "0"),
-  ).join("");
-  return (
-    "92" +
-    evmAddress.slice(2).toLowerCase() +
-    amountLe +
-    (nonce >>> 0).toString(16).padStart(8, "0")
-  );
+  return undefined;
 }

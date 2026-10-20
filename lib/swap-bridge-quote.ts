@@ -64,26 +64,15 @@ export const l1BridgeSplit = (amount: number) => {
   return { kastleFee, entry: amount - kastleFee };
 };
 
-/**
- * Estimated amount on the destination chain. igra-kas needs the on-chain
- * upstream fee, so the caller passes it (KAS) once read.
- */
+/** Estimated amount on the destination chain. */
 export function bridgeReceived(
   direction: BridgeDirection,
   amount: number,
-  igraExit?: { feeRateBps: number; upstreamFeeKas: number },
-): number | undefined {
+): number {
   switch (direction) {
-    case "kas-igra":
-      return l1BridgeSplit(amount).entry;
     case "kas-kasplex":
       return l1BridgeSplit(amount).entry - KURVE_SERVICE_FEE;
     case "kasplex-kas":
       return amount * (1 - KASPLEX_EXIT_FEE_RATE);
-    case "igra-kas":
-      if (!igraExit) return undefined;
-      return (
-        amount * (1 - igraExit.feeRateBps / 10_000) - igraExit.upstreamFeeKas
-      );
   }
 }
