@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.61.3](https://github.com/forbole/kastle/compare/v2.61.2...v2.61.3) (2026-10-21)
+
+
+### Bug Fixes
+
+* **ci:** read CWS upload result — upgrade submit to v2 API ([#401](https://github.com/forbole/kastle/issues/401)) ([8ff052a](https://github.com/forbole/kastle/commit/8ff052a4a3c320ae0798813e3eda96aafddb5c7b))
+
 ## [2.61.2](https://github.com/forbole/kastle/compare/v2.61.1...v2.61.2) (2026-10-21)
 
 
