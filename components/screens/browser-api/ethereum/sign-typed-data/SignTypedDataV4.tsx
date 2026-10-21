@@ -2,12 +2,13 @@ import useWalletManager from "@/hooks/wallet/useWalletManager";
 import ledgerSignImage from "@/assets/images/ledger-on-sign.svg";
 import signImage from "@/assets/images/sign.png";
 import Header from "@/components/GeneralHeader";
+import { useMemo } from "react";
 import { useBoolean } from "usehooks-ts";
 import { IWallet } from "@/lib/ethereum/wallet/wallet-interface";
 import { ApiExtensionUtils } from "@/api/extension";
 import { ApiUtils } from "@/api/background/utils";
 import { RPC_ERRORS } from "@/api/message";
-import { signTypedDataSchema } from "@/lib/service/handlers/evm/evm-sign-typed-data";
+import { signTypedDataSchema } from "@/lib/ethereum/typed-data";
 
 type SignTypedDataV4Props = {
   requestId: string;
@@ -23,10 +24,14 @@ export default function SignTypedDataV4({
   const { wallet } = useWalletManager();
   const { value: isSigning, toggle: toggleIsSigning } = useBoolean(false);
 
-  const typedData = signTypedDataSchema.parse(JSON.parse(message));
+  const parsed = useMemo(
+    () => signTypedDataSchema.safeParse(message),
+    [message],
+  );
+  const typedData = parsed.success ? parsed.data : undefined;
 
   const onConfirm = async () => {
-    if (isSigning) {
+    if (isSigning || !typedData) {
       return;
     }
 
@@ -87,7 +92,9 @@ export default function SignTypedDataV4({
           </p>
           <div className="mt-4 flex-1 overflow-auto break-words rounded-md bg-daintree-700 p-4">
             <p className="whitespace-pre text-start text-sm">
-              {JSON.stringify(JSON.parse(typedData.toString()), null, 2)}
+              {typedData
+                ? JSON.stringify(typedData, null, 2)
+                : "Invalid typed data"}
             </p>
           </div>
         </div>
@@ -99,8 +106,9 @@ export default function SignTypedDataV4({
           Cancel
         </button>
         <button
-          className="flex flex-auto items-center justify-center rounded-full bg-icy-blue-400 py-5 font-semibold hover:bg-icy-blue-600"
+          className="flex flex-auto items-center justify-center rounded-full bg-icy-blue-400 py-5 font-semibold hover:bg-icy-blue-600 disabled:opacity-50"
           onClick={onConfirm}
+          disabled={!typedData}
         >
           {isSigning ? (
             <div className="flex gap-2">

@@ -70,7 +70,7 @@ export default function useEvmHotWalletSigner() {
       accountIndex,
       isLegacy: isEvmLegacy,
       isKastleLegacy,
-      data: data.toString(),
+      data: JSON.stringify(data),
     });
 
     return signature;
