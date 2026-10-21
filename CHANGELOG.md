@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.61.2](https://github.com/forbole/kastle/compare/v2.61.1...v2.61.2) (2026-10-21)
+
+
+### Bug Fixes
+
+* validate watched addresses, harden typed-data JSON parsing ([#397](https://github.com/forbole/kastle/issues/397)) ([ba69b27](https://github.com/forbole/kastle/commit/ba69b272625bcb28e4e8c459167c81e848221a8a))
+
 ## [2.61.1](https://github.com/forbole/kastle/compare/v2.61.0...v2.61.1) (2026-10-14)
 
 
