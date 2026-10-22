@@ -111,6 +111,14 @@ test("pieces: presence-owned only, largest first, at most 3 inputs", () => {
     ),
   ).toThrow(/sell at most 9 at once/);
 
+  // A curve trade caps the pieces at 2 (compute-mass cap); transfers keep 3.
+  const three = [100n, 200n, 300n].map((a, n) => piece(n, a));
+  expect(selectPieces(three, 600n, 2)).toHaveLength(3);
+  expect(() => selectPieces(three, 600n, 2, "sell", 2)).toThrow(
+    /more than 2 pieces; sell at most 5 at once/,
+  );
+  expect(selectPieces(three, 500n, 2, "sell", 2)).toHaveLength(2);
+
   // A minter piece's amount is mint authority, not spendable balance.
   const minter = piece(1, 9n);
   minter.state = { ...minter.state, isMinter: true };

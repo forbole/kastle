@@ -44,7 +44,8 @@ export class KronSwapError extends Error {
       | "curve-busy"
       | "too-small"
       | "price-moved"
-      | "processing",
+      | "processing"
+      | "market-busy",
     message: string,
   ) {
     super(message);
@@ -221,18 +222,29 @@ async function outputValue(
   return BigInt(out.value);
 }
 
+type CurveHead = NonNullable<
+  Extract<
+    Awaited<ReturnType<client.SequencerClient["curveHead"]>>,
+    { ok: true }
+  >["head"]
+>;
+
 /**
  * The live curve and inventory UTXOs. The sequencer's head includes trades
  * still in the mempool (the curve's address changes on every trade); with
- * none in flight it is null and the confirmed state is read off the node.
- * A failed lookup fails closed: submitting direct would race queued trades.
- * A wrong head only gets the trade rejected: the P2SH binds every value.
+ * none in flight it is null (also after a sequencer restart) and the head is
+ * the confirmed state read off the node, still submitted via the sequencer,
+ * which adopts it. Only an unreachable sequencer, or `direct`, routes the
+ * trade straight to the node: the covenant enforces price, fees and minOut
+ * on-chain. A wrong head only gets the trade rejected: the P2SH binds every
+ * value.
  */
 async function liveCurve(
   rpc: RpcClient,
   k: K,
   tpls: client.CpTemplates,
   market: KronMarket,
+  direct = false,
 ) {
   const tokenCovid = hexToBytes(`0x${market.covenantId}`);
   const curveCovid = hexToBytes(`0x${market.curveCovenantId}`);
@@ -244,18 +256,18 @@ async function liveCurve(
       "mainnet",
     );
 
-  const seq = await new client.SequencerClient(KRON_SEQUENCER_URL)
-    .curveHead(market.curveCovenantId)
-    .catch(() => undefined);
-  if (!seq?.ok) {
-    throw new KronSwapError("curve-busy", "The curve sequencer is unavailable");
-  }
-  if (seq.head) {
+  const seq = direct
+    ? undefined
+    : await new client.SequencerClient(KRON_SEQUENCER_URL)
+        .curveHead(market.curveCovenantId)
+        .catch(() => undefined);
+  if (seq?.ok && seq.head) {
     const { poolOutpoint, poolTokenOutpoint, reserves } = seq.head;
     const tokenReserve = BigInt(reserves.tokenReserve);
     return {
       // Built on an in-flight chain: must queue behind it via the sequencer.
       head: seq.head,
+      submitDirect: false,
       curve: {
         ...poolOutpoint,
         realKas: BigInt(reserves.realKas),
@@ -303,21 +315,40 @@ async function liveCurve(
   if (!c || !inv) {
     throw new KronSwapError("curve-busy", "The curve just traded; try again");
   }
+  const poolOutpoint = {
+    transactionId: c.outpoint.transactionId,
+    index: c.outpoint.index,
+  };
+  const poolTokenOutpoint = {
+    transactionId: inv.outpoint.transactionId,
+    index: inv.outpoint.index,
+  };
   return {
-    head: undefined,
-    curve: { ...c.outpoint, realKas: c.amount as bigint, state },
+    // The confirmed state as a head: curveSubmit's prevHead is not nullable.
+    head: {
+      poolOutpoint,
+      poolTokenOutpoint,
+      reserves: {
+        realKas: (c.amount as bigint).toString(),
+        tokenReserve: tokenReserve.toString(),
+        vKas: tpls.curve.params.vKas.toString(),
+      },
+    },
+    // No sequencer to queue behind: the node is the only route.
+    submitDirect: !seq?.ok,
+    curve: { ...poolOutpoint, realKas: c.amount as bigint, state },
     inventory: {
-      ...inv.outpoint,
+      ...poolTokenOutpoint,
       value: inv.amount as bigint,
       amount: tokenReserve,
     },
   };
 }
 
-async function loadCurve(rpc: RpcClient, market: KronMarket) {
+async function loadCurve(rpc: RpcClient, market: KronMarket, direct = false) {
   const k = kaspa as unknown as K;
   const tpls = await cpTemplates(market);
-  const live = await liveCurve(rpc, k, tpls, market);
+  const live = await liveCurve(rpc, k, tpls, market, direct);
   const p = tpls.curve.params;
   const state: curve.CpState = {
     realKas: live.curve.realKas,
@@ -343,14 +374,16 @@ export async function quoteKronSwap(
 
 export type BuiltKronSwap = Omit<BuiltKcc20Transfer, "amount" | "kasDebit"> & {
   quote: KronQuote;
-  // The sequencer head the trade was built on; undefined: confirmed state.
-  head?: NonNullable<
-    Extract<
-      Awaited<ReturnType<client.SequencerClient["curveHead"]>>,
-      { ok: true }
-    >["head"]
-  >;
+  // The head the trade was built on: the sequencer's, or the node's confirmed state.
+  head: CurveHead;
+  // The sequencer is unreachable: submit straight to the node.
+  submitDirect: boolean;
 };
+
+// A 3-piece curve sell exceeds the 500k compute-mass consensus cap.
+const MAX_CURVE_TOKEN_INPUTS = 2;
+// Sequencer submits per trade before the user is told the market is busy.
+const MAX_CURVE_ATTEMPTS = 3;
 
 /** Re-quotes against the live curve, refuses below `minOut`, and builds the unsigned trade. */
 export async function buildKronSwap({
@@ -361,6 +394,8 @@ export async function buildKronSwap({
   minOut,
   address,
   feeRate,
+  reuseOutpoint,
+  direct,
 }: {
   rpc: RpcClient;
   market: KronMarket;
@@ -369,15 +404,20 @@ export async function buildKronSwap({
   minOut: bigint;
   address: string;
   feeRate?: number;
+  // A funding input of the trade this one replaces, so only one can land.
+  reuseOutpoint?: { transactionId: string; index: number };
+  // Build on the node's confirmed state and skip the sequencer.
+  direct?: boolean;
 }): Promise<BuiltKronSwap> {
   const {
     k,
     tpls,
     head,
+    submitDirect,
     curve: c,
     inventory,
     state,
-  } = await loadCurve(rpc, market);
+  } = await loadCurve(rpc, market, direct);
   const quote = quoteKron(state, side, amountIn);
   if (!quote) {
     throw new KronSwapError("too-small", `Amount too small to ${side}`);
@@ -421,6 +461,7 @@ export async function buildKronSwap({
       amountIn,
       market.entry.decimals,
       "sell",
+      MAX_CURVE_TOKEN_INPUTS,
     );
     covenantSpend = curveCp.buildCpSell(
       k,
@@ -444,34 +485,57 @@ export async function buildKronSwap({
     address,
     feeRate,
     kastleFee: quote.kastleFee,
+    preferOutpoint: reuseOutpoint,
   });
   // A sell whose network fee eats the KAS out nets the user nothing or less.
   if (side === "sell" && quote.amountOut <= funded.fee) {
     throw new KronSwapError("too-small", "Amount too small to sell");
   }
-  return { ...funded, quote, head };
+  return { ...funded, quote, head, submitDirect };
 }
 
 /** Sequencer states that mean the tx is provably dead and safe to rebuild. */
 const CURVE_TX_DEAD: ReadonlySet<string> = new Set(["rejected", "dropped"]);
 
 /**
+ * True only for a transport failure (no answer from the sequencer). An HTTP
+ * status, a decode error or anything unknown means it answered: "reachable"
+ * yields "processing", while "unreachable" yields a direct submit.
+ */
+export function isSequencerUnreachable(e: unknown): boolean {
+  if (!(e instanceof Error)) return false;
+  const msg = `${e.name} ${e.message} ${(e as { code?: unknown }).code ?? ""}`;
+  // Checked first: a message with a status and a network term is an answer.
+  if (/HTTP \d{3}/.test(msg)) return false;
+  if (e.name === "AbortError" || e.name === "TimeoutError") return true;
+  return /failed to fetch|network ?request failed|networkerror|load failed|ECONNREFUSED|ENOTFOUND|EAI_AGAIN|ETIMEDOUT|ECONNRESET|socket hang up|timed? ?out|aborted/i.test(
+    msg,
+  );
+}
+
+/**
  * Reconciles a refused submit against the sequencer's record and the node
  * before the caller may rebuild. Throws "processing" while the trade is live
  * (or its fate unknown), because rebuilding then would be a second trade;
- * returns only once the tx is provably dead and a rebuild is safe.
+ * returns only once the tx is provably dead. `sequencerReachable` is false
+ * only when `curveStatus()` failed in transport: only then may a lost
+ * response go direct.
  */
-async function assertCurveTradeDead(
+async function reconcileCurveTrade(
   sequencer: client.SequencerClient,
   market: KronMarket,
   txid: string,
   rpc: RpcClient,
-): Promise<void> {
+): Promise<{ sequencerReachable: boolean }> {
+  let sequencerReachable = true;
   const status = await sequencer
     .curveStatus(market.curveCovenantId, txid)
-    .catch(() => undefined);
+    .catch((e) => {
+      sequencerReachable = !isSequencerUnreachable(e);
+      return undefined;
+    });
   if (status?.known) {
-    if (CURVE_TX_DEAD.has(status.state)) return;
+    if (CURVE_TX_DEAD.has(status.state)) return { sequencerReachable };
     throw new KronSwapError("processing", "Your swap is still being processed");
   }
   // The sequencer forgot the txid (a restart or age-out): fall back to the
@@ -487,76 +551,121 @@ async function assertCurveTradeDead(
     throw new KronSwapError("processing", "Your swap is still being processed");
   }
   // Absent from both the sequencer's record and the node's mempool: dead.
+  return { sequencerReachable };
 }
 
 /**
- * Signs and submits the trade. One built on an in-flight sequencer head is
- * queued behind it; straight to the node it would race the queued trades.
+ * Signs and submits the trade, queued behind the head it was built on.
  *
- * The signed tx is serialized exactly once and that same string is resent on
- * every retry. Byte-identity is not required — the sequencer re-decodes the tx
- * and recomputes its id, which excludes signature scripts — but reusing the
- * string lets the sequencer recognise a resend as a duplicate
- * (`{ ok: true, duplicate: true }`) or rebroadcast an unconfirmed one, instead
- * of ordering a second trade. A stale-head gate (409, `retry: true`) is normal
- * contention, not a rejection; only after reconciling with `curveStatus()` and
- * the chain does this surface a retryable error that ends in a rebuild.
+ * - Accepted (a duplicate included): done.
+ * - Stale head / curve full (`retry`): rebuild on the fresh head, reusing a
+ *   funding input, and resubmit, up to MAX_CURVE_ATTEMPTS; then "market-busy".
+ *   Never direct: a confirmed-state build orphans against the chain in flight.
+ * - Ambiguous: rebuild via the sequencer, only once the tx is provably dead.
+ * - Lost connection: once the tx is provably dead, resend the identical tx
+ *   while the sequencer is reachable ("processing" if still unknown); go
+ *   direct only when `curveStatus()` is unreachable too.
+ * - Definitive reject: once the tx is provably dead, rebuild on the confirmed
+ *   state and submit straight to the node.
+ *
+ * Every refusal is reconciled with `curveStatus()` and the chain first: while
+ * the tx is live or its fate unknown this throws "processing", because a
+ * rebuild would be a second trade. A rebuild also spends one funding input of
+ * the tx it replaces, so at most one of the two can ever land.
  */
 export async function submitKronSwap(
   wallet: IWallet,
   built: BuiltKronSwap,
   rpc: RpcClient,
   market: KronMarket,
+  rebuild?: (
+    reuseOutpoint?: { transactionId: string; index: number },
+    direct?: boolean,
+  ) => Promise<BuiltKronSwap>,
 ) {
-  const head = built.head;
-  if (!head) return sendKcc20Transfer(wallet, built, rpc);
+  if (built.submitDirect) return sendKcc20Transfer(wallet, built, rpc);
+
+  const reviewedFee = built.fee;
+  const busy = () =>
+    new KronSwapError("market-busy", "The curve is busy; tap again");
+  const rebuilt = async (direct: boolean) => {
+    if (!rebuild) throw busy();
+    const pin = built.fundingOutpoints[0];
+    const next = await rebuild(pin, direct);
+    // The pinned input is gone (spent): the old tx may still land.
+    if (
+      !next.fundingOutpoints.some(
+        (o) => o.transactionId === pin.transactionId && o.index === pin.index,
+      )
+    ) {
+      throw new KronSwapError(
+        "processing",
+        "Your swap is still being processed",
+      );
+    }
+    if (next.fee > reviewedFee) {
+      throw new KronSwapError(
+        "price-moved",
+        "The network fee rose; review the new quote",
+      );
+    }
+    return next;
+  };
 
   const sequencer = new client.SequencerClient(KRON_SEQUENCER_URL);
-  const signed = await signKcc20Transfer(wallet, built);
-  const signedTx = signed.serializeToSafeJSON();
-  const txid = signed.id;
-  // A thrown submit (dropped connection) is as ambiguous as an `ambiguous`
-  // response: the sequencer may already hold the trade. Reconcile before the
-  // error can reach a rebuild; only a provably dead tx re-throws it.
-  const submit = () =>
-    sequencer
-      .curveSubmit({
-        covid: market.curveCovenantId,
-        signedTx,
-        prevHead: head,
-        declaredReserves: {
-          realKas: built.quote.newRealKas.toString(),
-          tokenReserve: built.quote.newTokenReserve.toString(),
-          vKas: head.reserves.vKas,
-        },
-      })
-      .catch(async (e: unknown) => {
-        await assertCurveTradeDead(sequencer, market, txid, rpc);
-        throw e;
-      });
+  for (let attempt = 1; ; attempt++) {
+    const signed = await signKcc20Transfer(wallet, built);
+    const head = built.head;
+    // One string per attempt: a resend must be byte-identical.
+    const body = {
+      covid: market.curveCovenantId,
+      signedTx: signed.serializeToSafeJSON(),
+      prevHead: head,
+      declaredReserves: {
+        realKas: built.quote.newRealKas.toString(),
+        tokenReserve: built.quote.newTokenReserve.toString(),
+        vKas: head.reserves.vKas,
+      },
+    };
+    // A dropped connection: the sequencer may already hold the trade.
+    let res = await sequencer.curveSubmit(body).catch(() => undefined);
+    if (res?.ok) return res.txid;
 
-  let res = await submit();
-  // Stale-head / full is normal contention: resend the same stored string
-  // once. The sequencer dedupes it into duplicate/rebroadcast, never a second
-  // trade.
-  if (!res.ok && res.retry) {
-    res = await submit();
+    const recon = await reconcileCurveTrade(sequencer, market, signed.id, rpc);
+    if (!res) {
+      if (!recon.sequencerReachable) {
+        return sendKcc20Transfer(wallet, await rebuilt(true), rpc);
+      }
+      // The sequencer is up and may hold a chain in flight: resend the
+      // identical tx (it answers a held txid as a duplicate), never a new one.
+      const again = await sequencer.curveSubmit(body).catch(() => undefined);
+      if (again?.ok) return again.txid;
+      const recon2 = await reconcileCurveTrade(
+        sequencer,
+        market,
+        signed.id,
+        rpc,
+      );
+      if (!recon2.sequencerReachable) {
+        return sendKcc20Transfer(wallet, await rebuilt(true), rpc);
+      }
+      if (!again) {
+        throw new KronSwapError(
+          "processing",
+          "Your swap is still being processed",
+        );
+      }
+      res = again;
+    }
+    // A definitive reject (malformed, reserve mismatch): direct is safe.
+    if (!res.retry && !res.ambiguous) {
+      return sendKcc20Transfer(wallet, await rebuilt(true), rpc);
+    }
+    if (attempt >= MAX_CURVE_ATTEMPTS) throw busy();
+    built = await rebuilt(false);
+    // The sequencer vanished mid-retry: never go direct on contention.
+    if (built.submitDirect) throw busy();
   }
-  if (res.ok) return res.txid;
-
-  // Refused again, and still stale (or the broadcast outcome is ambiguous):
-  // reconcile with the sequencer's record and the chain before ever rebuilding,
-  // because a rebuilt tx is a second trade.
-  if (res.retry || res.ambiguous) {
-    await assertCurveTradeDead(sequencer, market, txid, rpc);
-    // Provably dead: a retry will re-quote against a fresh head and rebuild.
-    throw new KronSwapError(
-      "curve-busy",
-      "The curve moved again; please try again",
-    );
-  }
-
-  throw new KronSwapError("curve-busy", res.reason);
 }
 
 /** Refuses a market whose registry entry did not verify against its genesis tx, or whose verified decimals differ from the ones amounts were parsed with. */
@@ -587,6 +696,7 @@ const KRON_ERROR_COPY: Record<KronSwapError["code"], string> = {
     "The price moved beyond your slippage. Review the new quote and try again.",
   processing:
     "Your swap is still being processed. Check your activity shortly.",
+  "market-busy": "Market busy right now. Tap again in a moment.",
 };
 
 /** User-facing copy for a failed KRON quote or swap. */

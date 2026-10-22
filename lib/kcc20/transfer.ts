@@ -36,14 +36,19 @@ export class Kcc20TransferError extends Error {
   }
 }
 
+type Outpoint = { transactionId: string; index: number };
+
 type Funding = {
   amount: bigint | number | string;
+  outpoint: Outpoint;
   entry: { covenantId?: unknown };
 };
 
 export type BuiltKcc20Transfer = {
   transaction: Transaction;
   fundingInputIndexes: number[];
+  // The wallet UTXOs spent as funding, so a rebuild can pin one of them.
+  fundingOutpoints: Outpoint[];
   // Network fee in sompi.
   fee: bigint;
   // Token base units actually signed.
@@ -82,6 +87,7 @@ export function selectPieces(
   // Only format the fragmented error.
   decimals = 0,
   action = "send",
+  maxInputs = MAX_TOKEN_INPUTS,
 ) {
   const sendable = pieces
     .filter(
@@ -104,13 +110,13 @@ export function selectPieces(
     picked.push(p);
     sum += p.state.amount;
   }
-  if (sum < amount || picked.length > MAX_TOKEN_INPUTS) {
+  if (sum < amount || picked.length > maxInputs) {
     const max = sendable
-      .slice(0, MAX_TOKEN_INPUTS)
+      .slice(0, maxInputs)
       .reduce((s, p) => s + p.state.amount, 0n);
     throw new Kcc20TransferError(
       "fragmented",
-      `Balance is split across more than ${MAX_TOKEN_INPUTS} pieces; ${action} at most ${formatUnits(max, decimals)} at once`,
+      `Balance is split across more than ${maxInputs} pieces; ${action} at most ${formatUnits(max, decimals)} at once`,
     );
   }
   return picked;
@@ -220,18 +226,28 @@ export function fundCovenantSpend({
   // sompi per gram of mass.
   feeRate = spend.MIN_RELAY_FEERATE,
   kastleFee = 0n,
+  preferOutpoint,
 }: {
   spend: spend.CovenantSpend;
   funding: Funding[];
   address: string;
   feeRate?: number;
   kastleFee?: bigint;
+  // Spent first when still unspent: a rebuild that shares a funding input
+  // with the trade it replaces can never land alongside it.
+  preferOutpoint?: Outpoint;
 }): Omit<BuiltKcc20Transfer, "amount" | "kasDebit"> {
   const k = kaspa as unknown as Parameters<typeof spend.assembleNativeTx>[0];
   // Plain KAS only: a covenant-bound UTXO here would be spent as a fee input.
   const funding = utxos
     .filter((e) => !covenantSelect.normalizedCovenantId(e.entry.covenantId))
     .sort((a, b) => (BigInt(a.amount) < BigInt(b.amount) ? 1 : -1));
+  const pinned = funding.findIndex(
+    (e) =>
+      e.outpoint.transactionId === preferOutpoint?.transactionId &&
+      e.outpoint.index === preferOutpoint.index,
+  );
+  if (pinned > 0) funding.unshift(...funding.splice(pinned, 1));
 
   // The Kastle fee is taken out of change, then appended as its own output.
   const assemble = (n: number, networkFee: bigint) => {
@@ -261,6 +277,10 @@ export function fundCovenantSpend({
   // totalIn covers outputs + fee. A token input carrying less than the dust it
   // is re-emitted at (carrierShortfall) is covered by the same check.
   for (let n = 1; n <= funding.length; n++) {
+    const fundingOutpoints = funding.slice(0, n).map((e) => ({
+      transactionId: e.outpoint.transactionId,
+      index: e.outpoint.index,
+    }));
     try {
       let fee = estimate(assemble(n, 10_000n));
       let asm = assemble(n, fee);
@@ -285,12 +305,14 @@ export function fundCovenantSpend({
         return {
           transaction: asm.transaction,
           fundingInputIndexes: asm.fundingInputIndexes,
+          fundingOutpoints,
           fee: fee + asm.change,
         };
       }
       return {
         transaction: asm.transaction,
         fundingInputIndexes: asm.fundingInputIndexes,
+        fundingOutpoints,
         fee,
       };
     } catch (e) {
