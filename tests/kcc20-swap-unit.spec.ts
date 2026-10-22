@@ -601,21 +601,45 @@ test.describe("recipient-bound curve schema", () => {
       expect(direct).toHaveLength(0);
     });
 
-    test("a dropped submit with a curveStatus HTTP error never goes direct", async () => {
-      stub([dropped, dropped], new Error("sequencer curve status -> HTTP 500"));
-      expect(await codeOf(run(built()))).toBe("processing");
-      expect(submits).toHaveLength(2);
-      expect(submits[1].signedTx).toBe(submits[0].signedTx);
-      expect(rebuilds).toHaveLength(0);
-      expect(direct).toHaveLength(0);
-    });
+    // The sequencer may already hold the tx: never a direct submit.
+    for (const [label, e] of [
+      ["an HTTP error", new Error("sequencer curve status -> HTTP 500")],
+      [
+        "a client abort",
+        new DOMException("The operation was aborted", "AbortError"),
+      ],
+      [
+        "a TimeoutError",
+        Object.assign(new Error("signal timed out"), { name: "TimeoutError" }),
+      ],
+      ["a prose timeout", new Error("request timed out")],
+    ] as const) {
+      test(`a dropped submit with a curveStatus ${label} never goes direct`, async () => {
+        stub([dropped, dropped], e);
+        expect(await codeOf(run(built()))).toBe("processing");
+        expect(submits).toHaveLength(2);
+        expect(submits[1].signedTx).toBe(submits[0].signedTx);
+        expect(rebuilds).toHaveLength(0);
+        expect(direct).toHaveLength(0);
+      });
+    }
 
-    test("a dropped submit with a curveStatus fetch failure goes direct", async () => {
-      stub([dropped], new TypeError("Failed to fetch"));
-      const txid = await run(built());
-      expect(rebuilds.map((r) => r.direct)).toEqual([true]);
-      expect(direct).toEqual([txid]);
-    });
+    // The connection never opened: the direct path is safe.
+    for (const [label, e] of [
+      ["fetch failure", new TypeError("Failed to fetch")],
+      [
+        "ETIMEDOUT",
+        Object.assign(new Error("connect failed"), { code: "ETIMEDOUT" }),
+      ],
+      ["ECONNREFUSED", new Error("connect ECONNREFUSED 1.2.3.4:80")],
+    ] as const) {
+      test(`a dropped submit with a curveStatus ${label} goes direct`, async () => {
+        stub([dropped], e);
+        const txid = await run(built());
+        expect(rebuilds.map((r) => r.direct)).toEqual([true]);
+        expect(direct).toEqual([txid]);
+      });
+    }
 
     test("only a transport failure reads as an unreachable sequencer", () => {
       for (const e of [
@@ -624,8 +648,6 @@ test.describe("recipient-bound curve schema", () => {
         new Error("connect ECONNREFUSED 127.0.0.1:443"),
         new Error("getaddrinfo ENOTFOUND seq.kron.technology"),
         new Error("socket hang up"),
-        new DOMException("The operation was aborted", "AbortError"),
-        new DOMException("signal timed out", "TimeoutError"),
       ]) {
         expect(isSequencerUnreachable(e)).toBe(true);
       }
@@ -635,6 +657,9 @@ test.describe("recipient-bound curve schema", () => {
         new Error("HTTP 502: ECONNRESET upstream"),
         new SyntaxError("Unexpected token < in JSON at position 0"),
         new Error("sequencer down"),
+        new DOMException("The operation was aborted", "AbortError"),
+        new DOMException("signal timed out", "TimeoutError"),
+        new Error("request timed out"),
         "Failed to fetch",
         undefined,
       ]) {

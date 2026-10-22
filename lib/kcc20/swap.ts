@@ -500,15 +500,17 @@ const CURVE_TX_DEAD: ReadonlySet<string> = new Set(["rejected", "dropped"]);
 /**
  * True only for a transport failure (no answer from the sequencer). An HTTP
  * status, a decode error or anything unknown means it answered: "reachable"
- * yields "processing", while "unreachable" yields a direct submit.
+ * yields "processing", while "unreachable" yields a direct submit. A client
+ * abort or a request timeout is treated as reachable, because the sequencer
+ * may already hold the tx; only a connection-level failure permits a direct
+ * submit.
  */
 export function isSequencerUnreachable(e: unknown): boolean {
   if (!(e instanceof Error)) return false;
   const msg = `${e.name} ${e.message} ${(e as { code?: unknown }).code ?? ""}`;
   // Checked first: a message with a status and a network term is an answer.
   if (/HTTP \d{3}/.test(msg)) return false;
-  if (e.name === "AbortError" || e.name === "TimeoutError") return true;
-  return /failed to fetch|network ?request failed|networkerror|load failed|ECONNREFUSED|ENOTFOUND|EAI_AGAIN|ETIMEDOUT|ECONNRESET|socket hang up|timed? ?out|aborted/i.test(
+  return /failed to fetch|network ?request failed|networkerror|load failed|ECONNREFUSED|ENOTFOUND|EAI_AGAIN|ETIMEDOUT|ECONNRESET|socket hang up/i.test(
     msg,
   );
 }
