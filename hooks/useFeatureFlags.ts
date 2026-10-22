@@ -45,8 +45,10 @@ export function useFeatureFlags() {
         [SWAP_FLAG_KEY]: postHog.getFeatureFlags()?.[SWAP_FLAG_KEY],
         [BRIDGE_FLAG_KEY]: postHog.getFeatureFlags()?.[BRIDGE_FLAG_KEY],
         [DOTK_FLAG_KEY]: postHog.getFeatureFlags()?.[DOTK_FLAG_KEY],
-        [KCC20_FLAG_KEY]: postHog.getFeatureFlags()?.[KCC20_FLAG_KEY],
         // undefined = flags not fetched yet; a loaded map without the key = off.
+        [KCC20_FLAG_KEY]:
+          postHog.getFeatureFlags()?.[KCC20_FLAG_KEY] ??
+          (postHog.getFeatureFlags() ? false : undefined),
         [ACTIVITY_FLAG_KEY]:
           postHog.getFeatureFlags()?.[ACTIVITY_FLAG_KEY] ??
           (postHog.getFeatureFlags() ? false : undefined),

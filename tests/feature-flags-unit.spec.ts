@@ -220,6 +220,15 @@ test.describe("useFeatureFlags KCC-20 loading (production)", () => {
     });
   });
 
+  test("flags map omits the KCC-20 key: loading ends at once, KCC-20 off", () => {
+    const flags = mountProductionFeatureFlags();
+    flags.deliver({ swap_enabled_extension: true });
+    expect(flags.render()).toMatchObject({
+      isKcc20Loading: false,
+      isKcc20Enabled: false,
+    });
+  });
+
   test("5 s timeout with no flags: loading ends and KCC-20 fails closed", () => {
     const flags = mountProductionFeatureFlags();
     flags.timeOut();
