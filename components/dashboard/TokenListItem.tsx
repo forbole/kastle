@@ -91,12 +91,12 @@ export function Kcc20TokenListItem({ token }: { token: Kcc20Token }) {
   const { isKcc20Enabled } = useFeatureFlags();
   const { meta } = token;
   const { wallet } = useWalletManager();
-  // Only verified tokens are sendable, and never from a Ledger wallet.
+  // Only a token whose pieces are owned and verified is sendable, and never from a Ledger wallet.
   const canSend =
     isKcc20Enabled &&
     !!meta &&
     wallet?.type !== "ledger" &&
-    token.family === "kron-legacy";
+    token.spendable > 0n;
   const familyLabel = KCC20_FAMILY_LABELS[token.family];
   // Without verified decimals, show base units rather than guess a scale.
   const balance = meta
