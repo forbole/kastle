@@ -200,9 +200,10 @@ const DotkRoute = () => {
 };
 
 const Kcc20SendRoute = () => {
-  const { isKcc20Enabled } = useFeatureFlags();
+  const { isKcc20Enabled, isKcc20Loading } = useFeatureFlags();
   const { wallet, isWalletSettingsLoading } = useWalletManager();
   if (isWalletSettingsLoading) return null;
+  if (isKcc20Loading) return null;
   // Ledger cannot sign v1 covenant transactions.
   return isKcc20Enabled && wallet?.type !== "ledger" ? (
     <Kcc20Send />

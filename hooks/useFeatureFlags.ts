@@ -47,10 +47,13 @@ export function useFeatureFlags() {
         [SWAP_FLAG_KEY]: postHog.getFeatureFlags()?.[SWAP_FLAG_KEY],
         [BRIDGE_FLAG_KEY]: postHog.getFeatureFlags()?.[BRIDGE_FLAG_KEY],
         [DOTK_FLAG_KEY]: postHog.getFeatureFlags()?.[DOTK_FLAG_KEY],
-        [KCC20_FLAG_KEY]: postHog.getFeatureFlags()?.[KCC20_FLAG_KEY],
-        [KCC20_STANDARD_FLAG_KEY]:
-          postHog.getFeatureFlags()?.[KCC20_STANDARD_FLAG_KEY],
         // undefined = flags not fetched yet; a loaded map without the key = off.
+        [KCC20_FLAG_KEY]:
+          postHog.getFeatureFlags()?.[KCC20_FLAG_KEY] ??
+          (postHog.getFeatureFlags() ? false : undefined),
+        [KCC20_STANDARD_FLAG_KEY]:
+          postHog.getFeatureFlags()?.[KCC20_STANDARD_FLAG_KEY] ??
+          (postHog.getFeatureFlags() ? false : undefined),
         [ACTIVITY_FLAG_KEY]:
           postHog.getFeatureFlags()?.[ACTIVITY_FLAG_KEY] ??
           (postHog.getFeatureFlags() ? false : undefined),
@@ -66,6 +69,9 @@ export function useFeatureFlags() {
     isDotkEnabled: isFlagEnabled(flags[DOTK_FLAG_KEY]),
     // Covenant spends fail closed: only an explicit `true` enables in production.
     isKcc20Enabled: !isProduction || flags[KCC20_FLAG_KEY] === true,
+    // Same bounded wait as Activity: after FLAGS_TIMEOUT_MS KCC-20 fails closed.
+    isKcc20Loading:
+      isProduction && flags[KCC20_FLAG_KEY] === undefined && !flagsTimedOut,
     // Default off: only an explicit `true` enables, in every build.
     isKcc20StandardEnabled:
       flags[KCC20_STANDARD_FLAG_KEY] === true ||

@@ -7,7 +7,7 @@ import {
 import { ApiUtils } from "@/api/background/utils";
 import { z } from "zod";
 import { isMatchCurrentAddress, isUserDeniedResponse } from "./utils";
-import { signTypedDataSchema } from "@/lib/service/handlers/evm/evm-sign-typed-data";
+import { signTypedDataSchema } from "@/lib/ethereum/typed-data";
 
 export const signTypedDataV4Handler = async (
   tabId: number,

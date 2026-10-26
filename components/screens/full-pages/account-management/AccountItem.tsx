@@ -2,7 +2,7 @@ import { useFormContext } from "react-hook-form";
 import { AccountsFormValues } from "@/components/screens/full-pages/account-management/ManageAccounts";
 import React, { useState } from "react";
 import { formatCurrency, formatToken, textEllipsis } from "@/lib/utils.ts";
-import { PublicKey } from "@/wasm/core/kaspa";
+import { Address, PublicKey } from "@/wasm/core/kaspa";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import { Tooltip } from "react-tooltip";
@@ -70,7 +70,18 @@ export function AccountItem({
         return;
       }
 
-      setAccountBalance(await getBalancesByAddresses(addresses));
+      const validAddresses = addresses.filter((address) =>
+        Address.validate(address),
+      );
+      if (!validAddresses.length) {
+        return;
+      }
+
+      try {
+        setAccountBalance(await getBalancesByAddresses(validAddresses));
+      } catch (error) {
+        console.error("Failed to fetch account balance:", error);
+      }
     };
 
     refreshAccountBalance();

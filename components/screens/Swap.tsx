@@ -790,16 +790,26 @@ export default function Swap() {
     try {
       await assertKronVerified(kronMarket, restApis[NetworkType.Mainnet]);
       // Re-quoted against the live curve; refuses below the slippage floor.
-      const built = await buildKronSwap({
-        rpc: rpcClient,
-        market: kronMarket,
-        side: kronSide,
-        amountIn: rawIn,
-        minOut: swapMinReceived(kronQuote.amountOut, slippage),
-        address: account.address,
-      });
+      // A rebuild keeps the reviewed minOut: a fresh head that misses it
+      // fails as price-moved, never a wider slippage.
+      const minOut = swapMinReceived(kronQuote.amountOut, slippage);
+      const build = (
+        reuseOutpoint?: { transactionId: string; index: number },
+        direct?: boolean,
+      ) =>
+        buildKronSwap({
+          rpc: rpcClient,
+          market: kronMarket,
+          side: kronSide,
+          amountIn: rawIn,
+          minOut,
+          address: account.address,
+          reuseOutpoint,
+          direct,
+        });
+      const built = await build();
       toast.info(`Swapping ${tokenIn?.symbol} for ${tokenOut?.symbol}`);
-      await submitKronSwap(kaspaSigner, built, rpcClient, kronMarket);
+      await submitKronSwap(kaspaSigner, built, rpcClient, kronMarket, build);
       toast.success("Swapped successfully!");
       trackSwap("success");
       setAmount("");

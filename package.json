@@ -2,7 +2,7 @@
   "name": "Kastle",
   "description": "Kastle is a browser extension wallet for the Kaspa network",
   "private": true,
-  "version": "2.61.1",
+  "version": "2.61.3",
   "type": "module",
   "engines": {
     "node": "24.x"
@@ -14,7 +14,7 @@
     "build:firefox": "wxt build -b firefox",
     "zip": "wxt zip",
     "zip:firefox": "wxt zip -b firefox",
-    "submit": "wxt submit --chrome-zip .output/*-chrome.zip",
+    "submit": "publish-extension --chrome-api-version v2 --chrome-zip .output/*-chrome.zip",
     "compile": "tsc --noEmit",
     "postinstall": "wxt prepare",
     "prettier": "prettier --check .",
@@ -86,6 +86,7 @@
     "postcss": "^8.5.26",
     "prettier": "^3.4.2",
     "prettier-plugin-tailwindcss": "^0.6.9",
+    "publish-browser-extension": "^6.2.0",
     "storybook": "^10.4.6",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.7.3",
