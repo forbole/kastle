@@ -10,7 +10,10 @@ import init, {
   Transaction,
   payToAddressScript,
 } from "@/wasm/core/kaspa";
-import { signTxWithScriptOptions } from "@/lib/wallet/sign-script";
+import {
+  signInputDigest,
+  signTxWithScriptOptions,
+} from "@/lib/wallet/sign-script";
 import { KASTLE_FEE_ADDRESS } from "@/lib/bridge/bridge";
 import {
   assembleKcc20Transfer,
@@ -137,6 +140,8 @@ const wallet = () => ({
     tx: Transaction,
     scripts: Parameters<typeof signTxWithScriptOptions>[1],
   ) => signTxWithScriptOptions(tx, scripts, key.toString()),
+  signInputDigest: (tx: Transaction, inputIndex: number) =>
+    signInputDigest(tx, inputIndex, key.toString()),
 });
 
 const shape = (tx: Transaction) => ({

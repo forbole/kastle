@@ -19,6 +19,7 @@ import { formatUnits } from "viem";
 import { Kcc20Token } from "@/lib/kcc20";
 import { useFeatureFlags } from "@/hooks/useFeatureFlags.ts";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
+import { KCC20_FAMILY_LABELS, KCC20_LABELS } from "@/ui/popup/kcc20/labels";
 
 type TokenListItemProps = {
   token: TokenItem;
@@ -91,7 +92,12 @@ export function Kcc20TokenListItem({ token }: { token: Kcc20Token }) {
   const { meta } = token;
   const { wallet } = useWalletManager();
   // Only verified tokens are sendable, and never from a Ledger wallet.
-  const canSend = isKcc20Enabled && !!meta && wallet?.type !== "ledger";
+  const canSend =
+    isKcc20Enabled &&
+    !!meta &&
+    wallet?.type !== "ledger" &&
+    token.family === "kron-legacy";
+  const familyLabel = KCC20_FAMILY_LABELS[token.family];
   // Without verified decimals, show base units rather than guess a scale.
   const balance = meta
     ? formatUnits(token.amount, meta.decimals)
@@ -107,13 +113,25 @@ export function Kcc20TokenListItem({ token }: { token: Kcc20Token }) {
       <Layer2AssetImage tokenImage={meta?.logoURI} chainImage={kasIcon} />
       <div className="flex min-w-0 flex-grow flex-col gap-1">
         <div className="flex items-start justify-between gap-2 text-base text-white">
-          <span>{meta?.symbol ?? textEllipsis(token.covenantId)}</span>
+          <span className="flex items-center gap-2">
+            {meta?.symbol ?? textEllipsis(token.covenantId)}
+            <span
+              className={`rounded-full border px-1.5 text-xs leading-4 ${token.family === "kcc20-standard" ? "border-kcc20-text bg-kcc20-background text-kcc20-text" : "border-daintree-600 text-daintree-400"}`}
+            >
+              {familyLabel}
+            </span>
+          </span>
           <span className="break-all text-right">
             {settings?.hideBalances ? "*****" : balance}
           </span>
         </div>
-        <div className="text-sm text-daintree-400">
-          {meta?.name ?? "Unverified KCC-20 (base units)"}
+        <div className="flex items-center gap-2 text-sm text-daintree-400">
+          {meta?.name ?? `Unverified ${familyLabel} (base units)`}
+          {meta?.unverified && (
+            <span className="text-xs text-daintree-600">
+              {KCC20_LABELS.claimedMetadata}
+            </span>
+          )}
         </div>
       </div>
     </button>

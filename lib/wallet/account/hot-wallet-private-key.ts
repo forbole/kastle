@@ -7,7 +7,10 @@ import {
 } from "@/wasm/core/kaspa";
 
 import { IWallet, ScriptOption } from "@/lib/wallet/wallet-interface.ts";
-import { signTxWithScriptOptions } from "@/lib/wallet/sign-script.ts";
+import {
+  signInputDigest,
+  signTxWithScriptOptions,
+} from "@/lib/wallet/sign-script.ts";
 
 export class HotWalletPrivateKey implements IWallet {
   keypair: Keypair;
@@ -34,6 +37,10 @@ export class HotWalletPrivateKey implements IWallet {
   // NOTE: This method does not support signing with multiple keys
   async signTx(tx: Transaction, scripts?: ScriptOption[]) {
     return signTxWithScriptOptions(tx, scripts, this.getPrivateKeyString());
+  }
+
+  async signInputDigest(tx: Transaction, inputIndex: number) {
+    return signInputDigest(tx, inputIndex, this.getPrivateKeyString());
   }
 
   signMessage(message: string): string {

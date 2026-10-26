@@ -1,6 +1,8 @@
 // Every KCC-20 row in Figma is still dev-unmarked, so wording (and the
 // unverified-token sort) may change: all user-facing copy lives here.
 
+import type { Kcc20Family } from "@/lib/kcc20";
+
 /** Where a token lives; drives the chip label, the chip colours and the corner badge. */
 export type NetworkType =
   | "kcc20"
@@ -27,6 +29,12 @@ export const NETWORK_FILTER_LABELS: Record<NetworkFilter, string> = {
   igra: "Igra",
 };
 
+/** The family chip on a KCC-20 row; KRON's legacy state is never labelled plain KCC-20. */
+export const KCC20_FAMILY_LABELS: Record<Kcc20Family, string> = {
+  "kron-legacy": "KRON",
+  "kcc20-standard": "KCC-20",
+};
+
 export const KCC20_LABELS = {
   // Token detail
   historyTab: "History",
@@ -47,6 +55,7 @@ export const KCC20_LABELS = {
   security: "Security",
   verified: "Verified",
   unverified: "Unverified",
+  claimedMetadata: "claimed metadata",
 
   // Send: select token
   selectToken: "Select token",

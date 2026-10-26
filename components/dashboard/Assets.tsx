@@ -109,7 +109,10 @@ export default function Assets() {
 
       {/*KCC20 tokens*/}
       {kcc20Tokens?.map((token) => (
-        <Kcc20TokenListItem key={token.covenantId} token={token} />
+        <Kcc20TokenListItem
+          key={`${token.covenantId}:${token.extensionCommitment ?? ""}`}
+          token={token}
+        />
       ))}
 
       {/* ERC20 tokens */}

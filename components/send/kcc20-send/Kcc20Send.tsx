@@ -22,6 +22,31 @@ type Step = "details" | "confirm" | "success" | "fail";
 
 const KAS_DECIMALS = 8;
 
+const UNSUPPORTED_SCHEMA_COPY =
+  "This token uses the KCC-20 standard, which this version cannot send yet.";
+
+// Codes whose builder message is not the copy the user should read.
+const ERROR_COPY: Partial<Record<Kcc20TransferError["code"], string>> = {
+  "unsupported-schema": UNSUPPORTED_SCHEMA_COPY,
+};
+
+function Unavailable({
+  message,
+  onBack,
+}: {
+  message: string;
+  onBack: () => void;
+}) {
+  return (
+    <div className="flex h-full flex-col">
+      <PageHeader title="Send" onBack={onBack} />
+      <p className="px-4 py-8 text-center text-sm text-daintree-400">
+        {message}
+      </p>
+    </div>
+  );
+}
+
 export default function Kcc20Send() {
   const navigate = useNavigate();
   const { covenantId } = useParams();
@@ -83,7 +108,7 @@ export default function Kcc20Send() {
     } catch (e) {
       setError(
         e instanceof Kcc20TransferError
-          ? e.message
+          ? (ERROR_COPY[e.code] ?? e.message)
           : "Could not build the transfer",
       );
     } finally {
@@ -107,13 +132,15 @@ export default function Kcc20Send() {
 
   if (step === "details" && !token?.meta) {
     return (
-      <div className="flex h-full flex-col">
-        <PageHeader title="Send" onBack={onClose} />
-        <p className="px-4 py-8 text-center text-sm text-daintree-400">
-          {isLoading ? "Loading token..." : "This token cannot be sent."}
-        </p>
-      </div>
+      <Unavailable
+        message={isLoading ? "Loading token..." : "This token cannot be sent."}
+        onBack={onClose}
+      />
     );
+  }
+
+  if (step === "details" && token?.family === "kcc20-standard") {
+    return <Unavailable message={UNSUPPORTED_SCHEMA_COPY} onBack={onClose} />;
   }
 
   if (step === "confirm" && built && sent && account) {
@@ -195,7 +222,14 @@ export default function Kcc20Send() {
     );
   }
 
-  if (!token?.meta) return null;
+  if (!token?.meta) {
+    return (
+      <Unavailable
+        message="This token is not available to send."
+        onBack={onClose}
+      />
+    );
+  }
   // Only ADDRESS-owned pieces are sendable; the dashboard balance may be higher.
   const spendable = formatUnits(token.spendable, decimals);
   const inputClass =

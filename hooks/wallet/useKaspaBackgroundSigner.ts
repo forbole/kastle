@@ -12,6 +12,10 @@ import {
   KaspaSignTransactionRequest,
   KaspaSignTransactionResponse,
 } from "@/lib/service/handlers/kaspa/kaspa-sign-transaction";
+import {
+  KaspaSignInputDigestRequest,
+  KaspaSignInputDigestResponse,
+} from "@/lib/service/handlers/kaspa/kaspa-sign-input-digest";
 import { ErrorMessage } from "@/lib/service/handlers/message";
 
 export default function useKaspaBackgroundSigner() {
@@ -20,6 +24,18 @@ export default function useKaspaBackgroundSigner() {
       const response = await sendMessage<
         KaspaSignTransactionResponse | ErrorMessage
       >(Method.KASPA_SIGN_TRANSACTION, request);
+
+      if (response && "error" in response) {
+        throw new Error(response.error);
+      }
+
+      return response;
+    },
+
+    signInputDigest: async (request: KaspaSignInputDigestRequest) => {
+      const response = await sendMessage<
+        KaspaSignInputDigestResponse | ErrorMessage
+      >(Method.KASPA_SIGN_INPUT_DIGEST, request);
 
       if (response && "error" in response) {
         throw new Error(response.error);

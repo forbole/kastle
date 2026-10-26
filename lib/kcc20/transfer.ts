@@ -10,10 +10,10 @@ import {
 import { KASTLE_FEE_ADDRESS } from "@/lib/bridge/bridge";
 import { IWallet } from "@/lib/wallet/wallet-interface.ts";
 import {
+  classifiedPieces,
   KRON_INDEXER_URL,
   Kcc20Piece,
   Kcc20Token,
-  verifiedPieces,
 } from "@/lib/kcc20";
 
 // ADR-009: the covenant is compiled for at most 3 token inputs and outputs.
@@ -29,7 +29,8 @@ export class Kcc20TransferError extends Error {
       | "invalid-amount"
       | "insufficient-balance"
       | "fragmented"
-      | "insufficient-funding",
+      | "insufficient-funding"
+      | "unsupported-schema",
     message: string,
   ) {
     super(message);
@@ -51,6 +52,12 @@ export type BuiltKcc20Transfer = {
   // Sompi leaving the wallet's plain KAS: the fee plus the dust the covenant outputs carry beyond their inputs.
   kasDebit: bigint;
 };
+
+const unsupportedSchema = () =>
+  new Kcc20TransferError(
+    "unsupported-schema",
+    "KCC-20 standard pieces have no send builder in this version",
+  );
 
 /** The recipient's x-only pubkey; only a plain mainnet Schnorr address can hold a presence-owned balance. */
 export function recipientPubkey(address: string): Uint8Array {
@@ -124,26 +131,29 @@ export async function buildKcc20Transfer({
   rpc,
   feeRate,
 }: {
-  token: Pick<Kcc20Token, "tick" | "covenantId" | "meta">;
+  token: Pick<Kcc20Token, "tick" | "covenantId" | "meta" | "family">;
   address: string;
   recipient: string;
   amount: bigint;
   rpc: RpcClient;
   feeRate?: number;
 }): Promise<BuiltKcc20Transfer> {
+  if (token.family === "kcc20-standard") throw unsupportedSchema();
   if (amount <= 0n) {
     throw new Kcc20TransferError("invalid-amount", "Amount must be positive");
   }
   recipientPubkey(recipient);
 
   const indexer = new client.IndexerClient(KRON_INDEXER_URL);
-  const pieces = await verifiedPieces(
+  const { legacy: pieces, standard } = await classifiedPieces(
     indexer,
     rpc,
     token.tick,
     address,
     token.covenantId,
   );
+  // Standard pieces never reach selectPieces, which would report them as a missing balance.
+  if (pieces.length === 0 && standard.length > 0) throw unsupportedSchema();
   const { entries } = await rpc.getUtxosByAddresses([address]);
   return assembleKcc20Transfer({
     covenantId: token.covenantId,
@@ -220,12 +230,15 @@ export function fundCovenantSpend({
   // sompi per gram of mass.
   feeRate = spend.MIN_RELAY_FEERATE,
   kastleFee = 0n,
+  fundingComputeBudget,
 }: {
   spend: spend.CovenantSpend;
   funding: Funding[];
   address: string;
   feeRate?: number;
   kastleFee?: bigint;
+  // Overrides the SDK's FUNDING_COMPUTE on every funding input, before the fee is priced.
+  fundingComputeBudget?: number;
 }): Omit<BuiltKcc20Transfer, "amount" | "kasDebit"> {
   const k = kaspa as unknown as Parameters<typeof spend.assembleNativeTx>[0];
   // Plain KAS only: a covenant-bound UTXO here would be spent as a fee input.
@@ -242,6 +255,13 @@ export function fundCovenantSpend({
       networkFee: networkFee + kastleFee,
       ref: KRON_PARTNER_REF,
     });
+    if (fundingComputeBudget !== undefined) {
+      const inputs = asm.transaction.inputs;
+      for (const i of asm.fundingInputIndexes) {
+        inputs[i].computeBudget = fundingComputeBudget;
+      }
+      asm.transaction.inputs = inputs;
+    }
     if (kastleFee > 0n) {
       asm.transaction.outputs = [
         ...asm.transaction.outputs,
