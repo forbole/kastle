@@ -283,7 +283,7 @@ export type Kcc20TokenDeps = {
   fetchKascov?: KascovFetchers;
 };
 
-type KascovFetchers = {
+export type KascovFetchers = {
   holdings: typeof fetchStandardHoldings;
   ownerCells: typeof fetchOwnerCells;
 };
@@ -349,6 +349,66 @@ function claimedMeta(holding: KascovHolding): Kcc20Token["meta"] {
   };
 }
 
+/** The wallet's node-verified cells of `tokenId`, each beside the kascov cell it came from. */
+async function ownedStandardCells(
+  tokenId: string,
+  rpc: RpcClient,
+  walletPubkey32: Uint8Array,
+  kascov: KascovFetchers,
+) {
+  const pk = bytesToHex(walletPubkey32).slice(2);
+  const tuples = [`00${pk}`, `01${bytesToHex(hash(walletPubkey32)).slice(2)}`];
+  const cells = new Map(
+    (await Promise.all(tuples.map((t) => kascov.ownerCells(tokenId, t))))
+      .flat()
+      .map((c) => [`${c.outpoint.transactionId}:${c.outpoint.index}`, c]),
+  );
+  const pieces = await verifyStandardCells({
+    cells: [...cells.values()],
+    covenantId: tokenId,
+    rpc,
+    walletPubkey32,
+  });
+  return pieces.map((piece) => ({
+    piece,
+    cell: cells.get(
+      `${piece.outpoint.transactionId}:${piece.outpoint.index}`,
+    )!,
+  }));
+}
+
+/**
+ * The pieces behind one standard row, for the transfer builder: the same cells the row
+ * counted, with the program bytes the node held them under.
+ */
+export async function standardSpendPieces(
+  token: Pick<Kcc20Token, "covenantId" | "extensionCommitment">,
+  address: string,
+  rpc: RpcClient,
+  kascov: KascovFetchers = LIVE_KASCOV,
+): Promise<Kcc20StandardPiece[]> {
+  const pk = /^20([0-9a-f]{64})ac$/.exec(payToAddressScript(address).script)?.[1];
+  if (!pk) return [];
+  const owned = await ownedStandardCells(
+    token.covenantId,
+    rpc,
+    hexToBytes(`0x${pk}`),
+    kascov,
+  );
+  return owned
+    .filter(
+      ({ piece }) =>
+        bytesToHex(piece.state.extensionCommitment).slice(2) ===
+        token.extensionCommitment,
+    )
+    .map(({ piece, cell }) => ({
+      outpoint: piece.outpoint,
+      state: piece.state,
+      redeem: hexToBytes(`0x${cell.programHex}`),
+      value: piece.value,
+    }));
+}
+
 /** One token id's rows, one per extension commitment; a group whose pieces disagree with their cells is dropped. */
 async function standardRowsFor(
   holding: KascovHolding,
@@ -356,30 +416,18 @@ async function standardRowsFor(
   walletPubkey32: Uint8Array,
   kascov: KascovFetchers,
 ): Promise<Kcc20Token[]> {
-  const pk = bytesToHex(walletPubkey32).slice(2);
-  const tuples = [`00${pk}`, `01${bytesToHex(hash(walletPubkey32)).slice(2)}`];
-  const cells = new Map(
-    (
-      await Promise.all(
-        tuples.map((t) => kascov.ownerCells(holding.tokenId, t)),
-      )
-    )
-      .flat()
-      .map((c) => [`${c.outpoint.transactionId}:${c.outpoint.index}`, c]),
-  );
-  const pieces = await verifyStandardCells({
-    cells: [...cells.values()],
-    covenantId: holding.tokenId,
+  const owned = await ownedStandardCells(
+    holding.tokenId,
     rpc,
     walletPubkey32,
-  });
+    kascov,
+  );
+  const pieces = owned.map((o) => o.piece);
 
   const groups = new Map<string, StandardPiece[]>();
   const disagreeing = new Set<string>();
-  for (const p of pieces) {
-    const ext = cells.get(
-      `${p.outpoint.transactionId}:${p.outpoint.index}`,
-    )!.extensionCommitment;
+  for (const { piece: p, cell } of owned) {
+    const ext = cell.extensionCommitment;
     if (bytesToHex(p.state.extensionCommitment).slice(2) !== ext)
       disagreeing.add(ext);
     groups.set(ext, [...(groups.get(ext) ?? []), p]);

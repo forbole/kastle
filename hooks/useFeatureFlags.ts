@@ -67,7 +67,10 @@ export function useFeatureFlags() {
     // Covenant spends fail closed: only an explicit `true` enables in production.
     isKcc20Enabled: !isProduction || flags[KCC20_FLAG_KEY] === true,
     // Default off: only an explicit `true` enables, in every build.
-    isKcc20StandardEnabled: flags[KCC20_STANDARD_FLAG_KEY] === true,
+    isKcc20StandardEnabled:
+      flags[KCC20_STANDARD_FLAG_KEY] === true ||
+      // Local builds can opt in without touching the PostHog flag.
+      (!isProduction && import.meta.env.VITE_KCC20_STANDARD === "1"),
     // Only an explicit `true` enables; dev builds force it on (mobile: __DEV__).
     isActivityEnabled: !isProduction || flags[ACTIVITY_FLAG_KEY] === true,
     // Deciding before PostHog's flags arrive would bounce a flagged-on user,

@@ -627,8 +627,9 @@ test("patchSeat: refuses a seat pre-filled before the first patch", () => {
   ).toThrow(/no placeholder at sigOffset/);
 });
 
-// buildKcc20Transfer end to end, offline: the indexer lists the cells, a fake rpc serves them
-// as live covenant UTXOs at their P2SH addresses and the funding UTXO at the wallet address.
+// buildKcc20Transfer end to end, offline: kascov (or, for legacy, the indexer) lists the cells,
+// a fake rpc serves them as live covenant UTXOs at their P2SH addresses and the funding UTXO
+// at the wallet address.
 const p2shOf = (c: StandardSpendPiece) =>
   addressFromScriptPublicKey(payToScriptHashScript(c.redeem), "mainnet")!.toString();
 
@@ -664,24 +665,38 @@ async function withIndexer<T>(cells: StandardSpendPiece[], run: () => Promise<T>
   }
 }
 
+const fakeKascov = (states: KCC20State[]) => ({
+  holdings: async () => [],
+  ownerCells: async () =>
+    states.map((state, index) => ({
+      outpoint: cell(state, index).outpoint,
+      programHex: bytesToHex(deploy(state)),
+      amount: state.amount,
+      owner: bytesToHex(state.owner),
+      extensionCommitment: bytesToHex(state.extensionCommitment),
+    })),
+});
+
 const tokenOf = (family: "kron-legacy" | "kcc20-standard") => ({
   tick: "STD",
   covenantId: TOKEN_ID,
   family,
   meta: undefined,
+  extensionCommitment: bytesToHex(EXT),
 });
 
 test("buildKcc20Transfer: a standard token returns the standard shape, seats unsigned until send", async () => {
-  const cells = [cell(stateOf(1000n), 0)];
-  const built = await withIndexer(cells, () =>
-    buildKcc20Transfer({
-      token: tokenOf("kcc20-standard"),
-      address: addressA,
-      recipient: addressB,
-      amount: 600n,
-      rpc: fakeRpc(cells),
-    }),
-  );
+  // The 5000 cell is another row (other extension commitment): largest-first must not reach it.
+  const states = [stateOf(1000n), stateOf(5000n, PUB_A, 0x00, new Uint8Array(32).fill(0x7e))];
+  const cells = states.map(cell);
+  const built = await buildKcc20Transfer({
+    token: tokenOf("kcc20-standard"),
+    address: addressA,
+    recipient: addressB,
+    amount: 600n,
+    rpc: fakeRpc(cells),
+    fetchKascov: fakeKascov(states),
+  });
   expect(built.transaction).toBeDefined();
   expect(String(built.amount)).toBe("600");
   expect(built.fee > 0n).toBe(true);
@@ -693,6 +708,7 @@ test("buildKcc20Transfer: a standard token returns the standard shape, seats uns
   expect(bytesToHex(built.standard!.pubkey32)).toBe(bytesToHex(PUB_A));
   expect(plan.nextStates.map((s) => String(s.amount))).toEqual(["600", "400"]);
   expect(plan.seats.map((s) => s.inputIndex)).toEqual([0]);
+  expect(plan.consumed.map((s) => String(s.amount))).toEqual(["1000"]);
   expect(built.fundingInputIndexes).toEqual([1]);
   // Nothing is signed at review time: the seat still holds its zero placeholder.
   const seat = plan.seats[0];

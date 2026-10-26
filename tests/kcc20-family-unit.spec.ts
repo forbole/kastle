@@ -200,8 +200,10 @@ test("only standard pieces owned: unsupported-schema, not insufficient-balance",
       "kron-legacy",
     ),
   ).toBe("unsupported-schema");
-  // A standard row is refused before any lookup.
-  expect(await transferCode([], "kcc20-standard")).toBe("unsupported-schema");
+  // A standard row goes to the standard builder (kcc20-standard-build.spec.ts), never this refusal.
+  expect(await transferCode([], "kcc20-standard")).not.toBe(
+    "unsupported-schema",
+  );
   // No pieces at all is still a balance problem.
   expect(await transferCode([], "kron-legacy")).toBe("insufficient-balance");
 });

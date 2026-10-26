@@ -11,9 +11,11 @@ import { KASTLE_FEE_ADDRESS } from "@/lib/bridge/bridge";
 import { IWallet } from "@/lib/wallet/wallet-interface.ts";
 import {
   classifiedPieces,
+  KascovFetchers,
   KRON_INDEXER_URL,
   Kcc20Piece,
   Kcc20Token,
+  standardSpendPieces,
 } from "@/lib/kcc20";
 import {
   assembleStandardTransfer,
@@ -137,33 +139,34 @@ export async function buildKcc20Transfer({
   amount,
   rpc,
   feeRate,
+  fetchKascov,
 }: {
-  token: Pick<Kcc20Token, "tick" | "covenantId" | "meta" | "family">;
+  token: Pick<
+    Kcc20Token,
+    "tick" | "covenantId" | "meta" | "family" | "extensionCommitment"
+  >;
   address: string;
   recipient: string;
   amount: bigint;
   rpc: RpcClient;
   feeRate?: number;
+  // Standard tokens only; defaults to live kascov.
+  fetchKascov?: KascovFetchers;
 }): Promise<BuiltKcc20Transfer> {
   if (amount <= 0n) {
     throw new Kcc20TransferError("invalid-amount", "Amount must be positive");
   }
   recipientPubkey(recipient);
-
-  const indexer = new client.IndexerClient(KRON_INDEXER_URL);
-  const { legacy: pieces, standard } = await classifiedPieces(
-    indexer,
-    rpc,
-    token.tick,
-    address,
-    token.covenantId,
-  );
   if (token.family === "kcc20-standard") {
     const pubkey32 = recipientPubkey(address);
-    const { entries } = await rpc.getUtxosByAddresses([address]);
+    // Same kascov cells, re-proven against the node, as the row the user picked.
+    const [pieces, { entries }] = await Promise.all([
+      standardSpendPieces(token, address, rpc, fetchKascov),
+      rpc.getUtxosByAddresses([address]),
+    ]);
     const { family: plan, ...built } = assembleStandardTransfer({
       covenantId: token.covenantId,
-      pieces: standard,
+      pieces,
       pubkey32,
       recipient,
       amount,
@@ -173,6 +176,15 @@ export async function buildKcc20Transfer({
     });
     return { ...built, standard: { plan, pubkey32 } };
   }
+
+  const indexer = new client.IndexerClient(KRON_INDEXER_URL);
+  const { legacy: pieces, standard } = await classifiedPieces(
+    indexer,
+    rpc,
+    token.tick,
+    address,
+    token.covenantId,
+  );
   // Standard pieces never reach selectPieces, which would report them as a missing balance.
   if (pieces.length === 0 && standard.length > 0) throw unsupportedSchema();
   const { entries } = await rpc.getUtxosByAddresses([address]);
