@@ -8,7 +8,7 @@ import { bytesToHex, concatBytes, hexToBytes } from "@noble/hashes/utils";
 import { classifyRedeem, isStandardOwnedBy } from "@/lib/kcc20/classify";
 import { parseArtifact } from "@/lib/kcc20/standard/artifact";
 import {
-  CANONICAL_SUFFIX_LEN,
+  STANDARD_TEMPLATES,
   supportsStandardTransfer,
 } from "@/lib/kcc20/standard/templates";
 import {
@@ -540,13 +540,26 @@ test("7. 20,000 generated standard states never classify as kron-legacy", () => 
   expect(families).toEqual({ "kcc20-standard": 20_000 });
 });
 
-// One real mainnet program, as kascov serves it.
+// Two real mainnet programs, as kascov serves them: the small build and the large one.
 const MAINNET_PROGRAM = hex(fixture("standard-program.hex").toString("utf8").trim());
+const MAINNET_PROGRAM_FF3 = hex(
+  fixture("standard-program-ff3.hex").toString("utf8").trim(),
+);
 
-test("7. template allowlist: only the canonical program is spendable", () => {
+test("7. template allowlist: only a proven program is spendable", () => {
   expect(MAINNET_PROGRAM.length).toBe(4031);
-  expect(MAINNET_PROGRAM.length - 34 - STATE_LEN).toBe(CANONICAL_SUFFIX_LEN);
+  expect(STANDARD_TEMPLATES).toHaveProperty(
+    "9703112ee6e3555107cd168858992b77d3b74f655205b2b463b1f9ec2ec73cf7",
+  );
+  expect(MAINNET_PROGRAM.length - 34 - STATE_LEN).toBe(3885);
   expect(supportsStandardTransfer(MAINNET_PROGRAM)).toBe(true);
+
+  // The second live build: same state layout, more code, proven by preflight.
+  expect(MAINNET_PROGRAM_FF3.length).toBe(11458);
+  expect(supportsStandardTransfer(MAINNET_PROGRAM_FF3)).toBe(true);
+  const ff3Edit = MAINNET_PROGRAM_FF3.slice();
+  ff3Edit[MAINNET_PROGRAM_FF3.length - 1] ^= 0x01;
+  expect(supportsStandardTransfer(ff3Edit)).toBe(false);
 
   // One suffix byte off: same classification, different code.
   const suffixEdit = MAINNET_PROGRAM.slice();

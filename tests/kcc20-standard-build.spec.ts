@@ -709,14 +709,16 @@ async function withIndexer<T>(cells: StandardSpendPiece[], run: () => Promise<T>
 
 const fakeKascov = (states: KCC20State[]) => ({
   holdings: async () => [],
-  ownerCells: async () =>
-    states.map((state, index) => ({
+  ownerCells: async () => ({
+    truncated: false,
+    cells: states.map((state, index) => ({
       outpoint: cell(state, index).outpoint,
       programHex: bytesToHex(deploy(state)),
       amount: state.amount,
       owner: bytesToHex(state.owner),
       extensionCommitment: bytesToHex(state.extensionCommitment),
     })),
+  }),
 });
 
 const tokenOf = (family: "kron-legacy" | "kcc20-standard") => ({

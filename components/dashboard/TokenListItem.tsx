@@ -129,6 +129,8 @@ export function Kcc20TokenListItem({ token }: { token: Kcc20Token }) {
           </span>
           <span className="break-all text-right">
             {settings?.hideBalances ? "*****" : balance}
+            {/* kascov held cells back: the balance may be short. */}
+            {!settings?.hideBalances && token.truncated && "+"}
           </span>
         </div>
         <div className="flex items-center gap-2 text-sm text-daintree-400">

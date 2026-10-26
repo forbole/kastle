@@ -47,6 +47,8 @@ export type Kcc20Token = {
   };
   // Standard rows only (hex): with covenantId, the row's grouping key.
   extensionCommitment?: string;
+  // Standard rows only: kascov held back cells, so `amount` may be short of the balance.
+  truncated?: true;
 };
 
 /** Whether a decoded token state is spendable by the wallet whose scriptPublicKey is `walletSpk` (hex). */
@@ -294,6 +296,15 @@ const LIVE_KASCOV: KascovFetchers = {
   ownerCells: fetchOwnerCells,
 };
 
+export type Kcc20Tokens = {
+  tokens: Kcc20Token[];
+  // Flag on only: the legacy list failed, so `tokens` holds standard rows alone.
+  legacyUnavailable: boolean;
+};
+
+// One warning per distinct failure, not one per 30 s poll.
+const loggedLegacyFailures = new Set<string>();
+
 /**
  * The wallet's KCC-20 holdings on mainnet: legacy rows (one per covenant id,
  * verified balance and metadata only), then, with `standard`, the KCC-20
@@ -304,14 +315,28 @@ export async function fetchKcc20Tokens(
   rpc: RpcClient,
   restApi: string,
   { standard = false, ...deps }: { standard?: boolean } & Kcc20TokenDeps = {},
-): Promise<Kcc20Token[]> {
-  if (!standard) return fetchLegacyTokens(address, rpc, restApi, deps);
-  // A KRON outage must not discard verified standard rows.
+): Promise<Kcc20Tokens> {
+  if (!standard)
+    return {
+      tokens: await fetchLegacyTokens(address, rpc, restApi, deps),
+      legacyUnavailable: false,
+    };
+  // A KRON outage must not discard verified standard rows, nor pass unnoticed.
   const [legacy, standardRows] = await Promise.all([
-    fetchLegacyTokens(address, rpc, restApi, deps).catch(() => []),
+    fetchLegacyTokens(address, rpc, restApi, deps).catch((e: unknown) => {
+      const message = e instanceof Error ? e.message : String(e);
+      if (!loggedLegacyFailures.has(message)) {
+        loggedLegacyFailures.add(message);
+        console.warn(`[kcc20] legacy token list unavailable: ${message}`);
+      }
+      return undefined;
+    }),
     fetchStandardTokens(address, rpc, deps.fetchKascov),
   ]);
-  return [...legacy, ...standardRows];
+  return {
+    tokens: [...(legacy ?? []), ...standardRows],
+    legacyUnavailable: legacy === undefined,
+  };
 }
 
 // kascov is asked only which ids exist; past STANDARD_TOKEN_CAP ids are ignored.
@@ -352,7 +377,10 @@ function claimedMeta(holding: KascovHolding): Kcc20Token["meta"] {
   };
 }
 
-/** The wallet's node-verified cells of `tokenId`, each beside the kascov cell it came from. */
+/**
+ * The wallet's node-verified cells of `tokenId`, each beside the kascov cell it came from;
+ * `truncated` when kascov held back cells under either owner tuple.
+ */
 async function ownedStandardCells(
   tokenId: string,
   rpc: RpcClient,
@@ -361,9 +389,12 @@ async function ownedStandardCells(
 ) {
   const pk = bytesToHex(walletPubkey32).slice(2);
   const tuples = [`00${pk}`, `01${bytesToHex(hash(walletPubkey32)).slice(2)}`];
+  const pages = await Promise.all(
+    tuples.map((t) => kascov.ownerCells(tokenId, t)),
+  );
   const cells = new Map(
-    (await Promise.all(tuples.map((t) => kascov.ownerCells(tokenId, t))))
-      .flat()
+    pages
+      .flatMap((p) => p.cells)
       .map((c) => [`${c.outpoint.transactionId}:${c.outpoint.index}`, c]),
   );
   const pieces = await verifyStandardCells({
@@ -372,12 +403,15 @@ async function ownedStandardCells(
     rpc,
     walletPubkey32,
   });
-  return pieces.map((piece) => ({
-    piece,
-    cell: cells.get(
-      `${piece.outpoint.transactionId}:${piece.outpoint.index}`,
-    )!,
-  }));
+  return {
+    owned: pieces.map((piece) => ({
+      piece,
+      cell: cells.get(
+        `${piece.outpoint.transactionId}:${piece.outpoint.index}`,
+      )!,
+    })),
+    truncated: pages.some((p) => p.truncated),
+  };
 }
 
 /**
@@ -392,7 +426,7 @@ export async function standardSpendPieces(
 ): Promise<Kcc20StandardPiece[]> {
   const pk = /^20([0-9a-f]{64})ac$/.exec(payToAddressScript(address).script)?.[1];
   if (!pk) return [];
-  const owned = await ownedStandardCells(
+  const { owned } = await ownedStandardCells(
     token.covenantId,
     rpc,
     hexToBytes(`0x${pk}`),
@@ -414,14 +448,17 @@ export async function standardSpendPieces(
     }));
 }
 
-/** One token id's rows, one per extension commitment; a group whose pieces disagree with their cells is dropped. */
+/**
+ * One token id's rows, one per extension commitment; a group whose pieces disagree with their
+ * cells is dropped. A cut cell list could have cut any group, so every row is marked truncated.
+ */
 async function standardRowsFor(
   holding: KascovHolding,
   rpc: RpcClient,
   walletPubkey32: Uint8Array,
   kascov: KascovFetchers,
 ): Promise<Kcc20Token[]> {
-  const owned = await ownedStandardCells(
+  const { owned, truncated } = await ownedStandardCells(
     holding.tokenId,
     rpc,
     walletPubkey32,
@@ -457,6 +494,7 @@ async function standardRowsFor(
       spendable: sum(group.filter((g) => g.supported)),
       meta,
       extensionCommitment: ext,
+      ...(truncated && { truncated: true as const }),
     }))
     .filter((t) => t.amount > 0n);
 }

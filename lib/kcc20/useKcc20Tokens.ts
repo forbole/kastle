@@ -22,5 +22,11 @@ export default function useKcc20Tokens(address?: string) {
       }),
     { refreshInterval: 30_000 },
   );
-  return { data, error, isLoading };
+  return {
+    data: data?.tokens,
+    // Flag on: legacy rows failed to load, so `data` holds standard rows only.
+    legacyUnavailable: data?.legacyUnavailable ?? false,
+    error,
+    isLoading,
+  };
 }

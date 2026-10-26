@@ -227,7 +227,7 @@ test("happy path: one holding, two owner queries, one 500 cell verifies at its p
             fetchOwnerCells(h.tokenId, t),
           ),
         )
-      ).flat();
+      ).flatMap((p) => p.cells);
       expect(log.kascov).toHaveLength(3);
       expect(cells).toHaveLength(1);
 
@@ -304,10 +304,13 @@ test("flag off: zero kascov requests, legacy rows only", async () => {
           : 404,
     },
     async (log) => {
-      const rows = await fetchKcc20Tokens(address, rpc, REST, {
-        indexer,
-        registry,
-      });
+      const { tokens: rows, legacyUnavailable } = await fetchKcc20Tokens(
+        address,
+        rpc,
+        REST,
+        { indexer, registry },
+      );
+      expect(legacyUnavailable).toBe(false);
       expect(log.kascov).toEqual([]);
       expect(rows).toHaveLength(1);
       const [row] = rows;
@@ -348,7 +351,7 @@ test("isolation: the first holding's cells 500 does not drop the second's row", 
       },
     },
     async (log) => {
-      const rows = await fetchKcc20Tokens(address, rpc, REST, {
+      const { tokens: rows } = await fetchKcc20Tokens(address, rpc, REST, {
         standard: true,
         indexer: fakeIndexer([]),
         registry: fakeRegistry([]),
@@ -404,7 +407,7 @@ test("a group whose pieces disagree with their claimed extension commitment is d
           indexer: fakeIndexer([]),
           registry: fakeRegistry([]),
         }),
-      ).toEqual([]);
+      ).toEqual({ tokens: [], legacyUnavailable: false });
     },
   );
 });
@@ -418,11 +421,11 @@ test("kascov down: the standard path yields nothing and never throws", async () 
         indexer: fakeIndexer([]),
         registry: fakeRegistry([]),
       }),
-    ).toEqual([]);
+    ).toEqual({ tokens: [], legacyUnavailable: false });
   });
 });
 
-test("KRON down with the flag on: standard rows survive, legacy is empty", async () => {
+test("KRON down with the flag on: standard rows survive, the failure is flagged and logged once", async () => {
   const redeem = program(ownState(500n));
   const c = cell(1, redeem, 500n);
   const { rpc } = node([{ n: 1, redeem, covid: COVID }]);
@@ -442,14 +445,32 @@ test("KRON down with the flag on: standard rows survive, legacy is empty", async
             },
     },
     async () => {
-      const rows = await fetchKcc20Tokens(address, rpc, REST, {
-        standard: true,
-        indexer: downIndexer,
-        registry: fakeRegistry([]),
-      });
-      expect(rows).toHaveLength(1);
-      expect(rows[0].family).toBe("kcc20-standard");
-      expect(String(rows[0].amount)).toBe("500");
+      const warnings: unknown[][] = [];
+      const realWarn = console.warn;
+      console.warn = (...args: unknown[]) => void warnings.push(args);
+      try {
+        for (let poll = 0; poll < 2; poll++) {
+          const { tokens: rows, legacyUnavailable } = await fetchKcc20Tokens(
+            address,
+            rpc,
+            REST,
+            {
+              standard: true,
+              indexer: downIndexer,
+              registry: fakeRegistry([]),
+            },
+          );
+          expect(legacyUnavailable).toBe(true);
+          expect(rows).toHaveLength(1);
+          expect(rows[0].family).toBe("kcc20-standard");
+          expect(String(rows[0].amount)).toBe("500");
+        }
+      } finally {
+        console.warn = realWarn;
+      }
+      // Two polls, one warning, carrying the error's message.
+      expect(warnings).toHaveLength(1);
+      expect(String(warnings[0][0])).toContain("KRON 503");
 
       // Flag off keeps today's behaviour: the outage still rejects.
       await expect(
@@ -484,7 +505,9 @@ test("template allowlist: an off-template piece counts in amount, never in spend
         };
 
   await withFetch({ kascov }, async () => {
-    const [row] = await fetchKcc20Tokens(address, rpc, REST, {
+    const {
+      tokens: [row],
+    } = await fetchKcc20Tokens(address, rpc, REST, {
       standard: true,
       indexer: fakeIndexer([]),
       registry: fakeRegistry([]),
@@ -510,7 +533,9 @@ test("template allowlist: an off-template piece counts in amount, never in spend
             },
     },
     async () => {
-      const [row] = await fetchKcc20Tokens(address, rpc, REST, {
+      const {
+        tokens: [row],
+      } = await fetchKcc20Tokens(address, rpc, REST, {
         standard: true,
         indexer: fakeIndexer([]),
         registry: fakeRegistry([]),
@@ -518,6 +543,66 @@ test("template allowlist: an off-template piece counts in amount, never in spend
       expect(String(row.spendable)).toBe(String(row.amount));
       expect(row.spendable > 0n).toBe(true);
       expect(await standardSpendPieces(row, address, rpc)).toHaveLength(1);
+    },
+  );
+});
+
+test("paging: a full 500-cell page with omitted_over_limit marks the row truncated", async () => {
+  const redeem = program(ownState(1n));
+  // 500 distinct outpoints, all the same program: one group.
+  const page = Array.from({ length: 500 }, (_, i) => cell(i + 1, redeem, 1n));
+  const { rpc } = node(
+    page.map((_, i) => ({ n: i + 1, redeem, covid: COVID })),
+  );
+  const kascov = (omitted: number) => (url: URL) =>
+    url.pathname.startsWith("/data/mainnet/addr/")
+      ? { token_holdings: [holding(COVID, "STD")] }
+      : url.searchParams.get("owner") === page[0].owner
+        ? { cells: page.map(rawCell), omitted_over_limit: omitted }
+        : { cells: [], omitted_over_limit: 0 };
+  const deps = {
+    standard: true,
+    indexer: fakeIndexer([]),
+    registry: fakeRegistry([]),
+  };
+
+  await withFetch({ kascov: kascov(3) }, async (log) => {
+    const {
+      tokens: [row],
+    } = await fetchKcc20Tokens(address, rpc, REST, deps);
+    // One request per owner tuple, each asking for 500.
+    const cellCalls = log.kascov.filter((u) => u.includes("/cells?"));
+    expect(cellCalls).toHaveLength(2);
+    for (const u of cellCalls) expect(u).toContain("limit=500");
+    expect(String(row.amount)).toBe("500");
+    expect(row.truncated).toBe(true);
+  });
+
+  // kascov reports nothing omitted: the same full page is the whole balance.
+  await withFetch({ kascov: kascov(0) }, async () => {
+    const {
+      tokens: [row],
+    } = await fetchKcc20Tokens(address, rpc, REST, deps);
+    expect(String(row.amount)).toBe("500");
+    expect(row.truncated).toBeUndefined();
+  });
+});
+
+test("paging: without omitted_over_limit, a full page is assumed cut, a short one is not", async () => {
+  const c = cell(1, program(ownState(5n)), 5n);
+  const full = Array.from({ length: 3 }, () => rawCell(c));
+  await withFetch(
+    {
+      kascov: (url) =>
+        url.searchParams.get("limit") === "3"
+          ? { cells: full }
+          : { cells: [rawCell(c)] },
+    },
+    async () => {
+      expect(
+        (await fetchOwnerCells(COVID, c.owner, { limit: 3 })).truncated,
+      ).toBe(true);
+      expect((await fetchOwnerCells(COVID, c.owner)).truncated).toBe(false);
     },
   );
 });

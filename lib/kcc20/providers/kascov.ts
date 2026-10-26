@@ -3,7 +3,10 @@
 export const KASCOV_URL = "https://kascov.io/data/mainnet";
 
 const TIMEOUT_MS = 10_000;
-const DEFAULT_CELL_LIMIT = 100;
+// kascov's cells endpoint has no offset or cursor (it ignores both), so the
+// five-page cap is one request for five pages' worth of cells.
+const CELL_PAGE = 100;
+const MAX_CELL_PAGES = 5;
 
 export type KascovHolding = {
   tokenId: string;
@@ -155,12 +158,18 @@ export async function fetchStandardHoldings(
   return parseRows(body.token_holdings, parseHolding);
 }
 
-/** kascov's cells of `tokenId` owned by `ownerTupleHex` (identifier_type byte || 32-byte owner). */
+/**
+ * kascov's cells of `tokenId` owned by `ownerTupleHex` (identifier_type byte || 32-byte owner),
+ * at most `limit`; `truncated` when kascov held back more.
+ */
 export async function fetchOwnerCells(
   tokenId: string,
   ownerTupleHex: string,
-  { signal, limit = DEFAULT_CELL_LIMIT }: Opts & { limit?: number } = {},
-): Promise<KascovCell[]> {
+  {
+    signal,
+    limit = CELL_PAGE * MAX_CELL_PAGES,
+  }: Opts & { limit?: number } = {},
+): Promise<{ cells: KascovCell[]; truncated: boolean }> {
   if (!HEX32.test(tokenId) || !OWNER_TUPLE.test(ownerTupleHex))
     throw new Error("kascov: malformed token id or owner tuple");
   const body = await getJson(
@@ -169,5 +178,9 @@ export async function fetchOwnerCells(
   );
   if (!isRecord(body) || !Array.isArray(body.cells))
     throw new Error("kascov: malformed cells response");
-  return parseRows(body.cells, parseCell);
+  // kascov counts what the limit left out; without that count, a full page is assumed cut.
+  const omitted = body.omitted_over_limit;
+  const truncated =
+    typeof omitted === "number" ? omitted > 0 : body.cells.length >= limit;
+  return { cells: parseRows(body.cells, parseCell), truncated };
 }
