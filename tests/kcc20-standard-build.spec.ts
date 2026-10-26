@@ -193,7 +193,8 @@ function pushes(script: Uint8Array): Uint8Array[] {
     if (op === 0x00) len = 0;
     else if (op <= 0x4b) len = op;
     else if (op === 0x4c) [len, skip] = [script[at + 1], 2];
-    else if (op === 0x4d) [len, skip] = [script[at + 1] | (script[at + 2] << 8), 3];
+    else if (op === 0x4d)
+      [len, skip] = [script[at + 1] | (script[at + 2] << 8), 3];
     else if (op === 0x4f) {
       out.push(u8(0x81));
       at += 1;
@@ -245,7 +246,9 @@ function expectStandardOutputs(
   next.forEach((s, i) => {
     const R2 = successorOf(leaderR, s);
     expect(R2.length).toBe(leaderR.length);
-    expect(bytesToHex(R2.subarray(2, 34))).toBe(bytesToHex(leaderR.subarray(2, 34)));
+    expect(bytesToHex(R2.subarray(2, 34))).toBe(
+      bytesToHex(leaderR.subarray(2, 34)),
+    );
     expect(bytesToHex(b.family.successors[i])).toBe(bytesToHex(R2));
     expect(outputs[i].scriptPublicKey).toBe(p2shSafeHex(R2));
     expect(outputs[i].covenant).toEqual({
@@ -258,7 +261,9 @@ function expectStandardOutputs(
   const change = outputs[next.length];
   expect(outputs.length).toBe(next.length + 1);
   expect(change.covenant ?? null).toBeNull();
-  expect(change.scriptPublicKey).toBe("0000" + payToAddressScript(addressA).script);
+  expect(change.scriptPublicKey).toBe(
+    "0000" + payToAddressScript(addressA).script,
+  );
   expect(BigInt(change.value) >= curve.FEE_OUT_MIN).toBe(true);
 }
 
@@ -270,14 +275,23 @@ test("leader: 600 of 1000 from A to B — exact sigScript bytes, decoded next st
   const sighash = digest(b, 0);
   const sig = bip340(PRIV_A, sighash);
   const expected = concatBytes(
-    u8(0x10), le64(600n), le64(400n), // amounts
-    u8(0x40), PUB_B, PUB_A, // owners
+    u8(0x10),
+    le64(600n),
+    le64(400n), // amounts
+    u8(0x40),
+    PUB_B,
+    PUB_A, // owners
     u8(0x02, 0x00, 0x00), // owner_scheme
     u8(0x02, 0x00, 0x00), // borrow_scheme
-    u8(0x40), new Uint8Array(64), // borrow_guard
-    u8(0x40), EXT, EXT, // extension_commitment
-    u8(0x42, 0x00), sig, // witness: path 00 || sig65
-    u8(0x04), TRANSFER_TAG,
+    u8(0x40),
+    new Uint8Array(64), // borrow_guard
+    u8(0x40),
+    EXT,
+    EXT, // extension_commitment
+    u8(0x42, 0x00),
+    sig, // witness: path 00 || sig65
+    u8(0x04),
+    TRANSFER_TAG,
     push2(R),
   );
   expect(bytesToHex(TRANSFER_TAG)).toBe("79c71c23");
@@ -287,10 +301,7 @@ test("leader: 600 of 1000 from A to B — exact sigScript bytes, decoded next st
   const p = pushes(scriptOf(b, 0));
   expect(p.length).toBe(9);
   const next = decodeColumns(p.slice(0, 6));
-  expect(next).toEqual([
-    stateOf(600n, PUB_B),
-    stateOf(400n),
-  ]);
+  expect(next).toEqual([stateOf(600n, PUB_B), stateOf(400n)]);
   expect(next[0].ownerScheme).toBe(0x00);
   expect(next[0].borrowScheme).toBe(0x00);
   expect(bytesToHex(next[0].borrowGuard)).toBe(bytesToHex(ZERO32));
@@ -317,9 +328,9 @@ test("sighash parity: rusty-kaspa WASM signatures verify against the sdk-tx dige
       createInputSignature(b.transaction, i, key, undefined),
     );
     expect(wasmSig.length).toBe(66);
-    expect(
-      schnorr.verify(wasmSig.subarray(1, 65), digest(b, i), PUB_A),
-    ).toBe(true);
+    expect(schnorr.verify(wasmSig.subarray(1, 65), digest(b, i), PUB_A)).toBe(
+      true,
+    );
   }
   // The digest is per input: the seat signature does not satisfy the funding input.
   const seatSig = pushes(scriptOf(b, 0))[6].subarray(1, 65);
@@ -342,14 +353,23 @@ test("delegator: two cells 550 + 450 — exact leader and delegator bytes, both 
   expect(bytesToHex(scriptOf(b, 0))).toBe(
     bytesToHex(
       concatBytes(
-        u8(0x10), le64(600n), le64(400n),
-        u8(0x40), PUB_B, PUB_A,
+        u8(0x10),
+        le64(600n),
+        le64(400n),
+        u8(0x40),
+        PUB_B,
+        PUB_A,
         u8(0x02, 0x00, 0x00),
         u8(0x02, 0x00, 0x00),
-        u8(0x40), new Uint8Array(64),
-        u8(0x40), EXT, EXT,
-        u8(0x42, 0x00), sig0,
-        u8(0x04), TRANSFER_TAG,
+        u8(0x40),
+        new Uint8Array(64),
+        u8(0x40),
+        EXT,
+        EXT,
+        u8(0x42, 0x00),
+        sig0,
+        u8(0x04),
+        TRANSFER_TAG,
         push2(R0),
       ),
     ),
@@ -423,12 +443,19 @@ test("full balance: no zero-amount change continuation", async () => {
 
 test("compute budget: every input declares one, seats and funding cover their signature checks", async () => {
   const seatNeed = SEAT_SIG_CHECKS * SIGOP_SCRIPT_UNITS + SEAT_SCRIPT_HEADROOM;
-  const fundingNeed = FUNDING_SIG_CHECKS * SIGOP_SCRIPT_UNITS + FUNDING_SCRIPT_UNITS;
+  const fundingNeed =
+    FUNDING_SIG_CHECKS * SIGOP_SCRIPT_UNITS + FUNDING_SCRIPT_UNITS;
   // Smallest covering budget: one unit less no longer covers the need.
-  expect(allowedScriptUnits(SEAT_COMPUTE_BUDGET)).toBeGreaterThanOrEqual(seatNeed);
+  expect(allowedScriptUnits(SEAT_COMPUTE_BUDGET)).toBeGreaterThanOrEqual(
+    seatNeed,
+  );
   expect(allowedScriptUnits(SEAT_COMPUTE_BUDGET - 1)).toBeLessThan(seatNeed);
-  expect(allowedScriptUnits(FUNDING_COMPUTE_BUDGET)).toBeGreaterThanOrEqual(fundingNeed);
-  expect(allowedScriptUnits(FUNDING_COMPUTE_BUDGET - 1)).toBeLessThan(fundingNeed);
+  expect(allowedScriptUnits(FUNDING_COMPUTE_BUDGET)).toBeGreaterThanOrEqual(
+    fundingNeed,
+  );
+  expect(allowedScriptUnits(FUNDING_COMPUTE_BUDGET - 1)).toBeLessThan(
+    fundingNeed,
+  );
   // A budget of 0 only buys the free allowance, which is short of a single signature check.
   expect(allowedScriptUnits(0)).toBeLessThan(SIGOP_SCRIPT_UNITS);
 
@@ -439,7 +466,9 @@ test("compute budget: every input declares one, seats and funding cover their si
   ]) {
     const b = await build(pieces, 600n);
     const inputs = safe(b).inputs;
-    expect(inputs.length).toBe(b.family.seats.length + b.fundingInputIndexes.length);
+    expect(inputs.length).toBe(
+      b.family.seats.length + b.fundingInputIndexes.length,
+    );
     inputs.forEach((input: { computeBudget: number }, i: number) => {
       expect(input.computeBudget).toBeGreaterThan(0);
       const funding = b.fundingInputIndexes.includes(i);
@@ -478,11 +507,19 @@ test("seam: sdk-tx patchPlaceholder cannot sign a leader seat; the computed offs
     ),
   );
   // Funded at final size: seats are placeholders, fee already priced for them.
-  expect(leader.script.subarray(leader.sigOffset, leader.sigOffset + 65).every((x) => x === 0)).toBe(true);
+  expect(
+    leader.script
+      .subarray(leader.sigOffset, leader.sigOffset + 65)
+      .every((x) => x === 0),
+  ).toBe(true);
   expect(built.fee > 0n).toBe(true);
 });
 
-const rejects = async (p: Promise<unknown> | (() => unknown), code: string, re?: RegExp) => {
+const rejects = async (
+  p: Promise<unknown> | (() => unknown),
+  code: string,
+  re?: RegExp,
+) => {
   let err: unknown;
   try {
     await (typeof p === "function" ? p() : p);
@@ -528,7 +565,10 @@ test("negative: extension commitment changed", async () => {
   // Across inputs: a second cell under another commitment.
   const other = new Uint8Array(32).fill(0x6b);
   await rejects(
-    build([cell(stateOf(550n), 0), cell(stateOf(450n, PUB_A, 0, other), 1)], 600n),
+    build(
+      [cell(stateOf(550n), 0), cell(stateOf(450n, PUB_A, 0, other), 1)],
+      600n,
+    ),
     "rule-violation",
     /extension-commitment-not-preserved/,
   );
@@ -673,7 +713,10 @@ test("patchSeat: refuses a seat pre-filled before the first patch", () => {
 // a fake rpc serves them as live covenant UTXOs at their P2SH addresses and the funding UTXO
 // at the wallet address.
 const p2shOf = (c: StandardSpendPiece) =>
-  addressFromScriptPublicKey(payToScriptHashScript(c.redeem), "mainnet")!.toString();
+  addressFromScriptPublicKey(
+    payToScriptHashScript(c.redeem),
+    "mainnet",
+  )!.toString();
 
 function fakeRpc(cells: StandardSpendPiece[], submitted: Transaction[] = []) {
   return {
@@ -688,18 +731,28 @@ function fakeRpc(cells: StandardSpendPiece[], submitted: Transaction[] = []) {
               entry: { covenantId: TOKEN_ID, amount: c.value },
             })),
     }),
-    submitTransaction: async ({ transaction }: { transaction: Transaction }) => {
+    submitTransaction: async ({
+      transaction,
+    }: {
+      transaction: Transaction;
+    }) => {
       submitted.push(transaction);
       return { transactionId: transaction.id };
     },
   } as never;
 }
 
-async function withIndexer<T>(cells: StandardSpendPiece[], run: () => Promise<T>) {
+async function withIndexer<T>(
+  cells: StandardSpendPiece[],
+  run: () => Promise<T>,
+) {
   const proto = client.IndexerClient.prototype;
   const original = proto.tokenUtxos;
   proto.tokenUtxos = async () =>
-    cells.map((c) => ({ outpoint: c.outpoint, redeemScriptHex: bytesToHex(c.redeem) })) as never;
+    cells.map((c) => ({
+      outpoint: c.outpoint,
+      redeemScriptHex: bytesToHex(c.redeem),
+    })) as never;
   try {
     return await run();
   } finally {
@@ -731,7 +784,10 @@ const tokenOf = (family: "kron-legacy" | "kcc20-standard") => ({
 
 test("buildKcc20Transfer: a standard token returns the standard shape, seats unsigned until send", async () => {
   // The 5000 cell is another row (other extension commitment): largest-first must not reach it.
-  const states = [stateOf(1000n), stateOf(5000n, PUB_A, 0x00, new Uint8Array(32).fill(0x7e))];
+  const states = [
+    stateOf(1000n),
+    stateOf(5000n, PUB_A, 0x00, new Uint8Array(32).fill(0x7e)),
+  ];
   const cells = states.map(cell);
   const built = await buildKcc20Transfer({
     token: tokenOf("kcc20-standard"),
@@ -757,12 +813,15 @@ test("buildKcc20Transfer: a standard token returns the standard shape, seats uns
   // Nothing is signed at review time: the seat still holds its zero placeholder.
   const seat = plan.seats[0];
   const script = hexToBytes(built.transaction.inputs[0].signatureScript ?? "");
-  expect(script.subarray(seat.sigOffset, seat.sigOffset + 65).every((b) => b === 0)).toBe(true);
+  expect(
+    script.subarray(seat.sigOffset, seat.sigOffset + 65).every((b) => b === 0),
+  ).toBe(true);
 
   // sendKcc20Transfer signs the seat with signInputDigest, then the funding input, then submits.
   const submitted: Transaction[] = [];
   const wallet = {
-    signInputDigest: (tx: Transaction, i: number) => signInputDigest(tx, i, PRIV_A),
+    signInputDigest: (tx: Transaction, i: number) =>
+      signInputDigest(tx, i, PRIV_A),
     signTx: (tx: Transaction, scripts?: never) =>
       signTxWithScriptOptions(tx, scripts, PRIV_A),
   } as never;
@@ -772,7 +831,9 @@ test("buildKcc20Transfer: a standard token returns the standard shape, seats uns
   const signed = hexToBytes(tx.inputs[0].signatureScript ?? "");
   const sig = signed.subarray(seat.sigOffset, seat.sigOffset + 65);
   expect(sig[64]).toBe(0x01);
-  expect(schnorr.verify(sig.subarray(0, 64), schnorrSighash(toSdkTx(tx), 0), PUB_A)).toBe(true);
+  expect(
+    schnorr.verify(sig.subarray(0, 64), schnorrSighash(toSdkTx(tx), 0), PUB_A),
+  ).toBe(true);
   expect(tx.inputs[1].signatureScript).toBeTruthy();
 });
 

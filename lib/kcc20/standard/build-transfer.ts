@@ -59,7 +59,8 @@ export const allowedScriptUnits = (computeBudget: number) =>
 export function computeBudgetFor(sigChecks: number, otherUnits: number) {
   const units = sigChecks * SIGOP_SCRIPT_UNITS + otherUnits;
   return Math.ceil(
-    Math.max(0, units - FREE_SCRIPT_UNITS_PER_INPUT) / SCRIPT_UNITS_PER_COMPUTE_UNIT,
+    Math.max(0, units - FREE_SCRIPT_UNITS_PER_INPUT) /
+      SCRIPT_UNITS_PER_COMPUTE_UNIT,
   );
 }
 
@@ -68,7 +69,10 @@ export function computeBudgetFor(sigChecks: number, otherUnits: number) {
 // preflight measured at most 103,319 units of it (leader over three cells), so 400,000 is ~4×.
 export const SEAT_SIG_CHECKS = 1;
 export const SEAT_SCRIPT_HEADROOM = 400_000;
-export const SEAT_COMPUTE_BUDGET = computeBudgetFor(SEAT_SIG_CHECKS, SEAT_SCRIPT_HEADROOM);
+export const SEAT_COMPUTE_BUDGET = computeBudgetFor(
+  SEAT_SIG_CHECKS,
+  SEAT_SCRIPT_HEADROOM,
+);
 
 // P2PK funding: two free pushes and one OP_CHECKSIG, 100,001 units measured. The free
 // allowance is the headroom; this lands on the SDK's FUNDING_COMPUTE (10).
@@ -124,7 +128,9 @@ export function splitProgram(R: Uint8Array): ProgramParts {
   if (c.family !== "kcc20-standard" || c.stateOffset !== PROGRAM_PREFIX_LEN) {
     throw new Kcc20StandardBuildError(
       "not-standard",
-      c.family === "unknown" ? c.reason : `not a standard program (${c.family})`,
+      c.family === "unknown"
+        ? c.reason
+        : `not a standard program (${c.family})`,
     );
   }
   return {
@@ -141,7 +147,10 @@ export function successorProgram(R: Uint8Array, next: KCC20State): Uint8Array {
   const successor = concatBytes(prefix, encodeState(next), suffix);
   if (
     successor.length !== R.length ||
-    !bytesEqual(successor.subarray(2, PROGRAM_PREFIX_LEN), R.subarray(2, PROGRAM_PREFIX_LEN))
+    !bytesEqual(
+      successor.subarray(2, PROGRAM_PREFIX_LEN),
+      R.subarray(2, PROGRAM_PREFIX_LEN),
+    )
   ) {
     throw new Kcc20StandardBuildError(
       "layout",
@@ -234,7 +243,10 @@ export function assertFamilyRules(
     witness: leaderWitness,
   });
   if (!v.ok) {
-    throw new Kcc20StandardBuildError("rule-violation", `${v.code}: ${v.reason}`);
+    throw new Kcc20StandardBuildError(
+      "rule-violation",
+      `${v.code}: ${v.reason}`,
+    );
   }
 }
 
@@ -295,9 +307,15 @@ export function planStandardTransfer({
   amount: bigint;
 }): StandardFamily {
   if (amount <= 0n) {
-    throw new Kcc20StandardBuildError("invalid-amount", "Amount must be positive");
+    throw new Kcc20StandardBuildError(
+      "invalid-amount",
+      "Amount must be positive",
+    );
   }
-  const parsed = pieces.map((piece) => ({ piece, program: splitProgram(piece.redeem) }));
+  const parsed = pieces.map((piece) => ({
+    piece,
+    program: splitProgram(piece.redeem),
+  }));
   if (pieces.some((p) => !supportsStandardTransfer(p.redeem))) {
     throw new Kcc20StandardBuildError(
       "unsupported-template",
@@ -332,12 +350,16 @@ export function planStandardTransfer({
     },
   ];
   // Change keeps the leader's owner and borrow policy; an exact spend emits no change state.
-  if (total > amount) nextStates.push({ ...leader.state, amount: total - amount });
+  if (total > amount)
+    nextStates.push({ ...leader.state, amount: total - amount });
 
   const leaderWitness = ownerWitnessPlaceholder(leader.state, pubkey32, true);
   assertFamilyRules(consumed, nextStates, leaderWitness);
   if (nextStates.length > MAX_TOKEN_OUTPUTS) {
-    throw new Kcc20StandardBuildError("rule-violation", "too many token outputs");
+    throw new Kcc20StandardBuildError(
+      "rule-violation",
+      "too many token outputs",
+    );
   }
 
   const programs = picked.map((p) => p.piece.redeem);
@@ -351,7 +373,9 @@ export function planStandardTransfer({
         ),
   );
   // Every continuation inherits the leader's template; the leader validates the whole family.
-  const successors = nextStates.map((s) => successorProgram(programs[LEADER_INDEX], s));
+  const successors = nextStates.map((s) =>
+    successorProgram(programs[LEADER_INDEX], s),
+  );
 
   return {
     leaderIndex: LEADER_INDEX,
@@ -451,15 +475,21 @@ export async function signStandardSeats(
         `seat ${s.inputIndex} signature does not verify under SIGHASH_ALL`,
       );
     }
-    patched.push({ inputIndex: s.inputIndex, hex: bytesToHex(patchSeat(s, sig)) });
+    patched.push({
+      inputIndex: s.inputIndex,
+      hex: bytesToHex(patchSeat(s, sig)),
+    });
   }
   const inputs = tx.inputs;
-  for (const { inputIndex, hex } of patched) inputs[inputIndex].signatureScript = hex;
+  for (const { inputIndex, hex } of patched)
+    inputs[inputIndex].signatureScript = hex;
   tx.inputs = inputs;
   return tx;
 }
 
-export type BuiltStandardTransfer = BuiltKcc20Transfer & { family: StandardFamily };
+export type BuiltStandardTransfer = BuiltKcc20Transfer & {
+  family: StandardFamily;
+};
 
 /** Pure half: plan, fund through the legacy fee path, leave seats as placeholders. */
 export function assembleStandardTransfer({
@@ -548,6 +578,11 @@ export async function buildStandardTransfer({
     address,
     feeRate,
   });
-  await signStandardSeats(built.transaction, built.family.seats, pubkey32, sign);
+  await signStandardSeats(
+    built.transaction,
+    built.family.seats,
+    pubkey32,
+    sign,
+  );
   return built;
 }
