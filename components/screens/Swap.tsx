@@ -314,10 +314,20 @@ export default function Swap() {
       // `address` carries the covenant id. Registry display fields; the
       // quote refuses a token whose entry does not verify.
       for (const m of kronMarkets ?? []) {
-        const held = kcc20Tokens?.find((t) => t.covenantId === m.covenantId);
-        const raw = held
-          ? Number(formatUnits(held.spendable, m.entry.decimals))
-          : undefined;
+        // KRON sells legacy pieces only, so a standard row for the same
+        // covenant must not count towards the displayed balance.
+        const legacyRows = kcc20Tokens?.filter(
+          (t) => t.covenantId === m.covenantId && t.family === "kron-legacy",
+        );
+        const raw =
+          legacyRows && legacyRows.length > 0
+            ? Number(
+                formatUnits(
+                  legacyRows.reduce((s, t) => s + t.spendable, 0n),
+                  m.entry.decimals,
+                ),
+              )
+            : undefined;
         list.push({
           key: `kaspa:${m.covenantId}`,
           chain: "kaspa",
@@ -592,9 +602,12 @@ export default function Swap() {
           : 0,
       }
     : evmFee;
-  const kronHeld = kcc20Tokens?.find(
-    (t) => t.covenantId === tokenIn?.address,
-  )?.spendable;
+  // Sell balance: legacy pieces only, summed across rows (one per commitment).
+  const kronHeld = kcc20Tokens
+    ?.filter(
+      (t) => t.covenantId === tokenIn?.address && t.family === "kron-legacy",
+    )
+    .reduce((s, t) => s + t.spendable, 0n);
   const kronBalanceIn = isNativeIn
     ? kasBalance === undefined
       ? undefined
