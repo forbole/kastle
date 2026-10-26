@@ -15,6 +15,11 @@ import {
   Kcc20Piece,
   Kcc20Token,
 } from "@/lib/kcc20";
+import {
+  assembleStandardTransfer,
+  signStandardSeats,
+  StandardFamily,
+} from "./standard/build-transfer";
 
 // ADR-009: the covenant is compiled for at most 3 token inputs and outputs.
 export const MAX_TOKEN_INPUTS = 3;
@@ -51,6 +56,8 @@ export type BuiltKcc20Transfer = {
   amount: bigint;
   // Sompi leaving the wallet's plain KAS: the fee plus the dust the covenant outputs carry beyond their inputs.
   kasDebit: bigint;
+  // Set for a KCC-20 standard spend: its token seats still hold placeholder signatures.
+  standard?: { plan: StandardFamily; pubkey32: Uint8Array };
 };
 
 const unsupportedSchema = () =>
@@ -138,7 +145,6 @@ export async function buildKcc20Transfer({
   rpc: RpcClient;
   feeRate?: number;
 }): Promise<BuiltKcc20Transfer> {
-  if (token.family === "kcc20-standard") throw unsupportedSchema();
   if (amount <= 0n) {
     throw new Kcc20TransferError("invalid-amount", "Amount must be positive");
   }
@@ -152,6 +158,21 @@ export async function buildKcc20Transfer({
     address,
     token.covenantId,
   );
+  if (token.family === "kcc20-standard") {
+    const pubkey32 = recipientPubkey(address);
+    const { entries } = await rpc.getUtxosByAddresses([address]);
+    const { family: plan, ...built } = assembleStandardTransfer({
+      covenantId: token.covenantId,
+      pieces: standard,
+      pubkey32,
+      recipient,
+      amount,
+      funding: entries,
+      address,
+      feeRate,
+    });
+    return { ...built, standard: { plan, pubkey32 } };
+  }
   // Standard pieces never reach selectPieces, which would report them as a missing balance.
   if (pieces.length === 0 && standard.length > 0) throw unsupportedSchema();
   const { entries } = await rpc.getUtxosByAddresses([address]);
@@ -344,9 +365,21 @@ export function signKcc20Transfer(
 
 export async function sendKcc20Transfer(
   wallet: IWallet,
-  built: Pick<BuiltKcc20Transfer, "transaction" | "fundingInputIndexes">,
+  built: Pick<
+    BuiltKcc20Transfer,
+    "transaction" | "fundingInputIndexes" | "standard"
+  >,
   rpc: RpcClient,
 ) {
+  // Seats first: each is verified against the plan's key before funding is signed.
+  if (built.standard) {
+    await signStandardSeats(
+      built.transaction,
+      built.standard.plan.seats,
+      built.standard.pubkey32,
+      (inputIndex) => wallet.signInputDigest(built.transaction, inputIndex),
+    );
+  }
   const signed = await signKcc20Transfer(wallet, built);
   const { transactionId } = await rpc.submitTransaction({
     transaction: signed,

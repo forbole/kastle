@@ -139,10 +139,6 @@ export default function Kcc20Send() {
     );
   }
 
-  if (step === "details" && token?.family === "kcc20-standard") {
-    return <Unavailable message={UNSUPPORTED_SCHEMA_COPY} onBack={onClose} />;
-  }
-
   if (step === "confirm" && built && sent && account) {
     return (
       <SendConfirmPage

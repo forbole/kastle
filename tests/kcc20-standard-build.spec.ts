@@ -3,7 +3,7 @@ import path from "node:path";
 import { registerHooks } from "node:module";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
-import { curve, spend } from "@kronsdk/kron-sdk";
+import { client, curve, spend } from "@kronsdk/kron-sdk";
 import {
   patchPlaceholder,
   schnorrSighash,
@@ -13,9 +13,12 @@ import { schnorr } from "@noble/curves/secp256k1";
 import { blake2b } from "@noble/hashes/blake2b";
 import { bytesToHex, concatBytes, hexToBytes } from "@noble/hashes/utils";
 import init, {
+  addressFromScriptPublicKey,
   createInputSignature,
   PrivateKey,
   payToAddressScript,
+  payToScriptHashScript,
+  Transaction,
 } from "@/wasm/core/kaspa";
 import { parseArtifact } from "@/lib/kcc20/standard/artifact";
 import { hash } from "@/lib/kcc20/standard/primitives";
@@ -57,7 +60,11 @@ const {
   SIGOP_SCRIPT_UNITS,
   toSdkTx,
 } = await import("@/lib/kcc20/standard/build-transfer");
-const { signTxWithScriptOptions } = await import("@/lib/wallet/sign-script");
+const { signInputDigest, signTxWithScriptOptions } = await import(
+  "@/lib/wallet/sign-script"
+);
+const { buildKcc20Transfer, Kcc20TransferError, sendKcc20Transfer } =
+  await import("@/lib/kcc20/transfer");
 
 // Synthetic and offline: two fixed noble keypairs, token cells materialized from the fixture
 // artifact, one P2PK funding UTXO. Nothing is broadcast and no script engine runs (the vendored
@@ -618,4 +625,114 @@ test("patchSeat: refuses a seat pre-filled before the first patch", () => {
   expect(() =>
     patchSeat({ ...s, script }, bip340(PRIV_A, new Uint8Array(32).fill(7))),
   ).toThrow(/no placeholder at sigOffset/);
+});
+
+// buildKcc20Transfer end to end, offline: the indexer lists the cells, a fake rpc serves them
+// as live covenant UTXOs at their P2SH addresses and the funding UTXO at the wallet address.
+const p2shOf = (c: StandardSpendPiece) =>
+  addressFromScriptPublicKey(payToScriptHashScript(c.redeem), "mainnet")!.toString();
+
+function fakeRpc(cells: StandardSpendPiece[], submitted: Transaction[] = []) {
+  return {
+    getUtxosByAddresses: async (addresses: string[]) => ({
+      entries: addresses.includes(addressA)
+        ? [fundingUtxo()]
+        : cells
+            .filter((c) => addresses.includes(p2shOf(c)))
+            .map((c) => ({
+              outpoint: c.outpoint,
+              address: p2shOf(c),
+              entry: { covenantId: TOKEN_ID, amount: c.value },
+            })),
+    }),
+    submitTransaction: async ({ transaction }: { transaction: Transaction }) => {
+      submitted.push(transaction);
+      return { transactionId: transaction.id };
+    },
+  } as never;
+}
+
+async function withIndexer<T>(cells: StandardSpendPiece[], run: () => Promise<T>) {
+  const proto = client.IndexerClient.prototype;
+  const original = proto.tokenUtxos;
+  proto.tokenUtxos = async () =>
+    cells.map((c) => ({ outpoint: c.outpoint, redeemScriptHex: bytesToHex(c.redeem) })) as never;
+  try {
+    return await run();
+  } finally {
+    proto.tokenUtxos = original;
+  }
+}
+
+const tokenOf = (family: "kron-legacy" | "kcc20-standard") => ({
+  tick: "STD",
+  covenantId: TOKEN_ID,
+  family,
+  meta: undefined,
+});
+
+test("buildKcc20Transfer: a standard token returns the standard shape, seats unsigned until send", async () => {
+  const cells = [cell(stateOf(1000n), 0)];
+  const built = await withIndexer(cells, () =>
+    buildKcc20Transfer({
+      token: tokenOf("kcc20-standard"),
+      address: addressA,
+      recipient: addressB,
+      amount: 600n,
+      rpc: fakeRpc(cells),
+    }),
+  );
+  expect(built.transaction).toBeDefined();
+  expect(String(built.amount)).toBe("600");
+  expect(built.fee > 0n).toBe(true);
+  // Recipient + change continuations carry the dust floor; the one consumed cell returns its own.
+  expect(String(built.kasDebit)).toBe(
+    String(built.fee + 2n * spend.COVENANT_DUST - spend.COVENANT_DUST),
+  );
+  const plan = built.standard!.plan;
+  expect(bytesToHex(built.standard!.pubkey32)).toBe(bytesToHex(PUB_A));
+  expect(plan.nextStates.map((s) => String(s.amount))).toEqual(["600", "400"]);
+  expect(plan.seats.map((s) => s.inputIndex)).toEqual([0]);
+  expect(built.fundingInputIndexes).toEqual([1]);
+  // Nothing is signed at review time: the seat still holds its zero placeholder.
+  const seat = plan.seats[0];
+  const script = hexToBytes(built.transaction.inputs[0].signatureScript ?? "");
+  expect(script.subarray(seat.sigOffset, seat.sigOffset + 65).every((b) => b === 0)).toBe(true);
+
+  // sendKcc20Transfer signs the seat with signInputDigest, then the funding input, then submits.
+  const submitted: Transaction[] = [];
+  const wallet = {
+    signInputDigest: (tx: Transaction, i: number) => signInputDigest(tx, i, PRIV_A),
+    signTx: (tx: Transaction, scripts?: never) =>
+      signTxWithScriptOptions(tx, scripts, PRIV_A),
+  } as never;
+  await sendKcc20Transfer(wallet, built, fakeRpc(cells, submitted));
+  expect(submitted).toHaveLength(1);
+  const tx = submitted[0];
+  const signed = hexToBytes(tx.inputs[0].signatureScript ?? "");
+  const sig = signed.subarray(seat.sigOffset, seat.sigOffset + 65);
+  expect(sig[64]).toBe(0x01);
+  expect(schnorr.verify(sig.subarray(0, 64), schnorrSighash(toSdkTx(tx), 0), PUB_A)).toBe(true);
+  expect(tx.inputs[1].signatureScript).toBeTruthy();
+});
+
+test("buildKcc20Transfer: a legacy token keeps its legacy errors and never takes the standard path", async () => {
+  const cells = [cell(stateOf(1000n), 0)];
+  const codeOf = (cs: StandardSpendPiece[]) =>
+    withIndexer(cs, () =>
+      buildKcc20Transfer({
+        token: tokenOf("kron-legacy"),
+        address: addressA,
+        recipient: addressB,
+        amount: 600n,
+        rpc: fakeRpc(cs),
+      }),
+    ).then(
+      () => "built",
+      (e) => (e instanceof Kcc20TransferError ? e.code : `other: ${e}`),
+    );
+  // Only standard pieces on a row marked legacy: the pre-existing guard, unchanged.
+  expect(await codeOf(cells)).toBe("unsupported-schema");
+  // No pieces at all: the legacy selector's own error.
+  expect(await codeOf([])).toBe("insufficient-balance");
 });

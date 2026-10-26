@@ -23,7 +23,7 @@ export const KRON_REGISTRY_URL = "https://api.kron.technology";
 
 export type TokenListEntry = verify.SignedTokenList["tokens"][number];
 
-// Which state family a row's pieces decode as; only kron-legacy has a send builder.
+// Which state family a row's pieces decode as; buildKcc20Transfer dispatches on it.
 export type Kcc20Family = "kron-legacy" | "kcc20-standard";
 
 export type Kcc20Token = {
@@ -96,7 +96,7 @@ export async function verifiedPieces(
 }
 
 // The same node binding as Kcc20Piece, in the KCC-20 standard family.
-// Read-only: this version neither counts nor spends one.
+// Spent by the standard transfer builder, but not counted in the row's balance.
 export type Kcc20StandardPiece = {
   outpoint: { transactionId: string; index: number };
   state: KCC20State;

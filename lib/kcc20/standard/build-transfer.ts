@@ -30,7 +30,7 @@ import {
   WITNESS_PATH,
 } from "./validate";
 
-// FEASIBILITY SPIKE, not wired into any screen. Builds a KCC-20 standard `transfer`: token cells
+// Wired into the KCC-20 send screen through buildKcc20Transfer. Builds a KCC-20 standard `transfer`: token cells
 // first (leader = input 0, delegators after), funding after, continuations bound to the leader.
 // Each seat's owner signature sits inside its witness push, so seats are built with a 65-byte
 // zero placeholder, the transaction is funded at its final size, then each seat is signed over
