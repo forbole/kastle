@@ -424,7 +424,9 @@ export async function standardSpendPieces(
   rpc: RpcClient,
   kascov: KascovFetchers = LIVE_KASCOV,
 ): Promise<Kcc20StandardPiece[]> {
-  const pk = /^20([0-9a-f]{64})ac$/.exec(payToAddressScript(address).script)?.[1];
+  const pk = /^20([0-9a-f]{64})ac$/.exec(
+    payToAddressScript(address).script,
+  )?.[1];
   if (!pk) return [];
   const { owned } = await ownedStandardCells(
     token.covenantId,

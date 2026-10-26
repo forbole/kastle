@@ -16,7 +16,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
  */
 function loadFeatureFlagsModule(
   react: object,
-  { isProduction = false, setTimeout = globalThis.setTimeout } = {},
+  {
+    isProduction = false,
+    setTimeout = globalThis.setTimeout,
+    localOptIn = false,
+  } = {},
 ): FeatureFlagsModule {
   const source = fs.readFileSync(
     path.join(__dirname, "../hooks/useFeatureFlags.ts"),
@@ -32,6 +36,9 @@ function loadFeatureFlagsModule(
     react,
     "@/contexts/PostHogWrapperProvider.tsx": { PostHogWrapperContext: {} },
     "@/lib/utils.ts": { isProduction },
+    // Carries the local opt-in, whose `import.meta` cannot run as CommonJS.
+    "@/lib/kcc20/local-opt-in": { standardLocalOptIn: () => localOptIn },
+    "@/lib/kcc20/local-opt-in.ts": { standardLocalOptIn: () => localOptIn },
   };
   const module = { exports: {} as FeatureFlagsModule };
   new Function("require", "module", "exports", "setTimeout", outputText)(
@@ -100,21 +107,53 @@ function mountProductionFeatureFlags() {
 }
 
 /** Runs useFeatureFlags against a PostHog whose getFeatureFlags() returns `featureFlags`. */
-function renderFeatureFlags(featureFlags: FeatureFlags) {
+function renderFeatureFlags(
+  featureFlags: FeatureFlags,
+  options: { isProduction?: boolean; localOptIn?: boolean } = {},
+) {
   let state = {};
-  const render = loadFeatureFlagsModule({
-    useContext: () => ({
-      postHog: {
-        getFeatureFlags: () => featureFlags,
-        onFeatureFlags: () => () => {},
-      },
-    }),
-    useState: () => [state, (next: object) => (state = next)],
-    useEffect: (effect: () => void) => effect(),
-  }).useFeatureFlags;
+  const render = loadFeatureFlagsModule(
+    {
+      useContext: () => ({
+        postHog: {
+          getFeatureFlags: () => featureFlags,
+          onFeatureFlags: () => () => {},
+        },
+      }),
+      useState: () => [state, (next: object) => (state = next)],
+      useEffect: (effect: () => void) => effect(),
+    },
+    options,
+  ).useFeatureFlags;
   render(); // the effect copies the PostHog flags into state
   return render();
 }
+
+// The standard rows read kascov, a third party: off unless the flag says true
+// or a local build opts in.
+test.describe("kcc20 standard flag", () => {
+  test("is off by default and needs an explicit true", () => {
+    expect(renderFeatureFlags({}).isKcc20StandardEnabled).toBe(false);
+    expect(
+      renderFeatureFlags({ kcc20_standard_enabled: false })
+        .isKcc20StandardEnabled,
+    ).toBe(false);
+    expect(
+      renderFeatureFlags({ kcc20_standard_enabled: true })
+        .isKcc20StandardEnabled,
+    ).toBe(true);
+  });
+
+  test("a local build can opt in, but production cannot", () => {
+    expect(
+      renderFeatureFlags({}, { localOptIn: true }).isKcc20StandardEnabled,
+    ).toBe(true);
+    expect(
+      renderFeatureFlags({}, { localOptIn: true, isProduction: true })
+        .isKcc20StandardEnabled,
+    ).toBe(false);
+  });
+});
 
 // swap_enabled_extension / bridge_enabled_extension are default-on kill
 // switches: only an explicit off may hide the feature.

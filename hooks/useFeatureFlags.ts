@@ -1,6 +1,7 @@
 import { useContext, useEffect, useState } from "react";
 import { PostHogWrapperContext } from "@/contexts/PostHogWrapperProvider.tsx";
 import { isProduction } from "@/lib/utils.ts";
+import { standardLocalOptIn } from "@/lib/kcc20/local-opt-in";
 
 const SWAP_FLAG_KEY = "swap_enabled_extension";
 const BRIDGE_FLAG_KEY = "bridge_enabled_extension";
@@ -76,7 +77,7 @@ export function useFeatureFlags() {
     isKcc20StandardEnabled:
       flags[KCC20_STANDARD_FLAG_KEY] === true ||
       // Local builds can opt in without touching the PostHog flag.
-      (!isProduction && import.meta.env.VITE_KCC20_STANDARD === "1"),
+      (!isProduction && standardLocalOptIn()),
     // Only an explicit `true` enables; dev builds force it on (mobile: __DEV__).
     isActivityEnabled: !isProduction || flags[ACTIVITY_FLAG_KEY] === true,
     // Deciding before PostHog's flags arrive would bounce a flagged-on user,

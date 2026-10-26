@@ -24,7 +24,7 @@ export const STANDARD_TEMPLATES: Readonly<Record<string, Template>> = {
       "7c67a1e0cbe3767d1cb5dfaa3b0010d6bd2d123c016fb617b6a19abafa6087df",
   },
   // 11458-byte program, the build most new tokens use.
-  "ff3ae732e3a2819bf9181f5aed6b1e9d0f7abea70a1dd655b8e777cbcbd2422b": {
+  ff3ae732e3a2819bf9181f5aed6b1e9d0f7abea70a1dd655b8e777cbcbd2422b: {
     suffixLen: 11312,
     suffixHash:
       "4d692c5148a094b966542f9cbf5728eee4e28d70da54de12dffd6a8a95fe9807",

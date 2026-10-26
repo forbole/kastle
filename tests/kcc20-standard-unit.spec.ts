@@ -541,7 +541,9 @@ test("7. 20,000 generated standard states never classify as kron-legacy", () => 
 });
 
 // Two real mainnet programs, as kascov serves them: the small build and the large one.
-const MAINNET_PROGRAM = hex(fixture("standard-program.hex").toString("utf8").trim());
+const MAINNET_PROGRAM = hex(
+  fixture("standard-program.hex").toString("utf8").trim(),
+);
 const MAINNET_PROGRAM_FF3 = hex(
   fixture("standard-program-ff3.hex").toString("utf8").trim(),
 );
