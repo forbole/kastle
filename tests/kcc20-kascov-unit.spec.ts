@@ -363,7 +363,7 @@ test("isolation: the first holding's cells 500 does not drop the second's row", 
       expect(row.covenantId).toBe(COVID);
       expect(row.family).toBe("kcc20-standard");
       expect(String(row.amount)).toBe("500");
-      expect(String(row.spendable)).toBe("0");
+      expect(String(row.spendable)).toBe("500");
       expect(row.meta).toEqual({
         symbol: "GOOD",
         name: "GOOD Token",

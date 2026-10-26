@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { formatUnits, parseUnits } from "viem";
 import PageHeader from "@/ui/general/PageHeader";
 import Button from "@/ui/general/Button";
@@ -50,11 +50,18 @@ function Unavailable({
 export default function Kcc20Send() {
   const navigate = useNavigate();
   const { covenantId } = useParams();
+  const [searchParams] = useSearchParams();
+  // A token id can have one row per extension commitment; the route names the row.
+  const rowExt = searchParams.get("ext");
   const { account } = useWalletManager();
   const { rpcClient, networkId } = useRpcClientStateful();
   const signer = useKaspaHotWalletSigner();
   const { data: tokens, isLoading } = useKcc20Tokens(account?.address);
-  const token = tokens?.find((t) => t.covenantId === covenantId);
+  const token = tokens?.find(
+    (t) =>
+      t.covenantId === covenantId &&
+      (!rowExt || t.extensionCommitment === rowExt),
+  );
 
   const [step, setStep] = useState<Step>("details");
   const [recipient, setRecipient] = useState("");

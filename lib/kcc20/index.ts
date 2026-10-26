@@ -440,9 +440,8 @@ async function standardRowsFor(
       family: "kcc20-standard" as const,
       tick: holding.claimedTicker ?? "",
       amount: group.reduce((s, p) => s + p.state.amount, 0n),
-      // Display-only: a standard transfer needs a signature inside the
-      // witness argument, which the signer cannot express.
-      spendable: 0n,
+      // Every piece here is owned and node-verified, so the whole balance can be spent.
+      spendable: group.reduce((s, p) => s + p.state.amount, 0n),
       meta,
       extensionCommitment: ext,
     }))
