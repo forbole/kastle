@@ -10,7 +10,7 @@ import init, {
   PrivateKey,
   RpcClient,
 } from "@/wasm/core/kaspa";
-import { fetchKcc20Tokens } from "@/lib/kcc20";
+import { fetchKcc20Tokens, standardSpendPieces } from "@/lib/kcc20";
 import { classifyRedeem } from "@/lib/kcc20/classify";
 import {
   fetchOwnerCells,
@@ -420,4 +420,104 @@ test("kascov down: the standard path yields nothing and never throws", async () 
       }),
     ).toEqual([]);
   });
+});
+
+test("KRON down with the flag on: standard rows survive, legacy is empty", async () => {
+  const redeem = program(ownState(500n));
+  const c = cell(1, redeem, 500n);
+  const { rpc } = node([{ n: 1, redeem, covid: COVID }]);
+  const downIndexer = {
+    tokenlist: async () => {
+      throw new Error("KRON 503");
+    },
+  } as unknown as client.IndexerClient;
+  await withFetch(
+    {
+      kascov: (url) =>
+        url.pathname.startsWith("/data/mainnet/addr/")
+          ? { token_holdings: [holding(COVID, "STD")] }
+          : {
+              cells:
+                url.searchParams.get("owner") === c.owner ? [rawCell(c)] : [],
+            },
+    },
+    async () => {
+      const rows = await fetchKcc20Tokens(address, rpc, REST, {
+        standard: true,
+        indexer: downIndexer,
+        registry: fakeRegistry([]),
+      });
+      expect(rows).toHaveLength(1);
+      expect(rows[0].family).toBe("kcc20-standard");
+      expect(String(rows[0].amount)).toBe("500");
+
+      // Flag off keeps today's behaviour: the outage still rejects.
+      await expect(
+        fetchKcc20Tokens(address, rpc, REST, {
+          indexer: downIndexer,
+          registry: fakeRegistry([]),
+        }),
+      ).rejects.toThrow("KRON 503");
+    },
+  );
+});
+
+test("template allowlist: an off-template piece counts in amount, never in spendable", async () => {
+  const canonical = program(ownState(500n));
+  // Same state framing and dispatch tag, one suffix byte off: still classifies as standard.
+  const offTemplate = program(ownState(300n));
+  offTemplate[offTemplate.length - 1] ^= 0x01;
+  expect(classifyRedeem(offTemplate).family).toBe("kcc20-standard");
+  const cells = [cell(1, canonical, 500n), cell(2, offTemplate, 300n)];
+  const { rpc } = node([
+    { n: 1, redeem: canonical, covid: COVID },
+    { n: 2, redeem: offTemplate, covid: COVID },
+  ]);
+  const kascov = (url: URL) =>
+    url.pathname.startsWith("/data/mainnet/addr/")
+      ? { token_holdings: [holding(COVID, "STD")] }
+      : {
+          cells:
+            url.searchParams.get("owner") === cells[0].owner
+              ? cells.map(rawCell)
+              : [],
+        };
+
+  await withFetch({ kascov }, async () => {
+    const [row] = await fetchKcc20Tokens(address, rpc, REST, {
+      standard: true,
+      indexer: fakeIndexer([]),
+      registry: fakeRegistry([]),
+    });
+    expect(String(row.amount)).toBe("800");
+    expect(String(row.spendable)).toBe("500");
+    // The builder gets exactly what `spendable` counted.
+    const pieces = await standardSpendPieces(row, address, rpc);
+    expect(pieces.map((p) => p.outpoint)).toEqual([outpoint(1)]);
+  });
+
+  // Every piece canonical: the whole row stays spendable, so the send action shows.
+  await withFetch(
+    {
+      kascov: (url) =>
+        url.pathname.startsWith("/data/mainnet/addr/")
+          ? { token_holdings: [holding(COVID, "STD")] }
+          : {
+              cells:
+                url.searchParams.get("owner") === cells[0].owner
+                  ? [rawCell(cells[0])]
+                  : [],
+            },
+    },
+    async () => {
+      const [row] = await fetchKcc20Tokens(address, rpc, REST, {
+        standard: true,
+        indexer: fakeIndexer([]),
+        registry: fakeRegistry([]),
+      });
+      expect(String(row.spendable)).toBe(String(row.amount));
+      expect(row.spendable > 0n).toBe(true);
+      expect(await standardSpendPieces(row, address, rpc)).toHaveLength(1);
+    },
+  );
 });

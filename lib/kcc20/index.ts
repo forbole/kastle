@@ -15,6 +15,7 @@ import {
 } from "./providers/kascov";
 import { hash } from "./standard/primitives";
 import type { KCC20State } from "./standard/state";
+import { supportsStandardTransfer } from "./standard/templates";
 import { StandardPiece, verifyStandardCells } from "./standard/verify";
 
 // Mainnet only — KRON publishes no testnet indexer or registry yet.
@@ -304,9 +305,11 @@ export async function fetchKcc20Tokens(
   restApi: string,
   { standard = false, ...deps }: { standard?: boolean } & Kcc20TokenDeps = {},
 ): Promise<Kcc20Token[]> {
+  if (!standard) return fetchLegacyTokens(address, rpc, restApi, deps);
+  // A KRON outage must not discard verified standard rows.
   const [legacy, standardRows] = await Promise.all([
-    fetchLegacyTokens(address, rpc, restApi, deps),
-    standard ? fetchStandardTokens(address, rpc, deps.fetchKascov) : [],
+    fetchLegacyTokens(address, rpc, restApi, deps).catch(() => []),
+    fetchStandardTokens(address, rpc, deps.fetchKascov),
   ]);
   return [...legacy, ...standardRows];
 }
@@ -395,11 +398,13 @@ export async function standardSpendPieces(
     hexToBytes(`0x${pk}`),
     kascov,
   );
+  // Same pieces the row's `spendable` counted, so the builder never meets an unknown template.
   return owned
     .filter(
-      ({ piece }) =>
+      ({ piece, cell }) =>
         bytesToHex(piece.state.extensionCommitment).slice(2) ===
-        token.extensionCommitment,
+          token.extensionCommitment &&
+        supportsStandardTransfer(hexToBytes(`0x${cell.programHex}`)),
     )
     .map(({ piece, cell }) => ({
       outpoint: piece.outpoint,
@@ -424,14 +429,22 @@ async function standardRowsFor(
   );
   const pieces = owned.map((o) => o.piece);
 
-  const groups = new Map<string, StandardPiece[]>();
+  const groups = new Map<
+    string,
+    { piece: StandardPiece; supported: boolean }[]
+  >();
   const disagreeing = new Set<string>();
   for (const { piece: p, cell } of owned) {
     const ext = cell.extensionCommitment;
     if (bytesToHex(p.state.extensionCommitment).slice(2) !== ext)
       disagreeing.add(ext);
-    groups.set(ext, [...(groups.get(ext) ?? []), p]);
+    const supported = supportsStandardTransfer(
+      hexToBytes(`0x${cell.programHex}`),
+    );
+    groups.set(ext, [...(groups.get(ext) ?? []), { piece: p, supported }]);
   }
+  const sum = (g: { piece: StandardPiece }[]) =>
+    g.reduce((s, { piece }) => s + piece.state.amount, 0n);
   const meta = claimedMeta(holding);
   return [...groups]
     .filter(([ext]) => !disagreeing.has(ext))
@@ -439,9 +452,9 @@ async function standardRowsFor(
       covenantId: pieces[0].tokenId,
       family: "kcc20-standard" as const,
       tick: holding.claimedTicker ?? "",
-      amount: group.reduce((s, p) => s + p.state.amount, 0n),
-      // Every piece here is owned and node-verified, so the whole balance can be spent.
-      spendable: group.reduce((s, p) => s + p.state.amount, 0n),
+      amount: sum(group),
+      // Owned and node-verified is not enough: only a template the builder knows can be spent.
+      spendable: sum(group.filter((g) => g.supported)),
       meta,
       extensionCommitment: ext,
     }))

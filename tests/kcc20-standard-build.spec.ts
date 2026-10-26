@@ -65,6 +65,9 @@ const { signInputDigest, signTxWithScriptOptions } = await import(
 );
 const { buildKcc20Transfer, Kcc20TransferError, sendKcc20Transfer } =
   await import("@/lib/kcc20/transfer");
+const { kcc20BuildErrorCopy } = await import(
+  "@/components/send/kcc20-send/errorCopy"
+);
 
 // Synthetic and offline: two fixed noble keypairs, token cells materialized from the fixture
 // artifact, one P2PK funding UTXO. Nothing is broadcast and no script engine runs (the vendored
@@ -493,6 +496,21 @@ const rejects = async (p: Promise<unknown> | (() => unknown), code: string, re?:
 
 const leaderWitness = () => concatBytes(u8(0x00), new Uint8Array(65));
 
+test("negative: a piece off the canonical template", async () => {
+  const off = cell(stateOf(400n), 1);
+  off.redeem[off.redeem.length - 1] ^= 0x01;
+  // Rejected even when the canonical piece alone would cover the amount.
+  await rejects(
+    build([cell(stateOf(1000n), 0), off], 600n),
+    "unsupported-template",
+  );
+  expect(
+    kcc20BuildErrorCopy(
+      new Kcc20StandardBuildError("unsupported-template", "x"),
+    ),
+  ).toMatch(/cannot send yet/);
+});
+
 test("negative: amount not preserved", async () => {
   await rejects(
     () =>
@@ -540,6 +558,30 @@ test("negative: 4 token inputs", async () => {
     "rule-violation",
     /over-max-token-inputs/,
   );
+});
+
+test("send screen copy: a standard build error reads as an actionable sentence; legacy copy unchanged", async () => {
+  const quarter = [0, 1, 2, 3].map((i) => cell(stateOf(250n), i));
+  const caught = await build(quarter, 1000n).catch((e) => e);
+  expect(caught).toBeInstanceOf(Kcc20StandardBuildError);
+  expect(kcc20BuildErrorCopy(caught)).toMatch(/split across too many pieces/);
+  expect(
+    kcc20BuildErrorCopy(
+      new Kcc20StandardBuildError("insufficient-balance", "Not enough"),
+    ),
+  ).toMatch(/enough spendable balance/);
+  expect(kcc20BuildErrorCopy(new Error("boom"))).toBe(
+    "Could not build the transfer",
+  );
+  // Legacy: the remapped code keeps its copy, every other code keeps the builder message.
+  expect(
+    kcc20BuildErrorCopy(new Kcc20TransferError("unsupported-schema", "x")),
+  ).toBe(
+    "This token uses the KCC-20 standard, which this version cannot send yet.",
+  );
+  expect(
+    kcc20BuildErrorCopy(new Kcc20TransferError("fragmented", "legacy words")),
+  ).toBe("legacy words");
 });
 
 test("negative: negative amount", async () => {

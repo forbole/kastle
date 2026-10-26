@@ -14,21 +14,13 @@ import useWalletManager from "@/hooks/wallet/useWalletManager";
 import {
   BuiltKcc20Transfer,
   buildKcc20Transfer,
-  Kcc20TransferError,
   sendKcc20Transfer,
 } from "@/lib/kcc20/transfer";
+import { kcc20BuildErrorCopy, kcc20SendErrorCopy } from "./errorCopy";
 
 type Step = "details" | "confirm" | "success" | "fail";
 
 const KAS_DECIMALS = 8;
-
-const UNSUPPORTED_SCHEMA_COPY =
-  "This token uses the KCC-20 standard, which this version cannot send yet.";
-
-// Codes whose builder message is not the copy the user should read.
-const ERROR_COPY: Partial<Record<Kcc20TransferError["code"], string>> = {
-  "unsupported-schema": UNSUPPORTED_SCHEMA_COPY,
-};
 
 function Unavailable({
   message,
@@ -113,11 +105,7 @@ export default function Kcc20Send() {
       setBuilt(result);
       setStep("confirm");
     } catch (e) {
-      setError(
-        e instanceof Kcc20TransferError
-          ? (ERROR_COPY[e.code] ?? e.message)
-          : "Could not build the transfer",
-      );
+      setError(kcc20BuildErrorCopy(e));
     } finally {
       setBusy(false);
     }
@@ -130,7 +118,7 @@ export default function Kcc20Send() {
       setTxId(await sendKcc20Transfer(signer, built, rpcClient));
       setStep("success");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Transfer failed");
+      setError(kcc20SendErrorCopy(e));
       setStep("fail");
     } finally {
       setBusy(false);

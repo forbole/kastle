@@ -23,6 +23,7 @@ import {
   STATE_LEN,
   TRANSFER_DELEGATOR_TAG,
 } from "./state";
+import { supportsStandardTransfer } from "./templates";
 import {
   MAX_TOKEN_INPUTS,
   MAX_TOKEN_OUTPUTS,
@@ -92,6 +93,7 @@ export class Kcc20StandardBuildError extends Error {
       | "fragmented"
       | "not-standard"
       | "not-owned"
+      | "unsupported-template"
       | "mixed-template"
       | "rule-violation"
       | "layout"
@@ -296,6 +298,12 @@ export function planStandardTransfer({
     throw new Kcc20StandardBuildError("invalid-amount", "Amount must be positive");
   }
   const parsed = pieces.map((piece) => ({ piece, program: splitProgram(piece.redeem) }));
+  if (pieces.some((p) => !supportsStandardTransfer(p.redeem))) {
+    throw new Kcc20StandardBuildError(
+      "unsupported-template",
+      "a token cell is not on a program template this wallet can spend",
+    );
+  }
   const picked = selectStandardPieces(parsed, pubkey32, amount);
   const leader = picked[0].program;
   for (const p of picked) {

@@ -8,6 +8,10 @@ import { bytesToHex, concatBytes, hexToBytes } from "@noble/hashes/utils";
 import { classifyRedeem, isStandardOwnedBy } from "@/lib/kcc20/classify";
 import { parseArtifact } from "@/lib/kcc20/standard/artifact";
 import {
+  CANONICAL_SUFFIX_LEN,
+  supportsStandardTransfer,
+} from "@/lib/kcc20/standard/templates";
+import {
   decodeIntState,
   dispatchTag,
   encodeIntState,
@@ -44,6 +48,8 @@ const FIXTURE_SHA256: Record<string, string> = {
     "9b424c96ea0e0093cacfd98e3013fd5cbf93dd149cb27696acf288510133010b",
   "program-artifact.json":
     "b5f93220b005f39ece92347f5226b2dd4b2f8f8c65b38b359c95133fdcf1c41e",
+  "standard-program.hex":
+    "b846535a94a260846529d90838475d716560d8b0074767d4a66487d324755025",
 };
 
 function fixture(name: string) {
@@ -532,4 +538,29 @@ test("7. 20,000 generated standard states never classify as kron-legacy", () => 
     families[family] = (families[family] ?? 0) + 1;
   }
   expect(families).toEqual({ "kcc20-standard": 20_000 });
+});
+
+// One real mainnet program, as kascov serves it.
+const MAINNET_PROGRAM = hex(fixture("standard-program.hex").toString("utf8").trim());
+
+test("7. template allowlist: only the canonical program is spendable", () => {
+  expect(MAINNET_PROGRAM.length).toBe(4031);
+  expect(MAINNET_PROGRAM.length - 34 - STATE_LEN).toBe(CANONICAL_SUFFIX_LEN);
+  expect(supportsStandardTransfer(MAINNET_PROGRAM)).toBe(true);
+
+  // One suffix byte off: same classification, different code.
+  const suffixEdit = MAINNET_PROGRAM.slice();
+  suffixEdit[MAINNET_PROGRAM.length - 1] ^= 0x01;
+  expect(classifyRedeem(suffixEdit).family).toBe("kcc20-standard");
+  expect(supportsStandardTransfer(suffixEdit)).toBe(false);
+
+  // A different template hash with the canonical suffix.
+  const hashEdit = MAINNET_PROGRAM.slice();
+  hashEdit[2] ^= 0x01;
+  expect(classifyRedeem(hashEdit).family).toBe("kcc20-standard");
+  expect(supportsStandardTransfer(hashEdit)).toBe(false);
+
+  const { redeem } = legacyRedeem();
+  expect(classifyRedeem(redeem).family).toBe("kron-legacy");
+  expect(supportsStandardTransfer(redeem)).toBe(false);
 });
