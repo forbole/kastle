@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.61.4](https://github.com/forbole/kastle/compare/v2.61.3...v2.61.4) (2026-10-22)
+
+
+### Bug Fixes
+
+* **analytics:** rotate the PostHog project key ([#403](https://github.com/forbole/kastle/issues/403)) ([fbeb652](https://github.com/forbole/kastle/commit/fbeb652e1af69402fbeb809b46485680a326ccd1))
+
 ## [2.61.3](https://github.com/forbole/kastle/compare/v2.61.2...v2.61.3) (2026-10-21)
 
 
