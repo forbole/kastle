@@ -63,12 +63,4 @@ export const KCC20_LABELS = {
   searchPlaceholder: "Search Token",
   loadingTokens: "Loading tokens…",
   noTokens: "No tokens available",
-
-  // Send: confirm
-  confirmTitle: "Confirm",
-  sendFrom: "Send from",
-  sendTo: "Send to",
-  amount: "Amount",
-  estFee: "Est. Fee",
-  confirm: "Confirm",
 } as const;

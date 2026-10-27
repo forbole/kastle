@@ -1,3 +1,4 @@
+import React from "react";
 import { useFormContext } from "react-hook-form";
 import signImage from "@/assets/images/sign.png";
 import { useNavigate } from "react-router-dom";
@@ -29,7 +30,6 @@ export const ConfirmTokenOperationStep = ({
   onNext?: () => void;
   onBack?: () => void;
 }) => {
-  const navigate = useNavigate();
   const { watch } = useFormContext<TokenOperationFormData>();
   const kaspaPrice = useKaspaPrice();
   const { account } = useWalletManager();
@@ -80,6 +80,64 @@ export const ConfirmTokenOperationStep = ({
   const { amount: feesCurrency, code: feesCurrencyCode } =
     useCurrencyValue(fiatFees);
 
+  return (
+    <TokenConfirmView
+      showAddresses={opData.op === "transfer"}
+      recipient={opData.to}
+      domain={domain}
+      tokenName={tokenName}
+      tokenId={tokenInfo?.mod === "issue" ? (tokenId ?? "") : undefined}
+      amount={amount}
+      amountFiat={formatUsdAmount(amountCurrency, amountCurrencyCode)}
+      fee={`${formatToken(totalFees, 3)} KAS`}
+      feeFiat={formatUsdAmount(feesCurrency, feesCurrencyCode)}
+      feeTooltip={
+        forboleFee > 0
+          ? `${formatToken(krc20Fee, 3)} KAS for KRC20 fees, ${formatToken(kaspaFee, 3)} KAS for Kaspa network fees and ${formatToken(forboleFee, 3)} KAS for Kastle fees.`
+          : `${formatToken(krc20Fee, 3)} KAS for KRC20 fees and ${formatToken(kaspaFee, 3)} KAS for Kaspa network fees.`
+      }
+      onNext={onNext}
+      onBack={onBack}
+    />
+  );
+};
+
+// The token confirm screen; every value arrives display-ready, so any token
+// standard can fill it.
+export const TokenConfirmView = ({
+  showAddresses = true,
+  recipient,
+  domain,
+  tokenName,
+  tokenId,
+  amount,
+  amountFiat,
+  fee,
+  feeFiat,
+  feeTooltip,
+  isConfirming = false,
+  onNext,
+  onBack,
+}: {
+  showAddresses?: boolean;
+  recipient: string;
+  domain?: string;
+  tokenName?: string;
+  // Shown copyable under the name, e.g. a KRC-20 issue CA or a KCC-20 covenant id.
+  tokenId?: string;
+  amount: React.ReactNode;
+  amountFiat: string;
+  fee: string;
+  feeFiat: string;
+  feeTooltip?: string;
+  // Spinner in place of "Confirm" while the caller signs.
+  isConfirming?: boolean;
+  onNext?: () => void;
+  onBack?: () => void;
+}) => {
+  const navigate = useNavigate();
+  const { account } = useWalletManager();
+
   const onClose = () => {
     navigate("/dashboard");
   };
@@ -102,7 +160,7 @@ export const ConfirmTokenOperationStep = ({
 
         <div className="thin-scrollbar flex min-h-0 flex-1 flex-col gap-2 overflow-y-scroll pr-1">
           {/* Sender */}
-          {opData.op === "transfer" && (
+          {showAddresses && (
             <div className="flex flex-col gap-2 rounded-lg border border-daintree-700 bg-daintree-800 p-4">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Send from</span>
@@ -117,7 +175,7 @@ export const ConfirmTokenOperationStep = ({
           )}
 
           {/* Recipient */}
-          {opData.op === "transfer" && (
+          {showAddresses && (
             <div className="flex flex-col gap-2 rounded-lg border border-daintree-700 bg-daintree-800 p-4">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">
@@ -131,7 +189,7 @@ export const ConfirmTokenOperationStep = ({
                 </span>
               </div>
               <span className="break-all text-xs text-daintree-400">
-                {opData.to}
+                {recipient}
               </span>
             </div>
           )}
@@ -142,10 +200,10 @@ export const ConfirmTokenOperationStep = ({
                 <span className="font-medium">Ticker</span>
                 <div className="flex flex-col items-end">
                   <span className="font-medium">{tokenName}</span>
-                  {tokenInfo?.mod === "issue" && (
-                    <HoverShowAllCopy text={tokenId ?? ""} tooltipWidth="22rem">
+                  {tokenId !== undefined && (
+                    <HoverShowAllCopy text={tokenId} tooltipWidth="22rem">
                       <span className="cursor-pointer text-xs text-daintree-400">
-                        {textEllipsis(tokenId ?? "")}
+                        {textEllipsis(tokenId)}
                       </span>
                     </HoverShowAllCopy>
                   )}
@@ -158,7 +216,7 @@ export const ConfirmTokenOperationStep = ({
                 <div className="flex flex-col text-right">
                   <span className="font-medium">{amount}</span>
                   <span className="text-xs text-daintree-400">
-                    {formatUsdAmount(amountCurrency, amountCurrencyCode)}
+                    {amountFiat}
                   </span>
                 </div>
               </div>
@@ -171,11 +229,7 @@ export const ConfirmTokenOperationStep = ({
                   <i
                     className="hn hn-info-circle text-lg"
                     data-tooltip-id="info-tooltip"
-                    data-tooltip-content={
-                      forboleFee > 0
-                        ? `${formatToken(krc20Fee, 3)} KAS for KRC20 fees, ${formatToken(kaspaFee, 3)} KAS for Kaspa network fees and ${formatToken(forboleFee, 3)} KAS for Kastle fees.`
-                        : `${formatToken(krc20Fee, 3)} KAS for KRC20 fees and ${formatToken(kaspaFee, 3)} KAS for Kaspa network fees.`
-                    }
+                    data-tooltip-content={feeTooltip}
                   ></i>
                   <Tooltip
                     id="info-tooltip"
@@ -188,12 +242,8 @@ export const ConfirmTokenOperationStep = ({
                   />
                 </div>
                 <div className="flex flex-col text-right">
-                  <span className="font-medium">
-                    {formatToken(totalFees, 3)} KAS
-                  </span>
-                  <span className="text-xs text-daintree-400">
-                    {formatUsdAmount(feesCurrency, feesCurrencyCode)}
-                  </span>
+                  <span className="font-medium">{fee}</span>
+                  <span className="text-xs text-daintree-400">{feeFiat}</span>
                 </div>
               </div>
             </li>
@@ -203,9 +253,18 @@ export const ConfirmTokenOperationStep = ({
 
       <button
         onClick={onNext}
+        disabled={isConfirming}
         className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-icy-blue-400 py-4 text-lg font-medium text-white transition-colors hover:bg-icy-blue-600 disabled:bg-daintree-800 disabled:text-[#4B5563]"
       >
-        Confirm
+        {isConfirming ? (
+          <div
+            className="inline-block size-5 animate-spin self-center rounded-full border-[3px] border-current border-t-[#A2F5FF] text-icy-blue-600"
+            role="status"
+            aria-label="loading"
+          />
+        ) : (
+          "Confirm"
+        )}
       </button>
     </>
   );
