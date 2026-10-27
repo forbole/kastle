@@ -1,5 +1,9 @@
 import { errorCode } from "@kassealhq/sdk";
-import { KassealTradeError, KassealTradeErrorCode } from "./trade";
+import {
+  KassealIntent,
+  KassealTradeError,
+  KassealTradeErrorCode,
+} from "./trade";
 import { KassealReloadRequired } from "./init";
 
 const TRADE_COPY: Record<KassealTradeErrorCode, string> = {
@@ -44,4 +48,13 @@ export function kassealErrorCopy(e: unknown): string {
   const code = errorCode(e);
   if (code && SDK_COPY[code]) return SDK_COPY[code];
   return "Something went wrong. Nothing was sent.";
+}
+
+/** Why the form refuses a different trade while an earlier one is open. */
+export function kassealOpenAttemptCopy(
+  intent: KassealIntent,
+  ticker: string,
+): string {
+  const amount = `${intent.input} ${intent.side === "buy" ? "KAS" : ticker}`;
+  return `Your earlier ${intent.side} of ${amount} may still go through. Until it settles, only that same trade can continue, so it cannot pay twice.`;
 }

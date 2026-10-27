@@ -17,8 +17,13 @@ import {
   KassealSubmissionDeps,
   KassealTradeError,
   kassealSubmissionEffects,
+  decodeKassealAttempt,
+  encodeKassealAttempt,
+  KassealIntent,
   lotsForBudget,
+  matchesKassealIntent,
   newKassealAttempt,
+  settleKassealAttempt,
   quoteCurve,
   quotePool,
   requireBoundProof,
@@ -448,5 +453,122 @@ test.describe("Kasseal market cache", () => {
     expect(kassealMarketKey("mainnet", bonding(1), "k")).not.toEqual(
       kassealMarketKey("mainnet", bonding(2), "k"),
     );
+  });
+});
+
+test.describe("Kasseal attempt persistence", () => {
+  test("the attempt is saved with the txid before its POST goes out", async () => {
+    const attempt = newKassealAttempt();
+    const order: string[] = [];
+    const { deps } = retryDeps(
+      "a",
+      async (built) => {
+        order.push(`post ${built.txid}`);
+        return { kind: "submitted", txid: built.txid, at: 0 };
+      },
+      async (txid) => ({ kind: "accepted", txid, acceptingBlueScore: 3 }),
+      [],
+    );
+    deps.persist = async (a) => {
+      order.push(`persist ${a.posted.join(",")} on ${[...a.pinned!]}`);
+    };
+    expect(await submitKassealTrade(deps, attempt)).toBe("a1");
+    expect(order).toEqual(["persist a1 on f1:0", "post a1"]);
+  });
+
+  test("a failed save stops the POST, so nothing was sent", async () => {
+    const attempt = newKassealAttempt();
+    let posts = 0;
+    const { deps } = retryDeps(
+      "a",
+      async (built) => {
+        posts += 1;
+        return { kind: "submitted", txid: built.txid, at: 0 };
+      },
+      async () => ({ kind: "unknown" }),
+      [],
+    );
+    deps.persist = async () => {
+      throw new Error("storage quota");
+    };
+    let err: unknown;
+    await submitKassealTrade(deps, attempt).catch((e) => {
+      err = e;
+    });
+    expect(posts).toBe(0);
+    expect(attempt.posted).toEqual([]);
+    expect(err).not.toBeInstanceOf(KassealTradeError);
+  });
+
+  test("a stored attempt survives JSON storage with its coins and intent", () => {
+    const attempt = newKassealAttempt();
+    attempt.pinned = new Set(["f1:0", "f2:1"]);
+    attempt.posted.push("a1", "a2");
+    attempt.intent = {
+      side: "buy",
+      venue: "curve",
+      amount: 10n ** 9n,
+      input: "10",
+    };
+    const restored = decodeKassealAttempt(
+      JSON.parse(JSON.stringify(encodeKassealAttempt(attempt))),
+    );
+    expect([...restored.pinned!]).toEqual(["f1:0", "f2:1"]);
+    expect(restored.posted).toEqual(["a1", "a2"]);
+    expect(String(restored.intent!.amount)).toBe(String(10n ** 9n));
+    expect(restored.intent!.side).toBe("buy");
+  });
+
+  test("an attempt settles only when a POST landed or every POST dropped", async () => {
+    const attempt = newKassealAttempt();
+    attempt.posted.push("a1", "a2");
+    const of =
+      (m: Record<string, KassealTxStatus["kind"] | "throw">) =>
+      async (txid: string): Promise<KassealTxStatus> => {
+        if (m[txid] === "throw") throw new TypeError("Failed to fetch");
+        return m[txid] === "accepted"
+          ? { kind: "accepted", txid, acceptingBlueScore: 1 }
+          : ({ kind: m[txid] } as KassealTxStatus);
+      };
+    expect(
+      await settleKassealAttempt(
+        attempt,
+        of({ a1: "dropped", a2: "accepted" }),
+      ),
+    ).toBe("landed");
+    expect(
+      await settleKassealAttempt(attempt, of({ a1: "dropped", a2: "dropped" })),
+    ).toBe("not-sent");
+    expect(
+      await settleKassealAttempt(attempt, of({ a1: "dropped", a2: "unknown" })),
+    ).toBe("open");
+    expect(
+      await settleKassealAttempt(attempt, of({ a1: "dropped", a2: "throw" })),
+    ).toBe("open");
+    expect(
+      await settleKassealAttempt(
+        attempt,
+        of({ a1: "submitted", a2: "dropped" }),
+      ),
+    ).toBe("open");
+  });
+});
+
+test.describe("Kasseal open attempt intent lock", () => {
+  const buy: KassealIntent = {
+    side: "buy",
+    venue: "curve",
+    amount: 10n ** 9n,
+    input: "10",
+  };
+
+  test("only the same side, venue and amount may continue the attempt", () => {
+    expect(matchesKassealIntent(buy, "buy", "curve", 10n ** 9n)).toBe(true);
+    expect(matchesKassealIntent(buy, "sell", "curve", 10n ** 9n)).toBe(false);
+    expect(matchesKassealIntent(buy, "buy", "pool", 10n ** 9n)).toBe(false);
+    expect(matchesKassealIntent(buy, "buy", "curve", 2n * 10n ** 9n)).toBe(
+      false,
+    );
+    expect(matchesKassealIntent(buy, "buy", "curve", undefined)).toBe(false);
   });
 });

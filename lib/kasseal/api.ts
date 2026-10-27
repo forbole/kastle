@@ -124,12 +124,21 @@ export async function fetchKassealTokens(
 export async function fetchKassealToken(
   baseUrl: string,
   covenantId: string,
+  fetchImpl?: typeof fetch,
 ): Promise<KassealToken> {
-  const res = await request(
-    baseUrl,
-    `/tokens/${encodeURIComponent(covenantId)}`,
-  );
-  return parseToken((await res.json()) as Wire);
+  const path = `/tokens/${encodeURIComponent(covenantId)}`;
+  const res = await request(baseUrl, path, undefined, fetchImpl);
+  const token = parseToken((await res.json()) as Wire);
+  // The market verifies the launch proof of `token.covenantId`: a response for
+  // another token would have it judge that token's proof, not the route's.
+  if (token.covenantId !== covenantId) {
+    throw new KassealApiError(
+      path,
+      res.status,
+      `token response is for ${token.covenantId}, not ${covenantId}`,
+    );
+  }
+  return token;
 }
 
 /** Raw bundle: only `verifyLaunchProofJson` may judge it. */

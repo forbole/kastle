@@ -1,8 +1,8 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import useSWR from "swr";
 import { parseUnits } from "viem";
-import { finalize } from "@kassealhq/sdk";
+import { errorCode, finalize } from "@kassealhq/sdk";
 import PageHeader from "@/ui/general/PageHeader";
 import Button from "@/ui/general/Button";
 import TradePanel from "@/ui/popup/kasseal/TradePanel";
@@ -29,13 +29,26 @@ import {
 import {
   boundKind,
   buildTrade,
+  kassealAttemptOpen,
+  KassealIntent,
   KassealQuote,
   KassealSide,
+  matchesKassealIntent,
   newKassealAttempt,
+  settleKassealAttempt,
   submitKassealTrade,
 } from "@/lib/kasseal/trade";
+import {
+  clearKassealAttempt,
+  kassealAttemptKey,
+  loadKassealAttempt,
+  saveKassealAttempt,
+} from "@/lib/kasseal/attempts";
 import { signKassealTx } from "@/lib/kasseal/sign";
-import { kassealErrorCopy } from "@/lib/kasseal/errorCopy";
+import {
+  kassealErrorCopy,
+  kassealOpenAttemptCopy,
+} from "@/lib/kasseal/errorCopy";
 import { formatKas, formatTokenAmount, KAS_DECIMALS } from "./format";
 
 type Step = "form" | "confirm" | "submitting" | "success" | "fail";
@@ -70,8 +83,48 @@ export default function KassealTrade() {
   const [reviewed, setReviewed] = useState<KassealQuote>();
   const [txId, setTxId] = useState<string>();
   const [error, setError] = useState<string>();
-  // Survives "Try again": a retry checks earlier POSTs and reuses their coins.
+  // Survives "Try again" and, via storage, a closed popup: a retry checks
+  // earlier POSTs and reuses their coins.
   const attempt = useRef(newKassealAttempt());
+  // The open attempt's trade; the form refuses any other until it settles.
+  const [lock, setLock] = useState<KassealIntent>();
+  const [attemptReady, setAttemptReady] = useState(false);
+  const attemptKey =
+    network && account && covenantId
+      ? kassealAttemptKey(network, account.address, covenantId)
+      : undefined;
+
+  useEffect(() => {
+    attempt.current = newKassealAttempt();
+    setLock(undefined);
+    setAttemptReady(false);
+    if (!attemptKey || !network) return;
+    let live = true;
+    (async () => {
+      const stored = await loadKassealAttempt(attemptKey).catch(
+        () => undefined,
+      );
+      const outcome = stored
+        ? await settleKassealAttempt(stored, (txid) =>
+            fetchTxStatus(kassealBaseUrl(network), txid),
+          )
+        : "not-sent";
+      if (outcome !== "open") {
+        if (stored) await clearKassealAttempt(attemptKey).catch(() => {});
+      } else if (live) {
+        attempt.current = stored!;
+        setLock(stored!.intent);
+        if (stored!.intent) {
+          setSide(stored!.intent.side);
+          setAmountInput(stored!.intent.input);
+        }
+      }
+      if (live) setAttemptReady(true);
+    })();
+    return () => {
+      live = false;
+    };
+  }, [attemptKey, network]);
 
   const amountIn = token
     ? parseAmount(amountInput, side === "buy" ? KAS_DECIMALS : token.decimals)
@@ -83,6 +136,11 @@ export default function KassealTrade() {
     amountIn,
     slippageBps,
   );
+
+  const lockRefused =
+    !!lock &&
+    !!quote &&
+    !matchesKassealIntent(lock, side, quote.venue, amountIn);
 
   const back = () => navigate(`/kasseal/${covenantId}`);
   const fmtIn = (q: KassealQuote) =>
@@ -96,9 +154,31 @@ export default function KassealTrade() {
 
   const submit = async () => {
     const proof = market.data?.proof;
-    if (!reviewed || !proof || !network || !signer || !account || !ownKey)
+    if (
+      !reviewed ||
+      !proof ||
+      !network ||
+      !signer ||
+      !account ||
+      !ownKey ||
+      !attemptKey ||
+      amountIn === undefined
+    )
       return;
     setStep("submitting");
+    const key = attemptKey;
+    const current = attempt.current;
+    current.intent ??= {
+      side: reviewed.side,
+      venue: reviewed.venue,
+      amount: amountIn,
+      input: amountInput,
+    };
+    const settled = () => {
+      attempt.current = newKassealAttempt();
+      setLock(undefined);
+      void clearKassealAttempt(key).catch(() => {});
+    };
     const baseUrl = kassealBaseUrl(network);
     const xOnlyPubkey = Uint8Array.from(
       ownKey.match(/../g)!.map((b) => parseInt(b, 16)),
@@ -119,10 +199,11 @@ export default function KassealTrade() {
             finalize(built, await signKassealTx(signer, built)),
           post: (built) => postTx(baseUrl, built.txid, built.txJson),
           status: (txid) => fetchTxStatus(baseUrl, txid),
+          persist: (a) => saveKassealAttempt(key, a),
         },
-        attempt.current,
+        current,
       );
-      attempt.current = newKassealAttempt();
+      settled();
       setTxId(txid);
       setStep("success");
       emitKassealTradeCompleted({
@@ -135,6 +216,13 @@ export default function KassealTrade() {
       void refreshToken();
       void market.refresh();
     } catch (e) {
+      // Nothing posted, or the pinned coins are spent: the outcome is known.
+      if (
+        !kassealAttemptOpen(current) ||
+        errorCode(e) === "PINNED_FUNDING_GONE"
+      )
+        settled();
+      else setLock(current.intent);
       setError(kassealErrorCopy(e));
       setStep("fail");
       emitKassealTradeCompleted({
@@ -248,10 +336,15 @@ export default function KassealTrade() {
           slippageBps={slippageBps}
           onSlippageChange={setSlippageBps}
           error={
+            (lockRefused
+              ? kassealOpenAttemptCopy(lock, token?.ticker ?? "")
+              : undefined) ??
             marketError ??
             (quoteError ? kassealErrorCopy(quoteError) : undefined)
           }
-          canReview={!!quote && !!market.data && !!signer}
+          canReview={
+            !!quote && !!market.data && !!signer && attemptReady && !lockRefused
+          }
           onReview={() => {
             setReviewed(quote);
             setStep("confirm");

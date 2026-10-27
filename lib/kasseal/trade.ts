@@ -268,6 +268,8 @@ export interface KassealSubmissionDeps {
   sign(built: BuiltTx): Promise<BuiltTx>;
   post(built: BuiltTx): Promise<SubmitState>;
   status(txid: string): Promise<KassealTxStatus>;
+  /** Saves the attempt before each POST; a throw stops the POST. */
+  persist?(attempt: KassealAttempt): Promise<void>;
   onState?(state: SubmitState, built: BuiltTx | undefined): void;
   now?(): number;
   sleepUntil?(t: number): Promise<void>;
@@ -275,6 +277,14 @@ export interface KassealSubmissionDeps {
 }
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+/** What the user asked to trade; `input` is the amount as typed. */
+export interface KassealIntent {
+  side: KassealSide;
+  venue: KassealVenue;
+  amount: bigint;
+  input: string;
+}
 
 /**
  * One trade across "Try again": the first build's funding coins and every
@@ -284,9 +294,70 @@ const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 export interface KassealAttempt {
   pinned?: Set<string>;
   posted: string[];
+  intent?: KassealIntent;
 }
 
 export const newKassealAttempt = (): KassealAttempt => ({ posted: [] });
+
+/** A POST may have reached the node and no outcome is known yet. */
+export const kassealAttemptOpen = (attempt: KassealAttempt): boolean =>
+  attempt.posted.length > 0;
+
+/**
+ * An open attempt only continues as the trade it started as: a late success
+ * of an earlier buy must never be reported as this sell.
+ */
+export function matchesKassealIntent(
+  intent: KassealIntent,
+  side: KassealSide,
+  venue: KassealVenue,
+  amount: bigint | undefined,
+): boolean {
+  return (
+    intent.side === side && intent.venue === venue && intent.amount === amount
+  );
+}
+
+export type KassealAttemptOutcome = "landed" | "not-sent" | "open";
+
+/**
+ * Asks `/tx` about every POST: one accepted means the trade landed; all
+ * dropped means none of them can land. Anything else stays open.
+ */
+export async function settleKassealAttempt(
+  attempt: KassealAttempt,
+  status: (txid: string) => Promise<KassealTxStatus>,
+): Promise<KassealAttemptOutcome> {
+  let dropped = 0;
+  for (const txid of attempt.posted) {
+    const s = await status(txid).catch(() => undefined);
+    if (s?.kind === "accepted" || s?.kind === "confirmed") return "landed";
+    if (s?.kind === "dropped") dropped += 1;
+  }
+  return dropped === attempt.posted.length ? "not-sent" : "open";
+}
+
+export interface StoredKassealAttempt {
+  pinned?: string[];
+  posted: string[];
+  intent?: Omit<KassealIntent, "amount"> & { amount: string };
+}
+
+export function encodeKassealAttempt(a: KassealAttempt): StoredKassealAttempt {
+  return {
+    pinned: a.pinned && [...a.pinned],
+    posted: [...a.posted],
+    intent: a.intent && { ...a.intent, amount: a.intent.amount.toString() },
+  };
+}
+
+export function decodeKassealAttempt(s: StoredKassealAttempt): KassealAttempt {
+  return {
+    pinned: s.pinned && new Set(s.pinned),
+    posted: [...s.posted],
+    intent: s.intent && { ...s.intent, amount: BigInt(s.intent.amount) },
+  };
+}
 
 /**
  * `runSubmission` effects. Rebuilds pin the first build's funding coins, so
@@ -312,7 +383,14 @@ export function kassealSubmissionEffects(
     },
     sign: deps.sign,
     async submit(built): Promise<SubmitState> {
-      if (!attempt.posted.includes(built.txid)) attempt.posted.push(built.txid);
+      if (!attempt.posted.includes(built.txid)) {
+        // Stored before the POST, so a closed popup still knows the coins.
+        await deps.persist?.({
+          ...attempt,
+          posted: [...attempt.posted, built.txid],
+        });
+        attempt.posted.push(built.txid);
+      }
       try {
         return await deps.post(built);
       } catch {
