@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import useSWR from "swr";
 import {
   createApiSources,
@@ -8,6 +8,12 @@ import {
 import type { CurveParams, KassealNetwork, PoolState } from "@kassealhq/sdk";
 import { fetchLaunchProof, kassealBaseUrl, KassealToken } from "./api";
 import { initKasseal } from "./init";
+import {
+  KASSEAL_POOL_SWR,
+  kassealMarketKey,
+  kassealPoolKey,
+  venueOf,
+} from "./market";
 import {
   BoundProof,
   KassealQuote,
@@ -50,17 +56,8 @@ export function useKassealMarket(
   token: KassealToken | undefined,
   ownKey: string | undefined,
 ) {
-  const venue = token?.phase === "bonding" ? "curve" : "pool";
-  return useSWR(
-    network && token && ownKey
-      ? [
-          "kassealMarket",
-          network,
-          token.covenantId,
-          venue,
-          token.curve?.lotsSold,
-        ]
-      : null,
+  const base = useSWR(
+    kassealMarketKey(network, token, ownKey),
     async (): Promise<KassealMarket> => {
       await initKasseal(network!);
       const json = await fetchLaunchProof(
@@ -68,35 +65,54 @@ export function useKassealMarket(
         token!.covenantId,
       );
       const proof = requireBoundProof(json, network!, token!.covenantId);
-      const { sources, builder } = kassealBuilder(
-        network!,
-        proof.tokenId,
-        ownKey!,
-      );
-      if (venue === "curve") {
-        const curve = await builder.curveParams({
-          covenantId: proof.tokenId,
-          tokenId: proof.tokenId,
-        });
-        return { proof, curve };
-      }
-      if (!proof.poolId) return { proof };
-      const cell = await sources.poolCell(proof.poolId);
-      return {
-        proof,
-        pool: poolMathState({
-          kind: "pool",
-          outpoint: cell.outpoint,
-          value: cell.amount,
-          covenantId: cell.covenantId,
-          program: cell.redeemScript,
-          state: cell.state,
-          daaScore: 0n,
-        }),
-      };
+      if (venueOf(token!) === "pool") return { proof };
+      const { builder } = kassealBuilder(network!, proof.tokenId, ownKey!);
+      const curve = await builder.curveParams({
+        covenantId: proof.tokenId,
+        tokenId: proof.tokenId,
+      });
+      return { proof, curve };
     },
     { revalidateOnFocus: false, shouldRetryOnError: false },
   );
+  const poolId = base.data?.proof.poolId;
+  const pool = useSWR(
+    kassealPoolKey(network, token, poolId),
+    async (): Promise<PoolState> => {
+      const { sources } = kassealBuilder(network!, token!.covenantId, ownKey!);
+      const cell = await sources.poolCell(poolId!);
+      return poolMathState({
+        kind: "pool",
+        outpoint: cell.outpoint,
+        value: cell.amount,
+        covenantId: cell.covenantId,
+        program: cell.redeemScript,
+        state: cell.state,
+        daaScore: 0n,
+      });
+    },
+    KASSEAL_POOL_SWR,
+  );
+
+  const needsPool = !!token && venueOf(token) === "pool" && !!poolId;
+  const data = useMemo(
+    () =>
+      base.data && (!needsPool || pool.data)
+        ? { ...base.data, pool: pool.data }
+        : undefined,
+    [base.data, needsPool, pool.data],
+  );
+  const { mutate: mutateBase } = base;
+  const { mutate: mutatePool } = pool;
+  return {
+    data,
+    error: base.error ?? pool.error,
+    isLoading: base.isLoading || pool.isLoading,
+    refresh: useCallback(
+      () => Promise.all([mutateBase(), mutatePool()]),
+      [mutateBase, mutatePool],
+    ),
+  };
 }
 
 export function useKassealQuote(

@@ -9,6 +9,8 @@ const TRADE_COPY: Record<KassealTradeErrorCode, string> = {
     "The launch record does not match this token, so the wallet will not trade it.",
   "no-pool": "This token has no verified pool to trade against yet.",
   "invalid-amount": "Enter a larger amount.",
+  "outcome-unknown":
+    "Your trade may still go through. Trying again checks it first and reuses the same coins, so it cannot pay twice.",
 };
 
 // SDK error codes the user can act on; anything else keeps a generic line.

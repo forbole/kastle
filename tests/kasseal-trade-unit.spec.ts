@@ -10,17 +10,27 @@ import {
 } from "@kassealhq/sdk";
 import type { BuiltTx, FundingUtxo, SubmitState } from "@kassealhq/sdk";
 import {
+  boundKind,
   buildTrade,
   BoundProof,
   KassealBuilder,
+  KassealSubmissionDeps,
   KassealTradeError,
   kassealSubmissionEffects,
   lotsForBudget,
+  newKassealAttempt,
   quoteCurve,
   quotePool,
   requireBoundProof,
+  submitKassealTrade,
 } from "@/lib/kasseal/trade";
-import type { KassealTxStatus } from "@/lib/kasseal/api";
+import type { KassealToken, KassealTxStatus } from "@/lib/kasseal/api";
+import {
+  KASSEAL_POOL_SWR,
+  kassealMarketKey,
+  kassealPoolKey,
+} from "@/lib/kasseal/market";
+import { formatKas, formatTokenAmount } from "@/components/kasseal/format";
 import { spliceAt } from "@/lib/kasseal/sign";
 
 // Assert bigints via String(): a failing bigint toBe crash-loops the worker.
@@ -245,6 +255,128 @@ test.describe("Kasseal submission", () => {
   });
 });
 
+/** Deps for submitKassealTrade; every build funds from fresh coin f<n> unless pinned. */
+function retryDeps(
+  run: string,
+  post: (built: BuiltTx) => Promise<SubmitState>,
+  status: (txid: string) => Promise<KassealTxStatus>,
+  log: string[],
+) {
+  let t = 0;
+  let builds = 0;
+  const requiredSeen: (ReadonlySet<string> | undefined)[] = [];
+  const deps: KassealSubmissionDeps = {
+    makeBuilder: (required) => {
+      requiredSeen.push(required);
+      const fresh = coin(`f${builds + 1}`);
+      return {
+        builder: {} as KassealBuilder,
+        // The builder honours `required`, else picks this build's fresh coin.
+        lastFunding: () =>
+          required ? [...required].map((k) => coin(k.split(":")[0])) : [fresh],
+      };
+    },
+    build: async () => {
+      builds += 1;
+      const pinned = requiredSeen[requiredSeen.length - 1];
+      const funding = pinned ? [...pinned][0].split(":")[0] : `f${builds}`;
+      log.push(`build ${run}${builds} on ${funding}`);
+      return fakeBuilt(`${run}${builds}`, [{ txid: funding, index: 0 }]);
+    },
+    sign: async (built) => built,
+    post,
+    status: async (txid) => {
+      log.push(`status ${txid}`);
+      return status(txid);
+    },
+    // Every reading moves the clock a second, so the retry budget runs out.
+    now: () => (t += 1_000),
+    sleepUntil: async (until) => {
+      t = Math.max(t, until);
+    },
+    pollMs: 0,
+  };
+  return { deps, requiredSeen };
+}
+
+test.describe("Kasseal retry after give-up", () => {
+  test("a give-up after POST, then a retry, never builds on fresh coins", async () => {
+    const attempt = newKassealAttempt();
+    const log: string[] = [];
+    const unanswered = retryDeps(
+      "a",
+      async () => {
+        throw new TypeError("Failed to fetch");
+      },
+      async () => ({ kind: "unknown" }),
+      log,
+    );
+    let first: unknown;
+    await submitKassealTrade(unanswered.deps, attempt).catch((e) => {
+      first = e;
+    });
+    // The POST may have reached the node: never "nothing was sent".
+    expect(first).toBeInstanceOf(KassealTradeError);
+    expect((first as KassealTradeError).code).toBe("outcome-unknown");
+    expect(attempt.posted[0]).toBe("a1");
+
+    // "Try again" is a new submission with the same attempt.
+    log.length = 0;
+    const retry = retryDeps(
+      "b",
+      async (built) => ({ kind: "submitted", txid: built.txid, at: 0 }),
+      async (txid) =>
+        txid.startsWith("a")
+          ? { kind: "unknown" }
+          : { kind: "accepted", txid, acceptingBlueScore: 3 },
+      log,
+    );
+    const txid = await submitKassealTrade(retry.deps, attempt);
+    expect(txid).toBe("b1");
+    // Asked about every earlier POST first, then rebuilt on the pinned coin.
+    expect(log.slice(0, attempt.posted.length - 1)).toEqual(
+      attempt.posted.slice(0, -1).map((t) => `status ${t}`),
+    );
+    expect(log.filter((l) => l.startsWith("build"))).toEqual([
+      "build b1 on f1",
+    ]);
+    expect(retry.requiredSeen.map((r) => [...(r ?? [])])).toEqual([["f1:0"]]);
+  });
+
+  test("a retry whose earlier POST landed returns it without building", async () => {
+    const attempt = newKassealAttempt();
+    attempt.pinned = new Set(["f1:0"]);
+    attempt.posted.push("a1");
+    const log: string[] = [];
+    const { deps } = retryDeps(
+      "b",
+      async (built) => ({ kind: "submitted", txid: built.txid, at: 0 }),
+      async (txid) => ({ kind: "accepted", txid, acceptingBlueScore: 3 }),
+      log,
+    );
+    expect(await submitKassealTrade(deps, attempt)).toBe("a1");
+    expect(log).toEqual(["status a1"]);
+  });
+
+  test("a failure before any POST keeps its own error", async () => {
+    const attempt = newKassealAttempt();
+    const { deps } = retryDeps(
+      "a",
+      async (built) => ({ kind: "submitted", txid: built.txid, at: 0 }),
+      async () => ({ kind: "unknown" }),
+      [],
+    );
+    deps.build = async () => {
+      throw new KassealTradeError("no-pool", "launch proof binds no pool");
+    };
+    let err: unknown;
+    await submitKassealTrade(deps, attempt).catch((e) => {
+      err = e;
+    });
+    expect((err as KassealTradeError).code).toBe("no-pool");
+  });
+});
+
 test.describe("Kasseal covenant signature splice", () => {
   test("a signature lands only on a zero placeholder at the offset", () => {
     const script = new Uint8Array(70).fill(7);
@@ -256,5 +388,65 @@ test.describe("Kasseal covenant signature splice", () => {
     expect(out[68]).toBe(7);
     expect(() => spliceAt(script, 2, sig)).toThrow("placeholder");
     expect(() => spliceAt(script, 3, sig.subarray(1))).toThrow("65 bytes");
+  });
+});
+
+test.describe("Kasseal confirmation amounts", () => {
+  const SEAL = { decimals: 8, ticker: "SEAL" };
+
+  test("exact form never drops a sompi from a payment", () => {
+    expect(formatKas(1n, { exact: true })).toBe("0.00000001 KAS");
+    expect(formatKas(100_000_099n, { exact: true })).toBe("1.00000099 KAS");
+    expect(formatTokenAmount(123_456_789_012n, SEAL, { exact: true })).toBe(
+      "1,234.56789012 SEAL",
+    );
+  });
+
+  test("short form stays for display totals", () => {
+    expect(formatKas(100_000_099n)).toBe("1 KAS");
+    expect(formatKas(123_456_789_012n)).toBe("1,234.5678 KAS");
+  });
+});
+
+test.describe("Kasseal slippage bound kind", () => {
+  test("only a curve buy is a max paid; a pool buy floors tokens out", () => {
+    const curveBuy = quoteCurve("buy", CURVE, 0n, 1_000n, 10_000_000_000n, 100);
+    const curveSell = quoteCurve("sell", CURVE, 100n, 1_000n, 5_000n, 100);
+    const poolBuy = quotePool("buy", POOL, 1_000_000_000n, 100);
+    const poolSell = quotePool("sell", POOL, 1_000_000n, 100);
+    expect(boundKind(curveBuy)).toBe("max-paid");
+    expect(boundKind(curveSell)).toBe("min-received");
+    expect(boundKind(poolBuy)).toBe("min-received");
+    expect(boundKind(poolSell)).toBe("min-received");
+  });
+});
+
+test.describe("Kasseal market cache", () => {
+  const graduated = (marketCapSompi: bigint) =>
+    ({
+      covenantId: "t".repeat(64),
+      phase: "graduated",
+      marketCapSompi,
+    }) as KassealToken;
+
+  test("the pool snapshot is keyed on the market and refreshes", () => {
+    const before = kassealPoolKey("mainnet", graduated(1_000n), "p");
+    const after = kassealPoolKey("mainnet", graduated(2_000n), "p");
+    expect(before).not.toEqual(after);
+    expect(KASSEAL_POOL_SWR.refreshInterval).toBeGreaterThan(0);
+    expect(KASSEAL_POOL_SWR.revalidateOnFocus).toBe(true);
+  });
+
+  test("a bonding token has no pool snapshot; its key follows lots sold", () => {
+    const bonding = (lotsSold: number) =>
+      ({
+        covenantId: "t".repeat(64),
+        phase: "bonding",
+        curve: { lotsSold },
+      }) as KassealToken;
+    expect(kassealPoolKey("mainnet", bonding(1), "p")).toBeNull();
+    expect(kassealMarketKey("mainnet", bonding(1), "k")).not.toEqual(
+      kassealMarketKey("mainnet", bonding(2), "k"),
+    );
   });
 });

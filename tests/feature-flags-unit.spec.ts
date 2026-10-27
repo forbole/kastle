@@ -20,6 +20,7 @@ function loadFeatureFlagsModule(
     isProduction = false,
     setTimeout = globalThis.setTimeout,
     localOptIn = false,
+    kassealOptIn = false,
   } = {},
 ): FeatureFlagsModule {
   const source = fs.readFileSync(
@@ -39,6 +40,7 @@ function loadFeatureFlagsModule(
     // Carries the local opt-in, whose `import.meta` cannot run as CommonJS.
     "@/lib/kcc20/local-opt-in": { standardLocalOptIn: () => localOptIn },
     "@/lib/kcc20/local-opt-in.ts": { standardLocalOptIn: () => localOptIn },
+    "@/lib/kasseal/local-opt-in": { kassealLocalOptIn: () => kassealOptIn },
   };
   const module = { exports: {} as FeatureFlagsModule };
   new Function("require", "module", "exports", "setTimeout", outputText)(
@@ -109,7 +111,11 @@ function mountProductionFeatureFlags() {
 /** Runs useFeatureFlags against a PostHog whose getFeatureFlags() returns `featureFlags`. */
 function renderFeatureFlags(
   featureFlags: FeatureFlags,
-  options: { isProduction?: boolean; localOptIn?: boolean } = {},
+  options: {
+    isProduction?: boolean;
+    localOptIn?: boolean;
+    kassealOptIn?: boolean;
+  } = {},
 ) {
   let state = {};
   const render = loadFeatureFlagsModule(
@@ -324,5 +330,28 @@ test.describe("useFeatureFlags Kasseal (production)", () => {
       isKassealLoading: false,
       isKassealEnabled: false,
     });
+  });
+});
+
+// A dev build must not reach a third-party launchpad unless asked to.
+test.describe("useFeatureFlags Kasseal (development)", () => {
+  test("is off without the flag and needs an explicit true", () => {
+    expect(renderFeatureFlags({}).isKassealEnabled).toBe(false);
+    expect(
+      renderFeatureFlags({ kasseal_enabled_extension: false }).isKassealEnabled,
+    ).toBe(false);
+    expect(
+      renderFeatureFlags({ kasseal_enabled_extension: true }).isKassealEnabled,
+    ).toBe(true);
+  });
+
+  test("a local build can opt in, but production cannot", () => {
+    expect(
+      renderFeatureFlags({}, { kassealOptIn: true }).isKassealEnabled,
+    ).toBe(true);
+    expect(
+      renderFeatureFlags({}, { kassealOptIn: true, isProduction: true })
+        .isKassealEnabled,
+    ).toBe(false);
   });
 });

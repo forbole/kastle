@@ -18,6 +18,7 @@ type Story = StoryObj<typeof QuoteSummary>;
 export const Buy: Story = {
   args: {
     side: "buy",
+    boundKind: "max-paid",
     pay: "100 KAS",
     receive: "1,000,000 SEAL",
     bound: "101 KAS",
@@ -26,9 +27,21 @@ export const Buy: Story = {
     slippage: "1%",
   },
 };
+export const PoolBuy: Story = {
+  args: {
+    side: "buy",
+    boundKind: "min-received",
+    pay: "100 KAS",
+    receive: "1,000,000 SEAL",
+    bound: "990,000 SEAL",
+    fee: "1 KAS",
+    slippage: "1%",
+  },
+};
 export const Sell: Story = {
   args: {
     side: "sell",
+    boundKind: "min-received",
     pay: "1,000,000 SEAL",
     receive: "98 KAS",
     bound: "97.02 KAS",

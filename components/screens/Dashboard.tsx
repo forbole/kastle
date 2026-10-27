@@ -11,7 +11,6 @@ import {
   Gavel,
   Lock,
   Pencil,
-  Rocket,
   Settings,
 } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
@@ -24,7 +23,7 @@ import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import { Tooltip } from "react-tooltip";
 import { useFeatureFlags } from "@/hooks/useFeatureFlags";
 import { kassealNetworkOf } from "@/lib/kasseal/api";
-import { KASSEAL_LABELS } from "@/ui/popup/kasseal/labels";
+import LaunchpadAction from "@/ui/popup/kasseal/LaunchpadAction";
 import Assets from "@/components/dashboard/Assets";
 import Names from "@/components/dashboard/Names";
 import NftList from "@/components/dashboard/NftList";
@@ -385,33 +384,12 @@ export default function Dashboard() {
               />
             )}
             {showKasseal && (
-              <div
-                className={twMerge(
-                  "flex cursor-pointer flex-col items-center gap-2",
-                  isLedger && "opacity-40",
-                )}
-                onClick={() => {
-                  if (isLedger) {
-                    return;
-                  }
-                  navigate("/kasseal");
-                }}
-                onMouseEnter={() => {
-                  if (isLedger) setKassealHovered(true);
-                }}
-                onMouseLeave={() => {
-                  if (isLedger) setKassealHovered(false);
-                }}
-                data-tooltip-id="kasseal"
-                data-tooltip-content={KASSEAL_LABELS.ledgerUnsupported}
-              >
-                <div className="flex h-[46px] w-[46px] items-center justify-center rounded-full bg-white/10">
-                  <Rocket size={20} className="text-white" />
-                </div>
-                <span className="text-daintree-400">
-                  {KASSEAL_LABELS.dashboardAction}
-                </span>
-              </div>
+              <LaunchpadAction
+                disabled={isLedger}
+                onOpen={() => navigate("/kasseal")}
+                onHintChange={setKassealHovered}
+                tooltipId="kasseal"
+              />
             )}
           </div>
 

@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import useSWR from "swr";
 import { parseUnits } from "viem";
-import { finalize, runSubmission } from "@kassealhq/sdk";
+import { finalize } from "@kassealhq/sdk";
 import PageHeader from "@/ui/general/PageHeader";
 import Button from "@/ui/general/Button";
 import TradePanel from "@/ui/popup/kasseal/TradePanel";
@@ -27,10 +27,12 @@ import {
   useKassealQuote,
 } from "@/lib/kasseal/useKassealQuote";
 import {
+  boundKind,
   buildTrade,
   KassealQuote,
   KassealSide,
-  kassealSubmissionEffects,
+  newKassealAttempt,
+  submitKassealTrade,
 } from "@/lib/kasseal/trade";
 import { signKassealTx } from "@/lib/kasseal/sign";
 import { kassealErrorCopy } from "@/lib/kasseal/errorCopy";
@@ -68,6 +70,8 @@ export default function KassealTrade() {
   const [reviewed, setReviewed] = useState<KassealQuote>();
   const [txId, setTxId] = useState<string>();
   const [error, setError] = useState<string>();
+  // Survives "Try again": a retry checks earlier POSTs and reuses their coins.
+  const attempt = useRef(newKassealAttempt());
 
   const amountIn = token
     ? parseAmount(amountInput, side === "buy" ? KAS_DECIMALS : token.decimals)
@@ -83,10 +87,12 @@ export default function KassealTrade() {
   const back = () => navigate(`/kasseal/${covenantId}`);
   const fmtIn = (q: KassealQuote) =>
     q.side === "buy"
-      ? formatKas(q.amountIn)
-      : formatTokenAmount(q.amountIn, token!);
-  const fmtOut = (v: bigint, s: KassealSide) =>
-    s === "buy" ? formatTokenAmount(v, token!) : formatKas(v);
+      ? formatKas(q.amountIn, { exact: true })
+      : formatTokenAmount(q.amountIn, token!, { exact: true });
+  const fmtOut = (v: bigint, s: KassealSide, exact = false) =>
+    s === "buy"
+      ? formatTokenAmount(v, token!, { exact })
+      : formatKas(v, { exact });
 
   const submit = async () => {
     const proof = market.data?.proof;
@@ -98,8 +104,8 @@ export default function KassealTrade() {
       ownKey.match(/../g)!.map((b) => parseInt(b, 16)),
     );
     try {
-      const result = await runSubmission(
-        kassealSubmissionEffects({
+      const txid = await submitKassealTrade(
+        {
           makeBuilder: (required) =>
             kassealBuilder(network, proof.tokenId, ownKey, required),
           build: (builder) =>
@@ -113,11 +119,11 @@ export default function KassealTrade() {
             finalize(built, await signKassealTx(signer, built)),
           post: (built) => postTx(baseUrl, built.txid, built.txJson),
           status: (txid) => fetchTxStatus(baseUrl, txid),
-        }),
+        },
+        attempt.current,
       );
-      const { outcome } = result;
-      if (outcome.kind === "give-up") throw new Error(outcome.reason);
-      setTxId(outcome.kind === "done" ? outcome.txid : outcome.newTxid);
+      attempt.current = newKassealAttempt();
+      setTxId(txid);
       setStep("success");
       emitKassealTradeCompleted({
         status: "success",
@@ -127,6 +133,7 @@ export default function KassealTrade() {
         sender: account.address,
       });
       void refreshToken();
+      void market.refresh();
     } catch (e) {
       setError(kassealErrorCopy(e));
       setStep("fail");
@@ -193,14 +200,15 @@ export default function KassealTrade() {
         <div className="flex flex-1 flex-col gap-4 px-4 pb-4">
           <QuoteSummary
             side={reviewed.side}
+            boundKind={boundKind(reviewed)}
             pay={fmtIn(reviewed)}
             receive={fmtOut(reviewed.amountOut, reviewed.side)}
             bound={
-              reviewed.side === "buy" && reviewed.venue === "curve"
-                ? formatKas(reviewed.bound)
-                : fmtOut(reviewed.bound, reviewed.side)
+              boundKind(reviewed) === "max-paid"
+                ? formatKas(reviewed.bound, { exact: true })
+                : fmtOut(reviewed.bound, reviewed.side, true)
             }
-            fee={formatKas(reviewed.feeSompi)}
+            fee={formatKas(reviewed.feeSompi, { exact: true })}
             slippage={`${slippageBps / 100}%`}
           />
           <div className="mt-auto">

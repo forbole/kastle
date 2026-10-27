@@ -1,10 +1,12 @@
 import {
   buyQuote,
+  errorCode,
   fromKasScaled,
   launchProofFromJson,
   maxWithSlippage,
   minWithSlippage,
   outpointKey,
+  runSubmission,
   sellQuote,
   swapKasForTokens,
   swapTokensForKas,
@@ -30,7 +32,9 @@ export type KassealTradeErrorCode =
   | "proof-not-bound"
   | "wrong-token"
   | "no-pool"
-  | "invalid-amount";
+  | "invalid-amount"
+  // A POST went out but the trade did not complete: it may still land.
+  | "outcome-unknown";
 
 export class KassealTradeError extends Error {
   constructor(
@@ -91,6 +95,15 @@ export interface KassealQuote {
   feeSompi: bigint;
   /** The slippage bound written into the build: max paid or min received. */
   bound: bigint;
+}
+
+export type KassealBoundKind = "max-paid" | "min-received";
+
+/** Only a curve buy caps the KAS paid; a pool buy floors the tokens received. */
+export function boundKind(quote: KassealQuote): KassealBoundKind {
+  return quote.side === "buy" && quote.venue === "curve"
+    ? "max-paid"
+    : "min-received";
 }
 
 /** Most lots a sompi budget buys at the curve's current position. */
@@ -264,6 +277,18 @@ export interface KassealSubmissionDeps {
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 /**
+ * One trade across "Try again": the first build's funding coins and every
+ * txid whose POST may have reached the node. It outlives a give-up, so a
+ * retry rebuilds on the same coins instead of funding a second trade.
+ */
+export interface KassealAttempt {
+  pinned?: Set<string>;
+  posted: string[];
+}
+
+export const newKassealAttempt = (): KassealAttempt => ({ posted: [] });
+
+/**
  * `runSubmission` effects. Rebuilds pin the first build's funding coins, so
  * an attempt that landed after all makes the rebuild fail (PinnedFundingGone)
  * instead of paying twice; an unanswered POST asks `/tx/{txid}` before
@@ -271,22 +296,23 @@ const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
  */
 export function kassealSubmissionEffects(
   deps: KassealSubmissionDeps,
+  attempt: KassealAttempt = newKassealAttempt(),
 ): SubmissionEffects {
   const now = deps.now ?? Date.now;
   const pollMs = deps.pollMs ?? 1_000;
-  let pinned: Set<string> | undefined;
 
   return {
     clock: { now },
     sleepUntil: deps.sleepUntil ?? ((t) => sleep(Math.max(0, t - now()))),
     async build() {
-      const { builder, lastFunding } = deps.makeBuilder(pinned);
+      const { builder, lastFunding } = deps.makeBuilder(attempt.pinned);
       const built = await deps.build(builder);
-      pinned ??= fundingConsumed(built, lastFunding());
+      attempt.pinned ??= fundingConsumed(built, lastFunding());
       return built;
     },
     sign: deps.sign,
     async submit(built): Promise<SubmitState> {
+      if (!attempt.posted.includes(built.txid)) attempt.posted.push(built.txid);
       try {
         return await deps.post(built);
       } catch {
@@ -325,4 +351,40 @@ export function kassealSubmissionEffects(
     },
     onState: deps.onState,
   };
+}
+
+const LANDED = new Set([
+  "submitted",
+  "already-in-mempool",
+  "accepted",
+  "confirmed",
+]);
+
+/**
+ * One press of Confirm. A retry first asks `/tx` about every earlier POST and
+ * returns a txid the node has seen; otherwise it rebuilds on the pinned
+ * coins. Failing after a POST reports "outcome-unknown", never "nothing sent".
+ */
+export async function submitKassealTrade(
+  deps: KassealSubmissionDeps,
+  attempt: KassealAttempt,
+): Promise<string> {
+  try {
+    for (const txid of attempt.posted) {
+      // Unreadable status counts as unseen: the pinned coins still stop a
+      // second payment if it lands later.
+      const s = await deps.status(txid).catch(() => undefined);
+      if (s && LANDED.has(s.kind)) return txid;
+    }
+    const { outcome } = await runSubmission(
+      kassealSubmissionEffects(deps, attempt),
+    );
+    if (outcome.kind === "give-up") throw new Error(outcome.reason);
+    return outcome.kind === "done" ? outcome.txid : outcome.newTxid;
+  } catch (e) {
+    // PinnedFundingGone already says the earlier attempt may have landed.
+    if (attempt.posted.length === 0 || errorCode(e) === "PINNED_FUNDING_GONE")
+      throw e;
+    throw new KassealTradeError("outcome-unknown", String(e));
+  }
 }

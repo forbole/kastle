@@ -2,6 +2,8 @@ import { KASSEAL_LABELS } from "./labels";
 
 export interface QuoteSummaryProps {
   side: "buy" | "sell";
+  /** A curve buy caps KAS paid; every other trade floors what is received. */
+  boundKind: "max-paid" | "min-received";
   /** Display-ready amounts with units. */
   pay: string;
   receive: string;
@@ -22,6 +24,7 @@ function Row({ label, value }: { label: string; value: string }) {
 
 export default function QuoteSummary({
   side,
+  boundKind,
   pay,
   receive,
   bound,
@@ -38,7 +41,9 @@ export default function QuoteSummary({
       <Row label={KASSEAL_LABELS.youReceive} value={receive} />
       <Row
         label={
-          side === "buy" ? KASSEAL_LABELS.maxPaid : KASSEAL_LABELS.minReceived
+          boundKind === "max-paid"
+            ? KASSEAL_LABELS.maxPaid
+            : KASSEAL_LABELS.minReceived
         }
         value={bound}
       />
