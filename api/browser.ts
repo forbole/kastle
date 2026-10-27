@@ -140,7 +140,7 @@ export class KastleBrowserAPI {
       return await this.receiveMessageWithTimeout(requestId);
     }
 
-    const action = {
+    const actions: Record<string, Action> = {
       "kas:connect": Action.CONNECT,
       "kas:get_account": Action.GET_ACCOUNT,
       "kas:get_network": Action.GET_NETWORK,
@@ -155,7 +155,10 @@ export class KastleBrowserAPI {
       "kas:build_transaction": Action.BUILD_TRANSACTION,
       "kas:get_version": Action.GET_VERSION,
       "kas:compound_utxos": Action.COMPOUND_UTXOS,
-    }[method];
+    };
+    // Own keys only: "__proto__" or "constructor" must not resolve to
+    // Object.prototype members.
+    const action = Object.hasOwn(actions, method) ? actions[method] : undefined;
 
     if (!action) {
       return;
