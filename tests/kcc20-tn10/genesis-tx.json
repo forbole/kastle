@@ -1,0 +1,21 @@
+{
+  "transaction_id": "1c54c07de427e2409b23f77417c0f7f68c0b6a16b8e535ca77f42134bb9d4094",
+  "outputs": [
+    {
+      "index": 0,
+      "covenant_id": "34e1cf37b652264582e5d9d0ad80daea25565add4a179a201c07c3b98cedcb14"
+    },
+    {
+      "index": 1,
+      "covenant_id": "06d073cefa3c0bcb842c8acc0da15d80cca2262293d8fb61344734ce925c6516"
+    },
+    {
+      "index": 2,
+      "covenant_id": "06d073cefa3c0bcb842c8acc0da15d80cca2262293d8fb61344734ce925c6516"
+    },
+    {
+      "index": 3,
+      "covenant_id": null
+    }
+  ]
+}

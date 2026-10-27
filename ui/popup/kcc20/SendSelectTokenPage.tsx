@@ -79,6 +79,7 @@ export default function SendSelectTokenPage({
     <div className="flex h-full flex-col bg-icy-blue-950 font-sans text-white">
       <PageHeader
         title={KCC20_LABELS.selectToken}
+        showBack={!!onBack}
         onBack={onBack}
         showClose={!!onClose}
         onClose={onClose}
@@ -90,6 +91,7 @@ export default function SendSelectTokenPage({
             aria-hidden="true"
             className="size-4 shrink-0 text-daintree-300"
           />
+          <span className="sr-only">{KCC20_LABELS.searchLabel}</span>
           <input
             type="text"
             value={searchQuery}

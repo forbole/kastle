@@ -1,0 +1,49 @@
+{
+  "name": "KRON",
+  "timestamp": "2026-10-27T04:47:05.703Z",
+  "version": {
+    "major": 1,
+    "minor": 19,
+    "patch": 0
+  },
+  "network": "testnet-10",
+  "keywords": ["kron", "kaspa", "kcc-20", "covenant"],
+  "tokens": [
+    {
+      "network": "testnet-10",
+      "covenantId": "06d073cefa3c0bcb842c8acc0da15d80cca2262293d8fb61344734ce925c6516",
+      "symbol": "KTEST",
+      "name": "ktesting",
+      "decimals": 0,
+      "extensions": {
+        "curveCovenantId": "34e1cf37b652264582e5d9d0ad80daea25565add4a179a201c07c3b98cedcb14",
+        "poolCovenantId": "324928fa70d2fb79e7b8f3e6cbb163d5b3d19b1f2267bb84f6a50f193d343876",
+        "genesisTxid": "1c54c07de427e2409b23f77417c0f7f68c0b6a16b8e535ca77f42134bb9d4094",
+        "creator": "kaspatest:qz5enng5vzgpe4jk9avc2eznuyxkqtsx49hstsrvczm4j36sr0k5yhy5qzju8",
+        "creatorPubkey": "a999cd1460901cd6562f59856453e10d602e06a96f05c06cc0b75947501bed42",
+        "curveParams": {
+          "creatorFeeOwner": "a999cd1460901cd6562f59856453e10d602e06a96f05c06cc0b75947501bed42",
+          "platformFeeOwner": "896e959e2c61950bda8328a8c22a945a0d581685992b3a912d8d753aa831cdaa",
+          "devFundOwner": "896e959e2c61950bda8328a8c22a945a0d581685992b3a912d8d753aa831cdaa",
+          "vKas": 19175,
+          "graduationKas": 76700000000,
+          "creatorFeeBps": 25,
+          "platformFeeBps": 90,
+          "graduationFeeBps": 500,
+          "devFundBps": 10,
+          "dexCreatorFeeBps": 10,
+          "dexPlatformFeeBps": 70,
+          "dexLpFeeBps": 20,
+          "poolLockedShares": 1000000
+        },
+        "templateVersion": {
+          "schema": "a9b901ac9269099d9f1be60af7f7aae1eeb508cc0b80e190a782aa3440926921",
+          "silverc": "2c4623124d75bd8a9a7f87ded9413ef9f6b17acd"
+        },
+        "descriptorURI": "https://api.krontest.xyz/api/registry/token/06d073cefa3c0bcb842c8acc0da15d80cca2262293d8fb61344734ce925c6516/descriptor",
+        "graduated": true,
+        "chainVerified": true
+      }
+    }
+  ]
+}

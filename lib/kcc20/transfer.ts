@@ -12,9 +12,10 @@ import { IWallet } from "@/lib/wallet/wallet-interface.ts";
 import {
   classifiedPieces,
   KascovFetchers,
-  KRON_INDEXER_URL,
+  KRON_HOSTS,
   Kcc20Piece,
   Kcc20Token,
+  KronNetwork,
   standardSpendPieces,
 } from "@/lib/kcc20";
 import {
@@ -73,12 +74,20 @@ const unsupportedSchema = () =>
     "KCC-20 standard pieces have no send builder in this version",
   );
 
-/** The recipient's x-only pubkey; only a plain mainnet Schnorr address can hold a presence-owned balance. */
-export function recipientPubkey(address: string): Uint8Array {
+const ADDRESS_PREFIX: Record<KronNetwork, { prefix: string; label: string }> = {
+  mainnet: { prefix: "kaspa:", label: "mainnet" },
+  "testnet-10": { prefix: "kaspatest:", label: "testnet" },
+};
+
+/** The recipient's x-only pubkey; only a plain Schnorr address on `network` can hold a presence-owned balance. */
+export function recipientPubkey(
+  address: string,
+  network: KronNetwork = "mainnet",
+): Uint8Array {
+  const { prefix, label } = ADDRESS_PREFIX[network];
   let script: string | undefined;
   try {
-    if (address.startsWith("kaspa:"))
-      script = payToAddressScript(address).script;
+    if (address.startsWith(prefix)) script = payToAddressScript(address).script;
   } catch {
     // falls through to the error below
   }
@@ -86,7 +95,7 @@ export function recipientPubkey(address: string): Uint8Array {
   if (!owner) {
     throw new Kcc20TransferError(
       "invalid-recipient",
-      "Recipient must be a Kaspa mainnet address starting with kaspa:q",
+      `Recipient must be a Kaspa ${label} address starting with ${prefix}q`,
     );
   }
   return hexToBytes(`0x${owner}`);
@@ -146,6 +155,7 @@ export async function buildKcc20Transfer({
   rpc,
   feeRate,
   fetchKascov,
+  network = "mainnet",
 }: {
   token: Pick<
     Kcc20Token,
@@ -158,13 +168,15 @@ export async function buildKcc20Transfer({
   feeRate?: number;
   // Standard tokens only; defaults to live kascov.
   fetchKascov?: KascovFetchers;
+  // The wallet's network; recipient, indexer, fee and fee address follow it.
+  network?: KronNetwork;
 }): Promise<BuiltKcc20Transfer> {
   if (amount <= 0n) {
     throw new Kcc20TransferError("invalid-amount", "Amount must be positive");
   }
-  recipientPubkey(recipient);
+  recipientPubkey(recipient, network);
   if (token.family === "kcc20-standard") {
-    const pubkey32 = recipientPubkey(address);
+    const pubkey32 = recipientPubkey(address, network);
     // Same kascov cells, re-proven against the node, as the row the user picked.
     const [pieces, { entries }] = await Promise.all([
       standardSpendPieces(token, address, rpc, fetchKascov),
@@ -179,17 +191,19 @@ export async function buildKcc20Transfer({
       funding: entries,
       address,
       feeRate,
+      network,
     });
     return { ...built, standard: { plan, pubkey32 } };
   }
 
-  const indexer = new client.IndexerClient(KRON_INDEXER_URL);
+  const indexer = new client.IndexerClient(KRON_HOSTS[network].indexer);
   const { legacy: pieces, standard } = await classifiedPieces(
     indexer,
     rpc,
     token.tick,
     address,
     token.covenantId,
+    network,
   );
   // Standard pieces never reach selectPieces, which would report them as a missing balance.
   if (pieces.length === 0 && standard.length > 0) throw unsupportedSchema();
@@ -203,6 +217,7 @@ export async function buildKcc20Transfer({
     amount,
     feeRate,
     decimals: token.meta?.decimals,
+    network,
   });
 }
 
@@ -216,6 +231,7 @@ export function assembleKcc20Transfer({
   amount,
   feeRate,
   decimals,
+  network = "mainnet",
 }: {
   covenantId: string;
   pieces: Kcc20Piece[];
@@ -225,8 +241,9 @@ export function assembleKcc20Transfer({
   amount: bigint;
   feeRate?: number;
   decimals?: number;
+  network?: KronNetwork;
 }): BuiltKcc20Transfer {
-  const recipientKey = recipientPubkey(recipient);
+  const recipientKey = recipientPubkey(recipient, network);
   const pieces = selectPieces(allPieces, amount, decimals);
   const k = kaspa as unknown as Parameters<typeof spend.assembleNativeTx>[0];
   const { template } = kcc20.decodeKcc20Redeem(pieces[0].redeem);
@@ -248,6 +265,7 @@ export function assembleKcc20Transfer({
     funding: utxos,
     address,
     feeRate,
+    network,
   });
   const sum = (xs: { value: bigint }[]) => xs.reduce((s, x) => s + x.value, 0n);
   return {
@@ -271,6 +289,7 @@ export function fundCovenantSpend({
   kastleFee = 0n,
   preferOutpoint,
   fundingComputeBudget,
+  network = "mainnet",
 }: {
   spend: spend.CovenantSpend;
   funding: Funding[];
@@ -282,6 +301,7 @@ export function fundCovenantSpend({
   preferOutpoint?: Outpoint;
   // Overrides the SDK's FUNDING_COMPUTE on every funding input, before the fee is priced.
   fundingComputeBudget?: number;
+  network?: KronNetwork;
 }): Omit<BuiltKcc20Transfer, "amount" | "kasDebit"> {
   const k = kaspa as unknown as Parameters<typeof spend.assembleNativeTx>[0];
   // Plain KAS only: a covenant-bound UTXO here would be spent as a fee input.
@@ -316,7 +336,11 @@ export function fundCovenantSpend({
         ...asm.transaction.outputs,
         new TransactionOutput(
           kastleFee,
-          payToAddressScript(KASTLE_FEE_ADDRESS.mainnet),
+          payToAddressScript(
+            network === "mainnet"
+              ? KASTLE_FEE_ADDRESS.mainnet
+              : KASTLE_FEE_ADDRESS.testnet,
+          ),
         ),
       ];
     }
@@ -324,7 +348,7 @@ export function fundCovenantSpend({
   };
 
   const estimate = (asm: ReturnType<typeof assemble>) =>
-    spend.estimateNativeFee(k, "mainnet", asm, feeRate);
+    spend.estimateNativeFee(k, network, asm, feeRate);
 
   // The fee depends on the input count, so grow the funding set until
   // totalIn covers outputs + fee. A token input carrying less than the dust it

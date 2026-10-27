@@ -1,0 +1,12 @@
+{
+  "message": "successful",
+  "result": [
+    {
+      "tick": "KTEST",
+      "balance": "110000",
+      "dec": 0,
+      "covenantId": "06d073cefa3c0bcb842c8acc0da15d80cca2262293d8fb61344734ce925c6516",
+      "utxoCount": 2
+    }
+  ]
+}

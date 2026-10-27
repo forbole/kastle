@@ -59,6 +59,7 @@ export const KCC20_LABELS = {
 
   // Send: select token
   selectToken: "Select token",
+  searchLabel: "Search tokens",
   searchPlaceholder: "Search Token",
   loadingTokens: "Loading tokens…",
   noTokens: "No tokens available",

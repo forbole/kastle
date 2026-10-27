@@ -1,6 +1,6 @@
 import { twMerge } from "tailwind-merge";
 import AssetImage from "./AssetImage";
-import type { NetworkType } from "./labels";
+import { NETWORK_TYPE_LABELS, type NetworkType } from "./labels";
 
 export interface TokenItemProps {
   name: string;
@@ -69,6 +69,10 @@ export default function TokenItem({
         >
           {name}
         </span>
+        {/* The badge images are decorative; name the asset type for readers. */}
+        {network && (
+          <span className="sr-only">{NETWORK_TYPE_LABELS[network]}</span>
+        )}
         {subtitle && (
           <span
             className={twMerge(

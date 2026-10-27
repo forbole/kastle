@@ -8,6 +8,7 @@ import {
   Transaction,
 } from "@/wasm/core/kaspa";
 import { classifyRedeem, isStandardOwnedBy } from "../classify";
+import type { KronNetwork } from "../index";
 import {
   BuiltKcc20Transfer,
   fundCovenantSpend,
@@ -501,6 +502,7 @@ export function assembleStandardTransfer({
   funding,
   address,
   feeRate,
+  network = "mainnet",
 }: {
   covenantId: string;
   pieces: StandardSpendPiece[];
@@ -510,12 +512,13 @@ export function assembleStandardTransfer({
   funding: Parameters<typeof fundCovenantSpend>[0]["funding"];
   address: string;
   feeRate?: number;
+  network?: KronNetwork;
 }): BuiltStandardTransfer {
   const family = planStandardTransfer({
     covenantId,
     pieces,
     pubkey32,
-    recipientKey: recipientPubkey(recipient),
+    recipientKey: recipientPubkey(recipient, network),
     amount,
   });
   const funded = fundCovenantSpend({
@@ -524,6 +527,7 @@ export function assembleStandardTransfer({
     address,
     feeRate,
     fundingComputeBudget: FUNDING_COMPUTE_BUDGET,
+    network,
   });
   // The leader rule only holds while no funding input sits before a token cell.
   const tokenInputs = family.seats.length;
