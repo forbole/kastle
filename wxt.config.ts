@@ -38,7 +38,12 @@ export default defineConfig({
     // the extension page / service worker call seq.kron.technology directly —
     // never from a content script, and never relayed through kstl-scanner
     // (its rate limits are per IP, so a relay would bucket all users together).
-    host_permissions: ["https://seq.kron.technology/*"],
+    host_permissions: [
+      "https://seq.kron.technology/*",
+      // Kasseal's API CORS is locked to Kasseal origins (lib/kasseal).
+      "https://app.kasseal.com/*",
+      "https://testnet.kasseal.com/*",
+    ],
     content_security_policy: {
       extension_pages:
         "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'",
@@ -64,6 +69,8 @@ export default defineConfig({
     startUrls: ["https://forbole.github.io/kastle/"],
   },
   vite: () => ({
+    // Pre-bundling would move the SDK and break its import.meta.url WASM path.
+    optimizeDeps: { exclude: ["@kassealhq/sdk"] },
     build: {
       minify: false,
       commonjsOptions: {

@@ -1,0 +1,574 @@
+import { expect, test } from "@playwright/test";
+import {
+  buyQuote,
+  maxWithSlippage,
+  minWithSlippage,
+  runSubmission,
+  sellQuote,
+  swapKasForTokens,
+  toKasScaled,
+} from "@kassealhq/sdk";
+import type { BuiltTx, FundingUtxo, SubmitState } from "@kassealhq/sdk";
+import {
+  boundKind,
+  buildTrade,
+  BoundProof,
+  KassealBuilder,
+  KassealSubmissionDeps,
+  KassealTradeError,
+  kassealSubmissionEffects,
+  decodeKassealAttempt,
+  encodeKassealAttempt,
+  KassealIntent,
+  lotsForBudget,
+  matchesKassealIntent,
+  newKassealAttempt,
+  settleKassealAttempt,
+  quoteCurve,
+  quotePool,
+  requireBoundProof,
+  submitKassealTrade,
+} from "@/lib/kasseal/trade";
+import type { KassealToken, KassealTxStatus } from "@/lib/kasseal/api";
+import {
+  KASSEAL_POOL_SWR,
+  kassealMarketKey,
+  kassealPoolKey,
+} from "@/lib/kasseal/market";
+import { formatKas, formatTokenAmount } from "@/components/kasseal/format";
+import { spliceAt } from "@/lib/kasseal/sign";
+
+// Assert bigints via String(): a failing bigint toBe crash-loops the worker.
+const s = (v: bigint | undefined) => String(v);
+
+const CURVE = { p0: 100_000_000n, k: 3n, feeBps: 100n, curveLots: 10_000n };
+const POOL = {
+  kasScaled: toKasScaled(1_000_000_000_000n),
+  tokenReserve: 500_000_000n,
+  feeAccruedScaled: 0n,
+  dust: 0n,
+};
+
+test.describe("Kasseal quotes", () => {
+  test("a KAS budget buys the most lots whose total fits it", () => {
+    const sold = 1_234n;
+    const budget = buyQuote(CURVE, sold, 50n).total + 1n;
+    const lots = lotsForBudget(CURVE, sold, budget);
+    expect(s(lots)).toBe("50");
+    expect(buyQuote(CURVE, sold, lots + 1n).total > budget).toBe(true);
+  });
+
+  test("curve buy pays the SDK quote and bounds it by max slippage", () => {
+    const budget = buyQuote(CURVE, 0n, 10n).total;
+    const q = quoteCurve("buy", CURVE, 0n, 1_000n, budget, 100);
+    const exact = buyQuote(CURVE, 0n, 10n);
+    expect(s(q.lots)).toBe("10");
+    expect(s(q.amountIn)).toBe(s(exact.total));
+    expect(s(q.amountOut)).toBe("10000");
+    expect(s(q.feeSompi)).toBe(s(exact.fee));
+    expect(s(q.bound)).toBe(s(maxWithSlippage(exact.total, 100)));
+  });
+
+  test("curve sell rounds down to whole lots and bounds proceeds by min slippage", () => {
+    const q = quoteCurve("sell", CURVE, 500n, 1_000n, 7_999n, 300);
+    const exact = sellQuote(CURVE, 500n, 7n);
+    expect(s(q.lots)).toBe("7");
+    expect(s(q.amountIn)).toBe("7000");
+    expect(s(q.amountOut)).toBe(s(exact.total));
+    expect(s(q.bound)).toBe(s(minWithSlippage(exact.total, 300)));
+  });
+
+  test("an amount under one lot is refused, never quoted as zero", () => {
+    expect(() => quoteCurve("sell", CURVE, 500n, 1_000n, 999n, 100)).toThrow(
+      KassealTradeError,
+    );
+    expect(() => quoteCurve("buy", CURVE, 0n, 1_000n, 1n, 100)).toThrow(
+      KassealTradeError,
+    );
+  });
+
+  test("pool buy matches swapKasForTokens and bounds tokens out", () => {
+    const q = quotePool("buy", POOL, 100_000_000n, 100);
+    const exact = swapKasForTokens(POOL, toKasScaled(100_000_000n));
+    expect(s(q.amountOut)).toBe(s(exact.tokenOut));
+    expect(s(q.bound)).toBe(s(minWithSlippage(exact.tokenOut, 100)));
+  });
+});
+
+test.describe("Kasseal launch proof gate", () => {
+  // The verifier needs the contract artifacts; the node entry installs them.
+  test.beforeAll(async () => {
+    await import("@kassealhq/sdk/node");
+  });
+
+  test("a malformed or unverified proof is never traded", () => {
+    for (const json of [null, {}, { T: "aa", C: "bb" }]) {
+      let err: unknown;
+      try {
+        requireBoundProof(json, "mainnet", "aa");
+      } catch (e) {
+        err = e;
+      }
+      expect(err).toBeInstanceOf(KassealTradeError);
+      expect((err as KassealTradeError).code).toBe("proof-not-bound");
+    }
+  });
+});
+
+const PROOF: BoundProof = { tokenId: "t".repeat(64), curveId: "c".repeat(64) };
+const TRADER = { address: "kaspa:qtest", xOnlyPubkey: new Uint8Array(32) };
+
+function capturingBuilder() {
+  const calls: { method: string; params: Record<string, unknown> }[] = [];
+  const record =
+    (method: string) =>
+    async (params: unknown): Promise<BuiltTx> => {
+      calls.push({ method, params: params as Record<string, unknown> });
+      return {} as BuiltTx;
+    };
+  const builder = {
+    buildBuy: record("buildBuy"),
+    buildSell: record("buildSell"),
+    buildSwap: record("buildSwap"),
+  } as unknown as KassealBuilder;
+  return { builder, calls };
+}
+
+test.describe("Kasseal builds pin the proof's ids", () => {
+  test("curve trades pass expectedCurveId and tokenId so CurveNotOfProof can fire", async () => {
+    const { builder, calls } = capturingBuilder();
+    const buy = quoteCurve("buy", CURVE, 0n, 1_000n, 10_000_000_000n, 100);
+    await buildTrade(builder, PROOF, TRADER, buy);
+    const sell = quoteCurve("sell", CURVE, 100n, 1_000n, 5_000n, 100);
+    await buildTrade(builder, PROOF, TRADER, sell);
+
+    expect(calls.map((c) => c.method)).toEqual(["buildBuy", "buildSell"]);
+    for (const { params } of calls) {
+      expect(params.covenantId).toBe(PROOF.tokenId);
+      expect(params.tokenId).toBe(PROOF.tokenId);
+      expect(params.expectedCurveId).toBe(PROOF.curveId);
+      expect(params.proofVerdict).toBe("bound");
+    }
+    expect(s(calls[0].params.maxAllIn as bigint)).toBe(s(buy.bound));
+    expect(s(calls[1].params.minNetOut as bigint)).toBe(s(sell.bound));
+  });
+
+  test("pool swaps pass expectedPoolId, and no bound pool means no build", async () => {
+    const { builder, calls } = capturingBuilder();
+    const q = quotePool("buy", POOL, 100_000_000n, 100);
+    await buildTrade(builder, { ...PROOF, poolId: "p".repeat(64) }, TRADER, q);
+    expect(calls[0].params.expectedPoolId).toBe("p".repeat(64));
+    expect(calls[0].params.poolId).toBe("p".repeat(64));
+    expect(s(calls[0].params.minOut as bigint)).toBe(s(q.bound));
+
+    expect(() => buildTrade(builder, PROOF, TRADER, q)).toThrow(
+      KassealTradeError,
+    );
+  });
+});
+
+const coin = (txid: string, index = 0) =>
+  ({ outpoint: { txid, index } }) as unknown as FundingUtxo;
+
+function fakeBuilt(txid: string, consumes: { txid: string; index: number }[]) {
+  return {
+    txid,
+    txJson: "{}",
+    consumes,
+    inputsToSign: [],
+    budgets: [],
+    produces: [],
+    feeSompi: 2_000n,
+    feerate: 1n,
+  } as unknown as BuiltTx;
+}
+
+function harness(opts: {
+  post: (n: number, built: BuiltTx) => Promise<SubmitState>;
+  status: (txid: string) => Promise<KassealTxStatus>;
+}) {
+  let t = 0;
+  const requiredSeen: (ReadonlySet<string> | undefined)[] = [];
+  let builds = 0;
+  let posts = 0;
+  const effects = kassealSubmissionEffects({
+    makeBuilder: (required) => {
+      requiredSeen.push(required);
+      return {
+        builder: {} as KassealBuilder,
+        // The curve cell is not wallet funding; only the coin is pinned.
+        lastFunding: () => [coin("f1")],
+      };
+    },
+    build: async () => {
+      builds += 1;
+      return fakeBuilt(`tx${builds}`, [
+        { txid: "f1", index: 0 },
+        { txid: "curve", index: 0 },
+      ]);
+    },
+    sign: async (built) => built,
+    post: (built) => opts.post(++posts, built),
+    status: opts.status,
+    now: () => t,
+    sleepUntil: async (until) => {
+      t = Math.max(t, until);
+    },
+    pollMs: 10,
+  });
+  return {
+    run: () => runSubmission(effects),
+    stats: () => ({ builds, posts, requiredSeen }),
+  };
+}
+
+test.describe("Kasseal submission", () => {
+  test("a lost race rebuilds with the first build's funding pinned", async () => {
+    const h = harness({
+      post: async (n, built) =>
+        n === 1
+          ? { kind: "lost-race", txid: built.txid, cause: "mempool-spent" }
+          : { kind: "submitted", txid: built.txid, at: 0 },
+      status: async (txid) =>
+        txid === "tx2"
+          ? { kind: "accepted", txid, acceptingBlueScore: 7 }
+          : { kind: "unknown" },
+    });
+    const result = await h.run();
+    const { builds, requiredSeen } = h.stats();
+    expect(result.outcome.kind).toBe("done");
+    expect(builds).toBe(2);
+    expect(requiredSeen[0]).toBeUndefined();
+    expect([...requiredSeen[1]!]).toEqual(["f1:0"]);
+  });
+
+  test("an unanswered POST asks /tx first and never builds twice", async () => {
+    const asked: string[] = [];
+    const h = harness({
+      post: async () => {
+        throw new TypeError("Failed to fetch");
+      },
+      status: async (txid) => {
+        asked.push(txid);
+        return { kind: "accepted", txid, acceptingBlueScore: 9 };
+      },
+    });
+    const result = await h.run();
+    expect(asked[0]).toBe("tx1");
+    expect(h.stats().builds).toBe(1);
+    expect(result.outcome.kind).toBe("done");
+  });
+});
+
+/** Deps for submitKassealTrade; every build funds from fresh coin f<n> unless pinned. */
+function retryDeps(
+  run: string,
+  post: (built: BuiltTx) => Promise<SubmitState>,
+  status: (txid: string) => Promise<KassealTxStatus>,
+  log: string[],
+) {
+  let t = 0;
+  let builds = 0;
+  const requiredSeen: (ReadonlySet<string> | undefined)[] = [];
+  const deps: KassealSubmissionDeps = {
+    makeBuilder: (required) => {
+      requiredSeen.push(required);
+      const fresh = coin(`f${builds + 1}`);
+      return {
+        builder: {} as KassealBuilder,
+        // The builder honours `required`, else picks this build's fresh coin.
+        lastFunding: () =>
+          required ? [...required].map((k) => coin(k.split(":")[0])) : [fresh],
+      };
+    },
+    build: async () => {
+      builds += 1;
+      const pinned = requiredSeen[requiredSeen.length - 1];
+      const funding = pinned ? [...pinned][0].split(":")[0] : `f${builds}`;
+      log.push(`build ${run}${builds} on ${funding}`);
+      return fakeBuilt(`${run}${builds}`, [{ txid: funding, index: 0 }]);
+    },
+    sign: async (built) => built,
+    post,
+    status: async (txid) => {
+      log.push(`status ${txid}`);
+      return status(txid);
+    },
+    // Every reading moves the clock a second, so the retry budget runs out.
+    now: () => (t += 1_000),
+    sleepUntil: async (until) => {
+      t = Math.max(t, until);
+    },
+    pollMs: 0,
+  };
+  return { deps, requiredSeen };
+}
+
+test.describe("Kasseal retry after give-up", () => {
+  test("a give-up after POST, then a retry, never builds on fresh coins", async () => {
+    const attempt = newKassealAttempt();
+    const log: string[] = [];
+    const unanswered = retryDeps(
+      "a",
+      async () => {
+        throw new TypeError("Failed to fetch");
+      },
+      async () => ({ kind: "unknown" }),
+      log,
+    );
+    let first: unknown;
+    await submitKassealTrade(unanswered.deps, attempt).catch((e) => {
+      first = e;
+    });
+    // The POST may have reached the node: never "nothing was sent".
+    expect(first).toBeInstanceOf(KassealTradeError);
+    expect((first as KassealTradeError).code).toBe("outcome-unknown");
+    expect(attempt.posted[0]).toBe("a1");
+
+    // "Try again" is a new submission with the same attempt.
+    log.length = 0;
+    const retry = retryDeps(
+      "b",
+      async (built) => ({ kind: "submitted", txid: built.txid, at: 0 }),
+      async (txid) =>
+        txid.startsWith("a")
+          ? { kind: "unknown" }
+          : { kind: "accepted", txid, acceptingBlueScore: 3 },
+      log,
+    );
+    const txid = await submitKassealTrade(retry.deps, attempt);
+    expect(txid).toBe("b1");
+    // Asked about every earlier POST first, then rebuilt on the pinned coin.
+    expect(log.slice(0, attempt.posted.length - 1)).toEqual(
+      attempt.posted.slice(0, -1).map((t) => `status ${t}`),
+    );
+    expect(log.filter((l) => l.startsWith("build"))).toEqual([
+      "build b1 on f1",
+    ]);
+    expect(retry.requiredSeen.map((r) => [...(r ?? [])])).toEqual([["f1:0"]]);
+  });
+
+  test("a retry whose earlier POST landed returns it without building", async () => {
+    const attempt = newKassealAttempt();
+    attempt.pinned = new Set(["f1:0"]);
+    attempt.posted.push("a1");
+    const log: string[] = [];
+    const { deps } = retryDeps(
+      "b",
+      async (built) => ({ kind: "submitted", txid: built.txid, at: 0 }),
+      async (txid) => ({ kind: "accepted", txid, acceptingBlueScore: 3 }),
+      log,
+    );
+    expect(await submitKassealTrade(deps, attempt)).toBe("a1");
+    expect(log).toEqual(["status a1"]);
+  });
+
+  test("a failure before any POST keeps its own error", async () => {
+    const attempt = newKassealAttempt();
+    const { deps } = retryDeps(
+      "a",
+      async (built) => ({ kind: "submitted", txid: built.txid, at: 0 }),
+      async () => ({ kind: "unknown" }),
+      [],
+    );
+    deps.build = async () => {
+      throw new KassealTradeError("no-pool", "launch proof binds no pool");
+    };
+    let err: unknown;
+    await submitKassealTrade(deps, attempt).catch((e) => {
+      err = e;
+    });
+    expect((err as KassealTradeError).code).toBe("no-pool");
+  });
+});
+
+test.describe("Kasseal covenant signature splice", () => {
+  test("a signature lands only on a zero placeholder at the offset", () => {
+    const script = new Uint8Array(70).fill(7);
+    script.fill(0, 3, 68);
+    const sig = new Uint8Array(65).fill(1);
+    const out = spliceAt(script, 3, sig);
+    expect(Array.from(out.subarray(3, 68))).toEqual(Array.from(sig));
+    expect(out[2]).toBe(7);
+    expect(out[68]).toBe(7);
+    expect(() => spliceAt(script, 2, sig)).toThrow("placeholder");
+    expect(() => spliceAt(script, 3, sig.subarray(1))).toThrow("65 bytes");
+  });
+});
+
+test.describe("Kasseal confirmation amounts", () => {
+  const SEAL = { decimals: 8, ticker: "SEAL" };
+
+  test("exact form never drops a sompi from a payment", () => {
+    expect(formatKas(1n, { exact: true })).toBe("0.00000001 KAS");
+    expect(formatKas(100_000_099n, { exact: true })).toBe("1.00000099 KAS");
+    expect(formatTokenAmount(123_456_789_012n, SEAL, { exact: true })).toBe(
+      "1,234.56789012 SEAL",
+    );
+  });
+
+  test("short form stays for display totals", () => {
+    expect(formatKas(100_000_099n)).toBe("1 KAS");
+    expect(formatKas(123_456_789_012n)).toBe("1,234.5678 KAS");
+  });
+});
+
+test.describe("Kasseal slippage bound kind", () => {
+  test("only a curve buy is a max paid; a pool buy floors tokens out", () => {
+    const curveBuy = quoteCurve("buy", CURVE, 0n, 1_000n, 10_000_000_000n, 100);
+    const curveSell = quoteCurve("sell", CURVE, 100n, 1_000n, 5_000n, 100);
+    const poolBuy = quotePool("buy", POOL, 1_000_000_000n, 100);
+    const poolSell = quotePool("sell", POOL, 1_000_000n, 100);
+    expect(boundKind(curveBuy)).toBe("max-paid");
+    expect(boundKind(curveSell)).toBe("min-received");
+    expect(boundKind(poolBuy)).toBe("min-received");
+    expect(boundKind(poolSell)).toBe("min-received");
+  });
+});
+
+test.describe("Kasseal market cache", () => {
+  const graduated = (marketCapSompi: bigint) =>
+    ({
+      covenantId: "t".repeat(64),
+      phase: "graduated",
+      marketCapSompi,
+    }) as KassealToken;
+
+  test("the pool snapshot is keyed on the market and refreshes", () => {
+    const before = kassealPoolKey("mainnet", graduated(1_000n), "p");
+    const after = kassealPoolKey("mainnet", graduated(2_000n), "p");
+    expect(before).not.toEqual(after);
+    expect(KASSEAL_POOL_SWR.refreshInterval).toBeGreaterThan(0);
+    expect(KASSEAL_POOL_SWR.revalidateOnFocus).toBe(true);
+  });
+
+  test("a bonding token has no pool snapshot; its key follows lots sold", () => {
+    const bonding = (lotsSold: number) =>
+      ({
+        covenantId: "t".repeat(64),
+        phase: "bonding",
+        curve: { lotsSold },
+      }) as KassealToken;
+    expect(kassealPoolKey("mainnet", bonding(1), "p")).toBeNull();
+    expect(kassealMarketKey("mainnet", bonding(1), "k")).not.toEqual(
+      kassealMarketKey("mainnet", bonding(2), "k"),
+    );
+  });
+});
+
+test.describe("Kasseal attempt persistence", () => {
+  test("the attempt is saved with the txid before its POST goes out", async () => {
+    const attempt = newKassealAttempt();
+    const order: string[] = [];
+    const { deps } = retryDeps(
+      "a",
+      async (built) => {
+        order.push(`post ${built.txid}`);
+        return { kind: "submitted", txid: built.txid, at: 0 };
+      },
+      async (txid) => ({ kind: "accepted", txid, acceptingBlueScore: 3 }),
+      [],
+    );
+    deps.persist = async (a) => {
+      order.push(`persist ${a.posted.join(",")} on ${[...a.pinned!]}`);
+    };
+    expect(await submitKassealTrade(deps, attempt)).toBe("a1");
+    expect(order).toEqual(["persist a1 on f1:0", "post a1"]);
+  });
+
+  test("a failed save stops the POST, so nothing was sent", async () => {
+    const attempt = newKassealAttempt();
+    let posts = 0;
+    const { deps } = retryDeps(
+      "a",
+      async (built) => {
+        posts += 1;
+        return { kind: "submitted", txid: built.txid, at: 0 };
+      },
+      async () => ({ kind: "unknown" }),
+      [],
+    );
+    deps.persist = async () => {
+      throw new Error("storage quota");
+    };
+    let err: unknown;
+    await submitKassealTrade(deps, attempt).catch((e) => {
+      err = e;
+    });
+    expect(posts).toBe(0);
+    expect(attempt.posted).toEqual([]);
+    expect(err).not.toBeInstanceOf(KassealTradeError);
+  });
+
+  test("a stored attempt survives JSON storage with its coins and intent", () => {
+    const attempt = newKassealAttempt();
+    attempt.pinned = new Set(["f1:0", "f2:1"]);
+    attempt.posted.push("a1", "a2");
+    attempt.intent = {
+      side: "buy",
+      venue: "curve",
+      amount: 10n ** 9n,
+      input: "10",
+    };
+    const restored = decodeKassealAttempt(
+      JSON.parse(JSON.stringify(encodeKassealAttempt(attempt))),
+    );
+    expect([...restored.pinned!]).toEqual(["f1:0", "f2:1"]);
+    expect(restored.posted).toEqual(["a1", "a2"]);
+    expect(String(restored.intent!.amount)).toBe(String(10n ** 9n));
+    expect(restored.intent!.side).toBe("buy");
+  });
+
+  test("an attempt settles only when a POST landed or every POST dropped", async () => {
+    const attempt = newKassealAttempt();
+    attempt.posted.push("a1", "a2");
+    const of =
+      (m: Record<string, KassealTxStatus["kind"] | "throw">) =>
+      async (txid: string): Promise<KassealTxStatus> => {
+        if (m[txid] === "throw") throw new TypeError("Failed to fetch");
+        return m[txid] === "accepted"
+          ? { kind: "accepted", txid, acceptingBlueScore: 1 }
+          : ({ kind: m[txid] } as KassealTxStatus);
+      };
+    expect(
+      await settleKassealAttempt(
+        attempt,
+        of({ a1: "dropped", a2: "accepted" }),
+      ),
+    ).toBe("landed");
+    expect(
+      await settleKassealAttempt(attempt, of({ a1: "dropped", a2: "dropped" })),
+    ).toBe("not-sent");
+    expect(
+      await settleKassealAttempt(attempt, of({ a1: "dropped", a2: "unknown" })),
+    ).toBe("open");
+    expect(
+      await settleKassealAttempt(attempt, of({ a1: "dropped", a2: "throw" })),
+    ).toBe("open");
+    expect(
+      await settleKassealAttempt(
+        attempt,
+        of({ a1: "submitted", a2: "dropped" }),
+      ),
+    ).toBe("open");
+  });
+});
+
+test.describe("Kasseal open attempt intent lock", () => {
+  const buy: KassealIntent = {
+    side: "buy",
+    venue: "curve",
+    amount: 10n ** 9n,
+    input: "10",
+  };
+
+  test("only the same side, venue and amount may continue the attempt", () => {
+    expect(matchesKassealIntent(buy, "buy", "curve", 10n ** 9n)).toBe(true);
+    expect(matchesKassealIntent(buy, "sell", "curve", 10n ** 9n)).toBe(false);
+    expect(matchesKassealIntent(buy, "buy", "pool", 10n ** 9n)).toBe(false);
+    expect(matchesKassealIntent(buy, "buy", "curve", 2n * 10n ** 9n)).toBe(
+      false,
+    );
+    expect(matchesKassealIntent(buy, "buy", "curve", undefined)).toBe(false);
+  });
+});

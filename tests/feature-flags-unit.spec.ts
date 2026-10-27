@@ -20,6 +20,7 @@ function loadFeatureFlagsModule(
     isProduction = false,
     setTimeout = globalThis.setTimeout,
     localOptIn = false,
+    kassealOptIn = false,
   } = {},
 ): FeatureFlagsModule {
   const source = fs.readFileSync(
@@ -39,6 +40,7 @@ function loadFeatureFlagsModule(
     // Carries the local opt-in, whose `import.meta` cannot run as CommonJS.
     "@/lib/kcc20/local-opt-in": { standardLocalOptIn: () => localOptIn },
     "@/lib/kcc20/local-opt-in.ts": { standardLocalOptIn: () => localOptIn },
+    "@/lib/kasseal/local-opt-in": { kassealLocalOptIn: () => kassealOptIn },
   };
   const module = { exports: {} as FeatureFlagsModule };
   new Function("require", "module", "exports", "setTimeout", outputText)(
@@ -109,7 +111,11 @@ function mountProductionFeatureFlags() {
 /** Runs useFeatureFlags against a PostHog whose getFeatureFlags() returns `featureFlags`. */
 function renderFeatureFlags(
   featureFlags: FeatureFlags,
-  options: { isProduction?: boolean; localOptIn?: boolean } = {},
+  options: {
+    isProduction?: boolean;
+    localOptIn?: boolean;
+    kassealOptIn?: boolean;
+  } = {},
 ) {
   let state = {};
   const render = loadFeatureFlagsModule(
@@ -275,5 +281,77 @@ test.describe("useFeatureFlags KCC-20 loading (production)", () => {
       isKcc20Loading: false,
       isKcc20Enabled: false,
     });
+  });
+});
+
+test.describe("useFeatureFlags Kasseal (production)", () => {
+  test("no flags delivered yet: Kasseal is loading and off", () => {
+    const flags = mountProductionFeatureFlags();
+    expect(flags.render()).toMatchObject({
+      isKassealLoading: true,
+      isKassealEnabled: false,
+    });
+  });
+
+  test("only an explicit true enables Kasseal", () => {
+    const on = mountProductionFeatureFlags();
+    on.deliver({ kasseal_enabled_extension: true });
+    expect(on.render()).toMatchObject({
+      isKassealLoading: false,
+      isKassealEnabled: true,
+    });
+
+    const off = mountProductionFeatureFlags();
+    off.deliver({ kasseal_enabled_extension: false });
+    expect(off.render()).toMatchObject({
+      isKassealLoading: false,
+      isKassealEnabled: false,
+    });
+
+    // A string variant is not `true`: fail closed, unlike the kill switches.
+    const variant = mountProductionFeatureFlags();
+    variant.deliver({ kasseal_enabled_extension: "true" });
+    expect(variant.render()).toMatchObject({ isKassealEnabled: false });
+  });
+
+  test("flags map omits the Kasseal key: loading ends, Kasseal off", () => {
+    const flags = mountProductionFeatureFlags();
+    flags.deliver({ kcc20_enabled_extension: true });
+    expect(flags.render()).toMatchObject({
+      isKassealLoading: false,
+      isKassealEnabled: false,
+    });
+  });
+
+  test("5 s timeout with no flags: Kasseal fails closed", () => {
+    const flags = mountProductionFeatureFlags();
+    flags.timeOut();
+    expect(flags.render()).toMatchObject({
+      isKassealLoading: false,
+      isKassealEnabled: false,
+    });
+  });
+});
+
+// A dev build must not reach a third-party launchpad unless asked to.
+test.describe("useFeatureFlags Kasseal (development)", () => {
+  test("is off without the flag and needs an explicit true", () => {
+    expect(renderFeatureFlags({}).isKassealEnabled).toBe(false);
+    expect(
+      renderFeatureFlags({ kasseal_enabled_extension: false }).isKassealEnabled,
+    ).toBe(false);
+    expect(
+      renderFeatureFlags({ kasseal_enabled_extension: true }).isKassealEnabled,
+    ).toBe(true);
+  });
+
+  test("a local build can opt in, but production cannot", () => {
+    expect(
+      renderFeatureFlags({}, { kassealOptIn: true }).isKassealEnabled,
+    ).toBe(true);
+    expect(
+      renderFeatureFlags({}, { kassealOptIn: true, isProduction: true })
+        .isKassealEnabled,
+    ).toBe(false);
   });
 });

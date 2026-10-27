@@ -88,6 +88,14 @@ export type BridgeCompletedProperties = {
   status: "success" | "failed";
 } & FeeCompleted;
 
+export type KassealTradeCompletedProperties = {
+  status: "success" | "failed";
+  side: "buy" | "sell";
+  venue: "curve" | "pool";
+  covenantId: string;
+  sender?: string;
+};
+
 export default function useAnalytics() {
   const { postHog } = useContext(PostHogWrapperContext);
   const [cachedAnalytics, setCachedAnalytics] = useState<Analytics>();
@@ -138,6 +146,8 @@ export default function useAnalytics() {
       captureWithSender("swap_completed", properties),
     emitBridgeCompleted: (properties: BridgeCompletedProperties) =>
       captureWithSender("bridge_completed", properties),
+    emitKassealTradeCompleted: (properties: KassealTradeCompletedProperties) =>
+      captureWithSender("kasseal_trade_completed", properties),
     emitKasSignTx: (properties: {
       origin: string;
       status: "success" | "failed";
