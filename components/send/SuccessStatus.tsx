@@ -11,9 +11,11 @@ import { useTokenInfo } from "@/hooks/kasplex/useTokenInfo";
 
 interface SuccessProps {
   transactionIds?: string[] | undefined;
+  // A token transfer whose form carries no opData (KCC-20).
+  token?: { name: string };
 }
 
-export const SuccessStatus = ({ transactionIds }: SuccessProps) => {
+export const SuccessStatus = ({ transactionIds, token }: SuccessProps) => {
   const navigate = useNavigate();
   const { watch } = useFormContext<KasSendForm | TokenOperationFormData>();
   const { networkId } = useRpcClientStateful();
@@ -46,10 +48,16 @@ export const SuccessStatus = ({ transactionIds }: SuccessProps) => {
     mint: `${tokenName.toUpperCase()} has been forged!`,
   };
 
-  const title = isKrc20Operation ? opTitle[op] : "KAS Dispatched!";
-  const description = isKrc20Operation
-    ? opDescription[op]
-    : "Your KAS has been sent to the recipient's address";
+  const title = token
+    ? `${token.name.toUpperCase()} Dispatched`
+    : isKrc20Operation
+      ? opTitle[op]
+      : "KAS Dispatched!";
+  const description = token
+    ? `Your ${token.name.toUpperCase()} has been sent to the recipient's address`
+    : isKrc20Operation
+      ? opDescription[op]
+      : "Your KAS has been sent to the recipient's address";
 
   const openTransactions = () => {
     for (const transactionId of transactionIds ?? []) {

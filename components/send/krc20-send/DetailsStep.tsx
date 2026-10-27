@@ -28,33 +28,36 @@ import Layer2AssetImage from "@/components/Layer2AssetImage";
 import useKaspaBalance from "@/hooks/wallet/useKaspaBalance";
 import { priorityFeeFromEstimate } from "@/lib/kaspa";
 
-export const DetailsStep = () => {
+// What the shared details form needs from a token; each token standard
+// supplies its own (see useKrc20SendAsset).
+export interface TokenSendAsset {
+  // Shown upper-cased on the balance row and the asset button.
+  name: string;
+  logo?: string;
+  balance: number;
+  // Fiat-converter input, in USD per token; 0 when unpriced.
+  price: number;
+  // Digits the amount input keeps after the point.
+  decimals: number;
+  // What Max fills in.
+  maxAmount: string;
+  validateAmount: (
+    value: string | undefined,
+  ) => string | true | Promise<string | true>;
+  // The standard in "You cannot send KRC20 to yourself".
+  label: string;
+  // Sompi. Undefined when only the confirm step can know the fee.
+  fee?: number;
+  feeInfo: string;
+  onNext: (form: KRC20SendForm) => void | Promise<void>;
+}
+
+function useKrc20SendAsset(): TokenSendAsset {
   const { tick: ticker } = useParams<{ tick: string }>();
   const navigate = useNavigate();
-  const [settings] = useSettings();
   const { account } = useWalletManager();
-  const { mempoolCongestionLevel } = useMempoolStatus();
-  const resolveRecipient = useResolveRecipient();
-  const resolutionSeq = useRef(0);
-  const { value: isAddressFieldFocused, setValue: setAddressFieldFocused } =
-    useBoolean(false);
-
-  const {
-    value: isRecentAddressShown,
-    setFalse: hideRecentAddress,
-    setTrue: showRecentAddress,
-  } = useBoolean(false);
-
-  const {
-    register,
-    watch,
-    setValue,
-    setError,
-    trigger,
-    formState: { isValid, errors, validatingFields },
-  } = useFormContext<KRC20SendForm>();
-
-  const { userInput, address, amount, domain, priority, priorityFee } = watch();
+  const { watch, setValue } = useFormContext<KRC20SendForm>();
+  const { address, priority } = watch();
   const priorityFeeEstimate = usePriorityFeeEstimate();
   const scriptHex = useMemo(() => {
     const pubKeyHex = account?.publicKeys?.[0];
@@ -87,7 +90,6 @@ export const DetailsStep = () => {
 
   const { logo } = useKrc20Logo(ticker);
 
-  const { amount: tokenCurrency } = useCurrencyValue(tokenPrice);
   const { data: tokenBalanceResponse } = useTokenBalance(
     account?.address && ticker
       ? {
@@ -121,13 +123,99 @@ export const DetailsStep = () => {
     return true;
   };
 
+  // Same derivation as the KAS send: only the excess over the feerate floor is
+  // a priority fee. The whole-feerate formula showed the commit's own base fee
+  // as "miner fees" (2× at the floor). This field only feeds the tooltip — the
+  // transfer is broadcast at Krc20Fee.Transfer, not at this value.
+  useEffect(() => {
+    const next = priorityFeeFromEstimate(
+      priorityFeeEstimate,
+      priority,
+      commitFee,
+    );
+    if (next !== undefined) setValue("priorityFee", next);
+  }, [commitFee, priorityFeeEstimate, priority]);
+
+  return {
+    name: tokenName ?? "",
+    logo,
+    balance: currentBalance,
+    price: tokenPrice,
+    decimals: 8,
+    maxAmount: currentBalance > 0 ? currentBalance.toFixed(8) : "0",
+    validateAmount: tokenAmountValidator,
+    label: "KRC20",
+    fee: (commitFee ?? 0) + (revealFee ?? 0),
+    feeInfo: "KRC20 fees are handled automatically by Kastle.",
+    onNext: ({ amount, address, domain }) =>
+      navigate(
+        {
+          pathname: "/token-transfer",
+        },
+        {
+          state: {
+            ticker,
+            amount,
+            to: address,
+            domain,
+          },
+        },
+      ),
+  };
+}
+
+export const DetailsStep = () => (
+  <TokenSendDetails asset={useKrc20SendAsset()} />
+);
+
+export const TokenSendDetails = ({
+  asset,
+  onBack,
+}: {
+  asset: TokenSendAsset;
+  // Defaults to the asset picker.
+  onBack?: () => void;
+}) => {
+  const navigate = useNavigate();
+  const [settings] = useSettings();
+  const { account } = useWalletManager();
+  const { mempoolCongestionLevel } = useMempoolStatus();
+  const resolveRecipient = useResolveRecipient();
+  const resolutionSeq = useRef(0);
+  const { value: isAddressFieldFocused, setValue: setAddressFieldFocused } =
+    useBoolean(false);
+  const [isNextPending, setNextPending] = useState(false);
+
+  const {
+    value: isRecentAddressShown,
+    setFalse: hideRecentAddress,
+    setTrue: showRecentAddress,
+  } = useBoolean(false);
+
+  const {
+    register,
+    watch,
+    getValues,
+    setValue,
+    setError,
+    trigger,
+    formState: { isValid, errors, validatingFields },
+  } = useFormContext<KRC20SendForm>();
+
+  const { userInput, address, amount, domain, priorityFee } = watch();
+
+  const tokenName = asset.name;
+  const { amount: tokenCurrency } = useCurrencyValue(asset.price);
+  const currentBalance = asset.balance;
+
   const addressValidator = async (value: string | undefined) => {
     const genericErrorMessage = "Invalid Kaspa address or .kas domain";
+    const selfSendMessage = `You cannot send ${asset.label} to yourself`;
     const seq = ++resolutionSeq.current;
     if (!value) return undefined;
 
     if (value === account?.address) {
-      return "You cannot send KRC20 to yourself";
+      return selfSendMessage;
     }
 
     try {
@@ -144,7 +232,7 @@ export const DetailsStep = () => {
       if (resolved.address === account?.address) {
         setValue("address", undefined);
         setValue("domain", undefined);
-        return "You cannot send KRC20 to yourself";
+        return selfSendMessage;
       }
 
       setValue("address", resolved.address);
@@ -162,26 +250,22 @@ export const DetailsStep = () => {
       return;
     }
 
-    const maxAmount = currentBalance;
-    setValue("amount", maxAmount > 0 ? maxAmount.toFixed(8) : "0", {
+    setValue("amount", asset.maxAmount, {
       shouldValidate: true,
     });
   };
 
-  const navigateToNextStep = () =>
-    navigate(
-      {
-        pathname: "/token-transfer",
-      },
-      {
-        state: {
-          ticker,
-          amount,
-          to: address,
-          domain,
-        },
-      },
-    );
+  // Only an async onNext (a build before confirm) shows a pending button.
+  const navigateToNextStep = async () => {
+    const pending = asset.onNext(getValues());
+    if (!pending) return;
+    setNextPending(true);
+    try {
+      await pending;
+    } finally {
+      setNextPending(false);
+    }
+  };
 
   // Update USD amount
   useEffect(() => {
@@ -192,7 +276,7 @@ export const DetailsStep = () => {
     } else {
       setValue("amountFiat", undefined);
     }
-  }, [amount, tokenPrice]);
+  }, [amount, asset.price]);
 
   // Handle recent address list visibility
   useEffect(() => {
@@ -211,19 +295,6 @@ export const DetailsStep = () => {
     }
   }, [userInput]);
 
-  // Same derivation as the KAS send: only the excess over the feerate floor is
-  // a priority fee. The whole-feerate formula showed the commit's own base fee
-  // as "miner fees" (2× at the floor). This field only feeds the tooltip — the
-  // transfer is broadcast at Krc20Fee.Transfer, not at this value.
-  useEffect(() => {
-    const next = priorityFeeFromEstimate(
-      priorityFeeEstimate,
-      priority,
-      commitFee,
-    );
-    if (next !== undefined) setValue("priorityFee", next);
-  }, [commitFee, priorityFeeEstimate, priority]);
-
   useEffect(() => {
     trigger("userInput");
   }, []);
@@ -238,7 +309,11 @@ export const DetailsStep = () => {
 
   return (
     <>
-      <Header title="Send" onClose={onClose} onBack={toAssetSelectPage} />
+      <Header
+        title="Send"
+        onClose={onClose}
+        onBack={onBack ?? toAssetSelectPage}
+      />
       <div className="flex h-full flex-col gap-4">
         <div className="flex items-center justify-between">
           <label className="text-base font-medium">Send to ...</label>
@@ -330,7 +405,7 @@ export const DetailsStep = () => {
                 onClick={toAssetSelectPage}
               >
                 <Layer2AssetImage
-                  tokenImage={logo ?? kasIcon}
+                  tokenImage={asset.logo ?? kasIcon}
                   tokenImageSize={24}
                   chainImageSize={14}
                   chainImage={kasIcon}
@@ -342,12 +417,14 @@ export const DetailsStep = () => {
               <input
                 {...register("amount", {
                   required: true,
-                  validate: tokenAmountValidator,
+                  validate: asset.validateAmount,
                   onChange: (event) => {
                     const [int, dec] = event.target.value.split(".");
 
                     if (!!dec && dec !== "") {
-                      event.target.value = `${int}.${dec.slice(0, 8)}`;
+                      event.target.value = asset.decimals
+                        ? `${int}.${dec.slice(0, asset.decimals)}`
+                        : int;
                     }
                   },
                 })}
@@ -433,7 +510,7 @@ export const DetailsStep = () => {
             <i
               className="hn hn-cog text-[16px] text-[#4B5563]"
               data-tooltip-id="fee-tooltip"
-              data-tooltip-content="KRC20 fees are handled automatically by Kastle."
+              data-tooltip-content={asset.feeInfo}
             ></i>
             <Tooltip
               id="fee-tooltip"
@@ -445,36 +522,46 @@ export const DetailsStep = () => {
               }}
             />
           </button>
-          <div className="flex items-center gap-2">
-            <Tooltip
-              id="fee-estimation-tooltip"
-              style={{
-                backgroundColor: "#374151",
-                fontSize: "12px",
-                fontWeight: 600,
-                padding: "2px 8px",
-              }}
-            />
-            <i
-              className="hn hn-info-circle text-[16px]"
-              data-tooltip-id="fee-estimation-tooltip"
-              data-tooltip-content={`${sompiToKaspaString(priorityFee)} KAS for miner fees.`}
-            ></i>
+          {asset.fee !== undefined ? (
+            <div className="flex items-center gap-2">
+              <Tooltip
+                id="fee-estimation-tooltip"
+                style={{
+                  backgroundColor: "#374151",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  padding: "2px 8px",
+                }}
+              />
+              <i
+                className="hn hn-info-circle text-[16px]"
+                data-tooltip-id="fee-estimation-tooltip"
+                data-tooltip-content={`${sompiToKaspaString(priorityFee)} KAS for miner fees.`}
+              ></i>
 
-            <span>Estimated</span>
-            <span>
-              {formatToken(((commitFee ?? 0) + (revealFee ?? 0)) / 1e8, 3)} KAS
-            </span>
-          </div>
+              <span>Estimated</span>
+              <span>{formatToken(asset.fee / 1e8, 3)} KAS</span>
+            </div>
+          ) : (
+            <span>Calculated on confirm</span>
+          )}
         </div>
 
         <div className="mt-auto">
           <button
-            disabled={!isValid || !!errors.amount || !address}
+            disabled={!isValid || !!errors.amount || !address || isNextPending}
             onClick={navigateToNextStep}
             className="mt-auto w-full rounded-full bg-icy-blue-400 py-4 text-base font-medium text-white transition-colors hover:bg-icy-blue-600 disabled:bg-daintree-800 disabled:text-[#4B5563]"
           >
-            Next
+            {isNextPending ? (
+              <div
+                className="inline-block size-5 animate-spin self-center rounded-full border-[3px] border-current border-t-[#A2F5FF] text-icy-blue-600"
+                role="status"
+                aria-label="loading"
+              />
+            ) : (
+              "Next"
+            )}
           </button>
         </div>
       </div>
