@@ -8,3 +8,6 @@ test-results
 wasm
 CHANGELOG.md
 docs/adr
+
+# Pinned fixtures: their bytes are asserted by sha256 in the specs.
+tests/fixtures/kcc20/

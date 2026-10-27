@@ -14,7 +14,14 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
  * .svg assets Node can't load, so evaluate the real source with its two
  * imports stubbed.
  */
-function loadFeatureFlagsModule(react: object): FeatureFlagsModule {
+function loadFeatureFlagsModule(
+  react: object,
+  {
+    isProduction = false,
+    setTimeout = globalThis.setTimeout,
+    localOptIn = false,
+  } = {},
+): FeatureFlagsModule {
   const source = fs.readFileSync(
     path.join(__dirname, "../hooks/useFeatureFlags.ts"),
     "utf8",
@@ -28,33 +35,125 @@ function loadFeatureFlagsModule(react: object): FeatureFlagsModule {
   const stubs: Record<string, unknown> = {
     react,
     "@/contexts/PostHogWrapperProvider.tsx": { PostHogWrapperContext: {} },
-    "@/lib/utils.ts": { isProduction: false },
+    "@/lib/utils.ts": { isProduction },
+    // Carries the local opt-in, whose `import.meta` cannot run as CommonJS.
+    "@/lib/kcc20/local-opt-in": { standardLocalOptIn: () => localOptIn },
+    "@/lib/kcc20/local-opt-in.ts": { standardLocalOptIn: () => localOptIn },
   };
   const module = { exports: {} as FeatureFlagsModule };
-  new Function("require", "module", "exports", outputText)(
+  new Function("require", "module", "exports", "setTimeout", outputText)(
     (id: string) => stubs[id],
     module,
     module.exports,
+    setTimeout,
   );
   return module.exports;
 }
 
-/** Runs useFeatureFlags against a PostHog whose getFeatureFlags() returns `featureFlags`. */
-function renderFeatureFlags(featureFlags: FeatureFlags) {
-  let state = {};
-  const render = loadFeatureFlagsModule({
-    useContext: () => ({
-      postHog: {
-        getFeatureFlags: () => featureFlags,
-        onFeatureFlags: () => () => {},
+/**
+ * Production mount: one state slot per useState, effects run once, flags
+ * delivered by PostHog via `deliver`, the 5 s timeout fired via `timeOut`.
+ */
+function mountProductionFeatureFlags() {
+  const slots: unknown[] = [];
+  let slot = 0;
+  let mounted = false;
+  let featureFlags: FeatureFlags;
+  let onFlags = () => {};
+  let fireTimeout = () => {};
+  const { useFeatureFlags: hook } = loadFeatureFlagsModule(
+    {
+      useContext: () => ({
+        postHog: {
+          getFeatureFlags: () => featureFlags,
+          onFeatureFlags: (cb: () => void) => {
+            onFlags = cb;
+            return () => {};
+          },
+        },
+      }),
+      useState: (initial: unknown) => {
+        const i = slot++;
+        if (!(i in slots)) slots[i] = initial;
+        return [slots[i], (next: unknown) => (slots[i] = next)];
       },
-    }),
-    useState: () => [state, (next: object) => (state = next)],
-    useEffect: (effect: () => void) => effect(),
-  }).useFeatureFlags;
+      useEffect: (effect: () => void) => {
+        if (!mounted) effect();
+      },
+    },
+    {
+      isProduction: true,
+      setTimeout: ((cb: () => void) => {
+        fireTimeout = cb;
+        return 0;
+      }) as unknown as typeof globalThis.setTimeout,
+    },
+  );
+  const render = () => {
+    slot = 0;
+    const result = hook();
+    mounted = true;
+    return result;
+  };
+  render();
+  return {
+    render,
+    deliver: (next: FeatureFlags) => {
+      featureFlags = next;
+      onFlags();
+    },
+    timeOut: () => fireTimeout(),
+  };
+}
+
+/** Runs useFeatureFlags against a PostHog whose getFeatureFlags() returns `featureFlags`. */
+function renderFeatureFlags(
+  featureFlags: FeatureFlags,
+  options: { isProduction?: boolean; localOptIn?: boolean } = {},
+) {
+  let state = {};
+  const render = loadFeatureFlagsModule(
+    {
+      useContext: () => ({
+        postHog: {
+          getFeatureFlags: () => featureFlags,
+          onFeatureFlags: () => () => {},
+        },
+      }),
+      useState: () => [state, (next: object) => (state = next)],
+      useEffect: (effect: () => void) => effect(),
+    },
+    options,
+  ).useFeatureFlags;
   render(); // the effect copies the PostHog flags into state
   return render();
 }
+
+// The standard rows read kascov, a third party: off unless the flag says true
+// or a local build opts in.
+test.describe("kcc20 standard flag", () => {
+  test("is off by default and needs an explicit true", () => {
+    expect(renderFeatureFlags({}).isKcc20StandardEnabled).toBe(false);
+    expect(
+      renderFeatureFlags({ kcc20_standard_enabled: false })
+        .isKcc20StandardEnabled,
+    ).toBe(false);
+    expect(
+      renderFeatureFlags({ kcc20_standard_enabled: true })
+        .isKcc20StandardEnabled,
+    ).toBe(true);
+  });
+
+  test("a local build can opt in, but production cannot", () => {
+    expect(
+      renderFeatureFlags({}, { localOptIn: true }).isKcc20StandardEnabled,
+    ).toBe(true);
+    expect(
+      renderFeatureFlags({}, { localOptIn: true, isProduction: true })
+        .isKcc20StandardEnabled,
+    ).toBe(false);
+  });
+});
 
 // swap_enabled_extension / bridge_enabled_extension are default-on kill
 // switches: only an explicit off may hide the feature.
@@ -130,5 +229,51 @@ test.describe("useFeatureFlags", () => {
         bridge_enabled_extension: "false",
       }),
     ).toMatchObject({ isSwapEnabled: true, isBridgeEnabled: false });
+  });
+});
+
+// The KCC-20 send route waits on isKcc20Loading, so a flagged-on user is not
+// bounced to the dashboard before PostHog delivers flags.
+test.describe("useFeatureFlags KCC-20 loading (production)", () => {
+  test("no flags delivered yet: KCC-20 is loading", () => {
+    const flags = mountProductionFeatureFlags();
+    expect(flags.render()).toMatchObject({
+      isKcc20Loading: true,
+      isKcc20Enabled: false,
+    });
+  });
+
+  test("flags map arrives: loading ends, enabled follows the value", () => {
+    const on = mountProductionFeatureFlags();
+    on.deliver({ kcc20_enabled_extension: true });
+    expect(on.render()).toMatchObject({
+      isKcc20Loading: false,
+      isKcc20Enabled: true,
+    });
+
+    const off = mountProductionFeatureFlags();
+    off.deliver({ kcc20_enabled_extension: false });
+    expect(off.render()).toMatchObject({
+      isKcc20Loading: false,
+      isKcc20Enabled: false,
+    });
+  });
+
+  test("flags map omits the KCC-20 key: loading ends at once, KCC-20 off", () => {
+    const flags = mountProductionFeatureFlags();
+    flags.deliver({ swap_enabled_extension: true });
+    expect(flags.render()).toMatchObject({
+      isKcc20Loading: false,
+      isKcc20Enabled: false,
+    });
+  });
+
+  test("5 s timeout with no flags: loading ends and KCC-20 fails closed", () => {
+    const flags = mountProductionFeatureFlags();
+    flags.timeOut();
+    expect(flags.render()).toMatchObject({
+      isKcc20Loading: false,
+      isKcc20Enabled: false,
+    });
   });
 });

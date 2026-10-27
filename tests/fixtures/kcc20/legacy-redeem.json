@@ -1,0 +1,9 @@
+{
+  "description": "KRON legacy 46-byte state, rebuilt in the test with kcc20.materializeKcc20Script from kcc20.addressPresenceOwned. The owner and type come from a real mainnet KASM UTXO whose 2732-byte redeem script begins with mainnet_state_prefix_hex. That prefix stops after the low four amount bytes (68 5b 01 00), so the amount assumes the upper four are zero; the template body around the state is synthetic.",
+  "mainnet_state_prefix_hex": "204dd64fdb3b4ab05e5594512986cdfcef2ae22314e6d3d0c18563a3dee6d657f0010308685b0100",
+  "owner_hex": "4dd64fdb3b4ab05e5594512986cdfcef2ae22314e6d3d0c18563a3dee6d657f0",
+  "identifier_type": 3,
+  "amount": "88936",
+  "state_start": 0,
+  "template_tail_hex": "7551527553"
+}

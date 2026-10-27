@@ -4,7 +4,11 @@ import {
   signTransaction,
   Transaction,
 } from "@/wasm/core/kaspa";
-import { ScriptOption } from "@/lib/wallet/wallet-interface.ts";
+import { hexToBytes } from "@noble/hashes/utils";
+import {
+  LedgerUnsupportedError,
+  ScriptOption,
+} from "@/lib/wallet/wallet-interface.ts";
 import { toSignType } from "@/lib/kaspa.ts";
 import { withOwned } from "@/lib/wallet/wasm-lifecycle.ts";
 
@@ -234,6 +238,64 @@ export function pushDataHex(dataHex: string): string {
   ); // OpPushData4
 }
 
+// The one place a hot key signs an input digest. Returns the push-encoded
+// `41 || sig64 || type` hex; reads `tx`, never writes it.
+function inputSignatureHex(
+  tx: Transaction,
+  inputIndex: number,
+  privateKeyString: string,
+  signType: NonNullable<ScriptOption["signType"]>,
+): string {
+  // called once per input, so this allocation is per-input too.
+  // createInputSignature borrows the key (the wasm-bindgen glue type-checks it
+  // but never takes ownership), so freeing it here is safe.
+  return withOwned((own) =>
+    createInputSignature(
+      tx,
+      inputIndex,
+      own(new PrivateKey(privateKeyString)),
+      toSignType(signType),
+    ),
+  );
+}
+
+export const KCC20_LEDGER_UNSUPPORTED_MESSAGE =
+  "A KCC-20 covenant input cannot be signed on Ledger: the device cannot produce a raw signature to place inside a covenant script.";
+
+/**
+ * Raw 65-byte SIGHASH_ALL signature (64-byte Schnorr || 0x01) for `inputIndex`,
+ * for KCC-20 seats that place it at a computed offset inside a script. Same key
+ * path and digest as signTxInputWithScriptOption; `tx` is not mutated.
+ * `keyRef` is the hot wallet's private key; without one (Ledger) it refuses
+ * rather than fall back to some other key.
+ */
+export async function signInputDigest(
+  tx: Transaction,
+  inputIndex: number,
+  keyRef?: string,
+): Promise<Uint8Array> {
+  if (keyRef === undefined) {
+    throw new LedgerUnsupportedError(KCC20_LEDGER_UNSUPPORTED_MESSAGE);
+  }
+  // tx.inputs access crosses the WASM boundary; read it once
+  const inputCount = tx.inputs.length;
+  if (
+    !Number.isInteger(inputIndex) ||
+    inputIndex < 0 ||
+    inputIndex >= inputCount
+  ) {
+    throw new Error(
+      `signInputDigest: input ${inputIndex} does not exist (${inputCount} inputs)`,
+    );
+  }
+  const pushed = hexToBytes(inputSignatureHex(tx, inputIndex, keyRef, "All"));
+  // OpData65 || sig64 || SIGHASH_ALL
+  if (pushed.length !== 66 || pushed[0] !== 0x41 || pushed[65] !== 0x01) {
+    throw new Error("signInputDigest: unexpected signature encoding");
+  }
+  return pushed.slice(1);
+}
+
 export function signTxInputWithScriptOption(
   tx: Transaction,
   option: ScriptOption,
@@ -266,16 +328,11 @@ export function signTxInputWithScriptOption(
     );
   }
 
-  // called once per input, so this allocation is per-input too.
-  // createInputSignature borrows the key (the wasm-bindgen glue type-checks it
-  // but never takes ownership), so freeing it here is safe.
-  const signature = withOwned((own) =>
-    createInputSignature(
-      tx,
-      option.inputIndex,
-      own(new PrivateKey(privateKeyString)),
-      toSignType(signType),
-    ),
+  const signature = inputSignatureHex(
+    tx,
+    option.inputIndex,
+    privateKeyString,
+    signType,
   );
 
   // `signature` is already a push-encoded script element; for P2SH append

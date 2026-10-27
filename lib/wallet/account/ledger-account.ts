@@ -1,4 +1,9 @@
-import { IWallet, ScriptOption } from "@/lib/wallet/wallet-interface.ts";
+import {
+  IWallet,
+  LedgerUnsupportedError,
+  ScriptOption,
+} from "@/lib/wallet/wallet-interface.ts";
+import { KCC20_LEDGER_UNSUPPORTED_MESSAGE } from "@/lib/wallet/sign-script.ts";
 import {
   PublicKey,
   ScriptPublicKey,
@@ -163,6 +168,12 @@ export class LegacyLedgerAccount implements IWallet {
     await this.app.signTransaction(ledgerTx);
 
     return this.toRpcTransaction(ledgerTx);
+  }
+
+  // The device signs whole transactions only; it cannot hand back a raw
+  // signature for a covenant seat. Refuse — never fall back to a hot key.
+  async signInputDigest(): Promise<Uint8Array> {
+    throw new LedgerUnsupportedError(KCC20_LEDGER_UNSUPPORTED_MESSAGE);
   }
 
   async signMessage(message: string): Promise<string> {

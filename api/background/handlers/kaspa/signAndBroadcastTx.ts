@@ -1,7 +1,7 @@
 import { Handler } from "@/api/background/utils";
-import { ApiRequestWithHost } from "@/api/message";
+import { ApiRequestWithHost, RPC_ERRORS } from "@/api/message";
 import { ApiUtils } from "@/api/background/utils";
-import { SignTxPayloadSchema } from "./utils";
+import { SignTxPayloadSchema, isCovenantTxJson } from "./utils";
 
 /** signAndBroadcastTx handler to serve BrowserMessageType.SIGN_AND_BROADCAST_TX message */
 export const signAndBroadcastTxHandler: Handler = async (
@@ -40,6 +40,17 @@ export const signAndBroadcastTxHandler: Handler = async (
   if (!result.success) {
     sendResponse(
       ApiUtils.createApiResponse(message.id, null, "Invalid transaction data"),
+    );
+    return;
+  }
+
+  if (isCovenantTxJson(result.data.txJson)) {
+    sendResponse(
+      ApiUtils.createApiResponse(
+        message.id,
+        null,
+        RPC_ERRORS.COVENANT_TX_UNSUPPORTED,
+      ),
     );
     return;
   }

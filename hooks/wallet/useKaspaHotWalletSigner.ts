@@ -3,6 +3,7 @@ import useWalletManager from "@/hooks/wallet/useWalletManager";
 import useKaspaBackgroundSigner from "./useKaspaBackgroundSigner";
 import { Transaction, PublicKey } from "@/wasm/core/kaspa";
 import type { ScriptOption } from "@/lib/wallet/wallet-interface";
+import { hexToBytes } from "@noble/hashes/utils";
 
 export default function useKaspaHotWalletSigner() {
   const { wallet: walletInfo, account } = useWalletManager();
@@ -57,6 +58,25 @@ export default function useKaspaHotWalletSigner() {
     return Transaction.deserializeFromSafeJSON(signedTransactionJSON);
   };
 
+  const signInputDigest = async (
+    transaction: Transaction,
+    inputIndex: number,
+  ) => {
+    const walletId = walletInfo.id;
+    const accountIndex = account.index;
+
+    const { signatureHex } = await signer.signInputDigest({
+      transactionJSON: transaction.serializeToSafeJSON(),
+      inputIndex,
+      walletId,
+      accountIndex,
+      networkId,
+      isLegacy: isKastleLegacy,
+    });
+
+    return hexToBytes(signatureHex);
+  };
+
   const signMessage = async (message: string) => {
     const walletId = walletInfo.id;
     const accountIndex = account.index;
@@ -74,6 +94,7 @@ export default function useKaspaHotWalletSigner() {
     getPublicKeys,
     getPublicKey,
     signTx,
+    signInputDigest,
     signMessage,
     getAddress,
   };

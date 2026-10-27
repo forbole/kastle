@@ -4,6 +4,7 @@ import {
   formatToken,
   formatTokenPrice,
   symbolForCurrencyCode,
+  textEllipsis,
 } from "@/lib/utils.ts";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -14,6 +15,11 @@ import { useTokenInfo } from "@/hooks/kasplex/useTokenInfo";
 import Layer2AssetImage from "../Layer2AssetImage";
 import { useKrc20Prices } from "@/hooks/kasplex/useKrc20Prices";
 import useKrc20Logo from "@/hooks/kasplex/useKrc20Logo";
+import { formatUnits } from "viem";
+import { Kcc20Token } from "@/lib/kcc20";
+import { useFeatureFlags } from "@/hooks/useFeatureFlags.ts";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
+import { KCC20_FAMILY_LABELS, KCC20_LABELS } from "@/ui/popup/kcc20/labels";
 
 type TokenListItemProps = {
   token: TokenItem;
@@ -76,5 +82,66 @@ export default function TokenListItem({ token }: TokenListItemProps) {
         </div>
       </div>
     </div>
+  );
+}
+
+export function Kcc20TokenListItem({ token }: { token: Kcc20Token }) {
+  const navigate = useNavigate();
+  const [settings] = useSettings();
+  const { isKcc20Enabled } = useFeatureFlags();
+  const { meta } = token;
+  const { wallet } = useWalletManager();
+  // Only a token whose pieces are owned and verified is sendable, and never from a Ledger wallet.
+  const canSend =
+    isKcc20Enabled &&
+    !!meta &&
+    wallet?.type !== "ledger" &&
+    token.spendable > 0n;
+  const familyLabel = KCC20_FAMILY_LABELS[token.family];
+  // Without verified decimals, show base units rather than guess a scale.
+  const balance = meta
+    ? formatUnits(token.amount, meta.decimals)
+    : token.amount.toString();
+
+  return (
+    <button
+      type="button"
+      className={`flex w-full items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3 text-left ${canSend ? "cursor-pointer" : "cursor-default"}`}
+      disabled={!canSend}
+      onClick={() =>
+        navigate(
+          `/kcc20/send/${token.covenantId}${
+            token.extensionCommitment ? `?ext=${token.extensionCommitment}` : ""
+          }`,
+        )
+      }
+    >
+      <Layer2AssetImage tokenImage={meta?.logoURI} chainImage={kasIcon} />
+      <div className="flex min-w-0 flex-grow flex-col gap-1">
+        <div className="flex items-start justify-between gap-2 text-base text-white">
+          <span className="flex items-center gap-2">
+            {meta?.symbol ?? textEllipsis(token.covenantId)}
+            <span
+              className={`rounded-full border px-1.5 text-xs leading-4 ${token.family === "kcc20-standard" ? "border-kcc20-text bg-kcc20-background text-kcc20-text" : "border-daintree-600 text-daintree-400"}`}
+            >
+              {familyLabel}
+            </span>
+          </span>
+          <span className="break-all text-right">
+            {settings?.hideBalances ? "*****" : balance}
+            {/* kascov held cells back: the balance may be short. */}
+            {!settings?.hideBalances && token.truncated && "+"}
+          </span>
+        </div>
+        <div className="flex items-center gap-2 text-sm text-daintree-400">
+          {meta?.name ?? `Unverified ${familyLabel} (base units)`}
+          {meta?.unverified && (
+            <span className="text-xs text-daintree-600">
+              {KCC20_LABELS.claimedMetadata}
+            </span>
+          )}
+        </div>
+      </div>
+    </button>
   );
 }

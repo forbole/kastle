@@ -36,7 +36,10 @@ import {
 } from "@/lib/wallet/sign-script";
 import { SIGN_TYPE, toSignType, deriveKaspaAddress } from "@/lib/kaspa";
 import type { NetworkType } from "@/contexts/SettingsContext";
-import { SignTxPayloadSchema } from "@/api/background/handlers/kaspa/utils";
+import {
+  SignTxPayloadSchema,
+  isCovenantTxJson,
+} from "@/api/background/handlers/kaspa/utils";
 import {
   AccountFactory,
   LegacyAccountFactory,
@@ -856,53 +859,53 @@ test.describe("sighash safety policy (U1)", () => {
 
 // KST-002: Single* with inputIndex >= outputs.length commits no outputs (see
 // the KIP-12 block above), so it is refused like None* rather than warned on.
+// inputCount inputs spending TEST_KEY's P2PK, outputCount outputs back to it
+function mkTx(inputCount: number, outputCount: number): Transaction {
+  const pubX = new PrivateKey(TEST_KEY)
+    .toPublicKey()
+    .toXOnlyPublicKey()
+    .toString();
+  const spk = "0000" + "20" + pubX + "ac";
+  return Transaction.deserializeFromSafeJSON(
+    JSON.stringify({
+      id: "00".repeat(32),
+      version: 0,
+      inputs: Array.from({ length: inputCount }, (_, i) => ({
+        transactionId: (i + 1).toString(16).padStart(2, "0").repeat(32),
+        index: 0,
+        sequence: "0",
+        sigOpCount: 1,
+        computeBudget: 0,
+        signatureScript: "",
+        utxo: {
+          address: null,
+          amount: "100000000",
+          scriptPublicKey: spk,
+          blockDaaScore: "1000",
+          isCoinbase: false,
+        },
+      })),
+      outputs: Array.from({ length: outputCount }, () => ({
+        value: "90000000",
+        scriptPublicKey: spk,
+      })),
+      lockTime: "0",
+      subnetworkId: "00".repeat(20),
+      gas: "0",
+      payload: "",
+    }),
+  );
+}
+
+const signatureScripts = (tx: Transaction): string[] =>
+  JSON.parse(tx.serializeToSafeJSON()).inputs.map(
+    (input: { signatureScript: string }) => input.signatureScript,
+  );
+
 test.describe("Single sighash without a same-index output (KST-002)", () => {
   const SINGLE_TYPES = ["Single", "SingleAnyOneCanPay"] as const;
   const refusal = (signType: string, inputIndex: number) =>
     `signTx: ${signType} input ${inputIndex} has no same-index output; the signature would commit to no outputs`;
-
-  // inputCount inputs spending TEST_KEY's P2PK, outputCount outputs back to it
-  function mkTx(inputCount: number, outputCount: number): Transaction {
-    const pubX = new PrivateKey(TEST_KEY)
-      .toPublicKey()
-      .toXOnlyPublicKey()
-      .toString();
-    const spk = "0000" + "20" + pubX + "ac";
-    return Transaction.deserializeFromSafeJSON(
-      JSON.stringify({
-        id: "00".repeat(32),
-        version: 0,
-        inputs: Array.from({ length: inputCount }, (_, i) => ({
-          transactionId: (i + 1).toString(16).padStart(2, "0").repeat(32),
-          index: 0,
-          sequence: "0",
-          sigOpCount: 1,
-          computeBudget: 0,
-          signatureScript: "",
-          utxo: {
-            address: null,
-            amount: "100000000",
-            scriptPublicKey: spk,
-            blockDaaScore: "1000",
-            isCoinbase: false,
-          },
-        })),
-        outputs: Array.from({ length: outputCount }, () => ({
-          value: "90000000",
-          scriptPublicKey: spk,
-        })),
-        lockTime: "0",
-        subnetworkId: "00".repeat(20),
-        gas: "0",
-        payload: "",
-      }),
-    );
-  }
-
-  const signatureScripts = (tx: Transaction): string[] =>
-    JSON.parse(tx.serializeToSafeJSON()).inputs.map(
-      (input: { signatureScript: string }) => input.signatureScript,
-    );
 
   // [inputCount, outputCount, inputIndex]: the report's shape (attacker input
   // 0, victim inputs 1+, one output), no outputs at all, and the boundary
@@ -1112,6 +1115,49 @@ test.describe("Single sighash without a same-index output (KST-002)", () => {
       "Single",
     ]) {
       expect(hasZeroOutputCommitment(mkTx(3, 1), [option] as any)).toBe(false);
+    }
+  });
+});
+
+// M2: dApp sign requests refuse covenant (version 1+) transactions, which can
+// move the user's KCC-20 pieces behind a raw-JSON confirm screen. The kaspa.com
+// fixture is exactly such a tx. Version-0 requests are untouched.
+test.describe("dApp covenant guard (M2)", () => {
+  test("refuses v1, malformed and version-less txJson; passes v0", () => {
+    expect(isCovenantTxJson(loadFixture().txJson)).toBe(true);
+    expect(isCovenantTxJson(JSON.stringify({ version: 1 }))).toBe(true);
+    expect(isCovenantTxJson(JSON.stringify({ version: "0" }))).toBe(true);
+    expect(isCovenantTxJson("{}")).toBe(true);
+    expect(isCovenantTxJson("null")).toBe(true);
+    expect(isCovenantTxJson("not json")).toBe(true);
+    expect(isCovenantTxJson(mkTx(1, 1).serializeToSafeJSON())).toBe(false);
+  });
+
+  test("a v0 tx that passes the guard still signs", async () => {
+    const txJson = mkTx(2, 1).serializeToSafeJSON();
+    expect(isCovenantTxJson(txJson)).toBe(false);
+    const signed = await signTxWithScriptOptions(
+      deserializeTransaction(txJson),
+      [],
+      TEST_KEY,
+    );
+    expect(signatureScripts(signed).every((script) => script !== "")).toBe(
+      true,
+    );
+  });
+
+  test("both dApp sign handlers check the guard before opening the popup", () => {
+    for (const handler of ["signTx.ts", "signAndBroadcastTx.ts"]) {
+      const source = fs.readFileSync(
+        path.join(TESTS_DIR, "../api/background/handlers/kaspa", handler),
+        "utf8",
+      );
+      const guard = source.indexOf("isCovenantTxJson(result.data.txJson)");
+      expect(guard).toBeGreaterThan(-1);
+      expect(guard).toBeLessThan(
+        source.indexOf("openPopupAndListenForResponse"),
+      );
+      expect(source).toContain("RPC_ERRORS.COVENANT_TX_UNSUPPORTED");
     }
   });
 });
