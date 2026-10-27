@@ -12,6 +12,8 @@ const KCC20_STANDARD_FLAG_KEY = "kcc20_standard_enabled";
 const ACTIVITY_FLAG_KEY = "activity_enabled_extension";
 // Kill switch like swap/bridge: switch off with active + 0% rollout, never "inactive".
 const DOTK_FLAG_KEY = "dotk_enabled_extension";
+// Covenant spends against a third-party launchpad: fail closed like KCC-20.
+const KASSEAL_FLAG_KEY = "kasseal_enabled_extension";
 // PostHog can fail to init (context stays undefined) or never deliver flags;
 // neither is distinguishable from "still loading", so the wait is bounded.
 const FLAGS_TIMEOUT_MS = 5_000;
@@ -58,6 +60,9 @@ export function useFeatureFlags() {
         [ACTIVITY_FLAG_KEY]:
           postHog.getFeatureFlags()?.[ACTIVITY_FLAG_KEY] ??
           (postHog.getFeatureFlags() ? false : undefined),
+        [KASSEAL_FLAG_KEY]:
+          postHog.getFeatureFlags()?.[KASSEAL_FLAG_KEY] ??
+          (postHog.getFeatureFlags() ? false : undefined),
       });
 
     updateFlags();
@@ -84,5 +89,9 @@ export function useFeatureFlags() {
     // but only for FLAGS_TIMEOUT_MS: after that Activity fails closed (off).
     isActivityLoading:
       isProduction && flags[ACTIVITY_FLAG_KEY] === undefined && !flagsTimedOut,
+    // Same fail-closed rule and bounded wait as KCC-20.
+    isKassealEnabled: !isProduction || flags[KASSEAL_FLAG_KEY] === true,
+    isKassealLoading:
+      isProduction && flags[KASSEAL_FLAG_KEY] === undefined && !flagsTimedOut,
   };
 }

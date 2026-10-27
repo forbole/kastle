@@ -277,3 +277,52 @@ test.describe("useFeatureFlags KCC-20 loading (production)", () => {
     });
   });
 });
+
+test.describe("useFeatureFlags Kasseal (production)", () => {
+  test("no flags delivered yet: Kasseal is loading and off", () => {
+    const flags = mountProductionFeatureFlags();
+    expect(flags.render()).toMatchObject({
+      isKassealLoading: true,
+      isKassealEnabled: false,
+    });
+  });
+
+  test("only an explicit true enables Kasseal", () => {
+    const on = mountProductionFeatureFlags();
+    on.deliver({ kasseal_enabled_extension: true });
+    expect(on.render()).toMatchObject({
+      isKassealLoading: false,
+      isKassealEnabled: true,
+    });
+
+    const off = mountProductionFeatureFlags();
+    off.deliver({ kasseal_enabled_extension: false });
+    expect(off.render()).toMatchObject({
+      isKassealLoading: false,
+      isKassealEnabled: false,
+    });
+
+    // A string variant is not `true`: fail closed, unlike the kill switches.
+    const variant = mountProductionFeatureFlags();
+    variant.deliver({ kasseal_enabled_extension: "true" });
+    expect(variant.render()).toMatchObject({ isKassealEnabled: false });
+  });
+
+  test("flags map omits the Kasseal key: loading ends, Kasseal off", () => {
+    const flags = mountProductionFeatureFlags();
+    flags.deliver({ kcc20_enabled_extension: true });
+    expect(flags.render()).toMatchObject({
+      isKassealLoading: false,
+      isKassealEnabled: false,
+    });
+  });
+
+  test("5 s timeout with no flags: Kasseal fails closed", () => {
+    const flags = mountProductionFeatureFlags();
+    flags.timeOut();
+    expect(flags.render()).toMatchObject({
+      isKassealLoading: false,
+      isKassealEnabled: false,
+    });
+  });
+});
