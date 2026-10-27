@@ -17,10 +17,30 @@ import { hash } from "./standard/primitives";
 import type { KCC20State } from "./standard/state";
 import { supportsStandardTransfer } from "./standard/templates";
 import { StandardPiece, verifyStandardCells } from "./standard/verify";
+import type { NetworkType } from "@/contexts/SettingsContext.tsx";
 
-// Mainnet only — KRON publishes no testnet indexer or registry yet.
-export const KRON_INDEXER_URL = "https://idx.kron.technology/v1/kcc20";
-export const KRON_REGISTRY_URL = "https://api.kron.technology";
+// NetworkType's values, type-only: SettingsContext's runtime imports do not
+// load under the node unit tests that import this module.
+export type KronNetwork = `${NetworkType}`;
+
+// One entry per network, so its indexer, registry and registry network string cannot disagree.
+export const KRON_HOSTS: Record<
+  KronNetwork,
+  { indexer: string; registry: string; registryNetwork: string }
+> = {
+  mainnet: {
+    indexer: "https://idx.kron.technology/v1/kcc20",
+    registry: "https://api.kron.technology",
+    registryNetwork: "mainnet",
+  },
+  "testnet-10": {
+    indexer: "https://idx.krontest.xyz/v1/kcc20",
+    registry: "https://api.krontest.xyz",
+    registryNetwork: "testnet-10",
+  },
+};
+export const KRON_INDEXER_URL = KRON_HOSTS.mainnet.indexer;
+export const KRON_REGISTRY_URL = KRON_HOSTS.mainnet.registry;
 
 export type TokenListEntry = verify.SignedTokenList["tokens"][number];
 
@@ -94,8 +114,10 @@ export async function verifiedPieces(
   tick: string,
   address: string,
   covid: string,
+  network: KronNetwork = "mainnet",
 ): Promise<Kcc20Piece[]> {
-  return (await classifiedPieces(indexer, rpc, tick, address, covid)).legacy;
+  return (await classifiedPieces(indexer, rpc, tick, address, covid, network))
+    .legacy;
 }
 
 // The same node binding as Kcc20Piece, in the KCC-20 standard family.
@@ -114,6 +136,7 @@ export async function classifiedPieces(
   tick: string,
   address: string,
   covid: string,
+  network: KronNetwork = "mainnet",
 ): Promise<{ legacy: Kcc20Piece[]; standard: Kcc20StandardPiece[] }> {
   const walletSpk = payToAddressScript(address).script;
   // A standard owner is an x-only key or its hash: only a Schnorr P2PK wallet has one.
@@ -152,7 +175,7 @@ export async function classifiedPieces(
       if (!owned) continue;
       const p2sh = addressFromScriptPublicKey(
         payToScriptHashScript(redeem),
-        "mainnet",
+        network,
       )?.toString();
       if (!p2sh) continue;
       const { transactionId, index } = utxo.outpoint;
@@ -227,6 +250,7 @@ async function verifiedBalance(
   tick: string,
   address: string,
   covid: string,
+  network: KronNetwork,
 ) {
   const { legacy, standard } = await classifiedPieces(
     indexer,
@@ -234,6 +258,7 @@ async function verifiedBalance(
     tick,
     address,
     covid,
+    network,
   );
   // A minter piece's amount is mint authority, not a balance.
   const pieces = legacy.filter((p) => !p.state.isMinter);
@@ -279,8 +304,12 @@ export async function verifiedMeta(
   return { symbol, name, decimals, logoURI };
 }
 
-/** The clients fetchKcc20Tokens reads through; each defaults to the live mainnet one. */
+/** The clients fetchKcc20Tokens reads through; each defaults to the live one for `network`. */
 export type Kcc20TokenDeps = {
+  // Defaults to mainnet.
+  network?: KronNetwork;
+  // Overrides KRON_HOSTS[network].
+  hosts?: (typeof KRON_HOSTS)[KronNetwork];
   indexer?: client.IndexerClient;
   registry?: client.RegistryClient;
   fetchKascov?: KascovFetchers;
@@ -306,9 +335,9 @@ export type Kcc20Tokens = {
 const loggedLegacyFailures = new Set<string>();
 
 /**
- * The wallet's KCC-20 holdings on mainnet: legacy rows (one per covenant id,
- * verified balance and metadata only), then, with `standard`, the KCC-20
- * standard rows (node-verified balance, claimed metadata).
+ * The wallet's KCC-20 holdings on `network`: legacy rows (one per covenant id,
+ * verified balance and metadata only), then, with `standard` on mainnet, the
+ * KCC-20 standard rows (node-verified balance, claimed metadata).
  */
 export async function fetchKcc20Tokens(
   address: string,
@@ -316,7 +345,8 @@ export async function fetchKcc20Tokens(
   restApi: string,
   { standard = false, ...deps }: { standard?: boolean } & Kcc20TokenDeps = {},
 ): Promise<Kcc20Tokens> {
-  if (!standard)
+  // kascov serves mainnet only: a testnet address never goes to it.
+  if (!standard || (deps.network ?? "mainnet") !== "mainnet")
     return {
       tokens: await fetchLegacyTokens(address, rpc, restApi, deps),
       legacyUnavailable: false,
@@ -533,8 +563,10 @@ async function fetchLegacyTokens(
   rpc: RpcClient,
   restApi: string,
   {
-    indexer = new client.IndexerClient(KRON_INDEXER_URL),
-    registry: registryClient = new client.RegistryClient(KRON_REGISTRY_URL),
+    network = "mainnet",
+    hosts = KRON_HOSTS[network],
+    indexer = new client.IndexerClient(hosts.indexer),
+    registry: registryClient = new client.RegistryClient(hosts.registry),
   }: Kcc20TokenDeps = {},
 ): Promise<Kcc20Token[]> {
   const [rows, registry] = await Promise.all([
@@ -563,12 +595,13 @@ async function fetchLegacyTokens(
           tick,
           address,
           covid,
+          network,
         );
         // Skips the genesis-tx fetch; shouldIncludeToken is still the gate.
         if (amount === 0n) return undefined;
         const entry = registry?.tokens.find(
           (t) =>
-            t.network === "mainnet" &&
+            t.network === hosts.registryNetwork &&
             covenantSelect.normalizedCovenantId(t.covenantId) === covid,
         );
         return {

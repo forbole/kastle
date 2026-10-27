@@ -83,6 +83,16 @@ test("recipient must be a mainnet schnorr address", () => {
   expect(() => recipientPubkey(`kaspatest:${address.slice(6)}`)).toThrow();
 });
 
+test("a testnet recipient must be a testnet schnorr address", () => {
+  const testnet = key.toAddress("testnet-10").toString();
+  expect(bytesToHex(recipientPubkey(testnet, "testnet-10"))).toBe(
+    bytesToHex(xonly),
+  );
+  expect(() => recipientPubkey(address, "testnet-10")).toThrow(
+    "Recipient must be a Kaspa testnet address starting with kaspatest:q",
+  );
+});
+
 test("pieces: presence-owned only, largest first, at most 3 inputs", () => {
   const picked = selectPieces([piece(1, 5n), piece(2, 9n), piece(3, 7n)], 10n);
   expect(picked.map((p) => String(p.state.amount))).toEqual(["9", "7"]);

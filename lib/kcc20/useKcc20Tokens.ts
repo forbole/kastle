@@ -2,23 +2,25 @@ import { useContext } from "react";
 import useSWR from "swr";
 import { useSettings } from "@/hooks/useSettings.ts";
 import { useFeatureFlags } from "@/hooks/useFeatureFlags.ts";
-import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import { RpcClientContext } from "@/contexts/RpcClientContext.tsx";
 import { restApis } from "@/components/screens/Settings";
-import { fetchKcc20Tokens } from "@/lib/kcc20";
+import { fetchKcc20Tokens, KRON_HOSTS } from "@/lib/kcc20";
 
 export default function useKcc20Tokens(address?: string) {
   const [settings] = useSettings();
   const { rpcClient } = useContext(RpcClientContext);
   const { isKcc20StandardEnabled } = useFeatureFlags();
-  const enabled =
-    address && rpcClient && settings?.networkId === NetworkType.Mainnet;
+  const network = settings?.networkId;
+  // Stored settings may carry a network KRON does not serve: no fetch.
+  const enabled = address && rpcClient && network && network in KRON_HOSTS;
 
   const { data, error, isLoading } = useSWR(
-    enabled ? ["kcc20Tokens", address, isKcc20StandardEnabled] : null,
+    // Network in the key so a switch never shows the other network's rows.
+    enabled ? ["kcc20Tokens", network, address, isKcc20StandardEnabled] : null,
     () =>
-      fetchKcc20Tokens(address!, rpcClient!, restApis[NetworkType.Mainnet], {
+      fetchKcc20Tokens(address!, rpcClient!, restApis[network!], {
         standard: isKcc20StandardEnabled,
+        network,
       }),
     { refreshInterval: 30_000 },
   );

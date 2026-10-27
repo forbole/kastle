@@ -9,6 +9,7 @@ import { classifyRedeem, isStandardOwnedBy } from "../classify";
 import { liveEntries } from "../live-entries";
 import type { KascovCell } from "../providers/kascov";
 import type { KCC20State } from "./state";
+import type { KronNetwork } from "../index";
 
 export type StandardPiece = {
   tokenId: string;
@@ -29,11 +30,13 @@ export async function verifyStandardCells({
   covenantId,
   rpc,
   walletPubkey32,
+  network = "mainnet",
 }: {
   cells: KascovCell[];
   covenantId: string;
   rpc: RpcClient;
   walletPubkey32: Uint8Array;
+  network?: KronNetwork;
 }): Promise<StandardPiece[]> {
   const covid = covenantSelect.normalizedCovenantId(covenantId);
   if (!covid) return [];
@@ -44,7 +47,7 @@ export async function verifyStandardCells({
       if (classified.family !== "kcc20-standard") return [];
       const p2sh = addressFromScriptPublicKey(
         payToScriptHashScript(redeem),
-        "mainnet",
+        network,
       )?.toString();
       return p2sh ? [{ cell, state: classified.state, p2sh }] : [];
     } catch {
