@@ -100,6 +100,7 @@ export default function Kcc20Send() {
         recipient: to,
         amount,
         rpc: rpcClient,
+        network: networkId ?? NetworkType.Mainnet,
       });
       setSent({ decimals, symbol, recipient: to });
       setBuilt(result);
