@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { build } from "vite";
 import http from "node:http";
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -21,9 +21,19 @@ test.beforeAll(async () => {
     build: { outDir },
   });
   server = http.createServer((req, res) => {
-    const p = path.join(outDir, (req.url ?? "/").split("?")[0]);
+    const p = path.resolve(
+      outDir,
+      "." + decodeURIComponent((req.url ?? "/").split("?")[0]),
+    );
+    // Nothing outside the build dir, whatever `..` the URL carries.
+    if (!p.startsWith(outDir + path.sep) && p !== outDir) {
+      res.writeHead(403).end();
+      return;
+    }
     const file =
-      existsSync(p) && !p.endsWith("/") ? p : path.join(outDir, "index.html");
+      existsSync(p) && statSync(p).isFile()
+        ? p
+        : path.join(outDir, "index.html");
     res.writeHead(200, {
       "content-type":
         { ".js": "text/javascript", ".css": "text/css" }[path.extname(file)] ??
@@ -31,7 +41,7 @@ test.beforeAll(async () => {
     });
     res.end(readFileSync(file));
   });
-  await new Promise<void>((r) => server.listen(0, r));
+  await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
   base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
 });
 test.afterAll(() => server?.close());
@@ -134,16 +144,76 @@ test("over-balance, zero and self-send keep Next disabled", async ({
 test("a failed build shows the KCC-20 copy and stays on details", async ({
   page,
 }) => {
+  const copy =
+    "You don't have enough spendable balance of this token for this amount.";
   await open(page, "&build=error");
   await fill(page, RECIPIENT, "5");
   await next(page).click();
-  await expect(
-    page.getByText(
-      "You don't have enough spendable balance of this token for this amount.",
-    ),
-  ).toBeVisible();
+  await expect(page.getByText(copy)).toBeVisible();
   await expect(page.getByText("Send to ...")).toBeVisible();
+  // Not a field error: Next retries without editing, and an edit clears it.
+  await expect(next(page)).toBeEnabled();
+  await next(page).click();
+  expect((await h(page)).builds).toHaveLength(2);
+  await amount(page).fill("4");
+  await expect(page.getByText(copy)).toBeHidden();
+});
+
+test("a recipient build failure sits on the address and clears on edit", async ({
+  page,
+}) => {
+  await open(page, "&build=recipient");
+  await fill(page, RECIPIENT, "5");
+  await next(page).click();
+  await expect(
+    page.getByText("Recipient must be a Schnorr address"),
+  ).toBeVisible();
   await expect(next(page)).toBeDisabled();
+  await address(page).fill("kaspa:qother");
+  await expect(
+    page.getByText("Recipient must be a Schnorr address"),
+  ).toBeHidden();
+  await expect(next(page)).toBeEnabled();
+});
+
+test("a second build cannot start while one is pending", async ({ page }) => {
+  await open(page, "&build=hold");
+  await fill(page, RECIPIENT, "5");
+  await next(page).click();
+  const pending = page.getByRole("status", { name: "loading" });
+  await expect(pending).toBeAttached();
+  // The spinner button is disabled; a forced click must not start a build.
+  const spinning = page.locator("button:has([role=status])");
+  await expect(spinning).toBeDisabled();
+  await spinning.dispatchEvent("click");
+  expect((await h(page)).builds).toHaveLength(1);
+  await page.evaluate(() => window.__kcc20Send.release?.());
+  await expect(page.getByText("Sending amount")).toBeVisible();
+  expect((await h(page)).builds).toHaveLength(1);
+});
+
+test("Back is gone while the send is signing", async ({ page }) => {
+  await open(page, "&send=hold");
+  await fill(page, RECIPIENT, "5");
+  await next(page).click();
+  await expect(page.getByText("Sending amount")).toBeVisible();
+  const buttons = await page.locator("button").count();
+  await confirm(page).click();
+  await expect(page.getByRole("status", { name: "loading" })).toBeAttached();
+  await expect(page.locator("button")).toHaveCount(buttons - 1);
+  await page.evaluate(() => window.__kcc20Send.release?.());
+  await expect(page.getByText("NACHO Dispatched")).toBeVisible();
+  expect((await h(page)).builds).toHaveLength(1);
+});
+
+test("an 18-decimal balance keeps every digit", async ({ page }) => {
+  await open(page, "&token=1");
+  await expect(page.getByText("0.000000000000000001 NACHO")).toBeVisible();
+  await page.goto("about:blank");
+  await open(page, "&token=123456789012345678901234567890");
+  await expect(
+    page.getByText("123,456,789,012.34567890123456789 NACHO"),
+  ).toBeVisible();
 });
 
 test("a failed send lands on the shared fail screen with the reason", async ({

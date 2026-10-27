@@ -13,6 +13,8 @@ declare global {
       send: string;
       builds: { recipient: string; amount: string; network?: string }[];
       recent: { kaspaAddress: string; domain?: string }[];
+      // Settles a build or send held by build=hold / send=hold.
+      release?: () => void;
     };
   }
 }
@@ -24,13 +26,17 @@ const h = () => window.__kcc20Send;
   action: { setPopup: () => {} },
 };
 
+const hold = () => new Promise<void>((r) => (h().release = r));
+
+// token=<base units> swaps in an 18-decimal balance.
+const units = new URLSearchParams(location.search).get("token");
 export const kcc20Token: Kcc20Token = {
   covenantId: "ab".repeat(32),
   family: "kcc20-standard",
   tick: "nacho",
-  amount: 1_000_000n,
-  spendable: 1_000_000n,
-  meta: { symbol: "NACHO", name: "Nacho", decimals: 2 },
+  amount: units ? BigInt(units) : 1_000_000n,
+  spendable: units ? BigInt(units) : 1_000_000n,
+  meta: { symbol: "NACHO", name: "Nacho", decimals: units ? 18 : 2 },
 };
 
 // Wallet and network
@@ -158,11 +164,18 @@ export async function buildKcc20Transfer(args: {
     amount: String(args.amount),
     network: args.network,
   });
+  if (h().build === "hold") await hold();
   if (h().build === "error")
     throw new Kcc20StandardBuildError("insufficient-balance");
+  if (h().build === "recipient")
+    throw new Kcc20TransferError(
+      "invalid-recipient",
+      "Recipient must be a Schnorr address",
+    );
   return { amount: args.amount, fee: 12_345n, kasDebit: 112_345n };
 }
 export async function sendKcc20Transfer() {
+  if (h().send === "hold") await hold();
   if (h().send === "error") throw new Error("node rejected the transaction");
   return "kcc20tx";
 }

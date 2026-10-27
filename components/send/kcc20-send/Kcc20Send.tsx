@@ -23,6 +23,7 @@ import useKaspaPrice from "@/hooks/useKaspaPrice.ts";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 import {
   BuiltKcc20Transfer,
+  Kcc20TransferError,
   buildKcc20Transfer,
   sendKcc20Transfer,
 } from "@/lib/kcc20/transfer";
@@ -31,6 +32,13 @@ import { kcc20BuildErrorCopy, kcc20SendErrorCopy } from "./errorCopy";
 type Step = "details" | "confirm" | "broadcast" | "success" | "fail";
 
 const KAS_DECIMALS = 8;
+
+// Exact base units → "1,234.000000000000000001"; a float would drop digits.
+const formatBalance = (units: bigint, decimals: number) => {
+  const [int, frac] = formatUnits(units, decimals).split(".");
+  const grouped = int.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return frac ? `${grouped}.${frac}` : grouped;
+};
 
 export default function Kcc20Send() {
   const navigate = useNavigate();
@@ -72,6 +80,17 @@ export default function Kcc20Send() {
   const [outTxs, setOutTxs] = useState<string[]>();
   const [failReason, setFailReason] = useState<string>();
   const [isConfirming, setIsConfirming] = useState(false);
+  // Build failure not tied to a field (RPC, funding): shown above Next, which stays enabled.
+  const [buildError, setBuildError] = useState<string>();
+  // One build in flight; a second's result would overwrite the first's.
+  const building = useRef(false);
+
+  useEffect(() => {
+    const sub = form.watch((_, { name }) => {
+      if (name === "userInput" || name === "amount") setBuildError(undefined);
+    });
+    return () => sub.unsubscribe();
+  }, [form]);
 
   const onClose = () => navigate("/dashboard");
   const decimals = token?.meta?.decimals ?? 0;
@@ -100,6 +119,7 @@ export default function Kcc20Send() {
     logo: token?.meta?.logoURI,
     // Only ADDRESS-owned pieces are sendable; the dashboard balance may be higher.
     balance: token ? Number(formatUnits(token.spendable, decimals)) : 0,
+    balanceText: token ? formatBalance(token.spendable, decimals) : "0",
     price: 0,
     decimals,
     maxAmount: token ? formatUnits(token.spendable, decimals) : "0",
@@ -121,6 +141,9 @@ export default function Kcc20Send() {
       const amount = parseAmount(amountInput ?? "");
       if (!token?.meta || !account || !rpcClient || !address) return;
       if (amount === undefined) return;
+      if (building.current || isConfirming) return;
+      building.current = true;
+      setBuildError(undefined);
       const { decimals, symbol } = token.meta;
       try {
         const result = await buildKcc20Transfer({
@@ -135,9 +158,18 @@ export default function Kcc20Send() {
         setBuilt(result);
         setStep("confirm");
       } catch (e) {
-        form.setError("amount", { message: kcc20BuildErrorCopy(e) });
+        const message = kcc20BuildErrorCopy(e);
+        // On the input field, so editing the recipient re-validates and clears it.
+        if (e instanceof Kcc20TransferError && e.code === "invalid-recipient") {
+          form.setError("userInput", { message });
+        } else {
+          setBuildError(message);
+        }
+      } finally {
+        building.current = false;
       }
     },
+    nextError: buildError,
   };
 
   const onConfirm = async () => {
@@ -195,7 +227,8 @@ export default function Kcc20Send() {
             isConfirming={isConfirming}
             onNext={onConfirm}
             // Back to details, not a resend: the built tx may be stale, so Next rebuilds it.
-            onBack={() => setStep("details")}
+            // Hidden while signing: a rebuild then would race this send's status.
+            onBack={isConfirming ? undefined : () => setStep("details")}
           />
         )}
         {step === "broadcast" && (

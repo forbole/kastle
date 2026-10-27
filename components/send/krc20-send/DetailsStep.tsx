@@ -35,6 +35,9 @@ export interface TokenSendAsset {
   name: string;
   logo?: string;
   balance: number;
+  // Display-ready balance, for amounts a float would round; defaults to
+  // formatToken(balance).
+  balanceText?: string;
   // Fiat-converter input, in USD per token; 0 when unpriced.
   price: number;
   // Digits the amount input keeps after the point.
@@ -50,6 +53,8 @@ export interface TokenSendAsset {
   fee?: number;
   feeInfo: string;
   onNext: (form: KRC20SendForm) => void | Promise<void>;
+  // A failure not tied to one field (e.g. the build); Next stays enabled to retry.
+  nextError?: string;
 }
 
 function useKrc20SendAsset(): TokenSendAsset {
@@ -382,7 +387,8 @@ export const TokenSendDetails = ({
           <div className="flex items-center gap-3 text-sm">
             <span className="font-semibold">Balance</span>
             <span className="flex-grow">
-              {formatToken(currentBalance)} {tokenName?.toUpperCase()}
+              {asset.balanceText ?? formatToken(currentBalance)}{" "}
+              {tokenName?.toUpperCase()}
             </span>
             <button
               className="inline-flex items-center gap-x-2 rounded border border-transparent bg-icy-blue-400 px-3 py-2 text-sm text-white disabled:pointer-events-none disabled:opacity-50"
@@ -548,6 +554,11 @@ export const TokenSendDetails = ({
         </div>
 
         <div className="mt-auto">
+          {asset.nextError && (
+            <p className="mb-2 text-center text-sm text-red-500">
+              {asset.nextError}
+            </p>
+          )}
           <button
             disabled={!isValid || !!errors.amount || !address || isNextPending}
             onClick={navigateToNextStep}
