@@ -6,10 +6,29 @@ import {
   payToScriptHashScript,
   RpcClient,
 } from "@/wasm/core/kaspa";
+import type { NetworkType } from "@/contexts/SettingsContext.tsx";
 
-// ponytail: mainnet only, KRON publishes no testnet indexer or registry yet.
-export const KRON_INDEXER_URL = "https://idx.kron.technology/v1/kcc20";
-export const KRON_REGISTRY_URL = "https://api.kron.technology";
+// NetworkType's values, type-only: SettingsContext's runtime imports do not
+// load under the node unit tests that import this module.
+type KronNetwork = `${NetworkType}`;
+
+export const KRON_HOSTS: Record<
+  KronNetwork,
+  { indexer: string; registry: string; registryNetwork: string }
+> = {
+  mainnet: {
+    indexer: "https://idx.kron.technology/v1/kcc20",
+    registry: "https://api.kron.technology",
+    registryNetwork: "mainnet",
+  },
+  "testnet-10": {
+    indexer: "https://idx.krontest.xyz/v1/kcc20",
+    registry: "https://api.krontest.xyz",
+    registryNetwork: "testnet-10",
+  },
+};
+export const KRON_INDEXER_URL = KRON_HOSTS.mainnet.indexer;
+export const KRON_REGISTRY_URL = KRON_HOSTS.mainnet.registry;
 
 type TokenListEntry = verify.SignedTokenList["tokens"][number];
 
@@ -54,6 +73,7 @@ async function verifiedBalance(
   tick: string,
   address: string,
   covid: string,
+  networkId: KronNetwork,
 ) {
   const walletSpk = payToAddressScript(address).script;
   const claimed = new Map<
@@ -71,7 +91,7 @@ async function verifiedBalance(
       if (!isOwnedBy(state, walletSpk)) continue;
       const p2sh = addressFromScriptPublicKey(
         payToScriptHashScript(redeem),
-        "mainnet",
+        networkId,
       )?.toString();
       if (!p2sh) continue;
       const { transactionId, index } = utxo.outpoint;
@@ -131,17 +151,19 @@ async function verifiedMeta(
   return { symbol, name, decimals, logoURI };
 }
 
-/** The wallet's KCC-20 holdings on mainnet, one row per covenant id, verified balance and metadata only. */
+/** The wallet's KCC-20 holdings on `networkId`, one row per covenant id, verified balance and metadata only. */
 export async function fetchKcc20Tokens(
   address: string,
   rpc: RpcClient,
   restApi: string,
+  networkId: KronNetwork,
+  hosts = KRON_HOSTS[networkId],
 ): Promise<Kcc20Token[]> {
-  const indexer = new client.IndexerClient(KRON_INDEXER_URL);
+  const indexer = new client.IndexerClient(hosts.indexer);
   const [rows, registry] = await Promise.all([
     indexer.tokenlist(address),
     // Registry down: nothing verifies, so no token shows.
-    new client.RegistryClient(KRON_REGISTRY_URL)
+    new client.RegistryClient(hosts.registry)
       .tokenlist()
       .catch(() => undefined),
   ]);
@@ -157,12 +179,19 @@ export async function fetchKcc20Tokens(
 
   const tokens: (Kcc20Token | undefined)[] = await Promise.all(
     [...tickByCovid].map(async ([covid, tick]) => {
-      const amount = await verifiedBalance(indexer, rpc, tick, address, covid);
+      const amount = await verifiedBalance(
+        indexer,
+        rpc,
+        tick,
+        address,
+        covid,
+        networkId,
+      );
       // Skips the genesis-tx fetch; shouldIncludeToken is still the gate.
       if (amount === 0n) return undefined;
       const entry = registry?.tokens.find(
         (t) =>
-          t.network === "mainnet" &&
+          t.network === hosts.registryNetwork &&
           covenantSelect.normalizedCovenantId(t.covenantId) === covid,
       );
       return {

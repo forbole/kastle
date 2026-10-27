@@ -4,8 +4,19 @@ import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import { kcc20 } from "@kronsdk/kron-sdk";
 import { hexToBytes } from "viem";
-import init, { PrivateKey, payToAddressScript } from "@/wasm/core/kaspa";
-import { isOwnedBy, shouldIncludeToken } from "@/lib/kcc20";
+import init, {
+  addressFromScriptPublicKey,
+  PrivateKey,
+  payToAddressScript,
+  payToScriptHashScript,
+  RpcClient,
+} from "@/wasm/core/kaspa";
+import {
+  fetchKcc20Tokens,
+  isOwnedBy,
+  KRON_HOSTS,
+  shouldIncludeToken,
+} from "@/lib/kcc20";
 
 const TESTS_DIR = path.dirname(fileURLToPath(import.meta.url));
 
@@ -41,4 +52,104 @@ test("a kcc20 token shows only with verified metadata and a non-zero balance", (
   // Registry entry missing or failed verification: hidden, never raw units.
   expect(shouldIncludeToken(undefined, 5n)).toBe(false);
   expect(shouldIncludeToken(meta, 0n)).toBe(false);
+});
+
+// ─── testnet-10 ─────────────────────────────────────────────────────────────
+
+// Recorded once from the KTEST wallet on testnet-10.
+const TN10_ADDRESS =
+  "kaspatest:qqz6pwtwxa5dds2qssxpuc28lnrnnvx48ymdcqyzju0n58dcg5p9cme645x4v";
+// The testnet-10 REST API from screens/Settings, which hangs the node test
+// loader when imported.
+const TN10_REST_API = "https://api-tn10.kaspa.org";
+const KTEST_COVID =
+  "06d073cefa3c0bcb842c8acc0da15d80cca2262293d8fb61344734ce925c6516";
+const fixture = (name: string) =>
+  JSON.parse(fs.readFileSync(path.join(TESTS_DIR, "kcc20-tn10", name), "utf8"));
+
+/** Serves the recorded fixtures for every host the fetch goes to. */
+async function withTn10Fetch<T>(registry: unknown, run: () => Promise<T>) {
+  const realFetch = globalThis.fetch;
+  const hosts = KRON_HOSTS["testnet-10"];
+  const routes: Record<string, unknown> = {
+    [`${hosts.indexer}/address/${encodeURIComponent(TN10_ADDRESS)}/tokenlist`]:
+      fixture("indexer-tokenlist.json"),
+    [`${hosts.indexer}/token/KTEST/address/${encodeURIComponent(TN10_ADDRESS)}/utxos`]:
+      fixture("indexer-utxos.json"),
+    [`${hosts.registry}/api/registry/tokenlist`]: registry,
+    [`${TN10_REST_API}/transactions/1c54c07de427e2409b23f77417c0f7f68c0b6a16b8e535ca77f42134bb9d4094?outputs=true`]:
+      fixture("genesis-tx.json"),
+  };
+  try {
+    globalThis.fetch = (async (url: string) =>
+      url in routes
+        ? Response.json(routes[url])
+        : new Response(null, { status: 404 })) as typeof fetch;
+    return await run();
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+}
+
+/** Node stub: echoes the indexer's outpoints as live at their P2SH. */
+function tn10Rpc() {
+  return {
+    getUtxosByAddresses: async (addresses: string[]) => ({
+      entries: fixture("indexer-utxos.json").result.map(
+        (u: {
+          outpoint: { transactionId: string; index: number };
+          redeemScriptHex: string;
+        }) => {
+          const address = addressFromScriptPublicKey(
+            payToScriptHashScript(hexToBytes(`0x${u.redeemScriptHex}`)),
+            "testnet-10",
+          )!.toString();
+          expect(address.startsWith("kaspatest:")).toBe(true);
+          expect(addresses).toContain(address);
+          return {
+            outpoint: u.outpoint,
+            address,
+            entry: { covenantId: KTEST_COVID },
+          };
+        },
+      ),
+    }),
+  } as unknown as RpcClient;
+}
+
+test("kcc20 hosts: testnet-10 resolves the krontest hosts, mainnet unchanged", () => {
+  expect(KRON_HOSTS["testnet-10"]).toEqual({
+    indexer: "https://idx.krontest.xyz/v1/kcc20",
+    registry: "https://api.krontest.xyz",
+    registryNetwork: "testnet-10",
+  });
+  expect(KRON_HOSTS.mainnet).toEqual({
+    indexer: "https://idx.kron.technology/v1/kcc20",
+    registry: "https://api.kron.technology",
+    registryNetwork: "mainnet",
+  });
+});
+
+test("a testnet-10 kcc20 token reaches the asset list with its verified balance", async () => {
+  const tokens = await withTn10Fetch(fixture("registry-tokenlist.json"), () =>
+    fetchKcc20Tokens(TN10_ADDRESS, tn10Rpc(), TN10_REST_API, "testnet-10"),
+  );
+  // Amount via String(): a failing bigint expect crash-loops the worker.
+  expect(
+    tokens.map((t) => [t.covenantId, String(t.amount), t.meta?.symbol]),
+  ).toEqual([[KTEST_COVID, "110000", "KTEST"]]);
+});
+
+test("the mainnet registry filter ignores a testnet-10 entry", async () => {
+  const tokens = await withTn10Fetch(fixture("registry-tokenlist.json"), () =>
+    fetchKcc20Tokens(
+      TN10_ADDRESS,
+      tn10Rpc(),
+      TN10_REST_API,
+      "testnet-10",
+      // Testnet data, but filtered as mainnet: no entry, so no metadata.
+      { ...KRON_HOSTS["testnet-10"], registryNetwork: "mainnet" },
+    ),
+  );
+  expect(tokens.map((t) => t.covenantId)).toEqual([]);
 });
