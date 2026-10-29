@@ -37,9 +37,7 @@ export const KCC20_FAMILY_LABELS: Record<Kcc20Family, string> = {
 
 export const KCC20_LABELS = {
   // Token detail
-  historyTab: "History",
   viewInExplorer: "See activity history in explorer",
-  assetInfoTab: "Asset Info",
   tokenInfo: "Token Info",
   network: "Network",
   covenantId: "Covenant ID",

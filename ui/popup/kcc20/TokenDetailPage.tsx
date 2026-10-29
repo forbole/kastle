@@ -2,17 +2,12 @@ import { BadgeCheck, ExternalLink } from "lucide-react";
 // The asset detail chrome is shared with the other asset screens.
 import Header from "@/components/GeneralHeader";
 import AssetSendButton from "@/components/AssetSendButton";
-import SegmentedControl from "@/ui/general/SegmentedControl";
+import AssetTabs from "@/components/AssetTabs";
 import AssetImage from "./AssetImage";
 import NetworkTypeChip from "./NetworkTypeChip";
 import { KCC20_LABELS, NetworkType } from "./labels";
 
 export type TokenDetailTab = "history" | "assetInfo";
-
-const TABS = [
-  { label: KCC20_LABELS.historyTab, value: "history" as const },
-  { label: KCC20_LABELS.assetInfoTab, value: "assetInfo" as const },
-];
 
 export interface TokenDetailPageProps {
   name: string;
@@ -117,37 +112,40 @@ export default function TokenDetailPage({
 
       <div className="no-scrollbar flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
         <div className="pb-2">
-          <SegmentedControl
-            options={TABS}
-            value={activeTab}
-            onChange={onTabChange}
+          <AssetTabs
+            active={activeTab === "assetInfo" ? "info" : "history"}
+            onChange={(tab) =>
+              onTabChange(tab === "info" ? "assetInfo" : "history")
+            }
           />
         </div>
 
-        {/* Header card: the Home asset row plus the chip */}
-        <div className="flex items-center gap-3 rounded-2xl border border-card-border bg-white/5 px-3 py-3">
-          {tokenImage}
-          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-            <div className="flex items-center gap-1.5">
-              <span className="truncate text-base font-semibold leading-4">
-                {name}
-              </span>
-              {showVerified && (
-                <BadgeCheck
-                  aria-label={KCC20_LABELS.verified}
-                  className="size-4 shrink-0 text-verified"
-                  strokeWidth={2}
-                />
+        {/* Header card: the Home asset row plus the chip, Token info only */}
+        {activeTab === "assetInfo" && (
+          <div className="flex items-center gap-3 rounded-2xl border border-card-border bg-white/5 px-3 py-3">
+            {tokenImage}
+            <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+              <div className="flex items-center gap-1.5">
+                <span className="truncate text-base font-semibold leading-4">
+                  {name}
+                </span>
+                {showVerified && (
+                  <BadgeCheck
+                    aria-label={KCC20_LABELS.verified}
+                    className="size-4 shrink-0 text-verified"
+                    strokeWidth={2}
+                  />
+                )}
+              </div>
+              {priceLabel && (
+                <span className="truncate text-sm leading-[21px] text-daintree-300">
+                  {priceLabel}
+                </span>
               )}
             </div>
-            {priceLabel && (
-              <span className="truncate text-sm leading-[21px] text-daintree-300">
-                {priceLabel}
-              </span>
-            )}
+            <NetworkTypeChip network={network} />
           </div>
-          <NetworkTypeChip network={network} />
-        </div>
+        )}
 
         {activeTab === "assetInfo" ? (
           <section className="flex flex-col">

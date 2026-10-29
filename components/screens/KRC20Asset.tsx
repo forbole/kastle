@@ -1,7 +1,7 @@
 import Header from "@/components/GeneralHeader.tsx";
 import { useNavigate, useParams } from "react-router-dom";
-import { twMerge } from "tailwind-merge";
 import React, { useState } from "react";
+import AssetTabs, { AssetTab } from "@/components/AssetTabs";
 import TokenHistory from "@/components/krc20-asset/TokenHistory";
 import TokenInfo from "@/components/krc20-asset/TokenInfo";
 import { setPopupPath } from "@/lib/utils.ts";
@@ -13,7 +13,7 @@ import AssetSendButton from "@/components/AssetSendButton";
 export default function TokenAsset() {
   const navigate = useNavigate();
   const { ticker } = useParams();
-  const [activeTab, setActiveTab] = useState<"history" | "info">("history");
+  const [activeTab, setActiveTab] = useState<AssetTab>("history");
 
   const { data: tokenInfoResponse } = useTokenInfo(ticker);
   const tokenInfo = tokenInfoResponse?.result?.[0];
@@ -50,28 +50,7 @@ export default function TokenAsset() {
       />
 
       <div className="no-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto">
-        <nav className="flex gap-x-1 rounded-xl bg-daintree-800 p-1">
-          <button
-            type="button"
-            className={twMerge(
-              "inline-flex flex-grow items-center justify-center gap-x-2 rounded-lg px-4 py-3 text-center text-sm font-medium text-[#E5E7EB] focus:outline-none disabled:pointer-events-none disabled:opacity-50",
-              activeTab === "history" ? "bg-daintree-700" : "bg-transparent",
-            )}
-            onClick={() => setActiveTab("history")}
-          >
-            History
-          </button>
-          <button
-            type="button"
-            className={twMerge(
-              "inline-flex flex-grow items-center justify-center gap-x-2 rounded-lg px-4 py-3 text-center text-sm font-medium text-[#E5E7EB] focus:outline-none disabled:pointer-events-none disabled:opacity-50",
-              activeTab === "info" ? "bg-daintree-700" : "bg-transparent",
-            )}
-            onClick={() => setActiveTab("info")}
-          >
-            Token info
-          </button>
-        </nav>
+        <AssetTabs active={activeTab} onChange={setActiveTab} />
         {activeTab === "history" && <TokenHistory />}
         {activeTab === "info" && <TokenInfo />}
       </div>

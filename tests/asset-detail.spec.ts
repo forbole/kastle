@@ -181,6 +181,11 @@ for (const s of SCREENS) {
     page,
   }) => {
     await open(page, s.route, "&tall=1&h=320");
+    // KCC-20 has real tab bodies, not stubs: only Token info is that tall.
+    if (s.key === "KCC-20")
+      await page
+        .getByRole("button", { name: "Token info", exact: true })
+        .click();
     const body = page.locator("#popup .overflow-y-auto").first();
     const send = sendButton(page, s.ticker);
     await expect(send).toBeVisible();
@@ -384,6 +389,116 @@ test("KCC-20: Send keeps the ext of the row", async ({ page }) => {
   await expect(page.getByTestId("landed")).toHaveText(
     `/kcc20/send/${KCC20_ID}?ext=${KCC20_EXT}`,
   );
+});
+
+// The tab control of the design system (components/AssetTabs). dotK has no tabs.
+const TABS_NAV = "flex gap-x-1 rounded-xl bg-daintree-800 p-1";
+const TAB_BUTTON =
+  "inline-flex flex-grow items-center justify-center gap-x-2 rounded-lg px-4 py-3 text-center text-sm font-medium text-[#E5E7EB] focus:outline-none disabled:pointer-events-none disabled:opacity-50";
+
+// active: the tab each screen opens on.
+const TABBED = [
+  { key: "KAS", route: "/kas-asset", active: "History" },
+  { key: "KRC-20", route: "/token-asset/KASPY", active: "History" },
+  {
+    key: "KRC-20 issue mode",
+    route: `/token-asset/${ISSUE_CA}`,
+    active: "History",
+  },
+  {
+    key: "ERC-20",
+    route: `/erc20-asset/0x97b4/${ERC20}`,
+    active: "Token info",
+  },
+  { key: "EVM KAS", route: "/evm-asset/0x97b4", active: "History" },
+  { key: "KCC-20", route: `/kcc20/${KCC20_ID}`, active: "History" },
+];
+
+// The element that holds the History button, and its buttons.
+async function tabBar(page: Page) {
+  return page
+    .getByRole("button", { name: "History", exact: true })
+    .evaluate((h) => {
+      const bar = h.parentElement!;
+      const buttons = [...bar.children];
+      return {
+        tag: bar.tagName,
+        className: bar.className,
+        labels: buttons.map((b) => b.textContent),
+        buttons: buttons.map((b) => ({
+          tag: b.tagName,
+          attributes: b.getAttributeNames().sort(),
+          classes: b.className.split(" ").sort(),
+        })),
+      };
+    });
+}
+
+for (const s of TABBED) {
+  test(`${s.key}: the tabs are History | Token info, as on every tabbed screen`, async ({
+    page,
+  }) => {
+    await open(page, s.route);
+    const own = await tabBar(page);
+    // Soft: a failure here still shows the others.
+    expect.soft(own.tag, s.key).toBe("NAV");
+    expect.soft(own.className, s.key).toBe(TABS_NAV);
+    expect.soft(own.labels, s.key).toEqual(["History", "Token info"]);
+    const inactive = s.active === "History" ? "Token info" : "History";
+    const classes = (label: string) =>
+      own.buttons[own.labels.indexOf(label)]?.classes.join(" ");
+    const expected = (state: string) =>
+      [...TAB_BUTTON.split(" "), state].sort().join(" ");
+    expect
+      .soft(classes(s.active), `${s.key} active ${s.active}`)
+      .toBe(expected("bg-daintree-700"));
+    expect
+      .soft(classes(inactive), `${s.key} inactive ${inactive}`)
+      .toBe(expected("bg-transparent"));
+
+    // The same markup on every other tabbed screen, but for the active tab.
+    const same = (bar: typeof own) => ({
+      ...bar,
+      buttons: bar.buttons.map((b) => ({
+        ...b,
+        classes: b.classes.filter(
+          (c) => c !== "bg-daintree-700" && c !== "bg-transparent",
+        ),
+      })),
+    });
+    for (const o of TABBED.filter((x) => x.key !== s.key)) {
+      await open(page, o.route);
+      expect(same(await tabBar(page)), `${s.key} vs ${o.key}`).toEqual(
+        same(own),
+      );
+    }
+  });
+}
+
+// As on every other tabbed screen, the identity card is Token info only.
+test("KCC-20: the identity card shows on Token info, not on History", async ({
+  page,
+}) => {
+  await open(page, `/kcc20/${KCC20_ID}`);
+  const chip = page.getByText("Kaspa-KCC20", { exact: true });
+  const explorer = page.getByRole("button", {
+    name: "See activity history in explorer",
+  });
+  await expect(explorer).toBeVisible();
+  await expect(chip).toHaveCount(0);
+  // History starts with the activity card, right under the tabs.
+  const next = await page
+    .getByRole("navigation")
+    .evaluate((nav) => nav.parentElement!.nextElementSibling!.textContent);
+  expect(next).toBe("See activity history in explorer");
+  await expect(sendButton(page, "KTEST")).toBeVisible();
+
+  await page.getByRole("button", { name: "Token info", exact: true }).click();
+  await expect(chip).toBeVisible();
+  const card = page.locator("div.rounded-2xl", { has: chip });
+  await expect(card.getByText("KTEST", { exact: true })).toBeVisible();
+  await expect(explorer).toHaveCount(0);
+  await expect(sendButton(page, "KTEST")).toBeVisible();
 });
 
 for (const t of [

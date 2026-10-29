@@ -265,7 +265,7 @@ test("a dashboard tap opens the detail page, not send", async ({ page }) => {
     page.getByRole("button", { name: "History", exact: true }),
   ).toBeVisible();
   await expect(page.getByText("Send to ...")).toBeHidden();
-  await page.getByRole("button", { name: "Asset Info", exact: true }).click();
+  await page.getByRole("button", { name: "Token info", exact: true }).click();
   await expect(page.getByText("Covenant ID")).toBeVisible();
 
   await page.getByRole("button", { name: "Back" }).click();
