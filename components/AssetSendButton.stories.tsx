@@ -1,0 +1,36 @@
+import type { Meta, StoryObj } from "@storybook/react";
+import AssetSendButton from "./AssetSendButton";
+
+const meta: Meta<typeof AssetSendButton> = {
+  title: "General/AssetSendButton",
+  component: AssetSendButton,
+  parameters: {
+    backgrounds: {
+      default: "dark",
+      values: [{ name: "dark", value: "#051d27" }],
+    },
+  },
+  decorators: [
+    (Story) => (
+      <div className="w-[375px] px-4 pb-4">
+        <Story />
+      </div>
+    ),
+  ],
+  argTypes: {
+    ticker: { control: "text" },
+    disabled: { control: "boolean" },
+    onClick: { action: "send" },
+  },
+};
+
+export default meta;
+type Story = StoryObj<typeof AssetSendButton>;
+
+export const Default: Story = {
+  args: { ticker: "KTEST" },
+};
+
+export const Disabled: Story = {
+  args: { ticker: "KTEST", disabled: true },
+};

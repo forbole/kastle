@@ -11,9 +11,10 @@ import Copy from "@/components/Copy";
 import HoverShowAllCopy from "@/components/HoverShowAllCopy";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { useFeatureFlags } from "@/hooks/useFeatureFlags";
+import AssetSendButton from "@/components/AssetSendButton";
 
-// Read-only apart from Transfer. TODO(dotk): records / release are covenant-tx write
-// paths and live in later phases, not here.
+// Read-only apart from Send (the transfer flow). TODO(dotk): records / release
+// are covenant-tx write paths and live in later phases, not here.
 function AddressRow({
   label,
   address,
@@ -64,6 +65,7 @@ export default function DotkAsset() {
     isDotkEnabled &&
     !!resolved?.address &&
     resolved.address === account?.address;
+  const toDashboard = () => navigate("/dashboard");
 
   // Not-found is not "free": a failed or unanswered lookup says so rather than
   // implying the name is unowned.
@@ -80,15 +82,15 @@ export default function DotkAsset() {
             : undefined;
 
   return (
-    <div className="flex h-full flex-col p-4">
+    <div className="flex h-full flex-col px-4 pb-4 pt-6">
       <Header
+        variant="asset"
         title={name ?? ""}
-        titleClassName="min-w-0 flex-1 break-words text-center tracking-[0.1px] text-[#e5e7eb]"
-        showClose={false}
-        onBack={() => navigate("/dashboard")}
+        onBack={toDashboard}
+        onClose={toDashboard}
       />
 
-      <div className="flex min-h-0 flex-1 flex-col items-center gap-4 overflow-y-auto">
+      <div className="no-scrollbar flex min-h-0 flex-1 flex-col items-center gap-4 overflow-y-auto">
         <Copy textToCopy={name ?? ""} id="copy-dotk-name" place="top">
           <NameCard
             size="lg"
@@ -149,23 +151,17 @@ export default function DotkAsset() {
         )}
       </div>
 
-      {canTransfer && (
-        <div className="flex shrink-0 flex-col gap-2 pt-2">
-          {isLedger && (
-            <span className="text-center text-xs text-daintree-400">
-              Ledger can’t sign covenant (version 1) transactions, so .k names
-              can’t be transferred from it.
-            </span>
-          )}
-          <button
-            type="button"
-            className="inline-flex w-full items-center justify-center rounded-full border border-white px-4 py-[14px] text-[15px] font-semibold text-white disabled:border-[#093446] disabled:text-[#083344]"
-            disabled={isLedger}
-            onClick={() => navigate(`/dotk/${name}/transfer`)}
-          >
-            Transfer
-          </button>
-        </div>
+      {canTransfer && isLedger && (
+        <span className="shrink-0 pt-2 text-center text-xs text-daintree-400">
+          Ledger can’t sign covenant (version 1) transactions, so .k names can’t
+          be transferred from it.
+        </span>
+      )}
+      {canTransfer && !isLedger && name && (
+        <AssetSendButton
+          ticker={name}
+          onClick={() => navigate(`/dotk/${name}/transfer`)}
+        />
       )}
     </div>
   );

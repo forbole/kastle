@@ -1,5 +1,7 @@
 import { BadgeCheck, ExternalLink } from "lucide-react";
-import PageHeader from "@/ui/general/PageHeader";
+// The asset detail chrome is shared with the other asset screens.
+import Header from "@/components/GeneralHeader";
+import AssetSendButton from "@/components/AssetSendButton";
 import SegmentedControl from "@/ui/general/SegmentedControl";
 import AssetImage from "./AssetImage";
 import NetworkTypeChip from "./NetworkTypeChip";
@@ -110,15 +112,10 @@ export default function TokenDetailPage({
   );
 
   return (
-    <div className="flex h-full flex-col bg-icy-blue-950 font-sans text-white">
-      <PageHeader
-        title={name}
-        onBack={onBack}
-        showClose={!!onClose}
-        onClose={onClose}
-      />
+    <div className="flex h-full flex-col bg-icy-blue-950 px-4 pb-4 pt-6 font-sans text-white">
+      <Header variant="asset" title={name} onBack={onBack} onClose={onClose} />
 
-      <div className="thin-scrollbar flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-4 pb-6">
+      <div className="no-scrollbar flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
         <div className="pb-2">
           <SegmentedControl
             options={TABS}
@@ -234,18 +231,7 @@ export default function TokenDetailPage({
         )}
       </div>
 
-      {/* Placed and styled as the .k detail Transfer action */}
-      {onSend && (
-        <div className="flex shrink-0 flex-col px-4 pb-4 pt-2">
-          <button
-            type="button"
-            onClick={onSend}
-            className="inline-flex w-full items-center justify-center rounded-full border border-white px-4 py-[14px] text-[15px] font-semibold text-white"
-          >
-            {`${KCC20_LABELS.send} ${name}`}
-          </button>
-        </div>
-      )}
+      {onSend && <AssetSendButton ticker={name} onClick={onSend} />}
     </div>
   );
 }

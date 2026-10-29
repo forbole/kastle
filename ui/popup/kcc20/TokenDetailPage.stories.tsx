@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
+import { MemoryRouter } from "react-router-dom";
 import TokenDetailPage, {
   TokenDetailPageProps,
   TokenDetailTab,
@@ -13,9 +14,12 @@ const meta: Meta<typeof TokenDetailPage> = {
   },
   decorators: [
     (Story) => (
-      <div className="relative h-[600px] w-[375px] overflow-hidden bg-icy-blue-950 font-sans text-white">
-        <Story />
-      </div>
+      // The shared asset header reads the router.
+      <MemoryRouter>
+        <div className="relative h-[600px] w-[375px] overflow-hidden bg-icy-blue-950 font-sans text-white">
+          <Story />
+        </div>
+      </MemoryRouter>
     ),
   ],
   argTypes: {
@@ -62,7 +66,7 @@ export const HistoryTab: Story = {
   render: (args) => <Template {...base} {...args} initialTab="history" />,
 };
 
-/** A sendable token: the pinned "Send {ticker}" action, as the .k Transfer. */
+/** A sendable token: the shared pinned "Send {ticker}" action. */
 export const SendableKcc20: Story = {
   render: (args) => (
     <Template
