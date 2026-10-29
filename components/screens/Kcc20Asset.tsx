@@ -4,6 +4,7 @@ import { useCopyToClipboard } from "usehooks-ts";
 import TokenDetailPage, {
   TokenDetailTab,
 } from "@/ui/popup/kcc20/TokenDetailPage";
+import Header from "@/components/GeneralHeader";
 import { explorerAddressLinks } from "@/components/screens/Settings";
 import { NetworkType } from "@/contexts/SettingsContext";
 import useKcc20Tokens from "@/lib/kcc20/useKcc20Tokens";
@@ -67,5 +68,25 @@ export default function Kcc20Asset() {
       onBack={toDashboard}
       onClose={toDashboard}
     />
+  );
+}
+
+// What the KCC-20 route shows while its guard waits for the wallet and the
+// flags: the same top bar, so the page is never blank. Nothing else, as the
+// guard has not ruled out Ledger yet.
+export function Kcc20AssetPending() {
+  const navigate = useNavigate();
+  const { covenantId = "" } = useParams();
+  const toDashboard = () => navigate("/dashboard");
+
+  return (
+    <div className="flex h-full flex-col px-4 pb-4 pt-6">
+      <Header
+        variant="asset"
+        title={textEllipsis(covenantId)}
+        onBack={toDashboard}
+        onClose={toDashboard}
+      />
+    </div>
   );
 }

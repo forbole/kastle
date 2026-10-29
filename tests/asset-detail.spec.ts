@@ -206,6 +206,93 @@ test("every asset screen has the same top bar and send button", async ({
   }
 });
 
+// Every asset screen, and every state of one that changes its top bar.
+// title: the h1 text; send: the Send label, or undefined where Send is hidden.
+const BARS: {
+  key: string;
+  route: string;
+  query?: string;
+  title?: string;
+  send?: string;
+}[] = [
+  ...SCREENS.map((s) => ({
+    key: s.key,
+    route: s.route,
+    title: s.ticker,
+    send: s.ticker,
+  })),
+  {
+    key: "KRC-20 issue mode",
+    route: `/token-asset/${ISSUE_CA}`,
+    title: ISSUE_NAME,
+    send: ISSUE_NAME,
+  },
+  {
+    key: "dotK, long name",
+    route: `/dotk/${LONG_DOTK}`,
+    title: LONG_DOTK,
+    send: LONG_DOTK,
+  },
+  // The route guard waits for the wallet and the flags; no Send until it is done.
+  {
+    key: "KCC-20, guard waiting",
+    route: `/kcc20/${KCC20_ID}`,
+    query: "&kcc20Pending=1",
+  },
+];
+
+// Boxes of Back, Close and Send relative to the popup: KAS is the reference.
+async function boxes(page: Page, send?: string) {
+  const popup = (await page.locator("#popup").boundingBox())!;
+  const rel = async (l: ReturnType<Page["locator"]>) => {
+    const b = (await l.boundingBox())!;
+    return [b.x - popup.x, b.y - popup.y, b.width, b.height];
+  };
+  return {
+    back: await rel(page.getByRole("button", { name: "Back" })),
+    close: await rel(page.getByRole("button", { name: "Close" })),
+    send: send && (await rel(sendButton(page, send))),
+  };
+}
+
+for (const s of BARS) {
+  test(`${s.key}: Back, title and Close, in order, and Send at the bottom`, async ({
+    page,
+  }) => {
+    await open(page, "/kas-asset");
+    const reference = await boxes(page, "KAS");
+
+    await open(page, s.route, s.query);
+    const heading = page.getByRole("heading", { level: 1 });
+    if (s.title) await expect(heading).toHaveText(s.title);
+    else await expect(heading).not.toBeEmpty();
+
+    // Exactly these three, in this order: a hidden Back or Close leaves a
+    // placeholder div in its place, and fails here.
+    const bar = await heading.evaluate((h) =>
+      [...h.parentElement!.children].map((c) =>
+        c.tagName === "H1"
+          ? "title"
+          : `${c.tagName} ${c.getAttribute("aria-label")}`,
+      ),
+    );
+    expect(bar, s.key).toEqual(["BUTTON Back", "title", "BUTTON Close"]);
+    await expect(page.getByRole("button", { name: "Back" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Close" })).toBeVisible();
+
+    if (s.send) await expect(sendButton(page, s.send)).toBeVisible();
+    else
+      await expect(page.getByRole("button", { name: /^Send / })).toHaveCount(0);
+
+    // Same place and hit area as on KAS, also when the title wraps; Send has
+    // the same size and the same gap to the bottom edge.
+    const own = await boxes(page, s.send);
+    expect(own.back, `${s.key} Back`).toEqual(reference.back);
+    expect(own.close, `${s.key} Close`).toEqual(reference.close);
+    if (s.send) expect(own.send, `${s.key} Send`).toEqual(reference.send);
+  });
+}
+
 // Whatever follows the scrolling body of the page column. On every asset page
 // it holds the Send action or nothing.
 const bottomSlot = (page: Page) =>
