@@ -28,14 +28,15 @@ const h = () => window.__kcc20Send;
 
 const hold = () => new Promise<void>((r) => (h().release = r));
 
-// token=<base units> swaps in an 18-decimal balance.
-const units = new URLSearchParams(location.search).get("token");
+// token=<base units> swaps in an 18-decimal balance; unsendable=1 owns no spendable piece.
+const query = new URLSearchParams(location.search);
+const units = query.get("token");
 export const kcc20Token: Kcc20Token = {
   covenantId: "ab".repeat(32),
   family: "kcc20-standard",
   tick: "nacho",
   amount: units ? BigInt(units) : 1_000_000n,
-  spendable: units ? BigInt(units) : 1_000_000n,
+  spendable: query.get("unsendable") ? 0n : units ? BigInt(units) : 1_000_000n,
   meta: { symbol: "NACHO", name: "Nacho", decimals: units ? 18 : 2 },
 };
 
@@ -181,6 +182,9 @@ export async function sendKcc20Transfer() {
 }
 
 export const explorerTxLinks = { mainnet: "https://explorer.kaspa.org/txs/" };
+export const explorerAddressLinks = {
+  mainnet: "https://explorer.kaspa.org/addresses/",
+};
 
 // WASM: the screens only format sompi and build a script they catch failing.
 export class PublicKey {

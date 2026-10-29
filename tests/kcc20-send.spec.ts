@@ -51,9 +51,13 @@ async function open(page: Page, query = "") {
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto(`${base}/?route=/dashboard${query}`);
   await page.getByRole("button", { name: /NACHO/ }).click();
+  await sendAction(page).click();
   await expect(page.getByText("Send to ...")).toBeVisible();
   return errors;
 }
+
+const sendAction = (page: Page) =>
+  page.getByRole("button", { name: "Send NACHO" });
 
 const address = (page: Page) => page.locator("textarea");
 const amount = (page: Page) => page.locator('input[type="number"]');
@@ -247,6 +251,34 @@ test("Back from confirm keeps the form and Next rebuilds", async ({ page }) => {
 test("an unknown covenant id shows the unavailable state", async ({ page }) => {
   await page.goto(`${base}/?route=/kcc20/send/${"cd".repeat(32)}`);
   await expect(page.getByText("This token cannot be sent.")).toBeVisible();
+});
+
+// As a KRC-20 or .k row: a tap opens the detail page, never send directly.
+test("a dashboard tap opens the detail page, not send", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.goto(`${base}/?route=/dashboard`);
+  await page.getByRole("button", { name: /NACHO/ }).click();
+
+  await expect(page.getByRole("heading", { name: "NACHO" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "History", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("Send to ...")).toBeHidden();
+  await page.getByRole("button", { name: "Asset Info", exact: true }).click();
+  await expect(page.getByText("Covenant ID")).toBeVisible();
+
+  await page.getByRole("button", { name: "Back" }).click();
+  await expect(page.getByRole("button", { name: /NACHO/ })).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test("the detail page hides Send without a spendable piece", async ({
+  page,
+}) => {
+  await page.goto(`${base}/?route=/kcc20/${"ab".repeat(32)}&unsendable=1`);
+  await expect(page.getByRole("heading", { name: "NACHO" })).toBeVisible();
+  await expect(sendAction(page)).toHaveCount(0);
 });
 
 // The KRC-20 send renders through the same shared details / confirm screens.

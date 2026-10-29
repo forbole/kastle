@@ -56,6 +56,8 @@ export const KCC20_LABELS = {
   verified: "Verified",
   unverified: "Unverified",
   claimedMetadata: "claimed metadata",
+  /** Followed by the ticker: "Send NACHO". */
+  send: "Send",
 
   // Send: select token
   selectToken: "Select token",
