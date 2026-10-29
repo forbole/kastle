@@ -98,11 +98,14 @@ export function Kcc20TokenListItem({ token }: { token: Kcc20Token }) {
   const balance = meta
     ? formatUnits(token.amount, meta.decimals)
     : token.amount.toString();
+  const showBalance = !settings?.hideBalances;
+  // KCC-20 has no price feed: price and fiat read zero, like an unpriced KRC-20.
+  const { code: currencyCode } = useCurrencyValue(0);
 
   return (
     <button
       type="button"
-      className={`flex w-full items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3 text-left ${canOpen ? "cursor-pointer" : "cursor-default"}`}
+      className={`flex w-full items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3 text-left hover:border-white ${canOpen ? "cursor-pointer" : "cursor-default"}`}
       disabled={!canOpen}
       onClick={() =>
         navigate(
@@ -124,9 +127,9 @@ export function Kcc20TokenListItem({ token }: { token: Kcc20Token }) {
             </span>
           </span>
           <span className="break-all text-right">
-            {settings?.hideBalances ? "*****" : balance}
+            {showBalance ? balance : "*****"}
             {/* kascov held cells back: the balance may be short. */}
-            {!settings?.hideBalances && token.truncated && "+"}
+            {showBalance && token.truncated && "+"}
           </span>
         </div>
         <div className="flex items-center gap-2 text-sm text-daintree-400">
@@ -136,6 +139,15 @@ export function Kcc20TokenListItem({ token }: { token: Kcc20Token }) {
               {KCC20_LABELS.claimedMetadata}
             </span>
           )}
+        </div>
+        <div className="flex items-center justify-between text-sm text-daintree-400">
+          <span>{formatTokenPrice(0, currencyCode)}</span>
+          <span>
+            ≈{" "}
+            {showBalance
+              ? formatCurrency(0, currencyCode)
+              : `${symbolForCurrencyCode(currencyCode)}*****`}
+          </span>
         </div>
       </div>
     </button>

@@ -349,3 +349,35 @@ test("the picker hides KCC-20 when the kill switch is off", async ({
   await expect(pickerRow(page, /KASPY/)).toBeVisible();
   await expect(pickerRow(page, /NACHO/)).toBeHidden();
 });
+
+// The row container's frame and hover tokens; layout tokens may differ.
+const frame = async (page: Page, kind: "krc20" | "kcc20") =>
+  (
+    (await page
+      .locator(`[data-row="${kind}"] > *`)
+      .getAttribute("class")) ?? ""
+  )
+    .split(/\s+/)
+    .filter((c) => /^(hover:|border|rounded|bg-|p[xy]?-)/.test(c))
+    .sort();
+
+test("a KCC-20 dashboard row glows on hover like a KRC-20 row", async ({
+  page,
+}) => {
+  await page.goto(`${base}/?route=/dashboard-rows`);
+  const krc20 = await frame(page, "krc20");
+  expect(krc20).toContain("hover:border-white");
+  expect(await frame(page, "kcc20")).toEqual(krc20);
+});
+
+test("a KCC-20 dashboard row shows a price and a fiat line", async ({
+  page,
+}) => {
+  await page.goto(`${base}/?route=/dashboard-rows`);
+  const row = page.locator('[data-row="kcc20"]');
+  // KCC-20 has no price feed: both lines read zero, like an unpriced KRC-20.
+  await expect(row.getByText("$0", { exact: true })).toBeVisible();
+  await expect(row.getByText("≈ $0.00", { exact: true })).toBeVisible();
+  // The subtitle stays.
+  await expect(row.getByText("Nacho", { exact: true })).toBeVisible();
+});
