@@ -1,10 +1,5 @@
 import Kcc20Send from "@/components/send/kcc20-send/Kcc20Send";
 import Kcc20Asset from "@/components/screens/Kcc20Asset";
-import KassealBrowse from "@/components/kasseal/KassealBrowse";
-import KassealToken from "@/components/kasseal/KassealToken";
-import KassealTrade from "@/components/kasseal/KassealTrade";
-import { kassealNetworkOf } from "@/lib/kasseal/api";
-import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import type { ReactNode } from "react";
 import {
   createHashRouter,
@@ -219,22 +214,6 @@ const Kcc20Route = ({ children }: { children: ReactNode }) => {
   );
 };
 
-const KassealRoute = ({ children }: { children: ReactNode }) => {
-  const { isKassealEnabled, isKassealLoading } = useFeatureFlags();
-  const { wallet, isWalletSettingsLoading } = useWalletManager();
-  const { networkId } = useRpcClientStateful();
-  if (isWalletSettingsLoading) return null;
-  if (isKassealLoading) return null;
-  // Ledger cannot sign covenant transactions; Kasseal runs on mainnet and tn10 only.
-  return isKassealEnabled &&
-    wallet?.type !== "ledger" &&
-    kassealNetworkOf(networkId) ? (
-    <>{children}</>
-  ) : (
-    <Navigate to="/dashboard" replace />
-  );
-};
-
 const ActivityRoute = () => {
   const { isActivityEnabled, isActivityLoading } = useFeatureFlags();
   if (isActivityLoading) return null;
@@ -318,30 +297,6 @@ export const router = createHashRouter([
                       <Kcc20Route>
                         <Kcc20Send />
                       </Kcc20Route>
-                    ),
-                  },
-                  {
-                    path: "kasseal",
-                    element: (
-                      <KassealRoute>
-                        <KassealBrowse />
-                      </KassealRoute>
-                    ),
-                  },
-                  {
-                    path: "kasseal/:covenantId",
-                    element: (
-                      <KassealRoute>
-                        <KassealToken />
-                      </KassealRoute>
-                    ),
-                  },
-                  {
-                    path: "kasseal/:covenantId/trade",
-                    element: (
-                      <KassealRoute>
-                        <KassealTrade />
-                      </KassealRoute>
                     ),
                   },
                   { path: "evm-kas/send/:chainId", element: <EvmKasSend /> },

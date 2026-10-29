@@ -14,7 +14,8 @@ const ACTIVITY_FLAG_KEY = "activity_enabled_extension";
 // Kill switch like swap/bridge: switch off with active + 0% rollout, never "inactive".
 const DOTK_FLAG_KEY = "dotk_enabled_extension";
 // Covenant spends against a third-party launchpad: default off in every build,
-// like the KCC-20 standard rows.
+// like the KCC-20 standard rows. No UI reads it yet: the launchpad screens were
+// removed, and Kasseal assets will come into the Swap UI later.
 const KASSEAL_FLAG_KEY = "kasseal_enabled_extension";
 // PostHog can fail to init (context stays undefined) or never deliver flags;
 // neither is distinguishable from "still loading", so the wait is bounded.
