@@ -149,14 +149,17 @@ export default function DotkAsset() {
             </DetailList>
           </div>
         )}
+
+        {/* In the body, not the bottom slot: that slot holds Send or nothing
+            on every asset page. */}
+        {canTransfer && isLedger && (
+          <span className="w-full text-center text-xs text-daintree-400">
+            Ledger can’t sign covenant (version 1) transactions, so .k names
+            can’t be transferred from it.
+          </span>
+        )}
       </div>
 
-      {canTransfer && isLedger && (
-        <span className="shrink-0 pt-2 text-center text-xs text-daintree-400">
-          Ledger can’t sign covenant (version 1) transactions, so .k names can’t
-          be transferred from it.
-        </span>
-      )}
       {canTransfer && !isLedger && name && (
         <AssetSendButton
           ticker={name}

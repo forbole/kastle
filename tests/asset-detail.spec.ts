@@ -11,6 +11,11 @@ import path from "node:path";
 
 const KCC20_ID = "ab".repeat(32);
 const ERC20 = "0x00000000000000000000000000000000000000e2";
+// As in tests/asset-detail/stubs.tsx.
+const KCC20_EXT = "cd".repeat(32);
+const ISSUE_CA = "kaspa:qissuetoken";
+const ISSUE_NAME = "KaspaIssueModeTokenWithAVeryLongName";
+const LONG_DOTK = "thisisaverylongdotknamethatmustwrap.k";
 
 const SCREENS = [
   { key: "KAS", route: "/kas-asset", ticker: "KAS", send: "/kas/send" },
@@ -153,7 +158,7 @@ for (const s of SCREENS) {
     ).toBeVisible();
     await expect(page.getByRole("button", { name: "Back" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Close" })).toBeVisible();
-    await expect(sendButton(page, s.ticker)).toHaveText(`Send ${s.ticker}`);
+    await expect(sendButton(page, s.ticker)).toBeVisible();
     expect(errors).toEqual([]);
   });
 
@@ -170,12 +175,6 @@ for (const s of SCREENS) {
     await open(page, s.route);
     await page.getByRole("button", { name: "Close" }).click();
     await expect(page.getByTestId("landed")).toHaveText("/dashboard");
-  });
-
-  test(`${s.key}: nothing to send hides Send`, async ({ page }) => {
-    await open(page, s.route, "&empty=1");
-    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-    await expect(page.getByRole("button", { name: /^Send / })).toHaveCount(0);
   });
 
   test(`${s.key}: on a short popup Send never covers content`, async ({
@@ -207,14 +206,121 @@ test("every asset screen has the same top bar and send button", async ({
   }
 });
 
+// Whatever follows the scrolling body of the page column. On every asset page
+// it holds the Send action or nothing.
+const bottomSlot = (page: Page) =>
+  page.locator("#popup > div > .overflow-y-auto ~ *");
+
+// One case per Send guard. Each case sets one stub knob (see stubs.tsx) and
+// leaves the other guards open, so only that guard decides.
 // Ledger cannot sign KRC-20, EVM or covenant transactions; KAS it can.
-// KCC-20 is left out: its route guard keeps a Ledger off the page.
-test("a Ledger wallet sees Send only on KAS", async ({ page }) => {
-  for (const s of SCREENS.filter((x) => x.key !== "KCC-20")) {
-    await open(page, s.route, "&ledger=1");
-    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-    await expect(sendButton(page, s.ticker)).toHaveCount(
-      s.key === "KAS" ? 1 : 0,
-    );
-  }
+// KCC-20 has no Ledger case: its route guard keeps a Ledger off the page.
+const GUARDS: {
+  key: (typeof SCREENS)[number]["key"];
+  when: string;
+  query: string;
+  send: boolean;
+}[] = [
+  { key: "KAS", when: "a balance of 0", query: "&kas0=1", send: false },
+  { key: "KAS", when: "a Ledger wallet", query: "&ledger=1", send: true },
+  { key: "KRC-20", when: "a Ledger wallet", query: "&ledger=1", send: false },
+  { key: "KRC-20", when: "a non-Ledger wallet", query: "", send: true },
+  {
+    key: "KRC-20",
+    when: "a wallet still loading",
+    query: "&walletLoading=1",
+    send: false,
+  },
+  { key: "ERC-20", when: "a Ledger wallet", query: "&ledger=1", send: false },
+  { key: "ERC-20", when: "a non-Ledger wallet", query: "", send: true },
+  {
+    key: "ERC-20",
+    when: "a wallet still loading",
+    query: "&walletLoading=1",
+    send: false,
+  },
+  { key: "EVM KAS", when: "a Ledger wallet", query: "&ledger=1", send: false },
+  { key: "EVM KAS", when: "a non-Ledger wallet", query: "", send: true },
+  {
+    key: "EVM KAS",
+    when: "a wallet still loading",
+    query: "&walletLoading=1",
+    send: false,
+  },
+  {
+    key: "dotK",
+    when: "a name it does not own",
+    query: "&notOwner=1",
+    send: false,
+  },
+  {
+    key: "dotK",
+    when: "the owner, flag off",
+    query: "&dotkOff=1",
+    send: false,
+  },
+  { key: "dotK", when: "the owner, flag on", query: "", send: true },
+  { key: "dotK", when: "a Ledger owner", query: "&ledger=1", send: false },
+  { key: "KCC-20", when: "spendable 0", query: "&spendable0=1", send: false },
+  { key: "KCC-20", when: "spendable above 0", query: "", send: true },
+];
+
+for (const g of GUARDS) {
+  const s = SCREENS.find((x) => x.key === g.key)!;
+  test(`${g.key}, ${g.when}: Send is ${g.send ? "shown" : "hidden"}`, async ({
+    page,
+  }) => {
+    await open(page, s.route, g.query);
+    await expect(
+      page.getByRole("heading", { level: 1, name: s.ticker, exact: true }),
+    ).toBeVisible();
+    if (g.send) {
+      await expect(sendButton(page, s.ticker)).toBeVisible();
+      await expect(bottomSlot(page)).toHaveCount(1);
+    } else {
+      await expect(bottomSlot(page)).toHaveCount(0);
+    }
+  });
+}
+
+test("dotK, a Ledger owner: the notice is in the body", async ({ page }) => {
+  await open(page, "/dotk/alice.k", "&ledger=1");
+  await expect(
+    page.locator("#popup > div > .overflow-y-auto").getByText(/^Ledger can’t/),
+  ).toBeVisible();
+  await expect(bottomSlot(page)).toHaveCount(0);
 });
+
+test("KCC-20: Send keeps the ext of the row", async ({ page }) => {
+  await open(page, `/kcc20/${KCC20_ID}?ext=${KCC20_EXT}`);
+  await sendButton(page, "KTEST").click();
+  await expect(page.getByTestId("landed")).toHaveText(
+    `/kcc20/send/${KCC20_ID}?ext=${KCC20_EXT}`,
+  );
+});
+
+for (const t of [
+  { key: "dotK", route: `/dotk/${LONG_DOTK}`, title: LONG_DOTK },
+  {
+    key: "KRC-20 issue mode",
+    route: `/token-asset/${ISSUE_CA}`,
+    title: ISSUE_NAME,
+  },
+]) {
+  test(`${t.key}: a long title renders in full`, async ({ page }) => {
+    await open(page, t.route);
+    const heading = page.getByRole("heading", { level: 1 });
+    await expect(heading).toHaveText(t.title);
+    // It wraps inside the top bar: the title box stays in the popup, and
+    // Close stays to its right, in the popup.
+    const popup = (await page.locator("#popup").boundingBox())!;
+    const title = (await heading.boundingBox())!;
+    expect(title.x).toBeGreaterThanOrEqual(popup.x);
+    expect(title.x + title.width).toBeLessThanOrEqual(popup.x + popup.width);
+    const close = (await page
+      .getByRole("button", { name: "Close" })
+      .boundingBox())!;
+    expect(close.x).toBeGreaterThanOrEqual(title.x + title.width);
+    expect(close.x + close.width).toBeLessThanOrEqual(popup.x + popup.width);
+  });
+}

@@ -15,11 +15,16 @@ export default function EvmKasAsset() {
   const [activeTab, setActiveTab] = useState<"history" | "info">("history");
   const { chainId } = useParams<{ chainId: `0x${string}` }>();
   const symbol = getChainTokenSymbol(chainId ?? "0x0");
-  const { wallet } = useWalletManager();
+  const { wallet, isWalletSettingsLoading } = useWalletManager();
   const { data: balance } = useEvmKasBalance(chainId);
-  // As in the send asset picker: Ledger cannot send EVM KAS.
+  // As in the send asset picker: Ledger cannot send EVM KAS. A wallet that has
+  // not loaded yet is not known to be non-Ledger.
   const canSend =
-    !!chainId && wallet?.type !== "ledger" && (balance?.balance ?? "0") !== "0";
+    !!chainId &&
+    !isWalletSettingsLoading &&
+    !!wallet &&
+    wallet.type !== "ledger" &&
+    (balance?.balance ?? "0") !== "0";
   const toDashboard = () => navigate("/dashboard");
 
   return (

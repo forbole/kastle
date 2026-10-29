@@ -19,7 +19,6 @@ const meta: Meta<typeof AssetSendButton> = {
   ],
   argTypes: {
     ticker: { control: "text" },
-    disabled: { control: "boolean" },
     onClick: { action: "send" },
   },
 };
@@ -29,8 +28,4 @@ type Story = StoryObj<typeof AssetSendButton>;
 
 export const Default: Story = {
   args: { ticker: "KTEST" },
-};
-
-export const Disabled: Story = {
-  args: { ticker: "KTEST", disabled: true },
 };

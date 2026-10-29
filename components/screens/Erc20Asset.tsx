@@ -17,11 +17,16 @@ export default function Erc20Asset() {
     chainId as `0x${string}`,
     address as `0x${string}`,
   );
-  const { wallet } = useWalletManager();
+  const { wallet, isWalletSettingsLoading } = useWalletManager();
   const { data: balance } = useErc20Balance(address ?? "", chainId ?? "");
-  // As in the send asset picker: Ledger cannot send ERC-20.
+  // As in the send asset picker: Ledger cannot send ERC-20. A wallet that has
+  // not loaded yet is not known to be non-Ledger.
   const canSend =
-    !!asset && wallet?.type !== "ledger" && (balance?.balance ?? "0") !== "0";
+    !!asset &&
+    !isWalletSettingsLoading &&
+    !!wallet &&
+    wallet.type !== "ledger" &&
+    (balance?.balance ?? "0") !== "0";
   const toDashboard = () => navigate("/dashboard");
 
   return (

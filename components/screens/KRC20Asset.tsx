@@ -19,15 +19,21 @@ export default function TokenAsset() {
   const tokenInfo = tokenInfoResponse?.result?.[0];
   const tokenName =
     tokenInfo?.mod === "mint" ? tokenInfo?.tick : tokenInfo?.name;
-  const { account, wallet } = useWalletManager();
+  const { account, wallet, isWalletSettingsLoading } = useWalletManager();
   const { data: balanceResponse } = useTokenBalance(
     account && ticker
       ? { address: account.address, tokenId: ticker }
       : undefined,
   );
   const balance = parseFloat(balanceResponse?.result?.[0]?.balance ?? "0");
-  // As in the send asset picker: Ledger cannot send KRC-20.
-  const canSend = !!tokenName && wallet?.type !== "ledger" && balance > 0;
+  // As in the send asset picker: Ledger cannot send KRC-20. A wallet that has
+  // not loaded yet is not known to be non-Ledger.
+  const canSend =
+    !!tokenName &&
+    !isWalletSettingsLoading &&
+    !!wallet &&
+    wallet.type !== "ledger" &&
+    balance > 0;
   const toDashboard = () => navigate("/dashboard");
 
   useEffect(() => {
