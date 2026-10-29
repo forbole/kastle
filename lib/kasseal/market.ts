@@ -2,6 +2,9 @@ import type { KassealNetwork } from "@kassealhq/sdk";
 import type { KassealToken } from "./api";
 import type { KassealVenue } from "./trade";
 
+/** The SDK refuses a slippage bound above 10%. */
+export const KASSEAL_MAX_SLIPPAGE = 10;
+
 export const venueOf = (token: KassealToken): KassealVenue =>
   token.phase === "bonding" ? "curve" : "pool";
 

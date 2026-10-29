@@ -1,5 +1,6 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
+import { errorCode, type KassealNetwork } from "@kassealhq/sdk";
 import {
   Address,
   Hex,
@@ -91,13 +92,41 @@ import {
   kronKastleFeeBps,
   submitKronSwap,
 } from "@/lib/kcc20/swap";
+import useKassealTokens from "@/lib/kasseal/useKassealTokens";
+import useKassealSwap from "@/lib/kasseal/useKassealSwap";
+import { KASSEAL_MAX_SLIPPAGE } from "@/lib/kasseal/market";
+import {
+  fetchTxStatus,
+  kassealBaseUrl,
+  kassealNetworkOf,
+} from "@/lib/kasseal/api";
+import {
+  clearKassealAttempt,
+  kassealAttemptKey,
+  loadOpenKassealAttempts,
+  saveKassealAttempt,
+} from "@/lib/kasseal/attempts";
+import {
+  KassealAttempt,
+  KassealIntent,
+  KassealSide,
+  KassealVenue,
+  kassealAttemptOpen,
+  newKassealAttempt,
+  settleKassealAttempt,
+} from "@/lib/kasseal/trade";
+import {
+  kassealErrorCopy,
+  kassealOpenAttemptCopy,
+} from "@/lib/kasseal/errorCopy";
 
 type EvmChainKey = "kasplex" | "igra";
-// "kaspa" is L1: KAS and KCC-20 tokens traded on their KRON bonding curve.
+// "kaspa" is L1: KAS and KCC-20 tokens traded on KRON or Kasseal.
 type ChainKey = EvmChainKey | "kaspa";
 const CHAINS = { kasplex: kasplexMainnet, igra: igraMainnet };
 const NATIVE = "native";
 const KAS_DECIMALS = 8;
+const KAS_UNIT = { symbol: "KAS", decimals: KAS_DECIMALS };
 const WKAS_ABI = parseAbi([
   "function deposit() payable",
   "function withdraw(uint256 wad)",
@@ -121,8 +150,15 @@ const SWAP_PROXY_ABI = [
   },
 ] as const;
 
-/** `rawBalance` is the numeric balance (formatted `balance` is for display). */
-type SwapToken = SheetToken & { decimals: number; rawBalance?: number };
+/**
+ * `rawBalance` is the numeric balance (formatted `balance` is for display).
+ * `venue` marks which launchpad trades a Kaspa L1 token.
+ */
+type SwapToken = SheetToken & {
+  decimals: number;
+  rawBalance?: number;
+  venue?: "kron" | "kasseal";
+};
 type ProviderQuote = {
   provider: SwapProvider;
   feeBps?: bigint;
@@ -139,6 +175,14 @@ const TOOLTIPS = {
     body: "The minimum number of output tokens you'll get after accounting for slippage.",
     footer:
       "The actual amount may vary slightly depending on network conditions.",
+  },
+  maxPaid: {
+    title: "Max Paid",
+    body: "The most KAS this buy can spend after accounting for slippage.",
+  },
+  actualPaid: {
+    title: "You pay (actual)",
+    body: "The curve trades whole lots, so the amount it takes differs from the amount you entered.",
   },
   rate: {
     title: "Rate",
@@ -161,6 +205,19 @@ const TOOLTIPS = {
 };
 
 const NETWORK_FEE_ERROR = "Oh, you need more for the network fees";
+const KASSEAL_SUBMITTED =
+  "Swap submitted. It completes when the network accepts it.";
+// How often an unresolved Kasseal attempt asks `/tx` again.
+const KASSEAL_POLL_MS = 2_000;
+
+type Kcc20Row = { covenantId: string; family: string; spendable: bigint };
+/** Kasseal holdings; undefined when the indexer shows no row for the token. */
+function kassealHeld(rows: Kcc20Row[] | undefined, covenantId?: string) {
+  const own = rows?.filter(
+    (t) => t.covenantId === covenantId && t.family !== "kron-legacy",
+  );
+  return own?.length ? own.reduce((s, t) => s + t.spendable, 0n) : undefined;
+}
 
 export default function Swap() {
   const { networkId, rpcClient } = useRpcClientStateful();
@@ -171,19 +228,26 @@ export default function Swap() {
   const evmAddress = useEvmAddress();
   const signer = useEvmHotWalletSigner();
   const { kaspaPrice } = useKaspaPrice();
-  const { emitSwapCompleted } = useAnalytics();
+  const { emitSwapCompleted, emitKassealTradeCompleted } = useAnalytics();
   const kaspaSigner = useKaspaHotWalletSigner();
   const kasBalance = useKaspaBalance(account?.address);
-  const { isKcc20Enabled } = useFeatureFlags();
+  const { isKcc20Enabled, isKassealEnabled } = useFeatureFlags();
   // Ledger cannot sign v1 covenant transactions.
   const kronEnabled = isKcc20Enabled && isMainnet && wallet?.type !== "ledger";
+  // Kasseal trades are covenant spends too, and mainnet only.
+  const kassealEnabled =
+    isKassealEnabled && isMainnet && wallet?.type !== "ledger";
+  const kassealNetwork = kassealEnabled
+    ? kassealNetworkOf(NetworkType.Mainnet)
+    : undefined;
+  const { data: kassealTokens } = useKassealTokens(undefined, kassealEnabled);
   const { data: kronMarkets } = useSWR(
     kronEnabled ? "kronMarkets" : null,
     fetchKronMarkets,
     { refreshInterval: 60_000 },
   );
   const { data: kcc20Tokens } = useKcc20Tokens(
-    kronEnabled ? account?.address : undefined,
+    kronEnabled || kassealEnabled ? account?.address : undefined,
   );
 
   const [chainKey, setChainKey] = useState<ChainKey>("igra");
@@ -299,7 +363,7 @@ export default function Swap() {
           rawBalance: erc20Raw(hex, wrapped),
         });
     }
-    if (kronEnabled) {
+    if (kronEnabled || kassealEnabled) {
       list.push({
         key: `kaspa:${NATIVE}`,
         chain: "kaspa",
@@ -311,6 +375,8 @@ export default function Swap() {
           kasBalance === undefined ? undefined : formatAmount(kasBalance, 8),
         rawBalance: kasBalance,
       });
+    }
+    if (kronEnabled) {
       // `address` carries the covenant id. Registry display fields; the
       // quote refuses a token whose entry does not verify.
       for (const m of kronMarkets ?? []) {
@@ -338,6 +404,34 @@ export default function Swap() {
           chainImage: kaspaIcon,
           balance: raw === undefined ? undefined : formatAmount(raw, 8),
           rawBalance: raw,
+          venue: "kron",
+        });
+      }
+    }
+    if (kassealEnabled) {
+      for (const t of kassealTokens ?? []) {
+        // The market refuses an invalid launch proof; a KRON row keeps its key.
+        if (
+          t.verification === "invalid" ||
+          list.some((x) => x.key === `kaspa:${t.covenantId}`)
+        )
+          continue;
+        const held = kassealHeld(kcc20Tokens, t.covenantId);
+        const raw =
+          held === undefined
+            ? undefined
+            : Number(formatUnits(held, t.decimals));
+        list.push({
+          key: `kaspa:${t.covenantId}`,
+          chain: "kaspa",
+          symbol: t.ticker,
+          address: t.covenantId,
+          decimals: t.decimals,
+          image: t.imageUrl,
+          chainImage: kaspaIcon,
+          balance: raw === undefined ? undefined : formatAmount(raw, 8),
+          rawBalance: raw,
+          venue: "kasseal",
         });
       }
     }
@@ -352,6 +446,8 @@ export default function Swap() {
     kronMarkets,
     kcc20Tokens,
     kasBalance,
+    kassealEnabled,
+    kassealTokens,
   ]);
 
   const [tokenInKey, setTokenInKey] = useState<string | undefined>(
@@ -534,6 +630,214 @@ export default function Swap() {
   );
   const kronQuote = kronError ? undefined : kronBuilt?.quote;
 
+  // Kasseal: KAS -> token buys on the token's curve or pool, token -> KAS sells.
+  const l1Token = isKron ? (isNativeIn ? tokenOut : tokenIn) : undefined;
+  const kassealToken =
+    l1Token?.venue === "kasseal"
+      ? kassealTokens?.find((t) => t.covenantId === l1Token.address)
+      : undefined;
+  const isKasseal = !!kassealToken;
+  const kassealSide = isNativeIn ? "buy" : "sell";
+  const kassealPair = isKasseal && isNativeIn !== isNativeOut;
+  // The SDK refuses a Kasseal bound above 10%: a wider EVM choice is capped.
+  const kassealSlippage = Math.min(slippage, KASSEAL_MAX_SLIPPAGE);
+  const maxSlippage = isKasseal ? KASSEAL_MAX_SLIPPAGE : MAX_SLIPPAGE;
+  const kasseal = useKassealSwap(
+    kassealNetwork,
+    kassealToken,
+    kassealSide,
+    kassealPair && rawIn > 0n ? rawIn : undefined,
+    kassealSlippage,
+    kaspaSigner,
+    account?.address,
+  );
+  const kassealQuote = kassealPair ? kasseal.quote : undefined;
+  // The screen as it is now, read by `/tx` work that outlives its render.
+  const kassealNow = useRef<{
+    address?: string;
+    covenantId?: string;
+    pair?: string;
+    refresh?: () => unknown;
+  }>({});
+  kassealNow.current = {
+    address: account?.address,
+    covenantId: kassealPair ? kassealToken?.covenantId : undefined,
+    pair: kassealPair
+      ? `${kassealToken?.covenantId}:${kassealSide}`
+      : undefined,
+    refresh: kasseal.refresh,
+  };
+
+  // One attempt per Kasseal token, kept across a closed popup: a retry
+  // rebuilds on the same coins instead of funding a second trade.
+  const kassealAttempts = useRef<Record<string, KassealAttempt>>({});
+  // An open attempt's trade; the form refuses any other until it settles.
+  const [kassealLocks, setKassealLocks] = useState<
+    Record<string, KassealIntent>
+  >({});
+  // Why confirm is blocked while `/tx` has not answered for a posted trade.
+  const [kassealPending, setKassealPending] = useState<Record<string, string>>(
+    {},
+  );
+  const [kassealAttemptsReady, setKassealAttemptsReady] = useState(false);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+  // Attempts with a `/tx` poll running, so each has one poll only.
+  const kassealPolled = useRef(new WeakSet<KassealAttempt>());
+  // Attempts with a submit in flight: their poll skips its ticks, so only
+  // the submit's own outcome settles them.
+  const kassealSubmitting = useRef(new WeakSet<KassealAttempt>());
+
+  /** What an attempt's outcome changes, for the submit and reopen paths. */
+  const kassealOutcome = (
+    network: KassealNetwork,
+    address: string,
+    covenantId: string,
+    attempt: KassealAttempt,
+    trade: { side: KassealSide; venue: KassealVenue },
+  ) => {
+    const key = kassealAttemptKey(network, address, covenantId);
+    // A closed popup, another account or a newer attempt owns the state
+    // now: work that ends after that must not touch it.
+    const current = () =>
+      mounted.current &&
+      kassealNow.current.address === address &&
+      kassealAttempts.current[covenantId] === attempt;
+    const settled = () => {
+      delete kassealAttempts.current[covenantId];
+      const without = <T,>(m: Record<string, T>) => {
+        const rest = { ...m };
+        delete rest[covenantId];
+        return rest;
+      };
+      setKassealLocks(without);
+      setKassealPending(without);
+      void clearKassealAttempt(key).catch(() => {});
+    };
+    // Not a swap_completed: Kasseal trades carry no Kastle fee.
+    const trackTrade = (status: "success" | "failed") =>
+      emitKassealTradeCompleted({
+        status,
+        side: trade.side,
+        venue: trade.venue,
+        covenantId,
+        sender: address,
+      });
+    const baseUrl = kassealBaseUrl(network);
+    const status = (txid: string) => fetchTxStatus(baseUrl, txid);
+    // Only `/tx` accepted, confirmed or dropped is a known outcome.
+    const resolve = (outcome: "landed" | "not-sent") => {
+      settled();
+      if (outcome === "landed") {
+        toast.success("Swapped successfully!");
+        trackTrade("success");
+        // Only the trade's own pair: the user may be on another one now.
+        if (kassealNow.current.pair === `${covenantId}:${attempt.intent?.side}`)
+          setAmount("");
+        // Either side of the same token reads the market the trade moved.
+        if (kassealNow.current.covenantId === covenantId)
+          void kassealNow.current.refresh?.();
+      } else {
+        toast.error(kassealErrorCopy(new Error("dropped")));
+        trackTrade("failed");
+      }
+    };
+    const poll = () => {
+      if (kassealPolled.current.has(attempt)) return;
+      kassealPolled.current.add(attempt);
+      void (async () => {
+        for (;;) {
+          await new Promise((r) => setTimeout(r, KASSEAL_POLL_MS));
+          if (!current()) return;
+          if (kassealSubmitting.current.has(attempt)) continue;
+          const outcome = await settleKassealAttempt(attempt, status);
+          if (!current()) return;
+          // A submit started during the read: its outcome wins.
+          if (kassealSubmitting.current.has(attempt)) continue;
+          if (outcome !== "open") return resolve(outcome);
+        }
+      })();
+    };
+    // Until then the attempt stays on disk and confirm stays blocked.
+    const hold = (blocked: string) => {
+      void saveKassealAttempt(key, attempt).catch(() => {});
+      setKassealLocks((l) => ({ ...l, [covenantId]: attempt.intent! }));
+      setKassealPending((p) => ({ ...p, [covenantId]: blocked }));
+      poll();
+    };
+    return { key, current, settled, trackTrade, status, resolve, poll, hold };
+  };
+
+  const accountAddress = account?.address;
+  useEffect(() => {
+    kassealAttempts.current = {};
+    setKassealLocks({});
+    setKassealPending({});
+    setKassealAttemptsReady(false);
+    if (!kassealNetwork || !accountAddress) return;
+    let live = true;
+    const baseUrl = kassealBaseUrl(kassealNetwork);
+    // Txids `/tx` holds in a mempool: their trade is submitted.
+    const inMempool = new Set<string>();
+    void loadOpenKassealAttempts(kassealNetwork, accountAddress, (txid) =>
+      fetchTxStatus(baseUrl, txid).then((s) => {
+        if (s.kind === "submitted" || s.kind === "already-in-mempool")
+          inMempool.add(txid);
+        return s;
+      }),
+    )
+      .catch((): Record<string, KassealAttempt> => ({}))
+      .then((open) => {
+        if (!live) return;
+        kassealAttempts.current = open;
+        const locks: Record<string, KassealIntent> = {};
+        for (const [id, a] of Object.entries(open)) {
+          if (!a.intent) continue;
+          locks[id] = a.intent;
+          // Still open on reopen: keep reading `/tx` until it settles. A
+          // submitted trade also blocks confirm, as on the submit path.
+          if (a.posted.some((t) => inMempool.has(t)))
+            setKassealPending((p) => ({ ...p, [id]: KASSEAL_SUBMITTED }));
+          kassealOutcome(
+            kassealNetwork,
+            accountAddress,
+            id,
+            a,
+            a.intent,
+          ).poll();
+        }
+        setKassealLocks(locks);
+        // Reopen on the open trade, so only it can continue.
+        const [restore] = Object.entries(locks);
+        if (restore) {
+          const [id, intent] = restore;
+          const buy = intent.side === "buy";
+          setChainKey("kaspa");
+          setTokenInKey(buy ? `kaspa:${NATIVE}` : `kaspa:${id}`);
+          setTokenOutKey(buy ? `kaspa:${id}` : `kaspa:${NATIVE}`);
+          setAmount(intent.input);
+        }
+        setKassealAttemptsReady(true);
+      });
+    return () => {
+      live = false;
+    };
+  }, [kassealNetwork, accountAddress]);
+  const kassealLock = kassealToken && kassealLocks[kassealToken.covenantId];
+  // Locks are keyed by covenant id, so the token is the same. The venue is
+  // not compared: a curve -> pool graduation keeps the same intent, and the
+  // retry still rebuilds on the attempt's pinned coins.
+  const kassealLockRefused =
+    !!kassealLock &&
+    !(kassealLock.side === kassealSide && kassealLock.amount === rawIn);
+  const kassealBlocked =
+    kassealToken && kassealPending[kassealToken.covenantId];
+
   const gas = isWrapPair
     ? isUnwrap
       ? SWAP_GAS_ESTIMATES.UNWRAP
@@ -560,7 +864,11 @@ export default function Swap() {
 
   const amountNum = Number(amount) || 0;
   // What the user receives, before slippage.
-  const netOut = isKron ? kronQuote?.amountOut : selected?.netAmountOut;
+  const netOut = isKasseal
+    ? kassealQuote?.amountOut
+    : isKron
+      ? kronQuote?.amountOut
+      : selected?.netAmountOut;
   const outNum = isWrapPair
     ? amountNum
     : netOut !== undefined && tokenOut
@@ -613,6 +921,14 @@ export default function Swap() {
       ? undefined
       : BigInt(Math.round(kasBalance * 10 ** KAS_DECIMALS))
     : kcc20Tokens && (kronHeld ?? 0n);
+  const kassealBalanceIn = isNativeIn
+    ? kronBalanceIn
+    : kassealHeld(kcc20Tokens, tokenIn?.address);
+  // A curve buy can spend up to its max paid; the network fee is at confirm.
+  const kassealSpend =
+    kassealQuote && kasseal.boundKind === "max-paid"
+      ? kassealQuote.bound
+      : rawIn;
 
   const error = (() => {
     if (wallet?.type === "ledger")
@@ -627,8 +943,18 @@ export default function Swap() {
       );
       if (tooPrecise) return tooPrecise;
     }
+    if (isKasseal && kassealLockRefused)
+      return kassealOpenAttemptCopy(kassealLock!, kassealToken!.ticker);
+    if (isKasseal && kassealBlocked) return kassealBlocked;
     if (rawIn === 0n || !tokenOut) return undefined;
     if (samePair) return "Unsupported token pair";
+    if (isKasseal) {
+      if (!kassealPair) return "Unsupported token pair";
+      if (kassealBalanceIn !== undefined && kassealSpend > kassealBalanceIn)
+        return "Oh, you don't have enough funds";
+      if (kasseal.error) return kassealErrorCopy(kasseal.error);
+      return undefined;
+    }
     if (isKron) {
       if (!kronPair) return "Unsupported token pair";
       // A buy spends the curve fee and network fee on top of the amount in.
@@ -835,9 +1161,67 @@ export default function Swap() {
     }
   };
 
-  const loading = isKron
-    ? kronLoading && !kronQuote
-    : !isWrapPair && quotesLoading && supported.length === 0;
+  const onConfirmKasseal = async () => {
+    const quote = kassealQuote;
+    if (!quote || !kassealToken || !kassealNetwork || !account) return;
+    if (!kassealAttemptsReady || kassealLockRefused || kassealBlocked) return;
+    const covenantId = kassealToken.covenantId;
+    const attempt = (kassealAttempts.current[covenantId] ??=
+      newKassealAttempt());
+    attempt.intent ??= {
+      side: quote.side,
+      venue: quote.venue,
+      amount: rawIn,
+      input: amount,
+    };
+    const { key, current, settled, trackTrade, status, resolve, hold } =
+      kassealOutcome(
+        kassealNetwork,
+        account.address,
+        covenantId,
+        attempt,
+        quote,
+      );
+    kassealSubmitting.current.add(attempt);
+    setSubmitting(true);
+    try {
+      toast.info(`Swapping ${tokenIn?.symbol} for ${tokenOut?.symbol}`);
+      const txid = await kasseal.submit(quote, attempt, (a) =>
+        saveKassealAttempt(key, a),
+      );
+      // A txid only in a mempool can still be dropped: ask `/tx` first.
+      if (!attempt.posted.includes(txid)) attempt.posted.push(txid);
+      const outcome = await settleKassealAttempt(attempt, status);
+      if (!current()) return;
+      if (outcome === "open") {
+        hold(KASSEAL_SUBMITTED);
+        toast.info(KASSEAL_SUBMITTED);
+      } else resolve(outcome);
+    } catch (e) {
+      console.error(e);
+      if (!current()) return;
+      // Pinned coins spent: the earlier POST may have landed, or the status
+      // may lag. Only `/tx` can release the lock.
+      const held =
+        kassealAttemptOpen(attempt) && errorCode(e) === "PINNED_FUNDING_GONE";
+      // Nothing posted: the outcome is known.
+      if (!kassealAttemptOpen(attempt)) settled();
+      else if (held) hold(kassealErrorCopy(e));
+      else setKassealLocks((l) => ({ ...l, [covenantId]: attempt.intent! }));
+      toast.error(kassealErrorCopy(e));
+      // A held attempt reports its outcome once `/tx` answers.
+      if (!held) trackTrade("failed");
+    } finally {
+      kassealSubmitting.current.delete(attempt);
+      setSubmitting(false);
+    }
+  };
+
+  const loading = isKasseal
+    ? kasseal.isLoading && !kassealQuote
+    : isKron
+      ? kronLoading && !kronQuote
+      : !isWrapPair && quotesLoading && supported.length === 0;
   const kronNetworkFee =
     kronBuilt && !kronError
       ? `${formatAmount(Number(formatUnits(kronBuilt.fee, KAS_DECIMALS)))} KAS`
@@ -860,6 +1244,14 @@ export default function Swap() {
           formatUnits(swapMinReceived(netOut, slippage), tokenOut.decimals),
         ) * priceOut
       : undefined;
+  // Kasseal amounts are payments: exact units, never rounded.
+  const exactAmount = (v: bigint, t?: { decimals: number; symbol: string }) =>
+    t ? `${formatUnits(v, t.decimals)} ${t.symbol}` : "-";
+  // The curve trades whole lots: the rate uses what it takes, not what was typed.
+  const rateIn =
+    kassealQuote && tokenIn
+      ? Number(formatUnits(kassealQuote.amountIn, tokenIn.decimals))
+      : amountNum;
 
   return (
     <div className="flex h-full flex-col">
@@ -905,27 +1297,60 @@ export default function Swap() {
           !samePair &&
           (!error || error === NETWORK_FEE_ERROR) && (
             <div className="shrink-0 overflow-hidden rounded-xl border border-daintree-700 bg-daintree-800">
-              <QuoteRow label="Min Received" tooltip={TOOLTIPS.minReceived}>
-                {loading ? (
-                  <Skeleton />
-                ) : minReceived ? (
-                  <span className="flex flex-col items-end">
-                    ~ {minReceived} {tokenOut.symbol}
-                    {minReceivedUsd !== undefined && (
-                      <span className="text-xs text-daintree-400">
-                        (≈ ${formatUsd(minReceivedUsd)} USD)
-                      </span>
-                    )}
-                  </span>
-                ) : (
-                  "-"
-                )}
-              </QuoteRow>
+              {isKasseal ? (
+                <>
+                  {kasseal.boundKind === "max-paid" ? (
+                    <QuoteRow label="Max Paid" tooltip={TOOLTIPS.maxPaid}>
+                      {kassealQuote
+                        ? exactAmount(kassealQuote.bound, tokenIn)
+                        : "-"}
+                    </QuoteRow>
+                  ) : (
+                    <QuoteRow
+                      label="Min Received"
+                      tooltip={TOOLTIPS.minReceived}
+                    >
+                      {loading ? (
+                        <Skeleton />
+                      ) : kassealQuote ? (
+                        exactAmount(kassealQuote.bound, tokenOut)
+                      ) : (
+                        "-"
+                      )}
+                    </QuoteRow>
+                  )}
+                  {kassealQuote && kassealQuote.amountIn !== rawIn && (
+                    <QuoteRow
+                      label="You pay (actual)"
+                      tooltip={TOOLTIPS.actualPaid}
+                    >
+                      {exactAmount(kassealQuote.amountIn, tokenIn)}
+                    </QuoteRow>
+                  )}
+                </>
+              ) : (
+                <QuoteRow label="Min Received" tooltip={TOOLTIPS.minReceived}>
+                  {loading ? (
+                    <Skeleton />
+                  ) : minReceived ? (
+                    <span className="flex flex-col items-end">
+                      ~ {minReceived} {tokenOut.symbol}
+                      {minReceivedUsd !== undefined && (
+                        <span className="text-xs text-daintree-400">
+                          (≈ ${formatUsd(minReceivedUsd)} USD)
+                        </span>
+                      )}
+                    </span>
+                  ) : (
+                    "-"
+                  )}
+                </QuoteRow>
+              )}
               <QuoteRow label="Rate" tooltip={TOOLTIPS.rate}>
                 {loading ? (
                   <Skeleton />
-                ) : outNum !== undefined && amountNum > 0 ? (
-                  `1 ${tokenIn?.symbol} ≈ ${formatAmount(outNum / amountNum)} ${tokenOut.symbol}`
+                ) : outNum !== undefined && rateIn > 0 ? (
+                  `1 ${tokenIn?.symbol} ≈ ${formatAmount(outNum / rateIn)} ${tokenOut.symbol}`
                 ) : (
                   "-"
                 )}
@@ -936,7 +1361,10 @@ export default function Swap() {
                 noChevron
                 infoOpensRow
               >
-                {isKron ? (
+                {/* Kasseal builds only at confirm, so its fee is known there. */}
+                {isKasseal ? (
+                  "at confirm"
+                ) : isKron ? (
                   loading ? (
                     <Skeleton />
                   ) : (
@@ -952,7 +1380,7 @@ export default function Swap() {
                 <QuoteRow label="Type">{isWrap ? "Wrap" : "Unwrap"}</QuoteRow>
               ) : isKron ? (
                 <QuoteRow label="Provider" tooltip={TOOLTIPS.provider}>
-                  KRON
+                  {isKasseal ? "Kasseal" : "KRON"}
                 </QuoteRow>
               ) : (
                 <QuoteRow
@@ -983,7 +1411,7 @@ export default function Swap() {
                     tooltip={TOOLTIPS.slippage}
                     onClick={() => setSheet("slippage")}
                   >
-                    {slippage}%
+                    {isKasseal ? kassealSlippage : slippage}%
                   </QuoteRow>
                   <QuoteRow label="Price Impact" tooltip={TOOLTIPS.priceImpact}>
                     {priceImpact === undefined
@@ -992,59 +1420,77 @@ export default function Swap() {
                   </QuoteRow>
                 </>
               )}
-              <SwapFeeFootnote
-                kastleFee={kastleFee}
-                kastleFeeBps={kastleFeeBps}
-              />
+              {!isKasseal && (
+                <SwapFeeFootnote
+                  kastleFee={kastleFee}
+                  kastleFeeBps={kastleFeeBps}
+                />
+              )}
             </div>
           )}
       </div>
       <ConfirmButton
         error={error}
         balance={
-          isKron
-            ? kronBalanceIn !== undefined && tokenIn
+          isKasseal
+            ? kassealBalanceIn !== undefined && tokenIn
               ? `${formatAmount(
-                  Number(formatUnits(kronBalanceIn, tokenIn.decimals)),
+                  Number(formatUnits(kassealBalanceIn, tokenIn.decimals)),
                 )} ${tokenIn.symbol}`
               : undefined
-            : balances && tokenIn
-              ? `${formatAmount(
-                  Number(formatUnits(balances.input, tokenIn.decimals)),
-                )} ${tokenIn.symbol}`
-              : undefined
+            : isKron
+              ? kronBalanceIn !== undefined && tokenIn
+                ? `${formatAmount(
+                    Number(formatUnits(kronBalanceIn, tokenIn.decimals)),
+                  )} ${tokenIn.symbol}`
+                : undefined
+              : balances && tokenIn
+                ? `${formatAmount(
+                    Number(formatUnits(balances.input, tokenIn.decimals)),
+                  )} ${tokenIn.symbol}`
+                : undefined
         }
         onMax={
-          isKron
-            ? // KAS Max would need the network and curve fees held back.
-              !isNativeIn && kronBalanceIn !== undefined && tokenIn
-              ? () => setAmount(formatUnits(kronBalanceIn, tokenIn.decimals))
+          isKasseal
+            ? // A KAS Max would need the network fee held back.
+              !isNativeIn && kassealBalanceIn !== undefined && tokenIn
+              ? () => setAmount(formatUnits(kassealBalanceIn, tokenIn.decimals))
               : undefined
-            : balances && tokenIn
-              ? isNativeIn
-                ? networkFeeWei !== undefined
-                  ? () =>
-                      setAmount(
-                        formatUnits(
-                          balances.native > networkFeeWei
-                            ? balances.native - networkFeeWei
-                            : 0n,
-                          tokenIn.decimals,
-                        ),
-                      )
-                  : undefined
-                : () => setAmount(formatUnits(balances.input, tokenIn.decimals))
-              : undefined
+            : isKron
+              ? // KAS Max would need the network and curve fees held back.
+                !isNativeIn && kronBalanceIn !== undefined && tokenIn
+                ? () => setAmount(formatUnits(kronBalanceIn, tokenIn.decimals))
+                : undefined
+              : balances && tokenIn
+                ? isNativeIn
+                  ? networkFeeWei !== undefined
+                    ? () =>
+                        setAmount(
+                          formatUnits(
+                            balances.native > networkFeeWei
+                              ? balances.native - networkFeeWei
+                              : 0n,
+                            tokenIn.decimals,
+                          ),
+                        )
+                    : undefined
+                  : () =>
+                      setAmount(formatUnits(balances.input, tokenIn.decimals))
+                : undefined
         }
         disabled={
           !!error ||
           rawIn === 0n ||
-          (isKron
-            ? !kronQuote || !kaspaSigner
-            : (!isWrapPair && !selected?.path) || !signer)
+          (isKasseal
+            ? !kassealQuote || !kaspaSigner || !kassealAttemptsReady
+            : isKron
+              ? !kronQuote || !kaspaSigner
+              : (!isWrapPair && !selected?.path) || !signer)
         }
         loading={submitting}
-        onClick={isKron ? onConfirmKron : onConfirm}
+        onClick={
+          isKasseal ? onConfirmKasseal : isKron ? onConfirmKron : onConfirm
+        }
       />
       <BottomNav />
       <TermsGate kind="Swap" />
@@ -1057,7 +1503,7 @@ export default function Swap() {
           chains={[
             { key: "kasplex", label: "Kasplex", image: CHAINS.kasplex.icon },
             { key: "igra", label: "Igra", image: CHAINS.igra.icon },
-            ...(kronEnabled
+            ...(kronEnabled || kassealEnabled
               ? [{ key: "kaspa", label: "Kaspa", image: kaspaIcon }]
               : []),
           ]}
@@ -1168,7 +1614,7 @@ export default function Swap() {
               if (!/^\d*\.?\d*$/.test(v)) return;
               setCustomSlippageInput(v);
               const n = Number(v);
-              if (v !== "" && n >= MIN_SLIPPAGE && n <= MAX_SLIPPAGE)
+              if (v !== "" && n >= MIN_SLIPPAGE && n <= maxSlippage)
                 setSlippage(n);
             }}
             className={
@@ -1180,9 +1626,9 @@ export default function Swap() {
         </div>
         {customSlippageInput !== "" &&
           (Number(customSlippageInput) < MIN_SLIPPAGE ||
-            Number(customSlippageInput) > MAX_SLIPPAGE) && (
+            Number(customSlippageInput) > maxSlippage) && (
             <p className="pt-2 text-xs font-medium text-red-500">
-              Enter a value between {MIN_SLIPPAGE}% and {MAX_SLIPPAGE}%
+              Enter a value between {MIN_SLIPPAGE}% and {maxSlippage}%
             </p>
           )}
       </BottomSheet>
@@ -1197,11 +1643,13 @@ export default function Swap() {
         <FeeRow
           label="Network fees"
           value={
-            isKron
-              ? (kronNetworkFee ?? "-")
-              : networkFeeWei !== undefined
-                ? `${formatAmount(Number(formatEther(networkFeeWei)))} ${nativeSymbol}`
-                : "-"
+            isKasseal
+              ? "at confirm"
+              : isKron
+                ? (kronNetworkFee ?? "-")
+                : networkFeeWei !== undefined
+                  ? `${formatAmount(Number(formatEther(networkFeeWei)))} ${nativeSymbol}`
+                  : "-"
           }
         />
         {isKron && kronQuote && (
@@ -1215,11 +1663,19 @@ export default function Swap() {
             }
           />
         )}
-        <SwapFeeSummary
-          kastleFee={kastleFee}
-          kastleFeeSymbol={kastleFeeSymbol}
-          kastleFeeBps={kastleFeeBps}
-        />
+        {isKasseal && kassealQuote && (
+          <FeeRow
+            label="Trading fees"
+            value={exactAmount(kassealQuote.feeSompi, KAS_UNIT)}
+          />
+        )}
+        {!isKasseal && (
+          <SwapFeeSummary
+            kastleFee={kastleFee}
+            kastleFeeSymbol={kastleFeeSymbol}
+            kastleFeeBps={kastleFeeBps}
+          />
+        )}
       </BottomSheet>
     </div>
   );

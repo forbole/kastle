@@ -1,9 +1,11 @@
 import { storage } from "wxt/storage";
 import type { KassealNetwork } from "@kassealhq/sdk";
+import type { KassealTxStatus } from "./api";
 import {
   decodeKassealAttempt,
   encodeKassealAttempt,
   KassealAttempt,
+  settleKassealAttempt,
   StoredKassealAttempt,
 } from "./trade";
 
@@ -44,4 +46,26 @@ export async function clearKassealAttempt(key: string): Promise<void> {
   if (!(key in store)) return;
   delete store[key];
   await storage.setItem<Store>(KEY, store);
+}
+
+/**
+ * The account's attempts that may still land, by covenant id. An attempt
+ * that landed or dropped while the popup was closed is cleared here.
+ */
+export async function loadOpenKassealAttempts(
+  network: KassealNetwork,
+  address: string,
+  status: (txid: string) => Promise<KassealTxStatus>,
+): Promise<Record<string, KassealAttempt>> {
+  const prefix = kassealAttemptKey(network, address, "");
+  const store = (await storage.getItem<Store>(KEY)) ?? {};
+  const open: Record<string, KassealAttempt> = {};
+  for (const [key, stored] of Object.entries(store)) {
+    if (!key.startsWith(prefix)) continue;
+    const attempt = decodeKassealAttempt(stored);
+    if ((await settleKassealAttempt(attempt, status)) === "open")
+      open[key.slice(prefix.length)] = attempt;
+    else await clearKassealAttempt(key).catch(() => {});
+  }
+  return open;
 }

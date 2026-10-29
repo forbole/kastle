@@ -7,11 +7,12 @@ import {
   kassealNetworkOf,
 } from "./api";
 
-export default function useKassealTokens(search?: string) {
+/** `enabled: false` never calls the launchpad API. */
+export default function useKassealTokens(search?: string, enabled = true) {
   const { networkId } = useRpcClientStateful();
   const network = kassealNetworkOf(networkId);
   const { data, error, isLoading } = useSWR(
-    network ? ["kassealTokens", network, search ?? ""] : null,
+    enabled && network ? ["kassealTokens", network, search ?? ""] : null,
     () => fetchKassealTokens(kassealBaseUrl(network!), { search }),
     { refreshInterval: 30_000 },
   );
