@@ -2,17 +2,12 @@ import { BadgeCheck, ExternalLink } from "lucide-react";
 // The asset detail chrome is shared with the other asset screens.
 import Header from "@/components/GeneralHeader";
 import AssetSendButton from "@/components/AssetSendButton";
-import SegmentedControl from "@/ui/general/SegmentedControl";
+import AssetTabs from "@/components/AssetTabs";
 import AssetImage from "./AssetImage";
 import NetworkTypeChip from "./NetworkTypeChip";
 import { KCC20_LABELS, NetworkType } from "./labels";
 
 export type TokenDetailTab = "history" | "assetInfo";
-
-const TABS = [
-  { label: KCC20_LABELS.historyTab, value: "history" as const },
-  { label: KCC20_LABELS.assetInfoTab, value: "assetInfo" as const },
-];
 
 export interface TokenDetailPageProps {
   name: string;
@@ -117,10 +112,11 @@ export default function TokenDetailPage({
 
       <div className="no-scrollbar flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
         <div className="pb-2">
-          <SegmentedControl
-            options={TABS}
-            value={activeTab}
-            onChange={onTabChange}
+          <AssetTabs
+            active={activeTab === "assetInfo" ? "info" : "history"}
+            onChange={(tab) =>
+              onTabChange(tab === "info" ? "assetInfo" : "history")
+            }
           />
         </div>
 
