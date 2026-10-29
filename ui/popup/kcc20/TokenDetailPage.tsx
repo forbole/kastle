@@ -120,30 +120,32 @@ export default function TokenDetailPage({
           />
         </div>
 
-        {/* Header card: the Home asset row plus the chip */}
-        <div className="flex items-center gap-3 rounded-2xl border border-card-border bg-white/5 px-3 py-3">
-          {tokenImage}
-          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-            <div className="flex items-center gap-1.5">
-              <span className="truncate text-base font-semibold leading-4">
-                {name}
-              </span>
-              {showVerified && (
-                <BadgeCheck
-                  aria-label={KCC20_LABELS.verified}
-                  className="size-4 shrink-0 text-verified"
-                  strokeWidth={2}
-                />
+        {/* Header card: the Home asset row plus the chip, Token info only */}
+        {activeTab === "assetInfo" && (
+          <div className="flex items-center gap-3 rounded-2xl border border-card-border bg-white/5 px-3 py-3">
+            {tokenImage}
+            <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+              <div className="flex items-center gap-1.5">
+                <span className="truncate text-base font-semibold leading-4">
+                  {name}
+                </span>
+                {showVerified && (
+                  <BadgeCheck
+                    aria-label={KCC20_LABELS.verified}
+                    className="size-4 shrink-0 text-verified"
+                    strokeWidth={2}
+                  />
+                )}
+              </div>
+              {priceLabel && (
+                <span className="truncate text-sm leading-[21px] text-daintree-300">
+                  {priceLabel}
+                </span>
               )}
             </div>
-            {priceLabel && (
-              <span className="truncate text-sm leading-[21px] text-daintree-300">
-                {priceLabel}
-              </span>
-            )}
+            <NetworkTypeChip network={network} />
           </div>
-          <NetworkTypeChip network={network} />
-        </div>
+        )}
 
         {activeTab === "assetInfo" ? (
           <section className="flex flex-col">

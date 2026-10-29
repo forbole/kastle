@@ -181,6 +181,11 @@ for (const s of SCREENS) {
     page,
   }) => {
     await open(page, s.route, "&tall=1&h=320");
+    // KCC-20 has real tab bodies, not stubs: only Token info is that tall.
+    if (s.key === "KCC-20")
+      await page
+        .getByRole("button", { name: "Token info", exact: true })
+        .click();
     const body = page.locator("#popup .overflow-y-auto").first();
     const send = sendButton(page, s.ticker);
     await expect(send).toBeVisible();
@@ -469,6 +474,32 @@ for (const s of TABBED) {
     }
   });
 }
+
+// As on every other tabbed screen, the identity card is Token info only.
+test("KCC-20: the identity card shows on Token info, not on History", async ({
+  page,
+}) => {
+  await open(page, `/kcc20/${KCC20_ID}`);
+  const chip = page.getByText("Kaspa-KCC20", { exact: true });
+  const explorer = page.getByRole("button", {
+    name: "See activity history in explorer",
+  });
+  await expect(explorer).toBeVisible();
+  await expect(chip).toHaveCount(0);
+  // History starts with the activity card, right under the tabs.
+  const next = await page
+    .getByRole("navigation")
+    .evaluate((nav) => nav.parentElement!.nextElementSibling!.textContent);
+  expect(next).toBe("See activity history in explorer");
+  await expect(sendButton(page, "KTEST")).toBeVisible();
+
+  await page.getByRole("button", { name: "Token info", exact: true }).click();
+  await expect(chip).toBeVisible();
+  const card = page.locator("div.rounded-2xl", { has: chip });
+  await expect(card.getByText("KTEST", { exact: true })).toBeVisible();
+  await expect(explorer).toHaveCount(0);
+  await expect(sendButton(page, "KTEST")).toBeVisible();
+});
 
 for (const t of [
   { key: "dotK", route: `/dotk/${LONG_DOTK}`, title: LONG_DOTK },
