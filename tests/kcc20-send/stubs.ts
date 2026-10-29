@@ -57,8 +57,10 @@ export function useKaspaHotWalletSigner() {
 export function useKaspaBalance() {
   return 100;
 }
+// kcc20=off flips the KCC-20 kill switch.
 export function useFeatureFlags() {
-  return { isKcc20Enabled: true, isDotkEnabled: false };
+  const kcc20 = new URLSearchParams(location.search).get("kcc20") !== "off";
+  return { isKcc20Enabled: kcc20, isDotkEnabled: false };
 }
 export function useRecentAddresses() {
   return {
@@ -90,7 +92,11 @@ export function useKasFeeEstimate() {
   return { fee: 20_000 };
 }
 export function useAnalytics() {
-  return { emitSendCompleted: () => {}, emitFirstTransaction: async () => {} };
+  return {
+    emitSendInitiated: () => {},
+    emitSendCompleted: () => {},
+    emitFirstTransaction: async () => {},
+  };
 }
 
 // Names: any kaspa: address resolves to itself, "bob.kas" to a fixed one.
@@ -124,10 +130,28 @@ export function useKrc20Prices() {
 export function useKrc20Logo() {
   return { logo: undefined };
 }
+export function useTokenListByAddress() {
+  return [{ id: "KASPY", dec: "8", balance: "100000000000" }];
+}
+
+// EVM: the picker lists no L2 asset.
+export function useErc20Assets() {
+  return { assets: [] };
+}
+export function useEvmKasBalance() {
+  return { data: undefined };
+}
+export function useErc20Balance() {
+  return { data: undefined };
+}
+export function useErc20Image() {
+  return { logoUrl: undefined };
+}
 
 // KCC-20
-export function useKcc20Tokens() {
-  return { data: [kcc20Token], isLoading: false };
+// Like the real hook, no address means no fetch.
+export function useKcc20Tokens(address?: string) {
+  return { data: address ? [kcc20Token] : undefined, isLoading: false };
 }
 
 // Copy of lib/kcc20's guard: the real module pulls the KRON SDK.

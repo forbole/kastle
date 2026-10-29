@@ -9,6 +9,7 @@ import { Krc20Send } from "@/components/send/krc20-send/Krc20Send";
 import Krc20Transfer from "@/components/send/krc20-send/Krc20Transfer";
 import { SuccessStatus } from "@/components/send/SuccessStatus";
 import { FailStatus } from "@/components/send/FailStatus";
+import AssetSelect from "@/components/screens/asset-selector/AssetSelect";
 import { kcc20Token } from "./stubs";
 
 const params = new URLSearchParams(location.search);
@@ -47,7 +48,7 @@ const router = createMemoryRouter(
     { path: "/token-transfer", element: <Krc20Transfer /> },
     { path: "/status/kas", element: <Status kind="kas" /> },
     { path: "/status/krc20", element: <Status kind="krc20" /> },
-    { path: "/asset-select", element: <span>asset-select</span> },
+    { path: "/asset-select", element: <AssetSelect /> },
   ],
   {
     initialEntries: [

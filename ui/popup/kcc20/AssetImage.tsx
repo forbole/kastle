@@ -6,7 +6,7 @@ import type { NetworkType } from "./labels";
 
 // KRC-20 and native KAS carry no corner badge ("KRC20: not adding logo
 // identifier"); KCC-20 gets the Kaspa mark, ERC-20 its L2.
-const CHAIN_BADGES: Partial<Record<NetworkType, string>> = {
+export const CHAIN_BADGES: Partial<Record<NetworkType, string>> = {
   kcc20: kasIcon,
   kasplexErc20: kasplexIcon,
   igraErc20: igraIcon,
