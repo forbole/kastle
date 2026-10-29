@@ -12,7 +12,7 @@ import TokenAsset from "@/components/screens/KRC20Asset";
 import Erc20Asset from "@/components/screens/Erc20Asset";
 import EvmKasAsset from "@/components/screens/EvmKasAsset";
 import DotkAsset from "@/components/screens/DotkAsset";
-import Kcc20Asset from "@/components/screens/Kcc20Asset";
+import Kcc20Asset, { Kcc20AssetPending } from "@/components/screens/Kcc20Asset";
 
 // Every route the screens leave for renders its own path, so the spec can read it.
 function Landed() {
@@ -28,7 +28,15 @@ const router = createMemoryRouter(
     { path: "/erc20-asset/:chainId/:address", element: <Erc20Asset /> },
     { path: "/evm-asset/:chainId", element: <EvmKasAsset /> },
     { path: "/dotk/:name", element: <DotkAsset /> },
-    { path: "/kcc20/:covenantId", element: <Kcc20Asset /> },
+    {
+      path: "/kcc20/:covenantId",
+      // kcc20Pending=1: what the route guard shows while it waits.
+      element: params.has("kcc20Pending") ? (
+        <Kcc20AssetPending />
+      ) : (
+        <Kcc20Asset />
+      ),
+    },
     { path: "*", element: <Landed /> },
   ],
   { initialEntries: [params.get("route") ?? "/kas-asset"] },

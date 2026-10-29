@@ -1,5 +1,5 @@
 import Kcc20Send from "@/components/send/kcc20-send/Kcc20Send";
-import Kcc20Asset from "@/components/screens/Kcc20Asset";
+import Kcc20Asset, { Kcc20AssetPending } from "@/components/screens/Kcc20Asset";
 import type { ReactNode } from "react";
 import {
   createHashRouter,
@@ -201,11 +201,17 @@ const DotkRoute = () => {
   return isDotkEnabled ? <DotkAsset /> : <Navigate to="/dashboard" replace />;
 };
 
-const Kcc20Route = ({ children }: { children: ReactNode }) => {
+const Kcc20Route = ({
+  children,
+  pending = null,
+}: {
+  children: ReactNode;
+  // Shown while the guard waits.
+  pending?: ReactNode;
+}) => {
   const { isKcc20Enabled, isKcc20Loading } = useFeatureFlags();
   const { wallet, isWalletSettingsLoading } = useWalletManager();
-  if (isWalletSettingsLoading) return null;
-  if (isKcc20Loading) return null;
+  if (isWalletSettingsLoading || isKcc20Loading) return <>{pending}</>;
   // Ledger cannot sign v1 covenant transactions.
   return isKcc20Enabled && wallet?.type !== "ledger" ? (
     <>{children}</>
@@ -286,7 +292,7 @@ export const router = createHashRouter([
                   {
                     path: "kcc20/:covenantId",
                     element: (
-                      <Kcc20Route>
+                      <Kcc20Route pending={<Kcc20AssetPending />}>
                         <Kcc20Asset />
                       </Kcc20Route>
                     ),
