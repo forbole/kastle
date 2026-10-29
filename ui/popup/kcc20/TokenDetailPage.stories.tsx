@@ -23,6 +23,7 @@ const meta: Meta<typeof TokenDetailPage> = {
     onClose: { action: "close" },
     onTokenIdPress: { action: "copy token id" },
     onOpenExplorer: { action: "open explorer" },
+    onSend: { action: "send" },
   },
 };
 
@@ -59,6 +60,18 @@ export const VerifiedKcc20: Story = {
 
 export const HistoryTab: Story = {
   render: (args) => <Template {...base} {...args} initialTab="history" />,
+};
+
+/** A sendable token: the pinned "Send {ticker}" action, as the .k Transfer. */
+export const SendableKcc20: Story = {
+  render: (args) => (
+    <Template
+      {...base}
+      {...args}
+      initialTab="history"
+      onSend={args.onSend ?? (() => {})}
+    />
+  ),
 };
 
 export const UnverifiedKcc20: Story = {

@@ -1,7 +1,6 @@
 // Kasseal screens have no Figma yet: all user-facing copy lives here.
 export const KASSEAL_LABELS = {
   title: "Kasseal",
-  dashboardAction: "Launchpad",
   ledgerUnsupported: "Ledger doesn’t support Kasseal trading currently.",
   searchPlaceholder: "Search Token",
   loadingTokens: "Loading tokens…",

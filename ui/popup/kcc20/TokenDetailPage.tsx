@@ -40,6 +40,8 @@ export interface TokenDetailPageProps {
   onTabChange: (tab: TokenDetailTab) => void;
   /** History tab: Figma's designed state is a single link out to the explorer. */
   onOpenExplorer?: () => void;
+  /** Shows the pinned "Send {name}" action; omit it when the token cannot be sent. */
+  onSend?: () => void;
   onBack?: () => void;
   onClose?: () => void;
 }
@@ -83,6 +85,7 @@ export default function TokenDetailPage({
   activeTab,
   onTabChange,
   onOpenExplorer,
+  onSend,
   onBack,
   onClose,
 }: TokenDetailPageProps) {
@@ -230,6 +233,19 @@ export default function TokenDetailPage({
           </button>
         )}
       </div>
+
+      {/* Placed and styled as the .k detail Transfer action */}
+      {onSend && (
+        <div className="flex shrink-0 flex-col px-4 pb-4 pt-2">
+          <button
+            type="button"
+            onClick={onSend}
+            className="inline-flex w-full items-center justify-center rounded-full border border-white px-4 py-[14px] text-[15px] font-semibold text-white"
+          >
+            {`${KCC20_LABELS.send} ${name}`}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

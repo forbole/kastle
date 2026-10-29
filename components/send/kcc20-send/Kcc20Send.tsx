@@ -28,17 +28,11 @@ import {
   sendKcc20Transfer,
 } from "@/lib/kcc20/transfer";
 import { kcc20BuildErrorCopy, kcc20SendErrorCopy } from "./errorCopy";
+import { formatBalance } from "./formatBalance";
 
 type Step = "details" | "confirm" | "broadcast" | "success" | "fail";
 
 const KAS_DECIMALS = 8;
-
-// Exact base units → "1,234.000000000000000001"; a float would drop digits.
-const formatBalance = (units: bigint, decimals: number) => {
-  const [int, frac] = formatUnits(units, decimals).split(".");
-  const grouped = int.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-  return frac ? `${grouped}.${frac}` : grouped;
-};
 
 export default function Kcc20Send() {
   const navigate = useNavigate();

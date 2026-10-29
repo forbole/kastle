@@ -11,6 +11,9 @@ import Erc20SelectItem from "./Erc20SelectItem";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import useKaspaBalance from "@/hooks/wallet/useKaspaBalance";
 import useAnalytics from "@/hooks/useAnalytics";
+import useKcc20Tokens from "@/lib/kcc20/useKcc20Tokens";
+import { useFeatureFlags } from "@/hooks/useFeatureFlags.ts";
+import Kcc20SelectItem, { SendableKcc20Token } from "./Kcc20SelectItem";
 
 export default function AssetSelect() {
   const navigate = useNavigate();
@@ -45,6 +48,23 @@ export default function AssetSelect() {
         bToFloat(parseInt(b.balance, 10)) - aToFloat(parseInt(a.balance, 10))
       );
     });
+
+  // Same source and kill switch as the dashboard rows; the hook skips networks KRON does not serve.
+  const { isKcc20Enabled } = useFeatureFlags();
+  const { data: kcc20TokenItems } = useKcc20Tokens(
+    isKcc20Enabled ? kasAddress : undefined,
+  );
+  // Only verified, ADDRESS-owned pieces are sendable: other rows would land on "cannot be sent".
+  const kcc20Tokens = kcc20TokenItems
+    ?.filter(
+      (token): token is SendableKcc20Token =>
+        !!token.meta && token.spendable > 0n,
+    )
+    .filter((token) =>
+      hasSearchQuery
+        ? true
+        : token.meta.symbol.toLowerCase().startsWith(searchQuery.toLowerCase()),
+    );
 
   return (
     <div className="flex h-full w-full flex-col">
@@ -108,8 +128,16 @@ export default function AssetSelect() {
           ?.filter((token) => parseFloat(token.balance) > 0)
           .map((token) => <Krc20SelectItem key={token.id} token={token} />)}
 
+        {kcc20Tokens?.map((token) => (
+          <Kcc20SelectItem
+            key={`${token.covenantId}:${token.extensionCommitment ?? ""}`}
+            token={token}
+          />
+        ))}
+
         {!isKasShown &&
           tokens?.length === 0 &&
+          !kcc20Tokens?.length &&
           filteredErc20Assets.length === 0 && (
             <span className="text-center text-base font-medium text-daintree-400">
               No result found

@@ -91,12 +91,8 @@ export function Kcc20TokenListItem({ token }: { token: Kcc20Token }) {
   const { isKcc20Enabled } = useFeatureFlags();
   const { meta } = token;
   const { wallet } = useWalletManager();
-  // Only a token whose pieces are owned and verified is sendable, and never from a Ledger wallet.
-  const canSend =
-    isKcc20Enabled &&
-    !!meta &&
-    wallet?.type !== "ledger" &&
-    token.spendable > 0n;
+  // Same guard as the kcc20 routes; the detail page decides whether Send shows.
+  const canOpen = isKcc20Enabled && wallet?.type !== "ledger";
   const familyLabel = KCC20_FAMILY_LABELS[token.family];
   // Without verified decimals, show base units rather than guess a scale.
   const balance = meta
@@ -106,11 +102,11 @@ export function Kcc20TokenListItem({ token }: { token: Kcc20Token }) {
   return (
     <button
       type="button"
-      className={`flex w-full items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3 text-left ${canSend ? "cursor-pointer" : "cursor-default"}`}
-      disabled={!canSend}
+      className={`flex w-full items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3 text-left ${canOpen ? "cursor-pointer" : "cursor-default"}`}
+      disabled={!canOpen}
       onClick={() =>
         navigate(
-          `/kcc20/send/${token.covenantId}${
+          `/kcc20/${token.covenantId}${
             token.extensionCommitment ? `?ext=${token.extensionCommitment}` : ""
           }`,
         )

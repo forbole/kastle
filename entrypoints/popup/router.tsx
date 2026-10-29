@@ -1,9 +1,5 @@
 import Kcc20Send from "@/components/send/kcc20-send/Kcc20Send";
-import KassealBrowse from "@/components/kasseal/KassealBrowse";
-import KassealToken from "@/components/kasseal/KassealToken";
-import KassealTrade from "@/components/kasseal/KassealTrade";
-import { kassealNetworkOf } from "@/lib/kasseal/api";
-import useRpcClientStateful from "@/hooks/useRpcClientStateful";
+import Kcc20Asset from "@/components/screens/Kcc20Asset";
 import type { ReactNode } from "react";
 import {
   createHashRouter,
@@ -205,29 +201,13 @@ const DotkRoute = () => {
   return isDotkEnabled ? <DotkAsset /> : <Navigate to="/dashboard" replace />;
 };
 
-const Kcc20SendRoute = () => {
+const Kcc20Route = ({ children }: { children: ReactNode }) => {
   const { isKcc20Enabled, isKcc20Loading } = useFeatureFlags();
   const { wallet, isWalletSettingsLoading } = useWalletManager();
   if (isWalletSettingsLoading) return null;
   if (isKcc20Loading) return null;
   // Ledger cannot sign v1 covenant transactions.
   return isKcc20Enabled && wallet?.type !== "ledger" ? (
-    <Kcc20Send />
-  ) : (
-    <Navigate to="/dashboard" replace />
-  );
-};
-
-const KassealRoute = ({ children }: { children: ReactNode }) => {
-  const { isKassealEnabled, isKassealLoading } = useFeatureFlags();
-  const { wallet, isWalletSettingsLoading } = useWalletManager();
-  const { networkId } = useRpcClientStateful();
-  if (isWalletSettingsLoading) return null;
-  if (isKassealLoading) return null;
-  // Ledger cannot sign covenant transactions; Kasseal runs on mainnet and tn10 only.
-  return isKassealEnabled &&
-    wallet?.type !== "ledger" &&
-    kassealNetworkOf(networkId) ? (
     <>{children}</>
   ) : (
     <Navigate to="/dashboard" replace />
@@ -304,31 +284,19 @@ export const router = createHashRouter([
                   { path: "kas/send", element: <KasSend /> },
                   { path: "krc20/send/:tick", element: <Krc20Send /> },
                   {
+                    path: "kcc20/:covenantId",
+                    element: (
+                      <Kcc20Route>
+                        <Kcc20Asset />
+                      </Kcc20Route>
+                    ),
+                  },
+                  {
                     path: "kcc20/send/:covenantId",
-                    element: <Kcc20SendRoute />,
-                  },
-                  {
-                    path: "kasseal",
                     element: (
-                      <KassealRoute>
-                        <KassealBrowse />
-                      </KassealRoute>
-                    ),
-                  },
-                  {
-                    path: "kasseal/:covenantId",
-                    element: (
-                      <KassealRoute>
-                        <KassealToken />
-                      </KassealRoute>
-                    ),
-                  },
-                  {
-                    path: "kasseal/:covenantId/trade",
-                    element: (
-                      <KassealRoute>
-                        <KassealTrade />
-                      </KassealRoute>
+                      <Kcc20Route>
+                        <Kcc20Send />
+                      </Kcc20Route>
                     ),
                   },
                   { path: "evm-kas/send/:chainId", element: <EvmKasSend /> },

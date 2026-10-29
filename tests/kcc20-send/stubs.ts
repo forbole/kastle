@@ -28,14 +28,15 @@ const h = () => window.__kcc20Send;
 
 const hold = () => new Promise<void>((r) => (h().release = r));
 
-// token=<base units> swaps in an 18-decimal balance.
-const units = new URLSearchParams(location.search).get("token");
+// token=<base units> swaps in an 18-decimal balance; unsendable=1 owns no spendable piece.
+const query = new URLSearchParams(location.search);
+const units = query.get("token");
 export const kcc20Token: Kcc20Token = {
   covenantId: "ab".repeat(32),
   family: "kcc20-standard",
   tick: "nacho",
   amount: units ? BigInt(units) : 1_000_000n,
-  spendable: units ? BigInt(units) : 1_000_000n,
+  spendable: query.get("unsendable") ? 0n : units ? BigInt(units) : 1_000_000n,
   meta: { symbol: "NACHO", name: "Nacho", decimals: units ? 18 : 2 },
 };
 
@@ -56,8 +57,10 @@ export function useKaspaHotWalletSigner() {
 export function useKaspaBalance() {
   return 100;
 }
+// kcc20=off flips the KCC-20 kill switch.
 export function useFeatureFlags() {
-  return { isKcc20Enabled: true, isDotkEnabled: false };
+  const kcc20 = new URLSearchParams(location.search).get("kcc20") !== "off";
+  return { isKcc20Enabled: kcc20, isDotkEnabled: false };
 }
 export function useRecentAddresses() {
   return {
@@ -89,7 +92,11 @@ export function useKasFeeEstimate() {
   return { fee: 20_000 };
 }
 export function useAnalytics() {
-  return { emitSendCompleted: () => {}, emitFirstTransaction: async () => {} };
+  return {
+    emitSendInitiated: () => {},
+    emitSendCompleted: () => {},
+    emitFirstTransaction: async () => {},
+  };
 }
 
 // Names: any kaspa: address resolves to itself, "bob.kas" to a fixed one.
@@ -123,10 +130,28 @@ export function useKrc20Prices() {
 export function useKrc20Logo() {
   return { logo: undefined };
 }
+export function useTokenListByAddress() {
+  return [{ id: "KASPY", dec: "8", balance: "100000000000" }];
+}
+
+// EVM: the picker lists no L2 asset.
+export function useErc20Assets() {
+  return { assets: [] };
+}
+export function useEvmKasBalance() {
+  return { data: undefined };
+}
+export function useErc20Balance() {
+  return { data: undefined };
+}
+export function useErc20Image() {
+  return { logoUrl: undefined };
+}
 
 // KCC-20
-export function useKcc20Tokens() {
-  return { data: [kcc20Token], isLoading: false };
+// Like the real hook, no address means no fetch.
+export function useKcc20Tokens(address?: string) {
+  return { data: address ? [kcc20Token] : undefined, isLoading: false };
 }
 
 // Copy of lib/kcc20's guard: the real module pulls the KRON SDK.
@@ -181,6 +206,9 @@ export async function sendKcc20Transfer() {
 }
 
 export const explorerTxLinks = { mainnet: "https://explorer.kaspa.org/txs/" };
+export const explorerAddressLinks = {
+  mainnet: "https://explorer.kaspa.org/addresses/",
+};
 
 // WASM: the screens only format sompi and build a script they catch failing.
 export class PublicKey {
