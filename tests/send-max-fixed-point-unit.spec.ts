@@ -123,9 +123,9 @@ test.describe("findMaxSendable", () => {
             300_500_000_000n -
             BigInt(Math.round(MAX_SEND_RESERVE_KAS * 1e8)) -
             priorityFee;
-          expect(
-            String(result!.amountSompi >= oldMax - 2_000_000n),
-          ).toBe("true");
+          expect(String(result!.amountSompi >= oldMax - 2_000_000n)).toBe(
+            "true",
+          );
         }
       }
     });

@@ -121,9 +121,7 @@ export const sendFailReason = (
     spendableSompi !== undefined &&
     displayedBalanceSompi > spendableSompi
   ) {
-    return LEGACY_SPLIT_BALANCE_FAIL_REASON(
-      sompiToKaspaString(spendableSompi),
-    );
+    return LEGACY_SPLIT_BALANCE_FAIL_REASON(sompiToKaspaString(spendableSompi));
   }
   return isFragmentationError(error) ? FRAGMENTATION_FAIL_REASON : undefined;
 };

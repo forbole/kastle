@@ -58,9 +58,22 @@ const DEST = () =>
   new PrivateKey(KEY_B).toPublicKey().toAddress("mainnet").toString();
 
 const AMOUNTS = [
-  "0.5", "1", "2", "2.5", "3", "4", "4.2", "5", "10", "20", "50", "100",
+  "0.5",
+  "1",
+  "2",
+  "2.5",
+  "3",
+  "4",
+  "4.2",
+  "5",
+  "10",
+  "20",
+  "50",
+  "100",
   // zero-change amounts: the whole-UTXO multiples the Generator left no change on
-  "4.119", "6.179", "10.299",
+  "4.119",
+  "6.179",
+  "10.299",
 ];
 
 test.describe("planTransfer at the 11,449-UTXO shape", () => {
@@ -120,7 +133,9 @@ test.describe("planTransfer at the 11,449-UTXO shape", () => {
     const ordered = orderEntries(entries);
     expect(String(ordered[0].amount)).toBe("412000000");
     expect(String(ordered[2].amount)).toBe("300000000");
-    expect(ordered[3].outpoint.transactionId < ordered[4].outpoint.transactionId).toBe(true);
+    expect(
+      ordered[3].outpoint.transactionId < ordered[4].outpoint.transactionId,
+    ).toBe(true);
     expect(entries[0].amount).toBe(206_000_000n);
   });
 
@@ -211,12 +226,17 @@ test.describe("planTransfer with allowSplit: false (Ledger)", () => {
     const signer = {
       signTx: async (transaction: Transaction) => {
         signed.push(transaction.outputs.length);
-        if (transaction.outputs.length > 2) throw new Error("device: 2 outputs");
+        if (transaction.outputs.length > 2)
+          throw new Error("device: 2 outputs");
         return transaction;
       },
     };
     const rpc = {
-      submitTransaction: async ({ transaction }: { transaction: Transaction }) => {
+      submitTransaction: async ({
+        transaction,
+      }: {
+        transaction: Transaction;
+      }) => {
         submitted.push(transaction.id);
         return { transactionId: transaction.id };
       },
@@ -232,7 +252,11 @@ test.describe("planTransfer with allowSplit: false (Ledger)", () => {
     })
       .then(async (plan) => {
         if (isShortfall(plan)) throw new Error("Insufficient funds");
-        await signAndSubmitBatch(plan.transactions, signer as never, rpc as never);
+        await signAndSubmitBatch(
+          plan.transactions,
+          signer as never,
+          rpc as never,
+        );
       })
       .then(
         () => undefined,
@@ -260,11 +284,13 @@ test.describe("planTransfer with allowSplit: false (Ledger)", () => {
   test("throws the mass error before anything is signed or submitted", async () => {
     const { error, signed, submitted } = await confirm(false);
     expect(String(error)).toContain("Storage mass exceeds maximum");
-    expect(sendFailReason(error, {
-      isLegacyWallet: false,
-      displayedBalanceSompi: 0n,
-      spendableSompi: 0n,
-    })).toBe(FRAGMENTATION_FAIL_REASON);
+    expect(
+      sendFailReason(error, {
+        isLegacyWallet: false,
+        displayedBalanceSompi: 0n,
+        spendableSompi: 0n,
+      }),
+    ).toBe(FRAGMENTATION_FAIL_REASON);
     expect(signed).toEqual([]);
     expect(submitted).toEqual([]);
   });

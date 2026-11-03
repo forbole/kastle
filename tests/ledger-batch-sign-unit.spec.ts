@@ -65,7 +65,9 @@ const stubLedger = (rejectOnCall?: number) => {
     signed,
     signTx: async (transaction: Transaction) => {
       if (signed.length + 1 === rejectOnCall) {
-        throw new Error("Ledger device: Condition of use not satisfied (0x6985)");
+        throw new Error(
+          "Ledger device: Condition of use not satisfied (0x6985)",
+        );
       }
       for (const input of transaction.inputs) {
         if (!input.utxo) throw new Error("input has no UTXO entry");
@@ -80,7 +82,11 @@ const stubRpc = () => {
   const submitted: string[] = [];
   return {
     submitted,
-    submitTransaction: async ({ transaction }: { transaction: Transaction }) => {
+    submitTransaction: async ({
+      transaction,
+    }: {
+      transaction: Transaction;
+    }) => {
       submitted.push(transaction.id);
       return { transactionId: transaction.id };
     },
