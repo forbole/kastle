@@ -40,6 +40,22 @@ const syntheticEntries = (count: number, each: bigint) => {
   }));
 };
 
+const FEERATE_1000 = {
+  estimate: {
+    priorityBucket: { feerate: 1000, estimatedSeconds: 1 },
+    normalBuckets: [{ feerate: 1000, estimatedSeconds: 1 }],
+    lowBuckets: [{ feerate: 1000, estimatedSeconds: 1 }],
+  },
+} as unknown as IGetFeeEstimateResponse;
+
+// The split's third output, 412 grams at feerate 100.
+const SPLIT_OUTPUT_FEE = 41_200n;
+// The Generator spends only the prefix of the selection it needs, and the
+// base is priced at priority fee 0, where it may need one input fewer: 4 KAS
+// on the 11,449 wallet selects three entries, the base spends two, the plan
+// three from a priority fee of 2,838,600 up (1,118 grams at feerate 100).
+const SELECTION_INPUT_FEE = 111_800n;
+
 test.beforeAll(async () => {
   await init({
     module_or_path: fs.readFileSync(
@@ -185,6 +201,7 @@ test.describe("planTransfer on equal-sized UTXOs", () => {
         ) as unknown as IUtxoEntry[];
         const sender = senderAddress().toString();
         const failed: string[] = [];
+        let maxGap = 0n;
         for (const kas of amounts) {
           const amountSompi = BigInt(Math.round(Number(kas) * 1e8));
           const plan = await planTransfer({
@@ -208,11 +225,22 @@ test.describe("planTransfer on equal-sized UTXOs", () => {
             (o) => o.value === amountSompi,
           ).length;
           expect(paid, `${kas} KAS payment output`).toBeGreaterThan(0);
-          // summary.fees already holds the priority fee, once.
-          expect(String(plan.paymentFee - plan.paymentFeeBase)).toBe(
-            String(priorityFee),
-          );
+          // summary.fees already holds the priority fee, once. The base is
+          // the canonical build at priority fee 0, so it differs from the
+          // plan's own fee by at most the split output either way (the split
+          // can be needed at one priority fee and not the other), never by
+          // another priority fee.
+          const overBase = plan.paymentFee - priorityFee - plan.paymentFeeBase;
+          const gap = overBase < 0n ? -overBase : overBase;
+          maxGap = gap > maxGap ? gap : maxGap;
+          expect(
+            priorityFee === 0n
+              ? gap === 0n
+              : gap <= SPLIT_OUTPUT_FEE + SELECTION_INPUT_FEE,
+            `${kas} KAS: ${overBase} over the base`,
+          ).toBe(true);
         }
+        console.log(`${count} × ${each} @ ${priorityFee}: max gap ${maxGap}`);
         expect(failed).toEqual([]);
       });
     }
@@ -228,14 +256,6 @@ test("priority fee converges across plan cycles at feerate 1000", async () => {
     10_000_000_000n,
   ) as unknown as IUtxoEntry[];
   const sender = senderAddress().toString();
-  const estimate = {
-    estimate: {
-      priorityBucket: { feerate: 1000, estimatedSeconds: 1 },
-      normalBuckets: [{ feerate: 1000, estimatedSeconds: 1 }],
-      lowBuckets: [{ feerate: 1000, estimatedSeconds: 1 }],
-    },
-  } as unknown as IGetFeeEstimateResponse;
-
   let priorityFee = 0n;
   const history: bigint[] = [priorityFee];
   for (let cycle = 0; cycle < 3; cycle++) {
@@ -249,7 +269,7 @@ test("priority fee converges across plan cycles at feerate 1000", async () => {
     });
     if (isShortfall(plan)) throw new Error("unexpected shortfall");
     priorityFee = priorityFeeFromEstimate(
-      estimate,
+      FEERATE_1000,
       "high",
       Number(plan.paymentFeeBase),
     )!;
@@ -260,3 +280,80 @@ test("priority fee converges across plan cycles at feerate 1000", async () => {
   expect(String(history[2])).toBe(String(history[1]));
   expect(String(history[3])).toBe(String(history[1]));
 });
+
+// DetailsStep's cycle: plan, write priorityFeeFromEstimate(paymentFeeBase)
+// back, plan again. Returns each cycle's priority fee and payment outputs.
+const cyclePriorityFee = async (
+  entries: IUtxoEntry[],
+  amountSompi: bigint,
+  cycles: number,
+) => {
+  const sender = senderAddress().toString();
+  let priorityFee = 0n;
+  const history: bigint[] = [priorityFee];
+  const outputs: number[] = [];
+  for (let cycle = 0; cycle < cycles; cycle++) {
+    const plan = await planTransfer({
+      entries,
+      amountSompi,
+      outputAddress: destAddress().toString(),
+      changeAddress: sender,
+      priorityFee,
+      networkId: "mainnet",
+    });
+    if (isShortfall(plan)) throw new Error(`shortfall ${plan.reason}`);
+    outputs.push(
+      plan.transactions[plan.transactions.length - 1].transaction.outputs
+        .length,
+    );
+    priorityFee = priorityFeeFromEstimate(
+      FEERATE_1000,
+      "high",
+      Number(plan.paymentFeeBase),
+    )!;
+    history.push(priorityFee);
+  }
+  return { history, outputs };
+};
+
+// Round 5's reported shape: a probe failure here must fall back to the plan's
+// own fee rather than fail a send that builds.
+test("[1.0, 0.3] KAS sending 0.9999 KAS plans at feerate 1000", async () => {
+  const sender = senderAddress();
+  const entries = [100_000_000n, 30_000_000n].map((amount, i) => ({
+    address: sender,
+    outpoint: { transactionId: i.toString(16).padStart(64, "0"), index: 0 },
+    amount,
+    scriptPublicKey: payToAddressScript(sender),
+    blockDaaScore: 1_000n,
+    isCoinbase: false,
+  })) as unknown as IUtxoEntry[];
+  const { history, outputs } = await cyclePriorityFee(entries, 99_990_000n, 3);
+  console.log(`[1.0, 0.3]: ${history.join(" → ")}, outputs ${outputs}`);
+  expect(String(history[1])).not.toBe("0");
+  expect(outputs).toEqual([2, 2, 2]);
+});
+
+// 4 KAS needs the split at the cycle's priority fee (2,838,600) but not at 0,
+// so the decision flips once; 210.90 KAS is the round-4 alternation amount,
+// which does not split at feerate 1000.
+for (const { kas, splits } of [
+  { kas: "4", splits: true },
+  { kas: "210.90", splits: false },
+]) {
+  test(`priority fee settles by cycle 2 at ${kas} KAS on the 11,449 wallet`, async () => {
+    const entries = syntheticEntries(
+      11_449,
+      206_040_000n,
+    ) as unknown as IUtxoEntry[];
+    const { history, outputs } = await cyclePriorityFee(
+      entries,
+      BigInt(Math.round(Number(kas) * 1e8)),
+      3,
+    );
+    console.log(`${kas} KAS: ${history.join(" → ")}, outputs ${outputs}`);
+    expect(outputs.includes(3)).toBe(splits);
+    expect(String(history[3])).toBe(String(history[2]));
+    expect(outputs[2]).toBe(outputs[1]);
+  });
+}

@@ -105,12 +105,13 @@ export function useKasFeeEstimate(options: KasFeeEstimateOptions = {}) {
   // keeps the 1 KAS self-send probe and never fetches the entries here.
   const amountAware = "amountSompi" in options;
   const estimate = useKasFeeEstimateHelper(options);
-  const { account } = useWalletManager();
+  const { wallet, account } = useWalletManager();
   const { isConnected, networkId } = useRpcClientStateful();
   const send = useKasSendFeeEstimate({
     address: amountAware ? account?.address : undefined,
     amountSompi,
     priorityFee,
+    allowSplit: wallet?.type !== "ledger",
   });
 
   const scriptsKey = scriptsHexes?.join(",") ?? "";
@@ -170,10 +171,12 @@ function useKasSendFeeEstimate({
   address,
   amountSompi,
   priorityFee = 0n,
+  allowSplit,
 }: {
   address: string | undefined;
   amountSompi?: bigint;
   priorityFee?: bigint;
+  allowSplit: boolean;
 }) {
   const { networkId } = useRpcClientStateful();
   const { data: entries } = useUtxoEntries(address);
@@ -187,10 +190,11 @@ function useKasSendFeeEstimate({
           amountSompi.toString(),
           priorityFee.toString(),
           entries.length,
+          allowSplit,
         ]
       : null;
 
-  const { data, isLoading, error } = useSWR(
+  const { data, isValidating, error } = useSWR(
     key,
     async (): Promise<KasSendFeeEstimate> => {
       const plan = await planTransfer({
@@ -200,6 +204,7 @@ function useKasSendFeeEstimate({
         changeAddress: address!,
         priorityFee,
         networkId: networkId!,
+        allowSplit,
       });
       if (isShortfall(plan)) {
         return {
@@ -224,5 +229,13 @@ function useKasSendFeeEstimate({
     },
   );
 
-  return { estimate: data, loading: isLoading, error, entries };
+  // keepPreviousData would hand an empty amount the last amount's fee.
+  // isValidating, not isLoading: it is also true while kept data stands in
+  // for the new amount's, which validation must not trust.
+  return {
+    estimate: key ? data : undefined,
+    loading: isValidating,
+    error: key ? error : undefined,
+    entries,
+  };
 }

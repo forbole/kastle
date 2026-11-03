@@ -103,6 +103,8 @@ export const ConfirmStep = ({
         priorityFee,
         changeAddress: await signer.getAddress(),
         networkId,
+        // Same as the estimate: the device signs payment + change only.
+        allowSplit: wallet?.type !== "ledger",
       });
       if (isShortfall(plan)) throw new Error("Insufficient funds");
       const { transactions } = plan;
