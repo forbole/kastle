@@ -23,6 +23,7 @@ import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import { formatToken } from "@/lib/utils.ts";
 import { KasSendForm } from "@/components/send/kas-send/KasSend";
 import useKaspaBalance from "@/hooks/wallet/useKaspaBalance";
+import { openOptimizeFundsPage, shouldOfferOptimize } from "@/lib/consolidate";
 
 export function DetailsStep({
   onNext,
@@ -106,6 +107,11 @@ export function DetailsStep({
         ),
       }) ?? "Oh, this transfer can’t be built right now. Please try again.")
     : undefined;
+  const isOptimizeOffered = shouldOfferOptimize({
+    planError,
+    feeSompi,
+    walletType: wallet?.type,
+  });
   const maxSeq = useRef(0);
   // `isMaxSelected` is a form field (KasSendForm): this step unmounts on
   // Confirm, and a Max amount built at one priority bucket must be rebuilt,
@@ -464,6 +470,22 @@ export function DetailsStep({
             </span>
           </div>
         </div>
+
+        {isOptimizeOffered && (
+          <button
+            type="button"
+            className="flex items-center gap-2 self-start text-sm"
+            onClick={openOptimizeFundsPage}
+          >
+            <span className="text-daintree-400">
+              Your balance is spread across many UTXOs.
+            </span>
+            <span className="font-semibold text-icy-blue-400">
+              Optimize funds
+            </span>
+            <i className="hn hn-angle-right text-icy-blue-400"></i>
+          </button>
+        )}
 
         <div className="mt-auto">
           <button

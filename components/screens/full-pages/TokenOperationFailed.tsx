@@ -59,6 +59,8 @@ export const TokenOperationFailed = () => {
         return navigate("/mint-token");
       case "deploy":
         return navigate("/deploy-token");
+      case "optimize":
+        return navigate("/optimize-funds");
       default:
         window.close();
         break;
@@ -109,6 +111,15 @@ export const TokenOperationFailed = () => {
                     <i className="hn hn-angle-right text-icy-blue-400"></i>
                   </button>
                 </div>
+              </div>
+            ) : op === "optimize" ? (
+              <div className="flex flex-col gap-2 text-center">
+                <span className="text-xl font-semibold text-red-500">
+                  Optimization Incomplete
+                </span>
+                <span className="px-2 text-sm text-gray-500">
+                  {`${timesMinted}/${mintTimes} transactions completed: ${failure.message}`}
+                </span>
               </div>
             ) : (
               <div className="flex flex-col gap-2 text-center">
