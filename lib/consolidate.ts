@@ -3,8 +3,12 @@ import {
   IGeneratorSettingsObject,
   IUtxoEntry,
   PendingTransaction,
+  RpcClient,
 } from "@/wasm/core/kaspa";
 import { orderEntries } from "@/lib/sendFee";
+import { isFragmentationError } from "@/lib/kaspa";
+import { signAndSubmitBatch } from "@/lib/wallet/transaction-batch";
+import type { IWalletWithGetAddress } from "@/lib/wallet/wallet-interface";
 
 // The Generator batches at 89 inputs of this shape; 80 leaves ~10% mass
 // headroom so every chunk builds as a single transaction.
@@ -98,4 +102,89 @@ export async function planConsolidation({
     inputCount,
     outputCount: transactions.length,
   };
+}
+
+// 0.1 KAS. A send's fee scales with its input count: the Generator charged
+// 0.199 KAS for 174 inputs (MAX_SEND_RESERVE_KAS), so 0.1 KAS is a send that
+// already spends ~80 inputs, one full consolidation chunk. Above it the user
+// pays a sweep's worth of fee on every send; one round pays it once.
+export const OPTIMIZE_FEE_THRESHOLD_SOMPI = 10_000_000n;
+
+/**
+ * Whether the send screen offers Optimize funds. A fragmentation error (the
+ * Generator could not build the send) is offered to every wallet. A high fee
+ * alone is not offered to Ledger: the send still works, and the round costs one
+ * device approval per transaction.
+ */
+export function shouldOfferOptimize({
+  planError,
+  feeSompi,
+  walletType,
+}: {
+  planError: unknown;
+  feeSompi: bigint;
+  walletType: string | undefined;
+}): boolean {
+  if (planError) return isFragmentationError(planError);
+  return walletType !== "ledger" && feeSompi >= OPTIMIZE_FEE_THRESHOLD_SOMPI;
+}
+
+export type ConsolidationProgress = {
+  submitted: number;
+  // node rejected the signed transaction (for example a double spend of an
+  // input still in the mempool): skipped, the round continues
+  rejected: number;
+  feePaid: bigint;
+};
+
+/**
+ * Signs and submits each planned transaction on its own, stopping early when
+ * `isCanceled` turns true. A signing failure (locked keyring, Ledger
+ * rejection) throws; a submit rejection increments `rejected` and continues,
+ * since the chunks are disjoint and the next one does not depend on it.
+ */
+export async function runConsolidation(
+  transactions: readonly PendingTransaction[],
+  signer: Pick<IWalletWithGetAddress, "signTx">,
+  rpcClient: Pick<RpcClient, "submitTransaction">,
+  {
+    isCanceled = () => false,
+    onTransaction,
+  }: {
+    isCanceled?: () => boolean;
+    onTransaction?: (progress: ConsolidationProgress) => void;
+  } = {},
+): Promise<ConsolidationProgress> {
+  const progress: ConsolidationProgress = {
+    submitted: 0,
+    rejected: 0,
+    feePaid: 0n,
+  };
+  for (const pending of transactions) {
+    if (isCanceled()) break;
+    let signed = false;
+    const markSigned: Pick<IWalletWithGetAddress, "signTx"> = {
+      signTx: async (transaction) => {
+        const signedTransaction = await signer.signTx(transaction);
+        signed = true;
+        return signedTransaction;
+      },
+    };
+    try {
+      await signAndSubmitBatch([pending], markSigned, rpcClient);
+      progress.submitted++;
+      progress.feePaid += pending.feeAmount;
+    } catch (error) {
+      if (!signed) throw error;
+      progress.rejected++;
+    }
+    onTransaction?.({ ...progress });
+  }
+  return progress;
+}
+
+export function openOptimizeFundsPage() {
+  const url = new URL(browser.runtime.getURL("/popup.html"));
+  url.hash = "/optimize-funds";
+  browser.tabs.create({ url: url.toString() });
 }
