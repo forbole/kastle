@@ -14,7 +14,7 @@ import { PostHogWrapperContext } from "@/contexts/PostHogWrapperProvider.tsx";
 import packageJson from "../../package.json";
 import CurrencySelection from "@/components/settings/CurrencySelection.tsx";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
-import { useUtxoEntries } from "@/hooks/useKasFeeEstimate";
+import { useCachedUtxoEntryCount } from "@/hooks/useKasFeeEstimate";
 import { openOptimizeFundsPage } from "@/lib/consolidate";
 
 export const explorerTxLinks = {
@@ -42,7 +42,7 @@ export default function Settings() {
   const { postHog } = useContext(PostHogWrapperContext);
   const [analyticsEnabled, setAnalyticsEnabled] = useState(true);
   const { account } = useWalletManager();
-  const { data: utxoEntries } = useUtxoEntries(account?.address);
+  const utxoEntryCount = useCachedUtxoEntryCount(account?.address);
 
   useEffect(() => {
     if (postHog) {
@@ -229,9 +229,9 @@ export default function Settings() {
           showChevron
           onClick={openOptimizeFundsPage}
         >
-          {utxoEntries && (
+          {utxoEntryCount !== undefined && (
             <span className="text-daintree-400">
-              {utxoEntries.length.toLocaleString()}
+              {utxoEntryCount.toLocaleString()}
             </span>
           )}
         </SettingItem>
