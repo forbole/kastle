@@ -13,6 +13,9 @@ import { PostHogWrapperContext } from "@/contexts/PostHogWrapperProvider.tsx";
 
 import packageJson from "../../package.json";
 import CurrencySelection from "@/components/settings/CurrencySelection.tsx";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
+import { useCachedUtxoEntryCount } from "@/hooks/useKasFeeEstimate";
+import { openOptimizeFundsPage } from "@/lib/consolidate";
 
 export const explorerTxLinks = {
   [NetworkType.Mainnet]: "https://explorer.kaspa.org/txs/",
@@ -38,6 +41,8 @@ export default function Settings() {
   const navigate = useNavigate();
   const { postHog } = useContext(PostHogWrapperContext);
   const [analyticsEnabled, setAnalyticsEnabled] = useState(true);
+  const { account } = useWalletManager();
+  const utxoEntryCount = useCachedUtxoEntryCount(account?.address);
 
   useEffect(() => {
     if (postHog) {
@@ -217,6 +222,19 @@ export default function Settings() {
             navigate("/connected-apps");
           }}
         />
+
+        {/* Optimize funds */}
+        <SettingItem
+          title="Optimize funds"
+          showChevron
+          onClick={openOptimizeFundsPage}
+        >
+          {utxoEntryCount !== undefined && (
+            <span className="text-daintree-400">
+              {utxoEntryCount.toLocaleString()}
+            </span>
+          )}
+        </SettingItem>
 
         {/* Legacy features */}
         <SettingItem

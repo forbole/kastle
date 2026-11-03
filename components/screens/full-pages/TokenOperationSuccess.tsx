@@ -15,12 +15,14 @@ export const TokenOperationSuccess = () => {
     transfer: `${ticker} Dispatched`,
     deploy: `${ticker} Deployed`,
     mint: `${ticker} Minted`,
+    optimize: "Funds Optimized",
   };
 
   const opDescription: Record<string, string> = {
     transfer: `Your ${ticker} has been sent to the recipient's address`,
     deploy: "A new token has been forged",
     mint: `${ticker} has been forged!`,
+    optimize: "Your UTXOs have been consolidated",
   };
   const title = opTitle[op];
   const description = opDescription[op];
@@ -47,7 +49,10 @@ export const TokenOperationSuccess = () => {
               type="button"
               className="flex items-center gap-2"
               onClick={() =>
-                setPopupPath(`/token-asset/${ticker}`, reopenPopup)
+                setPopupPath(
+                  op === "optimize" ? "/dashboard" : `/token-asset/${ticker}`,
+                  reopenPopup,
+                )
               }
             >
               <span className="text-sm font-semibold text-icy-blue-400">
