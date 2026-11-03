@@ -1,11 +1,14 @@
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import React, { useEffect, useRef, useState } from "react";
 import Header from "@/components/GeneralHeader.tsx";
 import carriageImage from "@/assets/images/carriage.png";
-import { sompiToKaspaString } from "@/wasm/core/kaspa";
+import { IUtxoEntry, sompiToKaspaString } from "@/wasm/core/kaspa";
 import {
+  classifyConsolidation,
   ConsolidationPlan,
   ConsolidationProgress,
+  ConsolidationResult,
+  loadLiveEntries,
   planConsolidation,
   runConsolidation,
 } from "@/lib/consolidate";
@@ -14,6 +17,7 @@ import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import useKaspaHotWalletSigner from "@/hooks/wallet/useKaspaHotWalletSigner";
 import useKaspaLedgerSigner from "@/hooks/wallet/useKaspaLedgerSigner";
+import LedgerConnectForSign from "@/components/screens/ledger-connect/LedgerConnectForSign";
 
 export function OptimizeFundsConfirm({
   entriesBefore,
@@ -81,14 +85,18 @@ export function OptimizeFundsConfirm({
 
 export default function OptimizeFunds() {
   const navigate = useNavigate();
+  // a retry from the incomplete screen carries the inputs it already spent
+  const spentOutpoints: string[] | undefined =
+    useLocation().state?.spentOutpoints;
   const { wallet, account } = useWalletManager();
-  const { rpcClient, networkId } = useRpcClientStateful();
+  const { rpcClient, networkId, isConnected } = useRpcClientStateful();
   const isLedger = wallet?.type === "ledger";
   const hotWalletSigner = useKaspaHotWalletSigner();
   const ledgerSigner = useKaspaLedgerSigner();
   const walletSigner = isLedger ? ledgerSigner : hotWalletSigner;
-  const { data: entries } = useUtxoEntries(account?.address);
+  const { mutate: revalidateEntries } = useUtxoEntries(account?.address);
 
+  const [entries, setEntries] = useState<IUtxoEntry[]>();
   const [plan, setPlan] = useState<ConsolidationPlan | null>();
   const [planError, setPlanError] = useState<string>();
   const [isRunning, setIsRunning] = useState(false);
@@ -96,65 +104,110 @@ export default function OptimizeFunds() {
     submitted: 0,
     rejected: 0,
     feePaid: 0n,
+    spentOutpoints: [],
   });
+  const [cancelledEarly, setCancelledEarly] = useState<ConsolidationResult>();
   const [isCanceledUi, setIsCanceledUi] = useState(false);
   const isCanceled = useRef(false);
+  const isPlanning = useRef(false);
 
-  // Planned once: the round must spend the entries the confirm step showed,
-  // not whatever a 5 s revalidation brings back.
+  // Planned once, from a revalidation: SWR's cached set predates any earlier
+  // round, and the round must spend the entries the confirm step showed, not
+  // whatever 5 s revalidation brings back.
   useEffect(() => {
-    if (!entries || !account?.address || !networkId || plan !== undefined)
+    if (
+      !isConnected ||
+      !rpcClient ||
+      !account?.address ||
+      !networkId ||
+      isPlanning.current
+    )
       return;
-    planConsolidation({ entries, changeAddress: account.address, networkId })
-      .then((planned) => setPlan(planned ?? null))
+    isPlanning.current = true;
+    loadLiveEntries(() => revalidateEntries(), spentOutpoints)
+      .then(async (live) => {
+        setEntries(live);
+        const planned = await planConsolidation({
+          entries: live,
+          changeAddress: account.address,
+          networkId,
+        });
+        setPlan(planned ?? null);
+      })
       .catch((error) => {
         console.error(error);
         setPlanError(String(error));
         setPlan(null);
       });
-  }, [entries, account?.address, networkId]);
+  }, [isConnected, rpcClient, account?.address, networkId]);
 
   const start = async () => {
     if (!plan || !rpcClient || !walletSigner) return;
     setIsRunning(true);
-    let done = 0;
+    let result: ConsolidationResult = { ...progress, cancelled: false };
+    let error: unknown;
     try {
-      const result = await runConsolidation(
+      result = await runConsolidation(
         plan.transactions,
         walletSigner,
         rpcClient,
         {
           isCanceled: () => isCanceled.current,
           onTransaction: (next) => {
-            done = next.submitted + next.rejected;
+            result = { ...next, cancelled: false };
             setProgress(next);
           },
         },
       );
-      if (result.submitted === 0 && result.rejected > 0) {
-        throw new Error("Every transaction was rejected by the node");
-      }
-    } catch (error) {
-      return navigate(
-        { pathname: "/token-operation-failed" },
-        {
-          state: {
-            error,
-            op: "optimize",
-            timesMinted: done,
-            mintTimes: plan.transactions.length,
-          },
-        },
-      );
+    } catch (caught) {
+      error = caught ?? new Error("Signing failed");
     }
-    return navigate("/token-operation-success", {
-      state: { op: "optimize" },
+
+    const outcome = classifyConsolidation({
+      ...result,
+      failed: error !== undefined,
     });
+    if (outcome === "success") {
+      return navigate("/token-operation-success", {
+        state: { op: "optimize" },
+      });
+    }
+    if (outcome === "cancelled-early") {
+      setIsRunning(false);
+      return setCancelledEarly(result);
+    }
+    return navigate(
+      { pathname: "/token-operation-failed" },
+      {
+        state: {
+          error,
+          op: "optimize",
+          submitted: result.submitted,
+          rejected: result.rejected,
+          total: plan.transactions.length,
+          feePaid: sompiToKaspaString(result.feePaid),
+          spentOutpoints: [...(spentOutpoints ?? []), ...result.spentOutpoints],
+        },
+      },
+    );
   };
 
   const total = plan?.transactions.length ?? 0;
   const done = progress.submitted + progress.rejected;
   const progressPercentage = total ? (done / total) * 100 : 0;
+
+  // Same connect step the send flow shows (LedgerConfirm): the signer only
+  // exists once the device is connected with the Kaspa app open.
+  if (isLedger && !walletSigner && !isRunning && !cancelledEarly) {
+    return (
+      <div className="flex w-[41rem] flex-col items-stretch gap-4 rounded-3xl bg-icy-blue-950">
+        <LedgerConnectForSign
+          showPrevious={false}
+          onClose={() => window.close()}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="flex w-[41rem] flex-col items-stretch gap-4 rounded-3xl bg-icy-blue-950">
@@ -173,7 +226,23 @@ export default function OptimizeFunds() {
             src={carriageImage}
           />
 
-          {!isRunning && plan && entries && (
+          {cancelledEarly && (
+            <div className="flex flex-col items-center gap-2 text-center">
+              <span className="text-xl font-semibold">
+                Optimization cancelled
+              </span>
+              <span className="text-daintree-400">
+                Cancelled before the first transaction. Nothing was paid.
+              </span>
+              {cancelledEarly.rejected > 0 && (
+                <span className="text-daintree-400">
+                  {`${cancelledEarly.rejected} skipped by the node`}
+                </span>
+              )}
+            </div>
+          )}
+
+          {!isRunning && !cancelledEarly && plan && entries && (
             <OptimizeFundsConfirm
               entriesBefore={entries.length}
               entriesAfter={entries.length - plan.inputCount + plan.outputCount}
@@ -185,7 +254,7 @@ export default function OptimizeFunds() {
             />
           )}
 
-          {!isRunning && plan === null && (
+          {!isRunning && !cancelledEarly && plan === null && (
             <span className="self-center text-daintree-400">
               {planError ?? "Your funds already fit in a single transaction."}
             </span>

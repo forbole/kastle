@@ -13,7 +13,19 @@ export const TokenOperationFailed = () => {
   const { reopenPopup } = useExtensionUtils();
   const navigate = useNavigate();
   const {
-    state: { error, op, ticker, timesMinted, mintTimes },
+    state: {
+      error,
+      op,
+      ticker,
+      timesMinted,
+      mintTimes,
+      // op "optimize"
+      submitted,
+      rejected,
+      total,
+      feePaid,
+      spentOutpoints,
+    },
   } = useLocation();
   const { data: tokenInfoResponse } = useTokenInfo(ticker);
   const tokenInfo = tokenInfoResponse?.result?.[0];
@@ -60,7 +72,7 @@ export const TokenOperationFailed = () => {
       case "deploy":
         return navigate("/deploy-token");
       case "optimize":
-        return navigate("/optimize-funds");
+        return navigate("/optimize-funds", { state: { spentOutpoints } });
       default:
         window.close();
         break;
@@ -118,8 +130,13 @@ export const TokenOperationFailed = () => {
                   Optimization Incomplete
                 </span>
                 <span className="px-2 text-sm text-gray-500">
-                  {`${timesMinted}/${mintTimes} transactions completed: ${failure.message}`}
+                  {`${submitted} of ${total} consolidated · ${rejected} skipped by the node · fee paid ${feePaid} KAS`}
                 </span>
+                {error !== undefined && (
+                  <span className="px-2 text-sm text-gray-500">
+                    {failure.message}
+                  </span>
+                )}
               </div>
             ) : (
               <div className="flex flex-col gap-2 text-center">

@@ -135,7 +135,60 @@ export type ConsolidationProgress = {
   // input still in the mempool): skipped, the round continues
   rejected: number;
   feePaid: bigint;
+  // outpoints of the submitted transactions' inputs: a retry drops them, the
+  // UTXO index lists them until the node accepts the spend
+  spentOutpoints: string[];
 };
+
+export type ConsolidationResult = ConsolidationProgress & {
+  // the round stopped on Cancel with transactions left to sign
+  cancelled: boolean;
+};
+
+export type ConsolidationOutcome = "success" | "incomplete" | "cancelled-early";
+
+/**
+ * What the user is told once the round ends. "Funds Optimized" only when at
+ * least one transaction landed, none was rejected and the round ran to the end;
+ * a cancel before anything was submitted paid nothing and is not a failure.
+ */
+export function classifyConsolidation({
+  submitted,
+  rejected,
+  cancelled,
+  failed,
+}: {
+  submitted: number;
+  rejected: number;
+  cancelled: boolean;
+  // a signing failure stopped the round
+  failed: boolean;
+}): ConsolidationOutcome {
+  if (submitted > 0 && rejected === 0 && !cancelled && !failed) {
+    return "success";
+  }
+  if (submitted === 0 && cancelled && !failed) return "cancelled-early";
+  return "incomplete";
+}
+
+export const outpointKey = (outpoint: {
+  transactionId: string;
+  index: number;
+}) => `${outpoint.transactionId}:${outpoint.index}`;
+
+/**
+ * The entries a round may spend: revalidated from the node, never the cached
+ * set, minus the inputs a previous round already submitted.
+ */
+export async function loadLiveEntries(
+  revalidate: () => Promise<IUtxoEntry[] | undefined>,
+  spentOutpoints: readonly string[] = [],
+): Promise<IUtxoEntry[]> {
+  const spent = new Set(spentOutpoints);
+  return ((await revalidate()) ?? []).filter(
+    (entry) => !spent.has(outpointKey(entry.outpoint)),
+  );
+}
 
 /**
  * Signs and submits each planned transaction on its own, stopping early when
@@ -154,14 +207,19 @@ export async function runConsolidation(
     isCanceled?: () => boolean;
     onTransaction?: (progress: ConsolidationProgress) => void;
   } = {},
-): Promise<ConsolidationProgress> {
+): Promise<ConsolidationResult> {
   const progress: ConsolidationProgress = {
     submitted: 0,
     rejected: 0,
     feePaid: 0n,
+    spentOutpoints: [],
   };
+  let cancelled = false;
   for (const pending of transactions) {
-    if (isCanceled()) break;
+    if (isCanceled()) {
+      cancelled = true;
+      break;
+    }
     let signed = false;
     const markSigned: Pick<IWalletWithGetAddress, "signTx"> = {
       signTx: async (transaction) => {
@@ -174,17 +232,31 @@ export async function runConsolidation(
       await signAndSubmitBatch([pending], markSigned, rpcClient);
       progress.submitted++;
       progress.feePaid += pending.feeAmount;
+      progress.spentOutpoints = [
+        ...progress.spentOutpoints,
+        ...pending.transaction.inputs.map((input) =>
+          outpointKey(input.previousOutpoint),
+        ),
+      ];
     } catch (error) {
       if (!signed) throw error;
       progress.rejected++;
     }
     onTransaction?.({ ...progress });
   }
-  return progress;
+  return { ...progress, cancelled };
 }
 
-export function openOptimizeFundsPage() {
+/** Focuses the Optimize funds tab when one is open, otherwise opens it. */
+export async function openOptimizeFundsPage() {
   const url = new URL(browser.runtime.getURL("/popup.html"));
+  const tabs = await browser.tabs.query({ url: url.toString() });
   url.hash = "/optimize-funds";
-  browser.tabs.create({ url: url.toString() });
+  const open = tabs.find((tab) => tab.url === url.toString());
+  if (open?.id !== undefined) {
+    await browser.tabs.update(open.id, { active: true });
+    await browser.windows.update(open.windowId, { focused: true });
+    return;
+  }
+  await browser.tabs.create({ url: url.toString() });
 }

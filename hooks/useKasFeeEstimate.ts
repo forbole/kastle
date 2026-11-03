@@ -1,6 +1,10 @@
 import { useCallback } from "react";
 import useSWR from "swr";
-import { createTransactions, kaspaToSompi } from "@/wasm/core/kaspa";
+import {
+  createTransactions,
+  IUtxoEntry,
+  kaspaToSompi,
+} from "@/wasm/core/kaspa";
 import { calcRevealInputFee } from "@/lib/kaspaFee";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { isShortfall, planTransfer, TransferShortfall } from "@/lib/sendFee";
@@ -33,6 +37,20 @@ export function useUtxoEntries(address: string | undefined) {
       revalidateOnReconnect: false,
     },
   );
+}
+
+/**
+ * The entry count useUtxoEntries last fetched for `address`, read from the SWR
+ * cache without fetching: the node has no count-only RPC, and listing every
+ * entry to print a number costs the whole UTXO set.
+ */
+export function useCachedUtxoEntryCount(address: string | undefined) {
+  const { networkId } = useRpcClientStateful();
+  const { data } = useSWR<IUtxoEntry[]>(
+    address ? ["utxoEntries", address, networkId] : null,
+    null,
+  );
+  return data?.length;
 }
 
 export type KasSendFeeEstimate = {
