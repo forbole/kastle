@@ -24,6 +24,7 @@ const modules = {
   "hooks/evm/useEvmKasBalance": "useEvmKasBalance",
   "hooks/dotk/useDotkName": "useDotkName",
   "lib/kcc20/useKcc20Tokens": "useKcc20Tokens",
+  "lib/kcc20/useKcc20History": "useKcc20History",
   "components/screens/Settings": "Tab",
   "components/dashboard/NameCard": "NameCard",
   // Tab bodies are out of scope: one placeholder for all of them.

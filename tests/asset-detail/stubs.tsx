@@ -109,6 +109,32 @@ export function useEvmKasBalance() {
 export function useKcc20Tokens() {
   return { data: [kcc20Token, kcc20ExtToken], isLoading: false };
 }
+// One kascov row: the History tab renders the list, not the explorer link.
+export function useKcc20History() {
+  return {
+    entries: [
+      {
+        id: "kcc20tx:0",
+        txid: "kcc20tx",
+        seq: 0,
+        kind: "receive",
+        amount: 100n,
+        ambiguous: false,
+        counterparty: "p2pkh:qsender",
+        acceptingDaa: 1,
+        timestampMs: Date.UTC(2026, 0, 1),
+        approxTime: true,
+      },
+    ],
+    setSize: () => {},
+    hasMore: false,
+    isLoading: false,
+    isLoadingMore: false,
+    error: undefined,
+    retry: () => {},
+    unavailableReason: undefined,
+  };
+}
 export function useDotkName() {
   return {
     lookup: {

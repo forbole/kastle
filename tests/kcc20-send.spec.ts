@@ -369,11 +369,37 @@ test("a KCC-20 dashboard row glows on hover like a KRC-20 row", async ({
 test("a KCC-20 dashboard row shows a price and a fiat line", async ({
   page,
 }) => {
-  await page.goto(`${base}/?route=/dashboard-rows`);
+  // 10,000 NACHO at $0.25.
+  await page.goto(`${base}/?route=/dashboard-rows&price=0.25`);
   const row = page.locator('[data-row="kcc20"]');
-  // KCC-20 has no price feed: both lines read zero, like an unpriced KRC-20.
-  await expect(row.getByText("$0", { exact: true })).toBeVisible();
-  await expect(row.getByText("≈ $0.00", { exact: true })).toBeVisible();
+  await expect(row.getByText("$0.25", { exact: true })).toBeVisible();
+  await expect(row.getByText("≈ $2,500.00", { exact: true })).toBeVisible();
   // The subtitle stays.
   await expect(row.getByText("Nacho", { exact: true })).toBeVisible();
+});
+
+test("an unpriced KCC-20 dashboard row reads unknown, not zero", async ({
+  page,
+}) => {
+  await page.goto(`${base}/?route=/dashboard-rows`);
+  const row = page.locator('[data-row="kcc20"]');
+  // Like mobile's unpriced row: both lines read "—", never worth zero.
+  await expect(row.getByText("—", { exact: true })).toBeVisible();
+  await expect(row.getByText("≈ —", { exact: true })).toBeVisible();
+  await expect(row.getByText("$0", { exact: true })).toHaveCount(0);
+  await expect(row.getByText("≈ $0.00", { exact: true })).toHaveCount(0);
+  await expect(row.getByText("Nacho", { exact: true })).toBeVisible();
+});
+
+test("a KCC-20 dashboard row masks its fiat value with balances hidden", async ({
+  page,
+}) => {
+  await page.goto(`${base}/?route=/dashboard-rows&price=0.25&hidden=1`);
+  const row = page.locator('[data-row="kcc20"]');
+  await expect(row.getByText("*****", { exact: true })).toBeVisible();
+  await expect(row.getByText("10000", { exact: true })).toHaveCount(0);
+  await expect(row.getByText("≈ $*****", { exact: true })).toBeVisible();
+  await expect(row.getByText("≈ $2,500.00", { exact: true })).toHaveCount(0);
+  // The unit price is public, not a balance.
+  await expect(row.getByText("$0.25", { exact: true })).toBeVisible();
 });

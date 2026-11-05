@@ -25,6 +25,7 @@ const hooks = {
   "hooks/useAnalytics": "useAnalytics",
   "hooks/kasplex/useKrc20Logo": "useKrc20Logo",
   "lib/kcc20/useKcc20Tokens": "useKcc20Tokens",
+  "lib/kcc20/useKcc20Price": "useKcc20Price",
   "hooks/evm/useErc20Assets": "useErc20Assets",
   "hooks/evm/useEvmKasBalance": "useEvmKasBalance",
   "hooks/evm/useErc20Balance": "useErc20Balance",

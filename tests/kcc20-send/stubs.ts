@@ -72,7 +72,11 @@ export function useRecentAddresses() {
 }
 
 // Prices and fees
-const settings = { currency: "USD", hideBalances: false };
+// hidden=1 masks balances.
+const settings = {
+  currency: "USD",
+  hideBalances: query.get("hidden") === "1",
+};
 export function useSettings() {
   return [settings, async () => {}];
 }
@@ -150,6 +154,11 @@ export function useErc20Image() {
 
 // KCC-20
 // Like the real hook, no address means no fetch.
+// price=<usd> prices a KCC-20 token; without it no market lists one.
+export function useKcc20Price() {
+  const usd = query.get("price");
+  return { priceUsd: usd === null ? undefined : Number(usd) };
+}
 export function useKcc20Tokens(address?: string) {
   return { data: address ? [kcc20Token] : undefined, isLoading: false };
 }

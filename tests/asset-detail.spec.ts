@@ -484,21 +484,38 @@ test("KCC-20: the identity card shows on Token info, not on History", async ({
   const explorer = page.getByRole("button", {
     name: "See activity history in explorer",
   });
-  await expect(explorer).toBeVisible();
+  // History is the kascov list through the page's history slot.
+  const row = page.getByRole("button", { name: /Receive \+1 KTEST/ });
+  await expect(row).toBeVisible();
+  await expect(explorer).toHaveCount(0);
   await expect(chip).toHaveCount(0);
-  // History starts with the activity card, right under the tabs.
+  // History starts with the list, right under the tabs.
   const next = await page
     .getByRole("navigation")
     .evaluate((nav) => nav.parentElement!.nextElementSibling!.textContent);
-  expect(next).toBe("See activity history in explorer");
+  expect(next).toMatch(/^Receive/);
   await expect(sendButton(page, "KTEST")).toBeVisible();
 
   await page.getByRole("button", { name: "Token info", exact: true }).click();
   await expect(chip).toBeVisible();
   const card = page.locator("div.rounded-2xl", { has: chip });
   await expect(card.getByText("KTEST", { exact: true })).toBeVisible();
+  await expect(row).toHaveCount(0);
   await expect(explorer).toHaveCount(0);
   await expect(sendButton(page, "KTEST")).toBeVisible();
+});
+
+// Storybook renders the page with no history slot: History is the explorer link.
+test("KCC-20: with no history slot, History falls back to the explorer link", async ({
+  page,
+}) => {
+  await open(page, "/token-detail-no-history");
+  const explorer = page.getByRole("button", {
+    name: "See activity history in explorer",
+  });
+  await expect(explorer).toBeVisible();
+  await expect(explorer).toBeEnabled();
+  await expect(page.getByText("Kaspa-KCC20", { exact: true })).toHaveCount(0);
 });
 
 for (const t of [

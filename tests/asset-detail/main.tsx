@@ -13,6 +13,7 @@ import Erc20Asset from "@/components/screens/Erc20Asset";
 import EvmKasAsset from "@/components/screens/EvmKasAsset";
 import DotkAsset from "@/components/screens/DotkAsset";
 import Kcc20Asset, { Kcc20AssetPending } from "@/components/screens/Kcc20Asset";
+import TokenDetailPage from "@/ui/popup/kcc20/TokenDetailPage";
 
 // Every route the screens leave for renders its own path, so the spec can read it.
 function Landed() {
@@ -35,6 +36,22 @@ const router = createMemoryRouter(
         <Kcc20AssetPending />
       ) : (
         <Kcc20Asset />
+      ),
+    },
+    // As Storybook renders it: no history slot, so History falls back to the
+    // explorer link.
+    {
+      path: "/token-detail-no-history",
+      element: (
+        <TokenDetailPage
+          name="KTEST"
+          network="kcc20"
+          networkName="Kaspa"
+          tokenId="abab…abab"
+          activeTab="history"
+          onTabChange={() => {}}
+          onOpenExplorer={() => {}}
+        />
       ),
     },
     { path: "*", element: <Landed /> },
