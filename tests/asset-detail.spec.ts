@@ -505,6 +505,20 @@ test("KCC-20: the identity card shows on Token info, not on History", async ({
   await expect(sendButton(page, "KTEST")).toBeVisible();
 });
 
+// Page 1 is an events fallback page with nothing of the wallet's: the list still
+// pages, and the row on page 2 lands with the cap's notice under it.
+test('KCC-20: an empty fallback page is not "No history yet", and paging continues', async ({
+  page,
+}) => {
+  const errors = await open(page, `/kcc20/${KCC20_ID}`, "&historyFallback=1");
+  await expect(
+    page.getByRole("button", { name: /Receive \+1 KTEST/ }),
+  ).toBeVisible();
+  await expect(page.getByText("Older history is not shown.")).toBeVisible();
+  await expect(page.getByText("No history yet.")).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
 // Storybook renders the page with no history slot: History is the explorer link.
 test("KCC-20: with no history slot, History falls back to the explorer link", async ({
   page,

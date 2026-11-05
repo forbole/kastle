@@ -8,6 +8,9 @@
 //   dotkOff=1     the dotK feature flag is off
 //   spendable0=1  the KCC-20 token has nothing spendable
 //   tall=1        every tab body is taller than the popup
+//   historyFallback=1  history page 1 is an events page with nothing of the
+//                 wallet's; page 2 holds the row and stops at the page cap
+import { useState } from "react";
 import type { Kcc20Token } from "@/lib/kcc20";
 
 export const OWNER = "kaspa:qowner";
@@ -19,6 +22,7 @@ const notOwner = query.has("notOwner");
 const dotkOff = query.has("dotkOff");
 const spendable0 = query.has("spendable0");
 const tall = query.has("tall");
+const historyFallback = query.has("historyFallback");
 
 // KRC-20 in issue mode: the route carries the contract id, the title is the
 // name. One unbroken word, so a title that cannot wrap would overflow.
@@ -111,30 +115,36 @@ export function useKcc20Tokens() {
 }
 // One kascov row: the History tab renders the list, not the explorer link.
 export function useKcc20History() {
+  const [size, setSize] = useState(1);
+  const paged = !historyFallback || size > 1;
   return {
-    entries: [
-      {
-        id: "kcc20tx:0",
-        txid: "kcc20tx",
-        seq: 0,
-        kind: "receive",
-        amount: 100n,
-        ambiguous: false,
-        counterparty: "p2pkh:qsender",
-        acceptingDaa: 1,
-        timestampMs: Date.UTC(2026, 0, 1),
-        approxTime: true,
-      },
-    ],
-    setSize: () => {},
-    hasMore: false,
+    entries: paged ? historyRows : [],
+    size,
+    setSize,
+    hasMore: !paged,
     isLoading: false,
     isLoadingMore: false,
     error: undefined,
     retry: () => {},
     unavailableReason: undefined,
+    truncated: historyFallback && paged,
+    truncatedReason: historyFallback && paged ? "events-cap" : undefined,
   };
 }
+const historyRows = [
+  {
+    id: "kcc20tx:0",
+    txid: "kcc20tx",
+    seq: 0,
+    kind: "receive",
+    amount: 100n,
+    ambiguous: false,
+    counterparty: "p2pkh:qsender",
+    acceptingDaa: 1,
+    timestampMs: Date.UTC(2026, 0, 1),
+    approxTime: true,
+  },
+];
 export function useDotkName() {
   return {
     lookup: {

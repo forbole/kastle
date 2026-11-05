@@ -140,6 +140,11 @@ export type Kcc20HistoryUnavailable =
   | "wallet"
   | "family";
 
+/** Why history stops before the wallet's oldest transfer; the component words each one. */
+export type Kcc20HistoryTruncated =
+  // The events fallback spent EVENTS_FALLBACK_PAGE_CAP pages and the log goes on.
+  "events-cap";
+
 /**
  * KCC-20 history of `token` for `address`, newest first, paged on demand.
  * Mainnet, standard and kron-legacy only; anything else is `unavailable` with a reason,
@@ -238,12 +243,17 @@ export function useKcc20History(
   }, [data, own]);
 
   const last = data?.[data.length - 1];
+  const truncatedReason: Kcc20HistoryTruncated | undefined =
+    last?.source === "events" &&
+    last.nextBeforeSeq !== undefined &&
+    last.eventsPage >= EVENTS_FALLBACK_PAGE_CAP
+      ? "events-cap"
+      : undefined;
   const hasMore =
     !!last &&
     (last.source === "transfers"
       ? last.next !== undefined
-      : last.nextBeforeSeq !== undefined &&
-        last.eventsPage < EVENTS_FALLBACK_PAGE_CAP);
+      : last.nextBeforeSeq !== undefined && !truncatedReason);
   // A page past page 1 was asked for and has not landed yet.
   const isLoadingMore =
     !!data && size > data.length && data.length > 0 && !error;
@@ -259,5 +269,7 @@ export function useKcc20History(
     retry: () => mutate(),
     unavailable: unavailableReason !== undefined,
     unavailableReason,
+    truncated: truncatedReason !== undefined,
+    truncatedReason,
   };
 }

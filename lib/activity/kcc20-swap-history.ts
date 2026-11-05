@@ -22,7 +22,8 @@ import {
  * adapter render them unchanged. What each field means on a KCC-20 row — the
  * mappers.ts comment first, then how this module fills it:
  *
- * - id — `kcc20:<txid>:<seq>`, one per token state transition.
+ * - id — `kcc20:<txid>:<seq>:<tokenId>`, one per token state transition: a
+ *   transaction trading two tokens is two rows, never one.
  * - timestampMs — from the DAA distance to kascov's tip, not a block time.
  * - fromSymbol / toSymbol — "KAS" on the KAS side, the token's symbol on the other.
  * - fromAmount / toAmount — "Decimal strings in display units." The token side
@@ -31,7 +32,8 @@ import {
  *   unobserved-leg sentinel buildSwapRecords uses, which swapLeg() omits, so
  *   it never renders as a number.
  * - status — "pending" is reserved for in-flight local swaps; explorer rows
- *   never carry it. kascov lists accepted transitions only: "completed".
+ *   never carry it. kascov lists accepted transitions only, each with its
+ *   accepting_daa: "completed", as kastle-mobile's row says.
  * - txHash — the L1 txid; chainId routes its link to the Kaspa explorer.
  * - providerId — not set: no KRON / Braid venue is a registered provider, and
  *   swapVenueName() names none of them.
@@ -154,8 +156,9 @@ export function buildKcc20SwapRecords({
   const byToken = new Map<string, KascovTransfer[]>();
   const seen = new Set<string>();
   for (const row of rows) {
-    const id = `${row.txid}:${row.seq}`;
-    // The bare and `presence:` reads overlap, and so may page edges.
+    // The bare and `presence:` reads overlap, and so may page edges. The token
+    // is in the key: two tokens' transitions in one transaction are two rows.
+    const id = `${row.tokenId}:${row.txid}:${row.seq}`;
     if (seen.has(id)) continue;
     seen.add(id);
     byToken.set(row.tokenId, [...(byToken.get(row.tokenId) ?? []), row]);
@@ -190,14 +193,14 @@ export function buildKcc20SwapRecords({
         }
         const buy = entry.kind === "buy";
         swaps.push({
-          id: `kcc20:${entry.id}`,
+          id: `kcc20:${entry.id}:${tokenId}`,
           timestampMs: entry.timestampMs,
           fromSymbol: buy ? "KAS" : meta.symbol,
           toSymbol: buy ? meta.symbol : "KAS",
           // KAS side: the unobserved-leg sentinel until applyKcc20SwapMoney.
           fromAmount: buy ? "0" : amount,
           toAmount: buy ? amount : "0",
-          // kascov lists accepted transitions only.
+          // kascov lists accepted transitions only: the row's accepting_daa.
           status: "completed",
           txHash: entry.txid,
           chainId: KAT_L1_CHAIN_ID,
@@ -296,7 +299,7 @@ function covenantOf(u: { covenant_id?: string | null }): string | null {
  * KAS flows of one swap transaction, from the wallet's point of view. Null
  * when the transaction cannot answer without a guess.
  *
- * - kas: the wallet address's net KAS movement in the trade's direction — a
+ * - kas: the wallet address's net plain-KAS movement in the trade's direction — a
  *   buy's outlay (network fee and venue cut included, change excluded), a
  *   sell's proceeds (net of both) — less the covenant bond, so Rate is the
  *   trade's price. The bond is the KAS a token UTXO carries: a buy locks it
@@ -307,7 +310,9 @@ function covenantOf(u: { covenant_id?: string | null }): string | null {
  *   market's own UTXO carried forward (its state, or its KAS reserve), every
  *   other UTXO under that covenant is a bond, so the bond is the rest of the
  *   outputs minus the rest of the inputs. The bond has no record field, so it
- *   is left out of the sheet rather than shown.
+ *   is left out of the sheet rather than shown. Only plain UTXOs count as the
+ *   wallet's: a token UTXO at the wallet's own address is bond, already in the
+ *   bond sum, and counting it as change too would take it off twice.
  * - networkFee: the API returns no fee field, so it is inputs − outputs. It is
  *   the Provider Fees row (feeAmount), as on the EVM rows, where that row is
  *   the gas fee alone.
@@ -347,6 +352,7 @@ export function deriveKcc20SwapMoney(
   };
   let inputs = 0n;
   let walletIn = 0n;
+  let funded = false;
   for (const i of tx.inputs) {
     const amount = sompi(i?.previous_outpoint_amount);
     if (amount === null || !i.previous_outpoint_address) return null;
@@ -357,8 +363,10 @@ export function deriveKcc20SwapMoney(
       c.inSum += amount;
       if (amount > c.inMax) c.inMax = amount;
     }
-    if (i.previous_outpoint_address === address) walletIn += amount;
-    else if (!id) return null;
+    if (i.previous_outpoint_address === address) {
+      funded = true;
+      if (!id) walletIn += amount;
+    } else if (!id) return null;
   }
   let outputs = 0n;
   let walletOut = 0n;
@@ -372,13 +380,14 @@ export function deriveKcc20SwapMoney(
       const c = covenant(id);
       c.outSum += amount;
       if (amount > c.outMax) c.outMax = amount;
+      continue;
     }
     if (o.script_public_key_address === address) walletOut += amount;
-    else if (!id) venue += amount;
+    else venue += amount;
   }
   const networkFee = inputs - outputs;
   // The wallet did not fund it, so neither fee is the wallet's.
-  if (networkFee < 0n || walletIn === 0n) return null;
+  if (networkFee < 0n || !funded) return null;
   // More than one token/market pair: the KAS cannot be pinned to one row.
   if (covenants.size > 2) return null;
   // Locked by this tx (buy) when positive, freed by it (sell) when negative.
@@ -395,7 +404,7 @@ export function deriveKcc20SwapMoney(
   return { kasSompi, networkFeeSompi: networkFee, venueFeeSompi: venue };
 }
 
-/** "kcc20:<txid>:<seq>" — the id buildKcc20SwapRecords gives every row. */
+/** "kcc20:<txid>:<seq>:<tokenId>" — the id buildKcc20SwapRecords gives every row. */
 export function kcc20SwapTxid(record: SwapActivityRecord): string | null {
   const m = /^kcc20:([0-9a-f]{64}):/.exec(record.id);
   return m ? m[1] : null;

@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import type { Kcc20SwapTx } from "@/lib/activity/kcc20-swap-history";
 import type { SwapActivityRecord } from "@/lib/activity/mappers";
 
 // The activity modules reach image assets through lib/layer2 and the
@@ -183,6 +184,62 @@ test("refuses the wrong wallet, the wrong direction, and a third-party funder", 
     ],
   };
   expect(m.deriveKcc20SwapMoney(tx, SELL_WALLET, "sell")).toBeNull();
+});
+
+// The token UTXOs on both fixtures sit at covenant (p2sh) addresses. At the
+// wallet's own address they are still bond, never change, so the KAS leg holds.
+const atWallet = <T extends { covenant_id?: string | null }>(
+  utxos: T[],
+  pick: (u: T) => boolean,
+  field: "previous_outpoint_address" | "script_public_key_address",
+  wallet: string,
+) => utxos.map((u) => (pick(u) ? { ...u, [field]: wallet } : u));
+
+test("buy fixture: the KAS leg is plain wallet inputs − plain wallet change − the bond, wherever the token UTXO sits", () => {
+  const plainAt = (u: { covenant_id?: string | null }, a?: string) =>
+    !u.covenant_id && a === BUY_WALLET;
+  const buy: Required<Kcc20SwapTx> = BUY_TX;
+  const walletIn = buy.inputs
+    .filter((i) => plainAt(i, i.previous_outpoint_address))
+    .reduce((n, i) => n + BigInt(i.previous_outpoint_amount!), 0n);
+  const change = buy.outputs
+    .filter((o) => plainAt(o, o.script_public_key_address))
+    .reduce((n, o) => n + BigInt(o.amount!), 0n);
+  // The user's new MAGPIE UTXO: 2 KAS under the token's covenant.
+  const isBond = (o: { covenant_id?: string | null; amount?: number }) =>
+    o.covenant_id === MAGPIE_ID && o.amount === 200_000_000;
+  expect(BUY_TX.outputs.filter(isBond)).toHaveLength(1);
+  expect(String(walletIn - change - 200_000_000n)).toBe("30966318812");
+
+  const tx = {
+    ...BUY_TX,
+    outputs: atWallet(
+      BUY_TX.outputs,
+      isBond,
+      "script_public_key_address",
+      BUY_WALLET,
+    ),
+  };
+  expect(sompi(m.deriveKcc20SwapMoney(tx, BUY_WALLET, "buy"))).toEqual(
+    sompi(m.deriveKcc20SwapMoney(BUY_TX, BUY_WALLET, "buy")),
+  );
+});
+
+test("sell fixture: spent token UTXOs at the wallet's address are not counted twice", () => {
+  const tx = {
+    ...SELL_TX,
+    inputs: atWallet(
+      SELL_TX.inputs,
+      (i: { covenant_id?: string | null }) => i.covenant_id === YELLO_ID,
+      "previous_outpoint_address",
+      SELL_WALLET,
+    ),
+  };
+  expect(sompi(m.deriveKcc20SwapMoney(tx, SELL_WALLET, "sell"))).toEqual({
+    kas: "14212732120",
+    networkFee: "46586880",
+    venueFee: "149681000",
+  });
 });
 
 // ─── kascov rows → records ──────────────────────────────────────────────────
@@ -391,4 +448,52 @@ test("merge: a malformed KCC-20 row is skipped and counted, the rest survive", (
 test("merge: no KCC-20 family (disabled or loading) returns the EVM result as is", () => {
   const e = evm();
   expect(m.mergeKcc20SwapHistory(e, null)).toBe(e);
+});
+
+// TWO_TOKEN_TX's second covenant, as a token kascov lists in the same buy.
+const OTHER_ID = "c0ffee" + "0".repeat(58);
+
+test("two tokens in one transaction: two rows or one refused row, never one merged row", async () => {
+  const { fetched } = await magpieSwaps(MAGPIE);
+  const rows = [
+    ...fetched.rows,
+    ...fetched.rows
+      .filter((r) => r.txid === BUY_TXID)
+      .map((r) => ({ ...r, tokenId: OTHER_ID })),
+  ];
+  const build = (tokens: [string, { symbol: string; decimals: number }][]) =>
+    m
+      .buildKcc20SwapRecords({
+        rows,
+        own: new Set([MAGPIE_PK, `presence:${MAGPIE_PK}`]),
+        tip: TIP,
+        tokens: new Map(tokens),
+      })
+      .swaps.filter((s) => s.txHash === BUY_TXID);
+  const magpie: [string, { symbol: string; decimals: number }] = [
+    MAGPIE_ID,
+    { symbol: "MAGPIE", decimals: 0 },
+  ];
+
+  // Both named: two rows, one id each, and neither is asked about or enriched.
+  const both = build([magpie, [OTHER_ID, { symbol: "OTHER", decimals: 0 }]]);
+  expect(both.map((s) => s.toSymbol).sort()).toEqual(["MAGPIE", "OTHER"]);
+  expect(new Set(both.map((s) => s.id)).size).toBe(2);
+  const seen = route([[`${KASPA_TX}${BUY_TXID}`, TWO_TOKEN_TX]]);
+  expect(
+    m.applyKcc20SwapMoney(both, await m.fetchKcc20SwapMoney(BUY_WALLET, both)),
+  ).toEqual(both);
+  expect(seen).toEqual([]);
+
+  // One unnamed: the survivor is the transaction's only row, and the read is
+  // still refused — it would print both tokens' KAS and fees as MAGPIE's.
+  const one = build([magpie]);
+  expect(one).toHaveLength(1);
+  const [row] = m.applyKcc20SwapMoney(
+    one,
+    await m.fetchKcc20SwapMoney(BUY_WALLET, one),
+  );
+  expect(row).toEqual(one[0]);
+  expect(row.fromAmount).toBe("0");
+  expect(row.feeAmount).toBeUndefined();
 });

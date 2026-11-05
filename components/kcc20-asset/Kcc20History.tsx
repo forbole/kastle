@@ -10,6 +10,7 @@ import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import type { Kcc20Token } from "@/lib/kcc20";
 import { Kcc20HistoryRow, toHistoryRow } from "@/lib/kcc20/history";
 import {
+  Kcc20HistoryTruncated,
   Kcc20HistoryUnavailable,
   useKcc20History,
 } from "@/lib/kcc20/useKcc20History";
@@ -21,6 +22,10 @@ const UNAVAILABLE: Record<Kcc20HistoryUnavailable, string> = {
   disabled: "History is not enabled on this device yet.",
   wallet: "History needs a standard Kaspa (Schnorr) address.",
   family: "History is not supported for this token type.",
+};
+
+const TRUNCATED: Record<Kcc20HistoryTruncated, string> = {
+  "events-cap": "Older history is not shown.",
 };
 
 const KIND_LABEL: Record<Kcc20HistoryRow["kind"], string> = {
@@ -217,6 +222,7 @@ export function Kcc20History({
     error,
     retry,
     unavailableReason,
+    truncatedReason,
   } = useKcc20History(address, token);
   const [selected, setSelected] = useState<Kcc20HistoryRow>();
 
@@ -257,7 +263,14 @@ export function Kcc20History({
 
   if (isLoading || !token) return <Spinner />;
 
-  if (rows.length === 0) return <Notice>No history yet.</Notice>;
+  // An events fallback page may hold nothing of this wallet's and still have
+  // pages after it: empty means empty only once the query has none left.
+  if (rows.length === 0 && !hasMore)
+    return (
+      <Notice>
+        {truncatedReason ? TRUNCATED[truncatedReason] : "No history yet."}
+      </Notice>
+    );
 
   return (
     <div className="flex flex-col items-stretch gap-2">
@@ -278,7 +291,12 @@ export function Kcc20History({
           Retry
         </button>
       ) : (
-        isLoadingMore && <Spinner />
+        (isLoadingMore || rows.length === 0) && <Spinner />
+      )}
+      {truncatedReason && rows.length > 0 && (
+        <p className="text-center text-sm text-daintree-400">
+          {TRUNCATED[truncatedReason]}
+        </p>
       )}
       {/* A zero-height sentinel sits a subpixel past the scroll body's edge and never fires. */}
       <div ref={trigger} className="h-1 shrink-0" />
