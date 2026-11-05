@@ -38,6 +38,8 @@ import useFeeEstimateByGas from "@/hooks/evm/useFeeEstimateByGas";
 import { useKasFeeEstimate } from "@/hooks/useKasFeeEstimate";
 import useKaspaPrice from "@/hooks/useKaspaPrice";
 import useAnalytics from "@/hooks/useAnalytics";
+import { useFeatureFlags } from "@/hooks/useFeatureFlags";
+import { useTokenListByAddress } from "@/hooks/kasplex/useTokenListByAddress";
 import useEvmHotWalletSigner from "@/hooks/wallet/useEvmHotWalletSigner";
 import useKaspaBalance from "@/hooks/wallet/useKaspaBalance";
 import useKaspaHotWalletSigner from "@/hooks/wallet/useKaspaHotWalletSigner";
@@ -55,6 +57,7 @@ import {
   KASPLEX_EXIT_FEE_RATE,
   bridgeDirectionsFrom,
   igraEntryPayload,
+  migrationTokensHeld,
   validateKasToIgra,
   validateKasToKasplex,
 } from "@/lib/bridge/bridge";
@@ -89,6 +92,10 @@ import {
 } from "@/lib/layer2";
 import { sendEvmTransaction } from "@/lib/ethereum/transaction";
 import { bridgeReceived, l1BridgeSplit } from "@/lib/swap-bridge-quote";
+import {
+  KCC20_MIGRATION_TOOL_URL,
+  parseMigrationPayload,
+} from "@/lib/kcc20/migration";
 import { createTransactions, kaspaToSompi } from "@/wasm/core/kaspa";
 import { signAndSubmitBatch } from "@/lib/wallet/transaction-batch";
 
@@ -99,6 +106,8 @@ const REVERSE: Record<BridgeDirection, BridgeDirection> = {
   "igra-kas": "kas-igra",
   "kas-kasplex": "kasplex-kas",
   "kasplex-kas": "kas-kasplex",
+  // One way: the flip is hidden with the amount input.
+  "krc20-kcc20": "krc20-kcc20",
 };
 const CHAIN_LABEL: Record<BridgeChain, string> = {
   kaspa: "Kaspa",
@@ -135,6 +144,8 @@ export default function Bridge() {
   const kaspaSigner = useKaspaHotWalletSigner();
   const { kaspaPrice } = useKaspaPrice();
   const { emitBridgeCompleted } = useAnalytics();
+  const { isKcc20MigrationRouteEnabled, kcc20MigrationPayload } =
+    useFeatureFlags();
 
   const evmChains = {
     kasplex: isMainnet ? kasplexMainnet : kasplexTestnet,
@@ -144,10 +155,42 @@ export default function Bridge() {
     c === "kaspa" ? kaspaIcon : evmChains[c].icon;
   const hexOf = (c: "kasplex" | "igra") => numberToHex(evmChains[c].id) as Hex;
 
+  const migrationConfig = useMemo(
+    () =>
+      parseMigrationPayload(kcc20MigrationPayload, KCC20_MIGRATION_TOOL_URL),
+    // Keyed on content: the payload object is fresh on every flag delivery.
+    [JSON.stringify(kcc20MigrationPayload ?? null)],
+  );
+  const migrationActive =
+    isKcc20MigrationRouteEnabled && isMainnet && migrationConfig !== undefined;
+  // No address, no request: the route off costs zero tokenlist calls.
+  const krc20Held = useTokenListByAddress(
+    migrationActive ? account?.address : undefined,
+  );
+  const migration = {
+    enabled: migrationActive,
+    config: migrationConfig,
+    held: krc20Held ?? [],
+  };
+  const migrationTokens = migrationTokensHeld(migration);
+  const [migrateTick, setMigrateTick] = useState<string>();
+
   const [picked, setDirection] = useState<BridgeDirection>("kas-igra");
-  // A mainnet-only route picked before switching to testnet falls back.
+  // A mainnet-only route picked before switching to testnet falls back, and
+  // so does the migration once its flag, payload or holding goes away.
   const direction =
-    !isMainnet && BRIDGE_ROUTES[picked].mainnetOnly ? "kas-igra" : picked;
+    (!isMainnet && BRIDGE_ROUTES[picked].mainnetOnly) ||
+    (picked === "krc20-kcc20" &&
+      !bridgeDirectionsFrom("kaspa", isMainnet, migration).includes(picked))
+      ? "kas-igra"
+      : picked;
+  const isMigration = direction === "krc20-kcc20";
+  const migrationTick = isMigration
+    ? (
+        migrationTokens.find((t) => t.id.toUpperCase() === migrateTick) ??
+        migrationTokens[0]
+      )?.id.toUpperCase()
+    : undefined;
   const route = BRIDGE_ROUTES[direction];
   const [amount, setAmount] = useState("");
   const [sheet, setSheet] = useState<"token" | "to" | "provider" | "fee">();
@@ -260,10 +303,12 @@ export default function Bridge() {
               kastle: (amountNum * igraExit.feeRateBps) / 10_000,
             }
           : undefined;
+      case "krc20-kcc20":
+        return undefined;
     }
   })();
-  const fromSymbol = BRIDGE_TOKEN_NAME[route.from];
-  const toSymbol = BRIDGE_TOKEN_NAME[route.to];
+  const fromSymbol = migrationTick ?? BRIDGE_TOKEN_NAME[route.from];
+  const toSymbol = migrationTick ?? BRIDGE_TOKEN_NAME[route.to];
 
   const error = (() => {
     if (wallet?.type === "ledger")
@@ -272,6 +317,8 @@ export default function Bridge() {
       return undefined;
     const ctx = { balance, networkFee, isMainnet };
     switch (direction) {
+      case "krc20-kcc20":
+        return undefined;
       case "kas-igra":
         return validateKasToIgra(amountNum, ctx);
       case "kas-kasplex":
@@ -520,7 +567,7 @@ export default function Bridge() {
   )
     // The "from" sheet only lists what can actually be spent.
     .filter((c) => (balanceOf(c) ?? 0) > 0)
-    .map((c) => {
+    .map((c): SheetToken => {
       const b = balanceOf(c);
       return {
         key: c,
@@ -530,7 +577,21 @@ export default function Bridge() {
         balance: b === undefined ? undefined : formatAmount(b, 8),
         disabled: bridgeDirectionsFrom(c, isMainnet).length === 0,
       };
-    });
+    })
+    // Migratable KRC-20 holdings, on the Kaspa tab after KAS.
+    .concat(
+      migrationTokens.map((t) => ({
+        key: `krc20:${t.id.toUpperCase()}`,
+        chain: "kaspa",
+        symbol: t.id.toUpperCase(),
+        chainImage: chainImage("kaspa"),
+        balance: formatAmount(
+          Number(formatUnits(BigInt(t.balance), Number(t.dec) || 0)),
+          8,
+        ),
+        disabled: false,
+      })),
+    );
   // Reachable destinations from the current source, one per chain.
   const toTokens: SheetToken[] = [];
   for (const d of bridgeDirectionsFrom(route.from, isMainnet)) {
@@ -571,28 +632,56 @@ export default function Bridge() {
           <TokenPill
             symbol={toSymbol}
             chainImage={chainImage(route.to)}
-            onClick={() => {
-              setSheetChain(route.to);
-              setSheet("to");
-            }}
+            // The migration has one destination: the same tick as KCC-20.
+            onClick={
+              isMigration
+                ? undefined
+                : () => {
+                    setSheetChain(route.to);
+                    setSheet("to");
+                  }
+            }
           />
         </div>
 
-        <AmountInput
-          value={amount}
-          onChange={setAmount}
-          symbol={fromSymbol}
-          chainImage={chainImage(route.from)}
-          usd={`$${formatUsd(amountNum * kaspaPrice)}`}
-          onFlip={() => {
-            setDirection(reverse);
-            setAmount("");
-          }}
-          flipDisabled={!canFlip}
-        />
+        {isMigration && (
+          <div className="shrink-0 overflow-hidden rounded-xl border border-daintree-700 bg-daintree-800">
+            <QuoteRow label="From">{fromSymbol} (KRC-20)</QuoteRow>
+            <QuoteRow label="To">{toSymbol} (KCC-20) on Kaspa</QuoteRow>
+            <QuoteRow label="Provider" tooltip={TOOLTIPS.provider}>
+              <img
+                src={route.logo}
+                alt=""
+                className="size-[26px] rounded-full"
+              />
+              {route.provider}
+            </QuoteRow>
+            <p className="flex items-center gap-2 border-t border-daintree-700 px-4 py-3 text-xs font-medium text-daintree-400">
+              <i className="hn hn-info-circle text-base" />
+              The migration runs in {route.provider}&rsquo;s tool, which opens
+              in a new tab.
+            </p>
+          </div>
+        )}
+
+        {!isMigration && (
+          <AmountInput
+            value={amount}
+            onChange={setAmount}
+            symbol={fromSymbol}
+            chainImage={chainImage(route.from)}
+            usd={`$${formatUsd(amountNum * kaspaPrice)}`}
+            onFlip={() => {
+              setDirection(reverse);
+              setAmount("");
+            }}
+            flipDisabled={!canFlip}
+          />
+        )}
 
         {/* The network-fee error keeps the card: its Est. Fee row explains it. */}
-        {amountNum > 0 &&
+        {!isMigration &&
+          amountNum > 0 &&
           (!error ||
             error === `Oh, you need ${fromSymbol} for the network fees`) && (
             <div className="shrink-0 overflow-hidden rounded-xl border border-daintree-700 bg-daintree-800">
@@ -646,59 +735,80 @@ export default function Bridge() {
             </div>
           )}
       </div>
-      <ConfirmButton
-        error={error}
-        balance={
-          balance === undefined
-            ? undefined
-            : `${formatAmount(balance)} ${fromSymbol}`
-        }
-        onMax={
-          balance !== undefined && networkFee !== undefined
-            ? () => {
-                let text: string;
-                if (route.from === "kaspa") {
-                  const max = Math.max(balance - networkFee, 0);
-                  text = max.toFixed(8);
-                } else {
-                  // Exact wei, truncated (not rounded) so amount + fee <= balance.
-                  // `balance` is a formatUnits string: exact for live and cached reads.
-                  const raw = (
-                    route.from === "kasplex" ? kasplexBalance : igraBalance
-                  )?.balance;
-                  let wei =
-                    raw === undefined || evmFeeWei === undefined
-                      ? 0n
-                      : parseEther(String(raw)) - evmFeeWei;
-                  if (direction === "igra-kas" && exitParams) {
-                    const cap = computeMaxExitKas({
-                      balanceKas: balance,
-                      capHeadroomKas: null,
-                      maxExitAmountKas: Number(formatEther(exitParams.maxExit)),
-                      feeRateBps: Number(exitParams.feeRate),
-                    });
-                    const capWei = parseEther(cap.toFixed(18));
-                    if (capWei < wei) wei = capWei;
+      {isMigration ? (
+        <ConfirmButton
+          error={error}
+          label="Open migration tool"
+          // Same balance row as Confirm, so the slot matches between directions.
+          balance={sheetTokens
+            .filter((t) => t.key === `krc20:${migrationTick}`)
+            .map((t) => `${t.balance} ${t.symbol}`)
+            .at(0)}
+          disabled={!!error || !migrationConfig}
+          loading={false}
+          onClick={() => {
+            // Already https and allowlisted by parseMigrationPayload.
+            if (migrationConfig)
+              browser.tabs.create({ url: migrationConfig.url });
+          }}
+        />
+      ) : (
+        <ConfirmButton
+          error={error}
+          balance={
+            balance === undefined
+              ? undefined
+              : `${formatAmount(balance)} ${fromSymbol}`
+          }
+          onMax={
+            balance !== undefined && networkFee !== undefined
+              ? () => {
+                  let text: string;
+                  if (route.from === "kaspa") {
+                    const max = Math.max(balance - networkFee, 0);
+                    text = max.toFixed(8);
+                  } else {
+                    // Exact wei, truncated (not rounded) so amount + fee <= balance.
+                    // `balance` is a formatUnits string: exact for live and cached reads.
+                    const raw = (
+                      route.from === "kasplex" ? kasplexBalance : igraBalance
+                    )?.balance;
+                    let wei =
+                      raw === undefined || evmFeeWei === undefined
+                        ? 0n
+                        : parseEther(String(raw)) - evmFeeWei;
+                    if (direction === "igra-kas" && exitParams) {
+                      const cap = computeMaxExitKas({
+                        balanceKas: balance,
+                        capHeadroomKas: null,
+                        maxExitAmountKas: Number(
+                          formatEther(exitParams.maxExit),
+                        ),
+                        feeRateBps: Number(exitParams.feeRate),
+                      });
+                      const capWei = parseEther(cap.toFixed(18));
+                      if (capWei < wei) wei = capWei;
+                    }
+                    const [whole, frac = ""] = formatEther(
+                      wei > 0n ? wei : 0n,
+                    ).split(".");
+                    text = `${whole}.${frac.padEnd(8, "0").slice(0, 8)}`;
                   }
-                  const [whole, frac = ""] = formatEther(
-                    wei > 0n ? wei : 0n,
-                  ).split(".");
-                  text = `${whole}.${frac.padEnd(8, "0").slice(0, 8)}`;
+                  setAmount(text.replace(/\.?0+$/, "") || "0");
                 }
-                setAmount(text.replace(/\.?0+$/, "") || "0");
-              }
-            : undefined
-        }
-        disabled={
-          !!error ||
-          amountNum <= 0 ||
-          received === undefined ||
-          loadingQuote ||
-          networkFee === undefined
-        }
-        loading={submitting}
-        onClick={onConfirm}
-      />
+              : undefined
+          }
+          disabled={
+            !!error ||
+            amountNum <= 0 ||
+            received === undefined ||
+            loadingQuote ||
+            networkFee === undefined
+          }
+          loading={submitting}
+          onClick={onConfirm}
+        />
+      )}
       <BottomNav />
       <TermsGate kind="Bridge" />
 
@@ -715,7 +825,10 @@ export default function Bridge() {
         tokens={sheetTokens}
         onSelect={(t) => {
           const from = t.chain as BridgeChain;
-          if (from !== route.from)
+          if (t.key.startsWith("krc20:")) {
+            setMigrateTick(t.symbol);
+            setDirection("krc20-kcc20");
+          } else if (from !== route.from || isMigration)
             setDirection(bridgeDirectionsFrom(from, isMainnet)[0]);
           setAmount("");
         }}

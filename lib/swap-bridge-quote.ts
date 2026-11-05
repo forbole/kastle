@@ -85,5 +85,8 @@ export function bridgeReceived(
       return (
         amount * (1 - igraExit.feeRateBps / 10_000) - igraExit.upstreamFeeKas
       );
+    case "krc20-kcc20":
+      // Priced by the migration tool, not here.
+      return undefined;
   }
 }

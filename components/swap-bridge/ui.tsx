@@ -438,6 +438,7 @@ export function ConfirmButton({
   disabled,
   loading,
   onClick,
+  label = "Confirm",
 }: {
   error?: string;
   /** Pre-formatted, with symbol, e.g. "2,000.24 KAS". */
@@ -446,6 +447,7 @@ export function ConfirmButton({
   disabled: boolean;
   loading: boolean;
   onClick: () => void;
+  label?: string;
 }) {
   return (
     <div className="flex flex-none flex-col gap-3 bg-icy-blue-950 pb-3 pt-2">
@@ -482,7 +484,7 @@ export function ConfirmButton({
           {loading && (
             <span className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
           )}
-          Confirm
+          {label}
         </button>
       </div>
     </div>
