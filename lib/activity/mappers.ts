@@ -110,7 +110,13 @@ export function mapSwapActivity(s: SwapActivityRecord): ActivityRowDescriptor {
   // and an absent one leaves the key off so the adapter falls back to Igra.
   // Same meta key the KAT bridge rows use.
   if (s.chainId !== undefined) {
-    meta.l2Chain = s.chainId === kasplexMainnet.id ? "Kasplex" : "Igra";
+    meta.l2Chain =
+      s.chainId === kasplexMainnet.id
+        ? "Kasplex"
+        : // KCC-20 swaps settle on Kaspa L1 (kcc20-swap-history.ts).
+          s.chainId === KAT_L1_CHAIN_ID
+          ? "Kaspa"
+          : "Igra";
   }
   return {
     id: `swap:${s.id}`,

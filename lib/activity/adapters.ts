@@ -14,6 +14,8 @@ import {
 import { swapVenueName, toProviderId } from "@/lib/activity/swap-history";
 import { ALL_SWAP_PROVIDERS } from "@/lib/evm/swap/constants";
 import { igraMainnet, kasplexMainnet } from "@/lib/layer2";
+import { NetworkType } from "@/contexts/SettingsContext";
+import { TX_EXPLORER } from "@/lib/activity/externals";
 
 // Ported from kastle-mobile lib/activity/adapters.tsx: descriptor → display
 // item. Mobile hands the item to its ported kastle-ui components; here it is
@@ -267,12 +269,14 @@ export function buildDetails(row: ActivityRowDescriptor): DetailRow[] {
     }
     // Mobile opened every swap on the Igra explorer; a Kasplex swap belongs on
     // Kasplex's.
-    const explorer = (
-      row.meta?.l2Chain === "Kasplex" ? kasplexMainnet : igraMainnet
-    ).blockExplorers.default.url;
+    // A KCC-20 swap is an L1 transaction: the Kaspa explorer's txs path.
+    const explorer =
+      row.meta?.l2Chain === "Kaspa"
+        ? TX_EXPLORER[NetworkType.Mainnet]
+        : `${(row.meta?.l2Chain === "Kasplex" ? kasplexMainnet : igraMainnet).blockExplorers.default.url}/tx/`;
     const txHash = row.meta?.txHash;
     details.push(
-      linkRow("Transaction", txHash ? `${explorer}/tx/${txHash}` : undefined),
+      linkRow("Transaction", txHash ? `${explorer}${txHash}` : undefined),
     );
     return details;
   }
