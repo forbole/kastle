@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { SideMenu } from "@/components/side-menu/SideMenu.tsx";
 import {
@@ -30,6 +30,16 @@ import usePortfolioPerformance from "@/hooks/usePortfolioPerformance";
 import HoverTooltip from "../HoverTooltip";
 import KNSText from "@/components/dashboard/KNSText.tsx";
 import AddressesMenu from "../dashboard/AddressesMenu";
+import { Kcc20MigrationBanner } from "@/components/dashboard/Kcc20MigrationBanner";
+import { useFeatureFlags } from "@/hooks/useFeatureFlags.ts";
+import { useTokenListByAddress } from "@/hooks/kasplex/useTokenListByAddress";
+import { useKcc20MigrationStatus } from "@/hooks/useKcc20MigrationStatus";
+import {
+  KCC20_MIGRATION_TOOL_URL,
+  isMigratableTick,
+  migratableHeld,
+  parseMigrationPayload,
+} from "@/lib/kcc20/migration";
 
 export default function Dashboard() {
   const { keyringLock } = useKeyring();
@@ -70,6 +80,26 @@ export default function Dashboard() {
 
   const network = networkId ?? NetworkType.Mainnet;
   const isMainnet = network === NetworkType.Mainnet;
+
+  const { isKcc20MigrationRouteEnabled, kcc20MigrationPayload } =
+    useFeatureFlags();
+  const migrationConfig = useMemo(
+    () =>
+      parseMigrationPayload(kcc20MigrationPayload, KCC20_MIGRATION_TOOL_URL),
+    // Keyed on content: the payload object is fresh on every flag delivery.
+    [JSON.stringify(kcc20MigrationPayload ?? null)],
+  );
+  const migrationActive =
+    isKcc20MigrationRouteEnabled && isMainnet && migrationConfig !== undefined;
+  const krc20Held = useTokenListByAddress(
+    migrationActive ? account?.address : undefined,
+  );
+  const migration = useKcc20MigrationStatus(account?.address, network);
+  const showMigrationBanner =
+    migrationActive &&
+    migration.status !== undefined &&
+    isMigratableTick(migrationConfig, migration.status.tick) &&
+    migratableHeld(migrationConfig, krc20Held ?? []).length > 0;
 
   const isLedger = wallet?.type === "ledger";
   const [deployHovered, setDeployHovered] = useState(false);
@@ -382,6 +412,20 @@ export default function Dashboard() {
                 </span>
               ))}
             </div>
+
+            {activeTab === "Assets" &&
+              showMigrationBanner &&
+              migration.status &&
+              migrationConfig && (
+                <Kcc20MigrationBanner
+                  status={migration.status}
+                  onOpen={() =>
+                    // Already https and allowlisted by parseMigrationPayload.
+                    browser.tabs.create({ url: migrationConfig.url })
+                  }
+                  onDismiss={migration.dismiss}
+                />
+              )}
 
             {/* Tab Content */}
             {activeTab === "Assets" && <Assets />}

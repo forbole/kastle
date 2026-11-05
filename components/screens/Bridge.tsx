@@ -40,6 +40,7 @@ import useKaspaPrice from "@/hooks/useKaspaPrice";
 import useAnalytics from "@/hooks/useAnalytics";
 import { useFeatureFlags } from "@/hooks/useFeatureFlags";
 import { useTokenListByAddress } from "@/hooks/kasplex/useTokenListByAddress";
+import { writePendingMigration } from "@/lib/kcc20/migration-status";
 import useEvmHotWalletSigner from "@/hooks/wallet/useEvmHotWalletSigner";
 import useKaspaBalance from "@/hooks/wallet/useKaspaBalance";
 import useKaspaHotWalletSigner from "@/hooks/wallet/useKaspaHotWalletSigner";
@@ -748,8 +749,20 @@ export default function Bridge() {
           loading={false}
           onClick={() => {
             // Already https and allowlisted by parseMigrationPayload.
-            if (migrationConfig)
-              browser.tabs.create({ url: migrationConfig.url });
+            if (!migrationConfig) return;
+            // The popup closes when the tab opens: persist the entry first.
+            const recorded =
+              migrationTick && account?.address
+                ? writePendingMigration({
+                    tick: migrationTick,
+                    address: account.address,
+                    network: networkId ?? NetworkType.Mainnet,
+                    openedAt: Date.now(),
+                  }).catch(() => {})
+                : Promise.resolve();
+            recorded.then(() =>
+              browser.tabs.create({ url: migrationConfig.url }),
+            );
           }}
         />
       ) : (

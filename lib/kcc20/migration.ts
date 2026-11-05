@@ -14,6 +14,10 @@ export const KCC20_MIGRATION_TOOL_URL: string | undefined = undefined;
 // is accepted.
 export const KCC20_MIGRATION_HOST_ALLOWLIST: string[] = [];
 
+// Kat Bridge status API: GET {base}/{revealTxId} for one migration deposit.
+export const KCC20_MIGRATION_STATUS_API =
+  "https://kcc-api-production.up.railway.app/v1/status";
+
 export type Kcc20MigrationConfig = {
   url: string;
   tokens: { tick: string; covenantId: string }[];
