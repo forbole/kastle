@@ -8,9 +8,11 @@ import Header from "@/components/GeneralHeader";
 import { explorerAddressLinks } from "@/components/screens/Settings";
 import { NetworkType } from "@/contexts/SettingsContext";
 import useKcc20Tokens from "@/lib/kcc20/useKcc20Tokens";
+import { useKcc20Price } from "@/lib/kcc20/useKcc20Price";
+import useCurrencyValue from "@/hooks/useCurrencyValue";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
-import { setPopupPath, textEllipsis } from "@/lib/utils";
+import { formatTokenPrice, setPopupPath, textEllipsis } from "@/lib/utils";
 
 export default function Kcc20Asset() {
   const navigate = useNavigate();
@@ -30,6 +32,17 @@ export default function Kcc20Asset() {
       (!rowExt || t.extensionCommitment === rowExt),
   );
   const meta = token?.meta;
+  // Before the row loads there is nothing to price; the label stays hidden.
+  const { priceUsd } = useKcc20Price(
+    token ?? { covenantId, family: "kron-legacy", meta: undefined },
+  );
+  const { amount: fiatPrice, code: currencyCode } = useCurrencyValue(
+    priceUsd ?? 0,
+  );
+  const priceLabel =
+    token && priceUsd !== undefined
+      ? formatTokenPrice(fiatPrice, currencyCode)
+      : undefined;
   // The route guard rules out Ledger; only verified, owned pieces are sendable.
   const canSend = !!meta && !!token && token.spendable > 0n;
   const explorer = explorerAddressLinks[networkId ?? NetworkType.Mainnet];
@@ -50,6 +63,7 @@ export default function Kcc20Asset() {
       onTokenIdPress={() => copy(covenantId)}
       isVerified={!!meta && !meta.unverified}
       decimal={meta ? String(meta.decimals) : undefined}
+      priceLabel={priceLabel}
       activeTab={activeTab}
       onTabChange={setActiveTab}
       onOpenExplorer={

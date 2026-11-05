@@ -20,6 +20,10 @@ import { Kcc20Token } from "@/lib/kcc20";
 import { useFeatureFlags } from "@/hooks/useFeatureFlags.ts";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { KCC20_FAMILY_LABELS, KCC20_LABELS } from "@/ui/popup/kcc20/labels";
+import { useKcc20Price } from "@/lib/kcc20/useKcc20Price";
+
+// A token no market prices reads as unknown, never as worth zero.
+const NO_PRICE = "—";
 
 type TokenListItemProps = {
   token: TokenItem;
@@ -99,8 +103,16 @@ export function Kcc20TokenListItem({ token }: { token: Kcc20Token }) {
     ? formatUnits(token.amount, meta.decimals)
     : token.amount.toString();
   const showBalance = !settings?.hideBalances;
-  // KCC-20 has no price feed: price and fiat read zero, like an unpriced KRC-20.
-  const { code: currencyCode } = useCurrencyValue(0);
+  const { priceUsd } = useKcc20Price(token);
+  // No verified decimals, no whole-token balance to value.
+  const valueUsd =
+    priceUsd === undefined || !meta
+      ? undefined
+      : Number(formatUnits(token.amount, meta.decimals)) * priceUsd;
+  const { amount: fiatPrice, code: currencyCode } = useCurrencyValue(
+    priceUsd ?? 0,
+  );
+  const { amount: fiatValue } = useCurrencyValue(valueUsd ?? 0);
 
   return (
     <button
@@ -141,12 +153,18 @@ export function Kcc20TokenListItem({ token }: { token: Kcc20Token }) {
           )}
         </div>
         <div className="flex items-center justify-between text-sm text-daintree-400">
-          <span>{formatTokenPrice(0, currencyCode)}</span>
+          <span>
+            {priceUsd === undefined
+              ? NO_PRICE
+              : formatTokenPrice(fiatPrice, currencyCode)}
+          </span>
           <span>
             ≈{" "}
-            {showBalance
-              ? formatCurrency(0, currencyCode)
-              : `${symbolForCurrencyCode(currencyCode)}*****`}
+            {!showBalance
+              ? `${symbolForCurrencyCode(currencyCode)}*****`
+              : valueUsd === undefined
+                ? NO_PRICE
+                : formatCurrency(fiatValue, currencyCode)}
           </span>
         </div>
       </div>
