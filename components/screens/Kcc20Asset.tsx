@@ -5,12 +5,10 @@ import TokenDetailPage, {
   TokenDetailTab,
 } from "@/ui/popup/kcc20/TokenDetailPage";
 import Header from "@/components/GeneralHeader";
-import { explorerAddressLinks } from "@/components/screens/Settings";
-import { NetworkType } from "@/contexts/SettingsContext";
+import { Kcc20History } from "@/components/kcc20-asset/Kcc20History";
 import useKcc20Tokens from "@/lib/kcc20/useKcc20Tokens";
 import { useKcc20Price } from "@/lib/kcc20/useKcc20Price";
 import useCurrencyValue from "@/hooks/useCurrencyValue";
-import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { formatTokenPrice, setPopupPath, textEllipsis } from "@/lib/utils";
 
@@ -21,7 +19,6 @@ export default function Kcc20Asset() {
   // A token id can have one row per extension commitment; the route names the row.
   const rowExt = searchParams.get("ext");
   const { account } = useWalletManager();
-  const { networkId } = useRpcClientStateful();
   const { data: tokens } = useKcc20Tokens(account?.address);
   const [activeTab, setActiveTab] = useState<TokenDetailTab>("history");
   const [, copy] = useCopyToClipboard();
@@ -45,7 +42,6 @@ export default function Kcc20Asset() {
       : undefined;
   // The route guard rules out Ledger; only verified, owned pieces are sendable.
   const canSend = !!meta && !!token && token.spendable > 0n;
-  const explorer = explorerAddressLinks[networkId ?? NetworkType.Mainnet];
 
   useEffect(() => {
     setPopupPath();
@@ -66,11 +62,7 @@ export default function Kcc20Asset() {
       priceLabel={priceLabel}
       activeTab={activeTab}
       onTabChange={setActiveTab}
-      onOpenExplorer={
-        explorer && account
-          ? () => browser.tabs.create({ url: `${explorer}${account.address}` })
-          : undefined
-      }
+      history={<Kcc20History address={account?.address} token={token} />}
       onSend={
         canSend
           ? () =>

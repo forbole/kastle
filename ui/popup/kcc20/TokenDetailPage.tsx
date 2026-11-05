@@ -35,7 +35,9 @@ export interface TokenDetailPageProps {
   minter?: string;
   activeTab: TokenDetailTab;
   onTabChange: (tab: TokenDetailTab) => void;
-  /** History tab: Figma's designed state is a single link out to the explorer. */
+  /** History tab body; rendered inside the scroll body, so it must not take its own height. */
+  history?: React.ReactNode;
+  /** History tab fallback when no `history` is passed: a single link out to the explorer. */
   onOpenExplorer?: () => void;
   /** Shows the pinned "Send {name}" action; omit it when the token cannot be sent. */
   onSend?: () => void;
@@ -81,6 +83,7 @@ export default function TokenDetailPage({
   minter,
   activeTab,
   onTabChange,
+  history,
   onOpenExplorer,
   onSend,
   onBack,
@@ -213,6 +216,8 @@ export default function TokenDetailPage({
               )}
             </div>
           </section>
+        ) : history !== undefined ? (
+          history
         ) : (
           <button
             type="button"
