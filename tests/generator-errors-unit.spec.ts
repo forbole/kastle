@@ -7,9 +7,54 @@ import init, {
   createTransactions,
   payToAddressScript,
 } from "@/wasm/core/kaspa";
-import { isFragmentationError, MAX_SEND_RESERVE_KAS } from "@/lib/kaspa";
+import {
+  isFragmentationError,
+  MAX_SEND_RESERVE_KAS,
+  priorityFeeFromEstimate,
+} from "@/lib/kaspa";
+import { isShortfall, planTransfer } from "@/lib/sendFee";
+import type { IGetFeeEstimateResponse, IUtxoEntry } from "@/wasm/core/kaspa";
 
 const TESTS_DIR = path.dirname(fileURLToPath(import.meta.url));
+
+const KEY_A =
+  "b7e151628aed2a6abf7158809cf4f3c762e7160f38b4da56a784d9045190cfef";
+const KEY_B =
+  "c90fdaa22168c234c4c6628b80dc1cd129024e088a67cc74020bbea63b14e5c9";
+
+const senderAddress = () =>
+  new PrivateKey(KEY_A).toPublicKey().toAddress("mainnet");
+const destAddress = () =>
+  new PrivateKey(KEY_B).toPublicKey().toAddress("mainnet");
+
+// `count` synthetic UTXOs of `each` sompi on the sender's address.
+const syntheticEntries = (count: number, each: bigint) => {
+  const sender = senderAddress();
+  return Array.from({ length: count }, (_unused, i) => ({
+    address: sender,
+    outpoint: { transactionId: i.toString(16).padStart(64, "0"), index: 0 },
+    amount: each,
+    scriptPublicKey: payToAddressScript(sender),
+    blockDaaScore: 1_000n,
+    isCoinbase: false,
+  }));
+};
+
+const FEERATE_1000 = {
+  estimate: {
+    priorityBucket: { feerate: 1000, estimatedSeconds: 1 },
+    normalBuckets: [{ feerate: 1000, estimatedSeconds: 1 }],
+    lowBuckets: [{ feerate: 1000, estimatedSeconds: 1 }],
+  },
+} as unknown as IGetFeeEstimateResponse;
+
+// The split's third output, 412 grams at feerate 100.
+const SPLIT_OUTPUT_FEE = 41_200n;
+// The Generator spends only the prefix of the selection it needs, and the
+// base is priced at priority fee 0, where it may need one input fewer: 4 KAS
+// on the 11,449 wallet selects three entries, the base spends two, the plan
+// three from a priority fee of 2,838,600 up (1,118 grams at feerate 100).
+const SELECTION_INPUT_FEE = 111_800n;
 
 test.beforeAll(async () => {
   await init({
@@ -24,10 +69,6 @@ test.beforeAll(async () => {
 // (rusty-kaspa#701). ConfirmStep maps all three to one fail-screen reason. If
 // a WASM upgrade changes the strings or the thresholds, this is what notices.
 test.describe("Generator fragmentation errors (B3)", () => {
-  const KEY_A =
-    "b7e151628aed2a6abf7158809cf4f3c762e7160f38b4da56a784d9045190cfef";
-  const KEY_B =
-    "c90fdaa22168c234c4c6628b80dc1cd129024e088a67cc74020bbea63b14e5c9";
   const TOTAL = 300_500_000_000n; // 3005 KAS
   const RESERVE = BigInt(Math.round(MAX_SEND_RESERVE_KAS * 1e8));
   // DetailsStep: priorityFee = feerate × baseFee / 100, baseFee measured at
@@ -42,17 +83,10 @@ test.describe("Generator fragmentation errors (B3)", () => {
     priorityFee = 0n,
     subtrahend = RESERVE + priorityFee,
   ) => {
-    const sender = new PrivateKey(KEY_A).toPublicKey().toAddress("mainnet");
-    const dest = new PrivateKey(KEY_B).toPublicKey().toAddress("mainnet");
+    const sender = senderAddress();
+    const dest = destAddress();
     const each = TOTAL / BigInt(utxoCount);
-    const entries = Array.from({ length: utxoCount }, (_unused, i) => ({
-      address: sender,
-      outpoint: { transactionId: i.toString(16).padStart(64, "0"), index: 0 },
-      amount: each,
-      scriptPublicKey: payToAddressScript(sender),
-      blockDaaScore: 1_000n,
-      isCoinbase: false,
-    }));
+    const entries = syntheticEntries(utxoCount, each);
     // The wallet must hold exactly TOTAL: integer division drops up to n−1
     // sompi (44 at n=174), which would under-fund every amount derived from it.
     entries[0].amount += TOTAL - each * BigInt(utxoCount);
@@ -121,3 +155,205 @@ test.describe("Generator fragmentation errors (B3)", () => {
     );
   });
 });
+
+// Round 2: on equal-sized UTXOs the Generator spends only the first prefix
+// covering the amount, whatever it is handed, and the dust change left breaks
+// the storage mass limit. planTransfer grows the selection and splits the
+// surplus into a self output; every one of these threw before.
+test.describe("planTransfer on equal-sized UTXOs", () => {
+  test.setTimeout(300_000);
+
+  const SHAPES = [
+    {
+      count: 11_449,
+      each: 206_040_000n, // 2.0604 KAS
+      amounts: [
+        "0.5",
+        "1",
+        "2",
+        "2.5",
+        "3",
+        "4",
+        "4.119",
+        "4.2",
+        "5",
+        "6.179",
+        "10",
+        "10.299",
+        "20",
+        "50",
+        "100",
+      ],
+    },
+    {
+      count: 500,
+      each: 200_000_000n, // 2 KAS
+      amounts: ["0.5", "1", "1.95", "2", "3.95", "4"],
+    },
+  ];
+
+  for (const { count, each, amounts } of SHAPES) {
+    for (const priorityFee of [0n, 2_838_600n]) {
+      test(`${count} × ${each} sompi builds every amount at priorityFee ${priorityFee}`, async () => {
+        const entries = syntheticEntries(
+          count,
+          each,
+        ) as unknown as IUtxoEntry[];
+        const sender = senderAddress().toString();
+        const failed: string[] = [];
+        let maxGap = 0n;
+        for (const kas of amounts) {
+          const amountSompi = BigInt(Math.round(Number(kas) * 1e8));
+          const plan = await planTransfer({
+            entries,
+            amountSompi,
+            outputAddress: destAddress().toString(),
+            changeAddress: sender,
+            priorityFee,
+            networkId: "mainnet",
+          }).catch((e: unknown) => {
+            failed.push(`${kas}: ${String(e)}`);
+            return undefined;
+          });
+          if (!plan) continue;
+          if (isShortfall(plan)) {
+            failed.push(`${kas}: shortfall ${plan.reason}`);
+            continue;
+          }
+          const payment = plan.transactions[plan.transactions.length - 1];
+          const paid = payment.transaction.outputs.filter(
+            (o) => o.value === amountSompi,
+          ).length;
+          expect(paid, `${kas} KAS payment output`).toBeGreaterThan(0);
+          // summary.fees already holds the priority fee, once. The base is
+          // the canonical build at priority fee 0, so it differs from the
+          // plan's own fee by at most the split output either way (the split
+          // can be needed at one priority fee and not the other), never by
+          // another priority fee.
+          const overBase = plan.paymentFee - priorityFee - plan.paymentFeeBase;
+          const gap = overBase < 0n ? -overBase : overBase;
+          maxGap = gap > maxGap ? gap : maxGap;
+          expect(
+            priorityFee === 0n
+              ? gap === 0n
+              : gap <= SPLIT_OUTPUT_FEE + SELECTION_INPUT_FEE,
+            `${kas} KAS: ${overBase} over the base`,
+          ).toBe(true);
+        }
+        console.log(`${count} × ${each} @ ${priorityFee}: max gap ${maxGap}`);
+        expect(failed).toEqual([]);
+      });
+    }
+  }
+});
+
+// Finding 1: DetailsStep's effect writes priorityFeeFromEstimate(paymentFeeBase)
+// back into the form, and the form's priorityFee keys the next plan. Priced on
+// paymentFee (priority fee included) it grew ×9 a cycle at feerate 1000.
+test("priority fee converges across plan cycles at feerate 1000", async () => {
+  const entries = syntheticEntries(
+    3,
+    10_000_000_000n,
+  ) as unknown as IUtxoEntry[];
+  const sender = senderAddress().toString();
+  let priorityFee = 0n;
+  const history: bigint[] = [priorityFee];
+  for (let cycle = 0; cycle < 3; cycle++) {
+    const plan = await planTransfer({
+      entries,
+      amountSompi: 100_000_000n,
+      outputAddress: destAddress().toString(),
+      changeAddress: sender,
+      priorityFee,
+      networkId: "mainnet",
+    });
+    if (isShortfall(plan)) throw new Error("unexpected shortfall");
+    priorityFee = priorityFeeFromEstimate(
+      FEERATE_1000,
+      "high",
+      Number(plan.paymentFeeBase),
+    )!;
+    history.push(priorityFee);
+  }
+  console.log(`priority fee per cycle: ${history.join(" → ")}`);
+  expect(String(history[1])).not.toBe("0");
+  expect(String(history[2])).toBe(String(history[1]));
+  expect(String(history[3])).toBe(String(history[1]));
+});
+
+// DetailsStep's cycle: plan, write priorityFeeFromEstimate(paymentFeeBase)
+// back, plan again. Returns each cycle's priority fee and payment outputs.
+const cyclePriorityFee = async (
+  entries: IUtxoEntry[],
+  amountSompi: bigint,
+  cycles: number,
+) => {
+  const sender = senderAddress().toString();
+  let priorityFee = 0n;
+  const history: bigint[] = [priorityFee];
+  const outputs: number[] = [];
+  for (let cycle = 0; cycle < cycles; cycle++) {
+    const plan = await planTransfer({
+      entries,
+      amountSompi,
+      outputAddress: destAddress().toString(),
+      changeAddress: sender,
+      priorityFee,
+      networkId: "mainnet",
+    });
+    if (isShortfall(plan)) throw new Error(`shortfall ${plan.reason}`);
+    outputs.push(
+      plan.transactions[plan.transactions.length - 1].transaction.outputs
+        .length,
+    );
+    priorityFee = priorityFeeFromEstimate(
+      FEERATE_1000,
+      "high",
+      Number(plan.paymentFeeBase),
+    )!;
+    history.push(priorityFee);
+  }
+  return { history, outputs };
+};
+
+// Round 5's reported shape: a probe failure here must fall back to the plan's
+// own fee rather than fail a send that builds.
+test("[1.0, 0.3] KAS sending 0.9999 KAS plans at feerate 1000", async () => {
+  const sender = senderAddress();
+  const entries = [100_000_000n, 30_000_000n].map((amount, i) => ({
+    address: sender,
+    outpoint: { transactionId: i.toString(16).padStart(64, "0"), index: 0 },
+    amount,
+    scriptPublicKey: payToAddressScript(sender),
+    blockDaaScore: 1_000n,
+    isCoinbase: false,
+  })) as unknown as IUtxoEntry[];
+  const { history, outputs } = await cyclePriorityFee(entries, 99_990_000n, 3);
+  console.log(`[1.0, 0.3]: ${history.join(" → ")}, outputs ${outputs}`);
+  expect(String(history[1])).not.toBe("0");
+  expect(outputs).toEqual([2, 2, 2]);
+});
+
+// 4 KAS needs the split at the cycle's priority fee (2,838,600) but not at 0,
+// so the decision flips once; 210.90 KAS is the round-4 alternation amount,
+// which does not split at feerate 1000.
+for (const { kas, splits } of [
+  { kas: "4", splits: true },
+  { kas: "210.90", splits: false },
+]) {
+  test(`priority fee settles by cycle 2 at ${kas} KAS on the 11,449 wallet`, async () => {
+    const entries = syntheticEntries(
+      11_449,
+      206_040_000n,
+    ) as unknown as IUtxoEntry[];
+    const { history, outputs } = await cyclePriorityFee(
+      entries,
+      BigInt(Math.round(Number(kas) * 1e8)),
+      3,
+    );
+    console.log(`${kas} KAS: ${history.join(" → ")}, outputs ${outputs}`);
+    expect(outputs.includes(3)).toBe(splits);
+    expect(String(history[3])).toBe(String(history[2]));
+    expect(outputs[2]).toBe(outputs[1]);
+  });
+}

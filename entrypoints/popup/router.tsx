@@ -48,6 +48,7 @@ import KasAsset from "@/components/screens/KasAsset.tsx";
 import SignTxConfirm from "@/components/screens/browser-api/kaspa/SignTxConfirm";
 import ConfirmMint from "@/components/screens/full-pages/ConfirmMint.tsx";
 import MintingToken from "@/components/screens/full-pages/MintingToken.tsx";
+import OptimizeFunds from "@/components/screens/full-pages/OptimizeFunds.tsx";
 import { TokenOperationFailed } from "@/components/screens/full-pages/TokenOperationFailed.tsx";
 import { TokenOperationSuccess } from "@/components/screens/full-pages/TokenOperationSuccess.tsx";
 import ConfirmDeploy from "@/components/screens/full-pages/ConfirmDeploy.tsx";
@@ -580,6 +581,10 @@ export const router = createHashRouter([
               {
                 path: "minting-token",
                 element: <MintingToken />,
+              },
+              {
+                path: "optimize-funds",
+                element: <OptimizeFunds />,
               },
               {
                 path: "token-operation-failed",

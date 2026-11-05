@@ -14,16 +14,12 @@ import { kaspaToSompi, sompiToKaspaString } from "@/wasm/core/kaspa";
 import { twMerge } from "tailwind-merge";
 import { formatUsdAmount } from "@/lib/utils.ts";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
-import { createTransactions } from "@/wasm/core/kaspa";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import { signAndSubmitBatch } from "@/lib/wallet/transaction-batch";
-import { isFragmentationError } from "@/lib/kaspa.ts";
+import { sendFailReason } from "@/lib/kaspa.ts";
 import { useKasFeeEstimate } from "@/hooks/useKasFeeEstimate";
-
-// Shown on the fail screen instead of the generic copy. The Generator cannot
-// build the transfer at all (see isFragmentationError); nothing was broadcast.
-export const FRAGMENTATION_FAIL_REASON =
-  "This amount plus the network fee doesn't fit your balance — usually because it is spread across many small UTXOs. Try a smaller amount.";
+import { isShortfall, planTransfer } from "@/lib/sendFee";
+import useKaspaBalance from "@/hooks/wallet/useKaspaBalance";
 
 export const ConfirmStep = ({
   onNext,
@@ -54,10 +50,15 @@ export const ConfirmStep = ({
   const { address, amount, domain, priorityFee } = watch();
   const kaspaPrice = useKaspaPrice();
   const amountNumber = parseFloat(amount ?? "0");
-  // Same SWR key as DetailsStep, so this is the cached estimate. The Generator
-  // charges its own fee plus priorityFee; show that total, not priorityFee.
-  const { fee: baseFee } = useKasFeeEstimate({ extraOutputCount: 1 });
-  const feeKas = sompiToKaspaString(BigInt(baseFee ?? 0) + priorityFee);
+  const amountSompi = amount ? (kaspaToSompi(amount) ?? undefined) : undefined;
+  // Same SWR key as DetailsStep, so this is the cached plan. All-in: the
+  // batch's summary.fees, the priority fee already in it: the "Estimated" number.
+  const { fee: batchFee, transactionCount } = useKasFeeEstimate({
+    amountSompi,
+    priorityFee,
+  });
+  const feeKas = sompiToKaspaString(BigInt(batchFee ?? 0));
+  const displayedBalance = useKaspaBalance(account?.address);
   const fiatAmount = amountNumber * kaspaPrice.kaspaPrice;
   const fiatFees = parseFloat(feeKas) * kaspaPrice.kaspaPrice;
   const { amount: amountCurrency, code: amountCurrencyCode } =
@@ -82,6 +83,7 @@ export const ConfirmStep = ({
       return;
     }
 
+    let spendableSompi: bigint | undefined;
     try {
       setIsSigning(true);
 
@@ -89,20 +91,24 @@ export const ConfirmStep = ({
         account.address,
       ]);
 
-      const { transactions } = await createTransactions({
-        entries: entries,
-        outputs: [
-          {
-            address,
-            amount: kaspaToSompi(amount) ?? BigInt(0),
-          },
-        ],
-        // The Generator adds this once, on the final (payment) transaction of a
-        // batch — measured, not multiplied per transaction.
+      spendableSompi = entries.reduce((sum, entry) => sum + entry.amount, 0n);
+      // The same selection the estimate priced: largest UTXOs first, enough
+      // change left to clear the storage mass limit.
+      const plan = await planTransfer({
+        entries,
+        amountSompi: kaspaToSompi(amount) ?? 0n,
+        outputAddress: address,
+        // Generator adds priorityFee once, on the final (payment) transaction
+        // of a batch — measured, not multiplied per transaction.
         priorityFee,
         changeAddress: await signer.getAddress(),
-        networkId: networkId,
+        networkId,
+        // Same as the estimate: the device signs payment + change only.
+        allowSplit: wallet?.type !== "ledger",
       });
+      if (isShortfall(plan)) throw new Error("Insufficient funds");
+      const { transactions } = plan;
+
       // A fragmented UTXO set makes the Generator return a batch: consolidating
       // transactions first, the payment last. All of them must go out, in order.
       await signAndSubmitBatch(transactions, signer, rpcClient, {
@@ -127,7 +133,16 @@ export const ConfirmStep = ({
     } catch (e) {
       captureException(e);
       console.error(e);
-      onFail(isFragmentationError(e) ? FRAGMENTATION_FAIL_REASON : undefined);
+      onFail(
+        sendFailReason(e, {
+          isLegacyWallet: wallet?.isLegacyWalletEnabled,
+          displayedBalanceSompi:
+            displayedBalance === undefined
+              ? undefined
+              : BigInt(Math.round(displayedBalance * 1e8)),
+          spendableSompi,
+        }),
+      );
     } finally {
       setIsSigning(false);
       setBatchProgress(null);
@@ -209,6 +224,23 @@ export const ConfirmStep = ({
                 </div>
               </div>
             </li>
+            {transactionCount !== undefined && transactionCount > 1 && (
+              <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
+                <div className="flex w-full flex-col gap-1">
+                  <div className="flex w-full items-start justify-between">
+                    <span className="font-medium">Transactions</span>
+                    <span className="font-medium">{transactionCount}</span>
+                  </div>
+                  <span className="text-xs text-daintree-400">
+                    Your balance is spread across many small UTXOs, so this send
+                    goes out as {transactionCount} transactions, signed one
+                    after another.
+                    {wallet?.type === "ledger" &&
+                      " Each one needs an approval on the device."}
+                  </span>
+                </div>
+              </li>
+            )}
           </ul>
         </div>
 

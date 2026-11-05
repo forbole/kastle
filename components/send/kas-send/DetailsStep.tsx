@@ -8,11 +8,11 @@ import Header from "@/components/GeneralHeader";
 import { Tooltip } from "react-tooltip";
 import { sompiToKaspaString } from "@/wasm/core/kaspa";
 import { useKasFeeEstimate } from "@/hooks/useKasFeeEstimate";
-import { useFindMax } from "@/hooks/useFindMax";
+import { useMaxSend } from "@/hooks/useMaxSend";
 import {
-  MAX_SEND_RESERVE_KAS,
   MIN_KAS_AMOUNT,
   priorityFeeFromEstimate,
+  sendFailReason,
 } from "@/lib/kaspa.ts";
 import { useFormContext } from "react-hook-form";
 import { twMerge } from "tailwind-merge";
@@ -23,6 +23,7 @@ import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import { formatToken } from "@/lib/utils.ts";
 import { KasSendForm } from "@/components/send/kas-send/KasSend";
 import useKaspaBalance from "@/hooks/wallet/useKaspaBalance";
+import { openOptimizeFundsPage, shouldOfferOptimize } from "@/lib/consolidate";
 
 export function DetailsStep({
   onNext,
@@ -33,7 +34,7 @@ export function DetailsStep({
 }) {
   const navigate = useNavigate();
   const [settings] = useSettings();
-  const { account } = useWalletManager();
+  const { wallet, account } = useWalletManager();
   const { mempoolCongestionLevel } = useMempoolStatus();
   const resolveRecipient = useResolveRecipient();
   const resolutionSeq = useRef(0);
@@ -70,37 +71,48 @@ export function DetailsStep({
     isMaxSelected,
   } = watch();
   const priorityFeeEstimate = usePriorityFeeEstimate();
-  const { fee: baseFee } = useKasFeeEstimate({ extraOutputCount: 1 });
+  // undefined while the field is empty or not a number: no estimate to key on
+  const amountSompi = useMemo(() => {
+    const amountNumber = parseFloat(amount ?? "");
+    if (!Number.isFinite(amountNumber) || amountNumber <= 0) return undefined;
+    return BigInt(Math.round(amountNumber * 1e8));
+  }, [amount]);
+  const {
+    fee: batchFee,
+    paymentFeeBase,
+    shortfall,
+    loading: feeLoading,
+    error: planError,
+  } = useKasFeeEstimate({ amountSompi, priorityFee });
 
   const { kaspaPrice: tokenPrice } = useKaspaPrice();
   const { amount: tokenCurrency } = useCurrencyValue(tokenPrice);
   const kasBalance = useKaspaBalance(account?.address) ?? 0;
   const currentBalance = kasBalance;
 
-  // What the Generator charges: its own fee for this UTXO set plus the priority
-  // fee on top. This is the "Estimated" fee, not priorityFee alone.
-  const feeSompi = BigInt(baseFee ?? 0) + priorityFee;
-  const feeKas = parseFloat(sompiToKaspaString(feeSompi));
-  const priorityFeeKas = parseFloat(sompiToKaspaString(priorityFee));
-  // Max sends balance − floor. `baseFee` is useKasFeeEstimate's fee for a
-  // 1 KAS self-send built over the current UTXO set, so it does grow with
-  // fragmentation, but only with how many inputs 1 KAS takes: measured
-  // against assets/kaspa_bg.wasm (2.0.1), 203,600 sompi with one input,
-  // 315,400 with two (UTXOs of 0.541 KAS and up, at every count tried up to
-  // 50,000), 539,000 at 0.3 KAS UTXOs, 762,600 at 0.2. The real Max send
-  // spends every UTXO: the Generator charges 19,931,000 sompi for 174 inputs
-  // (the most it builds at all, rusty-kaspa#701) and needs ~0.1 KAS of change
-  // to stay under the storage mass limit, at every wallet size tried
-  // (100 KAS … 30,050 KAS). 0.3 KAS covers both with 69,000 sompi to spare,
-  // so the priority fee has to sit on top of the floor, not inside it: at 0.3
-  // flat the largest priority fee that still builds at 174 UTXOs is 69,999
-  // sompi (feerate ~122, the buckets report 100 … 1000); the high bucket
-  // fails from 147 UTXOs.
-  const findMax = useFindMax({
-    balance: currentBalance,
-    subtrahend: feeKas,
-    minSubtrahend: MAX_SEND_RESERVE_KAS + priorityFeeKas,
+  // All-in: the batch's summary.fees for this amount, every transaction and
+  // the payment's priority fee (charged once) included. The "Estimated" fee,
+  // and the same number Confirm shows.
+  const feeSompi = BigInt(batchFee ?? 0);
+  const { computeMax, isComputing, entries } = useMaxSend(priorityFee);
+  // planTransfer threw (not a shortfall): the reason Confirm would show, so
+  // Next is blocked here instead of failing there.
+  const planFailReason = planError
+    ? (sendFailReason(planError, {
+        isLegacyWallet: wallet?.isLegacyWalletEnabled,
+        displayedBalanceSompi: BigInt(Math.round(kasBalance * 1e8)),
+        spendableSompi: entries?.reduce(
+          (total, entry) => total + entry.amount,
+          0n,
+        ),
+      }) ?? "Oh, this transfer can’t be built right now. Please try again.")
+    : undefined;
+  const isOptimizeOffered = shouldOfferOptimize({
+    planError,
+    feeSompi,
+    walletType: wallet?.type,
   });
+  const maxSeq = useRef(0);
   // `isMaxSelected` is a form field (KasSendForm): this step unmounts on
   // Confirm, and a Max amount built at one priority bucket must be rebuilt,
   // not re-validated, when the user comes Back and changes the bucket.
@@ -117,9 +129,12 @@ export function DetailsStep({
       return "Oh, the minimum sending amount has to be greater than 0.2 KAS";
     }
 
+    // Ahead of the shortfall check: kept-previous estimate data may be stale.
+    if (planFailReason) return planFailReason;
+
     const amountSompi = BigInt(Math.round(amountNumber * 1e8));
     const balanceSompi = BigInt(Math.round(currentBalance * 1e8));
-    if (amountSompi + feeSompi > balanceSompi) {
+    if (amountSompi + feeSompi > balanceSompi || shortfall) {
       return "Oh, you don’t have enough funds to cover the estimated fees";
     }
 
@@ -162,22 +177,36 @@ export function DetailsStep({
     }
   };
 
-  const selectMaxAmount = () => {
-    setIsMaxSelected(true);
-    setValue("amount", findMax(), { shouldValidate: true });
+  // Max builds the real batch (~0.1 s at 11,449 UTXOs), so a slower result
+  // for an older priority fee or entry set must not overwrite a newer one.
+  const applyMax = async () => {
+    const seq = ++maxSeq.current;
+    const max = await computeMax();
+    if (seq !== maxSeq.current || max === undefined) return;
+    setValue("amount", max, { shouldValidate: true });
   };
 
-  // `findMax` changes with the balance, the fee estimate and the priority
-  // bucket. A Max amount follows it; a typed amount is re-checked against the
-  // new fee (setValue(priorityFee, { shouldValidate }) would only validate the
-  // priorityFee field, which has no rules).
+  const selectMaxAmount = () => {
+    setIsMaxSelected(true);
+    void applyMax();
+  };
+
+  // A Max amount is rebuilt when the priority fee or the UTXO set changes;
+  // a typed amount is re-checked against the new fee (setValue(priorityFee,
+  // { shouldValidate }) would only validate the priorityFee field, which has
+  // no rules).
   useEffect(() => {
     if (isMaxSelected) {
-      setValue("amount", findMax(), { shouldValidate: true });
+      void applyMax();
     } else if (amount) {
       void trigger("amount");
     }
-  }, [findMax]);
+  }, [computeMax]);
+
+  // The amount-aware estimate lands after the keystroke that keyed it.
+  useEffect(() => {
+    if (amount) void trigger("amount");
+  }, [batchFee, shortfall, planFailReason]);
 
   const navigateToNextStep = () => onNext();
 
@@ -209,7 +238,7 @@ export function DetailsStep({
     }
   }, [userInput]);
 
-  // undefined until both the fee estimate and baseFee have loaded — on every
+  // undefined until both the fee estimate and paymentFee have loaded — on every
   // mount, including Back from Confirm, where usePriorityFeeEstimate starts
   // over. Writing 0n in that window showed "0 KAS" and rebuilt a Max amount
   // around it until the RPC answered.
@@ -217,10 +246,10 @@ export function DetailsStep({
     const next = priorityFeeFromEstimate(
       priorityFeeEstimate,
       priority,
-      baseFee,
+      paymentFeeBase,
     );
     if (next !== undefined) setValue("priorityFee", next);
-  }, [baseFee, priorityFeeEstimate, priority]);
+  }, [paymentFeeBase, priorityFeeEstimate, priority]);
 
   useEffect(() => {
     trigger("userInput");
@@ -300,6 +329,7 @@ export function DetailsStep({
             <button
               className="inline-flex items-center gap-x-2 rounded border border-transparent bg-icy-blue-400 px-3 py-2 text-sm text-white disabled:pointer-events-none disabled:opacity-50"
               onClick={selectMaxAmount}
+              disabled={isComputing || !entries}
             >
               Max
             </button>
@@ -435,13 +465,31 @@ export function DetailsStep({
             ></i>
 
             <span>Estimated</span>
-            <span>{sompiToKaspaString(feeSompi)} KAS</span>
+            <span>
+              {batchFee === undefined ? "–" : sompiToKaspaString(feeSompi)} KAS
+            </span>
           </div>
         </div>
 
+        {isOptimizeOffered && (
+          <button
+            type="button"
+            className="flex items-center gap-2 self-start text-sm"
+            onClick={openOptimizeFundsPage}
+          >
+            <span className="text-daintree-400">
+              Your balance is spread across many UTXOs.
+            </span>
+            <span className="font-semibold text-icy-blue-400">
+              Optimize funds
+            </span>
+            <i className="hn hn-angle-right text-icy-blue-400"></i>
+          </button>
+        )}
+
         <div className="mt-auto">
           <button
-            disabled={!isValid || !!errors.amount || !address}
+            disabled={!isValid || !!errors.amount || !address || feeLoading}
             onClick={navigateToNextStep}
             className="mt-auto w-full rounded-full bg-icy-blue-400 py-4 text-base font-medium text-white transition-colors hover:bg-icy-blue-600 disabled:bg-daintree-800 disabled:text-[#4B5563]"
           >

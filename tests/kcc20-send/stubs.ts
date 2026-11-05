@@ -89,7 +89,7 @@ export function usePriorityFeeEstimate() {
   return undefined;
 }
 export function useKasFeeEstimate() {
-  return { fee: 20_000 };
+  return { fee: 20_000, paymentFee: 20_000, transactionCount: 1 };
 }
 export function useAnalytics() {
   return {

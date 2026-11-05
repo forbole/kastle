@@ -7,6 +7,7 @@ import {
   RpcClient,
   SighashType,
   IGetFeeEstimateResponse,
+  sompiToKaspaString,
 } from "@/wasm/core/kaspa";
 import { PaymentOutput, SignType } from "@/lib/wallet/wallet-interface.ts";
 import type { NetworkType } from "@/contexts/SettingsContext";
@@ -82,6 +83,48 @@ export const isFragmentationError = (error: unknown) =>
 // of change the storage mass limit demands. Measured against
 // assets/kaspa_bg.wasm; tests/generator-errors-unit.spec.ts pins it.
 export const MAX_SEND_RESERVE_KAS = 0.3;
+
+// The least change a send keeps so its change output stays under the 100,000
+// storage mass limit: measured against assets/kaspa_bg.wasm, change of
+// 0.09999801 KAS is the smallest that builds. planTransfer selects inputs to
+// leave at least this, and findMaxSendable stops this far short of the
+// balance net of the batch fee.
+export const MAX_SEND_CHANGE_MARGIN_KAS = 0.11;
+
+// Shown on the fail screen instead of the generic copy. The Generator cannot
+// build the transfer at all (see isFragmentationError); nothing was broadcast.
+export const FRAGMENTATION_FAIL_REASON =
+  "This amount plus the network fee doesn't fit your balance — usually because it is spread across many small UTXOs. Try a smaller amount.";
+
+// A legacy wallet's balance sums every derived address, but a send spends the
+// first address only: "send less" would be wrong advice when the amount fits
+// the balance shown.
+export const LEGACY_SPLIT_BALANCE_FAIL_REASON = (spendableKas: string) =>
+  `Part of this legacy wallet's balance sits on other addresses, which this send can't spend. Only ${spendableKas} KAS is spendable from the sending address.`;
+
+export const sendFailReason = (
+  error: unknown,
+  {
+    isLegacyWallet,
+    displayedBalanceSompi,
+    spendableSompi,
+  }: {
+    isLegacyWallet: boolean | undefined;
+    displayedBalanceSompi: bigint | undefined;
+    spendableSompi: bigint | undefined;
+  },
+): string | undefined => {
+  if (
+    /Insufficient funds/.test(String(error)) &&
+    isLegacyWallet &&
+    displayedBalanceSompi !== undefined &&
+    spendableSompi !== undefined &&
+    displayedBalanceSompi > spendableSompi
+  ) {
+    return LEGACY_SPLIT_BALANCE_FAIL_REASON(sompiToKaspaString(spendableSompi));
+  }
+  return isFragmentationError(error) ? FRAGMENTATION_FAIL_REASON : undefined;
+};
 
 // Sending amount must be greater than 0.2 KAS as KIP-0009 standard requires
 // https://github.com/kaspanet/kips/blob/master/kip-0009.md
@@ -170,6 +213,8 @@ export type FeePriority = "low" | "medium" | "high";
 export const priorityFeeFromEstimate = (
   estimate: IGetFeeEstimateResponse | undefined,
   priority: FeePriority,
+  // The payment transaction's own fee, never a batch total: at 134
+  // transactions the batch fee would put the high bucket at ~117 KAS.
   baseFee: number | undefined,
 ): bigint | undefined => {
   if (!estimate || baseFee === undefined) return undefined;
