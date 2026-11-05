@@ -51,7 +51,7 @@ export default function AssetSelect() {
 
   // Same source and kill switch as the dashboard rows; the hook skips networks KRON does not serve.
   const { isKcc20Enabled } = useFeatureFlags();
-  const { data: kcc20TokenItems } = useKcc20Tokens(
+  const { data: kcc20TokenItems, isLoading: isKcc20Loading } = useKcc20Tokens(
     isKcc20Enabled ? kasAddress : undefined,
   );
   // Only verified, ADDRESS-owned pieces are sendable: other rows would land on "cannot be sent".
@@ -136,6 +136,7 @@ export default function AssetSelect() {
         ))}
 
         {!isKasShown &&
+          !isKcc20Loading &&
           tokens?.length === 0 &&
           !kcc20Tokens?.length &&
           filteredErc20Assets.length === 0 && (

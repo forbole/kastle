@@ -325,6 +325,8 @@ const GUARDS: {
   },
   { key: "ERC-20", when: "a Ledger wallet", query: "&ledger=1", send: false },
   { key: "ERC-20", when: "a non-Ledger wallet", query: "", send: true },
+  { key: "ERC-20", when: "a balance of 0", query: "&erc20Zero=1", send: false },
+  { key: "ERC-20", when: "no balance", query: "&erc20None=1", send: false },
   {
     key: "ERC-20",
     when: "a wallet still loading",
@@ -380,6 +382,22 @@ test("dotK, a Ledger owner: the notice is in the body", async ({ page }) => {
   await expect(
     page.locator("#popup > div > .overflow-y-auto").getByText(/^Ledger can’t/),
   ).toBeVisible();
+  await expect(bottomSlot(page)).toHaveCount(0);
+});
+
+test("KCC-20, lookup unresolved: no detail page, then the error", async ({
+  page,
+}) => {
+  await open(page, `/kcc20/${KCC20_ID}`, "&kcc20Loading=1");
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await expect(page.getByText("Unverified")).toHaveCount(0);
+  await expect(bottomSlot(page)).toHaveCount(0);
+
+  await open(page, `/kcc20/${KCC20_ID}`, "&kcc20Error=1");
+  await expect(
+    page.getByText("Token details could not be loaded"),
+  ).toBeVisible();
+  await expect(page.getByText("Unverified")).toHaveCount(0);
   await expect(bottomSlot(page)).toHaveCount(0);
 });
 

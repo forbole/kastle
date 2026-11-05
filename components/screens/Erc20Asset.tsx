@@ -26,7 +26,7 @@ export default function Erc20Asset() {
     !isWalletSettingsLoading &&
     !!wallet &&
     wallet.type !== "ledger" &&
-    (balance?.balance ?? "0") !== "0";
+    Number(balance?.balance ?? 0) > 0;
   const toDashboard = () => navigate("/dashboard");
 
   return (

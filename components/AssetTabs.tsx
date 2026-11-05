@@ -20,6 +20,7 @@ export default function AssetTabs({ active, onChange }: Props) {
         <button
           key={tab}
           type="button"
+          aria-pressed={active === tab}
           className={twMerge(
             "inline-flex flex-grow items-center justify-center gap-x-2 rounded-lg px-4 py-3 text-center text-sm font-medium text-[#E5E7EB] focus:outline-none disabled:pointer-events-none disabled:opacity-50",
             active === tab ? "bg-daintree-700" : "bg-transparent",

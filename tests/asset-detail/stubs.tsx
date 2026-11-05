@@ -7,6 +7,8 @@
 //   notOwner=1    someone else owns the .k name
 //   dotkOff=1     the dotK feature flag is off
 //   spendable0=1  the KCC-20 token has nothing spendable
+//   erc20Zero=1   the ERC-20 balance is "0.0"; erc20None=1 it has no balance
+//   kcc20Loading=1  the KCC-20 lookup has not answered; kcc20Error=1 it failed
 //   tall=1        every tab body is taller than the popup
 //   historyFallback=1  history page 1 is an events page with nothing of the
 //                 wallet's; page 2 holds the row and stops at the page cap
@@ -21,6 +23,10 @@ const kas0 = query.has("kas0");
 const notOwner = query.has("notOwner");
 const dotkOff = query.has("dotkOff");
 const spendable0 = query.has("spendable0");
+const erc20Zero = query.has("erc20Zero");
+const erc20None = query.has("erc20None");
+const kcc20Loading = query.has("kcc20Loading");
+const kcc20Error = query.has("kcc20Error");
 const tall = query.has("tall");
 const historyFallback = query.has("historyFallback");
 
@@ -105,12 +111,17 @@ export function useErc20Info(chainId: string, address: string) {
   };
 }
 export function useErc20Balance() {
-  return { data: { balance: "1000" } };
+  if (erc20None) return { data: undefined };
+  return { data: { balance: erc20Zero ? "0.0" : "1000" } };
 }
 export function useEvmKasBalance() {
   return { data: { balance: "1000" } };
 }
 export function useKcc20Tokens() {
+  if (kcc20Loading) return { data: undefined, isLoading: true };
+  if (kcc20Error) {
+    return { data: undefined, isLoading: false, error: new Error("down") };
+  }
   return { data: [kcc20Token, kcc20ExtToken], isLoading: false };
 }
 // One kascov row: the History tab renders the list, not the explorer link.

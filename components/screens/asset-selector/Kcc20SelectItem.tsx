@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import HoverTooltip from "@/components/HoverTooltip";
 import { CHAIN_BADGES } from "@/ui/popup/kcc20/AssetImage";
-import { KCC20_FAMILY_LABELS } from "@/ui/popup/kcc20/labels";
+import { KCC20_FAMILY_LABELS, KCC20_LABELS } from "@/ui/popup/kcc20/labels";
 import { formatBalance } from "@/components/send/kcc20-send/formatBalance";
 
 export type SendableKcc20Token = Kcc20Token & {
@@ -56,7 +56,14 @@ export default function Kcc20SelectItem({ token }: Kcc20SelectItemProps) {
             />
           </HoverTooltip>
           <div className="flex flex-col items-start">
-            <span>{token.meta.symbol}</span>
+            <span className="flex items-center gap-2">
+              {token.meta.symbol}
+              {token.meta.unverified && (
+                <span className="text-xs text-daintree-400">
+                  {KCC20_LABELS.unverified}
+                </span>
+              )}
+            </span>
             <span className="text-xs text-daintree-400">
               {textEllipsis(token.covenantId)}
             </span>

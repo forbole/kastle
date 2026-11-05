@@ -11,6 +11,7 @@ import { useKcc20Price } from "@/lib/kcc20/useKcc20Price";
 import useCurrencyValue from "@/hooks/useCurrencyValue";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { formatTokenPrice, setPopupPath, textEllipsis } from "@/lib/utils";
+import { KCC20_LABELS } from "@/ui/popup/kcc20/labels";
 
 export default function Kcc20Asset() {
   const navigate = useNavigate();
@@ -19,7 +20,7 @@ export default function Kcc20Asset() {
   // A token id can have one row per extension commitment; the route names the row.
   const rowExt = searchParams.get("ext");
   const { account } = useWalletManager();
-  const { data: tokens } = useKcc20Tokens(account?.address);
+  const { data: tokens, isLoading, error } = useKcc20Tokens(account?.address);
   const [activeTab, setActiveTab] = useState<TokenDetailTab>("history");
   const [, copy] = useCopyToClipboard();
 
@@ -48,6 +49,24 @@ export default function Kcc20Asset() {
   }, []);
 
   const toDashboard = () => navigate("/dashboard");
+
+  // An unresolved lookup has no metadata yet: do not show it as unverified.
+  if (!token && isLoading) return <Kcc20AssetPending />;
+  if (!token && error) {
+    return (
+      <div className="flex h-full flex-col px-4 pb-4 pt-6">
+        <Header
+          variant="asset"
+          title={textEllipsis(covenantId)}
+          onBack={toDashboard}
+          onClose={toDashboard}
+        />
+        <span className="text-center text-base font-medium text-daintree-400">
+          {KCC20_LABELS.loadFailed}
+        </span>
+      </div>
+    );
+  }
 
   return (
     <TokenDetailPage

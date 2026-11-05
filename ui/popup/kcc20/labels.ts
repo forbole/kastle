@@ -54,6 +54,7 @@ export const KCC20_LABELS = {
   verified: "Verified",
   unverified: "Unverified",
   claimedMetadata: "claimed metadata",
+  loadFailed: "Token details could not be loaded",
 
   // Send: select token
   selectToken: "Select token",

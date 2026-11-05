@@ -28,7 +28,8 @@ const h = () => window.__kcc20Send;
 
 const hold = () => new Promise<void>((r) => (h().release = r));
 
-// token=<base units> swaps in an 18-decimal balance; unsendable=1 owns no spendable piece.
+// token=<base units> swaps in an 18-decimal balance; unsendable=1 owns no spendable piece;
+// kcc20Loading=1 leaves the scan unanswered; unverified=1 marks the metadata claimed.
 const query = new URLSearchParams(location.search);
 const units = query.get("token");
 export const kcc20Token: Kcc20Token = {
@@ -37,7 +38,12 @@ export const kcc20Token: Kcc20Token = {
   tick: "nacho",
   amount: units ? BigInt(units) : 1_000_000n,
   spendable: query.get("unsendable") ? 0n : units ? BigInt(units) : 1_000_000n,
-  meta: { symbol: "NACHO", name: "Nacho", decimals: units ? 18 : 2 },
+  meta: {
+    symbol: "NACHO",
+    name: "Nacho",
+    decimals: units ? 18 : 2,
+    ...(query.has("unverified") && { unverified: true as const }),
+  },
 };
 
 // Wallet and network
@@ -160,6 +166,7 @@ export function useKcc20Price() {
   return { priceUsd: usd === null ? undefined : Number(usd) };
 }
 export function useKcc20Tokens(address?: string) {
+  if (query.has("kcc20Loading")) return { data: undefined, isLoading: true };
   return { data: address ? [kcc20Token] : undefined, isLoading: false };
 }
 

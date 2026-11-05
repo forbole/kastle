@@ -342,6 +342,24 @@ test("the picker search matches the KCC-20 symbol", async ({ page }) => {
   await expect(page.getByText("No result found")).toBeVisible();
 });
 
+test("the picker shows no empty state while KCC-20 is loading", async ({
+  page,
+}) => {
+  await page.goto(`${base}/?route=/asset-select&kcc20Loading=1`);
+  const search = page.getByPlaceholder("Search token");
+  await search.fill("zzz");
+  await expect(pickerRow(page, /KASPY/)).toBeHidden();
+  await expect(page.getByText("No result found")).toBeHidden();
+});
+
+test("the picker marks an unverified KCC-20 row", async ({ page }) => {
+  await page.goto(`${base}/?route=/asset-select&unverified=1`);
+  await expect(pickerRow(page, /NACHO/)).toContainText("Unverified");
+  await page.goto(`${base}/?route=/asset-select`);
+  await expect(pickerRow(page, /NACHO/)).toBeVisible();
+  await expect(pickerRow(page, /NACHO/)).not.toContainText("Unverified");
+});
+
 test("the picker hides KCC-20 when the kill switch is off", async ({
   page,
 }) => {
