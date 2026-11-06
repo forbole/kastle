@@ -13,7 +13,62 @@ import Erc20Asset from "@/components/screens/Erc20Asset";
 import EvmKasAsset from "@/components/screens/EvmKasAsset";
 import DotkAsset from "@/components/screens/DotkAsset";
 import Kcc20Asset, { Kcc20AssetPending } from "@/components/screens/Kcc20Asset";
-import TokenDetailPage from "@/ui/popup/kcc20/TokenDetailPage";
+import TokenDetailPage, {
+  TokenDetailTab,
+} from "@/ui/popup/kcc20/TokenDetailPage";
+import { Kcc20HistoryDetail } from "@/components/kcc20-asset/Kcc20History";
+
+const TXID = "0123456789abcdef".repeat(4);
+
+// Token info as mobile lists it; the tabs switch for real.
+function TokenInfoHarness() {
+  const [tab, setTab] = React.useState<TokenDetailTab>("assetInfo");
+  return (
+    <TokenDetailPage
+      name="WHALE"
+      tokenName="Whale Token"
+      balance="128,001 WHALE"
+      network="kcc20"
+      networkName="Kaspa"
+      tokenId="ca8a8ed8…94c04"
+      decimal="0"
+      activeTab={tab}
+      onTabChange={setTab}
+      history={<p>history body</p>}
+      onSend={() => {}}
+    />
+  );
+}
+
+// The activity sheet alone; status=X stands in for a feed that answers it.
+function ActivityHarness() {
+  const [open, setOpen] = React.useState(true);
+  const status = params.get("status") ?? undefined;
+  return open ? (
+    <div id="popup">
+      <button type="button">opener</button>
+      <Kcc20HistoryDetail
+        row={{
+          id: "r1",
+          txid: TXID,
+          kind: "send",
+          direction: "out",
+          amount: 5n,
+          counterparty: {
+            address: "kaspa:qf34f0243",
+            label: "f34f0243...e9cad",
+          },
+          timeMs: Date.UTC(2026, 9, 1, 12),
+          approxTime: true,
+          status,
+        }}
+        onClose={() => setOpen(false)}
+      />
+    </div>
+  ) : (
+    <span data-testid="closed">closed</span>
+  );
+}
 
 // Every route the screens leave for renders its own path, so the spec can read it.
 function Landed() {
@@ -54,6 +109,8 @@ const router = createMemoryRouter(
         />
       ),
     },
+    { path: "/token-detail-info", element: <TokenInfoHarness /> },
+    { path: "/kcc20-activity", element: <ActivityHarness /> },
     { path: "*", element: <Landed /> },
   ],
   { initialEntries: [params.get("route") ?? "/kas-asset"] },

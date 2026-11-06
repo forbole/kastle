@@ -120,3 +120,19 @@ export const FullInfoKasplexErc20: Story = {
     />
   ),
 };
+
+/** Mobile's Token info: identity block, then Network, Standard, Balance, Decimals, Covenant ID. */
+export const MobileTokenInfo: Story = {
+  render: (args) => (
+    <Template
+      {...base}
+      {...args}
+      name="WHALE"
+      tokenName="Whale Token"
+      balance="128,001 WHALE"
+      decimal="0"
+      tokenId="ca8a8ed8...94c04"
+      onSend={args.onSend ?? (() => {})}
+    />
+  ),
+};

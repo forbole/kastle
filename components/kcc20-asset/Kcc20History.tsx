@@ -1,8 +1,15 @@
-import { useState } from "react";
-import { ExternalLink } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  ArrowDownLeft,
+  ArrowLeftRight,
+  ArrowUpRight,
+  Check,
+  Copy,
+  ExternalLink,
+  HelpCircle,
+} from "lucide-react";
 import { twMerge } from "tailwind-merge";
 import { useIntersectionObserver } from "usehooks-ts";
-import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import { explorerTxLinks } from "@/components/screens/Settings";
 import { NetworkType } from "@/contexts/SettingsContext";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
@@ -38,6 +45,15 @@ const KIND_LABEL: Record<Kcc20HistoryRow["kind"], string> = {
   unknown: "Unattributed movement",
 };
 
+const DIRECTION_ICON: Record<
+  Kcc20HistoryRow["direction"],
+  typeof ArrowUpRight
+> = {
+  in: ArrowDownLeft,
+  out: ArrowUpRight,
+  self: ArrowLeftRight,
+};
+
 // kascov dates rows from its DAA clock, so every time carries "≈" and this note.
 const APPROX_TIME_NOTE = "Approximate time, counted from the DAA score";
 
@@ -48,6 +64,9 @@ const timeFormat = new Intl.DateTimeFormat("en-US", {
 const approxTime = (ms: number) => `≈ ${timeFormat.format(new Date(ms))}`;
 
 type TokenView = { symbol: string; decimals?: number; logo?: string };
+
+/** A row as the detail sheet reads it; `status` renders only when a feed supplies it. */
+export type Kcc20HistoryDetailRow = Kcc20HistoryRow & { status?: string };
 
 // Signed; absent when kascov could not attribute it. Unknown decimals read as base units.
 function amountLabel(row: Kcc20HistoryRow, token: TokenView) {
@@ -64,6 +83,12 @@ function amountLabel(row: Kcc20HistoryRow, token: TokenView) {
 function counterpartyText(row: Kcc20HistoryRow) {
   if (!row.counterparty || row.direction === "self") return;
   return `${row.direction === "in" ? "From" : "To"} ${row.counterparty.label}`;
+}
+
+// Movement colour: in and out only; self and unattributed stay neutral.
+function movementTone(row: Kcc20HistoryRow) {
+  if (row.kind === "unknown" || row.direction === "self") return "text-white";
+  return row.direction === "out" ? "text-red-500" : "text-teal-500";
 }
 
 function Spinner() {
@@ -84,6 +109,7 @@ function Notice({ children }: { children: React.ReactNode }) {
   );
 }
 
+// Mobile's row: direction, what happened, who with; amount and time on the right.
 function Kcc20HistoryItem({
   row,
   token,
@@ -93,50 +119,45 @@ function Kcc20HistoryItem({
   token: TokenView;
   onClick: () => void;
 }) {
-  const [imageUrl, setImageUrl] = useState(token.logo ?? kasIcon);
   const amount = amountLabel(row, token);
   const counterparty = counterpartyText(row);
-  // Amount leads; a row kascov could not attribute leads with what it is.
-  const subtitle = amount
-    ? (counterparty ?? KIND_LABEL[row.kind])
-    : counterparty;
+  const Icon =
+    row.kind === "unknown" ? HelpCircle : DIRECTION_ICON[row.direction];
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex h-[72px] shrink-0 items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3 text-left hover:border-white"
+      className="flex shrink-0 items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3 text-left hover:border-white"
     >
-      <img
-        alt={token.symbol}
-        className="h-[40px] w-[40px] shrink-0 rounded-full"
-        src={imageUrl}
-        onError={() => setImageUrl(kasIcon)}
-      />
-      <div className="flex min-w-0 flex-grow flex-col gap-1">
-        <div className="flex items-center justify-between gap-2">
-          <span
-            className={twMerge(
-              "truncate text-base",
-              !amount || row.direction === "self"
-                ? "text-white"
-                : row.direction === "out"
-                  ? "text-red-500"
-                  : "text-teal-500",
-            )}
-          >
-            {amount ?? KIND_LABEL[row.kind]}
-          </span>
-          <span
-            className="shrink-0 text-sm text-daintree-400"
-            title={APPROX_TIME_NOTE}
-          >
-            {approxTime(row.timeMs)}
-          </span>
-        </div>
-        {subtitle && (
-          <span className="truncate text-sm text-daintree-400">{subtitle}</span>
+      <span
+        aria-hidden="true"
+        className={twMerge(
+          "flex size-10 shrink-0 items-center justify-center rounded-full bg-white/5",
+          movementTone(row),
         )}
+      >
+        <Icon className="size-5" />
+      </span>
+      <div className="flex min-w-0 flex-grow flex-col gap-1">
+        <span className="truncate text-base text-white">
+          {KIND_LABEL[row.kind]}
+        </span>
+        {counterparty && (
+          <span className="truncate text-sm text-daintree-400">
+            {counterparty}
+          </span>
+        )}
+      </div>
+      <div className="flex shrink-0 flex-col items-end gap-1">
+        {amount && (
+          <span className={twMerge("text-base", movementTone(row))}>
+            {amount}
+          </span>
+        )}
+        <span className="text-sm text-daintree-400" title={APPROX_TIME_NOTE}>
+          {approxTime(row.timeMs)}
+        </span>
       </div>
     </button>
   );
@@ -150,52 +171,129 @@ function DetailRow({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex items-start justify-between gap-4 border-b border-daintree-700 py-3 text-sm last:border-b-0">
+    <div className="flex items-center justify-between gap-4 border-b border-daintree-700 py-3 text-sm last:border-b-0">
       <span className="shrink-0 text-daintree-400">{label}</span>
-      <div className="min-w-0 break-all text-right text-white">{children}</div>
+      <div className="flex min-w-0 items-center justify-end gap-2 text-right text-white">
+        {children}
+      </div>
     </div>
   );
 }
 
-function Kcc20HistoryDetail({
+function CopyTxId({ txid }: { txid: string }) {
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    if (!copied) return;
+    const t = setTimeout(() => setCopied(false), 2000);
+    return () => clearTimeout(t);
+  }, [copied]);
+
+  return (
+    <>
+      <button
+        type="button"
+        aria-label="Copy TX ID"
+        onClick={() =>
+          navigator.clipboard.writeText(txid).then(() => setCopied(true))
+        }
+        className="shrink-0 text-daintree-400 hover:text-white"
+      >
+        {copied ? (
+          <Check aria-hidden="true" className="size-4" />
+        ) : (
+          <Copy aria-hidden="true" className="size-4" />
+        )}
+      </button>
+      <span role="status" className="sr-only">
+        {copied ? "TX ID copied" : ""}
+      </span>
+    </>
+  );
+}
+
+const FOCUSABLE =
+  'button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])';
+
+/** Mobile's activity sheet: TX Hash, the time, Status when known, TX ID, explorer. */
+export function Kcc20HistoryDetail({
   row,
-  token,
+  onClose,
 }: {
-  row: Kcc20HistoryRow;
-  token: TokenView;
+  row: Kcc20HistoryDetailRow;
+  onClose: () => void;
 }) {
   const { networkId } = useRpcClientStateful();
   const explorer = explorerTxLinks[networkId ?? NetworkType.Mainnet];
-  const amount = amountLabel(row, token);
+  const root = useRef<HTMLDivElement>(null);
+
+  // The sheet holds focus while open, Escape closes it, and focus returns on close.
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null;
+    root.current?.querySelector<HTMLElement>(FOCUSABLE)?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+      if (event.key !== "Tab" || !root.current) return;
+      const items = [...root.current.querySelectorAll<HTMLElement>(FOCUSABLE)];
+      if (items.length === 0) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      const inside = root.current.contains(document.activeElement);
+      if (event.shiftKey && (!inside || document.activeElement === first)) {
+        event.preventDefault();
+        last.focus();
+      } else if (
+        !event.shiftKey &&
+        (!inside || document.activeElement === last)
+      ) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      opener?.focus?.();
+    };
+  }, [onClose]);
 
   return (
-    <div className="flex flex-col gap-4 pt-4">
-      <h3 className="text-center text-lg font-semibold text-white">
-        {KIND_LABEL[row.kind]}
-      </h3>
+    <div
+      ref={root}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="kcc20-activity-title"
+      className="flex flex-col gap-4 pt-4"
+    >
+      <div className="flex flex-col items-center gap-1">
+        <h3
+          id="kcc20-activity-title"
+          className="text-lg font-semibold text-white"
+        >
+          TX Hash
+        </h3>
+        <span className="text-sm text-daintree-400" title={APPROX_TIME_NOTE}>
+          {approxTime(row.timeMs)}
+        </span>
+      </div>
       <div className="flex flex-col">
-        {/* Only what kascov answered: an absent field drops its row. */}
-        {amount && <DetailRow label="Amount">{amount}</DetailRow>}
-        {row.counterparty && row.direction !== "self" && (
-          <DetailRow label={row.direction === "in" ? "From" : "To"}>
-            <div className="flex flex-col items-end">
-              <span>{row.counterparty.label}</span>
-              <span className="text-xs text-daintree-400">
-                {row.counterparty.address}
-              </span>
-            </div>
+        {/* Only what the feed answered: an absent field drops its row. */}
+        {row.status && (
+          <DetailRow label="Status">
+            <span className="rounded-full bg-white/10 px-2.5 py-0.5 text-xs font-medium">
+              {row.status}
+            </span>
           </DetailRow>
         )}
-        <DetailRow label="Time">
-          <div className="flex flex-col items-end">
-            <span>{approxTime(row.timeMs)}</span>
-            <span className="text-xs text-daintree-400">
-              {APPROX_TIME_NOTE}
-            </span>
-          </div>
+        <DetailRow label="TX ID">
+          <span className="truncate font-mono" title={row.txid}>
+            {textEllipsis(row.txid)}
+          </span>
+          <CopyTxId txid={row.txid} />
         </DetailRow>
-        <DetailRow label="Transaction ID">{row.txid}</DetailRow>
-        {/* No Status row: kascov never says a transition is final. */}
       </div>
       {explorer && (
         <button
@@ -203,7 +301,7 @@ function Kcc20HistoryDetail({
           onClick={() => browser.tabs.create({ url: `${explorer}${row.txid}` })}
           className="flex items-center justify-center gap-2 rounded-xl border border-daintree-700 bg-white/5 px-4 py-3 text-base font-medium text-white hover:border-white"
         >
-          View in explorer
+          View on Explorer
           <ExternalLink aria-hidden="true" className="size-4" />
         </button>
       )}
@@ -234,6 +332,7 @@ export function Kcc20History({
     truncatedReason,
   } = useKcc20History(address, token);
   const [selected, setSelected] = useState<Kcc20HistoryRow>();
+  const closeDetail = useCallback(() => setSelected(undefined), []);
 
   const { ref: trigger } = useIntersectionObserver({
     threshold: 0.5,
@@ -311,8 +410,10 @@ export function Kcc20History({
       )}
       {/* A zero-height sentinel sits a subpixel past the scroll body's edge and never fires. */}
       <div ref={trigger} className="h-1 shrink-0" />
-      <ActionSheet isOpen={!!selected} onClose={() => setSelected(undefined)}>
-        {selected && <Kcc20HistoryDetail row={selected} token={view} />}
+      <ActionSheet isOpen={!!selected} onClose={closeDetail}>
+        {selected && (
+          <Kcc20HistoryDetail row={selected} onClose={closeDetail} />
+        )}
       </ActionSheet>
     </div>
   );

@@ -183,9 +183,7 @@ for (const s of SCREENS) {
     await open(page, s.route, "&tall=1&h=320");
     // KCC-20 has real tab bodies, not stubs: only Token info is that tall.
     if (s.key === "KCC-20")
-      await page
-        .getByRole("button", { name: "Token info", exact: true })
-        .click();
+      await page.getByRole("tab", { name: "Token info", exact: true }).click();
     const body = page.locator("#popup .overflow-y-auto").first();
     const send = sendButton(page, s.ticker);
     await expect(send).toBeVisible();
@@ -435,7 +433,7 @@ const TABBED = [
 // The element that holds the History button, and its buttons.
 async function tabBar(page: Page) {
   return page
-    .getByRole("button", { name: "History", exact: true })
+    .getByRole("tab", { name: "History", exact: true })
     .evaluate((h) => {
       const bar = h.parentElement!;
       const buttons = [...bar.children];
@@ -503,18 +501,20 @@ test("KCC-20: the identity card shows on Token info, not on History", async ({
     name: "See activity history in explorer",
   });
   // History is the kascov list through the page's history slot.
-  const row = page.getByRole("button", { name: /\+1 KTEST.*From qsender/ });
+  const row = page.getByRole("button", {
+    name: /Received.*From qsender.*\+1 KTEST/,
+  });
   await expect(row).toBeVisible();
   await expect(explorer).toHaveCount(0);
   await expect(chip).toHaveCount(0);
   // History starts with the list, right under the tabs.
   const next = await page
-    .getByRole("navigation")
+    .getByRole("tablist")
     .evaluate((nav) => nav.parentElement!.nextElementSibling!.textContent);
-  expect(next).toMatch(/^\+1 KTEST/);
+  expect(next).toMatch(/^Received/);
   await expect(sendButton(page, "KTEST")).toBeVisible();
 
-  await page.getByRole("button", { name: "Token info", exact: true }).click();
+  await page.getByRole("tab", { name: "Token info", exact: true }).click();
   await expect(chip).toBeVisible();
   const card = page.locator("div.rounded-2xl", { has: chip });
   await expect(card.getByText("KTEST", { exact: true })).toBeVisible();
@@ -530,7 +530,7 @@ test('KCC-20: an empty fallback page is not "No history yet", and paging continu
 }) => {
   const errors = await open(page, `/kcc20/${KCC20_ID}`, "&historyFallback=1");
   await expect(
-    page.getByRole("button", { name: /\+1 KTEST.*From qsender/ }),
+    page.getByRole("button", { name: /Received.*From qsender.*\+1 KTEST/ }),
   ).toBeVisible();
   await expect(page.getByText("Older history is not shown.")).toBeVisible();
   await expect(page.getByText("No history yet.")).toHaveCount(0);
@@ -575,3 +575,130 @@ for (const t of [
     expect(close.x + close.width).toBeLessThanOrEqual(popup.x + popup.width);
   });
 }
+
+// Token detail, as mobile: tabs, the five Token info rows, the movement row
+// and the activity sheet, in the extension's own chrome.
+test("KCC-20: both tabs render, switch on click and on arrow keys", async ({
+  page,
+}) => {
+  const errors = await open(page, "/token-detail-info");
+  const info = page.getByRole("tab", { name: "Token info", exact: true });
+  const history = page.getByRole("tab", { name: "History", exact: true });
+  await expect(page.getByRole("tab")).toHaveCount(2);
+  await expect(info).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("tabpanel")).toContainText("Covenant ID");
+
+  await history.click();
+  await expect(history).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("tabpanel")).toHaveText("history body");
+
+  await history.press("ArrowRight");
+  await expect(info).toHaveAttribute("aria-selected", "true");
+  await expect(info).toBeFocused();
+  await info.press("Home");
+  await expect(history).toHaveAttribute("aria-selected", "true");
+  // One tab stop: the unselected tab is out of the tab order.
+  await expect(info).toHaveAttribute("tabindex", "-1");
+  expect(errors).toEqual([]);
+});
+
+test("KCC-20: Token info shows the identity block, then mobile's five rows", async ({
+  page,
+}) => {
+  await open(page, "/token-detail-info");
+  const panel = page.getByRole("tabpanel");
+  await expect(panel).toContainText("Whale Token");
+  const rows = await panel
+    .locator("section > div > div")
+    .evaluateAll((els) =>
+      els.map((el) => [...el.children].map((c) => c.textContent?.trim())),
+    );
+  expect(rows.slice(0, 5)).toEqual([
+    ["Network", "Kaspa"],
+    ["Standard", "KCC-20"],
+    ["Balance", "128,001 WHALE"],
+    ["Decimals", "0"],
+    ["Covenant ID", "ca8a8ed8…94c04"],
+  ]);
+  const id = panel.getByText("ca8a8ed8…94c04", { exact: true });
+  const font = await id.evaluate((el) => getComputedStyle(el).fontFamily);
+  expect(font).toMatch(/mono/i);
+  await expect(sendButton(page, "WHALE")).toBeVisible();
+});
+
+test("KCC-20: a movement row shows a signed amount and a counterparty, never the txid", async ({
+  page,
+}) => {
+  await open(page, `/kcc20/${KCC20_ID}`);
+  const row = page.getByRole("button", { name: /^Received/ });
+  await expect(row).toBeVisible();
+  const text = (await row.textContent())!;
+  expect(text).toMatch(/From qsender/);
+  expect(text).toMatch(/\+1 KTEST/);
+  expect(text).toMatch(/≈/);
+  expect(text).not.toMatch(/[0-9a-f]{16}/);
+  expect(text).not.toMatch(/Unknown|Unavailable|—/);
+});
+
+test("KCC-20 activity sheet: Status shows only when the feed supplies it", async ({
+  page,
+}) => {
+  await open(page, "/kcc20-activity");
+  const sheet = page.getByRole("dialog", { name: "TX Hash" });
+  await expect(sheet).toBeVisible();
+  await expect(sheet).toContainText("TX ID");
+  await expect(sheet.getByText("Status", { exact: true })).toHaveCount(0);
+  await expect(sheet).not.toContainText(/Unknown|Unavailable|—/);
+  await expect(
+    sheet.getByRole("button", { name: "View on Explorer" }),
+  ).toBeVisible();
+
+  await open(page, "/kcc20-activity", "&status=Confirmed");
+  await expect(sheet.getByText("Status", { exact: true })).toBeVisible();
+  await expect(sheet.getByText("Confirmed", { exact: true })).toBeVisible();
+});
+
+test("KCC-20 activity sheet: copy puts the full txid on the clipboard and says so", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "clipboard", {
+      value: {
+        writeText: (t: string) => {
+          (window as unknown as { __clipText: string }).__clipText = t;
+          return Promise.resolve();
+        },
+      },
+    });
+  });
+  await open(page, "/kcc20-activity");
+  const txid = "0123456789abcdef".repeat(4);
+  const sheet = page.getByRole("dialog", { name: "TX Hash" });
+  // Truncated on screen, full on copy.
+  await expect(sheet.getByText(txid, { exact: true })).toHaveCount(0);
+  await sheet.getByRole("button", { name: "Copy TX ID" }).click();
+  expect(
+    await page.evaluate(
+      () => (window as unknown as { __clipText: string }).__clipText,
+    ),
+  ).toBe(txid);
+  await expect(sheet.getByRole("status")).toHaveText("TX ID copied");
+});
+
+test("KCC-20 activity sheet: focus stays inside and Escape closes it", async ({
+  page,
+}) => {
+  await open(page, "/kcc20-activity");
+  const sheet = page.getByRole("dialog", { name: "TX Hash" });
+  const copy = sheet.getByRole("button", { name: "Copy TX ID" });
+  const explorer = sheet.getByRole("button", { name: "View on Explorer" });
+  await expect(copy).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(explorer).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(copy).toBeFocused();
+  await page.keyboard.press("Shift+Tab");
+  await expect(explorer).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("closed")).toBeVisible();
+});

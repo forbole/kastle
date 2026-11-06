@@ -44,6 +44,9 @@ export const KCC20_LABELS = {
   preallocationAmount: "Preallocation Amount",
   defaultMintAmount: "Default Mint Amount",
   decimal: "Decimal",
+  decimals: "Decimals",
+  standard: "Standard",
+  balance: "Balance",
   minter: "Minter",
   security: "Security",
   verified: "Verified",
@@ -58,6 +61,14 @@ export const KCC20_LABELS = {
   loadingTokens: "Loading tokens…",
   noTokens: "No tokens available",
 } as const;
+
+/** The Standard row of Token info; native KAS has none. */
+export const STANDARD_LABELS: Partial<Record<NetworkType, string>> = {
+  kcc20: "KCC-20",
+  krc20: "KRC-20",
+  kasplexErc20: "ERC-20",
+  igraErc20: "ERC-20",
+};
 
 /**
  * A KCC-20 amount as a person reads it: whole tokens with grouping. Unknown
