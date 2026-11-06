@@ -2,7 +2,6 @@
 // unverified-token sort) may change: all user-facing copy lives here.
 
 import { formatUnits } from "viem";
-import type { Kcc20Family } from "@/lib/kcc20";
 import { formatToken } from "@/lib/utils";
 
 /** Where a token lives; drives the chip label, the chip colours and the corner badge. */
@@ -29,12 +28,6 @@ export const NETWORK_FILTER_LABELS: Record<NetworkFilter, string> = {
   krc20: "KRC20",
   kasplex: "Kasplex",
   igra: "Igra",
-};
-
-/** The family chip on a KCC-20 row; KRON's legacy state is never labelled plain KCC-20. */
-export const KCC20_FAMILY_LABELS: Record<Kcc20Family, string> = {
-  "kron-legacy": "KRON",
-  "kcc20-standard": "KCC-20",
 };
 
 export const KCC20_LABELS = {

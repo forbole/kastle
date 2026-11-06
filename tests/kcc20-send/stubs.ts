@@ -30,22 +30,26 @@ const hold = () => new Promise<void>((r) => (h().release = r));
 
 // token=<base units> swaps in an 18-decimal balance; unsendable=1 owns no spendable piece;
 // kcc20Loading=1 leaves the scan unanswered; unverified=1 marks the metadata claimed;
-// decimals=<n> overrides the scale; nometa=1 is a scanned row kascov named nothing for.
+// decimals=<n> overrides the scale; nometa=1 is a scanned row kascov named nothing for;
+// notick=1 / nodecimals=1 drop one half of kascov's claim (partial metadata).
 const query = new URLSearchParams(location.search);
 const units = query.get("token");
 const decimals = query.get("decimals");
+const notick = query.has("notick") || query.has("nometa");
 export const kcc20Token: Kcc20Token = {
   covenantId: "ab".repeat(32),
   family: "kcc20-standard",
-  tick: query.has("nometa") ? "" : "nacho",
+  tick: notick ? "" : "nacho",
   amount: units ? BigInt(units) : 1_000_000n,
   spendable: query.get("unsendable") ? 0n : units ? BigInt(units) : 1_000_000n,
   meta: query.has("nometa")
     ? undefined
     : {
-        symbol: "NACHO",
-        name: "Nacho",
-        decimals: decimals ? Number(decimals) : units ? 18 : 2,
+        symbol: notick ? "" : "NACHO",
+        name: notick ? "" : "Nacho",
+        ...(!query.has("nodecimals") && {
+          decimals: decimals ? Number(decimals) : units ? 18 : 2,
+        }),
         ...(query.has("unverified") && { unverified: true as const }),
       },
 };

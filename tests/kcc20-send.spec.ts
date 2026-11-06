@@ -471,3 +471,53 @@ test("a nameless standard KCC-20 row shows grouped base units", async ({
   await expect(row.locator(".font-mono")).toHaveText("abababab...babab");
   await expect(row.getByText(/Unverified/)).toHaveText("Unverified");
 });
+
+// Partial kascov claims: whichever half arrived is used, the other half falls
+// back. No family is named, on the row or in the send picker.
+const FAMILY = /KRON|KCC-?20/;
+
+test("a standard KCC-20 row with decimals and no ticker formats its amount under a short id", async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  const claim = "token=210759267306&decimals=8&notick=1&unverified=1";
+  await page.goto(`${base}/?route=/dashboard&${claim}`);
+  const row = page.locator("button", { hasText: "abababab...babab" });
+  await expect(row.getByText("2,107.593", { exact: true })).toBeVisible();
+  await expect(row.getByText(/base units/)).toHaveCount(0);
+  await expect(row.locator(".font-mono")).toHaveText("abababab...babab");
+  await expect(row.getByText(FAMILY)).toHaveCount(0);
+
+  // Decimals known: sendable, listed in the picker under the same short id.
+  await page.goto(`${base}/?route=/asset-select&${claim}`);
+  const pick = page.locator("button", { hasText: "abababab...babab" });
+  await expect(pick.locator(".font-mono")).toHaveText("abababab...babab");
+  await expect(pick).toContainText("2,107.59");
+  await pick.locator("img").first().hover();
+  await expect(page.getByText(FAMILY)).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test("a standard KCC-20 row with a ticker and no decimals shows grouped base units", async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  const claim = "token=210759267306&nodecimals=1&unverified=1";
+  await page.goto(`${base}/?route=/dashboard&${claim}`);
+  const row = page.getByRole("button", { name: /NACHO/ });
+  await expect(row.getByText("NACHO", { exact: true })).toBeVisible();
+  await expect(
+    row.getByText("210,759,267,306 base units", { exact: true }),
+  ).toBeVisible();
+  await expect(row.locator(".font-mono")).toHaveCount(0);
+  await expect(row.getByText(FAMILY)).toHaveCount(0);
+
+  // No scale, no typed amount means anything: kept out of the send picker.
+  await page.goto(`${base}/?route=/asset-select&${claim}`);
+  await expect(page.getByRole("button", { name: /KASPY/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /NACHO/ })).toHaveCount(0);
+  await expect(page.getByText(FAMILY)).toHaveCount(0);
+  expect(errors).toEqual([]);
+});

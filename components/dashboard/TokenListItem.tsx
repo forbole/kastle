@@ -103,7 +103,7 @@ export function Kcc20TokenListItem({ token }: { token: Kcc20Token }) {
   const { priceUsd } = useKcc20Price(token);
   // No verified decimals, no whole-token balance to value.
   const valueUsd =
-    priceUsd === undefined || !meta
+    priceUsd === undefined || meta?.decimals === undefined
       ? undefined
       : Number(formatUnits(token.amount, meta.decimals)) * priceUsd;
   const { amount: fiatPrice, code: currencyCode } = useCurrencyValue(

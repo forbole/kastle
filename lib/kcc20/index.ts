@@ -57,11 +57,12 @@ export type Kcc20Token = {
   // The ADDRESS-owned part of `amount`: the only pieces the send builder can spend.
   spendable: bigint;
   // Legacy: set only when the registry entry for this covenant id verified against its genesis tx.
-  // Standard: kascov's claimed fields, always marked `unverified`.
+  // Standard: kascov's claimed fields, always marked `unverified`; either may be
+  // missing (symbol "" without a ticker, no decimals without a scale).
   meta?: {
     symbol: string;
     name: string;
-    decimals: number;
+    decimals?: number;
     logoURI?: string;
     unverified?: true;
   };
@@ -393,16 +394,25 @@ async function mapLimit<T, R>(
   return out;
 }
 
-/** Claimed metadata, marked unverified; undefined without a ticker and sane decimals. */
-function claimedMeta(holding: KascovHolding): Kcc20Token["meta"] {
+/**
+ * Claimed metadata, marked unverified; whatever kascov claimed survives alone.
+ * No ticker: symbol/name stay "" so the row falls back to the short id.
+ * Undefined only when neither a ticker nor decimals were claimed.
+ */
+export function claimedMeta(
+  holding: Pick<
+    KascovHolding,
+    "claimedTicker" | "claimedName" | "displayDecimals"
+  >,
+): Kcc20Token["meta"] {
   const { claimedTicker, claimedName, displayDecimals } = holding;
-  if (!claimedTicker || displayDecimals === undefined) return undefined;
+  if (!claimedTicker && displayDecimals === undefined) return undefined;
   // claimed_image is left out: an airdropped token's creator would see every
   // holder's IP fetch it.
   return {
-    symbol: claimedTicker,
-    name: claimedName || claimedTicker,
-    decimals: displayDecimals,
+    symbol: claimedTicker ?? "",
+    name: claimedName || (claimedTicker ?? ""),
+    ...(displayDecimals !== undefined && { decimals: displayDecimals }),
     unverified: true,
   };
 }

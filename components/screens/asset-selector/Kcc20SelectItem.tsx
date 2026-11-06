@@ -4,13 +4,13 @@ import Layer2AssetImage from "@/components/Layer2AssetImage";
 import { textEllipsis } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
-import HoverTooltip from "@/components/HoverTooltip";
 import { CHAIN_BADGES } from "@/ui/popup/kcc20/AssetImage";
-import { KCC20_FAMILY_LABELS, KCC20_LABELS } from "@/ui/popup/kcc20/labels";
+import { KCC20_LABELS } from "@/ui/popup/kcc20/labels";
 import { formatBalance } from "@/components/send/kcc20-send/formatBalance";
 
+// Sending needs the scale: an amount typed without decimals has no meaning.
 export type SendableKcc20Token = Kcc20Token & {
-  meta: NonNullable<Kcc20Token["meta"]>;
+  meta: NonNullable<Kcc20Token["meta"]> & { decimals: number };
 };
 
 interface Kcc20SelectItemProps {
@@ -47,17 +47,19 @@ export default function Kcc20SelectItem({ token }: Kcc20SelectItemProps) {
             isLedger && "opacity-40",
           )}
         >
-          <HoverTooltip text={KCC20_FAMILY_LABELS[token.family]} place="right">
-            <Layer2AssetImage
-              tokenImage={token.meta.logoURI}
-              chainImage={CHAIN_BADGES.kcc20}
-              chainImageSize={16}
-              chainImageBottomPosition={-2}
-            />
-          </HoverTooltip>
+          <Layer2AssetImage
+            tokenImage={token.meta.logoURI}
+            chainImage={CHAIN_BADGES.kcc20}
+            chainImageSize={16}
+            chainImageBottomPosition={-2}
+          />
           <div className="flex flex-col items-start">
             <span className="flex items-center gap-2">
-              {token.meta.symbol}
+              {token.meta.symbol || (
+                <span className="font-mono">
+                  {textEllipsis(token.covenantId)}
+                </span>
+              )}
               {token.meta.unverified && (
                 <span className="text-xs text-daintree-400">
                   {KCC20_LABELS.unverified}
