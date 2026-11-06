@@ -1,5 +1,23 @@
 # Changelog
 
+## [2.62.0](https://github.com/forbole/kastle/compare/v2.61.4...v2.62.0) (2026-11-06)
+
+
+### Features
+
+* allow KCC-20 tokens on testnet-10 (extension) ([#413](https://github.com/forbole/kastle/issues/413)) ([894aae2](https://github.com/forbole/kastle/commit/894aae2878c8b1b0f41f3fae154bc7acb66aac4d))
+* integrate the Kasseal launchpad ([#411](https://github.com/forbole/kastle/issues/411)) ([30c1add](https://github.com/forbole/kastle/commit/30c1addcb26dcb46b336566f3325ae2ec58a008f))
+* **kcc20:** full KCC-20 parity with mobile in one branch ([#420](https://github.com/forbole/kastle/issues/420)) ([3105c5b](https://github.com/forbole/kastle/commit/3105c5b5f6bd318574b83f3ba54ec18f215e4f5d))
+* **kcc20:** KCC-20 standard read path and transfer builder ([#406](https://github.com/forbole/kastle/issues/406)) ([2e554b1](https://github.com/forbole/kastle/commit/2e554b1587183caf26b7f3d3eefa65a6426564d4))
+* **optimize:** consolidate small UTXOs so sends are cheap and Ledger works ([#424](https://github.com/forbole/kastle/issues/424)) ([259c0c5](https://github.com/forbole/kastle/commit/259c0c55fb2560982a0f863c8605b79a13464152))
+
+
+### Bug Fixes
+
+* KCC-20 send reuses the shared send screen ([#414](https://github.com/forbole/kastle/issues/414)) ([1658137](https://github.com/forbole/kastle/commit/1658137df5ba0053c74ecb5d5d1f0755f6c000c7))
+* **kcc20:** resume stored Braid deposits without waiting for a Braid pair ([#426](https://github.com/forbole/kastle/issues/426)) ([95cd39f](https://github.com/forbole/kastle/commit/95cd39f4083ea8abf9999dc7e553ebc8abfc1062))
+* **send:** select UTXOs in the app and price Max against the real batch fee ([#422](https://github.com/forbole/kastle/issues/422)) ([08e1633](https://github.com/forbole/kastle/commit/08e163328ff6295107b32bdcf7136050dc5e9caf))
+
 ## [2.61.4](https://github.com/forbole/kastle/compare/v2.61.3...v2.61.4) (2026-10-22)
 
 
