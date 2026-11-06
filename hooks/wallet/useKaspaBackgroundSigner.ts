@@ -16,6 +16,10 @@ import {
   KaspaSignInputDigestRequest,
   KaspaSignInputDigestResponse,
 } from "@/lib/service/handlers/kaspa/kaspa-sign-input-digest";
+import {
+  KaspaSignBraidDepositRequest,
+  KaspaSignBraidDepositResponse,
+} from "@/lib/service/handlers/kaspa/kaspa-sign-braid-deposit";
 import { ErrorMessage } from "@/lib/service/handlers/message";
 
 export default function useKaspaBackgroundSigner() {
@@ -36,6 +40,18 @@ export default function useKaspaBackgroundSigner() {
       const response = await sendMessage<
         KaspaSignInputDigestResponse | ErrorMessage
       >(Method.KASPA_SIGN_INPUT_DIGEST, request);
+
+      if (response && "error" in response) {
+        throw new Error(response.error);
+      }
+
+      return response;
+    },
+
+    signBraidDeposit: async (request: KaspaSignBraidDepositRequest) => {
+      const response = await sendMessage<
+        KaspaSignBraidDepositResponse | ErrorMessage
+      >(Method.KASPA_SIGN_BRAID_DEPOSIT, request);
 
       if (response && "error" in response) {
         throw new Error(response.error);

@@ -5,6 +5,7 @@ import {
 } from "@/lib/evm/swap/constants";
 import { igraMainnet, kasplexMainnet } from "@/lib/layer2";
 import type { SwapActivityRecord } from "@/lib/activity/mappers";
+import type { Kcc20SwapHealth } from "@/lib/activity/kcc20-swap-history";
 
 /**
  * Swap history from the per-chain Blockscout explorers (etherscan-compatible v1
@@ -686,7 +687,12 @@ export type SwapHistoryDegradation =
   | "swap_history_igra_unavailable"
   | "swap_history_kasplex_unavailable"
   | "swap_history_partial"
-  | "swap_history_legs_unresolved";
+  | "swap_history_legs_unresolved"
+  // KCC-20 swaps (Kaspa L1, read from kascov) — see kcc20-swap-history.ts.
+  | "swap_history_kcc20_unavailable"
+  | "swap_history_kcc20_partial"
+  | "swap_history_kcc20_unidentified"
+  | "swap_history_kcc20_unattributed";
 
 export interface SwapHistoryResult {
   chainId: number;
@@ -1392,6 +1398,54 @@ export function mergeSwapHistories(results: SwapHistoryResult[]): {
     degraded.push("swap_history_legs_unresolved");
   }
   return { swaps, degraded };
+}
+
+/** What the KCC-20 family contributed: its rows, its health, and what it dropped. */
+export interface Kcc20SwapFamily {
+  swaps: SwapActivityRecord[];
+  health: Kcc20SwapHealth;
+  /** Trades left out because no source names the token. */
+  unidentified: number;
+  /** Trades left out because no token amount could be attributed. */
+  unattributed: number;
+}
+
+/**
+ * Folds the KCC-20 family into the EVM merge, on the same contract as
+ * mergeSwapHistories: rows are kept, every gap is reported, and the KCC-20
+ * tokens never borrow the EVM chains' copy. Families are independent — an
+ * unreachable kascov leaves the EVM rows and their tokens untouched, and an
+ * unreachable EVM side never hides a KCC-20 row. A row that is not a well-formed
+ * record is skipped and counted, never fatal to the rest.
+ */
+export function mergeKcc20SwapHistory(
+  evm: { swaps: SwapHistoryRecord[]; degraded: SwapHistoryDegradation[] },
+  kcc20: Kcc20SwapFamily | null,
+): { swaps: SwapHistoryRecord[]; degraded: SwapHistoryDegradation[] } {
+  if (!kcc20) return evm;
+  const degraded = [...evm.degraded];
+  let unattributed = kcc20.unattributed;
+  const rows: SwapHistoryRecord[] = [];
+  for (const s of kcc20.swaps) {
+    try {
+      if (
+        typeof s.id === "string" &&
+        Number.isFinite(s.timestampMs) &&
+        s.fromSymbol &&
+        s.toSymbol
+      )
+        rows.push(s);
+      else unattributed++;
+    } catch {
+      unattributed++;
+    }
+  }
+  if (kcc20.health === "unreachable")
+    degraded.push("swap_history_kcc20_unavailable");
+  if (kcc20.health === "truncated") degraded.push("swap_history_kcc20_partial");
+  if (kcc20.unidentified > 0) degraded.push("swap_history_kcc20_unidentified");
+  if (unattributed > 0) degraded.push("swap_history_kcc20_unattributed");
+  return { swaps: [...evm.swaps, ...rows], degraded };
 }
 
 /** Chains whose swap history the feed reads, in feed order. */

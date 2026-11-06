@@ -1,0 +1,214 @@
+{
+  "generated_at_ms": 1793580281275,
+  "network": "mainnet",
+  "next_before_daa": 581137391,
+  "next_before_seq": 12,
+  "next_before_token": "147dff25df3d7d098dad25e0757bc25300987a9df522c94fe1d76f825bf699db",
+  "order": "desc",
+  "scope": "verified_market_tokens",
+  "semantics": {
+    "amounts": "decimal strings preserve exact integer output-cell balances; deltas are not amounts that may be summed as payments",
+    "attribution": "movements are emitted only when every input cell has one exact source owner; multi-owner merges stay ambiguous",
+    "event_unit": "one complete token state transition; split and merge deltas never cross pages",
+    "owner_filter": "matches indexed owner_from or owner_to fields; ambiguous multi-owner source identities are intentionally unavailable"
+  },
+  "transfers": [
+    {
+      "accepting_daa": 581140248,
+      "attribution": {
+        "movements": [],
+        "reason": "multiple or unavailable input owners; no sender is invented",
+        "status": "ambiguous"
+      },
+      "deltas": [
+        {
+          "accepting_daa": 581140248,
+          "amount": "0",
+          "delta_idx": 1,
+          "event_kind": "transition",
+          "owner_to": "1d592736aec35948dc05913eb48b3b471a7619a63fca7834ffe974e1401a6dda",
+          "seq": 15,
+          "token_kind": "merge",
+          "tx_index": 1,
+          "txid": "403a72df76aad4bdda3cadf6ba3139929fca617f85ee3811de09a1ebdd8c1f46"
+        },
+        {
+          "accepting_daa": 581140248,
+          "amount": "1000000000",
+          "delta_idx": 0,
+          "event_kind": "transition",
+          "owner_to": "covenant:ee6154dc72f384884bbac9fd39bc943e675757cc1bdc24481ee45ecd3cf2a6fb",
+          "seq": 15,
+          "token_kind": "merge",
+          "tx_index": 1,
+          "txid": "403a72df76aad4bdda3cadf6ba3139929fca617f85ee3811de09a1ebdd8c1f46"
+        }
+      ],
+      "event_kind": "transition",
+      "kind": "merge",
+      "market_activity": {
+        "kind": "trade",
+        "market_id": "ee6154dc72f384884bbac9fd39bc943e675757cc1bdc24481ee45ecd3cf2a6fb",
+        "side": "sell"
+      },
+      "seq": 15,
+      "token_id": "147dff25df3d7d098dad25e0757bc25300987a9df522c94fe1d76f825bf699db",
+      "tx_index": 1,
+      "txid": "403a72df76aad4bdda3cadf6ba3139929fca617f85ee3811de09a1ebdd8c1f46",
+      "verified_market": {
+        "build": "KaspaRocket lp-amm v1",
+        "market_id": "ee6154dc72f384884bbac9fd39bc943e675757cc1bdc24481ee45ecd3cf2a6fb",
+        "program_hash": "bc9f23daa20e1641986aeb6fdaa4329a5c6601c6c4f35ddf9f719b669453c4e6"
+      }
+    },
+    {
+      "accepting_daa": 581140166,
+      "attribution": {
+        "movements": [
+          {
+            "amount": "10148861",
+            "owner_from": "covenant:ee6154dc72f384884bbac9fd39bc943e675757cc1bdc24481ee45ecd3cf2a6fb",
+            "owner_to": "1d592736aec35948dc05913eb48b3b471a7619a63fca7834ffe974e1401a6dda"
+          }
+        ],
+        "owner_from": "covenant:ee6154dc72f384884bbac9fd39bc943e675757cc1bdc24481ee45ecd3cf2a6fb",
+        "status": "exact"
+      },
+      "deltas": [
+        {
+          "accepting_daa": 581140166,
+          "amount": "10148861",
+          "delta_idx": 1,
+          "event_kind": "transition",
+          "owner_from": "covenant:ee6154dc72f384884bbac9fd39bc943e675757cc1bdc24481ee45ecd3cf2a6fb",
+          "owner_to": "1d592736aec35948dc05913eb48b3b471a7619a63fca7834ffe974e1401a6dda",
+          "seq": 14,
+          "token_kind": "split",
+          "tx_index": 1,
+          "txid": "b0ee70cdd8e8ae13d83eaf3719c1956ea39a52761f4cdb3209ad08f7e6fe33ea"
+        },
+        {
+          "accepting_daa": 581140166,
+          "amount": "989851139",
+          "delta_idx": 0,
+          "event_kind": "transition",
+          "owner_from": "covenant:ee6154dc72f384884bbac9fd39bc943e675757cc1bdc24481ee45ecd3cf2a6fb",
+          "owner_to": "covenant:ee6154dc72f384884bbac9fd39bc943e675757cc1bdc24481ee45ecd3cf2a6fb",
+          "seq": 14,
+          "token_kind": "split",
+          "tx_index": 1,
+          "txid": "b0ee70cdd8e8ae13d83eaf3719c1956ea39a52761f4cdb3209ad08f7e6fe33ea"
+        }
+      ],
+      "event_kind": "transition",
+      "kind": "split",
+      "market_activity": {
+        "kind": "trade",
+        "market_id": "ee6154dc72f384884bbac9fd39bc943e675757cc1bdc24481ee45ecd3cf2a6fb",
+        "side": "buy"
+      },
+      "seq": 14,
+      "token_id": "147dff25df3d7d098dad25e0757bc25300987a9df522c94fe1d76f825bf699db",
+      "tx_index": 1,
+      "txid": "b0ee70cdd8e8ae13d83eaf3719c1956ea39a52761f4cdb3209ad08f7e6fe33ea",
+      "verified_market": {
+        "build": "KaspaRocket lp-amm v1",
+        "market_id": "ee6154dc72f384884bbac9fd39bc943e675757cc1bdc24481ee45ecd3cf2a6fb",
+        "program_hash": "bc9f23daa20e1641986aeb6fdaa4329a5c6601c6c4f35ddf9f719b669453c4e6"
+      }
+    },
+    {
+      "accepting_daa": 581139974,
+      "attribution": {
+        "movements": [],
+        "reason": "multiple or unavailable input owners; no sender is invented",
+        "status": "ambiguous"
+      },
+      "deltas": [
+        {
+          "accepting_daa": 581139974,
+          "amount": "0",
+          "delta_idx": 1,
+          "event_kind": "transition",
+          "owner_to": "1d592736aec35948dc05913eb48b3b471a7619a63fca7834ffe974e1401a6dda",
+          "seq": 13,
+          "token_kind": "merge",
+          "tx_index": 1,
+          "txid": "18db39a059af7feee73a67558d1b88339db5a1d533cc2f3fda6158b8d9d12b1c"
+        },
+        {
+          "accepting_daa": 581139974,
+          "amount": "1000000000",
+          "delta_idx": 0,
+          "event_kind": "transition",
+          "owner_to": "covenant:ee6154dc72f384884bbac9fd39bc943e675757cc1bdc24481ee45ecd3cf2a6fb",
+          "seq": 13,
+          "token_kind": "merge",
+          "tx_index": 1,
+          "txid": "18db39a059af7feee73a67558d1b88339db5a1d533cc2f3fda6158b8d9d12b1c"
+        }
+      ],
+      "event_kind": "transition",
+      "kind": "merge",
+      "market_activity": {
+        "kind": "trade",
+        "market_id": "ee6154dc72f384884bbac9fd39bc943e675757cc1bdc24481ee45ecd3cf2a6fb",
+        "side": "sell"
+      },
+      "seq": 13,
+      "token_id": "147dff25df3d7d098dad25e0757bc25300987a9df522c94fe1d76f825bf699db",
+      "tx_index": 1,
+      "txid": "18db39a059af7feee73a67558d1b88339db5a1d533cc2f3fda6158b8d9d12b1c",
+      "verified_market": {
+        "build": "KaspaRocket lp-amm v1",
+        "market_id": "ee6154dc72f384884bbac9fd39bc943e675757cc1bdc24481ee45ecd3cf2a6fb",
+        "program_hash": "bc9f23daa20e1641986aeb6fdaa4329a5c6601c6c4f35ddf9f719b669453c4e6"
+      }
+    },
+    {
+      "accepting_daa": 581137391,
+      "attribution": {
+        "movements": [],
+        "owner_from": "1d592736aec35948dc05913eb48b3b471a7619a63fca7834ffe974e1401a6dda",
+        "status": "self"
+      },
+      "deltas": [
+        {
+          "accepting_daa": 581137391,
+          "amount": "10109843",
+          "delta_idx": 1,
+          "event_kind": "transition",
+          "owner_from": "1d592736aec35948dc05913eb48b3b471a7619a63fca7834ffe974e1401a6dda",
+          "owner_to": "1d592736aec35948dc05913eb48b3b471a7619a63fca7834ffe974e1401a6dda",
+          "seq": 12,
+          "token_kind": "merge",
+          "tx_index": 1,
+          "txid": "042b0413a0e6af64c7d0b77962a21617f6c3a304917bc957370e2ca56315e1e4"
+        },
+        {
+          "accepting_daa": 581137391,
+          "amount": "100000",
+          "delta_idx": 0,
+          "event_kind": "transition",
+          "owner_from": "1d592736aec35948dc05913eb48b3b471a7619a63fca7834ffe974e1401a6dda",
+          "owner_to": "1d592736aec35948dc05913eb48b3b471a7619a63fca7834ffe974e1401a6dda",
+          "seq": 12,
+          "token_kind": "merge",
+          "tx_index": 1,
+          "txid": "042b0413a0e6af64c7d0b77962a21617f6c3a304917bc957370e2ca56315e1e4"
+        }
+      ],
+      "event_kind": "transition",
+      "kind": "merge",
+      "seq": 12,
+      "token_id": "147dff25df3d7d098dad25e0757bc25300987a9df522c94fe1d76f825bf699db",
+      "tx_index": 1,
+      "txid": "042b0413a0e6af64c7d0b77962a21617f6c3a304917bc957370e2ca56315e1e4",
+      "verified_market": {
+        "build": "KaspaRocket lp-amm v1",
+        "market_id": "ee6154dc72f384884bbac9fd39bc943e675757cc1bdc24481ee45ecd3cf2a6fb",
+        "program_hash": "bc9f23daa20e1641986aeb6fdaa4329a5c6601c6c4f35ddf9f719b669453c4e6"
+      }
+    }
+  ]
+}

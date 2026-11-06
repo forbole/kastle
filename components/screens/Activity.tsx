@@ -67,6 +67,19 @@ const SWAP_SOURCE_MESSAGE: Record<SwapHistoryDegradation, string> = {
     "Only recent swaps are shown — this wallet's history is too long to read in full.",
   swap_history_legs_unresolved:
     "Some swap amounts couldn't be confirmed — parts of these transactions couldn't be read.",
+  // KCC-20 swaps are a third upstream (kascov, Kaspa L1), so their gaps name
+  // KCC-20 and never borrow the EVM chains' copy.
+  swap_history_kcc20_unavailable:
+    "Couldn't load KCC-20 swaps — some KCC-20 swaps may be missing. Other swaps are shown. Refresh to retry.",
+  // Not a failure: the rows shown are real, older ones are past the page bound.
+  swap_history_kcc20_partial:
+    "Only recent KCC-20 swaps are shown — this wallet's KCC-20 history is too long to read in full.",
+  // Rows were read but left out: without the token's decimals no amount can be shown.
+  swap_history_kcc20_unidentified:
+    "Some KCC-20 swaps aren't shown — their token couldn't be identified.",
+  // Rows were read but left out: kascov could not attribute the token amount to this wallet.
+  swap_history_kcc20_unattributed:
+    "Some KCC-20 swaps aren't shown — their amount couldn't be attributed to this wallet.",
 };
 
 const EMPTY_COPY: Record<ActivityPageType, [string, string]> = {

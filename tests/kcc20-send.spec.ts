@@ -51,9 +51,13 @@ async function open(page: Page, query = "") {
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto(`${base}/?route=/dashboard${query}`);
   await page.getByRole("button", { name: /NACHO/ }).click();
+  await sendAction(page).click();
   await expect(page.getByText("Send to ...")).toBeVisible();
   return errors;
 }
+
+const sendAction = (page: Page) =>
+  page.getByRole("button", { name: "Send NACHO" });
 
 const address = (page: Page) => page.locator("textarea");
 const amount = (page: Page) => page.locator('input[type="number"]');
@@ -249,6 +253,34 @@ test("an unknown covenant id shows the unavailable state", async ({ page }) => {
   await expect(page.getByText("This token cannot be sent.")).toBeVisible();
 });
 
+// As a KRC-20 or .k row: a tap opens the detail page, never send directly.
+test("a dashboard tap opens the detail page, not send", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.goto(`${base}/?route=/dashboard`);
+  await page.getByRole("button", { name: /NACHO/ }).click();
+
+  await expect(page.getByRole("heading", { name: "NACHO" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "History", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("Send to ...")).toBeHidden();
+  await page.getByRole("button", { name: "Token info", exact: true }).click();
+  await expect(page.getByText("Covenant ID")).toBeVisible();
+
+  await page.getByRole("button", { name: "Back" }).click();
+  await expect(page.getByRole("button", { name: /NACHO/ })).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test("the detail page hides Send without a spendable piece", async ({
+  page,
+}) => {
+  await page.goto(`${base}/?route=/kcc20/${"ab".repeat(32)}&unsendable=1`);
+  await expect(page.getByRole("heading", { name: "NACHO" })).toBeVisible();
+  await expect(sendAction(page)).toHaveCount(0);
+});
+
 // The KRC-20 send renders through the same shared details / confirm screens.
 test("KRC-20 send still goes details → confirm", async ({ page }) => {
   await page.goto(`${base}/?route=/krc20/send/KASPY`);
@@ -259,4 +291,133 @@ test("KRC-20 send still goes details → confirm", async ({ page }) => {
   await expect(page.getByText("Sending amount")).toBeVisible();
   await expect(page.getByText("2", { exact: true })).toBeVisible();
   await expect(confirm(page)).toBeEnabled();
+});
+
+// The Send button's asset picker (/asset-select) lists KCC-20 beside KRC-20.
+const pickerRow = (page: Page, name: RegExp) =>
+  page.getByRole("button", { name });
+
+test("the picker lists a KCC-20 row like a KRC-20 row and opens its send", async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.goto(`${base}/?route=/asset-select`);
+
+  const krc20 = pickerRow(page, /KASPY/);
+  const kcc20 = pickerRow(page, /NACHO/);
+  await expect(krc20).toContainText("1,000");
+  await expect(kcc20).toContainText("10,000");
+  await expect(kcc20).toContainText("abababab...babab");
+  // Same row markup: only the data differs.
+  expect(await kcc20.getAttribute("class")).toBe(
+    await krc20.getAttribute("class"),
+  );
+  expect(await kcc20.getByAltText("Chain").getAttribute("src")).toBe(
+    await krc20.getByAltText("Chain").getAttribute("src"),
+  );
+
+  await kcc20.click();
+  await expect(page.getByText("Send to ...")).toBeVisible();
+  await expect(page.getByText("10,000 NACHO")).toBeVisible();
+  await fill(page, RECIPIENT, "1");
+  await next(page).click();
+  await expect(page.getByText("Sending amount")).toBeVisible();
+  expect((await h(page)).builds).toEqual([
+    { recipient: RECIPIENT, amount: "100", network: "mainnet" },
+  ]);
+  expect(errors).toEqual([]);
+});
+
+test("the picker search matches the KCC-20 symbol", async ({ page }) => {
+  await page.goto(`${base}/?route=/asset-select`);
+  const search = page.getByPlaceholder("Search token");
+
+  await search.fill("nac");
+  await expect(pickerRow(page, /NACHO/)).toBeVisible();
+  await expect(pickerRow(page, /KASPY/)).toBeHidden();
+
+  await search.fill("zzz");
+  await expect(pickerRow(page, /NACHO/)).toBeHidden();
+  await expect(page.getByText("No result found")).toBeVisible();
+});
+
+test("the picker shows no empty state while KCC-20 is loading", async ({
+  page,
+}) => {
+  await page.goto(`${base}/?route=/asset-select&kcc20Loading=1`);
+  const search = page.getByPlaceholder("Search token");
+  await search.fill("zzz");
+  await expect(pickerRow(page, /KASPY/)).toBeHidden();
+  await expect(page.getByText("No result found")).toBeHidden();
+});
+
+test("the picker marks an unverified KCC-20 row", async ({ page }) => {
+  await page.goto(`${base}/?route=/asset-select&unverified=1`);
+  await expect(pickerRow(page, /NACHO/)).toContainText("Unverified");
+  await page.goto(`${base}/?route=/asset-select`);
+  await expect(pickerRow(page, /NACHO/)).toBeVisible();
+  await expect(pickerRow(page, /NACHO/)).not.toContainText("Unverified");
+});
+
+test("the picker hides KCC-20 when the kill switch is off", async ({
+  page,
+}) => {
+  await page.goto(`${base}/?route=/asset-select&kcc20=off`);
+  await expect(pickerRow(page, /KASPY/)).toBeVisible();
+  await expect(pickerRow(page, /NACHO/)).toBeHidden();
+});
+
+// The row container's frame and hover tokens; layout tokens may differ.
+const frame = async (page: Page, kind: "krc20" | "kcc20") =>
+  ((await page.locator(`[data-row="${kind}"] > *`).getAttribute("class")) ?? "")
+    .split(/\s+/)
+    .filter((c) => /^(hover:|border|rounded|bg-|p[xy]?-)/.test(c))
+    .sort();
+
+test("a KCC-20 dashboard row glows on hover like a KRC-20 row", async ({
+  page,
+}) => {
+  await page.goto(`${base}/?route=/dashboard-rows`);
+  const krc20 = await frame(page, "krc20");
+  expect(krc20).toContain("hover:border-white");
+  expect(await frame(page, "kcc20")).toEqual(krc20);
+});
+
+test("a KCC-20 dashboard row shows a price and a fiat line", async ({
+  page,
+}) => {
+  // 10,000 NACHO at $0.25.
+  await page.goto(`${base}/?route=/dashboard-rows&price=0.25`);
+  const row = page.locator('[data-row="kcc20"]');
+  await expect(row.getByText("$0.25", { exact: true })).toBeVisible();
+  await expect(row.getByText("≈ $2,500.00", { exact: true })).toBeVisible();
+  // The subtitle stays.
+  await expect(row.getByText("Nacho", { exact: true })).toBeVisible();
+});
+
+test("an unpriced KCC-20 dashboard row reads unknown, not zero", async ({
+  page,
+}) => {
+  await page.goto(`${base}/?route=/dashboard-rows`);
+  const row = page.locator('[data-row="kcc20"]');
+  // Like mobile's unpriced row: both lines read "—", never worth zero.
+  await expect(row.getByText("—", { exact: true })).toBeVisible();
+  await expect(row.getByText("≈ —", { exact: true })).toBeVisible();
+  await expect(row.getByText("$0", { exact: true })).toHaveCount(0);
+  await expect(row.getByText("≈ $0.00", { exact: true })).toHaveCount(0);
+  await expect(row.getByText("Nacho", { exact: true })).toBeVisible();
+});
+
+test("a KCC-20 dashboard row masks its fiat value with balances hidden", async ({
+  page,
+}) => {
+  await page.goto(`${base}/?route=/dashboard-rows&price=0.25&hidden=1`);
+  const row = page.locator('[data-row="kcc20"]');
+  await expect(row.getByText("*****", { exact: true })).toBeVisible();
+  await expect(row.getByText("10000", { exact: true })).toHaveCount(0);
+  await expect(row.getByText("≈ $*****", { exact: true })).toBeVisible();
+  await expect(row.getByText("≈ $2,500.00", { exact: true })).toHaveCount(0);
+  // The unit price is public, not a balance.
+  await expect(row.getByText("$0.25", { exact: true })).toBeVisible();
 });

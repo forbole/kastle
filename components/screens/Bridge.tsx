@@ -645,6 +645,27 @@ export default function Bridge() {
               )}
             </div>
           )}
+
+        {/* KRC-20 → KCC-20 migration runs on Kat Bridge, signed through window.kastle. */}
+        {isMainnet && (
+          <button
+            type="button"
+            className="flex shrink-0 items-center justify-between gap-2 rounded-xl border border-daintree-700 bg-daintree-800 px-4 py-3 text-left text-sm"
+            onClick={() =>
+              chrome.tabs.create({ url: "https://katbridge.com/migrate" })
+            }
+          >
+            <span className="flex min-w-0 flex-col">
+              <span className="font-medium text-white">
+                Migrate KRC-20 to KCC-20
+              </span>
+              <span className="text-xs text-daintree-400">
+                Opens katbridge.com
+              </span>
+            </span>
+            <i className="hn hn-angle-right text-xs text-white" />
+          </button>
+        )}
       </div>
       <ConfirmButton
         error={error}

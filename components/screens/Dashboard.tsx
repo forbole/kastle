@@ -21,9 +21,6 @@ import useKeyring from "@/hooks/useKeyring.ts";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import { Tooltip } from "react-tooltip";
-import { useFeatureFlags } from "@/hooks/useFeatureFlags";
-import { kassealNetworkOf } from "@/lib/kasseal/api";
-import LaunchpadAction from "@/ui/popup/kasseal/LaunchpadAction";
 import Assets from "@/components/dashboard/Assets";
 import Names from "@/components/dashboard/Names";
 import NftList from "@/components/dashboard/NftList";
@@ -77,9 +74,6 @@ export default function Dashboard() {
   const isLedger = wallet?.type === "ledger";
   const [deployHovered, setDeployHovered] = useState(false);
   const [mintHovered, setMintHovered] = useState(false);
-  const [kassealHovered, setKassealHovered] = useState(false);
-  const { isKassealEnabled } = useFeatureFlags();
-  const showKasseal = isKassealEnabled && !!kassealNetworkOf(networkId);
 
   return (
     <div className="flex h-full flex-col">
@@ -368,29 +362,6 @@ export default function Dashboard() {
               </div>
               <span className="text-daintree-400">Mint</span>
             </div>
-
-            {/* Kasseal launchpad */}
-            {showKasseal && isLedger && (
-              <Tooltip
-                id="kasseal"
-                style={{
-                  backgroundColor: "#203C49",
-                  fontSize: "12px",
-                  fontWeight: 600,
-                  padding: "8px",
-                }}
-                isOpen={kassealHovered}
-                place="bottom-end"
-              />
-            )}
-            {showKasseal && (
-              <LaunchpadAction
-                disabled={isLedger}
-                onOpen={() => navigate("/kasseal")}
-                onHintChange={setKassealHovered}
-                tooltipId="kasseal"
-              />
-            )}
           </div>
 
           {/* Tabs */}

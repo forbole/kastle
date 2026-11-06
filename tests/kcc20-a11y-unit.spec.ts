@@ -12,6 +12,7 @@ type Modules = {
   renderToStaticMarkup: typeof import("react-dom/server").renderToStaticMarkup;
   SendSelectTokenPage: typeof import("@/ui/popup/kcc20/SendSelectTokenPage").default;
   TokenItem: typeof import("@/ui/popup/kcc20/TokenItem").default;
+  AssetTabs: typeof import("@/components/AssetTabs").default;
 };
 
 let m: Modules;
@@ -24,6 +25,7 @@ test.beforeAll(async () => {
       contents: [
         'export { default as SendSelectTokenPage } from "@/ui/popup/kcc20/SendSelectTokenPage";',
         'export { default as TokenItem } from "@/ui/popup/kcc20/TokenItem";',
+        'export { default as AssetTabs } from "@/components/AssetTabs";',
         'export { createElement } from "react";',
         'export { renderToStaticMarkup } from "react-dom/server";',
       ].join("\n"),
@@ -87,4 +89,12 @@ test("TokenItem names the asset type for screen readers", () => {
     );
   expect(render("kcc20")).toContain('<span class="sr-only">Kaspa-KCC20</span>');
   expect(render("krc20")).toContain('<span class="sr-only">Kaspa-KRC20</span>');
+});
+
+test("AssetTabs marks the selected tab with aria-pressed", () => {
+  const html = m.renderToStaticMarkup(
+    m.createElement(m.AssetTabs, { active: "info", onChange: () => {} }),
+  );
+  expect(html).toMatch(/aria-pressed="false"[^>]*>History</);
+  expect(html).toMatch(/aria-pressed="true"[^>]*>Token info</);
 });

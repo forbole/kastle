@@ -13,6 +13,7 @@ import { keyringCheckPassword } from "@/lib/service/handlers/keyring-check-passw
 import { keyringChangePassword } from "@/lib/service/handlers/keyring-change-password.ts";
 import { kaspaSignTransactionHandler } from "./handlers/kaspa/kaspa-sign-transaction";
 import { kaspaSignInputDigestHandler } from "./handlers/kaspa/kaspa-sign-input-digest";
+import { kaspaSignBraidDepositHandler } from "./handlers/kaspa/kaspa-sign-braid-deposit";
 import { kaspaSignMessageHandler } from "./handlers/kaspa/kaspa-sign-message.ts";
 import { kaspaGetPublicKeysHandler } from "./handlers/kaspa/kaspa-get-public-keys.ts";
 import { ErrorMessage } from "./handlers/message.ts";
@@ -36,6 +37,7 @@ export enum Method {
 
   KASPA_SIGN_TRANSACTION = "KEYRING_KASPA_SIGN_TRANSACTION",
   KASPA_SIGN_INPUT_DIGEST = "KEYRING_KASPA_SIGN_INPUT_DIGEST",
+  KASPA_SIGN_BRAID_DEPOSIT = "KEYRING_KASPA_SIGN_BRAID_DEPOSIT",
   KASPA_SIGN_MESSAGE = "KEYRING_KASPA_SIGN_MESSAGE",
   KASPA_GET_PUBLIC_KEYS = "KEYRING_KASPA_GET_PUBLIC_KEYS",
 
@@ -72,6 +74,7 @@ export class ExtensionService {
 
       [Method.KASPA_SIGN_TRANSACTION]: kaspaSignTransactionHandler,
       [Method.KASPA_SIGN_INPUT_DIGEST]: kaspaSignInputDigestHandler,
+      [Method.KASPA_SIGN_BRAID_DEPOSIT]: kaspaSignBraidDepositHandler,
       [Method.KASPA_SIGN_MESSAGE]: kaspaSignMessageHandler,
       [Method.KASPA_GET_PUBLIC_KEYS]: kaspaGetPublicKeysHandler,
 

@@ -59,34 +59,137 @@ export type KronMarket = {
   // The indexer's route to the token's UTXOs and curve state.
   tick: string;
   entry: TokenListEntry;
+  /** KAS per whole token at the curve's marginal price; undefined when the row lacks reserves. */
+  priceKas?: number;
 };
 
-export async function fetchKronMarkets(): Promise<KronMarket[]> {
-  const [markets, list] = await Promise.all([
-    new client.IndexerClient(KRON_INDEXER_URL).markets({ kind: "curve" }),
+/** A token that has left its curve, as the registry lists it. Metadata only: whether it trades is a venue's call. */
+export type KronGraduate = {
+  covenantId: string;
+  entry: TokenListEntry;
+  /** KAS per whole token in the graduated pool. */
+  priceKas?: number;
+};
+
+/**
+ * The curve markets, still the plain array every "kronMarkets" reader takes,
+ * carrying the registry's graduated tokens from the same download.
+ */
+export type KronMarkets = KronMarket[] & { graduated: KronGraduate[] };
+
+export async function fetchKronMarkets(): Promise<KronMarkets> {
+  const indexer = new client.IndexerClient(KRON_INDEXER_URL);
+  const [markets, pools, list] = await Promise.all([
+    indexer.markets({ kind: "curve" }),
+    indexer.markets({ kind: "pool" }),
     new client.RegistryClient(KRON_REGISTRY_URL).tokenlist(),
   ]);
-  const tickByCovid = new Map(
-    markets
-      .filter((m) => !m.graduated)
-      .map((m) => [covenantSelect.normalizedCovenantId(m.covenantId), m.tick]),
+  const curveByCovid = new Map(
+    mapTolerant(
+      markets.filter((m) => !m.graduated),
+      (m) => [[covenantSelect.normalizedCovenantId(m.covenantId), m] as const],
+    ),
   );
-  return list.tokens.flatMap((entry) => {
+  const poolByCovid = new Map(
+    mapTolerant(pools, (m) => [
+      [covenantSelect.normalizedCovenantId(m.covenantId), m] as const,
+    ]),
+  );
+  const graduatedCovids = new Set(
+    mapTolerant(
+      markets.filter((m) => m.graduated),
+      (m) => [covenantSelect.normalizedCovenantId(m.covenantId)],
+    ),
+  );
+  const graduated: KronGraduate[] = [];
+  const curves = mapTolerant(list.tokens, (entry) => {
     const covenantId = covenantSelect.normalizedCovenantId(entry.covenantId);
+    if (entry.network !== "mainnet" || !covenantId) return [];
+    if (entry.extensions.graduated || graduatedCovids.has(covenantId)) {
+      const pool = poolByCovid.get(covenantId);
+      graduated.push({
+        covenantId,
+        entry,
+        priceKas: pool && kronPoolPriceKas(pool, entry.decimals),
+      });
+      return [];
+    }
     const curveCovenantId = covenantSelect.normalizedCovenantId(
       entry.extensions.curveCovenantId,
     );
-    const tick = covenantId && tickByCovid.get(covenantId);
-    if (
-      entry.network !== "mainnet" ||
-      entry.extensions.graduated ||
-      !entry.extensions.curveParams ||
-      !curveCovenantId ||
-      !tick
-    )
-      return [];
-    return [{ covenantId: covenantId!, curveCovenantId, tick, entry }];
+    const row = curveByCovid.get(covenantId);
+    if (!entry.extensions.curveParams || !curveCovenantId || !row) return [];
+    return [
+      {
+        covenantId,
+        curveCovenantId,
+        tick: row.tick,
+        entry,
+        priceKas: kronCurvePriceKas(
+          row,
+          entry.extensions.curveParams.vKas,
+          entry.decimals,
+        ),
+      },
+    ];
   });
+  return Object.assign(curves, { graduated });
+}
+
+/**
+ * Maps each item, skipping one whose mapping throws: a single malformed
+ * indexer or registry row must not fail the download the swap screen shares.
+ */
+function mapTolerant<T, U>(items: T[], map: (item: T) => U[]): U[] {
+  return items.flatMap((item) => {
+    try {
+      return map(item);
+    } catch {
+      return [];
+    }
+  });
+}
+
+type KronMarketRow = {
+  reserveKas?: string;
+  tokenReserve?: string;
+  price?: number;
+};
+
+/**
+ * KAS per whole token on a live curve, from the row's reserves: the indexer's
+ * own `price` is the same figure only while the token has 0 decimals.
+ */
+export function kronCurvePriceKas(
+  row: KronMarketRow,
+  vKas: number | undefined,
+  decimals: number,
+): number | undefined {
+  if (!row.reserveKas || !row.tokenReserve || vKas === undefined) return;
+  const tokenReserve = BigInt(row.tokenReserve);
+  if (tokenReserve === 0n) return;
+  const sompiPerUnit = curve.cpPrice({
+    realKas: BigInt(row.reserveKas),
+    tokenReserve,
+    vKas: BigInt(vKas),
+    // Fees do not enter the marginal price.
+    graduationKas: 0n,
+    creatorFeeBps: 0n,
+    platformFeeBps: 0n,
+  });
+  return (sompiPerUnit / 1e8) * 10 ** decimals;
+}
+
+/**
+ * KAS per whole token in a graduated pool. A pool row carries no token reserve,
+ * only the indexer's `price`, whose unit is per base unit: trusted at 0 decimals.
+ */
+export function kronPoolPriceKas(
+  row: KronMarketRow,
+  decimals: number,
+): number | undefined {
+  if (decimals !== 0 || !row.price || !Number.isFinite(row.price)) return;
+  return row.price;
 }
 
 /**

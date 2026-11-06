@@ -14,7 +14,12 @@ import { fetchKcc20Tokens, standardSpendPieces } from "@/lib/kcc20";
 import { classifyRedeem } from "@/lib/kcc20/classify";
 import {
   fetchOwnerCells,
+  fetchOwnerMarketTransfers,
+  fetchOwnerTransfers,
   fetchStandardHoldings,
+  fetchStandardHoldingsWithTip,
+  fetchStandardMarketPrice,
+  fetchTokenEvents,
   KascovCell,
 } from "@/lib/kcc20/providers/kascov";
 import { parseArtifact } from "@/lib/kcc20/standard/artifact";
@@ -605,4 +610,172 @@ test("paging: without omitted_over_limit, a full page is assumed cut, a short on
       expect((await fetchOwnerCells(COVID, c.owner)).truncated).toBe(false);
     },
   );
+});
+
+test("holdings with tip: returns the tip kascov read at; a missing tip throws", async () => {
+  await withFetch(
+    {
+      kascov: () => ({
+        token_holdings: [holding(COVID, "STD"), { token_id: "nope" }],
+        tip_daa: 1234,
+        tip_at_ms: 5678,
+      }),
+    },
+    async () => {
+      const { holdings, tip } = await fetchStandardHoldingsWithTip(address);
+      expect(holdings.map((h) => h.tokenId)).toEqual([COVID]);
+      expect(tip).toEqual({ daa: 1234, atMs: 5678 });
+    },
+  );
+  await withFetch(
+    { kascov: () => ({ token_holdings: [holding(COVID, "STD")] }) },
+    async () => {
+      await expect(fetchStandardHoldingsWithTip(address)).rejects.toThrow(
+        "malformed holdings tip",
+      );
+    },
+  );
+});
+
+const OWNER_KEY = "12".repeat(32);
+const transferRow = (seq: number, movements: unknown[]) => ({
+  txid: seq.toString(16).padStart(64, "0"),
+  token_id: COVID,
+  kind: "transfer",
+  seq,
+  tx_index: 0,
+  accepting_daa: 100 + seq,
+  attribution: { status: "confirmed", owner_from: OWNER_KEY, movements },
+  verified_market: { market_id: OTHER_COVID, build: "KRON curve v2" },
+  market_activity: { side: "buy" },
+});
+
+test("owner transfers: parses rows, drops a row with a malformed movement, passes the cursor", async () => {
+  const good = {
+    amount: "7",
+    owner_from: OWNER_KEY,
+    owner_to: `presence:${OWNER_KEY}`,
+  };
+  await withFetch(
+    {
+      kascov: (url) => ({
+        transfers: [
+          transferRow(2, [good]),
+          transferRow(1, [
+            good,
+            { amount: "-1", owner_from: OWNER_KEY, owner_to: OWNER_KEY },
+          ]),
+        ],
+        ...(url.searchParams.has("before_seq")
+          ? {}
+          : {
+              next_before_daa: 50,
+              next_before_seq: 1,
+              next_before_token: COVID,
+            }),
+      }),
+    },
+    async (log) => {
+      const first = await fetchOwnerTransfers(OWNER_KEY, COVID);
+      expect(first.transfers).toHaveLength(1);
+      const [row] = first.transfers;
+      expect(String(row.movements[0].amount)).toBe("7");
+      expect(row.marketId).toBe(OTHER_COVID);
+      expect(row.marketSide).toBe("buy");
+      expect(first.next).toEqual({
+        beforeDaa: 50,
+        beforeSeq: 1,
+        beforeToken: COVID,
+      });
+
+      const second = await fetchOwnerTransfers(OWNER_KEY, COVID, first.next);
+      expect(second.next).toBeUndefined();
+      expect(log.kascov[0]).toContain(`token_id=${COVID}`);
+      expect(log.kascov[1]).toContain(
+        `before_daa=50&before_seq=1&before_token=${COVID}`,
+      );
+
+      // Across tokens: no token filter on the request.
+      await fetchOwnerMarketTransfers(OWNER_KEY);
+      expect(log.kascov[2]).not.toContain("token_id=");
+    },
+  );
+  // kascov answers 400 to a p2pkh filter: refused before any request.
+  await withFetch({ kascov: () => 500 }, async (log) => {
+    await expect(
+      fetchOwnerTransfers(`p2pkh:${OWNER_KEY}`, COVID),
+    ).rejects.toThrow("malformed owner");
+    expect(log.kascov).toHaveLength(0);
+  });
+});
+
+test("owner transfers: a partial cursor is malformed", async () => {
+  await withFetch(
+    { kascov: () => ({ transfers: [], next_before_daa: 5 }) },
+    async () => {
+      await expect(fetchOwnerTransfers(OWNER_KEY, COVID)).rejects.toThrow(
+        "malformed transfers cursor",
+      );
+    },
+  );
+});
+
+test("token events: mints carry no ownerFrom; total and cursor pass through", async () => {
+  await withFetch(
+    {
+      kascov: () => ({
+        events: [
+          {
+            txid: "01".repeat(32),
+            seq: 9,
+            delta_idx: 0,
+            accepting_daa: 10,
+            owner_to: OWNER_KEY,
+            amount_str: "100",
+          },
+          {
+            txid: "02".repeat(32),
+            seq: 8,
+            delta_idx: 1,
+            accepting_daa: 9,
+            owner_from: "bad",
+            owner_to: OWNER_KEY,
+            amount_str: "1",
+          },
+        ],
+        events_total: 2,
+        next_before_seq: 8,
+      }),
+    },
+    async (log) => {
+      const page = await fetchTokenEvents(COVID, 10);
+      expect(page.events).toHaveLength(1);
+      expect(page.events[0].ownerFrom).toBeUndefined();
+      expect(String(page.events[0].amount)).toBe("100");
+      expect(page.eventsTotal).toBe(2);
+      expect(page.nextBeforeSeq).toBe(8);
+      expect(log.kascov[0]).toContain("order=desc&limit=100&before_seq=10");
+    },
+  );
+});
+
+test("market price: spot is sompi per base unit; 404 or a missing spot is no market; other failures throw", async () => {
+  await withFetch(
+    { kascov: () => ({ market: { spot_num_sompi: "25000000", spot_den: 2 } }) },
+    async () => {
+      // 12,500,000 sompi per base unit at 2 decimals = 12.5 KAS per whole token.
+      expect(await fetchStandardMarketPrice(COVID, 2)).toBeCloseTo(12.5);
+    },
+  );
+  await withFetch({ kascov: () => 404 }, async () => {
+    expect(await fetchStandardMarketPrice(COVID, 0)).toBeNull();
+  });
+  await withFetch({ kascov: () => ({ market: { spot_den: 2 } }) }, async () => {
+    expect(await fetchStandardMarketPrice(COVID, 0)).toBeNull();
+  });
+  await withFetch({ kascov: () => 503 }, async () => {
+    await expect(fetchStandardMarketPrice(COVID, 0)).rejects.toThrow(
+      "kascov 503",
+    );
+  });
 });

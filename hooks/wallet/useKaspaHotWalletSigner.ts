@@ -4,6 +4,7 @@ import useKaspaBackgroundSigner from "./useKaspaBackgroundSigner";
 import { Transaction, PublicKey } from "@/wasm/core/kaspa";
 import type { ScriptOption } from "@/lib/wallet/wallet-interface";
 import { hexToBytes } from "@noble/hashes/utils";
+import { BraidSignRefusal, type BraidDeposit } from "@/lib/braid/signer";
 
 export default function useKaspaHotWalletSigner() {
   const { wallet: walletInfo, account } = useWalletManager();
@@ -77,6 +78,29 @@ export default function useKaspaHotWalletSigner() {
     return hexToBytes(signatureHex);
   };
 
+  // The background signs with the account key; only the fields the signer
+  // checks cross over. A refusal there comes back as one here: nothing signed.
+  const signBraidDeposit = async (deposit: BraidDeposit) => {
+    const response = await signer.signBraidDeposit({
+      walletId: walletInfo.id,
+      accountIndex: account.index,
+      isLegacy: isKastleLegacy,
+      deposit: {
+        ref: deposit.ref,
+        network: deposit.network,
+        userPublicKey: deposit.userPublicKey,
+        signInputs: deposit.signInputs,
+        sighashes: deposit.sighashes,
+        walletJson: deposit.walletJson,
+      },
+    });
+    if (!response) {
+      throw new Error("signBraidDeposit: background signer returned nothing");
+    }
+    if ("refusal" in response) throw new BraidSignRefusal(response.refusal);
+    return response.signatures;
+  };
+
   const signMessage = async (message: string) => {
     const walletId = walletInfo.id;
     const accountIndex = account.index;
@@ -95,6 +119,7 @@ export default function useKaspaHotWalletSigner() {
     getPublicKey,
     signTx,
     signInputDigest,
+    signBraidDeposit,
     signMessage,
     getAddress,
   };

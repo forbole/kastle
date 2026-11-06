@@ -1,16 +1,13 @@
 import { BadgeCheck, ExternalLink } from "lucide-react";
-import PageHeader from "@/ui/general/PageHeader";
-import SegmentedControl from "@/ui/general/SegmentedControl";
+// The asset detail chrome is shared with the other asset screens.
+import Header from "@/components/GeneralHeader";
+import AssetSendButton from "@/components/AssetSendButton";
+import AssetTabs from "@/components/AssetTabs";
 import AssetImage from "./AssetImage";
 import NetworkTypeChip from "./NetworkTypeChip";
 import { KCC20_LABELS, NetworkType } from "./labels";
 
 export type TokenDetailTab = "history" | "assetInfo";
-
-const TABS = [
-  { label: KCC20_LABELS.historyTab, value: "history" as const },
-  { label: KCC20_LABELS.assetInfoTab, value: "assetInfo" as const },
-];
 
 export interface TokenDetailPageProps {
   name: string;
@@ -38,8 +35,12 @@ export interface TokenDetailPageProps {
   minter?: string;
   activeTab: TokenDetailTab;
   onTabChange: (tab: TokenDetailTab) => void;
-  /** History tab: Figma's designed state is a single link out to the explorer. */
+  /** History tab body; rendered inside the scroll body, so it must not take its own height. */
+  history?: React.ReactNode;
+  /** History tab fallback when no `history` is passed: a single link out to the explorer. */
   onOpenExplorer?: () => void;
+  /** Shows the pinned "Send {name}" action; omit it when the token cannot be sent. */
+  onSend?: () => void;
   onBack?: () => void;
   onClose?: () => void;
 }
@@ -82,7 +83,9 @@ export default function TokenDetailPage({
   minter,
   activeTab,
   onTabChange,
+  history,
   onOpenExplorer,
+  onSend,
   onBack,
   onClose,
 }: TokenDetailPageProps) {
@@ -107,47 +110,45 @@ export default function TokenDetailPage({
   );
 
   return (
-    <div className="flex h-full flex-col bg-icy-blue-950 font-sans text-white">
-      <PageHeader
-        title={name}
-        onBack={onBack}
-        showClose={!!onClose}
-        onClose={onClose}
-      />
+    <div className="flex h-full flex-col bg-icy-blue-950 px-4 pb-4 pt-6 font-sans text-white">
+      <Header variant="asset" title={name} onBack={onBack} onClose={onClose} />
 
-      <div className="thin-scrollbar flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-4 pb-6">
+      <div className="no-scrollbar flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
         <div className="pb-2">
-          <SegmentedControl
-            options={TABS}
-            value={activeTab}
-            onChange={onTabChange}
+          <AssetTabs
+            active={activeTab === "assetInfo" ? "info" : "history"}
+            onChange={(tab) =>
+              onTabChange(tab === "info" ? "assetInfo" : "history")
+            }
           />
         </div>
 
-        {/* Header card: the Home asset row plus the chip */}
-        <div className="flex items-center gap-3 rounded-2xl border border-card-border bg-white/5 px-3 py-3">
-          {tokenImage}
-          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-            <div className="flex items-center gap-1.5">
-              <span className="truncate text-base font-semibold leading-4">
-                {name}
-              </span>
-              {showVerified && (
-                <BadgeCheck
-                  aria-label={KCC20_LABELS.verified}
-                  className="size-4 shrink-0 text-verified"
-                  strokeWidth={2}
-                />
+        {/* Header card: the Home asset row plus the chip, Token info only */}
+        {activeTab === "assetInfo" && (
+          <div className="flex items-center gap-3 rounded-2xl border border-card-border bg-white/5 px-3 py-3">
+            {tokenImage}
+            <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+              <div className="flex items-center gap-1.5">
+                <span className="truncate text-base font-semibold leading-4">
+                  {name}
+                </span>
+                {showVerified && (
+                  <BadgeCheck
+                    aria-label={KCC20_LABELS.verified}
+                    className="size-4 shrink-0 text-verified"
+                    strokeWidth={2}
+                  />
+                )}
+              </div>
+              {priceLabel && (
+                <span className="truncate text-sm leading-[21px] text-daintree-300">
+                  {priceLabel}
+                </span>
               )}
             </div>
-            {priceLabel && (
-              <span className="truncate text-sm leading-[21px] text-daintree-300">
-                {priceLabel}
-              </span>
-            )}
+            <NetworkTypeChip network={network} />
           </div>
-          <NetworkTypeChip network={network} />
-        </div>
+        )}
 
         {activeTab === "assetInfo" ? (
           <section className="flex flex-col">
@@ -215,6 +216,8 @@ export default function TokenDetailPage({
               )}
             </div>
           </section>
+        ) : history !== undefined ? (
+          history
         ) : (
           <button
             type="button"
@@ -230,6 +233,8 @@ export default function TokenDetailPage({
           </button>
         )}
       </div>
+
+      {onSend && <AssetSendButton ticker={name} onClick={onSend} />}
     </div>
   );
 }

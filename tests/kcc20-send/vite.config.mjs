@@ -25,6 +25,10 @@ const hooks = {
   "hooks/useAnalytics": "useAnalytics",
   "hooks/kasplex/useKrc20Logo": "useKrc20Logo",
   "lib/kcc20/useKcc20Tokens": "useKcc20Tokens",
+  "lib/kcc20/useKcc20Price": "useKcc20Price",
+  "hooks/evm/useErc20Assets": "useErc20Assets",
+  "hooks/evm/useEvmKasBalance": "useEvmKasBalance",
+  "hooks/evm/useErc20Balance": "useErc20Balance",
 };
 // Modules whose named exports all come from the stubs.
 const whole = [
@@ -35,6 +39,8 @@ const whole = [
   "hooks/kasplex/useTokenInfo",
   "hooks/kasplex/useKrc20Prices",
   "hooks/kasplex/useTokenBalance",
+  "hooks/kasplex/useTokenListByAddress",
+  "hooks/evm/useZealousSwapMetadata",
   "hooks/kns/useKns",
   "lib/kcc20",
   "lib/kcc20/transfer",

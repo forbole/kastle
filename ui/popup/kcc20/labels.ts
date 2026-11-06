@@ -37,9 +37,7 @@ export const KCC20_FAMILY_LABELS: Record<Kcc20Family, string> = {
 
 export const KCC20_LABELS = {
   // Token detail
-  historyTab: "History",
   viewInExplorer: "See activity history in explorer",
-  assetInfoTab: "Asset Info",
   tokenInfo: "Token Info",
   network: "Network",
   covenantId: "Covenant ID",
@@ -56,6 +54,7 @@ export const KCC20_LABELS = {
   verified: "Verified",
   unverified: "Unverified",
   claimedMetadata: "claimed metadata",
+  loadFailed: "Token details could not be loaded",
 
   // Send: select token
   selectToken: "Select token",

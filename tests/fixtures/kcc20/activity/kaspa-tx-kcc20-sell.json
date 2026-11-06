@@ -1,0 +1,86 @@
+{
+ "transaction_id": "d67e697060f359a698632e018176773e5c6d23c5f84a83f2490a19688c10c916",
+ "is_accepted": true,
+ "accepting_block_blue_score": 505766500,
+ "inputs": [
+  {
+   "previous_outpoint_hash": "7242fc6f65707460ce0b6f2a9b7462011c5da35ce8efe50a9a3a25d29dc69db7",
+   "previous_outpoint_index": "0",
+   "previous_outpoint_address": "kaspa:pzuwy3rd70ks8x9c52fu22t286jkgkrjarq7ghsr3z999502l5nfkpja8y90j",
+   "previous_outpoint_amount": 14563000000,
+   "covenant_id": "7b97bbf47f5ff4d7d35d6166b3079757cc185a810aef42fa01e736a6291d32ff"
+  },
+  {
+   "previous_outpoint_hash": "7242fc6f65707460ce0b6f2a9b7462011c5da35ce8efe50a9a3a25d29dc69db7",
+   "previous_outpoint_index": "1",
+   "previous_outpoint_address": "kaspa:pz8awqate0vh78k6z4rq60edprk529ls489qg5anckdajudnu8yawr5fyqul2",
+   "previous_outpoint_amount": 50000000,
+   "covenant_id": "28c8fbf492c8dcb3a909ea2db19e9b2609a23b17858b03a49a82180b077f23bd"
+  },
+  {
+   "previous_outpoint_hash": "7242fc6f65707460ce0b6f2a9b7462011c5da35ce8efe50a9a3a25d29dc69db7",
+   "previous_outpoint_index": "5",
+   "previous_outpoint_address": "kaspa:pqrqg075aqhfe3t3gn4r4xrnm3e76qptgmyj864s04w489fcz446sfxd6zsl4",
+   "previous_outpoint_amount": 50000000,
+   "covenant_id": "28c8fbf492c8dcb3a909ea2db19e9b2609a23b17858b03a49a82180b077f23bd"
+  },
+  {
+   "previous_outpoint_hash": "f5ab8bdd2c59dc22a90548636ddf89dc07faf84cfa6e5cb8f81123dec2c9ad5a",
+   "previous_outpoint_index": "2",
+   "previous_outpoint_address": "kaspa:ppu89nn02r8yzap6y00f06r9tpa4cw27vw7hvm9a6l834kehndu4um77f82tr",
+   "previous_outpoint_amount": 50000000,
+   "covenant_id": "28c8fbf492c8dcb3a909ea2db19e9b2609a23b17858b03a49a82180b077f23bd"
+  },
+  {
+   "previous_outpoint_hash": "7242fc6f65707460ce0b6f2a9b7462011c5da35ce8efe50a9a3a25d29dc69db7",
+   "previous_outpoint_index": "6",
+   "previous_outpoint_address": "kaspa:qqnd4ppeky4jjs8z8qpln6u5j9hamdukctp0j3wafl5t9lfythtxjzexg722d",
+   "previous_outpoint_amount": 93301360039,
+   "covenant_id": null
+  }
+ ],
+ "outputs": [
+  {
+   "index": 0,
+   "amount": 154000000,
+   "script_public_key_address": "kaspa:pqmrr6mk80n06s47vzfa2sn5fpyf5h09dwphjaxd6cckrw6c9v2nuw5w704yp",
+   "script_public_key_type": "scripthash",
+   "covenant_id": "7b97bbf47f5ff4d7d35d6166b3079757cc185a810aef42fa01e736a6291d32ff"
+  },
+  {
+   "index": 1,
+   "amount": 50000000,
+   "script_public_key_address": "kaspa:prwt8nrptc7nyhmnz9y229wascfn9wxzs97hwluv27nen603jn9rwwv2w7zy6",
+   "script_public_key_type": "scripthash",
+   "covenant_id": "28c8fbf492c8dcb3a909ea2db19e9b2609a23b17858b03a49a82180b077f23bd"
+  },
+  {
+   "index": 2,
+   "amount": 36022500,
+   "script_public_key_address": "kaspa:qqnd4ppeky4jjs8z8qpln6u5j9hamdukctp0j3wafl5t9lfythtxjzexg722d",
+   "script_public_key_type": "pubkey",
+   "covenant_id": null
+  },
+  {
+   "index": 3,
+   "amount": 129681000,
+   "script_public_key_address": "kaspa:qqrqqdwseyk3yw5084es9xkrz0vcnj8qrv58ey8l8r4ahwftqpndu996yu2dd",
+   "script_public_key_type": "pubkey",
+   "covenant_id": null
+  },
+  {
+   "index": 4,
+   "amount": 20000000,
+   "script_public_key_address": "kaspa:qqrqqdwseyk3yw5084es9xkrz0vcnj8qrv58ey8l8r4ahwftqpndu996yu2dd",
+   "script_public_key_type": "pubkey",
+   "covenant_id": null
+  },
+  {
+   "index": 5,
+   "amount": 107578069659,
+   "script_public_key_address": "kaspa:qqnd4ppeky4jjs8z8qpln6u5j9hamdukctp0j3wafl5t9lfythtxjzexg722d",
+   "script_public_key_type": "pubkey",
+   "covenant_id": null
+  }
+ ]
+}

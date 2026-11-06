@@ -27,6 +27,7 @@
     "e2e:ui": "playwright test --ui"
   },
   "dependencies": {
+    "@braid_swap/sdk": "0.1.1",
     "@dotk/sdk": "^2.1.0",
     "@dotk/sdk-tx": "^2.1.0",
     "@fontsource/figtree": "^5.1.2",

@@ -20,6 +20,10 @@ import { Kcc20Token } from "@/lib/kcc20";
 import { useFeatureFlags } from "@/hooks/useFeatureFlags.ts";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { KCC20_FAMILY_LABELS, KCC20_LABELS } from "@/ui/popup/kcc20/labels";
+import { useKcc20Price } from "@/lib/kcc20/useKcc20Price";
+
+// A token no market prices reads as unknown, never as worth zero.
+const NO_PRICE = "—";
 
 type TokenListItemProps = {
   token: TokenItem;
@@ -91,26 +95,33 @@ export function Kcc20TokenListItem({ token }: { token: Kcc20Token }) {
   const { isKcc20Enabled } = useFeatureFlags();
   const { meta } = token;
   const { wallet } = useWalletManager();
-  // Only a token whose pieces are owned and verified is sendable, and never from a Ledger wallet.
-  const canSend =
-    isKcc20Enabled &&
-    !!meta &&
-    wallet?.type !== "ledger" &&
-    token.spendable > 0n;
+  // Same guard as the kcc20 routes; the detail page decides whether Send shows.
+  const canOpen = isKcc20Enabled && wallet?.type !== "ledger";
   const familyLabel = KCC20_FAMILY_LABELS[token.family];
   // Without verified decimals, show base units rather than guess a scale.
   const balance = meta
     ? formatUnits(token.amount, meta.decimals)
     : token.amount.toString();
+  const showBalance = !settings?.hideBalances;
+  const { priceUsd } = useKcc20Price(token);
+  // No verified decimals, no whole-token balance to value.
+  const valueUsd =
+    priceUsd === undefined || !meta
+      ? undefined
+      : Number(formatUnits(token.amount, meta.decimals)) * priceUsd;
+  const { amount: fiatPrice, code: currencyCode } = useCurrencyValue(
+    priceUsd ?? 0,
+  );
+  const { amount: fiatValue } = useCurrencyValue(valueUsd ?? 0);
 
   return (
     <button
       type="button"
-      className={`flex w-full items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3 text-left ${canSend ? "cursor-pointer" : "cursor-default"}`}
-      disabled={!canSend}
+      className={`flex w-full items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3 text-left hover:border-white ${canOpen ? "cursor-pointer" : "cursor-default"}`}
+      disabled={!canOpen}
       onClick={() =>
         navigate(
-          `/kcc20/send/${token.covenantId}${
+          `/kcc20/${token.covenantId}${
             token.extensionCommitment ? `?ext=${token.extensionCommitment}` : ""
           }`,
         )
@@ -128,9 +139,9 @@ export function Kcc20TokenListItem({ token }: { token: Kcc20Token }) {
             </span>
           </span>
           <span className="break-all text-right">
-            {settings?.hideBalances ? "*****" : balance}
+            {showBalance ? balance : "*****"}
             {/* kascov held cells back: the balance may be short. */}
-            {!settings?.hideBalances && token.truncated && "+"}
+            {showBalance && token.truncated && "+"}
           </span>
         </div>
         <div className="flex items-center gap-2 text-sm text-daintree-400">
@@ -140,6 +151,21 @@ export function Kcc20TokenListItem({ token }: { token: Kcc20Token }) {
               {KCC20_LABELS.claimedMetadata}
             </span>
           )}
+        </div>
+        <div className="flex items-center justify-between text-sm text-daintree-400">
+          <span>
+            {priceUsd === undefined
+              ? NO_PRICE
+              : formatTokenPrice(fiatPrice, currencyCode)}
+          </span>
+          <span>
+            ≈{" "}
+            {!showBalance
+              ? `${symbolForCurrencyCode(currencyCode)}*****`
+              : valueUsd === undefined
+                ? NO_PRICE
+                : formatCurrency(fiatValue, currencyCode)}
+          </span>
         </div>
       </div>
     </button>

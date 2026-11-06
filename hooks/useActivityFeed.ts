@@ -1,12 +1,14 @@
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 import useEvmAddress from "@/hooks/evm/useEvmAddress";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { assembleActivityFeed } from "@/lib/activity/feed";
 import {
   fetchAllSwapHistory,
+  mergeKcc20SwapHistory,
   SwapHistoryDegradation,
 } from "@/lib/activity/swap-history";
+import { useKcc20SwapHistory } from "@/hooks/useKcc20SwapHistory";
 import {
   BRIDGE_TRANSFER_ACTIVITY_TYPE,
   IGRA_DEPOSIT_ACTIVITY_TYPE,
@@ -55,6 +57,9 @@ export function useActivityFeed(enabled: boolean) {
   // Spinner for the manual refresh only — NOT isValidating, which also goes
   // true on every 10 s background poll.
   const [isRefreshing, setIsRefreshing] = useState(false);
+  // KCC-20 swaps (Kaspa L1, kascov) arrive on their own SWR entry and are
+  // merged below, so kascov loading or failing never holds back these rows.
+  const kcc20 = useKcc20SwapHistory(kaspaAddress, enabled);
 
   const { data, error, isLoading, mutate } = useSWR(
     enabled ? ["activity-feed", sender, kaspaAddress] : null,
@@ -130,15 +135,12 @@ export function useActivityFeed(enabled: boolean) {
           type: KURVE_BRIDGE_ACTIVITY_TYPE,
           data,
         })),
-        ...swapHistory.swaps.map((data) => ({
-          type: SWAP_ACTIVITY_TYPE,
-          data,
-        })),
       ];
 
       return {
-        rows: assembleActivityFeed(items),
-        swapSource: swapHistory.degraded,
+        // Swap rows join outside the fetcher, with the KCC-20 family.
+        items,
+        swapHistory,
         bridgeSource: katHistory.degraded,
         // Unreadable L1 and a scan stopped at its horizon are different
         // states; one token would misreport one as the other.
@@ -155,10 +157,25 @@ export function useActivityFeed(enabled: boolean) {
     { refreshInterval: 10_000, dedupingInterval: 5_000 },
   );
 
+  const merged = useMemo(() => {
+    if (!data) return null;
+    const swaps = mergeKcc20SwapHistory(data.swapHistory, kcc20.family);
+    return {
+      rows: assembleActivityFeed([
+        ...data.items,
+        ...swaps.swaps.map((swap) => ({
+          type: SWAP_ACTIVITY_TYPE,
+          data: swap,
+        })),
+      ]),
+      swapSource: swaps.degraded,
+    };
+  }, [data, kcc20.family]);
+
   return {
-    rows: data?.rows ?? null,
+    rows: merged?.rows ?? null,
     /** Degradation tokens — a gap the user must be told about, never hidden. */
-    swapSource: (data?.swapSource?.length ? data.swapSource : null) as
+    swapSource: (merged?.swapSource?.length ? merged.swapSource : null) as
       | SwapHistoryDegradation
       | SwapHistoryDegradation[]
       | null,
@@ -175,7 +192,7 @@ export function useActivityFeed(enabled: boolean) {
       setIsRefreshing(true);
       // Bound to THIS revalidation, so a background poll settling mid-refresh
       // can't clear the spinner early; catch() because mutate() rethrows.
-      return mutate()
+      return Promise.all([mutate(), kcc20.refresh()])
         .catch(() => undefined)
         .finally(() => setIsRefreshing(false));
     },
