@@ -81,7 +81,15 @@ import { useFeatureFlags } from "@/hooks/useFeatureFlags.ts";
 import useKaspaBalance from "@/hooks/wallet/useKaspaBalance";
 import useKaspaHotWalletSigner from "@/hooks/wallet/useKaspaHotWalletSigner";
 import useKcc20Tokens from "@/lib/kcc20/useKcc20Tokens";
-import { decimalsError } from "@/lib/kcc20";
+import { useKcc20Price } from "@/lib/kcc20/useKcc20Price";
+import { decimalsError, Kcc20Family } from "@/lib/kcc20";
+import { useBraidListing, useBraidRoutable } from "@/hooks/swap/braidListing";
+import {
+  L1Leg,
+  L1_PROVIDERS,
+  kronListing,
+  useL1Provider,
+} from "@/hooks/swap/l1Providers";
 import { restApis } from "@/components/screens/Settings";
 import {
   assertKronVerified,
@@ -121,8 +129,23 @@ const SWAP_PROXY_ABI = [
   },
 ] as const;
 
-/** `rawBalance` is the numeric balance (formatted `balance` is for display). */
-type SwapToken = SheetToken & { decimals: number; rawBalance?: number };
+/**
+ * `rawBalance` is the numeric balance (formatted `balance` is for display).
+ * `family` is set on a KCC-20 row: the pieces its balance counts.
+ */
+type SwapToken = SheetToken & {
+  decimals: number;
+  rawBalance?: number;
+  family?: Kcc20Family;
+};
+
+/** A Kaspa L1 row as the provider list reads it; undefined off L1. */
+const toL1Leg = (t?: SwapToken): L1Leg | undefined =>
+  t?.chain !== "kaspa"
+    ? undefined
+    : t.address
+      ? { type: "KCC20", covenantId: t.address }
+      : { type: "KAS" };
 type ProviderQuote = {
   provider: SwapProvider;
   feeBps?: bigint;
@@ -184,6 +207,14 @@ export default function Swap() {
   );
   const { data: kcc20Tokens } = useKcc20Tokens(
     kronEnabled ? account?.address : undefined,
+  );
+  // Braid routes the tokens that left their curve; one SWR entry feeds both.
+  const braidNetwork = kronEnabled ? networkId : undefined;
+  const braidListing = useBraidListing(braidNetwork);
+  const braidRoutable = useBraidRoutable(braidNetwork);
+  const l1Listings = useMemo(
+    () => ({ kron: kronListing(kronMarkets), braid: braidRoutable }),
+    [kronMarkets, braidRoutable],
   );
 
   const [chainKey, setChainKey] = useState<ChainKey>("igra");
@@ -338,6 +369,50 @@ export default function Swap() {
           chainImage: kaspaIcon,
           balance: raw === undefined ? undefined : formatAmount(raw, 8),
           rawBalance: raw,
+          family: "kron-legacy",
+        });
+      }
+      // Braid decides whether a graduated token trades; the registry, what
+      // it is called. A curve row for the same covenant wins.
+      const listed = new Set(kronMarkets?.map((m) => m.covenantId));
+      const graduates = new Map(
+        kronMarkets?.graduated.map((g) => [g.covenantId, g.entry] as const),
+      );
+      for (const b of braidListing ?? []) {
+        if (listed.has(b.covenantId)) continue;
+        listed.add(b.covenantId);
+        const grad =
+          b.family === "kron-legacy" ? graduates.get(b.covenantId) : undefined;
+        const held = kcc20Tokens?.filter(
+          (t) => t.covenantId === b.covenantId && t.family === b.family,
+        );
+        // Braid's built-in KRON pools carry no decimals: only a held row of
+        // the same family supplies them. With neither, the row is left out.
+        const decimals =
+          grad?.decimals ??
+          b.decimals ??
+          held?.find((t) => t.meta)?.meta?.decimals;
+        if (decimals == null) continue;
+        const raw =
+          held && held.length > 0
+            ? Number(
+                formatUnits(
+                  held.reduce((s, t) => s + t.spendable, 0n),
+                  decimals,
+                ),
+              )
+            : undefined;
+        list.push({
+          key: `kaspa:${b.covenantId}`,
+          chain: "kaspa",
+          symbol: grad?.symbol ?? b.symbol,
+          address: b.covenantId,
+          decimals,
+          image: grad?.logoURI ?? b.logo,
+          chainImage: kaspaIcon,
+          balance: raw === undefined ? undefined : formatAmount(raw, 8),
+          rawBalance: raw,
+          family: b.family,
         });
       }
     }
@@ -350,6 +425,7 @@ export default function Swap() {
     erc20Balances,
     kronEnabled,
     kronMarkets,
+    braidListing,
     kcc20Tokens,
     kasBalance,
   ]);
@@ -362,6 +438,18 @@ export default function Swap() {
   );
   const tokenIn = tokens.find((t) => t.key === tokenInKey);
   const tokenOut = tokens.find((t) => t.key === tokenOutKey);
+  // The L1 provider: KRON for a curve token, Braid for one only it lists.
+  const l1In = toL1Leg(tokenIn);
+  const l1Out = toL1Leg(tokenOut);
+  const [l1ProviderId, setL1ProviderId] = useL1Provider(
+    l1In,
+    l1Out,
+    networkId,
+    l1Listings,
+  );
+  const l1Supporting = L1_PROVIDERS.filter((p) =>
+    p.supports(l1In, l1Out, networkId, l1Listings),
+  );
   const [amount, setAmount] = useState("");
   const [slippage, setSlippage] = useState(SLIPPAGES[0]);
   const [customSlippageInput, setCustomSlippageInput] = useState("");
@@ -495,12 +583,15 @@ export default function Swap() {
     best ??
     supported[0];
 
+  // A Braid pair never reads KRON's quote: the row names the venue it shows.
+  const isBraid = isKron && l1ProviderId === "braid";
   // KRON: KAS -> token is a curve buy, token -> KAS a sell; token <-> token has no route.
-  const kronMarket = isKron
-    ? kronMarkets?.find(
-        (m) => m.covenantId === (isNativeIn ? tokenOut : tokenIn)?.address,
-      )
-    : undefined;
+  const kronMarket =
+    isKron && !isBraid
+      ? kronMarkets?.find(
+          (m) => m.covenantId === (isNativeIn ? tokenOut : tokenIn)?.address,
+        )
+      : undefined;
   const kronSide = isNativeIn ? "buy" : "sell";
   const kronPair = !!kronMarket && isNativeIn !== isNativeOut;
   // Built with no minOut only to quote and size the network fee; confirm
@@ -555,8 +646,28 @@ export default function Swap() {
     chainHex,
     isKron ? undefined : (tokenOut?.address as Address | undefined),
   );
-  const priceIn = isNativeIn ? kaspaPrice : erc20PriceIn;
-  const priceOut = isNativeOut ? kaspaPrice : erc20PriceOut;
+  // A Braid pair's KCC-20 leg is priced as its dashboard row is. With no
+  // such leg the standard family without meta fetches nothing.
+  const braidLeg = isBraid ? (isNativeIn ? tokenOut : tokenIn) : undefined;
+  const { priceUsd: braidLegPrice } = useKcc20Price({
+    covenantId: braidLeg?.address ?? "",
+    family: braidLeg?.family ?? "kcc20-standard",
+    meta: braidLeg && {
+      symbol: braidLeg.symbol,
+      name: braidLeg.symbol,
+      decimals: braidLeg.decimals,
+    },
+  });
+  const priceIn = isNativeIn
+    ? kaspaPrice
+    : isBraid
+      ? (braidLegPrice ?? 0)
+      : erc20PriceIn;
+  const priceOut = isNativeOut
+    ? kaspaPrice
+    : isBraid
+      ? (braidLegPrice ?? 0)
+      : erc20PriceOut;
 
   const amountNum = Number(amount) || 0;
   // What the user receives, before slippage.
@@ -602,10 +713,11 @@ export default function Swap() {
           : 0,
       }
     : evmFee;
-  // Sell balance: legacy pieces only, summed across rows (one per commitment).
+  // Sell balance: the row's own family only (a curve row: legacy pieces),
+  // summed across rows (one per commitment).
   const kronHeld = kcc20Tokens
     ?.filter(
-      (t) => t.covenantId === tokenIn?.address && t.family === "kron-legacy",
+      (t) => t.covenantId === tokenIn?.address && t.family === tokenIn?.family,
     )
     .reduce((s, t) => s + t.spendable, 0n);
   const kronBalanceIn = isNativeIn
@@ -630,6 +742,8 @@ export default function Swap() {
     if (rawIn === 0n || !tokenOut) return undefined;
     if (samePair) return "Unsupported token pair";
     if (isKron) {
+      // A Braid pair is never judged by KRON's market.
+      if (isBraid) return undefined;
       if (!kronPair) return "Unsupported token pair";
       // A buy spends the curve fee and network fee on top of the amount in.
       const kronSpend = isNativeIn
@@ -951,8 +1065,17 @@ export default function Swap() {
               {isWrapPair ? (
                 <QuoteRow label="Type">{isWrap ? "Wrap" : "Unwrap"}</QuoteRow>
               ) : isKron ? (
-                <QuoteRow label="Provider" tooltip={TOOLTIPS.provider}>
-                  KRON
+                <QuoteRow
+                  label="Provider"
+                  tooltip={TOOLTIPS.provider}
+                  // A choice only where more than one provider routes the pair.
+                  onClick={
+                    l1Supporting.length > 1
+                      ? () => setSheet("provider")
+                      : undefined
+                  }
+                >
+                  {L1_PROVIDERS.find((p) => p.id === l1ProviderId)?.name}
                 </QuoteRow>
               ) : (
                 <QuoteRow
@@ -1105,7 +1228,31 @@ export default function Swap() {
         onClose={() => setSheet(undefined)}
         tall
       >
-        {(quotes ?? []).map((q) => {
+        {isKron &&
+          L1_PROVIDERS.map((p) => {
+            const supports = l1Supporting.includes(p);
+            const current = p.id === l1ProviderId;
+            return (
+              <ProviderRow
+                key={p.id}
+                name={p.name}
+                subtitle={
+                  !supports
+                    ? "Unsupported Pair"
+                    : current && outNum !== undefined && amountNum > 0
+                      ? `1 ${tokenIn?.symbol} ≈ ${formatAmount(outNum / amountNum)} ${tokenOut?.symbol}`
+                      : "-"
+                }
+                selected={current}
+                disabled={!supports}
+                onClick={() => {
+                  setL1ProviderId(p.id);
+                  setSheet(undefined);
+                }}
+              />
+            );
+          })}
+        {(isKron ? [] : (quotes ?? [])).map((q) => {
           const rate =
             q.netAmountOut !== undefined && tokenOut && amountNum > 0
               ? Number(formatUnits(q.netAmountOut, tokenOut.decimals)) /
