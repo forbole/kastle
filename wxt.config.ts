@@ -43,6 +43,9 @@ export default defineConfig({
       // Kasseal's API CORS is locked to Kasseal origins (lib/kasseal).
       "https://app.kasseal.com/*",
       "https://testnet.kasseal.com/*",
+      // The Braid router API is called from the extension page / service
+      // worker and its CORS is locked to declared origins, as with KRON above.
+      "https://app.braidswap.com/*",
     ],
     content_security_policy: {
       extension_pages:
