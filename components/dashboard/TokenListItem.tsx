@@ -22,12 +22,44 @@ import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { formatKcc20Amount, KCC20_LABELS } from "@/ui/popup/kcc20/labels";
 import { useKcc20Price } from "@/lib/kcc20/useKcc20Price";
 import TokenRow from "@/ui/popup/dashboard/TokenRow";
+import Switch from "@/ui/general/Switch";
+
+/** Manage mode: the row stops navigating and carries a shown/hidden switch. */
+export type ManageRow = {
+  shown: boolean;
+  onToggle: (shown: boolean) => void;
+};
+
+const ROW =
+  "flex w-full items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3 text-left hover:border-white";
+
+function ManagedRow({
+  manage,
+  label,
+  children,
+}: {
+  manage: ManageRow;
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={ROW} data-testid="manage-row">
+      {children}
+      <Switch
+        checked={manage.shown}
+        onChange={manage.onToggle}
+        label={`Show ${label}`}
+      />
+    </div>
+  );
+}
 
 type TokenListItemProps = {
   token: TokenItem;
+  manage?: ManageRow;
 };
 
-export default function TokenListItem({ token }: TokenListItemProps) {
+export default function TokenListItem({ token, manage }: TokenListItemProps) {
   const navigate = useNavigate();
   const [settings] = useSettings();
   const [imageUrl, setImageUrl] = useState(kasIcon);
@@ -58,11 +90,8 @@ export default function TokenListItem({ token }: TokenListItemProps) {
   const tokenName =
     tokenInfo?.mod === "mint" ? tokenInfo?.tick : tokenInfo?.name;
 
-  return (
-    <div
-      className="flex cursor-pointer items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3 hover:border-white"
-      onClick={() => navigate(`/token-asset/${token.id}`)}
-    >
+  const body = (
+    <>
       <Layer2AssetImage tokenImage={imageUrl} chainImage={kasIcon} />
       <div className="flex flex-grow flex-col gap-1">
         <div className="flex items-start justify-between text-base text-white">
@@ -83,6 +112,22 @@ export default function TokenListItem({ token }: TokenListItemProps) {
           </span>
         </div>
       </div>
+    </>
+  );
+
+  if (manage)
+    return (
+      <ManagedRow manage={manage} label={tokenName || token.id}>
+        {body}
+      </ManagedRow>
+    );
+
+  return (
+    <div
+      className={`${ROW} cursor-pointer`}
+      onClick={() => navigate(`/token-asset/${token.id}`)}
+    >
+      {body}
     </div>
   );
 }
@@ -104,7 +149,13 @@ function compactKcc20Amount(amount: bigint, decimals?: number) {
   return short;
 }
 
-export function Kcc20TokenListItem({ token }: { token: Kcc20Token }) {
+export function Kcc20TokenListItem({
+  token,
+  manage,
+}: {
+  token: Kcc20Token;
+  manage?: ManageRow;
+}) {
   const navigate = useNavigate();
   const [settings] = useSettings();
   const { isKcc20Enabled } = useFeatureFlags();
@@ -145,10 +196,40 @@ export function Kcc20TokenListItem({ token }: { token: Kcc20Token }) {
             : `${symbolForCurrencyCode(currencyCode)}*****`
         }`;
 
+  const ticker =
+    // A nameless token falls back to its short id.
+    (meta?.symbol ?? token.tick) || (
+      <span className="font-mono">{textEllipsis(token.covenantId)}</span>
+    );
+  const row = (
+    <TokenRow
+      logo={meta?.logoURI}
+      ticker={ticker}
+      price={
+        priceUsd === undefined
+          ? undefined
+          : formatTokenPrice(fiatPrice, currencyCode)
+      }
+      balance={balance}
+      compactBalance={compactBalance}
+      fiat={fiat}
+    />
+  );
+
+  if (manage)
+    return (
+      <ManagedRow
+        manage={manage}
+        label={(meta?.symbol ?? token.tick) || textEllipsis(token.covenantId)}
+      >
+        {row}
+      </ManagedRow>
+    );
+
   return (
     <button
       type="button"
-      className={`flex w-full items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3 text-left hover:border-white ${canOpen ? "cursor-pointer" : "cursor-default"}`}
+      className={`${ROW} ${canOpen ? "cursor-pointer" : "cursor-default"}`}
       disabled={!canOpen}
       onClick={() =>
         navigate(
@@ -158,23 +239,7 @@ export function Kcc20TokenListItem({ token }: { token: Kcc20Token }) {
         )
       }
     >
-      <TokenRow
-        logo={meta?.logoURI}
-        ticker={
-          // A nameless token falls back to its short id.
-          (meta?.symbol ?? token.tick) || (
-            <span className="font-mono">{textEllipsis(token.covenantId)}</span>
-          )
-        }
-        price={
-          priceUsd === undefined
-            ? undefined
-            : formatTokenPrice(fiatPrice, currencyCode)
-        }
-        balance={balance}
-        compactBalance={compactBalance}
-        fiat={fiat}
-      />
+      {row}
     </button>
   );
 }
