@@ -1,5 +1,8 @@
 import { formatUnits } from "viem";
+import type { Tx } from "@dotk/sdk-tx";
 import type { SwapActivityRecord } from "@/lib/activity/mappers";
+import { braidWalletJsonToTx } from "@/lib/braid/adapter";
+import type { BraidSettleState, PendingBraidSwap } from "@/lib/braid/pending";
 import { KAT_L1_CHAIN_ID } from "@/lib/bridge/kat-bridge-history";
 import { fetchKaspaTx } from "@/lib/bridge/kat-observed-fees";
 import { DaaTip, toHistoryEntries } from "@/lib/kcc20/history";
@@ -520,6 +523,166 @@ export function applyKcc20SwapMoney(
       };
     } catch {
       return s;
+    }
+  });
+}
+
+// ─── Braid: the wallet's own deposit ─────────────────────────────────────────
+
+// A plain address's script: P2PK, Schnorr (x-only key) or ECDSA (compressed).
+const P2PK_SCRIPT = /^(20[0-9a-f]{64}ac|21[0-9a-f]{66}ab)$/;
+
+/** The Schnorr P2PK script of an x-only key: the wallet's plain address. */
+export const braidWalletScript = (xOnlyPk: string) =>
+  `20${xOnlyPk.toLowerCase()}ac`;
+
+/** Sompi, read from the deposit transaction the wallet signed. */
+export interface BraidDepositMoney {
+  /** inputs − outputs. Goes in feeAmount. */
+  networkFeeSompi: bigint;
+  /** Outputs to plain addresses other than the wallet. Goes in kastleFeeAmount. */
+  venueFeeSompi: bigint;
+}
+
+/**
+ * Both fees of a Braid deposit, from its own transaction. The deposit goes
+ * to Braid's router script and token notes carry a covenant: neither is a
+ * plain address, so neither is a fee. Null when a plain input is not the
+ * wallet's (its outputs may then be that party's change) or the outputs
+ * exceed the inputs: no guess.
+ */
+export function deriveBraidDepositMoney(
+  tx: Tx,
+  walletScript: string,
+): BraidDepositMoney | null {
+  if (!tx.inputs.length || !tx.outputs.length) return null;
+  const wallet = walletScript.toLowerCase();
+  let inputs = 0n;
+  for (const i of tx.inputs) {
+    if (!i.utxo) return null;
+    const script = i.utxo.scriptPublicKey.toLowerCase();
+    if (P2PK_SCRIPT.test(script) && script !== wallet) return null;
+    inputs += i.utxo.amount;
+  }
+  let outputs = 0n;
+  let venue = 0n;
+  for (const o of tx.outputs) {
+    outputs += o.value;
+    const script = o.scriptPublicKey.toLowerCase();
+    if (!o.covenant && P2PK_SCRIPT.test(script) && script !== wallet)
+      venue += o.value;
+  }
+  const networkFee = inputs - outputs;
+  if (networkFee < 0n) return null;
+  return { networkFeeSompi: networkFee, venueFeeSompi: venue };
+}
+
+/** A Braid deposit the wallet sent, and how it settled. */
+export interface BraidTradeInput {
+  ref: string;
+  depositTxid: string;
+  startedAt: number;
+  side: "buy" | "sell";
+  tokenSymbol: string;
+  tokenDecimals: number;
+  /** Buy: the sompi paid in (payTotal). Sell: the token base units sold. */
+  amountIn: bigint;
+  /** The chain-verified delivery in the out leg's base units. */
+  amountOut?: bigint;
+  /** Undefined while the deposit is in flight. */
+  state?: BraidSettleState;
+  money: BraidDepositMoney | null;
+}
+
+/**
+ * A Braid trade as a swap row. "pending" while in flight, and while the
+ * outcome is unconfirmed: the row claims neither a delivery nor a loss the
+ * chain did not show. The network fee and the venue fee keep their own
+ * fields; providerId stays unset, as on every KCC-20 row.
+ */
+export function braidSwapRecord(t: BraidTradeInput): SwapActivityRecord {
+  const buy = t.side === "buy";
+  const amountIn = formatUnits(
+    t.amountIn,
+    buy ? KAS_DECIMALS : t.tokenDecimals,
+  );
+  // The out leg: the unobserved-leg sentinel until the chain shows it.
+  const amountOut =
+    t.state === "done" && t.amountOut !== undefined && t.amountOut > 0n
+      ? formatUnits(t.amountOut, buy ? t.tokenDecimals : KAS_DECIMALS)
+      : "0";
+  const status: SwapActivityRecord["status"] =
+    t.state === "done"
+      ? "completed"
+      : t.state === undefined || t.state === "unconfirmed"
+        ? "pending"
+        : "failed";
+  return {
+    id: `braid:${t.ref}`,
+    timestampMs: t.startedAt,
+    fromSymbol: buy ? "KAS" : t.tokenSymbol,
+    toSymbol: buy ? t.tokenSymbol : "KAS",
+    fromAmount: amountIn,
+    toAmount: amountOut,
+    status,
+    txHash: t.depositTxid,
+    chainId: KAT_L1_CHAIN_ID,
+    ...(t.money
+      ? {
+          feeAmount: formatUnits(t.money.networkFeeSompi, KAS_DECIMALS),
+          feeSymbol: "KAS",
+          ...(t.money.venueFeeSompi > 0n
+            ? {
+                kastleFeeAmount: formatUnits(
+                  t.money.venueFeeSompi,
+                  KAS_DECIMALS,
+                ),
+                kastleFeeSymbol: "KAS",
+              }
+            : {}),
+        }
+      : {}),
+  };
+}
+
+/**
+ * The Braid deposits still in flight for the wallet's key, as swap rows. A
+ * deposit for another key, or in a token no source names, is left out; one
+ * that fails to map is skipped, never fatal to the rest.
+ */
+export function braidPendingRecords(
+  swaps: readonly PendingBraidSwap[],
+  xOnlyPk: string,
+  tokens: ReadonlyMap<string, Kcc20SwapTokenMeta>,
+): SwapActivityRecord[] {
+  const pk = xOnlyPk.toLowerCase();
+  const walletScript = braidWalletScript(pk);
+  return swaps.flatMap((s) => {
+    try {
+      const p = s.prepared;
+      if (p.userPublicKey.toLowerCase() !== pk) return [];
+      // payTotal is set on a KAS-in deposit only.
+      const buy = p.payTotal != null;
+      const token = buy ? p.to : p.from;
+      const meta = tokens.get(token.id.toLowerCase());
+      if (!meta) return [];
+      return [
+        braidSwapRecord({
+          ref: s.ref,
+          depositTxid: p.depositTxid,
+          startedAt: s.startedAt,
+          side: buy ? "buy" : "sell",
+          tokenSymbol: meta.symbol,
+          tokenDecimals: meta.decimals,
+          amountIn: BigInt(buy ? p.payTotal! : p.amountIn),
+          money: deriveBraidDepositMoney(
+            braidWalletJsonToTx(p.walletJson),
+            walletScript,
+          ),
+        }),
+      ];
+    } catch {
+      return [];
     }
   });
 }

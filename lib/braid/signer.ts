@@ -14,9 +14,12 @@ import {
 
 /** A pre-sign check failed: nothing was signed. */
 export class BraidSignRefusal extends Error {
+  // The bare check that failed, so the background can hand it to the popup.
+  readonly reason: string;
   constructor(message: string) {
     super(`Braid deposit not signed: ${message}`);
     this.name = "BraidSignRefusal";
+    this.reason = message;
   }
 }
 

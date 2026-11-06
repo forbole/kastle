@@ -90,6 +90,8 @@ import {
   kronListing,
   useL1Provider,
 } from "@/hooks/swap/l1Providers";
+import { BRAID_PENDING_COPY, useBraidSwap } from "@/hooks/swap/useBraidSwap";
+import { KCC20_LEDGER_UNSUPPORTED_MESSAGE } from "@/lib/wallet/sign-script";
 import { restApis } from "@/components/screens/Settings";
 import {
   assertKronVerified,
@@ -585,6 +587,35 @@ export default function Swap() {
 
   // A Braid pair never reads KRON's quote: the row names the venue it shows.
   const isBraid = isKron && l1ProviderId === "braid";
+  // Sell balance: the row's own family only (a curve row: legacy pieces),
+  // summed across rows (one per commitment).
+  const kronHeld = kcc20Tokens
+    ?.filter(
+      (t) => t.covenantId === tokenIn?.address && t.family === tokenIn?.family,
+    )
+    .reduce((s, t) => s + t.spendable, 0n);
+  const kronBalanceIn = isNativeIn
+    ? kasBalance === undefined
+      ? undefined
+      : BigInt(Math.round(kasBalance * 10 ** KAS_DECIMALS))
+    : kcc20Tokens && (kronHeld ?? 0n);
+  const braidSwap = useBraidSwap({
+    enabled: isBraid,
+    isMainnet,
+    tokenIn,
+    tokenOut,
+    rawIn,
+    balanceIn: kronBalanceIn,
+    slippage,
+    publicKey: account?.publicKeys?.[0],
+    isLedger: wallet?.type === "ledger",
+    sign: kaspaSigner?.signBraidDeposit,
+    onSubmitted: () => setAmount(""),
+  });
+  const braidNetworkFee = braidSwap.feeLines.find((l) => l.name === "Network");
+  const braidRouter = braidSwap.feeLines.find((l) => l.name === "Braid");
+  // The route warning the user ticked, so a new warning asks again.
+  const [ackedWarning, setAckedWarning] = useState<string>();
   // KRON: KAS -> token is a curve buy, token -> KAS a sell; token <-> token has no route.
   const kronMarket =
     isKron && !isBraid
@@ -671,7 +702,11 @@ export default function Swap() {
 
   const amountNum = Number(amount) || 0;
   // What the user receives, before slippage.
-  const netOut = isKron ? kronQuote?.amountOut : selected?.netAmountOut;
+  const netOut = isKron
+    ? isBraid
+      ? braidSwap.quote?.amountOut
+      : kronQuote?.amountOut
+    : selected?.netAmountOut;
   const outNum = isWrapPair
     ? amountNum
     : netOut !== undefined && tokenOut
@@ -704,29 +739,27 @@ export default function Swap() {
     tokenOutSymbol: tokenOut?.symbol,
   });
   // KRON's fee is a KAS output on the swap tx itself.
-  const { kastleFeeBps, kastleFeeSymbol, kastleFee } = isKron
+  const { kastleFeeBps, kastleFeeSymbol, kastleFee } = isBraid
     ? {
-        kastleFeeBps: kronQuote ? kronKastleFeeBps(kronQuote) : 0,
+        kastleFeeBps: braidSwap.kastleFeeBps,
         kastleFeeSymbol: "KAS",
-        kastleFee: kronQuote
-          ? Number(formatUnits(kronQuote.kastleFee, KAS_DECIMALS))
-          : 0,
+        kastleFee:
+          braidSwap.feeLines.find((l) => l.name === "Kastle")?.amount ?? 0,
       }
-    : evmFee;
-  // Sell balance: the row's own family only (a curve row: legacy pieces),
-  // summed across rows (one per commitment).
-  const kronHeld = kcc20Tokens
-    ?.filter(
-      (t) => t.covenantId === tokenIn?.address && t.family === tokenIn?.family,
-    )
-    .reduce((s, t) => s + t.spendable, 0n);
-  const kronBalanceIn = isNativeIn
-    ? kasBalance === undefined
-      ? undefined
-      : BigInt(Math.round(kasBalance * 10 ** KAS_DECIMALS))
-    : kcc20Tokens && (kronHeld ?? 0n);
+    : isKron
+      ? {
+          kastleFeeBps: kronQuote ? kronKastleFeeBps(kronQuote) : 0,
+          kastleFeeSymbol: "KAS",
+          kastleFee: kronQuote
+            ? Number(formatUnits(kronQuote.kastleFee, KAS_DECIMALS))
+            : 0,
+        }
+      : evmFee;
 
   const error = (() => {
+    // Ledger cannot sign a Braid deposit input either.
+    if (isBraid && wallet?.type === "ledger")
+      return KCC20_LEDGER_UNSUPPORTED_MESSAGE;
     if (wallet?.type === "ledger")
       return "Ledger doesn’t support swap currently.";
     if (!isMainnet) return "Swap is only available on mainnet.";
@@ -742,8 +775,10 @@ export default function Swap() {
     if (rawIn === 0n || !tokenOut) return undefined;
     if (samePair) return "Unsupported token pair";
     if (isKron) {
-      // A Braid pair is never judged by KRON's market.
-      if (isBraid) return undefined;
+      // A Braid pair is never judged by KRON's market. A pair still
+      // settling is the confirm button's to say.
+      if (isBraid)
+        return braidSwap.pending ? undefined : braidSwap.extraErrorMessage;
       if (!kronPair) return "Unsupported token pair";
       // A buy spends the curve fee and network fee on top of the amount in.
       const kronSpend = isNativeIn
@@ -950,29 +985,33 @@ export default function Swap() {
   };
 
   const loading = isKron
-    ? kronLoading && !kronQuote
+    ? isBraid
+      ? braidSwap.isLoading && !braidSwap.quote
+      : kronLoading && !kronQuote
     : !isWrapPair && quotesLoading && supported.length === 0;
-  const kronNetworkFee =
-    kronBuilt && !kronError
+  // Braid's network fee: "at most" on a sell, inside the rate on a buy.
+  const kronNetworkFee = isBraid
+    ? braidNetworkFee?.display
+    : kronBuilt && !kronError
       ? `${formatAmount(Number(formatUnits(kronBuilt.fee, KAS_DECIMALS)))} KAS`
+      : undefined;
+  // Braid's quote carries its own floor: the minimum signed into the deposit.
+  const minOut = isBraid
+    ? braidSwap.minOut
+    : netOut !== undefined
+      ? swapMinReceived(netOut, slippage)
       : undefined;
   const minReceived = isWrapPair
     ? formatAmount(amountNum)
-    : netOut !== undefined && tokenOut
-      ? formatAmount(
-          Number(
-            formatUnits(swapMinReceived(netOut, slippage), tokenOut.decimals),
-          ),
-        )
+    : minOut !== undefined && tokenOut
+      ? formatAmount(Number(formatUnits(minOut, tokenOut.decimals)))
       : undefined;
   // Hidden when the output token has no price, rather than showing $0.00.
   // Wrap/unwrap is 1:1 with KAS, so value it at the native price.
   const minReceivedUsd = isWrapPair
     ? amountNum * kaspaPrice || undefined
-    : netOut !== undefined && tokenOut && priceOut > 0
-      ? Number(
-          formatUnits(swapMinReceived(netOut, slippage), tokenOut.decimals),
-        ) * priceOut
+    : minOut !== undefined && tokenOut && priceOut > 0
+      ? Number(formatUnits(minOut, tokenOut.decimals)) * priceOut
       : undefined;
 
   return (
@@ -1115,6 +1154,31 @@ export default function Swap() {
                   </QuoteRow>
                 </>
               )}
+              {isBraid &&
+                braidSwap.advisory.map((w) => (
+                  <p
+                    key={w}
+                    className="flex items-center gap-2 border-t border-daintree-700 px-4 py-3 text-xs font-medium text-daintree-400"
+                  >
+                    <i className="hn hn-info-circle text-base" />
+                    {w}
+                  </p>
+                ))}
+              {isBraid && braidSwap.routeWarning && (
+                <label className="flex cursor-pointer items-start gap-2 border-t border-daintree-700 px-4 py-3 text-xs font-medium text-white hover:bg-daintree-700">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 accent-icy-blue-400"
+                    checked={ackedWarning === braidSwap.routeWarning}
+                    onChange={(e) =>
+                      setAckedWarning(
+                        e.target.checked ? braidSwap.routeWarning : undefined,
+                      )
+                    }
+                  />
+                  {braidSwap.routeWarning}
+                </label>
+              )}
               <SwapFeeFootnote
                 kastleFee={kastleFee}
                 kastleFeeBps={kastleFeeBps}
@@ -1162,12 +1226,21 @@ export default function Swap() {
         disabled={
           !!error ||
           rawIn === 0n ||
-          (isKron
-            ? !kronQuote || !kaspaSigner
-            : (!isWrapPair && !selected?.path) || !signer)
+          (isBraid
+            ? !braidSwap.quote ||
+              !kaspaSigner ||
+              braidSwap.pending ||
+              (!!braidSwap.routeWarning &&
+                ackedWarning !== braidSwap.routeWarning)
+            : isKron
+              ? !kronQuote || !kaspaSigner
+              : (!isWrapPair && !selected?.path) || !signer)
         }
-        loading={submitting}
-        onClick={isKron ? onConfirmKron : onConfirm}
+        loading={submitting || (isBraid && braidSwap.isSigning)}
+        label={isBraid && braidSwap.pending ? BRAID_PENDING_COPY : undefined}
+        onClick={
+          isBraid ? braidSwap.onConfirm : isKron ? onConfirmKron : onConfirm
+        }
       />
       <BottomNav />
       <TermsGate kind="Swap" />
@@ -1350,7 +1423,15 @@ export default function Swap() {
                 ? `${formatAmount(Number(formatEther(networkFeeWei)))} ${nativeSymbol}`
                 : "-"
           }
+          note={isBraid ? braidNetworkFee?.hint : undefined}
         />
+        {isBraid && braidRouter && (
+          <FeeRow
+            label="Braid fees"
+            value={braidRouter.display}
+            note={braidRouter.hint}
+          />
+        )}
         {isKron && kronQuote && (
           <FeeRow
             label="Curve fees"
