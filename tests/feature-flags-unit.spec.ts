@@ -38,17 +38,8 @@ function loadFeatureFlagsModule(
     "@/contexts/PostHogWrapperProvider.tsx": { PostHogWrapperContext: {} },
     "@/lib/utils.ts": { isProduction },
     // Carries the local opt-in, whose `import.meta` cannot run as CommonJS.
-    "@/lib/kcc20/local-opt-in": {
-      standardLocalOptIn: () => localOptIn,
-      migrationLocalOptIn: () => false,
-      migrationLocalPayload: () => undefined,
-    },
+    "@/lib/kcc20/local-opt-in": { standardLocalOptIn: () => localOptIn },
     "@/lib/kcc20/local-opt-in.ts": { standardLocalOptIn: () => localOptIn },
-    // Carries browser.storage, which Node has not got.
-    "@/lib/kcc20/migration-flag-cache": {
-      readMigrationFlagCache: () => new Promise(() => {}),
-      writeMigrationFlagCache: async () => {},
-    },
     "@/lib/kasseal/local-opt-in": { kassealLocalOptIn: () => kassealOptIn },
   };
   const module = { exports: {} as FeatureFlagsModule };
@@ -126,10 +117,8 @@ function renderFeatureFlags(
     kassealOptIn?: boolean;
   } = {},
 ) {
-  // One slot per useState call, in call order.
-  const slots: unknown[] = [];
-  let slot = 0;
-  const hook = loadFeatureFlagsModule(
+  let state = {};
+  const render = loadFeatureFlagsModule(
     {
       useContext: () => ({
         postHog: {
@@ -137,19 +126,11 @@ function renderFeatureFlags(
           onFeatureFlags: () => () => {},
         },
       }),
-      useState: (initial: unknown) => {
-        const i = slot++;
-        if (!(i in slots)) slots[i] = initial;
-        return [slots[i], (next: unknown) => (slots[i] = next)];
-      },
+      useState: () => [state, (next: object) => (state = next)],
       useEffect: (effect: () => void) => effect(),
     },
     options,
   ).useFeatureFlags;
-  const render = () => {
-    slot = 0;
-    return hook();
-  };
   render(); // the effect copies the PostHog flags into state
   return render();
 }
@@ -372,20 +353,5 @@ test.describe("useFeatureFlags Kasseal (development)", () => {
       renderFeatureFlags({}, { kassealOptIn: true, isProduction: true })
         .isKassealEnabled,
     ).toBe(false);
-  });
-});
-
-// The migration route hands off to an external tool: off unless the flag says true.
-test.describe("kcc20 migration route flag", () => {
-  test("is off by default and needs an explicit true", () => {
-    expect(renderFeatureFlags({}).isKcc20MigrationRouteEnabled).toBe(false);
-    expect(
-      renderFeatureFlags({ kcc20_migration_route: "true" })
-        .isKcc20MigrationRouteEnabled,
-    ).toBe(false);
-    expect(
-      renderFeatureFlags({ kcc20_migration_route: true })
-        .isKcc20MigrationRouteEnabled,
-    ).toBe(true);
   });
 });

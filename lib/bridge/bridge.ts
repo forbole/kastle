@@ -5,16 +5,13 @@ import igraLogo from "@/assets/images/providers/igra-logo.png";
 import kurveLogo from "@/assets/images/providers/kurve-logo.png";
 import kasplexLogo from "@/assets/images/network-logos/kasplex.svg";
 import katLogo from "@/assets/images/providers/kat-logo.png";
-import { Kcc20MigrationConfig, migratableHeld } from "@/lib/kcc20/migration";
 
 export type BridgeChain = "kaspa" | "kasplex" | "igra";
 export type BridgeDirection =
   | "kas-igra"
   | "kas-kasplex"
   | "kasplex-kas"
-  | "igra-kas"
-  // KRC-20 → KCC-20 on Kaspa L1: a hand-off to Kat Bridge's migration tool.
-  | "krc20-kcc20";
+  | "igra-kas";
 
 export const BRIDGE_ROUTES: Record<
   BridgeDirection,
@@ -57,15 +54,6 @@ export const BRIDGE_ROUTES: Record<
     estTime: "~8-12 min",
     mainnetOnly: true,
   },
-  // Listed only through `migration` in bridgeDirectionsFrom.
-  "krc20-kcc20": {
-    from: "kaspa",
-    to: "kaspa",
-    provider: "Kat Bridge",
-    logo: katLogo,
-    estTime: "",
-    mainnetOnly: true,
-  },
 };
 
 export const BRIDGE_TOKEN_NAME: Record<BridgeChain, string> = {
@@ -74,33 +62,11 @@ export const BRIDGE_TOKEN_NAME: Record<BridgeChain, string> = {
   igra: "iKAS",
 };
 
-export type BridgeMigrationContext<
-  T extends { id: string; balance: string } = { id: string; balance: string },
-> = {
-  /** The `kcc20_migration_route` flag. */
-  enabled: boolean;
-  /** Parsed `kcc20_migration` payload. */
-  config: Kcc20MigrationConfig | undefined;
-  /** The wallet's KRC-20 holdings. */
-  held: T[];
-};
-
-/** KRC-20 holdings the migration route offers: flag on, payload-listed tick, balance > 0. */
-export const migrationTokensHeld = <T extends { id: string; balance: string }>(
-  migration?: BridgeMigrationContext<T>,
-): T[] =>
-  migration?.enabled ? migratableHeld(migration.config, migration.held) : [];
-
-export const bridgeDirectionsFrom = (
-  from: BridgeChain,
-  isMainnet: boolean,
-  migration?: BridgeMigrationContext,
-) =>
+export const bridgeDirectionsFrom = (from: BridgeChain, isMainnet: boolean) =>
   (Object.keys(BRIDGE_ROUTES) as BridgeDirection[]).filter(
     (d) =>
       BRIDGE_ROUTES[d].from === from &&
-      (isMainnet || !BRIDGE_ROUTES[d].mainnetOnly) &&
-      (d !== "krc20-kcc20" || migrationTokensHeld(migration).length > 0),
+      (isMainnet || !BRIDGE_ROUTES[d].mainnetOnly),
   );
 
 export const KASTLE_FEE_ADDRESS = {
