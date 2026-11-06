@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { memo, useCallback, useMemo, useState } from "react";
 import useSWR from "swr";
 import {
   Address,
@@ -106,6 +106,9 @@ import {
   kronKastleFeeBps,
   submitKronSwap,
 } from "@/lib/kcc20/swap";
+
+// A closed sheet must not redraw its rows on every Swap render.
+const SwapTokenSheet = memo(TokenSheet);
 
 type EvmChainKey = "kasplex" | "igra";
 // "kaspa" is L1: KAS and KCC-20 tokens traded on their KRON bonding curve.
@@ -810,26 +813,64 @@ export default function Swap() {
     return undefined;
   })();
 
-  const pickToken = (side: "in" | "out", t: SheetToken) => {
-    const setThis = side === "in" ? setTokenInKey : setTokenOutKey;
-    const setOther = side === "in" ? setTokenOutKey : setTokenInKey;
-    if (t.chain !== chainKey) {
-      // Both legs live on one chain: switching chain resets the other side.
-      setChainKey(t.chain as ChainKey);
-      setOther(side === "in" ? undefined : `${t.chain}:${NATIVE}`);
-    }
-    setThis(t.key);
-    setProviderName(undefined);
-  };
+  const pickToken = useCallback(
+    (side: "in" | "out", t: SheetToken) => {
+      const setThis = side === "in" ? setTokenInKey : setTokenOutKey;
+      const setOther = side === "in" ? setTokenOutKey : setTokenInKey;
+      if (t.chain !== chainKey) {
+        // Both legs live on one chain: switching chain resets the other side.
+        setChainKey(t.chain as ChainKey);
+        setOther(side === "in" ? undefined : `${t.chain}:${NATIVE}`);
+      }
+      setThis(t.key);
+      setProviderName(undefined);
+    },
+    [chainKey, setProviderName],
+  );
 
-  // The sheet's rows per side, before the Standard/KRON tab filters them.
-  const sideTokens = (side: "in" | "out") =>
-    side === "in"
-      ? tokens
-          .filter((t) => (t.rawBalance ?? 0) > 0)
-          .map((t) => ({ ...t, disabled: t.key === tokenOutKey }))
-      : tokens.map((t) => ({ ...t, disabled: t.key === tokenInKey }));
   const [family, setFamily] = useState<SwapFamilyTab>("all");
+  // Each side's rows, rebuilt only when the list or a picked key changes.
+  const sideTokens = useMemo(
+    () => ({
+      in: tokens
+        .filter((t) => (t.rawBalance ?? 0) > 0)
+        .map((t) => ({ ...t, disabled: t.key === tokenOutKey })),
+      out: tokens.map((t) => ({ ...t, disabled: t.key === tokenInKey })),
+    }),
+    [tokens, tokenInKey, tokenOutKey],
+  );
+  const sheets = useMemo(
+    () =>
+      (["in", "out"] as const).map((side) => ({
+        side,
+        tokens: sideTokens[side].filter((t) => inFamily(t, family)),
+        tabs: chainKey === "kaspa" && (
+          <SwapFamilyTabs
+            value={family}
+            onChange={setFamily}
+            empty={!hasFamilyRow(sideTokens[side], family)}
+          />
+        ),
+        onSelect: (t: SheetToken) => pickToken(side, t),
+      })),
+    [sideTokens, family, chainKey, pickToken],
+  );
+  const closeSheet = useCallback(() => setSheet(undefined), []);
+  const sheetChains = useMemo(
+    () => [
+      { key: "kasplex", label: "Kasplex", image: CHAINS.kasplex.icon },
+      { key: "igra", label: "Igra", image: CHAINS.igra.icon },
+      ...(kronEnabled
+        ? [{ key: "kaspa", label: "Kaspa", image: kaspaIcon }]
+        : []),
+    ],
+    [kronEnabled],
+  );
+  const onSheetChain = useCallback((k: string) => {
+    setChainKey(k as ChainKey);
+    setTokenInKey(`${k}:${NATIVE}`);
+    setTokenOutKey(undefined);
+  }, []);
 
   const flip = () => {
     if (!tokenOutKey) return;
@@ -1259,35 +1300,17 @@ export default function Swap() {
       <BottomNav />
       <TermsGate kind="Swap" />
 
-      {(["in", "out"] as const).map((side) => (
-        <TokenSheet
-          key={side}
-          open={sheet === side}
-          onClose={() => setSheet(undefined)}
-          chains={[
-            { key: "kasplex", label: "Kasplex", image: CHAINS.kasplex.icon },
-            { key: "igra", label: "Igra", image: CHAINS.igra.icon },
-            ...(kronEnabled
-              ? [{ key: "kaspa", label: "Kaspa", image: kaspaIcon }]
-              : []),
-          ]}
+      {sheets.map((s) => (
+        <SwapTokenSheet
+          key={s.side}
+          open={sheet === s.side}
+          onClose={closeSheet}
+          chains={sheetChains}
           chain={chainKey}
-          onChain={(k) => {
-            setChainKey(k as ChainKey);
-            setTokenInKey(`${k}:${NATIVE}`);
-            setTokenOutKey(undefined);
-          }}
-          tokens={sideTokens(side).filter((t) => inFamily(t, family))}
-          tabs={
-            chainKey === "kaspa" && (
-              <SwapFamilyTabs
-                value={family}
-                onChange={setFamily}
-                empty={!hasFamilyRow(sideTokens(side), family)}
-              />
-            )
-          }
-          onSelect={(t) => pickToken(side, t)}
+          onChain={onSheetChain}
+          tokens={s.tokens}
+          tabs={s.tabs}
+          onSelect={s.onSelect}
           recentKey="local:swap_recent_tokens"
         />
       ))}
