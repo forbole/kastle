@@ -392,21 +392,21 @@ test("a KCC-20 dashboard row shows a price and a fiat line", async ({
   const row = page.locator('[data-row="kcc20"]');
   await expect(row.getByText("$0.25", { exact: true })).toBeVisible();
   await expect(row.getByText("≈ $2,500.00", { exact: true })).toBeVisible();
-  // The subtitle stays.
-  await expect(row.getByText("Nacho", { exact: true })).toBeVisible();
+  // As mobile: no name line on a list row.
+  await expect(row.getByText("Nacho", { exact: true })).toHaveCount(0);
 });
 
-test("an unpriced KCC-20 dashboard row reads unknown, not zero", async ({
+test("an unpriced KCC-20 dashboard row prints no fiat, not a placeholder nor zero", async ({
   page,
 }) => {
   await page.goto(`${base}/?route=/dashboard-rows`);
   const row = page.locator('[data-row="kcc20"]');
-  // Like mobile's unpriced row: both lines read "—", never worth zero.
-  await expect(row.getByText("—", { exact: true })).toBeVisible();
-  await expect(row.getByText("≈ —", { exact: true })).toBeVisible();
-  await expect(row.getByText("$0", { exact: true })).toHaveCount(0);
-  await expect(row.getByText("≈ $0.00", { exact: true })).toHaveCount(0);
-  await expect(row.getByText("Nacho", { exact: true })).toBeVisible();
+  await expect(row.getByText("10,000", { exact: true })).toBeVisible();
+  await expect(row.getByText(/—|≈|\$/)).toHaveCount(0);
+  // Hidden balances mask a value, never invent one.
+  await page.goto(`${base}/?route=/dashboard-rows&hidden=1`);
+  await expect(row.getByText("*****", { exact: true })).toBeVisible();
+  await expect(row.getByText(/—|≈|\$/)).toHaveCount(0);
 });
 
 test("a KCC-20 dashboard row masks its fiat value with balances hidden", async ({
@@ -415,9 +415,186 @@ test("a KCC-20 dashboard row masks its fiat value with balances hidden", async (
   await page.goto(`${base}/?route=/dashboard-rows&price=0.25&hidden=1`);
   const row = page.locator('[data-row="kcc20"]');
   await expect(row.getByText("*****", { exact: true })).toBeVisible();
-  await expect(row.getByText("10000", { exact: true })).toHaveCount(0);
+  await expect(row.getByText("10,000", { exact: true })).toHaveCount(0);
   await expect(row.getByText("≈ $*****", { exact: true })).toBeVisible();
   await expect(row.getByText("≈ $2,500.00", { exact: true })).toHaveCount(0);
   // The unit price is public, not a balance.
   await expect(row.getByText("$0.25", { exact: true })).toBeVisible();
+});
+
+// A scanned standard row reads like mobile: ticker, whole tokens, no family chip,
+// one quiet status marker; its history never prints a field kascov did not answer.
+test("a standard KCC-20 row and its history read like mobile", async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  // 210759267306 base units at 8 decimals, metadata claimed by kascov.
+  await page.goto(
+    `${base}/?route=/dashboard&token=210759267306&decimals=8&unverified=1&history=1`,
+  );
+  const row = page.getByRole("button", { name: /NACHO/ });
+  await expect(row.getByText("2,107.593", { exact: true })).toBeVisible();
+  await expect(row.getByText("210759267306")).toHaveCount(0);
+  await expect(row.getByText(/^(KCC-20|KRON)$/)).toHaveCount(0);
+  await expect(row.getByText(/base units/)).toHaveCount(0);
+  // The list row carries no status marker; the detail page does.
+  await expect(row.getByText("Unverified", { exact: true })).toHaveCount(0);
+
+  await row.click();
+  await expect(page.getByRole("heading", { name: "NACHO" })).toBeVisible();
+  // Amount + ticker leads, direction/counterparty under it, no txid on the row.
+  await expect(page.getByText("+2,107.593 NACHO")).toBeVisible();
+  await expect(page.getByText("From qsender0...00000")).toBeVisible();
+  await expect(page.getByText("Unattributed movement")).toBeVisible();
+  await expect(page.getByText(/kcc20amb|kcc20rx/)).toHaveCount(0);
+
+  // The unattributed row: no amount, no counterparty, no status to claim.
+  await page.getByText("Unattributed movement").click();
+  const sheet = page.getByRole("heading", { name: "Unattributed movement" });
+  await expect(sheet).toBeVisible();
+  await expect(page.getByText("kcc20amb", { exact: true })).toBeVisible();
+  await expect(page.getByText(/Unavailable|Unknown/)).toHaveCount(0);
+  for (const label of ["Amount", "From", "To", "Status"])
+    await expect(page.getByText(label, { exact: true })).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test("a nameless standard KCC-20 row shows grouped base units", async ({
+  page,
+}) => {
+  await page.goto(`${base}/?route=/dashboard&token=210759267306&nometa=1`);
+  const row = page.locator("button").first();
+  // Beside the long monospace id the full figure would truncate the title:
+  // it compacts, and the grouped base units stay as its tooltip.
+  await expect(row.getByTitle("210,759,267,306 base units")).toHaveText(
+    "210.76B base units",
+  );
+  // The short id is the fallback title, in monospace; no marker on the list row.
+  await expect(row.locator(".font-mono")).toHaveText("abababab...babab");
+  await expect(row.getByText(/Unverified/)).toHaveCount(0);
+});
+
+// One component, both families: the same parts in the same places. The
+// fixture is the defect: 200,759,267,306 base units, no decimals, no market.
+test("a KRON row and a standard row share one shape, and a 12-digit base-unit balance does not wrap", async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.goto(
+    `${base}/?route=/dashboard-families&token=200759267306&nodecimals=1&unverified=1&kronPrice=0.00000232`,
+  );
+  const kron = page.locator('[data-row="kron"]');
+  const std = page.locator('[data-row="standard"]');
+
+  // KRON: ticker, unit price, balance, fiat.
+  await expect(kron.getByText("WHALE", { exact: true })).toBeVisible();
+  await expect(kron.getByText("$0.00000232", { exact: true })).toBeVisible();
+  await expect(kron.getByText("128,001", { exact: true })).toBeVisible();
+  await expect(kron.getByText("≈ $0.30", { exact: true })).toBeVisible();
+  // Standard, unknown scale and no market: ticker and grouped base units only.
+  // At the popup's width the full figure would truncate NACHO, so it compacts
+  // and keeps the exact value as its tooltip.
+  const balance = std.getByText("200.76B base units", { exact: true });
+  await expect(balance).toHaveAttribute("title", "200,759,267,306 base units");
+  await expect(std.getByText("NACHO", { exact: true })).toBeVisible();
+  await expect(balance).toBeVisible();
+  await expect(std.getByText(/—|≈|\$/)).toHaveCount(0);
+
+  for (const row of [kron, std]) {
+    // No name line, no family label, no status marker.
+    await expect(row.getByText(/^(Nacho|Whale)$/)).toHaveCount(0);
+    await expect(row.getByText(FAMILY)).toHaveCount(0);
+    await expect(row.getByText(/Unverified/)).toHaveCount(0);
+  }
+
+  const box = async (l: ReturnType<Page["locator"]>) =>
+    (await l.boundingBox())!;
+  const tickers = [kron.getByText("WHALE"), std.getByText("NACHO")];
+  const balances = [kron.getByText("128,001"), balance];
+  const frames = [kron.getByRole("button"), std.getByRole("button")];
+  for (const i of [0, 1]) {
+    const [t, b, f] = [
+      await box(tickers[i]),
+      await box(balances[i]),
+      await box(frames[i]),
+    ];
+    // Balance right-aligned to the row's inner edge (p-3 + 1px border = 13).
+    expect(Math.abs(f.x + f.width - 13 - (b.x + b.width))).toBeLessThan(1.5);
+    // Ticker and balance share the top line.
+    expect(Math.abs(t.y - b.y)).toBeLessThan(2);
+    // The ticker reads in full: never truncated, never pushed off its start.
+    expect(
+      await tickers[i].evaluate((e) => e.scrollWidth <= e.clientWidth),
+    ).toBe(true);
+    expect(
+      await balances[i].evaluate((e) => getComputedStyle(e).fontVariantNumeric),
+    ).toContain("tabular-nums");
+  }
+  // Same column for both tickers, whatever the balance's length.
+  expect((await box(tickers[0])).x).toBeCloseTo((await box(tickers[1])).x, 0);
+  // The 12-digit balance stays one line.
+  const lineHeight = await balance.evaluate((e) =>
+    parseFloat(getComputedStyle(e).lineHeight),
+  );
+  expect((await box(balance)).height).toBeLessThan(lineHeight * 1.5);
+
+  // No artwork: the existing Kaspa placeholder, not a gap.
+  const logo = std.locator('img[alt="Token"]');
+  await expect(logo).toBeVisible();
+  expect(
+    await logo.evaluate((e: HTMLImageElement) => e.naturalWidth),
+  ).toBeGreaterThan(0);
+  expect(errors).toEqual([]);
+});
+
+// Partial kascov claims: whichever half arrived is used, the other half falls
+// back. No family is named, on the row or in the send picker.
+const FAMILY = /KRON|KCC-?20/;
+
+test("a standard KCC-20 row with decimals and no ticker formats its amount under a short id", async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  const claim = "token=210759267306&decimals=8&notick=1&unverified=1";
+  await page.goto(`${base}/?route=/dashboard&${claim}`);
+  const row = page.locator("button", { hasText: "abababab...babab" });
+  await expect(row.getByText("2,107.593", { exact: true })).toBeVisible();
+  await expect(row.getByText(/base units/)).toHaveCount(0);
+  await expect(row.locator(".font-mono")).toHaveText("abababab...babab");
+  await expect(row.getByText(FAMILY)).toHaveCount(0);
+
+  // Decimals known: sendable, listed in the picker under the same short id.
+  await page.goto(`${base}/?route=/asset-select&${claim}`);
+  const pick = page.locator("button", { hasText: "abababab...babab" });
+  await expect(pick.locator(".font-mono")).toHaveText("abababab...babab");
+  await expect(pick).toContainText("2,107.59");
+  await pick.locator("img").first().hover();
+  await expect(page.getByText(FAMILY)).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test("a standard KCC-20 row with a ticker and no decimals shows grouped base units", async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  const claim = "token=210759267306&nodecimals=1&unverified=1";
+  await page.goto(`${base}/?route=/dashboard&${claim}`);
+  const row = page.getByRole("button", { name: /NACHO/ });
+  await expect(row.getByText("NACHO", { exact: true })).toBeVisible();
+  await expect(
+    row.getByText("210,759,267,306 base units", { exact: true }),
+  ).toBeVisible();
+  await expect(row.locator(".font-mono")).toHaveCount(0);
+  await expect(row.getByText(FAMILY)).toHaveCount(0);
+
+  // No scale, no typed amount means anything: kept out of the send picker.
+  await page.goto(`${base}/?route=/asset-select&${claim}`);
+  await expect(page.getByRole("button", { name: /KASPY/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /NACHO/ })).toHaveCount(0);
+  await expect(page.getByText(FAMILY)).toHaveCount(0);
+  expect(errors).toEqual([]);
 });

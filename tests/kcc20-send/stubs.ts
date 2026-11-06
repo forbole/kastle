@@ -29,22 +29,88 @@ const h = () => window.__kcc20Send;
 const hold = () => new Promise<void>((r) => (h().release = r));
 
 // token=<base units> swaps in an 18-decimal balance; unsendable=1 owns no spendable piece;
-// kcc20Loading=1 leaves the scan unanswered; unverified=1 marks the metadata claimed.
+// kcc20Loading=1 leaves the scan unanswered; unverified=1 marks the metadata claimed;
+// decimals=<n> overrides the scale; nometa=1 is a scanned row kascov named nothing for;
+// notick=1 / nodecimals=1 drop one half of kascov's claim (partial metadata).
 const query = new URLSearchParams(location.search);
 const units = query.get("token");
+const decimals = query.get("decimals");
+const notick = query.has("notick") || query.has("nometa");
 export const kcc20Token: Kcc20Token = {
   covenantId: "ab".repeat(32),
   family: "kcc20-standard",
-  tick: "nacho",
+  tick: notick ? "" : "nacho",
   amount: units ? BigInt(units) : 1_000_000n,
   spendable: query.get("unsendable") ? 0n : units ? BigInt(units) : 1_000_000n,
+  meta: query.has("nometa")
+    ? undefined
+    : {
+        symbol: notick ? "" : "NACHO",
+        name: notick ? "" : "Nacho",
+        ...(!query.has("nodecimals") && {
+          decimals: decimals ? Number(decimals) : units ? 18 : 2,
+        }),
+        ...(query.has("unverified") && { unverified: true as const }),
+      },
+};
+
+// A KRON row as the registry lists it: verified metadata and artwork.
+export const kronToken: Kcc20Token = {
+  covenantId: "cd".repeat(32),
+  family: "kron-legacy",
+  tick: "whale",
+  amount: 12_800_100_000_000n,
+  spendable: 12_800_100_000_000n,
   meta: {
-    symbol: "NACHO",
-    name: "Nacho",
-    decimals: units ? 18 : 2,
-    ...(query.has("unverified") && { unverified: true as const }),
+    symbol: "WHALE",
+    name: "Whale",
+    decimals: 8,
+    logoURI:
+      "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Ccircle cx='20' cy='20' r='20' fill='%2300b1d0'/%3E%3C/svg%3E",
   },
 };
+
+// history=1: one exact receive and one row kascov could not attribute; else none.
+export function useKcc20History() {
+  const entries = query.has("history")
+    ? [
+        {
+          id: "kcc20rx:0",
+          txid: "kcc20rx",
+          seq: 1,
+          kind: "receive",
+          amount: 210_759_267_306n,
+          ambiguous: false,
+          counterparty: "qsender000000000000000000000000",
+          acceptingDaa: 2,
+          timestampMs: Date.UTC(2026, 0, 2),
+          approxTime: true,
+        },
+        {
+          id: "kcc20amb:0",
+          txid: "kcc20amb",
+          seq: 0,
+          kind: "unknown",
+          ambiguous: true,
+          acceptingDaa: 1,
+          timestampMs: Date.UTC(2026, 0, 1),
+          approxTime: true,
+        },
+      ]
+    : [];
+  return {
+    entries,
+    size: 1,
+    setSize: () => {},
+    hasMore: false,
+    isLoading: false,
+    isLoadingMore: false,
+    error: undefined,
+    retry: () => {},
+    unavailableReason: undefined,
+    truncatedReason: undefined,
+  };
+}
 
 // Wallet and network
 export function useWalletManager() {
@@ -161,8 +227,12 @@ export function useErc20Image() {
 // KCC-20
 // Like the real hook, no address means no fetch.
 // price=<usd> prices a KCC-20 token; without it no market lists one.
-export function useKcc20Price() {
-  const usd = query.get("price");
+// kronPrice=<usd> prices the KRON fixture alone.
+export function useKcc20Price(token?: Pick<Kcc20Token, "family">) {
+  const usd =
+    token?.family === "kron-legacy"
+      ? query.get("kronPrice")
+      : query.get("price");
   return { priceUsd: usd === null ? undefined : Number(usd) };
 }
 export function useKcc20Tokens(address?: string) {

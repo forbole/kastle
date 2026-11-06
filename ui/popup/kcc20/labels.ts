@@ -1,7 +1,8 @@
 // Every KCC-20 row in Figma is still dev-unmarked, so wording (and the
 // unverified-token sort) may change: all user-facing copy lives here.
 
-import type { Kcc20Family } from "@/lib/kcc20";
+import { formatUnits } from "viem";
+import { formatToken } from "@/lib/utils";
 
 /** Where a token lives; drives the chip label, the chip colours and the corner badge. */
 export type NetworkType =
@@ -29,12 +30,6 @@ export const NETWORK_FILTER_LABELS: Record<NetworkFilter, string> = {
   igra: "Igra",
 };
 
-/** The family chip on a KCC-20 row; KRON's legacy state is never labelled plain KCC-20. */
-export const KCC20_FAMILY_LABELS: Record<Kcc20Family, string> = {
-  "kron-legacy": "KRON",
-  "kcc20-standard": "KCC-20",
-};
-
 export const KCC20_LABELS = {
   // Token detail
   viewInExplorer: "See activity history in explorer",
@@ -53,7 +48,7 @@ export const KCC20_LABELS = {
   security: "Security",
   verified: "Verified",
   unverified: "Unverified",
-  claimedMetadata: "claimed metadata",
+  baseUnits: "base units",
   loadFailed: "Token details could not be loaded",
 
   // Send: select token
@@ -63,3 +58,17 @@ export const KCC20_LABELS = {
   loadingTokens: "Loading tokens…",
   noTokens: "No tokens available",
 } as const;
+
+/**
+ * A KCC-20 amount as a person reads it: whole tokens with grouping. Unknown
+ * decimals never pass for a scaled figure: grouped base units, named so.
+ */
+export function formatKcc20Amount(amount: bigint, decimals?: number) {
+  if (decimals === undefined)
+    return `${amount.toLocaleString("en-US")} ${KCC20_LABELS.baseUnits}`;
+  const exact = formatUnits(amount, decimals);
+  // Mobile's formatNumber: 3 places.
+  const shown = formatToken(Number(exact), 3);
+  // Below 3 places a non-zero amount must not read as "0".
+  return shown === "0" && amount !== 0n ? exact : shown;
+}

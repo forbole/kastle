@@ -1,4 +1,6 @@
 import React from "react";
+// Real styles, so the row's layout can be measured.
+import "@/entrypoints/main.css";
 import ReactDOM from "react-dom/client";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { FormProvider, useForm } from "react-hook-form";
@@ -12,7 +14,7 @@ import Krc20Transfer from "@/components/send/krc20-send/Krc20Transfer";
 import { SuccessStatus } from "@/components/send/SuccessStatus";
 import { FailStatus } from "@/components/send/FailStatus";
 import AssetSelect from "@/components/screens/asset-selector/AssetSelect";
-import { kcc20Token } from "./stubs";
+import { kcc20Token, kronToken } from "./stubs";
 
 const params = new URLSearchParams(location.search);
 window.__kcc20Send = {
@@ -58,6 +60,20 @@ const router = createMemoryRouter(
             <Kcc20TokenListItem token={kcc20Token} />
           </div>
         </>
+      ),
+    },
+    // Both KCC-20 families from one component, at the dashboard's inset (px-3).
+    {
+      path: "/dashboard-families",
+      element: (
+        <div className="flex flex-col gap-2 px-3">
+          <div data-row="kron">
+            <Kcc20TokenListItem token={kronToken} />
+          </div>
+          <div data-row="standard">
+            <Kcc20TokenListItem token={kcc20Token} />
+          </div>
+        </div>
       ),
     },
     { path: "/kcc20/:covenantId", element: <Kcc20Asset /> },

@@ -64,7 +64,7 @@ export function useKcc20Price(
   // KRON lists no standard token: kascov's own market prices it, mainnet only.
   // Without verified decimals there is no scale to price a whole token at.
   const { data: spot } = useSWR(
-    isMainnet && isStandard && meta
+    isMainnet && isStandard && meta?.decimals !== undefined
       ? ["kascovMarket", covenantId, meta.decimals]
       : null,
     ([, id, decimals]) => fetchStandardMarketPrice(id, decimals),

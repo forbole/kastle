@@ -42,7 +42,8 @@ export default function Kcc20Asset() {
       ? formatTokenPrice(fiatPrice, currencyCode)
       : undefined;
   // The route guard rules out Ledger; only verified, owned pieces are sendable.
-  const canSend = !!meta && !!token && token.spendable > 0n;
+  const canSend =
+    meta?.decimals !== undefined && !!token && token.spendable > 0n;
 
   useEffect(() => {
     setPopupPath();
@@ -70,14 +71,14 @@ export default function Kcc20Asset() {
 
   return (
     <TokenDetailPage
-      name={meta?.symbol ?? textEllipsis(covenantId)}
+      name={(meta?.symbol ?? token?.tick) || textEllipsis(covenantId)}
       logo={meta?.logoURI}
       network="kcc20"
       networkName="Kaspa"
       tokenId={textEllipsis(covenantId)}
       onTokenIdPress={() => copy(covenantId)}
       isVerified={!!meta && !meta.unverified}
-      decimal={meta ? String(meta.decimals) : undefined}
+      decimal={meta?.decimals === undefined ? undefined : String(meta.decimals)}
       priceLabel={priceLabel}
       activeTab={activeTab}
       onTabChange={setActiveTab}

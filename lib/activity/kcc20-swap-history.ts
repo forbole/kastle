@@ -223,13 +223,14 @@ export function buildKcc20SwapRecords({
 export function kcc20SwapTokenMeta(
   verified: readonly {
     covenantId: string;
-    meta?: { symbol: string; decimals: number };
+    meta?: { symbol: string; decimals?: number };
   }[],
   holdings: readonly KascovHolding[],
 ): Map<string, Kcc20SwapTokenMeta> {
   const map = new Map<string, Kcc20SwapTokenMeta>();
+  // A partial claim (no ticker or no scale) names no trade: same as no meta.
   for (const t of verified)
-    if (t.meta)
+    if (t.meta?.symbol && t.meta.decimals !== undefined)
       map.set(t.covenantId.toLowerCase(), {
         symbol: t.meta.symbol,
         decimals: t.meta.decimals,
