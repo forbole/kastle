@@ -24,6 +24,13 @@ import useKaspaPrice from "@/hooks/useKaspaPrice";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import useKaspaBalance from "@/hooks/wallet/useKaspaBalance";
 import { useFeatureFlags } from "@/hooks/useFeatureFlags.ts";
+import { useState } from "react";
+import {
+  hiddenTokensKey,
+  kcc20HideId,
+  krc20HideId,
+  useHiddenTokens,
+} from "@/lib/hidden-tokens";
 
 export default function Assets() {
   const navigate = useNavigate();
@@ -59,7 +66,42 @@ export default function Assets() {
     isKcc20Enabled ? address : undefined,
   );
 
-  const isAssetListLoading = balance === undefined;
+  // Hiding is a display filter on this list only; balances, totals, send,
+  // swap and detail pages never read the hidden set.
+  const {
+    hidden,
+    loaded: hiddenLoaded,
+    save,
+  } = useHiddenTokens(hiddenTokensKey(settings?.networkId, address));
+  // Manage mode edits a draft; Done writes it once.
+  const [draft, setDraft] = useState<Set<string>>();
+  const managing = draft !== undefined;
+  const enterManage = () => setDraft(new Set(hidden));
+  const leaveManage = () => {
+    if (draft) void save(draft);
+    setDraft(undefined);
+  };
+  const manageFor = (id: string) =>
+    draft && {
+      shown: !draft.has(id),
+      onToggle: (shown: boolean) =>
+        setDraft((prev) => {
+          const next = new Set(prev);
+          if (shown) next.delete(id);
+          else next.add(id);
+          return next;
+        }),
+    };
+  const isShown = (id: string) => managing || !hidden.has(id);
+  const kcc20Id = (t: { covenantId: string; extensionCommitment?: string }) =>
+    kcc20HideId(t.covenantId, t.extensionCommitment);
+  const shownKrc20 = tokens?.filter((t) => isShown(krc20HideId(t.id)));
+  const shownKcc20 = kcc20Tokens?.filter((t) => isShown(kcc20Id(t)));
+  const tokenCount = (tokens?.length ?? 0) + (kcc20Tokens?.length ?? 0);
+  const allHidden =
+    !managing && tokenCount > 0 && !shownKrc20?.length && !shownKcc20?.length;
+
+  const isAssetListLoading = balance === undefined || !hiddenLoaded;
 
   const supportEvmL2s =
     settings?.networkId === "mainnet"
@@ -104,14 +146,53 @@ export default function Assets() {
           <EvmKasAsset key={chain.id} chainId={numberToHex(chain.id)} />
         ))}
 
+      {/*Manage tokens: hide or show KRC-20 / KCC-20 rows*/}
+      {tokenCount > 0 && (
+        <div className="flex items-center justify-between pt-2 text-sm">
+          <span className="text-daintree-400">
+            {managing ? "Choose the tokens to show" : "Tokens"}
+          </span>
+          <button
+            type="button"
+            className="rounded-lg px-2 py-1 font-semibold text-icy-blue-400 hover:bg-daintree-800 hover:text-icy-blue-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-icy-blue-400"
+            onClick={managing ? leaveManage : enterManage}
+          >
+            {managing ? "Done" : "Manage tokens"}
+          </button>
+        </div>
+      )}
+
+      {allHidden && (
+        <div
+          data-testid="tokens-all-hidden"
+          className="flex flex-col items-center gap-2 rounded-xl border border-daintree-700 bg-daintree-800 p-4 text-center text-sm text-daintree-400"
+        >
+          <span>All your tokens are hidden.</span>
+          <button
+            type="button"
+            className="font-semibold text-icy-blue-400 hover:text-icy-blue-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-icy-blue-400"
+            onClick={enterManage}
+          >
+            Show tokens
+          </button>
+        </div>
+      )}
+
       {/*KRC20 tokens*/}
-      {tokens?.map((token) => <TokenListItem key={token.id} token={token} />)}
+      {shownKrc20?.map((token) => (
+        <TokenListItem
+          key={token.id}
+          token={token}
+          manage={manageFor(krc20HideId(token.id))}
+        />
+      ))}
 
       {/*KCC20 tokens*/}
-      {kcc20Tokens?.map((token) => (
+      {shownKcc20?.map((token) => (
         <Kcc20TokenListItem
-          key={`${token.covenantId}:${token.extensionCommitment ?? ""}`}
+          key={kcc20Id(token)}
           token={token}
+          manage={manageFor(kcc20Id(token))}
         />
       ))}
 

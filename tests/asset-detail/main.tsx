@@ -13,6 +13,8 @@ import Erc20Asset from "@/components/screens/Erc20Asset";
 import EvmKasAsset from "@/components/screens/EvmKasAsset";
 import DotkAsset from "@/components/screens/DotkAsset";
 import Kcc20Asset, { Kcc20AssetPending } from "@/components/screens/Kcc20Asset";
+import Assets from "@/components/dashboard/Assets";
+import AssetSelect from "@/components/screens/asset-selector/AssetSelect";
 import TokenDetailPage, {
   TokenDetailTab,
 } from "@/ui/popup/kcc20/TokenDetailPage";
@@ -111,6 +113,15 @@ const router = createMemoryRouter(
     },
     { path: "/token-detail-info", element: <TokenInfoHarness /> },
     { path: "/kcc20-activity", element: <ActivityHarness /> },
+    {
+      path: "/dashboard-assets",
+      element: (
+        <div className="p-4">
+          <Assets />
+        </div>
+      ),
+    },
+    { path: "/asset-select", element: <AssetSelect /> },
     { path: "*", element: <Landed /> },
   ],
   { initialEntries: [params.get("route") ?? "/kas-asset"] },

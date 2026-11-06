@@ -12,6 +12,18 @@ const stubs = path.join(here, "stubs.tsx");
 // Repo module (no extension) -> the stub export that stands in as its default.
 // Every stub export is also re-exported by name.
 const modules = {
+  // Dashboard asset list (tests/dashboard-hide-token.spec.ts).
+  "components/screens/asset-selector/EvmKasSelectItems": "Tab",
+  "hooks/useAnalytics": "useAnalytics",
+  "hooks/evm/useErc20Assets": "useErc20Assets",
+  "hooks/useKaspaPrice": "useKaspaPrice",
+  "hooks/useCurrencyValue": "useCurrencyValue",
+  "hooks/kasplex/useTokenListByAddress": "useTokenListByAddress",
+  "hooks/kasplex/useKrc20Prices": "useKrc20Prices",
+  "hooks/kasplex/useKrc20Logo": "useKrc20Logo",
+  "lib/kcc20/useKcc20Price": "useKcc20Price",
+  "components/dashboard/Erc20Assets": "Tab",
+  "components/dashboard/EvmKasAsset": "Tab",
   "hooks/wallet/useWalletManager": "useWalletManager",
   "hooks/wallet/useKaspaBalance": "useKaspaBalance",
   "hooks/useRpcClientStateful": "useRpcClientStateful",
@@ -64,13 +76,20 @@ export default defineConfig({
 export * from ${JSON.stringify(stubs)};`
           : null,
     },
-    Unimport.vite({ presets: ["react"] }),
+    Unimport.vite({
+      presets: ["react"],
+      // WXT auto-imports this one; the dashboard list relies on it.
+      imports: [
+        { name: "default", as: "useSettings", from: "@/hooks/useSettings" },
+      ],
+    }),
     react(),
   ],
   resolve: {
     alias: [
       { find: /^@sentry\/react$/, replacement: stubs },
       { find: /^wxt\/storage$/, replacement: stubs },
+      { find: /^wxt\/browser$/, replacement: stubs },
       { find: /^@\/(.*)$/, replacement: `${repo}/$1` },
     ],
   },

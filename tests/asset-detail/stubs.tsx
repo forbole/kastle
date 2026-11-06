@@ -10,6 +10,7 @@
 //   erc20Zero=1   the ERC-20 balance is "0.0"; erc20None=1 it has no balance
 //   kcc20Loading=1  the KCC-20 lookup has not answered; kcc20Error=1 it failed
 //   tall=1        every tab body is taller than the popup
+//   account2=1    a second account (its own hidden-token set)
 //   historyFallback=1  history page 1 is an events page with nothing of the
 //                 wallet's; page 2 holds the row and stops at the page cap
 import { useState } from "react";
@@ -37,11 +38,25 @@ export const ISSUE_NAME = "KaspaIssueModeTokenWithAVeryLongName";
 // A second KCC-20 row for the same token id, named by its extension.
 export const KCC20_EXT = "cd".repeat(32);
 
-(window as unknown as { browser: unknown }).browser = {
+// storage.local persists in localStorage, so a page reload keeps it.
+const LOCAL = "storage.local:";
+export const browser = {
   tabs: { create: () => {} },
   action: { setPopup: () => {} },
-  storage: { local: { get: async () => ({}), set: async () => {} } },
+  storage: {
+    local: {
+      get: async (key: string) => {
+        const raw = localStorage.getItem(LOCAL + key);
+        return raw === null ? {} : { [key]: JSON.parse(raw) };
+      },
+      set: async (items: Record<string, unknown>) => {
+        for (const [k, v] of Object.entries(items))
+          localStorage.setItem(LOCAL + k, JSON.stringify(v));
+      },
+    },
+  },
 };
+(window as unknown as { browser: unknown }).browser = browser;
 
 export const kcc20Token: Kcc20Token = {
   covenantId: "ab".repeat(32),
@@ -59,7 +74,10 @@ const kcc20ExtToken: Kcc20Token = {
 // Wallet and network
 export function useWalletManager() {
   return {
-    account: { address: OWNER, publicKeys: [] },
+    account: {
+      address: query.has("account2") ? "kaspa:qsecond" : OWNER,
+      publicKeys: [],
+    },
     wallet: walletLoading
       ? undefined
       : { type: ledger ? "ledger" : "software" },
@@ -74,7 +92,10 @@ export function useFeatureFlags() {
   return { isKcc20Enabled: true, isDotkEnabled: !dotkOff };
 }
 export function useSettings() {
-  return [{ currency: "USD", hideBalances: false }, async () => {}];
+  return [
+    { currency: "USD", hideBalances: false, networkId: "mainnet" },
+    async () => {},
+  ];
 }
 export const explorerAddressLinks = {
   mainnet: "https://explorer.kaspa.org/addresses/",
@@ -204,3 +225,32 @@ export const SighashType = {};
 export const explorerTxLinks: Record<string, string> = {
   mainnet: "https://explorer.test/txs/",
 };
+
+// Dashboard asset list
+export function useKaspaPrice() {
+  return { kaspaPrice: 0.1 };
+}
+export function useCurrencyValue(amount: number) {
+  return { amount, code: "USD" };
+}
+export function useTokenListByAddress() {
+  return [
+    { id: "KASPY", balance: "100000000", dec: "8" },
+    { id: "NACHO", balance: "500000000", dec: "8" },
+  ];
+}
+export function useKrc20Prices() {
+  return { price: 0 };
+}
+export function useKrc20Logo() {
+  return { logo: undefined };
+}
+export function useKcc20Price() {
+  return { priceUsd: undefined };
+}
+export function useErc20Assets() {
+  return { assets: [] };
+}
+export function useAnalytics() {
+  return new Proxy({}, { get: () => () => {} });
+}
