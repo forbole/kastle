@@ -492,6 +492,29 @@ for (const s of TABBED) {
 }
 
 // As on every other tabbed screen, the identity card is Token info only.
+test("KCC-20 screen: Token info shows the name and the Balance row of the row", async ({
+  page,
+}) => {
+  await open(page, `/kcc20/${KCC20_ID}`);
+  await page.getByRole("tab", { name: "Token info", exact: true }).click();
+  const panel = page.getByRole("tabpanel");
+  // tests/asset-detail/stubs.tsx: 1,000,000 base units, 2 decimals.
+  await expect(panel.getByText("Kastle test", { exact: true })).toBeVisible();
+  await expect(panel.getByText("Balance", { exact: true })).toBeVisible();
+  await expect(panel.getByText("10,000", { exact: true })).toBeVisible();
+});
+
+test("KCC-20 screen: no row for the id, no Balance row and no name", async ({
+  page,
+}) => {
+  await open(page, `/kcc20/${"ef".repeat(32)}`);
+  await page.getByRole("tab", { name: "Token info", exact: true }).click();
+  const panel = page.getByRole("tabpanel");
+  await expect(panel.getByText("Network", { exact: true })).toBeVisible();
+  await expect(panel.getByText("Balance", { exact: true })).toHaveCount(0);
+  await expect(panel.getByText("Kastle test", { exact: true })).toHaveCount(0);
+});
+
 test("KCC-20: the identity card shows on Token info, not on History", async ({
   page,
 }) => {

@@ -11,7 +11,7 @@ import { useKcc20Price } from "@/lib/kcc20/useKcc20Price";
 import useCurrencyValue from "@/hooks/useCurrencyValue";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { formatTokenPrice, setPopupPath, textEllipsis } from "@/lib/utils";
-import { KCC20_LABELS } from "@/ui/popup/kcc20/labels";
+import { formatKcc20Balance, KCC20_LABELS } from "@/ui/popup/kcc20/labels";
 
 export default function Kcc20Asset() {
   const navigate = useNavigate();
@@ -72,6 +72,9 @@ export default function Kcc20Asset() {
   return (
     <TokenDetailPage
       name={(meta?.symbol ?? token?.tick) || textEllipsis(covenantId)}
+      // Same values as the dashboard row; a nameless token gets no name line.
+      tokenName={meta?.name || undefined}
+      balance={token ? formatKcc20Balance(token) : undefined}
       logo={meta?.logoURI}
       network="kcc20"
       networkName="Kaspa"

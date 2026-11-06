@@ -19,7 +19,11 @@ import { formatUnits } from "viem";
 import { Kcc20Token } from "@/lib/kcc20";
 import { useFeatureFlags } from "@/hooks/useFeatureFlags.ts";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
-import { formatKcc20Amount, KCC20_LABELS } from "@/ui/popup/kcc20/labels";
+import {
+  formatKcc20Amount,
+  formatKcc20Balance,
+  KCC20_LABELS,
+} from "@/ui/popup/kcc20/labels";
 import { useKcc20Price } from "@/lib/kcc20/useKcc20Price";
 import TokenRow from "@/ui/popup/dashboard/TokenRow";
 
@@ -127,9 +131,7 @@ export function Kcc20TokenListItem({ token }: { token: Kcc20Token }) {
   // Without decimals the scale is unknown: grouped base units, never a guess.
   // kascov held cells back when truncated: the balance may be short.
   const more = token.truncated ? "+" : "";
-  const balance = showBalance
-    ? `${formatKcc20Amount(token.amount, meta?.decimals)}${more}`
-    : "*****";
+  const balance = showBalance ? formatKcc20Balance(token) : "*****";
   const compact = showBalance
     ? compactKcc20Amount(token.amount, meta?.decimals)
     : undefined;

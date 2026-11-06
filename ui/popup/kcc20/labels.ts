@@ -83,3 +83,15 @@ export function formatKcc20Amount(amount: bigint, decimals?: number) {
   // Below 3 places a non-zero amount must not read as "0".
   return shown === "0" && amount !== 0n ? exact : shown;
 }
+
+// A holding as the dashboard row and the detail page both show it. kascov
+// held cells back when truncated: the balance may be short, hence "+".
+export function formatKcc20Balance(token: {
+  amount: bigint;
+  truncated?: boolean;
+  meta?: { decimals?: number };
+}) {
+  return `${formatKcc20Amount(token.amount, token.meta?.decimals)}${
+    token.truncated ? "+" : ""
+  }`;
+}
