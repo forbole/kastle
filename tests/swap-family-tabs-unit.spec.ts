@@ -291,3 +291,28 @@ test("the Standard and KRON tabs carry their provider's mark, All none", async (
     );
   s.unmount();
 });
+
+test("a long list mounts only the rows in view, and the full list scrolls", async () => {
+  const many: Row[] = [
+    KAS,
+    ...Array.from({ length: 180 }, (_, i) => ({
+      key: `kaspa:${i.toString(16).padStart(64, "0")}`,
+      chain: "kaspa",
+      symbol: `STD${i}`,
+      address: i.toString(16).padStart(64, "0"),
+      family: "kcc20-standard" as const,
+    })),
+  ];
+  const s = await mountSheet(many);
+  const rowCount = s.symbols().length;
+  expect(rowCount).toBeGreaterThan(0);
+  expect(rowCount).toBeLessThan(many.length);
+  // The rows not mounted are padding: the list keeps the full list's height.
+  const list = s.host.querySelector("button:not([role])")!
+    .parentElement as unknown as HTMLElement;
+  expect(parseFloat(list.style.paddingBottom)).toBeGreaterThan(0);
+  // A filter to fewer rows than the window mounts them all.
+  await s.tap("KRON");
+  expect(s.symbols()).toEqual(["KAS"]);
+  s.unmount();
+});

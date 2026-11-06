@@ -1,4 +1,12 @@
-import React, { ReactNode, useLayoutEffect, useRef, useState } from "react";
+import React, {
+  ReactNode,
+  RefObject,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import { twMerge } from "tailwind-merge";
 import {
@@ -30,6 +38,7 @@ export function BottomSheet({
   header,
   fixedHeight,
   tall,
+  bodyRef,
 }: {
   title: string;
   /** Figma 12472:58331: 14/20 Regular #7b9aaa caption directly under the title. */
@@ -54,6 +63,8 @@ export function BottomSheet({
   fixedHeight?: boolean;
   /** Figma provider / slippage sheets: 80px bottom space. */
   tall?: boolean;
+  /** The scrolling body, for a list that windows its rows against it. */
+  bodyRef?: RefObject<HTMLDivElement>;
 }) {
   if (!open) return null;
   return (
@@ -110,6 +121,7 @@ export function BottomSheet({
       )}
       {headerless && header}
       <div
+        ref={bodyRef}
         className={twMerge(
           "no-scrollbar flex min-h-0 flex-col gap-2 overflow-y-auto px-3 pb-4",
           // Figma 12500:352187: 6px row gap, list fixed at 440px with no
@@ -632,6 +644,69 @@ export type SheetToken = {
   disabled?: boolean;
 };
 
+// Rows mounted past either edge of the list, so a Tab or a short scroll lands on a mounted row.
+const OVERSCAN = 8;
+// Until two rows are on screen to measure: a 40px icon row (py-2) plus the 6px gap, in the 440px list.
+const EST_STRIDE = 62;
+const EST_VIEWPORT = 440;
+
+type RowWindow = { start: number; end: number; stride: number };
+
+/**
+ * The slice of `count` equal-height rows in `list` that shows in the
+ * scrolling `body`, plus OVERSCAN either side. Re-read on scroll and after
+ * every render (a search or tab change resizes the list and the browser
+ * clamps the scroll), and stored only when the slice moves.
+ */
+function useRowWindow(
+  count: number,
+  body: RefObject<HTMLDivElement>,
+  list: RefObject<HTMLDivElement>,
+  open: boolean,
+): RowWindow {
+  const [win, setWin] = useState<RowWindow>({
+    start: 0,
+    end: Math.ceil(EST_VIEWPORT / EST_STRIDE) + OVERSCAN,
+    stride: EST_STRIDE,
+  });
+  const measure = useCallback(() => {
+    const b = body.current;
+    const l = list.current;
+    if (!b || !l) return;
+    setWin((prev) => {
+      const rows = l.querySelectorAll(":scope > button");
+      const stride =
+        rows.length > 1
+          ? rows[1].getBoundingClientRect().top -
+              rows[0].getBoundingClientRect().top || prev.stride
+          : prev.stride;
+      // How far the list's top sits above the body's visible top.
+      const top = Math.max(
+        0,
+        b.getBoundingClientRect().top - l.getBoundingClientRect().top,
+      );
+      const height = b.clientHeight || EST_VIEWPORT;
+      const start = Math.max(0, Math.floor(top / stride) - OVERSCAN);
+      const end = Math.ceil((top + height) / stride) + OVERSCAN;
+      return start === prev.start && end === prev.end && stride === prev.stride
+        ? prev
+        : { start, end, stride };
+    });
+  }, [body, list]);
+  useLayoutEffect(measure);
+  useEffect(() => {
+    const b = body.current;
+    if (!open || !b) return;
+    b.addEventListener("scroll", measure, { passive: true });
+    return () => b.removeEventListener("scroll", measure);
+  }, [open, body, measure]);
+  return {
+    start: Math.min(win.start, count),
+    end: Math.min(win.end, count),
+    stride: win.stride,
+  };
+}
+
 /** Token picker: chain chips, search by symbol/address, recent picks first. */
 export function TokenSheet({
   open,
@@ -657,6 +732,8 @@ export function TokenSheet({
 }) {
   const [search, setSearch] = useState("");
   const [recent, setRecent] = useStorageState<string[]>(recentKey, []);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const q = search.trim().toLowerCase();
   const inChain = tokens.filter((t) => t.chain === chain);
   const matches = inChain.filter(
@@ -670,6 +747,20 @@ export function TokenSheet({
     : recent
         .map((k) => inChain.find((t) => t.key === k))
         .filter((t): t is SheetToken => !!t);
+
+  const rows = [
+    ...recentTokens,
+    ...matches.filter((t) => !recentTokens.includes(t)),
+  ];
+  // Only the rows in view are mounted, each with its images: a list runs to
+  // hundreds (180 Standard, 50 KRON). Padding stands in for the rest, so the
+  // scroll height and the scrollbar stay the full list's.
+  const { start, end, stride } = useRowWindow(
+    rows.length,
+    bodyRef,
+    listRef,
+    open,
+  );
 
   const row = (t: SheetToken) => (
     <button
@@ -716,6 +807,7 @@ export function TokenSheet({
       onClose={onClose}
       headerless
       fixedHeight
+      bodyRef={bodyRef}
       header={
         <div className="px-4 pb-3">
           <div className="relative">
@@ -755,8 +847,18 @@ export function TokenSheet({
         </div>
       )}
       {tabs}
-      {recentTokens.length > 0 && <>{recentTokens.map(row)}</>}
-      {matches.filter((t) => !recentTokens.includes(t)).map(row)}
+      {rows.length > 0 && (
+        <div
+          ref={listRef}
+          className="flex flex-none flex-col gap-1.5"
+          style={{
+            paddingTop: start * stride,
+            paddingBottom: (rows.length - end) * stride,
+          }}
+        >
+          {rows.slice(start, end).map(row)}
+        </div>
+      )}
       {matches.length === 0 && (
         <p className="py-4 text-center text-sm text-daintree-400">
           No tokens found
