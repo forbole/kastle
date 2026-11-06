@@ -1169,7 +1169,18 @@ export default function Swap() {
                       : undefined
                   }
                 >
-                  {L1_PROVIDERS.find((p) => p.id === l1ProviderId)?.name}
+                  {L1_PROVIDERS.filter((p) => p.id === l1ProviderId).map(
+                    (p) => (
+                      <React.Fragment key={p.id}>
+                        <img
+                          src={p.image}
+                          alt=""
+                          className="size-[26px] rounded-full"
+                        />
+                        {p.name}
+                      </React.Fragment>
+                    ),
+                  )}
                 </QuoteRow>
               ) : (
                 <QuoteRow
@@ -1348,6 +1359,7 @@ export default function Swap() {
             return (
               <ProviderRow
                 key={p.id}
+                image={p.image}
                 name={p.name}
                 subtitle={
                   !supports

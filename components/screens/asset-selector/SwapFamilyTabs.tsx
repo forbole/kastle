@@ -1,13 +1,20 @@
 import { twMerge } from "tailwind-merge";
+import braidLogo from "@/assets/images/providers/braid-logo.svg";
+import kronLogo from "@/assets/images/providers/kron-logo.png";
 import type { Kcc20Family } from "@/lib/kcc20";
 
 export type SwapFamilyTab = "all" | Kcc20Family;
 
 // Mobile's TokenSelectionSheet family filter, opening on All: a tap only filters, it never touches the pair.
-export const FAMILY_TABS: { key: SwapFamilyTab; label: string }[] = [
+// A family tab carries the mark of the provider that trades it: Braid lists Standard tokens, KRON its own.
+export const FAMILY_TABS: {
+  key: SwapFamilyTab;
+  label: string;
+  logo?: string;
+}[] = [
   { key: "all", label: "All" },
-  { key: "kcc20-standard", label: "Standard" },
-  { key: "kron-legacy", label: "KRON" },
+  { key: "kcc20-standard", label: "Standard", logo: braidLogo },
+  { key: "kron-legacy", label: "KRON", logo: kronLogo },
 ];
 
 /** All keeps every row; off Kaspa L1 and for a row with no family (KAS, the counter leg) every tab does. */
@@ -47,12 +54,15 @@ export default function SwapFamilyTabs({
             aria-selected={t.key === value}
             onClick={() => onChange(t.key)}
             className={twMerge(
-              "h-9 rounded-full border px-4 text-sm font-medium",
+              "flex h-9 items-center gap-2 rounded-full border px-4 text-sm font-medium",
               t.key === value
                 ? "border-icy-blue-400 bg-icy-blue-400 text-white"
                 : "border-daintree-700 text-daintree-400",
             )}
           >
+            {t.logo && (
+              <img src={t.logo} alt="" className="size-5 rounded-full" />
+            )}
             {t.label}
           </button>
         ))}

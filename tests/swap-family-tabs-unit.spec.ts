@@ -43,6 +43,13 @@ const base = {
 const Icon = () => null;
 // A default import of a stub: esModuleInterop unwraps only an ES-module-shaped object.
 const esm = (d: unknown) => ({ __esModule: true, default: d });
+/** An image import as the bundler emits it: its path under the repo, which must exist. */
+const asset = (id: string) => {
+  const rel = id.replace(/^@\//, "");
+  if (!fs.existsSync(path.join(__dirname, "..", rel)))
+    throw new Error(`missing asset ${id}`);
+  return esm(`/${rel}`);
+};
 const { TokenSheet } = loadModule("components/swap-bridge/ui.tsx", {
   ...base,
   "react-router-dom": { useNavigate: () => () => {} },
@@ -67,10 +74,15 @@ const {
   default: SwapFamilyTabs,
   hasFamilyRow,
   inFamily,
-} = loadModule(
-  "components/screens/asset-selector/SwapFamilyTabs.tsx",
-  base,
-) as typeof import("@/components/screens/asset-selector/SwapFamilyTabs");
+} = loadModule("components/screens/asset-selector/SwapFamilyTabs.tsx", {
+  ...base,
+  "@/assets/images/providers/braid-logo.svg": asset(
+    "@/assets/images/providers/braid-logo.svg",
+  ),
+  "@/assets/images/providers/kron-logo.png": asset(
+    "@/assets/images/providers/kron-logo.png",
+  ),
+}) as typeof import("@/components/screens/asset-selector/SwapFamilyTabs");
 
 type Row = {
   key: string;
@@ -253,4 +265,29 @@ test("off Kaspa L1 the tabs filter nothing", () => {
   expect(inFamily(IGRA, "kron-legacy")).toBe(true);
   expect(inFamily(KAS, "kcc20-standard")).toBe(true);
   expect(inFamily(STANDARD, "kron-legacy")).toBe(false);
+});
+
+test("the Standard and KRON tabs carry their provider's mark, All none", async () => {
+  const s = await mountSheet([KAS, STANDARD, CURVE]);
+  const tabImages = (): Record<string, { src: string; alt: string }[]> =>
+    Object.fromEntries(
+      Array.from(s.host.querySelectorAll('[role="tab"]')).map((b: any) => [
+        b.textContent,
+        Array.from(b.querySelectorAll("img")).map((i: any) => ({
+          src: i.getAttribute("src"),
+          alt: i.getAttribute("alt"),
+        })),
+      ]),
+    );
+  expect(tabImages()).toEqual({
+    All: [],
+    // Decorative: the label beside it names the tab.
+    Standard: [{ src: "/assets/images/providers/braid-logo.svg", alt: "" }],
+    KRON: [{ src: "/assets/images/providers/kron-logo.png", alt: "" }],
+  });
+  for (const [img] of Object.values(tabImages()).filter((v) => v.length))
+    expect(fs.existsSync(path.join(__dirname, "..", img.src.slice(1)))).toBe(
+      true,
+    );
+  s.unmount();
 });
