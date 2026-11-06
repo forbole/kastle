@@ -501,7 +501,24 @@ test("KCC-20 screen: Token info shows the name and the Balance row of the row", 
   // tests/asset-detail/stubs.tsx: 1,000,000 base units, 2 decimals.
   await expect(panel.getByText("Kastle test", { exact: true })).toBeVisible();
   await expect(panel.getByText("Balance", { exact: true })).toBeVisible();
-  await expect(panel.getByText("10,000", { exact: true })).toBeVisible();
+  // As mobile: the holding carries its ticker.
+  await expect(panel.getByText("10,000 KTEST", { exact: true })).toBeVisible();
+});
+
+test("KCC-20 screen: the Balance row masks with balances hidden, and a scale-less holding keeps one unit", async ({
+  page,
+}) => {
+  const balanceRow = () =>
+    page
+      .getByRole("tabpanel")
+      .locator("section > div > div", { hasText: /^Balance/ });
+  await open(page, `/kcc20/${KCC20_ID}`, "&hidden=1");
+  await page.getByRole("tab", { name: "Token info", exact: true }).click();
+  await expect(balanceRow()).toHaveText("Balance*****");
+
+  await open(page, `/kcc20/${KCC20_ID}`, "&nodecimals=1");
+  await page.getByRole("tab", { name: "Token info", exact: true }).click();
+  await expect(balanceRow()).toHaveText("Balance1,000,000 base units");
 });
 
 test("KCC-20 screen: no row for the id, no Balance row and no name", async ({
@@ -519,6 +536,10 @@ test("KCC-20: the identity card shows on Token info, not on History", async ({
   page,
 }) => {
   await open(page, `/kcc20/${KCC20_ID}`);
+  // The card is the logo, the ticker and the name; it carries no family chip.
+  const card = page.locator("div.rounded-2xl", {
+    has: page.getByText("Kastle test", { exact: true }),
+  });
   const chip = page.getByText("Kaspa-KCC20", { exact: true });
   const explorer = page.getByRole("button", {
     name: "See activity history in explorer",
@@ -529,6 +550,7 @@ test("KCC-20: the identity card shows on Token info, not on History", async ({
   });
   await expect(row).toBeVisible();
   await expect(explorer).toHaveCount(0);
+  await expect(card).toHaveCount(0);
   await expect(chip).toHaveCount(0);
   // History starts with the list, right under the tabs.
   const next = await page
@@ -538,9 +560,9 @@ test("KCC-20: the identity card shows on Token info, not on History", async ({
   await expect(sendButton(page, "KTEST")).toBeVisible();
 
   await page.getByRole("tab", { name: "Token info", exact: true }).click();
-  await expect(chip).toBeVisible();
-  const card = page.locator("div.rounded-2xl", { has: chip });
+  await expect(card).toBeVisible();
   await expect(card.getByText("KTEST", { exact: true })).toBeVisible();
+  await expect(chip).toHaveCount(0);
   await expect(row).toHaveCount(0);
   await expect(explorer).toHaveCount(0);
   await expect(sendButton(page, "KTEST")).toBeVisible();

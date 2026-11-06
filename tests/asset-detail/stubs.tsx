@@ -13,6 +13,8 @@
 //   account2=1    a second account (its own hidden-token set)
 //   historyFallback=1  history page 1 is an events page with nothing of the
 //                 wallet's; page 2 holds the row and stops at the page cap
+//   historySend=1  a send row after the receive (both signs on one page)
+//   hidden=1      balances are hidden; nodecimals=1 kascov claimed no decimals
 import { useState } from "react";
 import type { Kcc20Token } from "@/lib/kcc20";
 
@@ -64,7 +66,9 @@ export const kcc20Token: Kcc20Token = {
   tick: "ktest",
   amount: 1_000_000n,
   spendable: spendable0 ? 0n : 1_000_000n,
-  meta: { symbol: "KTEST", name: "Kastle test", decimals: 2 },
+  meta: query.has("nodecimals")
+    ? { symbol: "KTEST", name: "Kastle test", unverified: true }
+    : { symbol: "KTEST", name: "Kastle test", decimals: 2 },
 };
 const kcc20ExtToken: Kcc20Token = {
   ...kcc20Token,
@@ -93,7 +97,11 @@ export function useFeatureFlags() {
 }
 export function useSettings() {
   return [
-    { currency: "USD", hideBalances: false, networkId: "mainnet" },
+    {
+      currency: "USD",
+      hideBalances: query.has("hidden"),
+      networkId: "mainnet",
+    },
     async () => {},
   ];
 }
@@ -149,8 +157,11 @@ export function useKcc20Tokens() {
 export function useKcc20History() {
   const [size, setSize] = useState(1);
   const paged = !historyFallback || size > 1;
+  const rows = query.has("historySend")
+    ? [historyRows[0], sendRow]
+    : historyRows;
   return {
-    entries: paged ? historyRows : [],
+    entries: paged ? rows : [],
     size,
     setSize,
     hasMore: !paged,
@@ -177,6 +188,18 @@ const historyRows = [
     approxTime: true,
   },
 ];
+const sendRow = {
+  id: "kcc20send:0",
+  txid: "kcc20send",
+  seq: 0,
+  kind: "send",
+  amount: 250n,
+  ambiguous: false,
+  counterparty: "p2pkh:qrecipient",
+  acceptingDaa: 2,
+  timestampMs: Date.UTC(2026, 0, 3),
+  approxTime: true,
+};
 export function useDotkName() {
   return {
     lookup: {

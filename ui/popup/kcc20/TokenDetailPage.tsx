@@ -4,7 +4,6 @@ import Header from "@/components/GeneralHeader";
 import AssetSendButton from "@/components/AssetSendButton";
 import AssetTabs, { assetPanelId, assetTabId } from "@/components/AssetTabs";
 import AssetImage from "./AssetImage";
-import NetworkTypeChip from "./NetworkTypeChip";
 import { KCC20_LABELS, NetworkType, STANDARD_LABELS } from "./labels";
 
 export type TokenDetailTab = "history" | "assetInfo";
@@ -137,7 +136,8 @@ export default function TokenDetailPage({
           aria-labelledby={assetTabId(panel)}
           className="flex flex-col gap-2"
         >
-          {/* Header card: the Home asset row plus the chip, Token info only */}
+          {/* Header card: the Home asset row, Token info only. No family chip:
+              the Standard row below names the standard. */}
           {activeTab === "assetInfo" && (
             <div className="flex items-center gap-3 rounded-2xl border border-card-border bg-white/5 px-3 py-3">
               {tokenImage}
@@ -165,7 +165,6 @@ export default function TokenDetailPage({
                   </span>
                 )}
               </div>
-              <NetworkTypeChip network={network} />
             </div>
           )}
 

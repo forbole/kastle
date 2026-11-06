@@ -20,6 +20,7 @@ export default function Kcc20Asset() {
   // A token id can have one row per extension commitment; the route names the row.
   const rowExt = searchParams.get("ext");
   const { account } = useWalletManager();
+  const [settings] = useSettings();
   const { data: tokens, isLoading, error } = useKcc20Tokens(account?.address);
   const [activeTab, setActiveTab] = useState<TokenDetailTab>("history");
   const [, copy] = useCopyToClipboard();
@@ -44,6 +45,15 @@ export default function Kcc20Asset() {
   // The route guard rules out Ledger; only verified, owned pieces are sendable.
   const canSend =
     meta?.decimals !== undefined && !!token && token.spendable > 0n;
+  // As mobile: the holding with its ticker, masked with balances hidden.
+  // Without decimals the figure already carries its unit ("base units").
+  const balance = !token
+    ? undefined
+    : settings?.hideBalances
+      ? "*****"
+      : meta?.decimals !== undefined && meta.symbol
+        ? `${formatKcc20Balance(token)} ${meta.symbol}`
+        : formatKcc20Balance(token);
 
   useEffect(() => {
     setPopupPath();
@@ -74,7 +84,7 @@ export default function Kcc20Asset() {
       name={(meta?.symbol ?? token?.tick) || textEllipsis(covenantId)}
       // Same values as the dashboard row; a nameless token gets no name line.
       tokenName={meta?.name || undefined}
-      balance={token ? formatKcc20Balance(token) : undefined}
+      balance={balance}
       logo={meta?.logoURI}
       network="kcc20"
       networkName="Kaspa"
