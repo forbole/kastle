@@ -5,8 +5,7 @@ import { textEllipsis } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { CHAIN_BADGES } from "@/ui/popup/kcc20/AssetImage";
-import { KCC20_LABELS } from "@/ui/popup/kcc20/labels";
-import { formatBalance } from "@/components/send/kcc20-send/formatBalance";
+import { formatKcc20Amount, KCC20_LABELS } from "@/ui/popup/kcc20/labels";
 
 // Sending needs the scale: an amount typed without decimals has no meaning.
 export type SendableKcc20Token = Kcc20Token & {
@@ -71,9 +70,12 @@ export default function Kcc20SelectItem({ token }: Kcc20SelectItemProps) {
             </span>
           </div>
         </div>
-        {/* Spendable, not held: the send screen caps the amount at this. */}
+        {/* Spendable, not held: the send screen caps the amount at this.
+            Same formatter as the dashboard row and history. */}
         {!isLedger && (
-          <span>{formatBalance(token.spendable, token.meta.decimals)}</span>
+          <span className="whitespace-nowrap tabular-nums">
+            {formatKcc20Amount(token.spendable, token.meta.decimals)}
+          </span>
         )}
         {isLedger && (
           <span className="rounded-full bg-[#1C333C] p-2 px-4 text-xs text-white">

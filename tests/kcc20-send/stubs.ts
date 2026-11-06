@@ -54,6 +54,22 @@ export const kcc20Token: Kcc20Token = {
       },
 };
 
+// A KRON row as the registry lists it: verified metadata and artwork.
+export const kronToken: Kcc20Token = {
+  covenantId: "cd".repeat(32),
+  family: "kron-legacy",
+  tick: "whale",
+  amount: 12_800_100_000_000n,
+  spendable: 12_800_100_000_000n,
+  meta: {
+    symbol: "WHALE",
+    name: "Whale",
+    decimals: 8,
+    logoURI:
+      "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Ccircle cx='20' cy='20' r='20' fill='%2300b1d0'/%3E%3C/svg%3E",
+  },
+};
+
 // history=1: one exact receive and one row kascov could not attribute; else none.
 export function useKcc20History() {
   const entries = query.has("history")
@@ -211,8 +227,12 @@ export function useErc20Image() {
 // KCC-20
 // Like the real hook, no address means no fetch.
 // price=<usd> prices a KCC-20 token; without it no market lists one.
-export function useKcc20Price() {
-  const usd = query.get("price");
+// kronPrice=<usd> prices the KRON fixture alone.
+export function useKcc20Price(token?: Pick<Kcc20Token, "family">) {
+  const usd =
+    token?.family === "kron-legacy"
+      ? query.get("kronPrice")
+      : query.get("price");
   return { priceUsd: usd === null ? undefined : Number(usd) };
 }
 export function useKcc20Tokens(address?: string) {

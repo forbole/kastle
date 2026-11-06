@@ -21,9 +21,7 @@ import { useFeatureFlags } from "@/hooks/useFeatureFlags.ts";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { formatKcc20Amount, KCC20_LABELS } from "@/ui/popup/kcc20/labels";
 import { useKcc20Price } from "@/lib/kcc20/useKcc20Price";
-
-// A token no market prices reads as unknown, never as worth zero.
-const NO_PRICE = "—";
+import TokenRow from "@/ui/popup/dashboard/TokenRow";
 
 type TokenListItemProps = {
   token: TokenItem;
@@ -89,6 +87,23 @@ export default function TokenListItem({ token }: TokenListItemProps) {
   );
 }
 
+const COMPACT = new Intl.NumberFormat("en-US", {
+  notation: "compact",
+  maximumFractionDigits: 2,
+});
+
+// The overflow fallback of formatKcc20Amount: same scale rule, compact digits.
+// None when it would not be shorter, or would round a holding down to "0".
+function compactKcc20Amount(amount: bigint, decimals?: number) {
+  const full = formatKcc20Amount(amount, decimals);
+  const short =
+    decimals === undefined
+      ? `${COMPACT.format(amount)} ${KCC20_LABELS.baseUnits}`
+      : COMPACT.format(Number(formatUnits(amount, decimals)));
+  if (short.length >= full.length || (short === "0" && amount !== 0n)) return;
+  return short;
+}
+
 export function Kcc20TokenListItem({ token }: { token: Kcc20Token }) {
   const navigate = useNavigate();
   const [settings] = useSettings();
@@ -97,8 +112,6 @@ export function Kcc20TokenListItem({ token }: { token: Kcc20Token }) {
   const { wallet } = useWalletManager();
   // Same guard as the kcc20 routes; the detail page decides whether Send shows.
   const canOpen = isKcc20Enabled && wallet?.type !== "ledger";
-  // Without decimals the scale is unknown: grouped base units, never a guess.
-  const balance = formatKcc20Amount(token.amount, meta?.decimals);
   const showBalance = !settings?.hideBalances;
   const { priceUsd } = useKcc20Price(token);
   // No verified decimals, no whole-token balance to value.
@@ -110,6 +123,27 @@ export function Kcc20TokenListItem({ token }: { token: Kcc20Token }) {
     priceUsd ?? 0,
   );
   const { amount: fiatValue } = useCurrencyValue(valueUsd ?? 0);
+
+  // Without decimals the scale is unknown: grouped base units, never a guess.
+  // kascov held cells back when truncated: the balance may be short.
+  const more = token.truncated ? "+" : "";
+  const balance = showBalance
+    ? `${formatKcc20Amount(token.amount, meta?.decimals)}${more}`
+    : "*****";
+  const compact = showBalance
+    ? compactKcc20Amount(token.amount, meta?.decimals)
+    : undefined;
+  const compactBalance =
+    compact === undefined ? undefined : `${compact}${more}`;
+  // An unpriced token shows no fiat at all: no placeholder, never $0.
+  const fiat =
+    valueUsd === undefined
+      ? undefined
+      : `≈ ${
+          showBalance
+            ? formatCurrency(fiatValue, currencyCode)
+            : `${symbolForCurrencyCode(currencyCode)}*****`
+        }`;
 
   return (
     <button
@@ -124,48 +158,23 @@ export function Kcc20TokenListItem({ token }: { token: Kcc20Token }) {
         )
       }
     >
-      <Layer2AssetImage tokenImage={meta?.logoURI} chainImage={kasIcon} />
-      <div className="flex min-w-0 flex-grow flex-col gap-1">
-        <div className="flex items-start justify-between gap-2 text-base text-white">
-          {/* As mobile: the ticker; a nameless token falls back to its short id. */}
-          <span>
-            {(meta?.symbol ?? token.tick) || (
-              <span className="font-mono">
-                {textEllipsis(token.covenantId)}
-              </span>
-            )}
-          </span>
-          <span className="break-all text-right">
-            {showBalance ? balance : "*****"}
-            {/* kascov held cells back: the balance may be short. */}
-            {showBalance && token.truncated && "+"}
-          </span>
-        </div>
-        <div className="flex items-center gap-2 text-sm text-daintree-400">
-          {meta?.name}
-          {/* One quiet marker: kascov's claimed metadata, or none at all. */}
-          {(!meta || meta.unverified) && (
-            <span className="text-xs text-daintree-600">
-              {KCC20_LABELS.unverified}
-            </span>
-          )}
-        </div>
-        <div className="flex items-center justify-between text-sm text-daintree-400">
-          <span>
-            {priceUsd === undefined
-              ? NO_PRICE
-              : formatTokenPrice(fiatPrice, currencyCode)}
-          </span>
-          <span>
-            ≈{" "}
-            {!showBalance
-              ? `${symbolForCurrencyCode(currencyCode)}*****`
-              : valueUsd === undefined
-                ? NO_PRICE
-                : formatCurrency(fiatValue, currencyCode)}
-          </span>
-        </div>
-      </div>
+      <TokenRow
+        logo={meta?.logoURI}
+        ticker={
+          // A nameless token falls back to its short id.
+          (meta?.symbol ?? token.tick) || (
+            <span className="font-mono">{textEllipsis(token.covenantId)}</span>
+          )
+        }
+        price={
+          priceUsd === undefined
+            ? undefined
+            : formatTokenPrice(fiatPrice, currencyCode)
+        }
+        balance={balance}
+        compactBalance={compactBalance}
+        fiat={fiat}
+      />
     </button>
   );
 }
