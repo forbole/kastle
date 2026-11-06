@@ -306,7 +306,9 @@ test("05 token detail, History: direction, title, counterparty, signed amount, d
   expect(parts.icon).toBe(true);
   expect(parts.left).toEqual(["Received", "From qsender"]);
   expect(parts.right[0]).toBe("+1 KTEST");
-  expect(parts.right[1]).toMatch(/^≈ /);
+  expect(parts.right[1]).toMatch(
+    /^[A-Z][a-z]{2} \d{1,2}, \d{4}, \d{1,2}:\d{2}\s?[AP]M$/,
+  );
   expect(parts.rightAligned).toBe("flex-end");
   // A send signs negative and names its recipient; no txid on either row.
   const sent = page.getByRole("button", { name: /^Sent/ });
@@ -316,6 +318,65 @@ test("05 token detail, History: direction, title, counterparty, signed amount, d
     expect(await r.textContent()).not.toMatch(/kcc20(tx|send)|[0-9a-f]{16}/);
   await expect(page.locator("body")).not.toContainText(GONE);
   await shot(page, "04-detail-history.png");
+  expect(errors).toEqual([]);
+});
+
+test("09 a date is exact: no date cell, in the list or the detail sheet, carries ≈", async ({
+  page,
+}) => {
+  const errors = await open(
+    page,
+    "detail",
+    `route=/kcc20/${KCC20_ID}&historySend=1`,
+  );
+  await page.getByRole("tab", { name: "History", exact: true }).click();
+  const rows = page.getByRole("button", { name: /^(Received|Sent)/ });
+  await expect(rows).toHaveCount(2);
+  const dates = await rows.evaluateAll((bs) =>
+    bs.map((b) => b.lastElementChild?.lastElementChild?.textContent ?? ""),
+  );
+  expect(dates).toHaveLength(2);
+  for (const d of dates) {
+    expect(d).toMatch(/\d{4}/);
+    expect(d).not.toContain("≈");
+  }
+  await rows.first().click();
+  const heading = page.locator("#kcc20-activity-title");
+  await expect(heading).toBeVisible();
+  const sheetDate = await heading.evaluate(
+    (h) => h.nextElementSibling?.textContent ?? "",
+  );
+  expect(sheetDate).toBe(dates[0]);
+  expect(sheetDate).not.toContain("≈");
+  expect(errors).toEqual([]);
+});
+
+test("10 a provider with no rate renders no subtitle and no dash, and keeps its row height", async ({
+  page,
+}) => {
+  const errors = await open(page, "swap", "view=providers");
+  const rows = page.getByTestId("providers").getByRole("button");
+  await expect(rows).toHaveCount(2);
+  const read = (i: number) =>
+    rows.nth(i).evaluate((b) => {
+      const text = b.querySelector("img + div") as HTMLElement;
+      return {
+        lines: [...text.children].map((c) => c.textContent ?? ""),
+        height: b.getBoundingClientRect().height,
+        nameCentre: (() => {
+          const n = text.firstElementChild!.getBoundingClientRect();
+          const img = b.querySelector("img")!.getBoundingClientRect();
+          return Math.round(n.top + n.height / 2 - (img.top + img.height / 2));
+        })(),
+      };
+    });
+  const kron = await read(0);
+  const braid = await read(1);
+  expect(kron.lines).toEqual(["KRON", "1 KAS ≈ 13,789 WHALE"]);
+  expect(braid.lines).toEqual(["Braid"]);
+  expect(await rows.nth(1).textContent()).not.toMatch(/[-—–]|N\/A|No route/);
+  expect(braid.height).toBe(kron.height);
+  expect(Math.abs(braid.nameCentre)).toBeLessThanOrEqual(1);
   expect(errors).toEqual([]);
 });
 

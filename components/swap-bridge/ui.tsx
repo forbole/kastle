@@ -515,7 +515,8 @@ export function ProviderRow({
 }: {
   image?: string;
   name: string;
-  subtitle: string;
+  /** Absent when there is no rate line: the row draws the name alone. */
+  subtitle?: string;
   selected: boolean;
   recommended?: boolean;
   disabled?: boolean;
@@ -531,7 +532,9 @@ export function ProviderRow({
       <img src={image} alt="" className="size-10 flex-none rounded-full" />
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <span className="text-sm font-semibold text-white">{name}</span>
-        <span className="text-xs text-daintree-400">{subtitle}</span>
+        {subtitle && (
+          <span className="text-xs text-daintree-400">{subtitle}</span>
+        )}
       </div>
       {recommended && (
         <span className="rounded-full border border-icy-blue-600 px-[3px] py-px text-[10px] font-medium leading-4 text-icy-blue-400">

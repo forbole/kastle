@@ -85,7 +85,7 @@ function Providers() {
           key={p.id}
           image={p.image}
           name={p.name}
-          subtitle={p.id === chosen ? "1 KAS ≈ 13,789 WHALE" : "-"}
+          subtitle={p.id === chosen ? "1 KAS ≈ 13,789 WHALE" : undefined}
           selected={p.id === chosen}
           onClick={() => setChosen(p.id)}
         />

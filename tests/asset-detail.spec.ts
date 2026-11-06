@@ -680,7 +680,8 @@ test("KCC-20: a movement row shows a signed amount and a counterparty, never the
   const text = (await row.textContent())!;
   expect(text).toMatch(/From qsender/);
   expect(text).toMatch(/\+1 KTEST/);
-  expect(text).toMatch(/≈/);
+  // A date is exact: no "≈" beside the time.
+  expect(text).not.toMatch(/≈/);
   expect(text).not.toMatch(/[0-9a-f]{16}/);
   expect(text).not.toMatch(/Unknown|Unavailable|—/);
 });

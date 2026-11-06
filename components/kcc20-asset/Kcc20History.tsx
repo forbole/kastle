@@ -54,14 +54,12 @@ const DIRECTION_ICON: Record<
   self: ArrowLeftRight,
 };
 
-// kascov dates rows from its DAA clock, so every time carries "≈" and this note.
-const APPROX_TIME_NOTE = "Approximate time, counted from the DAA score";
-
 const timeFormat = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
   timeStyle: "short",
 });
-const approxTime = (ms: number) => `≈ ${timeFormat.format(new Date(ms))}`;
+// A date is exact: "≈" belongs to estimated fiat values, never to a timestamp.
+const formatTime = (ms: number) => timeFormat.format(new Date(ms));
 
 type TokenView = { symbol: string; decimals?: number; logo?: string };
 
@@ -155,8 +153,8 @@ function Kcc20HistoryItem({
             {amount}
           </span>
         )}
-        <span className="text-sm text-daintree-400" title={APPROX_TIME_NOTE}>
-          {approxTime(row.timeMs)}
+        <span className="text-sm text-daintree-400">
+          {formatTime(row.timeMs)}
         </span>
       </div>
     </button>
@@ -275,8 +273,8 @@ export function Kcc20HistoryDetail({
         >
           TX Hash
         </h3>
-        <span className="text-sm text-daintree-400" title={APPROX_TIME_NOTE}>
-          {approxTime(row.timeMs)}
+        <span className="text-sm text-daintree-400">
+          {formatTime(row.timeMs)}
         </span>
       </div>
       <div className="flex flex-col">

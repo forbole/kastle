@@ -1366,7 +1366,7 @@ export default function Swap() {
                     ? "Unsupported Pair"
                     : current && outNum !== undefined && amountNum > 0
                       ? `1 ${tokenIn?.symbol} ≈ ${formatAmount(outNum / amountNum)} ${tokenOut?.symbol}`
-                      : "-"
+                      : undefined
                 }
                 selected={current}
                 disabled={!supports}
