@@ -389,9 +389,18 @@ async function liveCurve(
     };
   }
 
-  const info = await new client.IndexerClient(KRON_INDEXER_URL).token(
+  const res = await new client.IndexerClient(KRON_INDEXER_URL).token(
     market.tick,
   );
+  // The indexer answers `[row]` though the SDK types the row; accept both,
+  // as the SDK's own lpBindVerified does. A missing row never reaches BigInt.
+  const info = (Array.isArray(res) ? res[0] : res) as typeof res | undefined;
+  if (!info?.tokenReserve) {
+    throw new KronSwapError(
+      "curve-busy",
+      "The curve state is unavailable right now",
+    );
+  }
   if (info.graduated) {
     throw new KronSwapError(
       "graduated",

@@ -21,6 +21,7 @@ const {
   kronKastleFee,
   kronKastleFeeBps,
   quoteKron,
+  quoteKronSwap,
   submitKronSwap,
 } = await import("@/lib/kcc20/swap");
 const { Kcc20TransferError, fundCovenantSpend } = await import(
@@ -700,10 +701,14 @@ test.describe("recipient-bound curve schema", () => {
     const originalFetch = globalThis.fetch;
     let submits: SubmitBody[];
     let direct: string[];
+    // The indexer's `/token/:tick` result: mainnet answers a one-row array.
+    const row = { graduated: false, tokenReserve: String(RESERVE) };
+    let tokenResult: unknown;
     // The registry's cp-template and the indexer's token record.
     test.beforeEach(() => {
       submits = [];
       direct = [];
+      tokenResult = row;
       globalThis.fetch = async (url) =>
         new Response(
           JSON.stringify(
@@ -731,9 +736,7 @@ test.describe("recipient-bound curve schema", () => {
                     graduationFeeBps: 0,
                   },
                 }
-              : {
-                  result: { graduated: false, tokenReserve: String(RESERVE) },
-                },
+              : { result: tokenResult },
           ),
         );
       proto.curveSubmit = async (body) => {
@@ -796,6 +799,37 @@ test.describe("recipient-bound curve schema", () => {
         vKas: String(state.vKas),
       });
       expect(direct).toHaveLength(0);
+    });
+
+    test("an idle curve quotes off the indexer's [row] answer", async () => {
+      proto.curveHead = async () => ({ ok: true, head: null, depth: 0 });
+      tokenResult = [row];
+      const q = await quoteKronSwap(rpc, market, "buy", 1000n * KAS);
+      expect(String(q?.amountOut)).toBe(
+        String(quoteKron(state, "buy", 1000n * KAS)!.amountOut),
+      );
+      const b = await build();
+      expect(b.head.reserves.tokenReserve).toBe(String(RESERVE));
+    });
+
+    test("a graduated [row] is refused as graduated", async () => {
+      proto.curveHead = async () => ({ ok: true, head: null, depth: 0 });
+      tokenResult = [{ ...row, graduated: true }];
+      const e = await build().catch((e) => e);
+      expect(e).toBeInstanceOf(KronSwapError);
+      expect((e as InstanceType<typeof KronSwapError>).code).toBe("graduated");
+    });
+
+    test("an empty indexer answer is a busy curve, never a TypeError", async () => {
+      proto.curveHead = async () => ({ ok: true, head: null, depth: 0 });
+      for (const result of [[], undefined, [{ graduated: false }]]) {
+        tokenResult = result;
+        const e = await build().catch((e) => e);
+        expect(e).toBeInstanceOf(KronSwapError);
+        expect((e as InstanceType<typeof KronSwapError>).code).toBe(
+          "curve-busy",
+        );
+      }
     });
 
     test("an unreachable sequencer submits direct to the node", async () => {
