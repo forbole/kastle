@@ -1,6 +1,7 @@
 import { BackgroundService } from "@/api/background/background-service";
 import { ExtensionService } from "@/lib/service/extension-service.ts";
 import { MigrationManager } from "@/lib/migrations/migration";
+import { clearLegacyKassealAttempts } from "@/lib/kasseal/legacy-cleanup";
 import init from "@/wasm/core/kaspa";
 import kaspaModule from "@/assets/kaspa_bg.wasm?url";
 
@@ -11,6 +12,9 @@ export default defineBackground(() => {
 
   new BackgroundService().listen();
   ExtensionService.getInstance().startListening();
+
+  // Not awaited: startup must not wait on storage.
+  void clearLegacyKassealAttempts();
 
   browser.runtime.onInstalled.addListener(
     async ({ reason, previousVersion }) => {
