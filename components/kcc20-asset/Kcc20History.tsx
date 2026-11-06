@@ -2,7 +2,6 @@ import { useState } from "react";
 import { ExternalLink } from "lucide-react";
 import { twMerge } from "tailwind-merge";
 import { useIntersectionObserver } from "usehooks-ts";
-import { formatUnits } from "viem";
 import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import { explorerTxLinks } from "@/components/screens/Settings";
 import { NetworkType } from "@/contexts/SettingsContext";
@@ -16,6 +15,7 @@ import {
 } from "@/lib/kcc20/useKcc20History";
 import { textEllipsis } from "@/lib/utils";
 import ActionSheet from "@/ui/general/ActionSheet";
+import { formatKcc20Amount } from "@/ui/popup/kcc20/labels";
 
 const UNAVAILABLE: Record<Kcc20HistoryUnavailable, string> = {
   network: "History is shown on mainnet only.",
@@ -28,13 +28,14 @@ const TRUNCATED: Record<Kcc20HistoryTruncated, string> = {
   "events-cap": "Older history is not shown.",
 };
 
+// Mobile's history labels.
 const KIND_LABEL: Record<Kcc20HistoryRow["kind"], string> = {
-  receive: "Receive",
-  send: "Send",
+  receive: "Received",
+  send: "Sent",
   self: "Self transfer",
-  buy: "Buy",
-  sell: "Sell",
-  unknown: "Token activity",
+  buy: "Bought",
+  sell: "Sold",
+  unknown: "Unattributed movement",
 };
 
 // kascov dates rows from its DAA clock, so every time carries "≈" and this note.
@@ -48,13 +49,21 @@ const approxTime = (ms: number) => `≈ ${timeFormat.format(new Date(ms))}`;
 
 type TokenView = { symbol: string; decimals?: number; logo?: string };
 
-// Signed for the row; absent when kascov could not attribute it or decimals are unknown.
+// Signed; absent when kascov could not attribute it. Unknown decimals read as base units.
 function amountLabel(row: Kcc20HistoryRow, token: TokenView) {
-  if (row.amount === undefined || token.decimals === undefined) return;
-  const value = formatUnits(row.amount, token.decimals);
+  if (row.amount === undefined) return;
   const sign =
     row.direction === "in" ? "+" : row.direction === "out" ? "-" : "";
-  return `${sign}${value} ${token.symbol}`;
+  const value = formatKcc20Amount(row.amount, token.decimals);
+  return token.decimals === undefined
+    ? `${sign}${value}`
+    : `${sign}${value} ${token.symbol}`;
+}
+
+// As mobile: "From"/"To" the other side; a self row has none.
+function counterpartyText(row: Kcc20HistoryRow) {
+  if (!row.counterparty || row.direction === "self") return;
+  return `${row.direction === "in" ? "From" : "To"} ${row.counterparty.label}`;
 }
 
 function Spinner() {
@@ -86,6 +95,11 @@ function Kcc20HistoryItem({
 }) {
   const [imageUrl, setImageUrl] = useState(token.logo ?? kasIcon);
   const amount = amountLabel(row, token);
+  const counterparty = counterpartyText(row);
+  // Amount leads; a row kascov could not attribute leads with what it is.
+  const subtitle = amount
+    ? (counterparty ?? KIND_LABEL[row.kind])
+    : counterparty;
 
   return (
     <button
@@ -100,31 +114,29 @@ function Kcc20HistoryItem({
         onError={() => setImageUrl(kasIcon)}
       />
       <div className="flex min-w-0 flex-grow flex-col gap-1">
-        <div className="flex items-center justify-between gap-2 text-base text-white">
-          <span className="truncate">{KIND_LABEL[row.kind]}</span>
-          {amount && (
-            <span
-              className={twMerge(
-                "truncate",
-                row.direction === "out"
+        <div className="flex items-center justify-between gap-2">
+          <span
+            className={twMerge(
+              "truncate text-base",
+              !amount || row.direction === "self"
+                ? "text-white"
+                : row.direction === "out"
                   ? "text-red-500"
-                  : row.direction === "in"
-                    ? "text-teal-500"
-                    : "text-white",
-              )}
-            >
-              {amount}
-            </span>
-          )}
-        </div>
-        <div className="flex items-center justify-between gap-2 text-sm text-daintree-400">
-          <span className="truncate">
-            {row.counterparty?.label ?? textEllipsis(row.txid)}
+                  : "text-teal-500",
+            )}
+          >
+            {amount ?? KIND_LABEL[row.kind]}
           </span>
-          <span className="shrink-0" title={APPROX_TIME_NOTE}>
+          <span
+            className="shrink-0 text-sm text-daintree-400"
+            title={APPROX_TIME_NOTE}
+          >
             {approxTime(row.timeMs)}
           </span>
         </div>
+        {subtitle && (
+          <span className="truncate text-sm text-daintree-400">{subtitle}</span>
+        )}
       </div>
     </button>
   );
@@ -154,6 +166,7 @@ function Kcc20HistoryDetail({
 }) {
   const { networkId } = useRpcClientStateful();
   const explorer = explorerTxLinks[networkId ?? NetworkType.Mainnet];
+  const amount = amountLabel(row, token);
 
   return (
     <div className="flex flex-col gap-4 pt-4">
@@ -161,22 +174,18 @@ function Kcc20HistoryDetail({
         {KIND_LABEL[row.kind]}
       </h3>
       <div className="flex flex-col">
-        <DetailRow label="Amount">
-          {amountLabel(row, token) ?? "Unavailable"}
-        </DetailRow>
-        <DetailRow label={row.direction === "in" ? "From" : "To"}>
-          {row.counterparty ? (
+        {/* Only what kascov answered: an absent field drops its row. */}
+        {amount && <DetailRow label="Amount">{amount}</DetailRow>}
+        {row.counterparty && row.direction !== "self" && (
+          <DetailRow label={row.direction === "in" ? "From" : "To"}>
             <div className="flex flex-col items-end">
               <span>{row.counterparty.label}</span>
               <span className="text-xs text-daintree-400">
                 {row.counterparty.address}
               </span>
             </div>
-          ) : (
-            "Unavailable"
-          )}
-        </DetailRow>
-        <DetailRow label="Transaction ID">{row.txid}</DetailRow>
+          </DetailRow>
+        )}
         <DetailRow label="Time">
           <div className="flex flex-col items-end">
             <span>{approxTime(row.timeMs)}</span>
@@ -185,8 +194,8 @@ function Kcc20HistoryDetail({
             </span>
           </div>
         </DetailRow>
-        {/* kascov never says a transition is final, so the status is not claimed. */}
-        <DetailRow label="Status">Unknown</DetailRow>
+        <DetailRow label="Transaction ID">{row.txid}</DetailRow>
+        {/* No Status row: kascov never says a transition is final. */}
       </div>
       {explorer && (
         <button
@@ -235,7 +244,9 @@ export function Kcc20History({
   });
 
   const view: TokenView = {
-    symbol: token?.meta?.symbol ?? textEllipsis(token?.covenantId ?? ""),
+    symbol:
+      (token?.meta?.symbol ?? token?.tick) ||
+      textEllipsis(token?.covenantId ?? ""),
     decimals: token?.meta?.decimals,
     logo: token?.meta?.logoURI,
   };

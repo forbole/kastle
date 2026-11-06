@@ -70,7 +70,7 @@ export default function Kcc20Asset() {
 
   return (
     <TokenDetailPage
-      name={meta?.symbol ?? textEllipsis(covenantId)}
+      name={(meta?.symbol ?? token?.tick) || textEllipsis(covenantId)}
       logo={meta?.logoURI}
       network="kcc20"
       networkName="Kaspa"

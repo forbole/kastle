@@ -503,7 +503,7 @@ test("KCC-20: the identity card shows on Token info, not on History", async ({
     name: "See activity history in explorer",
   });
   // History is the kascov list through the page's history slot.
-  const row = page.getByRole("button", { name: /Receive \+1 KTEST/ });
+  const row = page.getByRole("button", { name: /\+1 KTEST.*From qsender/ });
   await expect(row).toBeVisible();
   await expect(explorer).toHaveCount(0);
   await expect(chip).toHaveCount(0);
@@ -511,7 +511,7 @@ test("KCC-20: the identity card shows on Token info, not on History", async ({
   const next = await page
     .getByRole("navigation")
     .evaluate((nav) => nav.parentElement!.nextElementSibling!.textContent);
-  expect(next).toMatch(/^Receive/);
+  expect(next).toMatch(/^\+1 KTEST/);
   await expect(sendButton(page, "KTEST")).toBeVisible();
 
   await page.getByRole("button", { name: "Token info", exact: true }).click();
@@ -530,7 +530,7 @@ test('KCC-20: an empty fallback page is not "No history yet", and paging continu
 }) => {
   const errors = await open(page, `/kcc20/${KCC20_ID}`, "&historyFallback=1");
   await expect(
-    page.getByRole("button", { name: /Receive \+1 KTEST/ }),
+    page.getByRole("button", { name: /\+1 KTEST.*From qsender/ }),
   ).toBeVisible();
   await expect(page.getByText("Older history is not shown.")).toBeVisible();
   await expect(page.getByText("No history yet.")).toHaveCount(0);

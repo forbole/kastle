@@ -19,7 +19,7 @@ import { formatUnits } from "viem";
 import { Kcc20Token } from "@/lib/kcc20";
 import { useFeatureFlags } from "@/hooks/useFeatureFlags.ts";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
-import { KCC20_FAMILY_LABELS, KCC20_LABELS } from "@/ui/popup/kcc20/labels";
+import { formatKcc20Amount, KCC20_LABELS } from "@/ui/popup/kcc20/labels";
 import { useKcc20Price } from "@/lib/kcc20/useKcc20Price";
 
 // A token no market prices reads as unknown, never as worth zero.
@@ -97,11 +97,8 @@ export function Kcc20TokenListItem({ token }: { token: Kcc20Token }) {
   const { wallet } = useWalletManager();
   // Same guard as the kcc20 routes; the detail page decides whether Send shows.
   const canOpen = isKcc20Enabled && wallet?.type !== "ledger";
-  const familyLabel = KCC20_FAMILY_LABELS[token.family];
-  // Without verified decimals, show base units rather than guess a scale.
-  const balance = meta
-    ? formatUnits(token.amount, meta.decimals)
-    : token.amount.toString();
+  // Without decimals the scale is unknown: grouped base units, never a guess.
+  const balance = formatKcc20Amount(token.amount, meta?.decimals);
   const showBalance = !settings?.hideBalances;
   const { priceUsd } = useKcc20Price(token);
   // No verified decimals, no whole-token balance to value.
@@ -130,13 +127,13 @@ export function Kcc20TokenListItem({ token }: { token: Kcc20Token }) {
       <Layer2AssetImage tokenImage={meta?.logoURI} chainImage={kasIcon} />
       <div className="flex min-w-0 flex-grow flex-col gap-1">
         <div className="flex items-start justify-between gap-2 text-base text-white">
-          <span className="flex items-center gap-2">
-            {meta?.symbol ?? textEllipsis(token.covenantId)}
-            <span
-              className={`rounded-full border px-1.5 text-xs leading-4 ${token.family === "kcc20-standard" ? "border-kcc20-text bg-kcc20-background text-kcc20-text" : "border-daintree-600 text-daintree-400"}`}
-            >
-              {familyLabel}
-            </span>
+          {/* As mobile: the ticker; a nameless token falls back to its short id. */}
+          <span>
+            {(meta?.symbol ?? token.tick) || (
+              <span className="font-mono">
+                {textEllipsis(token.covenantId)}
+              </span>
+            )}
           </span>
           <span className="break-all text-right">
             {showBalance ? balance : "*****"}
@@ -145,10 +142,11 @@ export function Kcc20TokenListItem({ token }: { token: Kcc20Token }) {
           </span>
         </div>
         <div className="flex items-center gap-2 text-sm text-daintree-400">
-          {meta?.name ?? `Unverified ${familyLabel} (base units)`}
-          {meta?.unverified && (
+          {meta?.name}
+          {/* One quiet marker: kascov's claimed metadata, or none at all. */}
+          {(!meta || meta.unverified) && (
             <span className="text-xs text-daintree-600">
-              {KCC20_LABELS.claimedMetadata}
+              {KCC20_LABELS.unverified}
             </span>
           )}
         </div>

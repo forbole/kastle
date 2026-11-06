@@ -415,9 +415,59 @@ test("a KCC-20 dashboard row masks its fiat value with balances hidden", async (
   await page.goto(`${base}/?route=/dashboard-rows&price=0.25&hidden=1`);
   const row = page.locator('[data-row="kcc20"]');
   await expect(row.getByText("*****", { exact: true })).toBeVisible();
-  await expect(row.getByText("10000", { exact: true })).toHaveCount(0);
+  await expect(row.getByText("10,000", { exact: true })).toHaveCount(0);
   await expect(row.getByText("≈ $*****", { exact: true })).toBeVisible();
   await expect(row.getByText("≈ $2,500.00", { exact: true })).toHaveCount(0);
   // The unit price is public, not a balance.
   await expect(row.getByText("$0.25", { exact: true })).toBeVisible();
+});
+
+// A scanned standard row reads like mobile: ticker, whole tokens, no family chip,
+// one quiet status marker; its history never prints a field kascov did not answer.
+test("a standard KCC-20 row and its history read like mobile", async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  // 210759267306 base units at 8 decimals, metadata claimed by kascov.
+  await page.goto(
+    `${base}/?route=/dashboard&token=210759267306&decimals=8&unverified=1&history=1`,
+  );
+  const row = page.getByRole("button", { name: /NACHO/ });
+  await expect(row.getByText("2,107.593", { exact: true })).toBeVisible();
+  await expect(row.getByText("210759267306")).toHaveCount(0);
+  await expect(row.getByText(/^(KCC-20|KRON)$/)).toHaveCount(0);
+  await expect(row.getByText(/base units/)).toHaveCount(0);
+  await expect(row.getByText("Unverified", { exact: true })).toHaveCount(1);
+
+  await row.click();
+  await expect(page.getByRole("heading", { name: "NACHO" })).toBeVisible();
+  // Amount + ticker leads, direction/counterparty under it, no txid on the row.
+  await expect(page.getByText("+2,107.593 NACHO")).toBeVisible();
+  await expect(page.getByText("From qsender0...00000")).toBeVisible();
+  await expect(page.getByText("Unattributed movement")).toBeVisible();
+  await expect(page.getByText(/kcc20amb|kcc20rx/)).toHaveCount(0);
+
+  // The unattributed row: no amount, no counterparty, no status to claim.
+  await page.getByText("Unattributed movement").click();
+  const sheet = page.getByRole("heading", { name: "Unattributed movement" });
+  await expect(sheet).toBeVisible();
+  await expect(page.getByText("kcc20amb", { exact: true })).toBeVisible();
+  await expect(page.getByText(/Unavailable|Unknown/)).toHaveCount(0);
+  for (const label of ["Amount", "From", "To", "Status"])
+    await expect(page.getByText(label, { exact: true })).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test("a nameless standard KCC-20 row shows grouped base units", async ({
+  page,
+}) => {
+  await page.goto(`${base}/?route=/dashboard&token=210759267306&nometa=1`);
+  const row = page.locator("button").first();
+  await expect(
+    row.getByText("210,759,267,306 base units", { exact: true }),
+  ).toBeVisible();
+  // The short id is the fallback title, in monospace, beside one quiet marker.
+  await expect(row.locator(".font-mono")).toHaveText("abababab...babab");
+  await expect(row.getByText(/Unverified/)).toHaveText("Unverified");
 });
