@@ -642,6 +642,7 @@ export function TokenSheet({
   tokens,
   onSelect,
   recentKey,
+  tabs,
 }: {
   open: boolean;
   onClose: () => void;
@@ -651,6 +652,8 @@ export function TokenSheet({
   tokens: SheetToken[];
   onSelect: (token: SheetToken) => void;
   recentKey: `local:${string}`;
+  /** Drawn under the chain chips (Swap's Standard/KRON tabs); `tokens` is already filtered to it. */
+  tabs?: ReactNode;
 }) {
   const [search, setSearch] = useState("");
   const [recent, setRecent] = useStorageState<string[]>(recentKey, []);
@@ -751,6 +754,7 @@ export function TokenSheet({
           ))}
         </div>
       )}
+      {tabs}
       {recentTokens.length > 0 && <>{recentTokens.map(row)}</>}
       {matches.filter((t) => !recentTokens.includes(t)).map(row)}
       {matches.length === 0 && (

@@ -33,6 +33,10 @@ import {
   formatUsd,
 } from "@/components/swap-bridge/ui";
 import BottomNav, { ActivityHeaderButton } from "@/components/BottomNav";
+import SwapFamilyTabs, {
+  hasFamilyRow,
+  inFamily,
+} from "@/components/screens/asset-selector/SwapFamilyTabs";
 import { NetworkType } from "@/contexts/SettingsContext";
 import useSwitchNetwork from "@/hooks/useSwitchNetwork";
 import useEvmAddress from "@/hooks/evm/useEvmAddress";
@@ -817,6 +821,15 @@ export default function Swap() {
     setProviderName(undefined);
   };
 
+  // The sheet's rows per side, before the Standard/KRON tab filters them.
+  const sideTokens = (side: "in" | "out") =>
+    side === "in"
+      ? tokens
+          .filter((t) => (t.rawBalance ?? 0) > 0)
+          .map((t) => ({ ...t, disabled: t.key === tokenOutKey }))
+      : tokens.map((t) => ({ ...t, disabled: t.key === tokenInKey }));
+  const [family, setFamily] = useState<Kcc20Family>("kcc20-standard");
+
   const flip = () => {
     if (!tokenOutKey) return;
     setTokenInKey(tokenOutKey);
@@ -1263,12 +1276,15 @@ export default function Swap() {
             setTokenInKey(`${k}:${NATIVE}`);
             setTokenOutKey(undefined);
           }}
-          tokens={
-            side === "in"
-              ? tokens
-                  .filter((t) => (t.rawBalance ?? 0) > 0)
-                  .map((t) => ({ ...t, disabled: t.key === tokenOutKey }))
-              : tokens.map((t) => ({ ...t, disabled: t.key === tokenInKey }))
+          tokens={sideTokens(side).filter((t) => inFamily(t, family))}
+          tabs={
+            chainKey === "kaspa" && (
+              <SwapFamilyTabs
+                value={family}
+                onChange={setFamily}
+                empty={!hasFamilyRow(sideTokens(side), family)}
+              />
+            )
           }
           onSelect={(t) => pickToken(side, t)}
           recentKey="local:swap_recent_tokens"
