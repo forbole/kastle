@@ -262,10 +262,10 @@ test("a dashboard tap opens the detail page, not send", async ({ page }) => {
 
   await expect(page.getByRole("heading", { name: "NACHO" })).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "History", exact: true }),
+    page.getByRole("tab", { name: "History", exact: true }),
   ).toBeVisible();
   await expect(page.getByText("Send to ...")).toBeHidden();
-  await page.getByRole("button", { name: "Token info", exact: true }).click();
+  await page.getByRole("tab", { name: "Token info", exact: true }).click();
   await expect(page.getByText("Covenant ID")).toBeVisible();
 
   await page.getByRole("button", { name: "Back" }).click();
@@ -451,7 +451,7 @@ test("a standard KCC-20 row and its history read like mobile", async ({
 
   // The unattributed row: no amount, no counterparty, no status to claim.
   await page.getByText("Unattributed movement").click();
-  const sheet = page.getByRole("heading", { name: "Unattributed movement" });
+  const sheet = page.getByRole("heading", { name: "TX Hash" });
   await expect(sheet).toBeVisible();
   await expect(page.getByText("kcc20amb", { exact: true })).toBeVisible();
   await expect(page.getByText(/Unavailable|Unknown/)).toHaveCount(0);

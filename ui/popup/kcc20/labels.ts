@@ -44,6 +44,9 @@ export const KCC20_LABELS = {
   preallocationAmount: "Preallocation Amount",
   defaultMintAmount: "Default Mint Amount",
   decimal: "Decimal",
+  decimals: "Decimals",
+  standard: "Standard",
+  balance: "Balance",
   minter: "Minter",
   security: "Security",
   verified: "Verified",
@@ -59,6 +62,14 @@ export const KCC20_LABELS = {
   noTokens: "No tokens available",
 } as const;
 
+/** The Standard row of Token info; native KAS has none. */
+export const STANDARD_LABELS: Partial<Record<NetworkType, string>> = {
+  kcc20: "KCC-20",
+  krc20: "KRC-20",
+  kasplexErc20: "ERC-20",
+  igraErc20: "ERC-20",
+};
+
 /**
  * A KCC-20 amount as a person reads it: whole tokens with grouping. Unknown
  * decimals never pass for a scaled figure: grouped base units, named so.
@@ -71,4 +82,16 @@ export function formatKcc20Amount(amount: bigint, decimals?: number) {
   const shown = formatToken(Number(exact), 3);
   // Below 3 places a non-zero amount must not read as "0".
   return shown === "0" && amount !== 0n ? exact : shown;
+}
+
+// A holding as the dashboard row and the detail page both show it. kascov
+// held cells back when truncated: the balance may be short, hence "+".
+export function formatKcc20Balance(token: {
+  amount: bigint;
+  truncated?: boolean;
+  meta?: { decimals?: number };
+}) {
+  return `${formatKcc20Amount(token.amount, token.meta?.decimals)}${
+    token.truncated ? "+" : ""
+  }`;
 }

@@ -199,3 +199,8 @@ export const storage = {
 };
 // lib/utils maps this enum at import time.
 export const SighashType = {};
+
+// The activity sheet's explorer link, as the real Settings screen exports it.
+export const explorerTxLinks: Record<string, string> = {
+  mainnet: "https://explorer.test/txs/",
+};

@@ -91,10 +91,10 @@ test("TokenItem names the asset type for screen readers", () => {
   expect(render("krc20")).toContain('<span class="sr-only">Kaspa-KRC20</span>');
 });
 
-test("AssetTabs marks the selected tab with aria-pressed", () => {
+test("AssetTabs marks the selected tab with aria-selected", () => {
   const html = m.renderToStaticMarkup(
     m.createElement(m.AssetTabs, { active: "info", onChange: () => {} }),
   );
-  expect(html).toMatch(/aria-pressed="false"[^>]*>History</);
-  expect(html).toMatch(/aria-pressed="true"[^>]*>Token info</);
+  expect(html).toMatch(/aria-selected="false"[^>]*>History</);
+  expect(html).toMatch(/aria-selected="true"[^>]*>Token info</);
 });

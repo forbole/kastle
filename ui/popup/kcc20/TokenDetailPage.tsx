@@ -2,15 +2,20 @@ import { BadgeCheck, ExternalLink } from "lucide-react";
 // The asset detail chrome is shared with the other asset screens.
 import Header from "@/components/GeneralHeader";
 import AssetSendButton from "@/components/AssetSendButton";
-import AssetTabs from "@/components/AssetTabs";
+import AssetTabs, { assetPanelId, assetTabId } from "@/components/AssetTabs";
 import AssetImage from "./AssetImage";
 import NetworkTypeChip from "./NetworkTypeChip";
-import { KCC20_LABELS, NetworkType } from "./labels";
+import { KCC20_LABELS, NetworkType, STANDARD_LABELS } from "./labels";
 
 export type TokenDetailTab = "history" | "assetInfo";
 
 export interface TokenDetailPageProps {
+  /** The ticker: page title, identity block and "Send {name}". */
   name: string;
+  /** Full token name under the ticker; omitted when the token has none. */
+  tokenName?: string;
+  /** Display-ready balance with its unit, e.g. "128,001 WHALE". */
+  balance?: string;
   /** Display-ready, e.g. "$0.00041". */
   priceLabel?: string;
   logo?: string;
@@ -64,6 +69,8 @@ function InfoRow({
 
 export default function TokenDetailPage({
   name,
+  tokenName,
+  balance,
   priceLabel,
   logo,
   fallback,
@@ -97,9 +104,10 @@ export default function TokenDetailPage({
     [KCC20_LABELS.transferCount, transferCount],
     [KCC20_LABELS.preallocationAmount, preallocationAmount],
     [KCC20_LABELS.defaultMintAmount, defaultMintAmount],
-    [KCC20_LABELS.decimal, decimal],
     [KCC20_LABELS.minter, minter],
   ];
+  const standard = STANDARD_LABELS[network];
+  const panel = activeTab === "assetInfo" ? "info" : "history";
   const tokenImage = (
     <AssetImage
       variant="chain"
@@ -123,115 +131,144 @@ export default function TokenDetailPage({
           />
         </div>
 
-        {/* Header card: the Home asset row plus the chip, Token info only */}
-        {activeTab === "assetInfo" && (
-          <div className="flex items-center gap-3 rounded-2xl border border-card-border bg-white/5 px-3 py-3">
-            {tokenImage}
-            <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-              <div className="flex items-center gap-1.5">
-                <span className="truncate text-base font-semibold leading-4">
-                  {name}
-                </span>
-                {showVerified && (
-                  <BadgeCheck
-                    aria-label={KCC20_LABELS.verified}
-                    className="size-4 shrink-0 text-verified"
-                    strokeWidth={2}
-                  />
-                )}
-              </div>
-              {priceLabel && (
-                <span className="truncate text-sm leading-[21px] text-daintree-300">
-                  {priceLabel}
-                </span>
-              )}
-            </div>
-            <NetworkTypeChip network={network} />
-          </div>
-        )}
-
-        {activeTab === "assetInfo" ? (
-          <section className="flex flex-col">
-            <h2 className="py-3 text-base font-semibold text-daintree-300">
-              {KCC20_LABELS.tokenInfo}
-            </h2>
-            <div className="rounded-2xl border border-card-border bg-daintree-800 px-4">
-              <InfoRow label={KCC20_LABELS.network}>
-                <span className="truncate">{networkName}</span>
-              </InfoRow>
-              <InfoRow
-                label={
-                  isKcc20
-                    ? KCC20_LABELS.covenantId
-                    : KCC20_LABELS.contractAddress
-                }
-              >
-                {onTokenIdPress ? (
-                  <button
-                    type="button"
-                    onClick={onTokenIdPress}
-                    className="truncate hover:text-icy-blue-400"
-                  >
-                    {tokenId}
-                  </button>
-                ) : (
-                  <span className="truncate">{tokenId}</span>
-                )}
-              </InfoRow>
-              {totalMintedPercent && (
-                <InfoRow label={KCC20_LABELS.totalMinted}>
-                  <div className="flex flex-col items-end">
-                    <span className="text-teal-400">{totalMintedPercent}</span>
-                    {totalMintedFraction && (
-                      <span className="text-xs text-daintree-300">
-                        {totalMintedFraction}
-                      </span>
-                    )}
-                  </div>
-                </InfoRow>
-              )}
-              {optionalRows.map(
-                ([label, value]) =>
-                  value && (
-                    <InfoRow key={label} label={label}>
-                      <span className="truncate">{value}</span>
-                    </InfoRow>
-                  ),
-              )}
-              {isKcc20 && (
-                <InfoRow label={KCC20_LABELS.security}>
-                  {isVerified && (
+        <div
+          role="tabpanel"
+          id={assetPanelId(panel)}
+          aria-labelledby={assetTabId(panel)}
+          className="flex flex-col gap-2"
+        >
+          {/* Header card: the Home asset row plus the chip, Token info only */}
+          {activeTab === "assetInfo" && (
+            <div className="flex items-center gap-3 rounded-2xl border border-card-border bg-white/5 px-3 py-3">
+              {tokenImage}
+              <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                <div className="flex items-center gap-1.5">
+                  <span className="truncate text-base font-semibold leading-4">
+                    {name}
+                  </span>
+                  {showVerified && (
                     <BadgeCheck
-                      aria-hidden="true"
+                      aria-label={KCC20_LABELS.verified}
                       className="size-4 shrink-0 text-verified"
                       strokeWidth={2}
                     />
                   )}
-                  <span>
-                    {isVerified
-                      ? KCC20_LABELS.verified
-                      : KCC20_LABELS.unverified}
+                </div>
+                {tokenName && tokenName !== name && (
+                  <span className="truncate text-sm leading-[21px] text-daintree-300">
+                    {tokenName}
                   </span>
-                </InfoRow>
-              )}
+                )}
+                {priceLabel && (
+                  <span className="truncate text-sm leading-[21px] text-daintree-300">
+                    {priceLabel}
+                  </span>
+                )}
+              </div>
+              <NetworkTypeChip network={network} />
             </div>
-          </section>
-        ) : history !== undefined ? (
-          history
-        ) : (
-          <button
-            type="button"
-            disabled={!onOpenExplorer}
-            onClick={onOpenExplorer}
-            className="flex items-center gap-2 rounded-2xl border border-card-border bg-white/5 px-4 py-3 text-left enabled:hover:border-white"
-          >
-            {tokenImage}
-            <span className="flex-1 text-base font-medium">
-              {KCC20_LABELS.viewInExplorer}
-            </span>
-            <ExternalLink aria-hidden="true" className="size-5 shrink-0" />
-          </button>
-        )}
+          )}
+
+          {activeTab === "assetInfo" ? (
+            <section className="flex flex-col">
+              <h2 className="py-3 text-base font-semibold text-daintree-300">
+                {KCC20_LABELS.tokenInfo}
+              </h2>
+              <div className="rounded-2xl border border-card-border bg-daintree-800 px-4">
+                <InfoRow label={KCC20_LABELS.network}>
+                  <span className="truncate">{networkName}</span>
+                </InfoRow>
+                {standard && (
+                  <InfoRow label={KCC20_LABELS.standard}>
+                    <span className="truncate">{standard}</span>
+                  </InfoRow>
+                )}
+                {balance && (
+                  <InfoRow label={KCC20_LABELS.balance}>
+                    <span className="truncate">{balance}</span>
+                  </InfoRow>
+                )}
+                {decimal && (
+                  <InfoRow label={KCC20_LABELS.decimals}>
+                    <span className="truncate">{decimal}</span>
+                  </InfoRow>
+                )}
+                <InfoRow
+                  label={
+                    isKcc20
+                      ? KCC20_LABELS.covenantId
+                      : KCC20_LABELS.contractAddress
+                  }
+                >
+                  {onTokenIdPress ? (
+                    <button
+                      type="button"
+                      onClick={onTokenIdPress}
+                      className="truncate font-mono hover:text-icy-blue-400"
+                    >
+                      {tokenId}
+                    </button>
+                  ) : (
+                    <span className="truncate font-mono">{tokenId}</span>
+                  )}
+                </InfoRow>
+                {totalMintedPercent && (
+                  <InfoRow label={KCC20_LABELS.totalMinted}>
+                    <div className="flex flex-col items-end">
+                      <span className="text-teal-400">
+                        {totalMintedPercent}
+                      </span>
+                      {totalMintedFraction && (
+                        <span className="text-xs text-daintree-300">
+                          {totalMintedFraction}
+                        </span>
+                      )}
+                    </div>
+                  </InfoRow>
+                )}
+                {optionalRows.map(
+                  ([label, value]) =>
+                    value && (
+                      <InfoRow key={label} label={label}>
+                        <span className="truncate">{value}</span>
+                      </InfoRow>
+                    ),
+                )}
+                {isKcc20 && (
+                  <InfoRow label={KCC20_LABELS.security}>
+                    {isVerified && (
+                      <BadgeCheck
+                        aria-hidden="true"
+                        className="size-4 shrink-0 text-verified"
+                        strokeWidth={2}
+                      />
+                    )}
+                    <span>
+                      {isVerified
+                        ? KCC20_LABELS.verified
+                        : KCC20_LABELS.unverified}
+                    </span>
+                  </InfoRow>
+                )}
+              </div>
+            </section>
+          ) : history !== undefined ? (
+            history
+          ) : (
+            <button
+              type="button"
+              disabled={!onOpenExplorer}
+              onClick={onOpenExplorer}
+              className="flex items-center gap-2 rounded-2xl border border-card-border bg-white/5 px-4 py-3 text-left enabled:hover:border-white"
+            >
+              {tokenImage}
+              <span className="flex-1 text-base font-medium">
+                {KCC20_LABELS.viewInExplorer}
+              </span>
+              <ExternalLink aria-hidden="true" className="size-5 shrink-0" />
+            </button>
+          )}
+        </div>
       </div>
 
       {onSend && <AssetSendButton ticker={name} onClick={onSend} />}
