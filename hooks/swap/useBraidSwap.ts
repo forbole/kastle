@@ -435,9 +435,10 @@ export function useBraidSwap({
   }, [pairKey]);
 
   // A reopened popup follows the deposits a closed one left in flight, so
-  // each settles, and frees its pair, here.
+  // each settles, and frees its pair, here. Only mainnet has Braid swaps; the
+  // provider on screen does not matter, as a reopened popup shows Igra.
   useEffect(() => {
-    if (!enabled) return;
+    if (!isMainnet) return;
     void getPendingBraidSwaps().then(
       (swaps) =>
         swaps.forEach((s) => {
@@ -456,7 +457,7 @@ export function useBraidSwap({
         }),
       () => {},
     );
-  }, [enabled, braid]);
+  }, [isMainnet, braid]);
 
   // Braid asks for every warning to be shown before signing. A route worse
   // than going alone must be confirmed; the rest are advisory.

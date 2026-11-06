@@ -80,7 +80,7 @@ function stubStorage() {
 }
 
 /** A fresh pending store and a hook module bound to it, as one popup. */
-function loadAll() {
+function loadAll(stubs: Record<string, unknown> = {}) {
   const storage = stubStorage();
   const pending = loadModule<PendingModule>("lib/braid/pending.ts", {});
   const constants = loadModule<object>("lib/braid/constants.ts", {});
@@ -103,6 +103,7 @@ function loadAll() {
       KCC20_LEDGER_UNSUPPORTED_MESSAGE: LEDGER_MESSAGE,
     },
     "./braidListing": { LINEAGE_FAMILY: {}, useBraidTokens: () => ({}) },
+    ...stubs,
   });
   return { storage, pending, hook };
 }
@@ -374,6 +375,88 @@ test.describe("confirmBraidSwap", () => {
     );
     expect(calls.prepare).toBe(0);
     expect(stored(storage).claims).toEqual({});
+  });
+});
+
+/** React for a test: state keeps its first value, `flush` runs the effects. */
+function stubReact() {
+  const effects: (() => unknown)[] = [];
+  const react = {
+    useState: (init: unknown) => [
+      typeof init === "function" ? init() : init,
+      () => {},
+    ],
+    useRef: (current: unknown) => ({ current }),
+    useEffect: (fn: () => unknown) => void effects.push(fn),
+  };
+  return { react, flush: () => effects.splice(0).forEach((fn) => fn()) };
+}
+
+test.describe("useBraidSwap", () => {
+  test("a reopened popup follows a stored deposit while another provider is selected", async () => {
+    // The closed popup registered a deposit and never saw it settle.
+    const closed = loadAll();
+    await closed.pending.registerBraidSwap({
+      ref: "ref-1",
+      prepared: deposit({
+        to: { id: COVENANT, symbol: "TKN" },
+      } as Partial<PreparedDeposit>),
+      pairKey: PAIR,
+      onSettle: () => {},
+      braid: stubBraid({}).braid,
+    });
+    const seeded = structuredClone(closed.storage);
+
+    let deliver!: (status: unknown) => void;
+    const result = new Promise((r) => (deliver = r));
+    const polled: string[] = [];
+    const braid = {
+      waitForResult: (ref: string) => {
+        polled.push(ref);
+        return result;
+      },
+      waitOutcome: async () => ({ verified: true, outcome: "delivered" }),
+    } as unknown as BraidL1;
+    const toasts: { kind: string; message: string }[] = [];
+    const { react, flush } = stubReact();
+    const reopened = loadAll({
+      react,
+      "@/components/Toast": {
+        success: (message: string) => toasts.push({ kind: "success", message }),
+        error: (message: string) => toasts.push({ kind: "error", message }),
+        info: (message: string) => toasts.push({ kind: "info", message }),
+      },
+      "@/lib/braid/client": {
+        braidErrorCopy: () => "",
+        makeBraid: () => braid,
+      },
+    });
+    Object.assign(reopened.storage, seeded);
+
+    // The selector shows another provider; two renders follow the ref once.
+    const input = {
+      enabled: false,
+      isMainnet: true,
+      rawIn: 0n,
+      slippage: 0.5,
+      isLedger: false,
+    };
+    reopened.hook.useBraidSwap(input);
+    flush();
+    reopened.hook.useBraidSwap(input);
+    flush();
+    await expect.poll(() => polled).toEqual(["ref-1"]);
+    expect(await reopened.pending.isBraidPending(PAIR)).toBe(true);
+    expect(toasts).toEqual([]);
+
+    deliver({ ref: "ref-1", state: "done" });
+    await expect
+      .poll(() => toasts)
+      .toEqual([{ kind: "success", message: "Swapped successfully!" }]);
+    expect(stored(reopened.storage).swaps).toEqual({});
+    expect(await reopened.pending.isBraidPending(PAIR)).toBe(false);
+    expect(await reopened.pending.claimBraidPair(PAIR)).toBe(true);
+    expect(polled).toEqual(["ref-1"]);
   });
 });
 
