@@ -11,7 +11,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const nodeRequire = createRequire(import.meta.url);
 const React = nodeRequire("react");
 const { createRoot } = nodeRequire("react-dom/client");
-const { act } = React;
 
 /** Transpiles a real source file and evaluates it with `stubs` as its imports. */
 function loadModule(file: string, stubs: Record<string, unknown>) {
@@ -100,7 +99,7 @@ const CURVE: Row = {
 };
 const IGRA: Row = { key: "igra:native", chain: "igra", symbol: "iKAS" };
 
-const DOM_GLOBALS = ["window", "document", "IS_REACT_ACT_ENVIRONMENT"];
+const DOM_GLOBALS = ["window", "document"];
 const saved = new Map<string, PropertyDescriptor | undefined>();
 test.afterEach(() => {
   for (const [k, d] of saved) {
@@ -119,12 +118,11 @@ async function mountSheet(tokens: Row[]) {
   Object.assign(globalThis, {
     window: win,
     document: win.document,
-    IS_REACT_ACT_ENVIRONMENT: true,
   });
   const pair = { in: KAS.key, out: undefined as string | undefined };
   const Screen = () => {
     const [out, setOut] = React.useState(undefined);
-    const [family, setFamily] = React.useState("kcc20-standard");
+    const [family, setFamily] = React.useState("all");
     pair.out = out;
     const side = tokens.map((t) => ({ ...t, disabled: t.key === pair.in }));
     return React.createElement(TokenSheet, {
@@ -146,7 +144,9 @@ async function mountSheet(tokens: Row[]) {
   const host = win.document.createElement("div");
   win.document.body.appendChild(host);
   const root = createRoot(host);
-  await act(async () => root.render(React.createElement(Screen)));
+  // No act(): another spec in the run can resolve React's production build, where act throws.
+  // Render, then poll the DOM until the commit lands.
+  root.render(React.createElement(Screen));
   const buttons = () => [...host.querySelectorAll("button")] as any[];
   const symbols = () =>
     buttons()
@@ -157,28 +157,40 @@ async function mountSheet(tokens: Row[]) {
     buttons().find(
       (b) => b.getAttribute("role") === "tab" && b.textContent === label,
     );
+  const selected = () =>
+    buttons().find(
+      (b) =>
+        b.getAttribute("role") === "tab" &&
+        b.getAttribute("aria-selected") === "true",
+    )?.textContent;
+  await expect.poll(selected).toBe("All");
   return {
     host,
+    selected,
     pair,
     symbols,
     tabs: () =>
       buttons()
         .filter((b) => b.getAttribute("role") === "tab")
         .map((b) => b.textContent),
-    tap: (label: string) => act(async () => tab(label).click()),
-    pick: (symbol: string) =>
-      act(async () =>
-        buttons()
-          .find((b) => b.querySelector("span")?.textContent === symbol)
-          .click(),
-      ),
-    unmount: () => act(async () => root.unmount()),
+    tap: async (label: string) => {
+      tab(label).click();
+      await expect.poll(selected).toBe(label);
+    },
+    pick: async (symbol: string) => {
+      buttons()
+        .find((b) => b.querySelector("span")?.textContent === symbol)
+        .click();
+      const key = tokens.find((t) => t.symbol === symbol)!.key;
+      await expect.poll(() => pair.out).toBe(key);
+    },
+    unmount: () => root.unmount(),
   };
 }
 
 test("Standard and KRON tabs split the Kaspa L1 rows; a switch keeps the pair valid", async () => {
   const s = await mountSheet([KAS, STANDARD, CURVE, IGRA]);
-  expect(s.tabs()).toEqual(["Standard", "KRON"]);
+  expect(s.tabs()).toEqual(["All", "Standard", "KRON"]);
 
   await s.tap("Standard");
   expect(s.symbols()).toEqual(["KAS", "KING"]);
@@ -195,21 +207,49 @@ test("Standard and KRON tabs split the Kaspa L1 rows; a switch keeps the pair va
   await s.tap("Standard");
   expect([s.pair.in, s.pair.out]).toEqual([KAS.key, CURVE.key]);
   expect(s.host.textContent).not.toContain("tokens to trade");
-  await s.unmount();
+  s.unmount();
 });
 
 test("an empty family says so and keeps the tab back to the other", async () => {
   const s = await mountSheet([KAS, CURVE]);
-  expect(s.tabs()).toEqual(["Standard", "KRON"]);
+  expect(s.tabs()).toEqual(["All", "Standard", "KRON"]);
+  // All never says empty: a KRON-only holder sees the KRON row on open.
+  expect(s.host.textContent).not.toContain("tokens to trade");
+  expect(s.symbols()).toEqual(["KAS", "KRON"]);
+  await s.tap("Standard");
   expect(s.host.textContent).toContain("No Standard tokens to trade");
   expect(s.symbols()).toEqual(["KAS"]);
   await s.tap("KRON");
   expect(s.host.textContent).not.toContain("tokens to trade");
   expect(s.symbols()).toEqual(["KAS", "KRON"]);
-  await s.unmount();
+  s.unmount();
+});
+
+test("the sheet opens on All; KRON and Standard filter; the pair never moves", async () => {
+  const s = await mountSheet([KAS, STANDARD, CURVE, IGRA]);
+  expect(s.selected()).toBe("All");
+  expect(s.symbols().sort()).toEqual(["KAS", "KING", "KRON"]);
+  await s.pick("KING");
+  const pair = [KAS.key, STANDARD.key];
+  expect([s.pair.in, s.pair.out]).toEqual(pair);
+
+  await s.tap("KRON");
+  expect(s.symbols().sort()).toEqual(["KAS", "KRON"]);
+  expect([s.pair.in, s.pair.out]).toEqual(pair);
+
+  await s.tap("Standard");
+  expect(s.symbols().sort()).toEqual(["KAS", "KING"]);
+  expect([s.pair.in, s.pair.out]).toEqual(pair);
+
+  await s.tap("All");
+  expect(s.symbols().sort()).toEqual(["KAS", "KING", "KRON"]);
+  expect([s.pair.in, s.pair.out]).toEqual(pair);
+  s.unmount();
 });
 
 test("off Kaspa L1 the tabs filter nothing", () => {
+  expect(inFamily(STANDARD, "all")).toBe(true);
+  expect(hasFamilyRow([KAS], "all")).toBe(true);
   expect(inFamily(IGRA, "kron-legacy")).toBe(true);
   expect(inFamily(KAS, "kcc20-standard")).toBe(true);
   expect(inFamily(STANDARD, "kron-legacy")).toBe(false);

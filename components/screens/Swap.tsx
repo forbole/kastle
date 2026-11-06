@@ -35,6 +35,7 @@ import {
 import BottomNav, { ActivityHeaderButton } from "@/components/BottomNav";
 import SwapFamilyTabs, {
   hasFamilyRow,
+  type SwapFamilyTab,
   inFamily,
 } from "@/components/screens/asset-selector/SwapFamilyTabs";
 import { NetworkType } from "@/contexts/SettingsContext";
@@ -828,7 +829,7 @@ export default function Swap() {
           .filter((t) => (t.rawBalance ?? 0) > 0)
           .map((t) => ({ ...t, disabled: t.key === tokenOutKey }))
       : tokens.map((t) => ({ ...t, disabled: t.key === tokenInKey }));
-  const [family, setFamily] = useState<Kcc20Family>("kcc20-standard");
+  const [family, setFamily] = useState<SwapFamilyTab>("all");
 
   const flip = () => {
     if (!tokenOutKey) return;
