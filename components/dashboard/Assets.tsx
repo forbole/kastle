@@ -8,7 +8,9 @@ import {
 } from "@/lib/utils.ts";
 import TokenListItem, {
   Kcc20TokenListItem,
+  ROW,
 } from "@/components/dashboard/TokenListItem.tsx";
+import TokenRow from "@/ui/popup/dashboard/TokenRow";
 import useKcc20Tokens from "@/lib/kcc20/useKcc20Tokens";
 import { applyDecimal } from "@/lib/krc20.ts";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
@@ -115,30 +117,23 @@ export default function Assets() {
     </div>
   ) : (
     <div className="mb-4 flex flex-col items-stretch gap-2">
-      {/*KAS*/}
+      {/*KAS: no toggle, it cannot be hidden*/}
       <div
         data-testid="kas-row"
-        className="flex cursor-pointer items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3 hover:border-white"
+        className={`${ROW} cursor-pointer`}
         onClick={() => navigate("/kas-asset")}
       >
-        <img alt="castle" className="h-[40px] w-[40px]" src={kasIcon} />
-        <div className="flex flex-grow flex-col gap-1">
-          <div className="flex items-center justify-between text-base text-white">
-            <span>KAS</span>
-            <span>{showBalance ? formatToken(balance ?? 0) : "*****"}</span>
-          </div>
-          <div className="flex items-center justify-between text-sm text-daintree-400">
-            <span>
-              {formatTokenPrice(kaspaPriceCurrency, kaspaPriceCurrencyCode)}
-            </span>
-            <span>
-              ≈{" "}
-              {showBalance
-                ? formatCurrency(totalBalanceCurrency, currencyCode)
-                : `${symbolForCurrencyCode(currencyCode)}*****`}
-            </span>
-          </div>
-        </div>
+        <TokenRow
+          logo={kasIcon}
+          ticker="KAS"
+          price={formatTokenPrice(kaspaPriceCurrency, kaspaPriceCurrencyCode)}
+          balance={showBalance ? formatToken(balance ?? 0) : "*****"}
+          fiat={`≈ ${
+            showBalance
+              ? formatCurrency(totalBalanceCurrency, currencyCode)
+              : `${symbolForCurrencyCode(currencyCode)}*****`
+          }`}
+        />
       </div>
 
       {/*EVM KAS*/}

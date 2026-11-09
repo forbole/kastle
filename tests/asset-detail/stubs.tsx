@@ -15,8 +15,11 @@
 //                 wallet's; page 2 holds the row and stops at the page cap
 //   historySend=1  a send row after the receive (both signs on one page)
 //   hidden=1      balances are hidden; nodecimals=1 kascov claimed no decimals
+//   listed=1      the KCC-20 holding is a kascov-LISTED row (listed_*, no
+//                 claimed_*), run through the real parse; kascov prices it
 import { useState } from "react";
-import type { Kcc20Token } from "@/lib/kcc20";
+import { claimedMeta, type Kcc20Token } from "@/lib/kcc20";
+import { parseHolding } from "@/lib/kcc20/providers/kascov";
 
 export const OWNER = "kaspa:qowner";
 const query = new URLSearchParams(location.search);
@@ -69,6 +72,23 @@ export const kcc20Token: Kcc20Token = {
   meta: query.has("nodecimals")
     ? { symbol: "KTEST", name: "Kastle test", unverified: true }
     : { symbol: "KTEST", name: "Kastle test", decimals: 2 },
+};
+// A live-shaped kascov listed row (as YELLO / WHALE / LUKE), parsed for real.
+export const LISTED_COVID = "ef".repeat(32);
+const listedHolding = parseHolding({
+  token_id: LISTED_COVID,
+  balance_str: "200000000000",
+  listed_ticker: "LUKE",
+  listed_name: "Luke",
+  listed_decimals: 8,
+})!;
+const listedToken: Kcc20Token = {
+  covenantId: listedHolding.tokenId,
+  family: "kcc20-standard",
+  tick: listedHolding.claimedTicker ?? "",
+  amount: listedHolding.balance,
+  spendable: listedHolding.balance,
+  meta: claimedMeta(listedHolding),
 };
 const kcc20ExtToken: Kcc20Token = {
   ...kcc20Token,
@@ -151,6 +171,7 @@ export function useKcc20Tokens() {
   if (kcc20Error) {
     return { data: undefined, isLoading: false, error: new Error("down") };
   }
+  if (query.has("listed")) return { data: [listedToken], isLoading: false };
   return { data: [kcc20Token, kcc20ExtToken], isLoading: false };
 }
 // One kascov row: the History tab renders the list, not the explorer link.
@@ -268,7 +289,10 @@ export function useKrc20Prices() {
 export function useKrc20Logo() {
   return { logo: undefined };
 }
-export function useKcc20Price() {
+export function useKcc20Price(token?: Kcc20Token) {
+  // As the real hook: kascov's market needs the decimals to price a whole token.
+  if (query.has("listed") && token?.meta?.decimals !== undefined)
+    return { priceUsd: 0.0005 };
   return { priceUsd: undefined };
 }
 export function useErc20Assets() {

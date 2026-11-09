@@ -212,3 +212,65 @@ test("one flat list: no heading between KAS and the tokens, and KAS cannot be hi
   await expect(page.getByRole("heading")).toHaveCount(0);
   await expect(page.getByText("Tokens", { exact: true })).toHaveCount(0);
 });
+
+test("a kascov-LISTED KCC-20 row reads like every other token row", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 500, height: 900 });
+  const errors = await dashboard(page, "&listed=1");
+  // listed_decimals: 8 scales 200,000,000,000 base units to 2,000 LUKE.
+  const luke = page.getByRole("button").filter({ hasText: "LUKE" });
+  await expect(luke).toBeVisible();
+  await expect(luke.locator('[data-part="balance"] > span').first()).toHaveText(
+    "2,000",
+  );
+  await expect(page.getByText(/base units/)).toHaveCount(0);
+  // Unit price under the ticker, fiat under the balance: $0.0005 x 2,000.
+  await expect(luke.locator('[data-part="ticker"] + span')).toHaveText(/\$/);
+  await expect(luke.locator('[data-part="balance"] > span').nth(1)).toHaveText(
+    /≈ \$1(\.00)?/,
+  );
+  // Same body, same geometry as the KAS and KRC-20 rows.
+  const kas = page.getByTestId("kas-row");
+  const kaspy = page
+    .locator("div")
+    .filter({ hasText: /^KASPY/ })
+    .last();
+  for (const row of [kas, luke]) {
+    await expect(row.locator('[data-part="ticker"]')).toHaveCount(1);
+    await expect(row.locator('[data-part="balance"] > span')).toHaveCount(2);
+  }
+  await expect(kaspy).toBeVisible();
+  const box = async (l: typeof kas) => (await l.boundingBox())!;
+  const tick = async (l: typeof kas) =>
+    (await l.locator('[data-part="ticker"]').boundingBox())!;
+  const [k, l] = [await box(kas), await box(luke)];
+  expect(Math.round(l.height)).toBe(Math.round(k.height));
+  expect(Math.round(l.width)).toBe(Math.round(k.width));
+  expect(Math.round((await tick(luke)).x)).toBe(
+    Math.round((await tick(kas)).x),
+  );
+  await page.screenshot({
+    path: "/Users/leonardo/kastle-qa/qa6-shots/03-dashboard.png",
+    fullPage: true,
+  });
+  expect(errors).toEqual([]);
+});
+
+test("a kascov-LISTED KCC-20 detail page shows the scaled balance", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 500, height: 900 });
+  const errors = await open(page, `/kcc20/${"ef".repeat(32)}`, "&listed=1");
+  // History amounts scale too (the stub's 100-unit receive).
+  await expect(page.getByText("+0.000001 LUKE")).toBeVisible();
+  await page.getByRole("tab", { name: "Token info" }).click();
+  await expect(page.getByText("2,000 LUKE")).toBeVisible();
+  await expect(page.getByText("8", { exact: true })).toBeVisible();
+  await expect(page.getByText(/base units/)).toHaveCount(0);
+  await page.screenshot({
+    path: "/Users/leonardo/kastle-qa/qa6-shots/03-detail.png",
+    fullPage: true,
+  });
+  expect(errors).toEqual([]);
+});

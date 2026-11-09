@@ -74,21 +74,23 @@ async function getJson(url: string, signal?: AbortSignal): Promise<unknown> {
   }
 }
 
-function parseHolding(row: unknown): KascovHolding | undefined {
+export function parseHolding(row: unknown): KascovHolding | undefined {
   if (!isRecord(row)) return undefined;
   const tokenId = lowerHex(row.token_id);
   const balance = baseUnits(row, "balance");
   if (!tokenId || !HEX32.test(tokenId) || balance === undefined)
     return undefined;
-  const decimals = row.display_decimals;
+  // A declared row carries `claimed_*`, a listed one `listed_*` (as mobile);
+  // `??`, not `||`: 0 decimals is real.
+  const decimals = row.claimed_decimals ?? row.listed_decimals;
   return {
     tokenId,
     balance,
     class: optString(row.class),
     status: optString(row.status),
     ownerSchemeName: optString(row.owner_scheme_name),
-    claimedTicker: optString(row.claimed_ticker),
-    claimedName: optString(row.claimed_name),
+    claimedTicker: optString(row.claimed_ticker ?? row.listed_ticker),
+    claimedName: optString(row.claimed_name ?? row.listed_name),
     claimedImage: optString(row.claimed_image),
     displayDecimals:
       typeof decimals === "number" &&

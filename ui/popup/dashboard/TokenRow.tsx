@@ -2,7 +2,7 @@ import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import React, { useLayoutEffect, useRef, useState } from "react";
 import Layer2AssetImage from "@/components/Layer2AssetImage";
 
-/** The dashboard row's body, shared by both KCC-20 families. */
+/** The dashboard row's body: KAS, KRC-20 and both KCC-20 families. */
 export type TokenRowProps = {
   logo?: string;
   ticker: React.ReactNode;

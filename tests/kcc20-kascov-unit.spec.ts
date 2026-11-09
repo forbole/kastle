@@ -10,7 +10,11 @@ import init, {
   PrivateKey,
   RpcClient,
 } from "@/wasm/core/kaspa";
-import { fetchKcc20Tokens, standardSpendPieces } from "@/lib/kcc20";
+import {
+  claimedMeta,
+  fetchKcc20Tokens,
+  standardSpendPieces,
+} from "@/lib/kcc20";
 import { classifyRedeem } from "@/lib/kcc20/classify";
 import {
   fetchOwnerCells,
@@ -157,7 +161,7 @@ const holding = (tokenId: string, ticker: string) => ({
   balance_str: "1",
   claimed_ticker: ticker,
   claimed_name: `${ticker} Token`,
-  display_decimals: 2,
+  claimed_decimals: 2,
 });
 
 type Route = (url: URL) => unknown;
@@ -633,6 +637,49 @@ test("holdings with tip: returns the tip kascov read at; a missing tip throws", 
       await expect(fetchStandardHoldingsWithTip(address)).rejects.toThrow(
         "malformed holdings tip",
       );
+    },
+  );
+});
+
+test("holdings: a listed row carries decimals and ticker as mobile reads them", async () => {
+  // Live kascov shapes: KING declared (claimed_*), YELLO listed (listed_*).
+  const listed = {
+    token_id: OTHER_COVID,
+    balance_str: "200000000000",
+    listed_ticker: "YELLO",
+    listed_name: "Yonatello",
+    listed_decimals: 8,
+  };
+  const declared = {
+    token_id: COVID,
+    balance_str: "215000",
+    claimed_ticker: "KING",
+    claimed_name: "$KING Seal",
+    claimed_decimals: 0,
+    // claimed_* wins over listed_*; `??` keeps a declared 0.
+    listed_ticker: "NOPE",
+    listed_decimals: 6,
+  };
+  await withFetch(
+    { kascov: () => ({ token_holdings: [declared, listed] }) },
+    async () => {
+      const [king, yello] = await fetchStandardHoldings(address);
+      expect(king).toMatchObject({
+        claimedTicker: "KING",
+        claimedName: "$KING Seal",
+        displayDecimals: 0,
+      });
+      expect(yello).toMatchObject({
+        claimedTicker: "YELLO",
+        claimedName: "Yonatello",
+        displayDecimals: 8,
+      });
+      const meta = claimedMeta(yello);
+      expect(meta).toMatchObject({ symbol: "YELLO", decimals: 8 });
+      // formatKcc20Amount falls back to base units only when decimals is
+      // undefined; a listed row now always carries them, as does a declared 0.
+      expect(meta?.decimals).toBe(8);
+      expect(claimedMeta(king)?.decimals).toBe(0);
     },
   );
 });

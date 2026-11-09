@@ -1,4 +1,3 @@
-import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import {
   formatCurrency,
   formatToken,
@@ -6,13 +5,12 @@ import {
   symbolForCurrencyCode,
   textEllipsis,
 } from "@/lib/utils.ts";
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { useNavigate } from "react-router-dom";
 import { applyDecimal } from "@/lib/krc20.ts";
 import { TokenItem } from "@/hooks/kasplex/useTokenListByAddress";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 import { useTokenInfo } from "@/hooks/kasplex/useTokenInfo";
-import Layer2AssetImage from "../Layer2AssetImage";
 import { useKrc20Prices } from "@/hooks/kasplex/useKrc20Prices";
 import useKrc20Logo from "@/hooks/kasplex/useKrc20Logo";
 import { formatUnits } from "viem";
@@ -34,7 +32,7 @@ export type ManageRow = {
   onToggle: (shown: boolean) => void;
 };
 
-const ROW =
+export const ROW =
   "flex w-full items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3 text-left hover:border-white";
 
 function ManagedRow({
@@ -66,7 +64,6 @@ type TokenListItemProps = {
 export default function TokenListItem({ token, manage }: TokenListItemProps) {
   const navigate = useNavigate();
   const [settings] = useSettings();
-  const [imageUrl, setImageUrl] = useState(kasIcon);
   const { data: tokenInfoResponse } = useTokenInfo(token.id);
   const { price } = useKrc20Prices(token.id);
   const { logo } = useKrc20Logo(token.id);
@@ -84,39 +81,22 @@ export default function TokenListItem({ token, manage }: TokenListItemProps) {
   const { amount: totalBalanceCurrency, code: currencyCode } =
     useCurrencyValue(fiatBalance);
 
-  useEffect(() => {
-    if (logo) {
-      setImageUrl(logo);
-    }
-  }, [logo]);
-
   const tokenInfo = tokenInfoResponse?.result?.[0];
   const tokenName =
     tokenInfo?.mod === "mint" ? tokenInfo?.tick : tokenInfo?.name;
 
   const body = (
-    <>
-      <Layer2AssetImage tokenImage={imageUrl} chainImage={kasIcon} />
-      <div className="flex flex-grow flex-col gap-1">
-        <div className="flex items-start justify-between text-base text-white">
-          <div className="flex flex-col gap-1">
-            <span>{tokenName}</span>
-          </div>
-          <span>{showBalance ? formatToken(balanceNumber) : "*****"}</span>
-        </div>
-        <div className="flex items-center justify-between text-sm text-daintree-400">
-          <span>
-            {formatTokenPrice(tokenPriceCurrency, tokenPriceCurrencyCode)}
-          </span>
-          <span>
-            ≈{" "}
-            {showBalance
-              ? formatCurrency(totalBalanceCurrency, currencyCode)
-              : `${symbolForCurrencyCode(currencyCode)}*****`}
-          </span>
-        </div>
-      </div>
-    </>
+    <TokenRow
+      logo={logo}
+      ticker={tokenName}
+      price={formatTokenPrice(tokenPriceCurrency, tokenPriceCurrencyCode)}
+      balance={showBalance ? formatToken(balanceNumber) : "*****"}
+      fiat={`≈ ${
+        showBalance
+          ? formatCurrency(totalBalanceCurrency, currencyCode)
+          : `${symbolForCurrencyCode(currencyCode)}*****`
+      }`}
+    />
   );
 
   if (manage)
