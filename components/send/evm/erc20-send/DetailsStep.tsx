@@ -6,7 +6,6 @@ import { useFormContext } from "react-hook-form";
 import { Erc20SendForm } from "./Erc20Send";
 import { twMerge } from "tailwind-merge";
 import spinner from "@/assets/images/spinner.svg";
-import { useSettings } from "@/hooks/useSettings";
 import {
   isAddress,
   formatEther,
@@ -44,7 +43,6 @@ export default function DetailsStep({
   onNext: () => void;
   onBack: () => void;
 }) {
-  const [settings] = useSettings();
   const navigate = useNavigate();
   const {
     register,
@@ -101,7 +99,7 @@ export default function DetailsStep({
   };
 
   const { price } = useErc20Price(asset.chainId, asset.address);
-  const { amount: tokenCurrency } = useCurrencyValue(price);
+  const { amount: tokenCurrency, code: currencyCode } = useCurrencyValue(price);
 
   const addressValidator = async (value: string | undefined) => {
     const genericErrorMessage = `Invalid EVM address${insEnabled ? " or INS domain" : ""}`;
@@ -217,7 +215,7 @@ export default function DetailsStep({
     } else {
       setValue("amountFiat", undefined);
     }
-  }, [amount, estimatedFee]);
+  }, [amount, estimatedFee, tokenCurrency]);
 
   useEffect(() => {
     trigger("userInput");
@@ -365,10 +363,10 @@ export default function DetailsStep({
               >
                 <span
                   className={twMerge(
-                    `fi fi-${settings?.currency.slice(0, 2).toLocaleLowerCase()} fis rounded-full`,
+                    `fi fi-${currencyCode.slice(0, 2).toLocaleLowerCase()} fis rounded-full`,
                   )}
                 ></span>
-                {settings?.currency}
+                {currencyCode}
               </span>
               <input
                 {...register("amountFiat", {
