@@ -123,6 +123,7 @@ export default function TokenDetailPage({
       <div className="no-scrollbar flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
         <div className="pb-2">
           <AssetTabs
+            panelled
             active={activeTab === "assetInfo" ? "info" : "history"}
             onChange={(tab) =>
               onTabChange(tab === "info" ? "assetInfo" : "history")

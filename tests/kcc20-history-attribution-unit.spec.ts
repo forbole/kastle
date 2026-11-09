@@ -10,7 +10,8 @@ import type { KascovTransfer } from "@/lib/kcc20/providers/kascov";
 // history.ts reaches the wasm codec and image assets; esbuild bundles it like the swap-history spec.
 type Modules = typeof import("@/lib/kcc20/history") &
   typeof import("@/lib/kcc20/providers/kascov") &
-  typeof import("@/lib/kcc20/krc20Fill");
+  typeof import("@/lib/kcc20/krc20Fill") &
+  typeof import("@/ui/popup/kcc20/labels");
 let m: Modules;
 
 const FIXTURES = path.join(
@@ -56,6 +57,7 @@ test.beforeAll(async () => {
         "@/lib/kcc20/history",
         "@/lib/kcc20/providers/kascov",
         "@/lib/kcc20/krc20Fill",
+        "@/ui/popup/kcc20/labels",
       ]
         .map((p) => `export * from ${JSON.stringify(p)};`)
         .join("\n"),
@@ -196,6 +198,8 @@ test("a log past the page cap is not replayed", async () => {
   let calls = 0;
   const endless: typeof m.fetchTokenEvents = async () => ({
     events: [],
+    dropped: 0,
+    eventsTotal: 1,
     nextBeforeSeq: ++calls,
   });
   const [attributed] = await m.attributeFromEventLog(
@@ -214,6 +218,115 @@ test("an all-exact set reads no event log", async () => {
   const out = await m.attributeFromEventLog(exact, YELLO_ID, spy.fetcher);
   expect(spy.calls).toEqual([]);
   expect(out).toBe(exact);
+});
+
+test("a failed /events read keeps the fetched rows, exact ones included", async () => {
+  const raw = await rows();
+  for (const reason of ["kascov: 503", "kascov: malformed events response"]) {
+    const fail: typeof m.fetchTokenEvents = async () => {
+      throw new Error(reason);
+    };
+    expect(await m.attributeFromEventLog(raw, YELLO_ID, fail)).toBe(raw);
+  }
+});
+
+test("a log short of eventsTotal marks nothing exact", async () => {
+  const raw = await rows();
+  const short: typeof m.fetchTokenEvents = async (id, before) => ({
+    ...(await m.fetchTokenEvents(id, before)),
+    eventsTotal: 47,
+  });
+  const out = await m.attributeFromEventLog(raw, YELLO_ID, short);
+  expect(out.find((r) => r.seq === 43)?.status).toBe("ambiguous");
+  expect(out.find((r) => r.seq === 45)?.status).toBe("ambiguous");
+});
+
+test("a dropped genesis cell does not hand its spend to an equal cell", async () => {
+  const ev = (seq: number, deltaIdx: number, ownerTo: string) => ({
+    txid: `t${seq}`,
+    eventKind: seq === 0 ? "genesis" : "transition",
+    seq,
+    deltaIdx,
+    acceptingDaa: 1,
+    ownerTo,
+    amount: 100n,
+  });
+  // Genesis A:100 (idx 0) + B:100 (idx 1); A's delta was dropped by the parser.
+  // Whole, the owner-less spend of 100 is A's or B's: never exact.
+  const log: typeof m.fetchTokenEvents = async () => ({
+    events: [ev(0, 1, "presence:b"), ev(1, 0, "presence:d")],
+    dropped: 0,
+    eventsTotal: 2,
+  });
+  const row45 = (await rows()).find((r) => r.seq === 45)!;
+  const row: KascovTransfer = { ...row45, txid: "t1", seq: 1 };
+  const [out] = await m.attributeFromEventLog([row], YELLO_ID, log);
+  expect(out.status).toBe("ambiguous");
+  expect(out.movements).toEqual([]);
+});
+
+/** A synthetic log: genesis A:100 + B:60, a mint C:100, then an owner-less merge to D:160. */
+function mintLog(mintOwner: string): typeof m.fetchTokenEvents {
+  const ev = (
+    seq: number,
+    deltaIdx: number,
+    eventKind: string,
+    ownerTo: string,
+    amount: bigint,
+  ) => ({
+    txid: `t${seq}`,
+    eventKind,
+    seq,
+    deltaIdx,
+    acceptingDaa: 1,
+    ownerTo,
+    amount,
+  });
+  return async () => ({
+    events: [
+      ev(0, 0, "genesis", "presence:a", 100n),
+      ev(0, 1, "genesis", "presence:b", 60n),
+      ev(1, 0, "mint", mintOwner, 100n),
+      ev(2, 0, "transition", "presence:d", 160n),
+    ],
+    dropped: 0,
+    eventsTotal: 3,
+  });
+}
+
+test("a post-genesis mint is issuance, never a spend of an existing cell", async () => {
+  const row45 = (await rows()).find((r) => r.seq === 45)!;
+  const row: KascovTransfer = { ...row45, txid: "t2", seq: 2 };
+  // The merge spends A+B or C+B: never exact, never C's alone.
+  const [out] = await m.attributeFromEventLog(
+    [row],
+    YELLO_ID,
+    mintLog("presence:c"),
+  );
+  expect(out.status).toBe("ambiguous");
+  expect(out.movements).toEqual([]);
+  // C equal to A: the sum is unique, but which cell left is still a guess.
+  const [same] = await m.attributeFromEventLog(
+    [row],
+    YELLO_ID,
+    mintLog("presence:a"),
+  );
+  expect(same.status).toBe("ambiguous");
+  expect(same.movements).toEqual([]);
+});
+
+test("a log whose parser dropped a transition's last delta marks nothing exact", async () => {
+  const raw = await rows();
+  const events = EVENTS.events.map((e: Record<string, unknown>) =>
+    e.seq === 45 && e.delta_idx === 1 ? { ...e, owner_to: "bad" } : e,
+  );
+  globalThis.fetch = (async () =>
+    new Response(JSON.stringify({ ...EVENTS, events }), {
+      status: 200,
+    })) as typeof fetch;
+  const out = await m.attributeFromEventLog(raw, YELLO_ID);
+  expect(out.find((r) => r.seq === 43)?.status).toBe("ambiguous");
+  expect(out.find((r) => r.seq === 45)?.status).toBe("ambiguous");
 });
 
 async function nachoEvents() {
@@ -321,4 +434,16 @@ test("a field the KCC-20 row sets is never overwritten", () => {
     logoURI: LOGO,
     unverified: true,
   });
+});
+
+test("an amount past 2^53 keeps every whole-token digit", () => {
+  expect(m.formatKcc20Amount(10000000000000001n, 0)).toBe(
+    "10,000,000,000,000,001",
+  );
+  expect(m.formatKcc20Amount(123456789012345678901n, 2)).toBe(
+    "1,234,567,890,123,456,789.01",
+  );
+  expect(m.formatKcc20Amount(12345n, 3)).toBe("12.345");
+  expect(m.formatKcc20Amount(1n, 8)).toBe("0.00000001");
+  expect(m.formatKcc20Amount(0n, 8)).toBe("0");
 });

@@ -26,6 +26,7 @@ export default function TokenRow({
 }: TokenRowProps) {
   const tickerRef = useRef<HTMLSpanElement>(null);
   const balanceRef = useRef<HTMLSpanElement>(null);
+  const fiatRef = useRef<HTMLSpanElement>(null);
   // The full figure it was compacted for, so a new balance is measured afresh.
   const [compactedFor, setCompactedFor] = useState<string>();
   const compact = compactBalance !== undefined && compactedFor === balance;
@@ -35,11 +36,18 @@ export default function TokenRow({
   useLayoutEffect(() => {
     const el = tickerRef.current;
     if (!el || compactBalance === undefined || compactedFor === balance) return;
-    // Only the balance's fault counts: a long ticker beside a short figure
-    // truncates on its own, and compacting the figure would not save it.
+    // Compact when the balance is to blame: it is wider than the ticker, or
+    // compacting it gives back at least the ticker's overflow. Digits are
+    // tabular, so the compact width scales with its length; the fiat line
+    // keeps the column at least its own width. A long ticker beside a short
+    // figure that compacting would not save is left truncated.
+    const ratio = compactBalance.length / balance.length;
     const check = () => {
       const figure = balanceRef.current?.offsetWidth ?? 0;
-      if (el.scrollWidth > el.clientWidth && figure > el.scrollWidth)
+      const fiatWidth = fiatRef.current?.offsetWidth ?? 0;
+      const reclaim = figure - Math.max(figure * ratio, fiatWidth);
+      const overflow = el.scrollWidth - el.clientWidth;
+      if (overflow > 0 && (figure > el.scrollWidth || overflow <= reclaim))
         setCompactedFor(balance);
     };
     check();
@@ -84,7 +92,9 @@ export default function TokenRow({
             {compact ? compactBalance : balance}
           </span>
           {fiat !== undefined && (
-            <span className="text-sm text-daintree-400">{fiat}</span>
+            <span ref={fiatRef} className="text-sm text-daintree-400">
+              {fiat}
+            </span>
           )}
         </div>
       </div>

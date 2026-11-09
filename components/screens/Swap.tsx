@@ -1277,9 +1277,7 @@ export default function Swap() {
           !!error ||
           rawIn === 0n ||
           (isBraid
-            ? !braidSwap.quote ||
-              !kaspaSigner ||
-              braidSwap.pending
+            ? !braidSwap.quote || !kaspaSigner || braidSwap.pending
             : isKron
               ? !kronQuote || !kaspaSigner
               : (!isWrapPair && !selected?.path) || !signer)

@@ -444,7 +444,11 @@ async function tabBar(page: Page) {
         labels: buttons.map((b) => b.textContent),
         buttons: buttons.map((b) => ({
           tag: b.tagName,
-          attributes: b.getAttributeNames().sort(),
+          // aria-controls is present only where real tabpanels exist; it is not part of the shared visual contract
+          attributes: b
+            .getAttributeNames()
+            .filter((n) => n !== "aria-controls")
+            .sort(),
           classes: b.className.split(" ").sort(),
         })),
       };

@@ -2,7 +2,6 @@
 // unverified-token sort) may change: all user-facing copy lives here.
 
 import { formatUnits } from "viem";
-import { formatToken } from "@/lib/utils";
 
 /** Where a token lives; drives the chip label, the chip colours and the corner badge. */
 export type NetworkType =
@@ -78,8 +77,11 @@ export function formatKcc20Amount(amount: bigint, decimals?: number) {
   if (decimals === undefined)
     return `${amount.toLocaleString("en-US")} ${KCC20_LABELS.baseUnits}`;
   const exact = formatUnits(amount, decimals);
-  // Mobile's formatNumber: 3 places.
-  const shown = formatToken(Number(exact), 3);
+  // Mobile's formatNumber: 3 places. A decimal string, not Number: whole tokens
+  // past 2^53 keep every digit.
+  const shown = new Intl.NumberFormat("en-US", {
+    maximumFractionDigits: 3,
+  }).format(exact as Intl.StringNumericLiteral);
   // Below 3 places a non-zero amount must not read as "0".
   return shown === "0" && amount !== 0n ? exact : shown;
 }

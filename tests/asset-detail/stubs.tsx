@@ -15,9 +15,10 @@
 //                 wallet's; page 2 holds the row and stops at the page cap
 //   historySend=1  a send row after the receive (both signs on one page)
 //   hidden=1      balances are hidden; nodecimals=1 kascov claimed no decimals
+//   ktestSymbol=, ktestAmount=  override the KTEST row's symbol / base units
 //   listed=1      the KCC-20 holding is a kascov-LISTED row (listed_*, no
 //                 claimed_*), run through the real parse; kascov prices it
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { claimedMeta, type Kcc20Token } from "@/lib/kcc20";
 import { parseHolding } from "@/lib/kcc20/providers/kascov";
 
@@ -67,11 +68,15 @@ export const kcc20Token: Kcc20Token = {
   covenantId: "ab".repeat(32),
   family: "kcc20-standard",
   tick: "ktest",
-  amount: 1_000_000n,
+  amount: BigInt(query.get("ktestAmount") ?? 1_000_000),
   spendable: spendable0 ? 0n : 1_000_000n,
   meta: query.has("nodecimals")
     ? { symbol: "KTEST", name: "Kastle test", unverified: true }
-    : { symbol: "KTEST", name: "Kastle test", decimals: 2 },
+    : {
+        symbol: query.get("ktestSymbol") ?? "KTEST",
+        name: "Kastle test",
+        decimals: 2,
+      },
 };
 // A live-shaped kascov listed row (as YELLO / WHALE / LUKE), parsed for real.
 export const LISTED_COVID = "ef".repeat(32);
@@ -95,11 +100,26 @@ const kcc20ExtToken: Kcc20Token = {
   extensionCommitment: KCC20_EXT,
 };
 
-// Wallet and network
+// Wallet and network. window.__selectAccount2() switches to the second
+// account live, as the side menu does, without remounting the screen.
+let account2 = query.has("account2");
+const accountListeners = new Set<() => void>();
+(window as unknown as { __selectAccount2: () => void }).__selectAccount2 =
+  () => {
+    account2 = true;
+    accountListeners.forEach((l) => l());
+  };
+const subscribeAccount = (l: () => void) => {
+  accountListeners.add(l);
+  return () => {
+    accountListeners.delete(l);
+  };
+};
 export function useWalletManager() {
+  const second = useSyncExternalStore(subscribeAccount, () => account2);
   return {
     account: {
-      address: query.has("account2") ? "kaspa:qsecond" : OWNER,
+      address: second ? "kaspa:qsecond" : OWNER,
       publicKeys: [],
     },
     wallet: walletLoading

@@ -259,6 +259,34 @@ test("the sheet opens on All; KRON and Standard filter; the pair never moves", a
   s.unmount();
 });
 
+test("the family tablist is one tab stop; arrows, Home and End select", async () => {
+  const s = await mountSheet([KAS, STANDARD, CURVE]);
+  const tabEls = () => [...s.host.querySelectorAll('[role="tab"]')] as any[];
+  const stops = () =>
+    tabEls()
+      .filter((b) => b.tabIndex === 0)
+      .map((b) => b.textContent);
+  const press = async (key: string, want: string) => {
+    const from = tabEls().find((b) => b.tabIndex === 0)!;
+    from.dispatchEvent(
+      new (from.ownerDocument.defaultView as any).KeyboardEvent("keydown", {
+        key,
+        bubbles: true,
+      }),
+    );
+    await expect.poll(s.selected).toBe(want);
+    expect(stops()).toEqual([want]);
+    expect(from.ownerDocument.activeElement?.textContent).toBe(want);
+  };
+  expect(stops()).toEqual(["All"]);
+  await press("ArrowRight", "Standard");
+  await press("End", "KRON");
+  await press("ArrowRight", "All"); // wraps
+  await press("ArrowLeft", "KRON"); // wraps back
+  await press("Home", "All");
+  s.unmount();
+});
+
 test("off Kaspa L1 the tabs filter nothing", () => {
   expect(inFamily(STANDARD, "all")).toBe(true);
   expect(hasFamilyRow([KAS], "all")).toBe(true);
