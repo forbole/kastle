@@ -149,8 +149,11 @@ test("switching account mid-Manage never writes the old draft to the new account
   );
   // The toggle press that would have been Done; if the draft was discarded
   // it reads Manage, so open B's own draft and press Done on that.
-  const toggle = page.getByRole("button", { name: /^(Done|Manage)$/ });
-  if ((await toggle.textContent())?.trim() === "Manage") await toggle.click();
+  // Manage is icon-only (aria-label), so read the role name, not textContent.
+  await expect(
+    page.getByRole("button", { name: /^(Done|Manage)$/ }),
+  ).toBeVisible();
+  if (await manage(page).isVisible()) await manage(page).click();
   await done(page).click();
   await expect(switches(page)).toHaveCount(0);
   expect(await stored()).toBe(before);
