@@ -6,7 +6,6 @@ import { useFormContext } from "react-hook-form";
 import { EvmKasSendForm } from "./EvmKasSend";
 import { twMerge } from "tailwind-merge";
 import spinner from "@/assets/images/spinner.svg";
-import { useSettings } from "@/hooks/useSettings";
 import { isAddress, formatEther, parseEther } from "viem";
 import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import useEvmKasBalance from "@/hooks/evm/useEvmKasBalance";
@@ -33,7 +32,6 @@ export default function DetailsStep({
   onNext: () => void;
   onBack: () => void;
 }) {
-  const [settings] = useSettings();
   const navigate = useNavigate();
   const {
     register,
@@ -80,7 +78,8 @@ export default function DetailsStep({
   };
 
   const { kaspaPrice: tokenPrice } = useKaspaPrice();
-  const { amount: tokenCurrency } = useCurrencyValue(tokenPrice);
+  const { amount: tokenCurrency, code: currencyCode } =
+    useCurrencyValue(tokenPrice);
   const tokenSymbol = getChainTokenSymbol(chainId);
 
   const addressValidator = async (value: string | undefined) => {
@@ -198,7 +197,7 @@ export default function DetailsStep({
     } else {
       setValue("amountFiat", undefined);
     }
-  }, [amount, estimatedFee]);
+  }, [amount, estimatedFee, tokenCurrency]);
 
   // Re-validate once the fee round-trip lands so amount + fee > balance fails here.
   useEffect(() => {
@@ -354,10 +353,10 @@ export default function DetailsStep({
               >
                 <span
                   className={twMerge(
-                    `fi fi-${settings?.currency.slice(0, 2).toLocaleLowerCase()} fis rounded-full`,
+                    `fi fi-${currencyCode.slice(0, 2).toLocaleLowerCase()} fis rounded-full`,
                   )}
                 ></span>
-                {settings?.currency}
+                {currencyCode}
               </span>
               <input
                 {...register("amountFiat", {

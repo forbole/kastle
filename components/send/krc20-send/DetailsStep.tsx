@@ -182,7 +182,6 @@ export const TokenSendDetails = ({
   onBack?: () => void;
 }) => {
   const navigate = useNavigate();
-  const [settings] = useSettings();
   const { account } = useWalletManager();
   const { mempoolCongestionLevel } = useMempoolStatus();
   const resolveRecipient = useResolveRecipient();
@@ -210,7 +209,9 @@ export const TokenSendDetails = ({
   const { userInput, address, amount, domain, priorityFee } = watch();
 
   const tokenName = asset.name;
-  const { amount: tokenCurrency } = useCurrencyValue(asset.price);
+  const { amount: tokenCurrency, code: currencyCode } = useCurrencyValue(
+    asset.price,
+  );
   const currentBalance = asset.balance;
 
   const addressValidator = async (value: string | undefined) => {
@@ -281,7 +282,7 @@ export const TokenSendDetails = ({
     } else {
       setValue("amountFiat", undefined);
     }
-  }, [amount, asset.price]);
+  }, [amount, tokenCurrency]);
 
   // Handle recent address list visibility
   useEffect(() => {
@@ -456,10 +457,10 @@ export const TokenSendDetails = ({
               >
                 <span
                   className={twMerge(
-                    `fi fi-${settings?.currency.slice(0, 2).toLocaleLowerCase()} fis rounded-full`,
+                    `fi fi-${currencyCode.slice(0, 2).toLocaleLowerCase()} fis rounded-full`,
                   )}
                 ></span>
-                {settings?.currency}
+                {currencyCode}
               </span>
               <input
                 {...register("amountFiat", {

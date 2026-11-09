@@ -235,6 +235,12 @@ export function useKcc20Price(token?: Pick<Kcc20Token, "family">) {
       : query.get("price");
   return { priceUsd: usd === null ? undefined : Number(usd) };
 }
+// The real module also exports the KRC-20 display fill, so it is stubbed whole
+// (a named-only stub shims the fill to undefined and every KCC-20 row throws).
+// ponytail: identity, the fill itself is covered by kcc20-history-attribution-unit.
+export function useKrc20FilledToken<T>(token: T): T {
+  return token;
+}
 export function useKcc20Tokens(address?: string) {
   if (query.has("kcc20Loading")) return { data: undefined, isLoading: true };
   return { data: address ? [kcc20Token] : undefined, isLoading: false };

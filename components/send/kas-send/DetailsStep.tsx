@@ -1,5 +1,4 @@
 import { useNavigate } from "react-router-dom";
-import { useSettings } from "@/hooks/useSettings";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import useMempoolStatus from "@/hooks/useMempoolStatus";
 import { useResolveRecipient } from "@/hooks/names/useResolveRecipient";
@@ -33,7 +32,6 @@ export function DetailsStep({
   onBack: () => void;
 }) {
   const navigate = useNavigate();
-  const [settings] = useSettings();
   const { wallet, account } = useWalletManager();
   const { mempoolCongestionLevel } = useMempoolStatus();
   const resolveRecipient = useResolveRecipient();
@@ -86,7 +84,8 @@ export function DetailsStep({
   } = useKasFeeEstimate({ amountSompi, priorityFee });
 
   const { kaspaPrice: tokenPrice } = useKaspaPrice();
-  const { amount: tokenCurrency } = useCurrencyValue(tokenPrice);
+  const { amount: tokenCurrency, code: currencyCode } =
+    useCurrencyValue(tokenPrice);
   const kasBalance = useKaspaBalance(account?.address) ?? 0;
   const currentBalance = kasBalance;
 
@@ -219,7 +218,7 @@ export function DetailsStep({
     } else {
       setValue("amountFiat", undefined);
     }
-  }, [amount, tokenPrice]);
+  }, [amount, tokenCurrency]);
 
   // Handle recent address list visibility
   useEffect(() => {
@@ -385,10 +384,10 @@ export function DetailsStep({
               >
                 <span
                   className={twMerge(
-                    `fi fi-${settings?.currency.slice(0, 2).toLocaleLowerCase()} fis rounded-full`,
+                    `fi fi-${currencyCode.slice(0, 2).toLocaleLowerCase()} fis rounded-full`,
                   )}
                 ></span>
-                {settings?.currency}
+                {currencyCode}
               </span>
               <input
                 {...register("amountFiat", {
