@@ -495,3 +495,20 @@ test("08 a 200-row sheet mounts only the rows in view; it scrolls to the end and
   ).toBe(1);
   expect(errors).toEqual([]);
 });
+
+test("08b a long claimed symbol stays on one line, so every sheet row keeps one stride", async ({
+  page,
+}) => {
+  const errors = await open(page, "swap", "rows=6&longSymbol=1");
+  const rowButtons = page.locator("dialog button:not([role=tab])");
+  await expect(page.getByRole("button", { name: /KRON1 LONG/ })).toBeVisible();
+  const heights = await rowButtons.evaluateAll((bs) =>
+    bs
+      .filter((b) => b.querySelector("span.font-semibold"))
+      .map((b) => Math.round(b.getBoundingClientRect().height)),
+  );
+  expect(heights.length).toBeGreaterThan(3);
+  // KAS has no address line; the token rows all match each other.
+  expect(new Set(heights.slice(1)).size).toBe(1);
+  expect(errors).toEqual([]);
+});

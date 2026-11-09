@@ -129,6 +129,36 @@ test("the choice survives a popup reload and stays per account", async ({
   await expect(page.getByText("NACHO")).toBeVisible();
 });
 
+test("switching account mid-Manage never writes the old draft to the new account", async ({
+  page,
+}) => {
+  // Account B hides NACHO on its own.
+  await dashboard(page, "&account2=1");
+  await hide(page, /^Show NACHO$/);
+  const bKey = "storage.local:hiddenTokens:mainnet:kaspa:qsecond";
+  const stored = () => page.evaluate((k) => localStorage.getItem(k), bKey);
+  const before = await stored();
+  expect(before).toBe(JSON.stringify(["krc20:nacho"]));
+  // Account A opens Manage and switches KASPY off in its draft...
+  const errors = await dashboard(page);
+  await manage(page).click();
+  await page.getByRole("switch", { name: /^Show KASPY$/ }).click();
+  // ...then the side menu selects account B; the list stays mounted.
+  await page.evaluate(() =>
+    (window as unknown as { __selectAccount2: () => void }).__selectAccount2(),
+  );
+  // The toggle press that would have been Done; if the draft was discarded
+  // it reads Manage, so open B's own draft and press Done on that.
+  const toggle = page.getByRole("button", { name: /^(Done|Manage)$/ });
+  if ((await toggle.textContent())?.trim() === "Manage") await toggle.click();
+  await done(page).click();
+  await expect(switches(page)).toHaveCount(0);
+  expect(await stored()).toBe(before);
+  await expect(page.getByText("KASPY")).toBeVisible();
+  await expect(page.getByText("NACHO")).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
 test("a hidden token still shows in the send picker and its detail page", async ({
   page,
 }) => {
@@ -264,5 +294,27 @@ test("a kascov-LISTED KCC-20 detail page shows the scaled balance", async ({
   await expect(page.getByText("2,000 LUKE")).toBeVisible();
   await expect(page.getByText("8", { exact: true })).toBeVisible();
   await expect(page.getByText(/base units/)).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test("a ticker wider than the full balance still compacts the balance when that frees enough room", async ({
+  page,
+}) => {
+  // 1,234,567,890.12 KTEST (compact 1.23B) beside a 10-letter symbol at the
+  // popup's width: the ticker (~153px) is wider than the full figure (~134px)
+  // and overflows its ~119px by ~34px; compacting gives back ~90px.
+  await page.setViewportSize({ width: 375, height: 900 });
+  const errors = await dashboard(
+    page,
+    `&ktestSymbol=${"W".repeat(10)}&ktestAmount=123456789012`,
+  );
+  const row = page.getByRole("button").filter({ hasText: "WWWW" }).first();
+  const ticker = row.locator('[data-part="ticker"]');
+  const figure = row.locator('[data-part="balance"] span').first();
+  await expect(figure).toHaveText("1.23B");
+  await expect(figure).toHaveAttribute("title", "1,234,567,890.12");
+  expect(await ticker.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(
+    true,
+  );
   expect(errors).toEqual([]);
 });

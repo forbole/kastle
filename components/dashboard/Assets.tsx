@@ -31,6 +31,7 @@ import {
   hiddenTokensKey,
   kcc20HideId,
   krc20HideId,
+  saveHiddenTokens,
   useHiddenTokens,
 } from "@/lib/hidden-tokens";
 
@@ -70,28 +71,32 @@ export default function Assets() {
 
   // Hiding is a display filter on this list only; balances, totals, send,
   // swap and detail pages never read the hidden set.
-  const {
-    hidden,
-    loaded: hiddenLoaded,
-    save,
-  } = useHiddenTokens(hiddenTokensKey(settings?.networkId, address));
-  // Manage mode edits a draft; Done writes it once.
-  const [draft, setDraft] = useState<Set<string>>();
+  const hiddenKey = hiddenTokensKey(settings?.networkId, address);
+  const { hidden, loaded: hiddenLoaded } = useHiddenTokens(hiddenKey);
+  // Manage mode edits a draft; Done writes it once, to the key it was
+  // started for. Switching account or network (the side menu keeps this list
+  // mounted) discards it, so one account's draft never lands on another's.
+  const [started, setStarted] = useState<{ key: string; ids: Set<string> }>();
+  if (started && started.key !== hiddenKey) setStarted(undefined);
+  const draft = started && started.key === hiddenKey ? started.ids : undefined;
   const managing = draft !== undefined;
-  const enterManage = () => setDraft(new Set(hidden));
+  const enterManage = () =>
+    hiddenKey && setStarted({ key: hiddenKey, ids: new Set(hidden) });
   const leaveManage = () => {
-    if (draft) void save(draft);
-    setDraft(undefined);
+    if (started && started.key === hiddenKey)
+      void saveHiddenTokens(started.key, started.ids);
+    setStarted(undefined);
   };
   const manageFor = (id: string) =>
     draft && {
       shown: !draft.has(id),
       onToggle: (shown: boolean) =>
-        setDraft((prev) => {
-          const next = new Set(prev);
-          if (shown) next.delete(id);
-          else next.add(id);
-          return next;
+        setStarted((prev) => {
+          if (!prev) return prev;
+          const ids = new Set(prev.ids);
+          if (shown) ids.delete(id);
+          else ids.add(id);
+          return { key: prev.key, ids };
         }),
     };
   const isShown = (id: string) => managing || !hidden.has(id);

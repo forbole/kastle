@@ -27,7 +27,10 @@ const rows: Row[] = [
     return {
       key: `kcc20:${i}`,
       chain: "kaspa",
-      symbol: kron ? `KRON${i}` : `STD${i}`,
+      // longSymbol=1: one claimed symbol long enough to wrap if allowed.
+      symbol:
+        (kron ? `KRON${i}` : `STD${i}`) +
+        (i === 1 && params.has("longSymbol") ? " LONG NAME".repeat(6) : ""),
       address: (kron ? "cd" : "ab").repeat(31) + String(i).padStart(2, "0"),
       family: kron ? "kron-legacy" : "kcc20-standard",
       balance: String(i + 1),
