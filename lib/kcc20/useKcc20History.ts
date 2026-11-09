@@ -5,6 +5,7 @@ import { useFeatureFlags } from "@/hooks/useFeatureFlags";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import type { Kcc20Family, Kcc20Token } from "@/lib/kcc20";
 import {
+  attributeFromEventLog,
   DaaTip,
   Kcc20HistoryEntry,
   daaToMs,
@@ -78,13 +79,15 @@ async function eventsPage(
   };
 }
 
-const transfersPage = (
+// Rows kascov could not attribute are filled from the token's event log (one read per page, only if needed).
+const transfersPage = async (
   owner: string,
+  tokenId: string,
   page: Awaited<ReturnType<typeof fetchOwnerTransfers>>,
-): HistoryPage => ({
+): Promise<HistoryPage> => ({
   source: "transfers",
   owner,
-  rows: page.transfers,
+  rows: [...(await attributeFromEventLog(page.transfers, tokenId))],
   ...(page.next && { next: page.next }),
 });
 
@@ -99,14 +102,14 @@ async function firstPage(
     fetchOwnerTransfers(bare, tokenId),
   ]);
   if (bareRows.transfers.length > 0)
-    return { ...transfersPage(bare, bareRows), tip };
+    return { ...(await transfersPage(bare, tokenId, bareRows)), tip };
   // Layouts index one form or the other; `presence:` tokens never answer to bare.
   const presenceRows = await fetchOwnerTransfers(presence, tokenId);
   const held = holdings.some((h) => h.tokenId === tokenId && h.balance > 0n);
   // Nothing under either form for a token kascov says is held: read the log instead.
   if (presenceRows.transfers.length === 0 && held)
     return { ...(await eventsPage(tokenId, own, 1)), tip };
-  return { ...transfersPage(presence, presenceRows), tip };
+  return { ...(await transfersPage(presence, tokenId, presenceRows)), tip };
 }
 
 // The event log carries deltas, which are never amounts: a fallback row says only that
@@ -204,6 +207,7 @@ export function useKcc20History(
       const [, , , , , owner, cursor] = key;
       return transfersPage(
         owner,
+        tokenId,
         await fetchOwnerTransfers(owner, tokenId, cursor),
       );
     }
