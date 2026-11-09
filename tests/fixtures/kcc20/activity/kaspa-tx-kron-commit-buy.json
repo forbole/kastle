@@ -1,0 +1,60 @@
+{
+  "transaction_id": "89de8b451366f718afab75e79b8f43a1c63f79c300cc75bead751856462c0cc5",
+  "is_accepted": true,
+  "accepting_block_blue_score": 583899927,
+  "inputs": [
+    {
+      "previous_outpoint_hash": "58e9ec466bbaedb6eeada41a1f707c0bf60d910245f984b79e63c1cd9106affb",
+      "previous_outpoint_index": "0",
+      "previous_outpoint_address": "kaspa:pr9s2sl9v7evm6mdu8kut8g5fmdvw4k8zqamgm0vk8vcel4xc29ewfdwm2adc",
+      "previous_outpoint_amount": 42630717000000,
+      "covenant_id": "10f2155ebcd2e0cd55cc9354f78d43fa4e8b9f93de98683919d1f490da726c4f"
+    },
+    {
+      "previous_outpoint_hash": "58e9ec466bbaedb6eeada41a1f707c0bf60d910245f984b79e63c1cd9106affb",
+      "previous_outpoint_index": "1",
+      "previous_outpoint_address": "kaspa:prdttpvfydjxqu6hl8p36y9wtkxeuudgdfj7p284xu2rd7phlnueznewdzqdh",
+      "previous_outpoint_amount": 50000000,
+      "covenant_id": "7a98370c0d6b037c28089d7b77cd8229120804cb416ef592ddb99e23820544e4"
+    },
+    {
+      "previous_outpoint_hash": "7b2421a20faf7811d5877c8013b10a8b5a080b7a15c150daa7865ad4a6fed0a1",
+      "previous_outpoint_index": "0",
+      "previous_outpoint_address": "kaspa:pp8m5sf3zdfxycwdnzzwz7g7r7hyuss88eznquzndhu4qmac9sj46dktm8shm",
+      "previous_outpoint_amount": 1499646400,
+      "covenant_id": null
+    }
+  ],
+  "outputs": [
+    {
+      "amount": 42632100000000,
+      "script_public_key_address": "kaspa:prdhcl6t98wkunccngl35tywenm7rl9neftjpkrlgts5fxwmd8w05u4v9m9q8",
+      "covenant_id": "10f2155ebcd2e0cd55cc9354f78d43fa4e8b9f93de98683919d1f490da726c4f"
+    },
+    {
+      "amount": 50000000,
+      "script_public_key_address": "kaspa:prd6ewyfj2xsxaf8getzxcs00h4t5kapg5chjkgeuewuwc6e7urvgemzy7xup",
+      "covenant_id": "7a98370c0d6b037c28089d7b77cd8229120804cb416ef592ddb99e23820544e4"
+    },
+    {
+      "amount": 50000000,
+      "script_public_key_address": "kaspa:pz55h2jgk6gwxz352yq8rjkqsqejt90sc8hhv5eekrr4w0tu354kkm0pkwg05",
+      "covenant_id": "7a98370c0d6b037c28089d7b77cd8229120804cb416ef592ddb99e23820544e4"
+    },
+    {
+      "amount": 20000000,
+      "script_public_key_address": "kaspa:qz5enng5vzgpe4jk9avc2eznuyxkqtsx49hstsrvczm4j36sr0k5ykzjmdvdr",
+      "covenant_id": null
+    },
+    {
+      "amount": 20000000,
+      "script_public_key_address": "kaspa:qqrqqdwseyk3yw5084es9xkrz0vcnj8qrv58ey8l8r4ahwftqpndu996yu2dd",
+      "covenant_id": null
+    },
+    {
+      "amount": 12812000,
+      "script_public_key_address": "kaspa:qqz6pwtwxa5dds2qssxpuc28lnrnnvx48ymdcqyzju0n58dcg5p9c6luwmcyg",
+      "covenant_id": null
+    }
+  ]
+}

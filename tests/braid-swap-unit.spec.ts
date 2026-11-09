@@ -556,8 +556,9 @@ test.describe("Braid trade in the swap history", () => {
       feeSymbol: "KAS",
       kastleFeeAmount: "0.25",
       kastleFeeSymbol: "KAS",
+      // Same Provider row an EVM swap sheet draws.
+      providerId: "braid",
     });
-    expect(row.providerId).toBeUndefined();
   });
 
   test("a delivered sell shows the chain amount; a router output is no fee", () => {

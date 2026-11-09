@@ -2,6 +2,7 @@ import { formatUnits } from "viem";
 import type { Tx } from "@dotk/sdk-tx";
 import type { SwapActivityRecord } from "@/lib/activity/mappers";
 import { braidWalletJsonToTx } from "@/lib/braid/adapter";
+import { BRAID_PROVIDER } from "@/lib/braid/constants";
 import type { BraidSettleState, PendingBraidSwap } from "@/lib/braid/pending";
 import { KAT_L1_CHAIN_ID } from "@/lib/bridge/kat-bridge-history";
 import { fetchKaspaTx } from "@/lib/bridge/kat-observed-fees";
@@ -195,6 +196,13 @@ export function buildKcc20SwapRecords({
           continue;
         }
         const buy = entry.kind === "buy";
+        // The venue, from kascov's verified market build ("KRON pool v1").
+        // ponytail: its first word as id; adapters name and draw only the
+        // venues L1_PROVIDERS knows (KRON, Braid), others get no Provider row.
+        const venue = tokenRows
+          .find((r) => r.txid === entry.txid && r.marketBuild)
+          ?.marketBuild?.split(" ")[0]
+          ?.toLowerCase();
         swaps.push({
           id: `kcc20:${entry.id}:${tokenId}`,
           timestampMs: entry.timestampMs,
@@ -206,6 +214,7 @@ export function buildKcc20SwapRecords({
           // kascov lists accepted transitions only: the row's accepting_daa.
           status: "completed",
           txHash: entry.txid,
+          ...(venue ? { providerId: venue } : {}),
           chainId: KAT_L1_CHAIN_ID,
         });
       } catch {
@@ -259,6 +268,8 @@ const KAS_DECIMALS = 8;
 interface MoneyTxInput {
   previous_outpoint_address?: string;
   previous_outpoint_amount?: number;
+  previous_outpoint_hash?: string;
+  previous_outpoint_index?: string | number;
   covenant_id?: string | null;
 }
 
@@ -328,7 +339,12 @@ function covenantOf(u: { covenant_id?: string | null }): string | null {
  *
  * Any input funded by a plain address other than the wallet makes the
  * third-party outputs unattributable (they may be that party's change), so
- * the whole read is refused rather than half-answered.
+ * the whole read is refused rather than half-answered. One exception: a
+ * KRON swap (lib/kcc20/swap.ts) spends a P2SH output the wallet's own
+ * commit transaction made. Given that commit in `commits` (by txid), the
+ * input counts as the wallet's when every commit input is the wallet's
+ * plain UTXO and the commit output matches it; the commit's own fee then
+ * joins the network fee and the wallet's outlay.
  *
  * So is a transaction under more than two covenants. One token's trade spans
  * exactly one pair: the token's own covenant (its id is the token id) and its
@@ -341,8 +357,40 @@ export function deriveKcc20SwapMoney(
   tx: Kcc20SwapTx,
   address: string,
   side: "buy" | "sell",
+  commits: ReadonlyMap<string, Kcc20SwapTx> = new Map(),
 ): Kcc20SwapMoney | null {
   if (!tx.inputs?.length || !tx.outputs?.length) return null;
+  const commitFees = new Map<string, bigint>();
+  // The wallet funded this input through its own commit tx: commit fee, or null.
+  const commitFee = (i: MoneyTxInput, amount: bigint): bigint | null => {
+    const c = i.previous_outpoint_hash
+      ? commits.get(i.previous_outpoint_hash)
+      : undefined;
+    const o = c?.outputs?.[Number(i.previous_outpoint_index)];
+    if (!c?.inputs?.length || !c.outputs?.length || !o) return null;
+    if (
+      o.script_public_key_address !== i.previous_outpoint_address ||
+      sompi(o.amount) !== amount
+    )
+      return null;
+    let sum = 0n;
+    for (const ci of c.inputs) {
+      const a = sompi(ci?.previous_outpoint_amount);
+      if (
+        a === null ||
+        covenantOf(ci) ||
+        ci.previous_outpoint_address !== address
+      )
+        return null;
+      sum += a;
+    }
+    for (const co of c.outputs) {
+      const a = sompi(co?.amount);
+      if (a === null) return null;
+      sum -= a;
+    }
+    return sum >= 0n ? sum : null;
+  };
   // Per covenant: [sum, largest] of its inputs and of its outputs.
   const covenants = new Map<
     string,
@@ -370,7 +418,13 @@ export function deriveKcc20SwapMoney(
     if (i.previous_outpoint_address === address) {
       funded = true;
       if (!id) walletIn += amount;
-    } else if (!id) return null;
+    } else if (!id) {
+      const fee = commitFee(i, amount);
+      if (fee === null) return null;
+      funded = true;
+      walletIn += amount;
+      commitFees.set(i.previous_outpoint_hash!, fee);
+    }
   }
   let outputs = 0n;
   let walletOut = 0n;
@@ -402,10 +456,18 @@ export function deriveKcc20SwapMoney(
   for (const c of covenants.values())
     bond += c.outSum - c.outMax - (c.inSum - c.inMax);
   if (side === "buy" ? bond < 0n : bond > 0n) return null;
+  let committed = 0n;
+  for (const f of commitFees.values()) committed += f;
   const kasSompi =
-    side === "buy" ? walletIn - walletOut - bond : walletOut - walletIn + bond;
+    side === "buy"
+      ? walletIn - walletOut - bond + committed
+      : walletOut - walletIn + bond - committed;
   if (kasSompi <= 0n) return null;
-  return { kasSompi, networkFeeSompi: networkFee, venueFeeSompi: venue };
+  return {
+    kasSompi,
+    networkFeeSompi: networkFee + committed,
+    venueFeeSompi: venue,
+  };
 }
 
 /** "kcc20:<txid>:<seq>:<tokenId>" — the id buildKcc20SwapRecords gives every row. */
@@ -480,7 +542,30 @@ export async function fetchKcc20SwapMoney(
       const hit = moneyByTx.get(key);
       if (hit) return void out.set(txid, hit);
       const tx = (await fetchKaspaTx(txid)) as Kcc20SwapTx | null;
-      const money = tx && deriveKcc20SwapMoney(tx, address, sides.get(txid)!);
+      if (!tx) return;
+      // A KRON swap spends the wallet's own commit output: read that commit too.
+      const commitIds = new Set(
+        (tx.inputs ?? [])
+          .filter(
+            (i) =>
+              !covenantOf(i) &&
+              i.previous_outpoint_address !== address &&
+              i.previous_outpoint_hash,
+          )
+          .map((i) => i.previous_outpoint_hash!),
+      );
+      const commits = new Map<string, Kcc20SwapTx>();
+      for (const id of commitIds) {
+        const c = (await fetchKaspaTx(id)) as Kcc20SwapTx | null;
+        if (!c) return;
+        commits.set(id, c);
+      }
+      const money = deriveKcc20SwapMoney(
+        tx,
+        address,
+        sides.get(txid)!,
+        commits,
+      );
       if (!money) return;
       moneyByTx.set(key, money);
       out.set(txid, money);
@@ -599,7 +684,7 @@ export interface BraidTradeInput {
  * A Braid trade as a swap row. "pending" while in flight, and while the
  * outcome is unconfirmed: the row claims neither a delivery nor a loss the
  * chain did not show. The network fee and the venue fee keep their own
- * fields; providerId stays unset, as on every KCC-20 row.
+ * fields; providerId names Braid, as kascov's market names a KRON row's venue.
  */
 export function braidSwapRecord(t: BraidTradeInput): SwapActivityRecord {
   const buy = t.side === "buy";
@@ -627,6 +712,7 @@ export function braidSwapRecord(t: BraidTradeInput): SwapActivityRecord {
     toAmount: amountOut,
     status,
     txHash: t.depositTxid,
+    providerId: BRAID_PROVIDER.id,
     chainId: KAT_L1_CHAIN_ID,
     ...(t.money
       ? {

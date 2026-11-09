@@ -497,3 +497,139 @@ test("two tokens in one transaction: two rows or one refused row, never one merg
   expect(row.fromAmount).toBe("0");
   expect(row.feeAmount).toBeUndefined();
 });
+
+// ─── KRON commit → reveal (QA item 5) ───────────────────────────────────────
+
+// api.kaspa.org, captured 2026-11-09, trimmed to the fields read: a real KRON
+// pool buy of 1,917 KRON. Its plain input is a P2SH output of the wallet's own
+// commit transaction (lib/kcc20/swap.ts), not the wallet's P2PK UTXO.
+const KRON_TX = fixture("kaspa-tx-kron-commit-buy.json");
+const KRON_COMMIT = fixture("kaspa-tx-kron-commit-buy-commit.json");
+const KRON_TXID = KRON_TX.transaction_id as string;
+const KRON_COMMIT_TXID = KRON_COMMIT.transaction_id as string;
+const KRON_WALLET =
+  "kaspa:qqz6pwtwxa5dds2qssxpuc28lnrnnvx48ymdcqyzju0n58dcg5p9c6luwmcyg";
+const KRON_ID =
+  "7a98370c0d6b037c28089d7b77cd8229120804cb416ef592ddb99e23820544e4";
+
+const kronRow = (): SwapActivityRecord => ({
+  id: `kcc20:${KRON_TXID}:8221:${KRON_ID}`,
+  timestampMs: TIP.atMs,
+  fromSymbol: "KAS",
+  toSymbol: "KRON",
+  fromAmount: "0",
+  toAmount: "1917",
+  status: "completed",
+  txHash: KRON_TXID,
+  providerId: "kron",
+  chainId: 1,
+});
+
+const sheetOf = (row: SwapActivityRecord) =>
+  m.toActivityItem(m.mapSwapActivity(row), {
+    logoFor: () => undefined,
+    priceFor: () => undefined,
+  }).sheet;
+
+test("KRON commit-funded buy (real tx): paid leg, network fee and rate fill; no '-'", async () => {
+  // Without its commit the P2SH input reads as a third party's: the old drop.
+  expect(m.deriveKcc20SwapMoney(KRON_TX, KRON_WALLET, "buy")).toBeNull();
+  const seen = route([
+    [`${KASPA_TX}${KRON_TXID}`, KRON_TX],
+    [`${KASPA_TX}${KRON_COMMIT_TXID}`, KRON_COMMIT],
+  ]);
+  const swaps = [kronRow()];
+  const [row] = m.applyKcc20SwapMoney(
+    swaps,
+    await m.fetchKcc20SwapMoney(KRON_WALLET, swaps),
+  );
+  expect(seen).toHaveLength(2);
+  // Hand-computed, sompi: P2SH 1499646400 − change 12812000 − bond 50000000
+  // + commit fee 353600; fee = reveal 13834400 + commit 353600.
+  expect(row).toMatchObject({
+    fromAmount: "14.37188",
+    toAmount: "1917",
+    feeAmount: "0.14188",
+    feeSymbol: "KAS",
+    kastleFeeAmount: "0.4",
+    kastleFeeSymbol: "KAS",
+  });
+  const sheet = sheetOf(row);
+  expect(sheet.transfer.sentAmount).toBe("14.372 KAS");
+  expect(sheet.transfer.receivedAmount).toBe("1,917 KRON");
+  const value = (label: string) =>
+    sheet.details.find((d) => d.label === label)?.value;
+  expect(value("Network fee")).toBe("0.142 KAS");
+  expect(value("Rate")).toMatch(/^1 KAS ≈ 133\.38\d* KRON$/);
+  expect(value("Provider")).toBe("KRON");
+  expect(sheet.details.filter((d) => d.value === "-")).toEqual([]);
+});
+
+test("a commit not funded by the wallet alone is still refused", () => {
+  const foreign = {
+    ...KRON_COMMIT,
+    inputs: [
+      ...KRON_COMMIT.inputs,
+      { previous_outpoint_address: BUY_WALLET, previous_outpoint_amount: 1 },
+    ],
+  };
+  const commits = (c: typeof KRON_COMMIT) => new Map([[KRON_COMMIT_TXID, c]]);
+  expect(
+    m.deriveKcc20SwapMoney(KRON_TX, KRON_WALLET, "buy", commits(foreign)),
+  ).toBeNull();
+  expect(
+    m.deriveKcc20SwapMoney(KRON_TX, BUY_WALLET, "buy", commits(KRON_COMMIT)),
+  ).toBeNull();
+  // A commit whose output is not the one the swap spends counts for nothing.
+  const reshaped = {
+    ...KRON_COMMIT,
+    outputs: KRON_COMMIT.outputs.map((o: { amount: number }) => ({
+      ...o,
+      amount: o.amount - 1,
+    })),
+  };
+  expect(
+    m.deriveKcc20SwapMoney(KRON_TX, KRON_WALLET, "buy", commits(reshaped)),
+  ).toBeNull();
+});
+
+test("a KCC-20 swap and an EVM swap carry the same detail label list", async () => {
+  route([
+    [`${KASPA_TX}${KRON_TXID}`, KRON_TX],
+    [`${KASPA_TX}${KRON_COMMIT_TXID}`, KRON_COMMIT],
+  ]);
+  const swaps = [kronRow()];
+  const [kcc20] = m.applyKcc20SwapMoney(
+    swaps,
+    await m.fetchKcc20SwapMoney(KRON_WALLET, swaps),
+  );
+  const evmRow: SwapActivityRecord = {
+    id: "0xswap",
+    timestampMs: TIP.atMs,
+    fromSymbol: "iKAS",
+    toSymbol: "NACHO",
+    fromAmount: "10",
+    toAmount: "3",
+    status: "completed",
+    txHash: "0xswap",
+    providerId: "zealous-swap",
+    feeAmount: "0.01",
+    feeSymbol: "iKAS",
+    kastleFeeAmount: "0.03",
+    kastleFeeSymbol: "iKAS",
+  };
+  const labels = (r: SwapActivityRecord) =>
+    sheetOf(r).details.map((d) => d.label);
+  expect(labels(kcc20)).toEqual(labels(evmRow));
+  expect(labels(evmRow)).toEqual([
+    "Status",
+    "Network fee",
+    "Kastle fee",
+    "Rate",
+    "Provider",
+    "Transaction",
+  ]);
+  const transfer = (r: SwapActivityRecord) =>
+    Object.keys(sheetOf(r).transfer).sort();
+  expect(transfer(kcc20)).toEqual(transfer(evmRow));
+});
