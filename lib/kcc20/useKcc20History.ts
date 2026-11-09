@@ -7,8 +7,7 @@ import type { Kcc20Family, Kcc20Token } from "@/lib/kcc20";
 import {
   attributeFromEventLog,
   DaaTip,
-  Kcc20HistoryEntry,
-  daaToMs,
+  eventEntries,
   ownerStrings,
   standardOwnerKey,
   toHistoryEntries,
@@ -111,19 +110,6 @@ async function firstPage(
     return { ...(await eventsPage(tokenId, own, 1)), tip };
   return { ...(await transfersPage(presence, tokenId, presenceRows)), tip };
 }
-
-// The event log carries deltas, which are never amounts: a fallback row says only that
-// this transition touched the wallet.
-const eventEntry = (e: KascovTokenEvent, tip: DaaTip): Kcc20HistoryEntry => ({
-  id: `${e.txid}:${e.seq}`,
-  txid: e.txid,
-  seq: e.seq,
-  kind: "unknown",
-  ambiguous: true,
-  acceptingDaa: e.acceptingDaa,
-  timestampMs: daaToMs(e.acceptingDaa, tip.daa, tip.atMs),
-  approxTime: true,
-});
 
 // Families kascov indexes by the wallet's owner strings. A legacy piece the wallet can spend
 // decodes to identifier ADDRESS or PUBKEY over the same x-only key (isOwnedBy), and kascov
@@ -235,15 +221,12 @@ export function useKcc20History(
         [],
         tip,
       );
-    // One transition spans several deltas; it is one row.
-    const byId = new Map<string, Kcc20HistoryEntry>();
-    for (const p of data)
-      if (p.source === "events")
-        for (const e of p.events) {
-          const entry = eventEntry(e, tip);
-          if (!byId.has(entry.id)) byId.set(entry.id, entry);
-        }
-    return [...byId.values()];
+    // A split's deltas name the wallet's side; a merge's row stays unattributed.
+    return eventEntries(
+      data.flatMap((p) => (p.source === "events" ? p.events : [])),
+      own,
+      tip,
+    );
   }, [data, own]);
 
   const last = data?.[data.length - 1];

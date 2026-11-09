@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import { storage } from "wxt/storage";
 import useKaspaPrice from "@/hooks/useKaspaPrice.ts";
@@ -7,6 +7,31 @@ import { NetworkType } from "@/contexts/SettingsContext";
 import type { Kcc20Token } from "@/lib/kcc20";
 import { fetchStandardMarketPrice } from "@/lib/kcc20/providers/kascov";
 import { fetchKronMarkets, type KronMarkets } from "@/lib/kcc20/swap";
+import { fillFromKrc20 } from "@/lib/kcc20/krc20Fill";
+import {
+  useZealousSwapTokensMetadata,
+  ZEALOUS_SWAP_IMAGE_URL,
+} from "@/hooks/evm/provider/useZealousSwap";
+
+/** `token` as shown: empty metadata fields filled from its KRC-20 namesake (display only). */
+export function useKrc20FilledToken<T extends Kcc20Token | undefined>(
+  token: T,
+): T {
+  const { data } = useZealousSwapTokensMetadata();
+  return useMemo(
+    () =>
+      (token &&
+        fillFromKrc20(
+          token,
+          data?.tokens.map((t) => ({
+            symbol: t.symbol,
+            decimals: t.decimals,
+            logoURI: t.logoURI && `${ZEALOUS_SWAP_IMAGE_URL}${t.logoURI}`,
+          })),
+        )) as T,
+    [token, data],
+  );
+}
 
 type PriceCache = { networkId: string; prices: Record<string, number> };
 
@@ -70,9 +95,19 @@ export function useKcc20Price(
     ([, id, decimals]) => fetchStandardMarketPrice(id, decimals),
     { refreshInterval: 60_000 },
   );
+  // No kascov market: the KRC-20 list's USD price for the same symbol (one entry only).
+  const { data: krc20 } = useZealousSwapTokensMetadata();
+  const symbol = meta?.symbol.toUpperCase();
+  const namesakes = symbol
+    ? (krc20?.tokens ?? []).filter((t) => t.symbol.toUpperCase() === symbol)
+    : [];
+  const krc20Kas =
+    namesakes.length === 1 && namesakes[0].price > 0 && kaspaPrice
+      ? namesakes[0].price / kaspaPrice
+      : undefined;
   const [cache, setCache] = useState(mirror);
   const live = isStandard
-    ? (spot ?? undefined)
+    ? (spot ?? krc20Kas)
     : kcc20PriceKas(markets, covenantId);
   // null is an answer: kascov has no market, so no cached price may stand in.
   const answered = isStandard ? spot !== undefined : markets !== undefined;

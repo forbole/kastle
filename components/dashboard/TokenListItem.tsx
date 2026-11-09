@@ -22,7 +22,7 @@ import {
   formatKcc20Balance,
   KCC20_LABELS,
 } from "@/ui/popup/kcc20/labels";
-import { useKcc20Price } from "@/lib/kcc20/useKcc20Price";
+import { useKcc20Price, useKrc20FilledToken } from "@/lib/kcc20/useKcc20Price";
 import TokenRow from "@/ui/popup/dashboard/TokenRow";
 import Switch from "@/ui/general/Switch";
 
@@ -134,7 +134,7 @@ function compactKcc20Amount(amount: bigint, decimals?: number) {
 }
 
 export function Kcc20TokenListItem({
-  token,
+  token: scanned,
   manage,
 }: {
   token: Kcc20Token;
@@ -143,6 +143,8 @@ export function Kcc20TokenListItem({
   const navigate = useNavigate();
   const [settings] = useSettings();
   const { isKcc20Enabled } = useFeatureFlags();
+  // Display only: empty fields filled from the KRC-20 namesake.
+  const token = useKrc20FilledToken(scanned);
   const { meta } = token;
   const { wallet } = useWalletManager();
   // Same guard as the kcc20 routes; the detail page decides whether Send shows.
