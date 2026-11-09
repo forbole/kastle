@@ -60,7 +60,7 @@ async function open(page: Page, route: string, query = "") {
 const dashboard = (page: Page, query = "") =>
   open(page, "/dashboard-assets", query);
 const manage = (page: Page) =>
-  page.getByRole("button", { name: "Manage tokens" });
+  page.getByRole("button", { name: "Manage", exact: true });
 const done = (page: Page) => page.getByRole("button", { name: "Done" });
 const switches = (page: Page) => page.getByRole("switch");
 // Two KCC-20 rows (base + extension) and two KRC-20 rows in the stubs.
@@ -178,4 +178,37 @@ test("hiding every token shows a calm empty state with the way back", async ({
   await done(page).click();
   await expect(empty).toHaveCount(0);
   await expect(page.getByText("NACHO")).toBeVisible();
+});
+
+test("one flat list: no heading between KAS and the tokens, and KAS cannot be hidden", async ({
+  page,
+}) => {
+  await dashboard(page);
+  await manage(page).click();
+  const kas = page.getByTestId("kas-row");
+  await expect(kas).toBeVisible();
+  await expect(kas.getByRole("switch")).toHaveCount(0);
+  await expect(page.getByTestId("manage-row").first()).toBeVisible();
+  // Every sibling between the KAS row and the first token row.
+  const between = await kas.evaluate((el) => {
+    const out: { heading: boolean; text: string }[] = [];
+    for (
+      let n = el.nextElementSibling;
+      n && n.getAttribute("data-testid") !== "manage-row";
+      n = n.nextElementSibling
+    )
+      out.push({
+        heading:
+          !!n.matches('h1,h2,h3,h4,h5,h6,[role="heading"]') ||
+          !!n.querySelector('h1,h2,h3,h4,h5,h6,[role="heading"]'),
+        text: (n.textContent ?? "").trim(),
+      });
+    return out;
+  });
+  for (const b of between) {
+    expect(b.heading).toBe(false);
+    expect(b.text).not.toMatch(/\bTokens\b/);
+  }
+  await expect(page.getByRole("heading")).toHaveCount(0);
+  await expect(page.getByText("Tokens", { exact: true })).toHaveCount(0);
 });

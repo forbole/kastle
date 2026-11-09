@@ -117,6 +117,7 @@ export default function Assets() {
     <div className="mb-4 flex flex-col items-stretch gap-2">
       {/*KAS*/}
       <div
+        data-testid="kas-row"
         className="flex cursor-pointer items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3 hover:border-white"
         onClick={() => navigate("/kas-asset")}
       >
@@ -146,18 +147,15 @@ export default function Assets() {
           <EvmKasAsset key={chain.id} chainId={numberToHex(chain.id)} />
         ))}
 
-      {/*Manage tokens: hide or show KRC-20 / KCC-20 rows*/}
+      {/*Manage: hide or show KRC-20 / KCC-20 rows; no section header, one flat list*/}
       {tokenCount > 0 && (
-        <div className="flex items-center justify-between pt-2 text-sm">
-          <span className="text-daintree-400">
-            {managing ? "Choose the tokens to show" : "Tokens"}
-          </span>
+        <div className="flex justify-end text-sm">
           <button
             type="button"
             className="rounded-lg px-2 py-1 font-semibold text-icy-blue-400 hover:bg-daintree-800 hover:text-icy-blue-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-icy-blue-400"
             onClick={managing ? leaveManage : enterManage}
           >
-            {managing ? "Done" : "Manage tokens"}
+            {managing ? "Done" : "Manage"}
           </button>
         </div>
       )}
