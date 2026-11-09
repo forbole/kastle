@@ -32,6 +32,15 @@ export type ManageRow = {
   onToggle: (shown: boolean) => void;
 };
 
+/** Dashboard search: an empty query matches; otherwise any label contains it, case-insensitively. */
+export const matchesQuery = (
+  query: string,
+  ...labels: (string | undefined)[]
+) => {
+  const q = query.trim().toLowerCase();
+  return !q || labels.some((l) => l?.toLowerCase().includes(q));
+};
+
 export const ROW =
   "flex w-full items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3 text-left hover:border-white";
 
@@ -59,9 +68,14 @@ function ManagedRow({
 type TokenListItemProps = {
   token: TokenItem;
   manage?: ManageRow;
+  query?: string;
 };
 
-export default function TokenListItem({ token, manage }: TokenListItemProps) {
+export default function TokenListItem({
+  token,
+  manage,
+  query = "",
+}: TokenListItemProps) {
   const navigate = useNavigate();
   const [settings] = useSettings();
   const { data: tokenInfoResponse } = useTokenInfo(token.id);
@@ -84,6 +98,9 @@ export default function TokenListItem({ token, manage }: TokenListItemProps) {
   const tokenInfo = tokenInfoResponse?.result?.[0];
   const tokenName =
     tokenInfo?.mod === "mint" ? tokenInfo?.tick : tokenInfo?.name;
+
+  // The displayed name only resolves here, so the row filters itself.
+  if (!matchesQuery(query, tokenName, token.id)) return null;
 
   const body = (
     <TokenRow
