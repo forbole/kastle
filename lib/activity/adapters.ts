@@ -17,6 +17,12 @@ import { L1_PROVIDERS } from "@/hooks/swap/l1Providers";
 import { igraMainnet, kasplexMainnet } from "@/lib/layer2";
 import { NetworkType } from "@/contexts/SettingsContext";
 import { TX_EXPLORER } from "@/lib/activity/externals";
+import type { Kcc20Token } from "@/lib/kcc20";
+import { fillFromKrc20, type Krc20Entry } from "@/lib/kcc20/krc20Fill";
+import {
+  type Kcc20PriceSources,
+  resolveKcc20Price,
+} from "@/lib/kcc20/useKcc20Price";
 
 // Ported from kastle-mobile lib/activity/adapters.tsx: descriptor → display
 // item. Mobile hands the item to its ported kastle-ui components; here it is
@@ -212,6 +218,46 @@ function receivedPriceFor(
 }
 
 const withUsd = (receivedUsd: string) => (receivedUsd ? { receivedUsd } : {});
+
+/**
+ * USD per whole KCC-20 token by upper-case covenant id, the key
+ * receivedPriceFor looks up. A held token resolves as its dashboard row does,
+ * so both show one number; a token no longer held falls back to its KRON market.
+ */
+export function kcc20UsdPrices(
+  tokens: readonly Kcc20Token[],
+  {
+    spots,
+    cached,
+    ...sources
+  }: Omit<Kcc20PriceSources, "spot" | "cached" | "krc20"> & {
+    krc20?: readonly (Krc20Entry & { price: number })[];
+    /** kascov's answered spots by lower-case covenant id; a token not answered is absent. */
+    spots?: ReadonlyMap<string, number | null>;
+    cached?: Record<string, number>;
+  },
+): Map<string, number> {
+  const { markets, krc20, kaspaPrice } = sources;
+  const prices = new Map<string, number>();
+  // The KAS price reads 0 until it loads: unknown, not worthless.
+  if (!(kaspaPrice > 0)) return prices;
+  // Curve last, so it wins as in kcc20PriceKas.
+  for (const m of [...(markets?.graduated ?? []), ...(markets ?? [])]) {
+    if (m.priceKas && m.priceKas > 0)
+      prices.set(m.covenantId.toUpperCase(), m.priceKas * kaspaPrice);
+  }
+  for (const token of tokens) {
+    const { priceKas } = resolveKcc20Price(fillFromKrc20(token, krc20), {
+      ...sources,
+      spot: spots?.get(token.covenantId.toLowerCase()),
+      cached: cached?.[token.covenantId],
+    });
+    const key = token.covenantId.toUpperCase();
+    if (priceKas && priceKas > 0) prices.set(key, priceKas * kaspaPrice);
+    else prices.delete(key);
+  }
+  return prices;
+}
 
 function rateText(row: ActivityRowDescriptor): string | null {
   const from = symbolText(row.sent?.symbol);

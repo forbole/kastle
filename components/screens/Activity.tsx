@@ -16,13 +16,19 @@ import {
   ZEALOUS_SWAP_IGRA_IMAGE_URL,
   ZEALOUS_SWAP_IMAGE_URL,
 } from "@/hooks/evm/provider/useZealousSwap";
+import { useSettings } from "@/hooks/useSettings";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 import {
   ActivityItem,
   PillStatus,
+  kcc20UsdPrices,
   toActivityItem,
 } from "@/lib/activity/adapters";
 import { rowsForPage, type ActivityPageType } from "@/lib/activity/mappers";
+import { fetchStandardMarketPrice } from "@/lib/kcc20/providers/kascov";
 import { fetchKronMarkets } from "@/lib/kcc20/swap";
+import { useKcc20CachedPrices } from "@/lib/kcc20/useKcc20Price";
+import useKcc20Tokens from "@/lib/kcc20/useKcc20Tokens";
 import type { BridgeHistoryDegradation } from "@/lib/bridge/kat-bridge-history";
 import type { IgraDepositDegradation } from "@/lib/bridge/igra-deposit-history";
 import type { KurveRegistryDegradation } from "@/lib/bridge/kat-registry";
@@ -100,6 +106,21 @@ const openUrl = (url: string) => browser.tabs.create({ url });
 const toList = <T,>(value: T | T[] | null): T[] =>
   !value ? [] : Array.isArray(value) ? value : [value];
 
+/** kascov's spot for each "<covenantId>:<decimals>"; a failed read stays unanswered. */
+async function fetchStandardSpots([, ...pairs]: string[]) {
+  const spots = new Map<string, number | null>();
+  await Promise.all(
+    pairs.map(async (pair) => {
+      const [id, decimals] = pair.split(":");
+      const spot = await fetchStandardMarketPrice(id, Number(decimals)).catch(
+        () => undefined,
+      );
+      if (spot !== undefined) spots.set(id, spot);
+    }),
+  );
+  return spots;
+}
+
 /** Symbol → logo/price, as mobile's useTokenLogoMap / useTokenPriceMap. */
 function useTokenMaps(isMainnet: boolean) {
   const { kaspaPrice } = useKaspaPrice();
@@ -111,6 +132,29 @@ function useTokenMaps(isMainnet: boolean) {
     fetchKronMarkets,
     { refreshInterval: 60_000 },
   );
+  // The dashboard's token list (shared SWR entry), so a held token is priced
+  // from the same family's source as its dashboard row.
+  const { account } = useWalletManager();
+  const { data: tokens } = useKcc20Tokens(
+    isMainnet ? account?.address : undefined,
+  );
+  // Standard tokens with a scale, as useKcc20Price asks kascov for them.
+  const spotPairs = useMemo(
+    () =>
+      (tokens ?? []).flatMap((t) =>
+        t.family === "kcc20-standard" && t.meta?.decimals !== undefined
+          ? [`${t.covenantId.toLowerCase()}:${t.meta.decimals}`]
+          : [],
+      ),
+    [tokens],
+  );
+  const { data: spots } = useSWR(
+    isMainnet && spotPairs.length ? ["kascovMarkets", ...spotPairs] : null,
+    fetchStandardSpots,
+    { refreshInterval: 60_000 },
+  );
+  const [settings] = useSettings();
+  const cached = useKcc20CachedPrices(settings?.networkId);
   return useMemo(() => {
     const logos = new Map<string, string>();
     const prices = new Map<string, number>();
@@ -131,15 +175,19 @@ function useTokenMaps(isMainnet: boolean) {
     }
     // KCC-20 by covenant id (the dashboard row's price), never by ticker: a
     // ticker can collide with a KRC-20 symbol. The adapter looks KCC-20 legs up by id.
-    for (const m of [...(kron ?? []), ...(kron?.graduated ?? [])]) {
-      if (m.priceKas && m.priceKas > 0 && kaspaPrice > 0)
-        prices.set(m.covenantId.toUpperCase(), m.priceKas * kaspaPrice);
-    }
+    const kcc20 = kcc20UsdPrices(tokens ?? [], {
+      markets: kron,
+      spots,
+      krc20: kasplex?.tokens,
+      kaspaPrice,
+      cached,
+    });
+    for (const [id, usd] of kcc20) prices.set(id, usd);
     return {
       logoFor: (symbol: string) => logos.get(symbol.toUpperCase()),
       priceFor: (symbol: string) => prices.get(symbol.toUpperCase()),
     };
-  }, [kasplex, igra, kron, kaspaPrice]);
+  }, [kasplex, igra, kron, tokens, spots, cached, kaspaPrice]);
 }
 
 function TokenIcon({ src, className }: { src?: string; className: string }) {
