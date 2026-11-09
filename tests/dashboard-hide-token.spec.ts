@@ -459,6 +459,12 @@ test("hiding an ERC-20 row stores erc20:<chain>:<addr> and showing it brings it 
   page,
 }) => {
   await withErc20(page);
+  await manage(page).click();
+  // Fail on the missing switch itself, not on a timeout inside hide().
+  await expect(
+    page.getByRole("switch", { name: "Show WKAS", exact: true }),
+  ).toHaveCount(1);
+  await done(page).click();
   await hide(page, /^Show WKAS$/);
   await expect(switches(page)).toHaveCount(0);
   await expect(page.getByText("WKAS")).toHaveCount(0);
