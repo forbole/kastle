@@ -276,15 +276,15 @@ const kcc20 = (
 });
 const LOGO = "https://cdn.example/nacho.png";
 
-test("empty metadata fields are filled from the sole KRC-20 namesake", () => {
+test("ticker and logo fill from the sole KRC-20 namesake; decimals never do", () => {
   const filled = m.fillFromKrc20(kcc20({ tick: "NACHO", meta: undefined }), [
     { symbol: "NACHO", decimals: 8, logoURI: LOGO },
     { symbol: "KASPY", decimals: 8, logoURI: "x" },
   ]);
+  expect(filled.meta?.decimals).toBeUndefined();
   expect(filled.meta).toEqual({
     symbol: "NACHO",
     name: "NACHO",
-    decimals: 8,
     logoURI: LOGO,
     unverified: true,
   });
