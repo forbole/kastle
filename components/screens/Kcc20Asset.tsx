@@ -11,7 +11,7 @@ import { useKcc20Price } from "@/lib/kcc20/useKcc20Price";
 import useCurrencyValue from "@/hooks/useCurrencyValue";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { formatTokenPrice, setPopupPath, textEllipsis } from "@/lib/utils";
-import { KCC20_LABELS } from "@/ui/popup/kcc20/labels";
+import { formatKcc20Balance, KCC20_LABELS } from "@/ui/popup/kcc20/labels";
 
 export default function Kcc20Asset() {
   const navigate = useNavigate();
@@ -20,6 +20,7 @@ export default function Kcc20Asset() {
   // A token id can have one row per extension commitment; the route names the row.
   const rowExt = searchParams.get("ext");
   const { account } = useWalletManager();
+  const [settings] = useSettings();
   const { data: tokens, isLoading, error } = useKcc20Tokens(account?.address);
   const [activeTab, setActiveTab] = useState<TokenDetailTab>("history");
   const [, copy] = useCopyToClipboard();
@@ -42,7 +43,17 @@ export default function Kcc20Asset() {
       ? formatTokenPrice(fiatPrice, currencyCode)
       : undefined;
   // The route guard rules out Ledger; only verified, owned pieces are sendable.
-  const canSend = !!meta && !!token && token.spendable > 0n;
+  const canSend =
+    meta?.decimals !== undefined && !!token && token.spendable > 0n;
+  // As mobile: the holding with its ticker, masked with balances hidden.
+  // Without decimals the figure already carries its unit ("base units").
+  const balance = !token
+    ? undefined
+    : settings?.hideBalances
+      ? "*****"
+      : meta?.decimals !== undefined && meta.symbol
+        ? `${formatKcc20Balance(token)} ${meta.symbol}`
+        : formatKcc20Balance(token);
 
   useEffect(() => {
     setPopupPath();
@@ -70,14 +81,17 @@ export default function Kcc20Asset() {
 
   return (
     <TokenDetailPage
-      name={meta?.symbol ?? textEllipsis(covenantId)}
+      name={(meta?.symbol ?? token?.tick) || textEllipsis(covenantId)}
+      // Same values as the dashboard row; a nameless token gets no name line.
+      tokenName={meta?.name || undefined}
+      balance={balance}
       logo={meta?.logoURI}
       network="kcc20"
       networkName="Kaspa"
       tokenId={textEllipsis(covenantId)}
       onTokenIdPress={() => copy(covenantId)}
       isVerified={!!meta && !meta.unverified}
-      decimal={meta ? String(meta.decimals) : undefined}
+      decimal={meta?.decimals === undefined ? undefined : String(meta.decimals)}
       priceLabel={priceLabel}
       activeTab={activeTab}
       onTabChange={setActiveTab}

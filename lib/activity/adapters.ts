@@ -13,6 +13,7 @@ import {
 } from "@/lib/activity/mappers";
 import { swapVenueName, toProviderId } from "@/lib/activity/swap-history";
 import { ALL_SWAP_PROVIDERS } from "@/lib/evm/swap/constants";
+import { L1_PROVIDERS } from "@/hooks/swap/l1Providers";
 import { igraMainnet, kasplexMainnet } from "@/lib/layer2";
 import { NetworkType } from "@/contexts/SettingsContext";
 import { TX_EXPLORER } from "@/lib/activity/externals";
@@ -23,9 +24,11 @@ import { TX_EXPLORER } from "@/lib/activity/externals";
 // Dropped with the local exit log (see hooks/useActivityFeed.ts): the
 // bridge_exit type, refund rows and the exit-only "expected payout" line.
 
-const SWAP_PROVIDER_BY_ID = new Map(
-  ALL_SWAP_PROVIDERS.map((p) => [toProviderId(p.name), p]),
-);
+// EVM routers by name; Kaspa L1 venues (KCC-20 rows) by their id.
+const SWAP_PROVIDER_BY_ID = new Map<string, { name: string; image?: string }>([
+  ...ALL_SWAP_PROVIDERS.map((p) => [toProviderId(p.name), p] as const),
+  ...L1_PROVIDERS.map((p) => [p.id, p] as const),
+]);
 
 export type PillStatus = "success" | "failed" | "pending";
 

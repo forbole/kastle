@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { memo, useCallback, useMemo, useState } from "react";
 import useSWR from "swr";
 import {
   Address,
@@ -33,6 +33,11 @@ import {
   formatUsd,
 } from "@/components/swap-bridge/ui";
 import BottomNav, { ActivityHeaderButton } from "@/components/BottomNav";
+import SwapFamilyTabs, {
+  hasFamilyRow,
+  type SwapFamilyTab,
+  inFamily,
+} from "@/components/screens/asset-selector/SwapFamilyTabs";
 import { NetworkType } from "@/contexts/SettingsContext";
 import useSwitchNetwork from "@/hooks/useSwitchNetwork";
 import useEvmAddress from "@/hooks/evm/useEvmAddress";
@@ -101,6 +106,9 @@ import {
   kronKastleFeeBps,
   submitKronSwap,
 } from "@/lib/kcc20/swap";
+
+// A closed sheet must not redraw its rows on every Swap render.
+const SwapTokenSheet = memo(TokenSheet);
 
 type EvmChainKey = "kasplex" | "igra";
 // "kaspa" is L1: KAS and KCC-20 tokens traded on their KRON bonding curve.
@@ -614,8 +622,6 @@ export default function Swap() {
   });
   const braidNetworkFee = braidSwap.feeLines.find((l) => l.name === "Network");
   const braidRouter = braidSwap.feeLines.find((l) => l.name === "Braid");
-  // The route warning the user ticked, so a new warning asks again.
-  const [ackedWarning, setAckedWarning] = useState<string>();
   // KRON: KAS -> token is a curve buy, token -> KAS a sell; token <-> token has no route.
   const kronMarket =
     isKron && !isBraid
@@ -805,17 +811,64 @@ export default function Swap() {
     return undefined;
   })();
 
-  const pickToken = (side: "in" | "out", t: SheetToken) => {
-    const setThis = side === "in" ? setTokenInKey : setTokenOutKey;
-    const setOther = side === "in" ? setTokenOutKey : setTokenInKey;
-    if (t.chain !== chainKey) {
-      // Both legs live on one chain: switching chain resets the other side.
-      setChainKey(t.chain as ChainKey);
-      setOther(side === "in" ? undefined : `${t.chain}:${NATIVE}`);
-    }
-    setThis(t.key);
-    setProviderName(undefined);
-  };
+  const pickToken = useCallback(
+    (side: "in" | "out", t: SheetToken) => {
+      const setThis = side === "in" ? setTokenInKey : setTokenOutKey;
+      const setOther = side === "in" ? setTokenOutKey : setTokenInKey;
+      if (t.chain !== chainKey) {
+        // Both legs live on one chain: switching chain resets the other side.
+        setChainKey(t.chain as ChainKey);
+        setOther(side === "in" ? undefined : `${t.chain}:${NATIVE}`);
+      }
+      setThis(t.key);
+      setProviderName(undefined);
+    },
+    [chainKey, setProviderName],
+  );
+
+  const [family, setFamily] = useState<SwapFamilyTab>("all");
+  // Each side's rows, rebuilt only when the list or a picked key changes.
+  const sideTokens = useMemo(
+    () => ({
+      in: tokens
+        .filter((t) => (t.rawBalance ?? 0) > 0)
+        .map((t) => ({ ...t, disabled: t.key === tokenOutKey })),
+      out: tokens.map((t) => ({ ...t, disabled: t.key === tokenInKey })),
+    }),
+    [tokens, tokenInKey, tokenOutKey],
+  );
+  const sheets = useMemo(
+    () =>
+      (["in", "out"] as const).map((side) => ({
+        side,
+        tokens: sideTokens[side].filter((t) => inFamily(t, family)),
+        tabs: chainKey === "kaspa" && (
+          <SwapFamilyTabs
+            value={family}
+            onChange={setFamily}
+            empty={!hasFamilyRow(sideTokens[side], family)}
+          />
+        ),
+        onSelect: (t: SheetToken) => pickToken(side, t),
+      })),
+    [sideTokens, family, chainKey, pickToken],
+  );
+  const closeSheet = useCallback(() => setSheet(undefined), []);
+  const sheetChains = useMemo(
+    () => [
+      { key: "kasplex", label: "Kasplex", image: CHAINS.kasplex.icon },
+      { key: "igra", label: "Igra", image: CHAINS.igra.icon },
+      ...(kronEnabled
+        ? [{ key: "kaspa", label: "Kaspa", image: kaspaIcon }]
+        : []),
+    ],
+    [kronEnabled],
+  );
+  const onSheetChain = useCallback((k: string) => {
+    setChainKey(k as ChainKey);
+    setTokenInKey(`${k}:${NATIVE}`);
+    setTokenOutKey(undefined);
+  }, []);
 
   const flip = () => {
     if (!tokenOutKey) return;
@@ -1114,7 +1167,18 @@ export default function Swap() {
                       : undefined
                   }
                 >
-                  {L1_PROVIDERS.find((p) => p.id === l1ProviderId)?.name}
+                  {L1_PROVIDERS.filter((p) => p.id === l1ProviderId).map(
+                    (p) => (
+                      <React.Fragment key={p.id}>
+                        <img
+                          src={p.image}
+                          alt=""
+                          className="size-[26px] rounded-full"
+                        />
+                        {p.name}
+                      </React.Fragment>
+                    ),
+                  )}
                 </QuoteRow>
               ) : (
                 <QuoteRow
@@ -1164,21 +1228,6 @@ export default function Swap() {
                     {w}
                   </p>
                 ))}
-              {isBraid && braidSwap.routeWarning && (
-                <label className="flex cursor-pointer items-start gap-2 border-t border-daintree-700 px-4 py-3 text-xs font-medium text-white hover:bg-daintree-700">
-                  <input
-                    type="checkbox"
-                    className="mt-0.5 accent-icy-blue-400"
-                    checked={ackedWarning === braidSwap.routeWarning}
-                    onChange={(e) =>
-                      setAckedWarning(
-                        e.target.checked ? braidSwap.routeWarning : undefined,
-                      )
-                    }
-                  />
-                  {braidSwap.routeWarning}
-                </label>
-              )}
               <SwapFeeFootnote
                 kastleFee={kastleFee}
                 kastleFeeBps={kastleFeeBps}
@@ -1188,6 +1237,7 @@ export default function Swap() {
       </div>
       <ConfirmButton
         error={error}
+        warning={isBraid ? braidSwap.routeWarning : undefined}
         balance={
           isKron
             ? kronBalanceIn !== undefined && tokenIn
@@ -1227,11 +1277,7 @@ export default function Swap() {
           !!error ||
           rawIn === 0n ||
           (isBraid
-            ? !braidSwap.quote ||
-              !kaspaSigner ||
-              braidSwap.pending ||
-              (!!braidSwap.routeWarning &&
-                ackedWarning !== braidSwap.routeWarning)
+            ? !braidSwap.quote || !kaspaSigner || braidSwap.pending
             : isKron
               ? !kronQuote || !kaspaSigner
               : (!isWrapPair && !selected?.path) || !signer)
@@ -1245,32 +1291,17 @@ export default function Swap() {
       <BottomNav />
       <TermsGate kind="Swap" />
 
-      {(["in", "out"] as const).map((side) => (
-        <TokenSheet
-          key={side}
-          open={sheet === side}
-          onClose={() => setSheet(undefined)}
-          chains={[
-            { key: "kasplex", label: "Kasplex", image: CHAINS.kasplex.icon },
-            { key: "igra", label: "Igra", image: CHAINS.igra.icon },
-            ...(kronEnabled
-              ? [{ key: "kaspa", label: "Kaspa", image: kaspaIcon }]
-              : []),
-          ]}
+      {sheets.map((s) => (
+        <SwapTokenSheet
+          key={s.side}
+          open={sheet === s.side}
+          onClose={closeSheet}
+          chains={sheetChains}
           chain={chainKey}
-          onChain={(k) => {
-            setChainKey(k as ChainKey);
-            setTokenInKey(`${k}:${NATIVE}`);
-            setTokenOutKey(undefined);
-          }}
-          tokens={
-            side === "in"
-              ? tokens
-                  .filter((t) => (t.rawBalance ?? 0) > 0)
-                  .map((t) => ({ ...t, disabled: t.key === tokenOutKey }))
-              : tokens.map((t) => ({ ...t, disabled: t.key === tokenInKey }))
-          }
-          onSelect={(t) => pickToken(side, t)}
+          onChain={onSheetChain}
+          tokens={s.tokens}
+          tabs={s.tabs}
+          onSelect={s.onSelect}
           recentKey="local:swap_recent_tokens"
         />
       ))}
@@ -1308,13 +1339,14 @@ export default function Swap() {
             return (
               <ProviderRow
                 key={p.id}
+                image={p.image}
                 name={p.name}
                 subtitle={
                   !supports
                     ? "Unsupported Pair"
                     : current && outNum !== undefined && amountNum > 0
                       ? `1 ${tokenIn?.symbol} ≈ ${formatAmount(outNum / amountNum)} ${tokenOut?.symbol}`
-                      : "-"
+                      : undefined
                 }
                 selected={current}
                 disabled={!supports}

@@ -26,6 +26,7 @@ function loadModule(file: string, stubs: Record<string, unknown>) {
     compilerOptions: {
       module: ts.ModuleKind.CommonJS,
       target: ts.ScriptTarget.ES2020,
+      jsx: ts.JsxEmit.ReactJSX,
       esModuleInterop: true,
     },
   });
@@ -41,6 +42,16 @@ function loadModule(file: string, stubs: Record<string, unknown>) {
   return module.exports;
 }
 
+// A default import of a stub: esModuleInterop unwraps only an ES-module-shaped object.
+const esm = (d: unknown) => ({ __esModule: true, default: d });
+/** An image import as the bundler emits it: its path under the repo, which must exist. */
+const asset = (id: string) => {
+  const rel = id.replace(/^@\//, "");
+  if (!fs.existsSync(path.join(__dirname, "..", rel)))
+    throw new Error(`missing asset ${id}`);
+  return esm(`/${rel}`);
+};
+
 // The extension's own network enum, not kaspa-web3's.
 const NetworkType = { Mainnet: "mainnet", TestnetT10: "testnet-10" };
 const { L1_PROVIDERS, hasL1Route, kronListing, useL1Provider } = loadModule(
@@ -49,8 +60,36 @@ const { L1_PROVIDERS, hasL1Route, kronListing, useL1Provider } = loadModule(
     react: React,
     "@/contexts/SettingsContext": { NetworkType },
     "@/lib/braid/constants": { BRAID_PROVIDER },
+    "@/assets/images/providers/braid-logo.svg": asset(
+      "@/assets/images/providers/braid-logo.svg",
+    ),
+    "@/assets/images/providers/kron-logo.png": asset(
+      "@/assets/images/providers/kron-logo.png",
+    ),
   },
 ) as typeof import("@/hooks/swap/l1Providers");
+
+const Icon = () => null;
+// The provider sheet's row, as Swap.tsx draws each L1 provider.
+const { ProviderRow } = loadModule("components/swap-bridge/ui.tsx", {
+  react: React,
+  "react/jsx-runtime": nodeRequire("react/jsx-runtime"),
+  "tailwind-merge": nodeRequire("tailwind-merge"),
+  "react-router-dom": { useNavigate: () => () => {} },
+  "lucide-react": {
+    AlertCircle: Icon,
+    ArrowRight: Icon,
+    ArrowUpDown: Icon,
+    Check: Icon,
+    Search: Icon,
+  },
+  "@/assets/images/network-logos/kaspa.svg": esm(""),
+  "@/components/Layer2AssetImage": esm(Icon),
+  "@/components/Toast": esm({}),
+  "@/hooks/useStorageState": esm(() => [[], async () => {}, false]),
+  "@/lib/format-amount": { formatAmount: String },
+  "/node_modules/flag-icons/css/flag-icons.min.css": {},
+});
 
 const MAIN = NetworkType.Mainnet;
 const TESTNET = NetworkType.TestnetT10;
@@ -131,6 +170,52 @@ test("KRON is listed first, then Braid", () => {
     ["kron", "KRON"],
     ["braid", "Braid"],
   ]);
+});
+
+test("each provider row draws the provider's own mark beside its name", async () => {
+  const win = new Window();
+  for (const k of DOM_GLOBALS)
+    if (!saved.has(k))
+      saved.set(k, Object.getOwnPropertyDescriptor(globalThis, k));
+  Object.assign(globalThis, {
+    window: win,
+    document: win.document,
+    IS_REACT_ACT_ENVIRONMENT: true,
+  });
+  const host = win.document.createElement("div");
+  const root = createRoot(host);
+  await act(async () =>
+    root.render(
+      L1_PROVIDERS.map((p: L1Provider) =>
+        React.createElement(ProviderRow, {
+          key: p.id,
+          image: p.image,
+          name: p.name,
+          subtitle: "-",
+          selected: false,
+          onClick: () => {},
+        }),
+      ),
+    ),
+  );
+  const rows = Array.from(host.querySelectorAll("button")).map((b: any) => {
+    const img = b.querySelector("img");
+    return {
+      name: b.querySelector("span")?.textContent,
+      src: img?.getAttribute("src"),
+      // Decorative: the name is rendered beside it.
+      alt: img?.getAttribute("alt"),
+    };
+  });
+  expect(rows).toEqual([
+    { name: "KRON", src: "/assets/images/providers/kron-logo.png", alt: "" },
+    { name: "Braid", src: "/assets/images/providers/braid-logo.svg", alt: "" },
+  ]);
+  for (const r of rows)
+    expect(fs.existsSync(path.join(__dirname, "..", r.src!.slice(1)))).toBe(
+      true,
+    );
+  await act(async () => root.unmount());
 });
 
 test("KRON's listing is the screen's curve markets: a graduated token is absent", () => {

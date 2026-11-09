@@ -74,21 +74,23 @@ async function getJson(url: string, signal?: AbortSignal): Promise<unknown> {
   }
 }
 
-function parseHolding(row: unknown): KascovHolding | undefined {
+export function parseHolding(row: unknown): KascovHolding | undefined {
   if (!isRecord(row)) return undefined;
   const tokenId = lowerHex(row.token_id);
   const balance = baseUnits(row, "balance");
   if (!tokenId || !HEX32.test(tokenId) || balance === undefined)
     return undefined;
-  const decimals = row.display_decimals;
+  // A declared row carries `claimed_*`, a listed one `listed_*` (as mobile);
+  // `??`, not `||`: 0 decimals is real.
+  const decimals = row.claimed_decimals ?? row.listed_decimals;
   return {
     tokenId,
     balance,
     class: optString(row.class),
     status: optString(row.status),
     ownerSchemeName: optString(row.owner_scheme_name),
-    claimedTicker: optString(row.claimed_ticker),
-    claimedName: optString(row.claimed_name),
+    claimedTicker: optString(row.claimed_ticker ?? row.listed_ticker),
+    claimedName: optString(row.claimed_name ?? row.listed_name),
     claimedImage: optString(row.claimed_image),
     displayDecimals:
       typeof decimals === "number" &&
@@ -138,11 +140,17 @@ function parseCell(row: unknown): KascovCell | undefined {
   };
 }
 
-const parseRows = <T>(rows: unknown, parse: (row: unknown) => T | undefined) =>
-  (rows as unknown[]).flatMap((row) => {
+/** Parsed rows plus how many were malformed and dropped. */
+const parseRows = <T>(
+  rows: unknown,
+  parse: (row: unknown) => T | undefined,
+) => {
+  const out = (rows as unknown[]).flatMap((row) => {
     const parsed = parse(row);
     return parsed ? [parsed] : [];
   });
+  return { rows: out, dropped: (rows as unknown[]).length - out.length };
+};
 
 async function getHoldingsDoc(address: string, signal?: AbortSignal) {
   const body = await getJson(
@@ -160,7 +168,7 @@ export async function fetchStandardHoldings(
   { signal }: Opts = {},
 ): Promise<KascovHolding[]> {
   const body = await getHoldingsDoc(address, signal);
-  return parseRows(body.token_holdings, parseHolding);
+  return parseRows(body.token_holdings, parseHolding).rows;
 }
 
 /**
@@ -187,7 +195,7 @@ export async function fetchOwnerCells(
   const omitted = body.omitted_over_limit;
   const truncated =
     typeof omitted === "number" ? omitted > 0 : body.cells.length >= limit;
-  return { cells: parseRows(body.cells, parseCell), truncated };
+  return { cells: parseRows(body.cells, parseCell).rows, truncated };
 }
 
 const TRANSFER_PAGE = 50;
@@ -242,9 +250,13 @@ export type KascovTransferCursor = {
   beforeToken: string;
 };
 
-/** One delta of a token's event log; `ownerFrom` is absent on mints. */
+/**
+ * One delta of a token's event log; `ownerFrom` is absent on mints and merges.
+ * `eventKind` is kascov's raw `event_kind` ("genesis", "transition", "mint"…).
+ */
 export type KascovTokenEvent = {
   txid: string;
+  eventKind?: string;
   seq: number;
   deltaIdx: number;
   acceptingDaa: number;
@@ -331,6 +343,7 @@ function parseEvent(row: unknown): KascovTokenEvent | undefined {
   }
   return {
     txid,
+    eventKind: optString(row.event_kind),
     seq,
     deltaIdx,
     acceptingDaa,
@@ -411,7 +424,7 @@ async function transfersPage(
     throw new Error("kascov: malformed transfers response");
   const next = parseTransferCursor(body);
   return {
-    transfers: parseRows(body.transfers, parseTransfer),
+    transfers: parseRows(body.transfers, parseTransfer).rows,
     ...(next && { next }),
   };
 }
@@ -426,6 +439,8 @@ export async function fetchTokenEvents(
   { signal }: Opts = {},
 ): Promise<{
   events: KascovTokenEvent[];
+  /** Rows of this page the parser dropped as malformed. */
+  dropped: number;
   eventsTotal?: number;
   nextBeforeSeq?: number;
 }> {
@@ -441,8 +456,10 @@ export async function fetchTokenEvents(
   const { events_total: eventsTotal, next_before_seq: nextBeforeSeq } = body;
   if (nextBeforeSeq !== undefined && !isSeq(nextBeforeSeq))
     throw new Error("kascov: malformed events cursor");
+  const { rows: events, dropped } = parseRows(body.events, parseEvent);
   return {
-    events: parseRows(body.events, parseEvent),
+    events,
+    dropped,
     ...(isSeq(eventsTotal) && { eventsTotal }),
     ...(nextBeforeSeq !== undefined && { nextBeforeSeq }),
   };
@@ -461,7 +478,7 @@ export async function fetchStandardHoldingsWithTip(
   if (!isSeq(daa) || !isSeq(atMs))
     throw new Error("kascov: malformed holdings tip");
   return {
-    holdings: parseRows(body.token_holdings, parseHolding),
+    holdings: parseRows(body.token_holdings, parseHolding).rows,
     tip: { daa, atMs },
   };
 }

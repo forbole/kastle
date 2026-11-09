@@ -14,7 +14,7 @@ import { FailStatus } from "@/components/send/FailStatus.tsx";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import useKcc20Tokens from "@/lib/kcc20/useKcc20Tokens";
 import { decimalsError } from "@/lib/kcc20";
-import { formatUsdAmount } from "@/lib/utils.ts";
+import { formatUsdAmount, textEllipsis } from "@/lib/utils.ts";
 import useKaspaHotWalletSigner from "@/hooks/wallet/useKaspaHotWalletSigner";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
@@ -88,7 +88,9 @@ export default function Kcc20Send() {
 
   const onClose = () => navigate("/dashboard");
   const decimals = token?.meta?.decimals ?? 0;
-  const symbol = token?.meta?.symbol ?? "";
+  // No ticker: the picker's short covenant id, so labels and Ticker are never blank.
+  const symbol =
+    token?.meta?.symbol || (token ? textEllipsis(token.covenantId) : "");
 
   const feeKas = built ? Number(formatUnits(built.fee, KAS_DECIMALS)) : 0;
   const { amount: amountCurrency, code: amountCurrencyCode } =
@@ -133,12 +135,13 @@ export default function Kcc20Send() {
     feeInfo: "KCC-20 fees are calculated when the transfer is built.",
     onNext: async ({ address, domain, amount: amountInput }) => {
       const amount = parseAmount(amountInput ?? "");
-      if (!token?.meta || !account || !rpcClient || !address) return;
+      if (token?.meta?.decimals === undefined) return;
+      if (!account || !rpcClient || !address) return;
       if (amount === undefined) return;
       if (building.current || isConfirming) return;
       building.current = true;
       setBuildError(undefined);
-      const { decimals, symbol } = token.meta;
+      const decimals = token.meta.decimals;
       try {
         const result = await buildKcc20Transfer({
           token,
@@ -192,7 +195,7 @@ export default function Kcc20Send() {
     <div className="relative flex h-full flex-col p-4 text-white">
       <FormProvider {...form}>
         {step === "details" &&
-          (token?.meta ? (
+          (token?.meta?.decimals !== undefined ? (
             <TokenSendDetails asset={asset} onBack={onClose} />
           ) : (
             <>

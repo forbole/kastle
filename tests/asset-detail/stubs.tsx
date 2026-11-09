@@ -10,10 +10,17 @@
 //   erc20Zero=1   the ERC-20 balance is "0.0"; erc20None=1 it has no balance
 //   kcc20Loading=1  the KCC-20 lookup has not answered; kcc20Error=1 it failed
 //   tall=1        every tab body is taller than the popup
+//   account2=1    a second account (its own hidden-token set)
 //   historyFallback=1  history page 1 is an events page with nothing of the
 //                 wallet's; page 2 holds the row and stops at the page cap
-import { useState } from "react";
-import type { Kcc20Token } from "@/lib/kcc20";
+//   historySend=1  a send row after the receive (both signs on one page)
+//   hidden=1      balances are hidden; nodecimals=1 kascov claimed no decimals
+//   ktestSymbol=, ktestAmount=  override the KTEST row's symbol / base units
+//   listed=1      the KCC-20 holding is a kascov-LISTED row (listed_*, no
+//                 claimed_*), run through the real parse; kascov prices it
+import { useState, useSyncExternalStore } from "react";
+import { claimedMeta, type Kcc20Token } from "@/lib/kcc20";
+import { parseHolding } from "@/lib/kcc20/providers/kascov";
 
 export const OWNER = "kaspa:qowner";
 const query = new URLSearchParams(location.search);
@@ -37,29 +44,84 @@ export const ISSUE_NAME = "KaspaIssueModeTokenWithAVeryLongName";
 // A second KCC-20 row for the same token id, named by its extension.
 export const KCC20_EXT = "cd".repeat(32);
 
-(window as unknown as { browser: unknown }).browser = {
+// storage.local persists in localStorage, so a page reload keeps it.
+const LOCAL = "storage.local:";
+export const browser = {
   tabs: { create: () => {} },
   action: { setPopup: () => {} },
-  storage: { local: { get: async () => ({}), set: async () => {} } },
+  storage: {
+    local: {
+      get: async (key: string) => {
+        const raw = localStorage.getItem(LOCAL + key);
+        return raw === null ? {} : { [key]: JSON.parse(raw) };
+      },
+      set: async (items: Record<string, unknown>) => {
+        for (const [k, v] of Object.entries(items))
+          localStorage.setItem(LOCAL + k, JSON.stringify(v));
+      },
+    },
+  },
 };
+(window as unknown as { browser: unknown }).browser = browser;
 
 export const kcc20Token: Kcc20Token = {
   covenantId: "ab".repeat(32),
   family: "kcc20-standard",
   tick: "ktest",
-  amount: 1_000_000n,
+  amount: BigInt(query.get("ktestAmount") ?? 1_000_000),
   spendable: spendable0 ? 0n : 1_000_000n,
-  meta: { symbol: "KTEST", name: "Kastle test", decimals: 2 },
+  meta: query.has("nodecimals")
+    ? { symbol: "KTEST", name: "Kastle test", unverified: true }
+    : {
+        symbol: query.get("ktestSymbol") ?? "KTEST",
+        name: "Kastle test",
+        decimals: 2,
+      },
+};
+// A live-shaped kascov listed row (as YELLO / WHALE / LUKE), parsed for real.
+export const LISTED_COVID = "ef".repeat(32);
+const listedHolding = parseHolding({
+  token_id: LISTED_COVID,
+  balance_str: "200000000000",
+  listed_ticker: "LUKE",
+  listed_name: "Luke",
+  listed_decimals: 8,
+})!;
+const listedToken: Kcc20Token = {
+  covenantId: listedHolding.tokenId,
+  family: "kcc20-standard",
+  tick: listedHolding.claimedTicker ?? "",
+  amount: listedHolding.balance,
+  spendable: listedHolding.balance,
+  meta: claimedMeta(listedHolding),
 };
 const kcc20ExtToken: Kcc20Token = {
   ...kcc20Token,
   extensionCommitment: KCC20_EXT,
 };
 
-// Wallet and network
+// Wallet and network. window.__selectAccount2() switches to the second
+// account live, as the side menu does, without remounting the screen.
+let account2 = query.has("account2");
+const accountListeners = new Set<() => void>();
+(window as unknown as { __selectAccount2: () => void }).__selectAccount2 =
+  () => {
+    account2 = true;
+    accountListeners.forEach((l) => l());
+  };
+const subscribeAccount = (l: () => void) => {
+  accountListeners.add(l);
+  return () => {
+    accountListeners.delete(l);
+  };
+};
 export function useWalletManager() {
+  const second = useSyncExternalStore(subscribeAccount, () => account2);
   return {
-    account: { address: OWNER, publicKeys: [] },
+    account: {
+      address: second ? "kaspa:qsecond" : OWNER,
+      publicKeys: [],
+    },
     wallet: walletLoading
       ? undefined
       : { type: ledger ? "ledger" : "software" },
@@ -74,7 +136,14 @@ export function useFeatureFlags() {
   return { isKcc20Enabled: true, isDotkEnabled: !dotkOff };
 }
 export function useSettings() {
-  return [{ currency: "USD", hideBalances: false }, async () => {}];
+  return [
+    {
+      currency: "USD",
+      hideBalances: query.has("hidden"),
+      networkId: "mainnet",
+    },
+    async () => {},
+  ];
 }
 export const explorerAddressLinks = {
   mainnet: "https://explorer.kaspa.org/addresses/",
@@ -122,14 +191,18 @@ export function useKcc20Tokens() {
   if (kcc20Error) {
     return { data: undefined, isLoading: false, error: new Error("down") };
   }
+  if (query.has("listed")) return { data: [listedToken], isLoading: false };
   return { data: [kcc20Token, kcc20ExtToken], isLoading: false };
 }
 // One kascov row: the History tab renders the list, not the explorer link.
 export function useKcc20History() {
   const [size, setSize] = useState(1);
   const paged = !historyFallback || size > 1;
+  const rows = query.has("historySend")
+    ? [historyRows[0], sendRow]
+    : historyRows;
   return {
-    entries: paged ? historyRows : [],
+    entries: paged ? rows : [],
     size,
     setSize,
     hasMore: !paged,
@@ -156,6 +229,18 @@ const historyRows = [
     approxTime: true,
   },
 ];
+const sendRow = {
+  id: "kcc20send:0",
+  txid: "kcc20send",
+  seq: 0,
+  kind: "send",
+  amount: 250n,
+  ambiguous: false,
+  counterparty: "p2pkh:qrecipient",
+  acceptingDaa: 2,
+  timestampMs: Date.UTC(2026, 0, 3),
+  approxTime: true,
+};
 export function useDotkName() {
   return {
     lookup: {
@@ -199,3 +284,40 @@ export const storage = {
 };
 // lib/utils maps this enum at import time.
 export const SighashType = {};
+
+// The activity sheet's explorer link, as the real Settings screen exports it.
+export const explorerTxLinks: Record<string, string> = {
+  mainnet: "https://explorer.test/txs/",
+};
+
+// Dashboard asset list
+export function useKaspaPrice() {
+  return { kaspaPrice: 0.1 };
+}
+export function useCurrencyValue(amount: number) {
+  return { amount, code: "USD" };
+}
+export function useTokenListByAddress() {
+  return [
+    { id: "KASPY", balance: "100000000", dec: "8" },
+    { id: "NACHO", balance: "500000000", dec: "8" },
+  ];
+}
+export function useKrc20Prices() {
+  return { price: 0 };
+}
+export function useKrc20Logo() {
+  return { logo: undefined };
+}
+export function useKcc20Price(token?: Kcc20Token) {
+  // As the real hook: kascov's market needs the decimals to price a whole token.
+  if (query.has("listed") && token?.meta?.decimals !== undefined)
+    return { priceUsd: 0.0005 };
+  return { priceUsd: undefined };
+}
+export function useErc20Assets() {
+  return { assets: [] };
+}
+export function useAnalytics() {
+  return new Proxy({}, { get: () => () => {} });
+}

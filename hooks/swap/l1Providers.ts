@@ -1,4 +1,6 @@
 import { useState } from "react";
+import braidLogo from "@/assets/images/providers/braid-logo.svg";
+import kronLogo from "@/assets/images/providers/kron-logo.png";
 import { NetworkType } from "@/contexts/SettingsContext";
 import { BRAID_PROVIDER } from "@/lib/braid/constants";
 import type { KronMarket } from "@/lib/kcc20/swap";
@@ -18,6 +20,8 @@ export type L1Listings = {
 export type L1Provider = {
   id: L1ProviderId;
   name: string;
+  /** The provider's own mark (braidswap.com favicon, kron.technology nav logo). */
+  image: string;
   supports: (
     a?: L1Leg,
     b?: L1Leg,
@@ -49,6 +53,7 @@ export const L1_PROVIDERS: readonly L1Provider[] = [
   {
     id: "kron",
     name: "KRON",
+    image: kronLogo,
     // Only a curve token: a graduated one has left the curve KRON trades on.
     supports: (a, b, _networkId, listings) => {
       const token = kcc20Of(a, b);
@@ -57,6 +62,7 @@ export const L1_PROVIDERS: readonly L1Provider[] = [
   },
   {
     ...BRAID_PROVIDER,
+    image: braidLogo,
     // Only a token Braid lists: it refuses any other with UNKNOWN_TOKEN.
     supports: (a, b, networkId, listings) => {
       const token = kcc20Of(a, b);

@@ -1,0 +1,26 @@
+{
+  "transaction_id": "7b2421a20faf7811d5877c8013b10a8b5a080b7a15c150daa7865ad4a6fed0a1",
+  "is_accepted": true,
+  "accepting_block_blue_score": 583899916,
+  "inputs": [
+    {
+      "previous_outpoint_hash": "94662f42c554304e48cdc8fffb2bcf888d351770033e4a0420372a71aa58af88",
+      "previous_outpoint_index": "1",
+      "previous_outpoint_address": "kaspa:qqz6pwtwxa5dds2qssxpuc28lnrnnvx48ymdcqyzju0n58dcg5p9c6luwmcyg",
+      "previous_outpoint_amount": 32919287403,
+      "covenant_id": null
+    }
+  ],
+  "outputs": [
+    {
+      "amount": 1499646400,
+      "script_public_key_address": "kaspa:pp8m5sf3zdfxycwdnzzwz7g7r7hyuss88eznquzndhu4qmac9sj46dktm8shm",
+      "covenant_id": null
+    },
+    {
+      "amount": 31419287403,
+      "script_public_key_address": "kaspa:qqz6pwtwxa5dds2qssxpuc28lnrnnvx48ymdcqyzju0n58dcg5p9c6luwmcyg",
+      "covenant_id": null
+    }
+  ]
+}

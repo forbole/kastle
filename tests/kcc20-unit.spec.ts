@@ -12,6 +12,7 @@ import init, {
   RpcClient,
 } from "@/wasm/core/kaspa";
 import {
+  claimedMeta,
   decimalsError,
   fetchKcc20Tokens,
   isOwnedBy,
@@ -180,4 +181,28 @@ test("the mainnet registry filter ignores a testnet-10 entry", async () => {
     }),
   );
   expect(tokens.map((t) => t.covenantId)).toEqual([]);
+});
+
+test("claimed standard metadata keeps whichever half kascov claimed", () => {
+  expect(claimedMeta({ displayDecimals: 8 })).toEqual({
+    symbol: "",
+    name: "",
+    decimals: 8,
+    unverified: true,
+  });
+  const tickerOnly = claimedMeta({ claimedTicker: "NACHO" });
+  expect(tickerOnly).toEqual({
+    symbol: "NACHO",
+    name: "NACHO",
+    unverified: true,
+  });
+  expect(tickerOnly && "decimals" in tickerOnly).toBe(false);
+  expect(
+    claimedMeta({
+      claimedTicker: "NACHO",
+      claimedName: "Nacho",
+      displayDecimals: 0,
+    }),
+  ).toEqual({ symbol: "NACHO", name: "Nacho", decimals: 0, unverified: true });
+  expect(claimedMeta({})).toBeUndefined();
 });

@@ -1,4 +1,3 @@
-import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import {
   formatCurrency,
   formatToken,
@@ -6,33 +5,65 @@ import {
   symbolForCurrencyCode,
   textEllipsis,
 } from "@/lib/utils.ts";
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { useNavigate } from "react-router-dom";
 import { applyDecimal } from "@/lib/krc20.ts";
 import { TokenItem } from "@/hooks/kasplex/useTokenListByAddress";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 import { useTokenInfo } from "@/hooks/kasplex/useTokenInfo";
-import Layer2AssetImage from "../Layer2AssetImage";
 import { useKrc20Prices } from "@/hooks/kasplex/useKrc20Prices";
 import useKrc20Logo from "@/hooks/kasplex/useKrc20Logo";
 import { formatUnits } from "viem";
 import { Kcc20Token } from "@/lib/kcc20";
 import { useFeatureFlags } from "@/hooks/useFeatureFlags.ts";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
-import { KCC20_FAMILY_LABELS, KCC20_LABELS } from "@/ui/popup/kcc20/labels";
+import {
+  formatKcc20Amount,
+  formatKcc20Balance,
+  KCC20_LABELS,
+} from "@/ui/popup/kcc20/labels";
 import { useKcc20Price } from "@/lib/kcc20/useKcc20Price";
+import TokenRow from "@/ui/popup/dashboard/TokenRow";
+import Switch from "@/ui/general/Switch";
 
-// A token no market prices reads as unknown, never as worth zero.
-const NO_PRICE = "—";
+/** Manage mode: the row stops navigating and carries a shown/hidden switch. */
+export type ManageRow = {
+  shown: boolean;
+  onToggle: (shown: boolean) => void;
+};
+
+export const ROW =
+  "flex w-full items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3 text-left hover:border-white";
+
+function ManagedRow({
+  manage,
+  label,
+  children,
+}: {
+  manage: ManageRow;
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={ROW} data-testid="manage-row">
+      {children}
+      <Switch
+        checked={manage.shown}
+        onChange={manage.onToggle}
+        label={`Show ${label}`}
+      />
+    </div>
+  );
+}
 
 type TokenListItemProps = {
   token: TokenItem;
+  manage?: ManageRow;
 };
 
-export default function TokenListItem({ token }: TokenListItemProps) {
+export default function TokenListItem({ token, manage }: TokenListItemProps) {
   const navigate = useNavigate();
   const [settings] = useSettings();
-  const [imageUrl, setImageUrl] = useState(kasIcon);
   const { data: tokenInfoResponse } = useTokenInfo(token.id);
   const { price } = useKrc20Prices(token.id);
   const { logo } = useKrc20Logo(token.id);
@@ -50,46 +81,65 @@ export default function TokenListItem({ token }: TokenListItemProps) {
   const { amount: totalBalanceCurrency, code: currencyCode } =
     useCurrencyValue(fiatBalance);
 
-  useEffect(() => {
-    if (logo) {
-      setImageUrl(logo);
-    }
-  }, [logo]);
-
   const tokenInfo = tokenInfoResponse?.result?.[0];
   const tokenName =
     tokenInfo?.mod === "mint" ? tokenInfo?.tick : tokenInfo?.name;
 
+  const body = (
+    <TokenRow
+      logo={logo}
+      ticker={tokenName}
+      price={formatTokenPrice(tokenPriceCurrency, tokenPriceCurrencyCode)}
+      balance={showBalance ? formatToken(balanceNumber) : "*****"}
+      fiat={`≈ ${
+        showBalance
+          ? formatCurrency(totalBalanceCurrency, currencyCode)
+          : `${symbolForCurrencyCode(currencyCode)}*****`
+      }`}
+    />
+  );
+
+  if (manage)
+    return (
+      <ManagedRow manage={manage} label={tokenName || token.id}>
+        {body}
+      </ManagedRow>
+    );
+
   return (
     <div
-      className="flex cursor-pointer items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3 hover:border-white"
+      className={`${ROW} cursor-pointer`}
       onClick={() => navigate(`/token-asset/${token.id}`)}
     >
-      <Layer2AssetImage tokenImage={imageUrl} chainImage={kasIcon} />
-      <div className="flex flex-grow flex-col gap-1">
-        <div className="flex items-start justify-between text-base text-white">
-          <div className="flex flex-col gap-1">
-            <span>{tokenName}</span>
-          </div>
-          <span>{showBalance ? formatToken(balanceNumber) : "*****"}</span>
-        </div>
-        <div className="flex items-center justify-between text-sm text-daintree-400">
-          <span>
-            {formatTokenPrice(tokenPriceCurrency, tokenPriceCurrencyCode)}
-          </span>
-          <span>
-            ≈{" "}
-            {showBalance
-              ? formatCurrency(totalBalanceCurrency, currencyCode)
-              : `${symbolForCurrencyCode(currencyCode)}*****`}
-          </span>
-        </div>
-      </div>
+      {body}
     </div>
   );
 }
 
-export function Kcc20TokenListItem({ token }: { token: Kcc20Token }) {
+const COMPACT = new Intl.NumberFormat("en-US", {
+  notation: "compact",
+  maximumFractionDigits: 2,
+});
+
+// The overflow fallback of formatKcc20Amount: same scale rule, compact digits.
+// None when it would not be shorter, or would round a holding down to "0".
+function compactKcc20Amount(amount: bigint, decimals?: number) {
+  const full = formatKcc20Amount(amount, decimals);
+  const short =
+    decimals === undefined
+      ? `${COMPACT.format(amount)} ${KCC20_LABELS.baseUnits}`
+      : COMPACT.format(Number(formatUnits(amount, decimals)));
+  if (short.length >= full.length || (short === "0" && amount !== 0n)) return;
+  return short;
+}
+
+export function Kcc20TokenListItem({
+  token,
+  manage,
+}: {
+  token: Kcc20Token;
+  manage?: ManageRow;
+}) {
   const navigate = useNavigate();
   const [settings] = useSettings();
   const { isKcc20Enabled } = useFeatureFlags();
@@ -97,16 +147,11 @@ export function Kcc20TokenListItem({ token }: { token: Kcc20Token }) {
   const { wallet } = useWalletManager();
   // Same guard as the kcc20 routes; the detail page decides whether Send shows.
   const canOpen = isKcc20Enabled && wallet?.type !== "ledger";
-  const familyLabel = KCC20_FAMILY_LABELS[token.family];
-  // Without verified decimals, show base units rather than guess a scale.
-  const balance = meta
-    ? formatUnits(token.amount, meta.decimals)
-    : token.amount.toString();
   const showBalance = !settings?.hideBalances;
   const { priceUsd } = useKcc20Price(token);
   // No verified decimals, no whole-token balance to value.
   const valueUsd =
-    priceUsd === undefined || !meta
+    priceUsd === undefined || meta?.decimals === undefined
       ? undefined
       : Number(formatUnits(token.amount, meta.decimals)) * priceUsd;
   const { amount: fiatPrice, code: currencyCode } = useCurrencyValue(
@@ -114,10 +159,59 @@ export function Kcc20TokenListItem({ token }: { token: Kcc20Token }) {
   );
   const { amount: fiatValue } = useCurrencyValue(valueUsd ?? 0);
 
+  // Without decimals the scale is unknown: grouped base units, never a guess.
+  // kascov held cells back when truncated: the balance may be short.
+  const more = token.truncated ? "+" : "";
+  const balance = showBalance ? formatKcc20Balance(token) : "*****";
+  const compact = showBalance
+    ? compactKcc20Amount(token.amount, meta?.decimals)
+    : undefined;
+  const compactBalance =
+    compact === undefined ? undefined : `${compact}${more}`;
+  // An unpriced token shows no fiat at all: no placeholder, never $0.
+  const fiat =
+    valueUsd === undefined
+      ? undefined
+      : `≈ ${
+          showBalance
+            ? formatCurrency(fiatValue, currencyCode)
+            : `${symbolForCurrencyCode(currencyCode)}*****`
+        }`;
+
+  const ticker =
+    // A nameless token falls back to its short id.
+    (meta?.symbol ?? token.tick) || (
+      <span className="font-mono">{textEllipsis(token.covenantId)}</span>
+    );
+  const row = (
+    <TokenRow
+      logo={meta?.logoURI}
+      ticker={ticker}
+      price={
+        priceUsd === undefined
+          ? undefined
+          : formatTokenPrice(fiatPrice, currencyCode)
+      }
+      balance={balance}
+      compactBalance={compactBalance}
+      fiat={fiat}
+    />
+  );
+
+  if (manage)
+    return (
+      <ManagedRow
+        manage={manage}
+        label={(meta?.symbol ?? token.tick) || textEllipsis(token.covenantId)}
+      >
+        {row}
+      </ManagedRow>
+    );
+
   return (
     <button
       type="button"
-      className={`flex w-full items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3 text-left hover:border-white ${canOpen ? "cursor-pointer" : "cursor-default"}`}
+      className={`${ROW} ${canOpen ? "cursor-pointer" : "cursor-default"}`}
       disabled={!canOpen}
       onClick={() =>
         navigate(
@@ -127,47 +221,7 @@ export function Kcc20TokenListItem({ token }: { token: Kcc20Token }) {
         )
       }
     >
-      <Layer2AssetImage tokenImage={meta?.logoURI} chainImage={kasIcon} />
-      <div className="flex min-w-0 flex-grow flex-col gap-1">
-        <div className="flex items-start justify-between gap-2 text-base text-white">
-          <span className="flex items-center gap-2">
-            {meta?.symbol ?? textEllipsis(token.covenantId)}
-            <span
-              className={`rounded-full border px-1.5 text-xs leading-4 ${token.family === "kcc20-standard" ? "border-kcc20-text bg-kcc20-background text-kcc20-text" : "border-daintree-600 text-daintree-400"}`}
-            >
-              {familyLabel}
-            </span>
-          </span>
-          <span className="break-all text-right">
-            {showBalance ? balance : "*****"}
-            {/* kascov held cells back: the balance may be short. */}
-            {showBalance && token.truncated && "+"}
-          </span>
-        </div>
-        <div className="flex items-center gap-2 text-sm text-daintree-400">
-          {meta?.name ?? `Unverified ${familyLabel} (base units)`}
-          {meta?.unverified && (
-            <span className="text-xs text-daintree-600">
-              {KCC20_LABELS.claimedMetadata}
-            </span>
-          )}
-        </div>
-        <div className="flex items-center justify-between text-sm text-daintree-400">
-          <span>
-            {priceUsd === undefined
-              ? NO_PRICE
-              : formatTokenPrice(fiatPrice, currencyCode)}
-          </span>
-          <span>
-            ≈{" "}
-            {!showBalance
-              ? `${symbolForCurrencyCode(currencyCode)}*****`
-              : valueUsd === undefined
-                ? NO_PRICE
-                : formatCurrency(fiatValue, currencyCode)}
-          </span>
-        </div>
-      </div>
+      {row}
     </button>
   );
 }

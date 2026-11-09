@@ -1,7 +1,7 @@
 // Every KCC-20 row in Figma is still dev-unmarked, so wording (and the
 // unverified-token sort) may change: all user-facing copy lives here.
 
-import type { Kcc20Family } from "@/lib/kcc20";
+import { formatUnits } from "viem";
 
 /** Where a token lives; drives the chip label, the chip colours and the corner badge. */
 export type NetworkType =
@@ -29,12 +29,6 @@ export const NETWORK_FILTER_LABELS: Record<NetworkFilter, string> = {
   igra: "Igra",
 };
 
-/** The family chip on a KCC-20 row; KRON's legacy state is never labelled plain KCC-20. */
-export const KCC20_FAMILY_LABELS: Record<Kcc20Family, string> = {
-  "kron-legacy": "KRON",
-  "kcc20-standard": "KCC-20",
-};
-
 export const KCC20_LABELS = {
   // Token detail
   viewInExplorer: "See activity history in explorer",
@@ -49,11 +43,14 @@ export const KCC20_LABELS = {
   preallocationAmount: "Preallocation Amount",
   defaultMintAmount: "Default Mint Amount",
   decimal: "Decimal",
+  decimals: "Decimals",
+  standard: "Standard",
+  balance: "Balance",
   minter: "Minter",
   security: "Security",
   verified: "Verified",
   unverified: "Unverified",
-  claimedMetadata: "claimed metadata",
+  baseUnits: "base units",
   loadFailed: "Token details could not be loaded",
 
   // Send: select token
@@ -63,3 +60,40 @@ export const KCC20_LABELS = {
   loadingTokens: "Loading tokens…",
   noTokens: "No tokens available",
 } as const;
+
+/** The Standard row of Token info; native KAS has none. */
+export const STANDARD_LABELS: Partial<Record<NetworkType, string>> = {
+  kcc20: "KCC-20",
+  krc20: "KRC-20",
+  kasplexErc20: "ERC-20",
+  igraErc20: "ERC-20",
+};
+
+/**
+ * A KCC-20 amount as a person reads it: whole tokens with grouping. Unknown
+ * decimals never pass for a scaled figure: grouped base units, named so.
+ */
+export function formatKcc20Amount(amount: bigint, decimals?: number) {
+  if (decimals === undefined)
+    return `${amount.toLocaleString("en-US")} ${KCC20_LABELS.baseUnits}`;
+  const exact = formatUnits(amount, decimals);
+  // Mobile's formatNumber: 3 places. A decimal string, not Number: whole tokens
+  // past 2^53 keep every digit.
+  const shown = new Intl.NumberFormat("en-US", {
+    maximumFractionDigits: 3,
+  }).format(exact as Intl.StringNumericLiteral);
+  // Below 3 places a non-zero amount must not read as "0".
+  return shown === "0" && amount !== 0n ? exact : shown;
+}
+
+// A holding as the dashboard row and the detail page both show it. kascov
+// held cells back when truncated: the balance may be short, hence "+".
+export function formatKcc20Balance(token: {
+  amount: bigint;
+  truncated?: boolean;
+  meta?: { decimals?: number };
+}) {
+  return `${formatKcc20Amount(token.amount, token.meta?.decimals)}${
+    token.truncated ? "+" : ""
+  }`;
+}

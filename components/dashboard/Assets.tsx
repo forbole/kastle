@@ -8,7 +8,9 @@ import {
 } from "@/lib/utils.ts";
 import TokenListItem, {
   Kcc20TokenListItem,
+  ROW,
 } from "@/components/dashboard/TokenListItem.tsx";
+import TokenRow from "@/ui/popup/dashboard/TokenRow";
 import useKcc20Tokens from "@/lib/kcc20/useKcc20Tokens";
 import { applyDecimal } from "@/lib/krc20.ts";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
@@ -24,6 +26,14 @@ import useKaspaPrice from "@/hooks/useKaspaPrice";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import useKaspaBalance from "@/hooks/wallet/useKaspaBalance";
 import { useFeatureFlags } from "@/hooks/useFeatureFlags.ts";
+import { useState } from "react";
+import {
+  hiddenTokensKey,
+  kcc20HideId,
+  krc20HideId,
+  saveHiddenTokens,
+  useHiddenTokens,
+} from "@/lib/hidden-tokens";
 
 export default function Assets() {
   const navigate = useNavigate();
@@ -59,7 +69,46 @@ export default function Assets() {
     isKcc20Enabled ? address : undefined,
   );
 
-  const isAssetListLoading = balance === undefined;
+  // Hiding is a display filter on this list only; balances, totals, send,
+  // swap and detail pages never read the hidden set.
+  const hiddenKey = hiddenTokensKey(settings?.networkId, address);
+  const { hidden, loaded: hiddenLoaded } = useHiddenTokens(hiddenKey);
+  // Manage mode edits a draft; Done writes it once, to the key it was
+  // started for. Switching account or network (the side menu keeps this list
+  // mounted) discards it, so one account's draft never lands on another's.
+  const [started, setStarted] = useState<{ key: string; ids: Set<string> }>();
+  if (started && started.key !== hiddenKey) setStarted(undefined);
+  const draft = started && started.key === hiddenKey ? started.ids : undefined;
+  const managing = draft !== undefined;
+  const enterManage = () =>
+    hiddenKey && setStarted({ key: hiddenKey, ids: new Set(hidden) });
+  const leaveManage = () => {
+    if (started && started.key === hiddenKey)
+      void saveHiddenTokens(started.key, started.ids);
+    setStarted(undefined);
+  };
+  const manageFor = (id: string) =>
+    draft && {
+      shown: !draft.has(id),
+      onToggle: (shown: boolean) =>
+        setStarted((prev) => {
+          if (!prev) return prev;
+          const ids = new Set(prev.ids);
+          if (shown) ids.delete(id);
+          else ids.add(id);
+          return { key: prev.key, ids };
+        }),
+    };
+  const isShown = (id: string) => managing || !hidden.has(id);
+  const kcc20Id = (t: { covenantId: string; extensionCommitment?: string }) =>
+    kcc20HideId(t.covenantId, t.extensionCommitment);
+  const shownKrc20 = tokens?.filter((t) => isShown(krc20HideId(t.id)));
+  const shownKcc20 = kcc20Tokens?.filter((t) => isShown(kcc20Id(t)));
+  const tokenCount = (tokens?.length ?? 0) + (kcc20Tokens?.length ?? 0);
+  const allHidden =
+    !managing && tokenCount > 0 && !shownKrc20?.length && !shownKcc20?.length;
+
+  const isAssetListLoading = balance === undefined || !hiddenLoaded;
 
   const supportEvmL2s =
     settings?.networkId === "mainnet"
@@ -73,29 +122,23 @@ export default function Assets() {
     </div>
   ) : (
     <div className="mb-4 flex flex-col items-stretch gap-2">
-      {/*KAS*/}
+      {/*KAS: no toggle, it cannot be hidden*/}
       <div
-        className="flex cursor-pointer items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3 hover:border-white"
+        data-testid="kas-row"
+        className={`${ROW} cursor-pointer`}
         onClick={() => navigate("/kas-asset")}
       >
-        <img alt="castle" className="h-[40px] w-[40px]" src={kasIcon} />
-        <div className="flex flex-grow flex-col gap-1">
-          <div className="flex items-center justify-between text-base text-white">
-            <span>KAS</span>
-            <span>{showBalance ? formatToken(balance ?? 0) : "*****"}</span>
-          </div>
-          <div className="flex items-center justify-between text-sm text-daintree-400">
-            <span>
-              {formatTokenPrice(kaspaPriceCurrency, kaspaPriceCurrencyCode)}
-            </span>
-            <span>
-              ≈{" "}
-              {showBalance
-                ? formatCurrency(totalBalanceCurrency, currencyCode)
-                : `${symbolForCurrencyCode(currencyCode)}*****`}
-            </span>
-          </div>
-        </div>
+        <TokenRow
+          logo={kasIcon}
+          ticker="KAS"
+          price={formatTokenPrice(kaspaPriceCurrency, kaspaPriceCurrencyCode)}
+          balance={showBalance ? formatToken(balance ?? 0) : "*****"}
+          fiat={`≈ ${
+            showBalance
+              ? formatCurrency(totalBalanceCurrency, currencyCode)
+              : `${symbolForCurrencyCode(currencyCode)}*****`
+          }`}
+        />
       </div>
 
       {/*EVM KAS*/}
@@ -104,14 +147,50 @@ export default function Assets() {
           <EvmKasAsset key={chain.id} chainId={numberToHex(chain.id)} />
         ))}
 
+      {/*Manage: hide or show KRC-20 / KCC-20 rows; no section header, one flat list*/}
+      {tokenCount > 0 && (
+        <div className="flex justify-end text-sm">
+          <button
+            type="button"
+            className="rounded-lg px-2 py-1 font-semibold text-icy-blue-400 hover:bg-daintree-800 hover:text-icy-blue-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-icy-blue-400"
+            onClick={managing ? leaveManage : enterManage}
+          >
+            {managing ? "Done" : "Manage"}
+          </button>
+        </div>
+      )}
+
+      {allHidden && (
+        <div
+          data-testid="tokens-all-hidden"
+          className="flex flex-col items-center gap-2 rounded-xl border border-daintree-700 bg-daintree-800 p-4 text-center text-sm text-daintree-400"
+        >
+          <span>All your tokens are hidden.</span>
+          <button
+            type="button"
+            className="font-semibold text-icy-blue-400 hover:text-icy-blue-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-icy-blue-400"
+            onClick={enterManage}
+          >
+            Show tokens
+          </button>
+        </div>
+      )}
+
       {/*KRC20 tokens*/}
-      {tokens?.map((token) => <TokenListItem key={token.id} token={token} />)}
+      {shownKrc20?.map((token) => (
+        <TokenListItem
+          key={token.id}
+          token={token}
+          manage={manageFor(krc20HideId(token.id))}
+        />
+      ))}
 
       {/*KCC20 tokens*/}
-      {kcc20Tokens?.map((token) => (
+      {shownKcc20?.map((token) => (
         <Kcc20TokenListItem
-          key={`${token.covenantId}:${token.extensionCommitment ?? ""}`}
+          key={kcc20Id(token)}
           token={token}
+          manage={manageFor(kcc20Id(token))}
         />
       ))}
 

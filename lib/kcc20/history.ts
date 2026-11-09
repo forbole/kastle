@@ -1,7 +1,12 @@
 import { bytesToHex, hexToBytes } from "viem";
 import { payToAddressScript } from "@/wasm/core/kaspa";
 import { textEllipsis } from "@/lib/utils";
-import type { KascovTransfer } from "./providers/kascov";
+import {
+  fetchTokenEvents,
+  type KascovMovement,
+  type KascovTokenEvent,
+  type KascovTransfer,
+} from "./providers/kascov";
 import { hash } from "./standard/primitives";
 
 // Mainnet runs 10 blocks per second, so one DAA step is 100 ms.
@@ -68,6 +73,231 @@ export const daaToMs = (
   tipDaa: number,
   tipAtMs: number,
 ) => tipAtMs - (tipDaa - acceptingDaa) * MS_PER_DAA;
+
+// Replay reads the whole log from genesis; past this many pages it gives up (fallback stays).
+// ponytail: tokens with thousands of events stay unattributed; a server-side owner_from on merges fixes them.
+export const EVENT_LOG_PAGE_CAP = 3;
+// Subset search budget per transition; past it the transition counts as unresolved.
+const SUBSET_STEP_CAP = 50_000;
+
+// `minted`: issued by a post-genesis mint, not by genesis.
+type Cell = { owner: string; amount: bigint; minted?: boolean };
+
+const ISSUANCE = new Set(["genesis", "mint"]);
+
+/**
+ * The one canonical set of `cells` summing to `total`, or undefined when there is none or
+ * more than one. Cells with equal owner and amount are interchangeable, so they count once.
+ */
+function uniqueSpend(
+  cells: readonly Cell[],
+  total: bigint,
+): Cell[] | undefined {
+  const groups = new Map<string, { cell: Cell; n: number }>();
+  // A zero cell changes no sum, so it would make every answer look twofold.
+  for (const c of cells) {
+    if (c.amount === 0n) continue;
+    const k = `${c.owner}|${c.amount}`;
+    const g = groups.get(k);
+    if (g) g.n++;
+    else groups.set(k, { cell: c, n: 1 });
+  }
+  const list = [...groups.values()].sort((a, b) =>
+    a.cell.amount < b.cell.amount ? 1 : -1,
+  );
+  const rest: bigint[] = [];
+  for (let i = list.length - 1, acc = 0n; i >= 0; i--)
+    rest[i] = acc += list[i].cell.amount * BigInt(list[i].n);
+  const found: Cell[][] = [];
+  const pick: Cell[] = [];
+  let steps = 0;
+  const walk = (i: number, need: bigint): boolean => {
+    if (++steps > SUBSET_STEP_CAP) return false;
+    if (need === 0n) {
+      found.push([...pick]);
+      return found.length < 2;
+    }
+    if (i === list.length || rest[i] < need) return true;
+    const { cell, n } = list[i];
+    for (let k = Math.min(n, Number(need / cell.amount)); k >= 0; k--) {
+      for (let j = 0; j < k; j++) pick.push(cell);
+      const go = walk(i + 1, need - cell.amount * BigInt(k));
+      pick.length -= k;
+      if (!go) return false;
+    }
+    return true;
+  };
+  const done = walk(0, total);
+  return done && found.length === 1 ? found[0] : undefined;
+}
+
+/**
+ * Per-transition movements replayed from a token's event log, keyed `txid:seq`.
+ * The log names every output cell but no merge input, so each transition's inputs are the
+ * unique set of live cells (of `owner_from` when named) summing to its outputs. The first
+ * transition that does not resolve ends the replay: every later live set would be a guess.
+ * Movements exist only when one side has a single owner, so each pair is exact.
+ * Genesis and mint deltas issue cells; any other kind but "transition" ends the replay.
+ */
+export function replayEventLog(
+  events: readonly KascovTokenEvent[],
+): Map<string, KascovMovement[]> {
+  const byTx = new Map<string, KascovTokenEvent[]>();
+  for (const e of [...events].sort(
+    (a, b) => a.seq - b.seq || a.deltaIdx - b.deltaIdx,
+  )) {
+    const id = `${e.txid}:${e.seq}`;
+    byTx.set(id, [...(byTx.get(id) ?? []), e]);
+  }
+  let live: Cell[] = [];
+  const out = new Map<string, KascovMovement[]>();
+  for (const [id, deltas] of byTx) {
+    const total = deltas.reduce((s, e) => s + e.amount, 0n);
+    const from = deltas[0].ownerFrom;
+    const kind = deltas[0].eventKind;
+    // Unknown or mixed kind: issuance and spend cannot be told apart.
+    if (
+      kind === undefined ||
+      (kind !== "transition" && !ISSUANCE.has(kind)) ||
+      deltas.some((e) => e.eventKind !== kind)
+    )
+      break;
+    let spent: Cell[] = [];
+    let guess = false;
+    // Genesis and mint issue cells: they spend nothing.
+    if (kind === "transition") {
+      const found = uniqueSpend(
+        from ? live.filter((c) => c.owner === from) : live,
+        total,
+      );
+      if (!found) break;
+      spent = found;
+      // An unnamed spend that may take a minted cell: which one left is a guess.
+      guess =
+        !from &&
+        spent.some((c) =>
+          live.some(
+            (x) => x.minted && x.owner === c.owner && x.amount === c.amount,
+          ),
+        );
+      // Equal cells are interchangeable: drop any one per pick.
+      for (const c of spent)
+        live.splice(
+          live.findIndex((x) => x.owner === c.owner && x.amount === c.amount),
+          1,
+        );
+    }
+    live = [
+      ...live,
+      ...deltas.map((e) => ({
+        owner: e.ownerTo,
+        amount: e.amount,
+        minted: kind === "mint",
+      })),
+    ];
+    // Issuance moves nothing between owners; a guessed spend is not exact.
+    if (kind !== "transition" || guess) continue;
+
+    const net = new Map<string, bigint>();
+    for (const c of spent)
+      net.set(c.owner, (net.get(c.owner) ?? 0n) - c.amount);
+    for (const e of deltas)
+      net.set(e.ownerTo, (net.get(e.ownerTo) ?? 0n) + e.amount);
+    const losers = [...net].filter(([, v]) => v < 0n);
+    const gainers = [...net].filter(([, v]) => v > 0n);
+    if (losers.length === 1)
+      out.set(
+        id,
+        gainers.map(([o, v]) => ({
+          ownerFrom: losers[0][0],
+          ownerTo: o,
+          amount: v,
+        })),
+      );
+    else if (gainers.length === 1)
+      out.set(
+        id,
+        losers.map(([o, v]) => ({
+          ownerFrom: o,
+          ownerTo: gainers[0][0],
+          amount: -v,
+        })),
+      );
+  }
+  return out;
+}
+
+/**
+ * The replay is exact only over every delta of every transition: a dropped cell
+ * lets a later spend match someone else's equal cell. `eventsTotal` counts
+ * transitions; each one's `deltaIdx` must run 0..n-1 with no gap or repeat.
+ * A dropped LAST delta leaves the indices whole, so the parser's drop count
+ * must be zero too.
+ */
+function isWholeLog(
+  events: readonly KascovTokenEvent[],
+  total: number | undefined,
+  dropped: number,
+) {
+  const idx = new Map<string, number[]>();
+  for (const e of events) {
+    const id = `${e.txid}:${e.seq}`;
+    idx.set(id, [...(idx.get(id) ?? []), e.deltaIdx]);
+  }
+  return (
+    dropped === 0 &&
+    idx.size === total &&
+    [...idx.values()].every((d) =>
+      d.sort((a, b) => a - b).every((v, i) => v === i),
+    )
+  );
+}
+
+const needsLog = (r: KascovTransfer) =>
+  r.status !== "exact" && r.status !== "self";
+
+/**
+ * `rows` with each one kascov could not attribute filled from the token's event log.
+ * Reads the log once, and only when some row needs it; a row the replay cannot resolve
+ * keeps its status, so it still shows as unattributed.
+ */
+export async function attributeFromEventLog(
+  rows: readonly KascovTransfer[],
+  tokenId: string,
+  fetchEvents: typeof fetchTokenEvents = fetchTokenEvents,
+): Promise<readonly KascovTransfer[]> {
+  if (!rows.some(needsLog)) return rows;
+  const events: KascovTokenEvent[] = [];
+  let total: number | undefined;
+  let dropped = 0;
+  let beforeSeq: number | undefined;
+  try {
+    for (let page = 0; ; page++) {
+      if (page === EVENT_LOG_PAGE_CAP) return rows;
+      const res = await fetchEvents(tokenId, beforeSeq);
+      // No count, or a count that moved between pages: completeness unprovable.
+      if (
+        res.eventsTotal === undefined ||
+        (total ?? res.eventsTotal) !== res.eventsTotal
+      )
+        return rows;
+      total = res.eventsTotal;
+      events.push(...res.events);
+      dropped += res.dropped;
+      if (res.nextBeforeSeq === undefined) break;
+      beforeSeq = res.nextBeforeSeq;
+    }
+  } catch {
+    // The log is enrichment: its failure must not cost the page the rows it has.
+    return rows;
+  }
+  if (!isWholeLog(events, total, dropped)) return rows;
+  const log = replayEventLog(events);
+  return rows.map((r) => {
+    const movements = needsLog(r) ? log.get(`${r.txid}:${r.seq}`) : undefined;
+    return movements ? { ...r, status: "exact", movements } : r;
+  });
+}
 
 function entryOf(
   row: KascovTransfer,

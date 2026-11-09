@@ -58,7 +58,7 @@ export default function AssetSelect() {
   const kcc20Tokens = kcc20TokenItems
     ?.filter(
       (token): token is SendableKcc20Token =>
-        !!token.meta && token.spendable > 0n,
+        token.meta?.decimals !== undefined && token.spendable > 0n,
     )
     .filter((token) =>
       hasSearchQuery
