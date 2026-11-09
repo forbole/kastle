@@ -445,6 +445,7 @@ export function AmountInput({
 /** Figma 13024:157027 bottom (pinned): error → Balance row (+ Max) → Confirm, 12px apart. */
 export function ConfirmButton({
   error,
+  warning,
   balance,
   onMax,
   disabled,
@@ -453,6 +454,8 @@ export function ConfirmButton({
   label = "Confirm",
 }: {
   error?: string;
+  /** Shown verbatim above the button; never gates it. */
+  warning?: string;
   /** Pre-formatted, with symbol, e.g. "2,000.24 KAS". */
   balance?: string;
   onMax?: () => void;
@@ -484,6 +487,12 @@ export function ConfirmButton({
               Max
             </button>
           )}
+        </div>
+      )}
+      {warning && (
+        <div className="mx-4 flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
+          <i className="hn hn-info-circle text-base leading-none" />
+          <span>{warning}</span>
         </div>
       )}
       <div className="px-4">

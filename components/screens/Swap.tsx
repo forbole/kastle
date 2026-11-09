@@ -622,8 +622,6 @@ export default function Swap() {
   });
   const braidNetworkFee = braidSwap.feeLines.find((l) => l.name === "Network");
   const braidRouter = braidSwap.feeLines.find((l) => l.name === "Braid");
-  // The route warning the user ticked, so a new warning asks again.
-  const [ackedWarning, setAckedWarning] = useState<string>();
   // KRON: KAS -> token is a curve buy, token -> KAS a sell; token <-> token has no route.
   const kronMarket =
     isKron && !isBraid
@@ -1230,21 +1228,6 @@ export default function Swap() {
                     {w}
                   </p>
                 ))}
-              {isBraid && braidSwap.routeWarning && (
-                <label className="flex cursor-pointer items-start gap-2 border-t border-daintree-700 px-4 py-3 text-xs font-medium text-white hover:bg-daintree-700">
-                  <input
-                    type="checkbox"
-                    className="mt-0.5 accent-icy-blue-400"
-                    checked={ackedWarning === braidSwap.routeWarning}
-                    onChange={(e) =>
-                      setAckedWarning(
-                        e.target.checked ? braidSwap.routeWarning : undefined,
-                      )
-                    }
-                  />
-                  {braidSwap.routeWarning}
-                </label>
-              )}
               <SwapFeeFootnote
                 kastleFee={kastleFee}
                 kastleFeeBps={kastleFeeBps}
@@ -1254,6 +1237,7 @@ export default function Swap() {
       </div>
       <ConfirmButton
         error={error}
+        warning={isBraid ? braidSwap.routeWarning : undefined}
         balance={
           isKron
             ? kronBalanceIn !== undefined && tokenIn
@@ -1295,9 +1279,7 @@ export default function Swap() {
           (isBraid
             ? !braidSwap.quote ||
               !kaspaSigner ||
-              braidSwap.pending ||
-              (!!braidSwap.routeWarning &&
-                ackedWarning !== braidSwap.routeWarning)
+              braidSwap.pending
             : isKron
               ? !kronQuote || !kaspaSigner
               : (!isWrapPair && !selected?.path) || !signer)

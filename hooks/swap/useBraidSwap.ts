@@ -89,7 +89,7 @@ export function braidPriceMoved(q: L1Quote, p: PreparedDeposit): boolean {
   return p.debit > kasBackOf(q) + p.braidFeeCap + p.walletFee + p.depositFee;
 }
 
-// The one Braid warning the user must confirm before signing: the route pays
+// The one Braid warning shown above Confirm (never a gate): the route pays
 // less than trading on the venues' own apps. The SDK's warnings are plain
 // strings (src/l1/client.js, from the reply's `worseThanAlone`).
 const WORSE_THAN_ALONE = /less than swapping on the venues' own apps/;
