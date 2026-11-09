@@ -408,7 +408,8 @@ test("KCC-20: Send keeps the ext of the row", async ({ page }) => {
 });
 
 // The tab control of the design system (components/AssetTabs). dotK has no tabs.
-const TABS_NAV = "flex gap-x-1 rounded-xl bg-daintree-800 p-1";
+const TABS_NAV =
+  "--prevent-on-load-init flex gap-x-1 rounded-xl bg-daintree-800 p-1";
 const TAB_BUTTON =
   "inline-flex flex-grow items-center justify-center gap-x-2 rounded-lg px-4 py-3 text-center text-sm font-medium text-[#E5E7EB] focus:outline-none disabled:pointer-events-none disabled:opacity-50";
 

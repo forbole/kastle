@@ -45,10 +45,12 @@ export default function AssetTabs({ active, onChange }: Props) {
   };
 
   return (
+    // --prevent-on-load-init: Preline's HSTabs autoInit claims [role=tablist]
+    // and throws when no child carries its `active` class; this one is React's.
     <nav
       role="tablist"
       aria-label="Asset details"
-      className="flex gap-x-1 rounded-xl bg-daintree-800 p-1"
+      className="--prevent-on-load-init flex gap-x-1 rounded-xl bg-daintree-800 p-1"
     >
       {TABS.map(({ tab, label }, index) => (
         <button

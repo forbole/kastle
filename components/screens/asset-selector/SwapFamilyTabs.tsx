@@ -45,7 +45,9 @@ export default function SwapFamilyTabs({
   const label = FAMILY_TABS.find((t) => t.key === value)?.label;
   return (
     <div className="pb-2">
-      <div role="tablist" className="flex gap-2">
+      {/* --prevent-on-load-init: Preline's HSTabs autoInit claims
+          [role=tablist] and throws when no child carries its `active` class. */}
+      <div role="tablist" className="--prevent-on-load-init flex gap-2">
         {FAMILY_TABS.map((t) => (
           <button
             key={t.key}

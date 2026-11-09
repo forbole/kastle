@@ -2,10 +2,13 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import {
   createMemoryRouter,
+  Outlet,
   RouterProvider,
   useLocation,
 } from "react-router-dom";
 import "@/entrypoints/main.css";
+import "preline/preline";
+import useResetPreline from "@/hooks/useResetPreline";
 import "@hackernoon/pixel-icon-library/fonts/iconfont.css";
 import KasAsset from "@/components/screens/KasAsset";
 import TokenAsset from "@/components/screens/KRC20Asset";
@@ -78,51 +81,63 @@ function Landed() {
   return <span data-testid="landed">{pathname + search}</span>;
 }
 
+// As PopupLayout: Preline autoInit on mount and on every route change.
+function PrelineShell() {
+  const { pathname } = useLocation();
+  useResetPreline([pathname]);
+  return <Outlet />;
+}
+
 const params = new URLSearchParams(location.search);
 const router = createMemoryRouter(
   [
-    { path: "/kas-asset", element: <KasAsset /> },
-    { path: "/token-asset/:ticker", element: <TokenAsset /> },
-    { path: "/erc20-asset/:chainId/:address", element: <Erc20Asset /> },
-    { path: "/evm-asset/:chainId", element: <EvmKasAsset /> },
-    { path: "/dotk/:name", element: <DotkAsset /> },
     {
-      path: "/kcc20/:covenantId",
-      // kcc20Pending=1: what the route guard shows while it waits.
-      element: params.has("kcc20Pending") ? (
-        <Kcc20AssetPending />
-      ) : (
-        <Kcc20Asset />
-      ),
+      element: <PrelineShell />,
+      children: [
+        { path: "/kas-asset", element: <KasAsset /> },
+        { path: "/token-asset/:ticker", element: <TokenAsset /> },
+        { path: "/erc20-asset/:chainId/:address", element: <Erc20Asset /> },
+        { path: "/evm-asset/:chainId", element: <EvmKasAsset /> },
+        { path: "/dotk/:name", element: <DotkAsset /> },
+        {
+          path: "/kcc20/:covenantId",
+          // kcc20Pending=1: what the route guard shows while it waits.
+          element: params.has("kcc20Pending") ? (
+            <Kcc20AssetPending />
+          ) : (
+            <Kcc20Asset />
+          ),
+        },
+        // As Storybook renders it: no history slot, so History falls back to the
+        // explorer link.
+        {
+          path: "/token-detail-no-history",
+          element: (
+            <TokenDetailPage
+              name="KTEST"
+              network="kcc20"
+              networkName="Kaspa"
+              tokenId="abab…abab"
+              activeTab="history"
+              onTabChange={() => {}}
+              onOpenExplorer={() => {}}
+            />
+          ),
+        },
+        { path: "/token-detail-info", element: <TokenInfoHarness /> },
+        { path: "/kcc20-activity", element: <ActivityHarness /> },
+        {
+          path: "/dashboard-assets",
+          element: (
+            <div className="p-4">
+              <Assets />
+            </div>
+          ),
+        },
+        { path: "/asset-select", element: <AssetSelect /> },
+        { path: "*", element: <Landed /> },
+      ],
     },
-    // As Storybook renders it: no history slot, so History falls back to the
-    // explorer link.
-    {
-      path: "/token-detail-no-history",
-      element: (
-        <TokenDetailPage
-          name="KTEST"
-          network="kcc20"
-          networkName="Kaspa"
-          tokenId="abab…abab"
-          activeTab="history"
-          onTabChange={() => {}}
-          onOpenExplorer={() => {}}
-        />
-      ),
-    },
-    { path: "/token-detail-info", element: <TokenInfoHarness /> },
-    { path: "/kcc20-activity", element: <ActivityHarness /> },
-    {
-      path: "/dashboard-assets",
-      element: (
-        <div className="p-4">
-          <Assets />
-        </div>
-      ),
-    },
-    { path: "/asset-select", element: <AssetSelect /> },
-    { path: "*", element: <Landed /> },
   ],
   { initialEntries: [params.get("route") ?? "/kas-asset"] },
 );
