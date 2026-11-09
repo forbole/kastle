@@ -196,6 +196,23 @@ export function usdText(
   return `≈ ${formatUsdAmount(usd)} USD`;
 }
 
+/**
+ * A KCC-20 swap row's token leg is priced by the covenant id its row id ends
+ * in, whatever symbol it carries; the KAS leg and every other row by symbol.
+ */
+function receivedPriceFor(
+  row: ActivityRowDescriptor,
+  deps: AdapterDeps,
+): AdapterDeps["priceFor"] {
+  const tokenId = /^swap:kcc20:.*:([0-9a-f]{64})$/.exec(row.id)?.[1];
+  return (symbol) =>
+    tokenId && symbol.toUpperCase() !== "KAS"
+      ? deps.priceFor(tokenId)
+      : deps.priceFor(symbol);
+}
+
+const withUsd = (receivedUsd: string) => (receivedUsd ? { receivedUsd } : {});
+
 function rateText(row: ActivityRowDescriptor): string | null {
   const from = symbolText(row.sent?.symbol);
   const to = symbolText(row.received?.symbol);
@@ -375,7 +392,8 @@ export function toActivityItem(
         ...(row.received
           ? {
               receivedAmount: amountText(row.received),
-              receivedUsd: usdText(row.received, deps.priceFor),
+              // No price from any source: no USD line, never a dash or $0.
+              ...withUsd(usdText(row.received, receivedPriceFor(row, deps))),
             }
           : bridge && settled
             ? { receivedAmount: "Amount unavailable" }

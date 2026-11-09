@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import useSWR from "swr";
 import { twMerge } from "tailwind-merge";
 import GeneralHeader from "@/components/GeneralHeader";
 import BottomNav from "@/components/BottomNav";
@@ -21,6 +22,7 @@ import {
   toActivityItem,
 } from "@/lib/activity/adapters";
 import { rowsForPage, type ActivityPageType } from "@/lib/activity/mappers";
+import { fetchKronMarkets } from "@/lib/kcc20/swap";
 import type { BridgeHistoryDegradation } from "@/lib/bridge/kat-bridge-history";
 import type { IgraDepositDegradation } from "@/lib/bridge/igra-deposit-history";
 import type { KurveRegistryDegradation } from "@/lib/bridge/kat-registry";
@@ -99,10 +101,16 @@ const toList = <T,>(value: T | T[] | null): T[] =>
   !value ? [] : Array.isArray(value) ? value : [value];
 
 /** Symbol → logo/price, as mobile's useTokenLogoMap / useTokenPriceMap. */
-function useTokenMaps() {
+function useTokenMaps(isMainnet: boolean) {
   const { kaspaPrice } = useKaspaPrice();
   const { data: kasplex } = useZealousSwapTokensMetadata();
   const { data: igra } = useZealousSwapIgraTokensMetadata();
+  // Same key and gate as useKcc20Price, so the dashboard rows' KRON download is shared.
+  const { data: kron } = useSWR(
+    isMainnet ? "kronMarkets" : null,
+    fetchKronMarkets,
+    { refreshInterval: 60_000 },
+  );
   return useMemo(() => {
     const logos = new Map<string, string>();
     const prices = new Map<string, number>();
@@ -121,11 +129,17 @@ function useTokenMaps() {
       logos.set(kas, kaspaIcon);
       if (kaspaPrice > 0) prices.set(kas, kaspaPrice);
     }
+    // KCC-20 by covenant id (the dashboard row's price), never by ticker: a
+    // ticker can collide with a KRC-20 symbol. The adapter looks KCC-20 legs up by id.
+    for (const m of [...(kron ?? []), ...(kron?.graduated ?? [])]) {
+      if (m.priceKas && m.priceKas > 0 && kaspaPrice > 0)
+        prices.set(m.covenantId.toUpperCase(), m.priceKas * kaspaPrice);
+    }
     return {
       logoFor: (symbol: string) => logos.get(symbol.toUpperCase()),
       priceFor: (symbol: string) => prices.get(symbol.toUpperCase()),
     };
-  }, [kasplex, igra, kaspaPrice]);
+  }, [kasplex, igra, kron, kaspaPrice]);
 }
 
 function TokenIcon({ src, className }: { src?: string; className: string }) {
@@ -315,7 +329,7 @@ export default function Activity() {
   const { networkId } = useRpcClientStateful();
   const isMainnet = (networkId ?? NetworkType.Mainnet) === NetworkType.Mainnet;
   const feed = useActivityFeed(isMainnet);
-  const { logoFor, priceFor } = useTokenMaps();
+  const { logoFor, priceFor } = useTokenMaps(isMainnet);
   const [openId, setOpenId] = useState<string>();
 
   const rows = feed.rows ? rowsForPage(feed.rows, pageType) : null;
