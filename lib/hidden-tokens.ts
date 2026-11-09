@@ -15,6 +15,8 @@ export function hiddenTokensKey(networkId?: string, address?: string) {
 export const krc20HideId = (tick: string) => `krc20:${tick.toLowerCase()}`;
 export const kcc20HideId = (covenantId: string, ext?: string) =>
   `kcc20:${covenantId}${ext ? `:${ext}` : ""}`;
+export const erc20HideId = (chainId: string, address: string) =>
+  `erc20:${chainId}:${address.toLowerCase()}`;
 
 type Entry = { loaded: boolean; hidden: ReadonlySet<string> };
 

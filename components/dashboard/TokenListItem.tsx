@@ -44,7 +44,7 @@ export const matchesQuery = (
 export const ROW =
   "flex w-full items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3 text-left hover:border-white";
 
-function ManagedRow({
+export function ManagedRow({
   manage,
   label,
   children,

@@ -422,3 +422,83 @@ test("a ticker wider than the full balance still compacts the balance when that 
   );
   expect(errors).toEqual([]);
 });
+
+// erc20=1 adds one ERC-20 row: WKAS on Kasplex L2, mixed-case address.
+const withErc20 = (page: Page) => dashboard(page, "&erc20=1");
+const WKAS_ID = "erc20:0x3173b:0xabcdef0123456789abcdef0123456789abcdef01";
+const ownerKey = "storage.local:hiddenTokens:mainnet:kaspa:qowner";
+const storedIds = (page: Page) =>
+  page.evaluate((k) => JSON.parse(localStorage.getItem(k) ?? "null"), ownerKey);
+
+test("an ERC-20 row carries the same switch in manage mode", async ({
+  page,
+}) => {
+  const errors = await withErc20(page);
+  await expect(page.getByText("WKAS")).toBeVisible();
+  await expect(switches(page)).toHaveCount(0);
+  await manage(page).click();
+  await expect(switches(page)).toHaveCount(ROWS + 1);
+  const sw = page
+    .getByTestId("manage-row")
+    .filter({ hasText: "WKAS" })
+    .getByRole("switch", { name: "Show WKAS", exact: true });
+  await expect(sw).toHaveAttribute("aria-checked", "true");
+  // The switch flips the draft and never navigates away from the list.
+  await sw.click();
+  await expect(sw).toHaveAttribute("aria-checked", "false");
+  await expect(search(page)).toBeVisible();
+  // The row body itself does not navigate while managing either.
+  await page.getByTestId("manage-row").filter({ hasText: "WKAS" }).click();
+  await expect(search(page)).toBeVisible();
+  // Nothing is written until Done.
+  expect(await storedIds(page)).toBeNull();
+  expect(errors).toEqual([]);
+});
+
+test("hiding an ERC-20 row stores erc20:<chain>:<addr> and showing it brings it back", async ({
+  page,
+}) => {
+  await withErc20(page);
+  await hide(page, /^Show WKAS$/);
+  await expect(switches(page)).toHaveCount(0);
+  await expect(page.getByText("WKAS")).toHaveCount(0);
+  await expect(page.getByText("KASPY")).toBeVisible();
+  expect(await storedIds(page)).toEqual([WKAS_ID]);
+  // The id round-trips through the store: still hidden after a reload.
+  await page.reload();
+  await expect(page.getByText("KASPY")).toBeVisible();
+  await expect(page.getByText("WKAS")).toHaveCount(0);
+  // Manage lists it switched off; on again brings the row back.
+  await manage(page).click();
+  const sw = page.getByRole("switch", { name: "Show WKAS", exact: true });
+  await expect(sw).toHaveAttribute("aria-checked", "false");
+  await sw.click();
+  await done(page).click();
+  await expect(page.getByText("WKAS")).toBeVisible();
+  expect(await storedIds(page)).toEqual([]);
+});
+
+test("the all-hidden state counts ERC-20 rows, and search does not break it", async ({
+  page,
+}) => {
+  await withErc20(page);
+  const empty = page.getByTestId("tokens-all-hidden");
+  // Hide every row except WKAS: one visible ERC-20 row keeps the list.
+  await manage(page).click();
+  for (const sw of await switches(page).all())
+    if ((await sw.getAttribute("aria-label")) !== "Show WKAS") await sw.click();
+  await done(page).click();
+  await expect(page.getByText("WKAS")).toBeVisible();
+  await expect(empty).toHaveCount(0);
+  // Hide WKAS too: now every token is hidden.
+  await hide(page, /^Show WKAS$/);
+  await expect(empty).toContainText("All your tokens are hidden.");
+  // A search for the hidden row shows no match; clearing it restores the state.
+  await search(page).fill("WKAS");
+  await expect(empty).toHaveCount(0);
+  await expect(page.getByTestId("assets-no-match")).toBeVisible();
+  await page.getByRole("button", { name: "Clear search" }).click();
+  await expect(empty).toContainText("All your tokens are hidden.");
+  await empty.getByRole("button", { name: "Show tokens" }).click();
+  await expect(switches(page)).toHaveCount(ROWS + 1);
+});
