@@ -5,29 +5,40 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 // esbuild bundles the real module with wxt/storage in memory, re-exported as
-// `store`. fetch is replaced per test.
+// `store`, and a short CURRENCIES list in place of the settings context.
+// fetch is replaced per test.
 type Modules = typeof import("@/lib/cache/usdRatesCache") & {
   store: Map<string, unknown>;
+  failWrites: (on: boolean) => void;
 };
 
 let m: Modules;
 
 const STUB = "usd-rates-stub";
+const STUBS: Record<string, string> = {
+  "wxt/storage": `
+    export const store = new Map();
+    let writesFail = false;
+    export const failWrites = (on) => { writesFail = on; };
+    export const storage = {
+      getItem: async (k) => structuredClone(store.get(k) ?? null),
+      setItem: async (k, v) => {
+        if (writesFail) throw new Error("QUOTA_BYTES quota exceeded");
+        store.set(k, structuredClone(v));
+      },
+      removeItem: async (k) => void store.delete(k),
+    };`,
+  "@/contexts/SettingsContext.tsx": `
+    export const CURRENCIES = [["USD"], ["EUR"], ["TWD"]];`,
+};
 const stubs: Plugin = {
   name: STUB,
   setup(b) {
-    b.onResolve({ filter: /^wxt\/storage$/ }, (args) => ({
-      path: args.path,
-      namespace: STUB,
-    }));
-    b.onLoad({ filter: /.*/, namespace: STUB }, () => ({
-      contents: `
-        export const store = new Map();
-        export const storage = {
-          getItem: async (k) => structuredClone(store.get(k) ?? null),
-          setItem: async (k, v) => void store.set(k, structuredClone(v)),
-          removeItem: async (k) => void store.delete(k),
-        };`,
+    b.onResolve({ filter: /.*/ }, (args) =>
+      args.path in STUBS ? { path: args.path, namespace: STUB } : undefined,
+    );
+    b.onLoad({ filter: /.*/, namespace: STUB }, (args) => ({
+      contents: STUBS[args.path],
       loader: "js",
     }));
   },
@@ -40,7 +51,7 @@ test.beforeAll(async () => {
     stdin: {
       contents: [
         `export * from "@/lib/cache/usdRatesCache";`,
-        `export { store } from "wxt/storage";`,
+        `export { store, failWrites } from "wxt/storage";`,
       ].join("\n"),
       resolveDir: repo,
       loader: "ts",
@@ -57,22 +68,26 @@ test.beforeAll(async () => {
 });
 
 const KEY = "local:cache:usdRates";
+const OLD = { eur: 0.8, twd: 30 };
+const NEW = { eur: 0.9, twd: 32 };
 const realFetch = globalThis.fetch;
 let calls: string[];
 
-// Each URL in `fail` answers 500; every other URL answers `rates`.
-function mockFetch(rates: Record<string, number>, fail: RegExp[] = []) {
+// `answer` maps each URL to the `usd` table it returns, or null for a 500.
+function mockFetch(answer: (url: string) => unknown) {
   globalThis.fetch = (async (url: string) => {
     calls.push(url);
     await new Promise((r) => setTimeout(r, 5));
-    return fail.some((f) => f.test(url))
+    const usd = answer(url);
+    return usd === null
       ? new Response("down", { status: 500 })
-      : Response.json({ date: "2026-11-09", usd: rates });
+      : Response.json({ date: "2026-11-09", usd });
   }) as typeof fetch;
 }
 
 test.beforeEach(() => {
   m.store.clear();
+  m.failWrites(false);
   calls = [];
 });
 test.afterAll(() => {
@@ -80,52 +95,83 @@ test.afterAll(() => {
 });
 
 test("a cache miss fetches once for concurrent callers and stores the rates", async () => {
-  mockFetch({ eur: 0.9 });
+  mockFetch(() => NEW);
   const results = await Promise.all([1, 2, 3].map(() => m.getUsdRates()));
-  expect(results).toEqual([{ eur: 0.9 }, { eur: 0.9 }, { eur: 0.9 }]);
+  expect(results).toEqual([NEW, NEW, NEW]);
   expect(calls).toHaveLength(1);
-  expect(m.store.get(KEY)).toMatchObject({ rates: { eur: 0.9 } });
+  expect(m.store.get(KEY)).toMatchObject({ rates: NEW });
 });
 
 test("fresh rates are served from the store without a fetch", async () => {
-  m.store.set(KEY, { rates: { eur: 0.8 }, fetchedAt: Date.now() - 9 * 60_000 });
-  mockFetch({ eur: 0.9 });
-  expect(await m.getUsdRates()).toEqual({ eur: 0.8 });
+  m.store.set(KEY, { rates: OLD, fetchedAt: Date.now() - 9 * 60_000 });
+  mockFetch(() => NEW);
+  expect(await m.getUsdRates()).toEqual(OLD);
   expect(calls).toHaveLength(0);
 });
 
 test("rates older than 10 minutes are fetched again", async () => {
-  m.store.set(KEY, { rates: { eur: 0.8 }, fetchedAt: Date.now() - 11 * 60_000 });
-  mockFetch({ eur: 0.9 });
-  expect(await m.getUsdRates()).toEqual({ eur: 0.9 });
+  m.store.set(KEY, { rates: OLD, fetchedAt: Date.now() - 11 * 60_000 });
+  mockFetch(() => NEW);
+  expect(await m.getUsdRates()).toEqual(NEW);
   expect(calls).toHaveLength(1);
 });
 
 test("the fallback source is used when the primary fails", async () => {
-  mockFetch({ eur: 0.9 }, [/pages\.dev/]);
-  expect(await m.getUsdRates()).toEqual({ eur: 0.9 });
+  mockFetch((url) => (url.includes("pages.dev") ? null : NEW));
+  expect(await m.getUsdRates()).toEqual(NEW);
   expect(calls).toHaveLength(2);
   expect(calls[1]).toContain("cdn.jsdelivr.net");
 });
 
+for (const [name, bad] of [
+  ["an empty table", {}],
+  ["a zero rate", { eur: 0, twd: 32 }],
+  ["a non-numeric rate", { eur: "0.9", twd: 32 }],
+  ["a missing supported currency", { eur: 0.9 }],
+] as const) {
+  test(`${name} is rejected and the fallback source is used`, async () => {
+    mockFetch((url) => (url.includes("pages.dev") ? bad : NEW));
+    expect(await m.getUsdRates()).toEqual(NEW);
+    expect(m.store.get(KEY)).toMatchObject({ rates: NEW });
+  });
+}
+
 test("an upstream error returns the stored rates and leaves the store as it was", async () => {
-  const stale = { rates: { eur: 0.8 }, fetchedAt: Date.now() - 60 * 60_000 };
+  const stale = { rates: OLD, fetchedAt: Date.now() - 60 * 60_000 };
   m.store.set(KEY, stale);
-  mockFetch({}, [/./]);
-  expect(await m.getUsdRates()).toEqual({ eur: 0.8 });
+  mockFetch(() => null);
+  expect(await m.getUsdRates()).toEqual(OLD);
   expect(m.store.get(KEY)).toEqual(stale);
 });
 
 test("an upstream error with nothing stored rejects and writes nothing", async () => {
-  mockFetch({}, [/./]);
+  mockFetch(() => null);
   await expect(m.getUsdRates()).rejects.toThrow("Request failed: 500");
   expect(m.store.size).toBe(0);
 });
 
+test("a failed storage write still returns the fetched rates", async () => {
+  m.store.set(KEY, { rates: OLD, fetchedAt: Date.now() - 11 * 60_000 });
+  m.failWrites(true);
+  mockFetch(() => NEW);
+  expect(await m.getUsdRates()).toEqual(NEW);
+});
+
 test("invalidateUsdRates forces the next call to fetch", async () => {
-  m.store.set(KEY, { rates: { eur: 0.8 }, fetchedAt: Date.now() });
+  m.store.set(KEY, { rates: OLD, fetchedAt: Date.now() });
   await m.invalidateUsdRates();
-  mockFetch({ eur: 0.9 });
-  expect(await m.getUsdRates()).toEqual({ eur: 0.9 });
+  mockFetch(() => NEW);
+  expect(await m.getUsdRates()).toEqual(NEW);
   expect(calls).toHaveLength(1);
+});
+
+test("invalidating during a fetch still forces the next call to fetch", async () => {
+  mockFetch(() => OLD);
+  const pending = m.getUsdRates();
+  await expect.poll(() => calls.length).toBe(1); // the fetch is in flight
+  await m.invalidateUsdRates();
+  await pending;
+  mockFetch(() => NEW);
+  expect(await m.getUsdRates()).toEqual(NEW);
+  expect(calls).toHaveLength(2);
 });

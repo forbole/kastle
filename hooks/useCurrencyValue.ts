@@ -10,11 +10,11 @@ export default function useCurrencyValue(usdAmount: number) {
     refreshInterval: 600000, // 10 min, the cache TTL
   });
 
-  if (currency === "USD") {
+  // Without a rate, show the USD amount as USD, never under another code.
+  const rate = rates?.[currency.toLowerCase()];
+  if (currency === "USD" || !rate) {
     return { amount: usdAmount, code: "USD" as const };
   }
-
-  const rate = rates?.[currency.toLowerCase()] ?? 1;
 
   return { amount: usdAmount * rate, code: currency };
 }

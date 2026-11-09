@@ -1,4 +1,5 @@
 import { storage } from "wxt/storage";
+import { CURRENCIES } from "@/contexts/SettingsContext.tsx";
 
 const STORAGE_KEY = "local:cache:usdRates";
 const TTL = 10 * 60 * 1000; // 10 min
@@ -26,9 +27,15 @@ async function fetchUsdRates(): Promise<UsdRates> {
         throw new Error(`Request failed: ${response.status} ${url}`);
       }
       const { usd } = await response.json();
-      if (!usd || typeof usd !== "object") {
-        throw new Error(`Unexpected payload: ${url}`);
-      }
+      // A table without a usable rate for every selectable currency would be
+      // cached for 10 min; reject it so the fallback or stored rates win.
+      const valid = CURRENCIES.every(
+        ([code]) =>
+          code === "USD" ||
+          (Number.isFinite(usd?.[code.toLowerCase()]) &&
+            usd[code.toLowerCase()] > 0),
+      );
+      if (!valid) throw new Error(`Unexpected payload: ${url}`);
       return usd;
     } catch (error) {
       lastError = error;
@@ -47,10 +54,10 @@ export async function getUsdRates(): Promise<UsdRates> {
 
   inflight ??= fetchUsdRates()
     .then(async (rates) => {
-      await storage.setItem<Cached>(STORAGE_KEY, {
-        rates,
-        fetchedAt: Date.now(),
-      });
+      // Best-effort: a full storage.local still returns the fresh rates.
+      await storage
+        .setItem<Cached>(STORAGE_KEY, { rates, fetchedAt: Date.now() })
+        .catch(() => {});
       return rates;
     })
     .catch((error) => {
@@ -65,5 +72,7 @@ export async function getUsdRates(): Promise<UsdRates> {
 
 /** Force the next getUsdRates() call to fetch upstream. */
 export async function invalidateUsdRates(): Promise<void> {
+  // A pending fetch would store its rates after the removal; let it land first.
+  await inflight?.catch(() => {});
   await storage.removeItem(STORAGE_KEY);
 }
