@@ -633,3 +633,23 @@ test("a KCC-20 swap and an EVM swap carry the same detail label list", async () 
     Object.keys(sheetOf(r).transfer).sort();
   expect(transfer(kcc20)).toEqual(transfer(evmRow));
 });
+
+// ─── Received leg USD (QA7 item 1) ──────────────────────────────────────────
+
+const sheetPriced = (prices: Record<string, number>) =>
+  m.toActivityItem(m.mapSwapActivity(kronRow()), {
+    logoFor: () => undefined,
+    priceFor: (s: string) => prices[s.toUpperCase()],
+  }).sheet.transfer;
+
+test("a KCC-20 swap's received token is priced by its covenant id", () => {
+  const t = sheetPriced({ [KRON_ID.toUpperCase()]: 0.0002 });
+  expect(t.receivedAmount).toBe("1,917 KRON");
+  expect(t.receivedUsd).toMatch(/^≈ \$\S+ USD$/);
+});
+
+test("a received token with no price anywhere has no USD line, not a dash", () => {
+  expect("receivedUsd" in sheetPriced({})).toBe(false);
+  // A KRC-20 ticker sharing the symbol is not the token's price.
+  expect("receivedUsd" in sheetPriced({ KRON: 5 })).toBe(false);
+});
