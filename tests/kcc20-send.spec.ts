@@ -573,6 +573,17 @@ test("a standard KCC-20 row with decimals and no ticker formats its amount under
   await expect(pick).toContainText("2,107.59");
   await pick.locator("img").first().hover();
   await expect(page.getByText(FAMILY)).toHaveCount(0);
+
+  // Its send labels the asset and the confirm Ticker with that short id, never blank.
+  await pick.click();
+  await expect(page.getByText("Send to ...")).toBeVisible();
+  await fill(page, RECIPIENT, "1");
+  await next(page).click();
+  await expect(page.getByText("Sending amount")).toBeVisible();
+  // The Ticker row and the token id row both read the short id.
+  await expect(page.getByText("abababab...babab", { exact: true })).toHaveCount(
+    2,
+  );
   expect(errors).toEqual([]);
 });
 

@@ -14,7 +14,7 @@ import { FailStatus } from "@/components/send/FailStatus.tsx";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import useKcc20Tokens from "@/lib/kcc20/useKcc20Tokens";
 import { decimalsError } from "@/lib/kcc20";
-import { formatUsdAmount } from "@/lib/utils.ts";
+import { formatUsdAmount, textEllipsis } from "@/lib/utils.ts";
 import useKaspaHotWalletSigner from "@/hooks/wallet/useKaspaHotWalletSigner";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
@@ -88,7 +88,9 @@ export default function Kcc20Send() {
 
   const onClose = () => navigate("/dashboard");
   const decimals = token?.meta?.decimals ?? 0;
-  const symbol = token?.meta?.symbol ?? "";
+  // No ticker: the picker's short covenant id, so labels and Ticker are never blank.
+  const symbol =
+    token?.meta?.symbol || (token ? textEllipsis(token.covenantId) : "");
 
   const feeKas = built ? Number(formatUnits(built.fee, KAS_DECIMALS)) : 0;
   const { amount: amountCurrency, code: amountCurrencyCode } =
@@ -140,7 +142,6 @@ export default function Kcc20Send() {
       building.current = true;
       setBuildError(undefined);
       const decimals = token.meta.decimals;
-      const { symbol } = token.meta;
       try {
         const result = await buildKcc20Transfer({
           token,

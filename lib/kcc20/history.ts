@@ -200,6 +200,27 @@ export function replayEventLog(
   return out;
 }
 
+/**
+ * The replay is exact only over every delta of every transition: a dropped cell
+ * lets a later spend match someone else's equal cell. `eventsTotal` counts
+ * transitions; each one's `deltaIdx` must run 0..n-1 with no gap or repeat.
+ * Known gap: a dropped LAST delta of a transition is invisible here; parseRows
+ * in kascov.ts would have to report its drops to close that.
+ */
+function isWholeLog(events: readonly KascovTokenEvent[], total?: number) {
+  const idx = new Map<string, number[]>();
+  for (const e of events) {
+    const id = `${e.txid}:${e.seq}`;
+    idx.set(id, [...(idx.get(id) ?? []), e.deltaIdx]);
+  }
+  return (
+    idx.size === total &&
+    [...idx.values()].every((d) =>
+      d.sort((a, b) => a - b).every((v, i) => v === i),
+    )
+  );
+}
+
 const needsLog = (r: KascovTransfer) =>
   r.status !== "exact" && r.status !== "self";
 
@@ -215,14 +236,28 @@ export async function attributeFromEventLog(
 ): Promise<readonly KascovTransfer[]> {
   if (!rows.some(needsLog)) return rows;
   const events: KascovTokenEvent[] = [];
+  let total: number | undefined;
   let beforeSeq: number | undefined;
-  for (let page = 0; ; page++) {
-    if (page === EVENT_LOG_PAGE_CAP) return rows;
-    const res = await fetchEvents(tokenId, beforeSeq);
-    events.push(...res.events);
-    if (res.nextBeforeSeq === undefined) break;
-    beforeSeq = res.nextBeforeSeq;
+  try {
+    for (let page = 0; ; page++) {
+      if (page === EVENT_LOG_PAGE_CAP) return rows;
+      const res = await fetchEvents(tokenId, beforeSeq);
+      // No count, or a count that moved between pages: completeness unprovable.
+      if (
+        res.eventsTotal === undefined ||
+        (total ?? res.eventsTotal) !== res.eventsTotal
+      )
+        return rows;
+      total = res.eventsTotal;
+      events.push(...res.events);
+      if (res.nextBeforeSeq === undefined) break;
+      beforeSeq = res.nextBeforeSeq;
+    }
+  } catch {
+    // The log is enrichment: its failure must not cost the page the rows it has.
+    return rows;
   }
+  if (!isWholeLog(events, total)) return rows;
   const log = replayEventLog(events);
   return rows.map((r) => {
     const movements = needsLog(r) ? log.get(`${r.txid}:${r.seq}`) : undefined;

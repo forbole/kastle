@@ -9,7 +9,8 @@ import type { KascovTransfer } from "@/lib/kcc20/providers/kascov";
 
 // history.ts reaches the wasm codec and image assets; esbuild bundles it like the swap-history spec.
 type Modules = typeof import("@/lib/kcc20/history") &
-  typeof import("@/lib/kcc20/providers/kascov");
+  typeof import("@/lib/kcc20/providers/kascov") &
+  typeof import("@/ui/popup/kcc20/labels");
 let m: Modules;
 
 const FIXTURES = path.join(
@@ -42,7 +43,11 @@ test.beforeAll(async () => {
   const outfile = path.join(tmpdir(), `kcc20-attr-unit-${process.pid}.mjs`);
   await build({
     stdin: {
-      contents: ["@/lib/kcc20/history", "@/lib/kcc20/providers/kascov"]
+      contents: [
+        "@/lib/kcc20/history",
+        "@/lib/kcc20/providers/kascov",
+        "@/ui/popup/kcc20/labels",
+      ]
         .map((p) => `export * from ${JSON.stringify(p)};`)
         .join("\n"),
       resolveDir: repo,
@@ -182,6 +187,7 @@ test("a log past the page cap is not replayed", async () => {
   let calls = 0;
   const endless: typeof m.fetchTokenEvents = async () => ({
     events: [],
+    eventsTotal: 1,
     nextBeforeSeq: ++calls,
   });
   const [attributed] = await m.attributeFromEventLog(
@@ -200,4 +206,59 @@ test("an all-exact set reads no event log", async () => {
   const out = await m.attributeFromEventLog(exact, YELLO_ID, spy.fetcher);
   expect(spy.calls).toEqual([]);
   expect(out).toBe(exact);
+});
+
+test("a failed /events read keeps the fetched rows, exact ones included", async () => {
+  const raw = await rows();
+  for (const reason of ["kascov: 503", "kascov: malformed events response"]) {
+    const fail: typeof m.fetchTokenEvents = async () => {
+      throw new Error(reason);
+    };
+    expect(await m.attributeFromEventLog(raw, YELLO_ID, fail)).toBe(raw);
+  }
+});
+
+test("a log short of eventsTotal marks nothing exact", async () => {
+  const raw = await rows();
+  const short: typeof m.fetchTokenEvents = async (id, before) => ({
+    ...(await m.fetchTokenEvents(id, before)),
+    eventsTotal: 47,
+  });
+  const out = await m.attributeFromEventLog(raw, YELLO_ID, short);
+  expect(out.find((r) => r.seq === 43)?.status).toBe("ambiguous");
+  expect(out.find((r) => r.seq === 45)?.status).toBe("ambiguous");
+});
+
+test("a dropped genesis cell does not hand its spend to an equal cell", async () => {
+  const ev = (seq: number, deltaIdx: number, ownerTo: string) => ({
+    txid: `t${seq}`,
+    seq,
+    deltaIdx,
+    acceptingDaa: 1,
+    ownerTo,
+    amount: 100n,
+  });
+  // Genesis A:100 (idx 0) + B:100 (idx 1); A's delta was dropped by the parser.
+  // Whole, the owner-less spend of 100 is A's or B's: never exact.
+  const log: typeof m.fetchTokenEvents = async () => ({
+    events: [ev(0, 1, "presence:b"), ev(1, 0, "presence:d")],
+    eventsTotal: 2,
+  });
+  const row45 = (await rows()).find((r) => r.seq === 45)!;
+  const row: KascovTransfer = { ...row45, txid: "t1", seq: 1 };
+  const [out] = await m.attributeFromEventLog([row], YELLO_ID, log);
+  expect(out.status).toBe("ambiguous");
+  expect(out.movements).toEqual([]);
+});
+
+test("an amount past 2^53 keeps every whole-token digit", () => {
+  expect(m.formatKcc20Amount(10000000000000001n, 0)).toBe(
+    "10,000,000,000,000,001",
+  );
+  expect(m.formatKcc20Amount(123456789012345678901n, 2)).toBe(
+    "1,234,567,890,123,456,789.01",
+  );
+  expect(m.formatKcc20Amount(12345n, 3)).toBe("12.345");
+  expect(m.formatKcc20Amount(1n, 8)).toBe("0.00000001");
+  expect(m.formatKcc20Amount(0n, 8)).toBe("0");
 });
