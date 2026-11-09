@@ -7,7 +7,7 @@ import TokenDetailPage, {
 import Header from "@/components/GeneralHeader";
 import { Kcc20History } from "@/components/kcc20-asset/Kcc20History";
 import useKcc20Tokens from "@/lib/kcc20/useKcc20Tokens";
-import { useKcc20Price } from "@/lib/kcc20/useKcc20Price";
+import { useKcc20Price, useKrc20FilledToken } from "@/lib/kcc20/useKcc20Price";
 import useCurrencyValue from "@/hooks/useCurrencyValue";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { formatTokenPrice, setPopupPath, textEllipsis } from "@/lib/utils";
@@ -30,10 +30,12 @@ export default function Kcc20Asset() {
       t.covenantId === covenantId &&
       (!rowExt || t.extensionCommitment === rowExt),
   );
-  const meta = token?.meta;
+  // Display reads the KRC-20-filled row; Send keeps the row's own decimals.
+  const shown = useKrc20FilledToken(token);
+  const meta = shown?.meta;
   // Before the row loads there is nothing to price; the label stays hidden.
   const { priceUsd } = useKcc20Price(
-    token ?? { covenantId, family: "kron-legacy", meta: undefined },
+    shown ?? { covenantId, family: "kron-legacy", meta: undefined },
   );
   const { amount: fiatPrice, code: currencyCode } = useCurrencyValue(
     priceUsd ?? 0,
@@ -43,8 +45,7 @@ export default function Kcc20Asset() {
       ? formatTokenPrice(fiatPrice, currencyCode)
       : undefined;
   // The route guard rules out Ledger; only verified, owned pieces are sendable.
-  const canSend =
-    meta?.decimals !== undefined && !!token && token.spendable > 0n;
+  const canSend = token?.meta?.decimals !== undefined && token.spendable > 0n;
   // As mobile: the holding with its ticker, masked with balances hidden.
   // Without decimals the figure already carries its unit ("base units").
   const balance = !token
@@ -52,8 +53,8 @@ export default function Kcc20Asset() {
     : settings?.hideBalances
       ? "*****"
       : meta?.decimals !== undefined && meta.symbol
-        ? `${formatKcc20Balance(token)} ${meta.symbol}`
-        : formatKcc20Balance(token);
+        ? `${formatKcc20Balance(shown!)} ${meta.symbol}`
+        : formatKcc20Balance(shown!);
 
   useEffect(() => {
     setPopupPath();
@@ -95,7 +96,7 @@ export default function Kcc20Asset() {
       priceLabel={priceLabel}
       activeTab={activeTab}
       onTabChange={setActiveTab}
-      history={<Kcc20History address={account?.address} token={token} />}
+      history={<Kcc20History address={account?.address} token={shown} />}
       onSend={
         canSend
           ? () =>

@@ -390,6 +390,67 @@ export function toHistoryEntries(
   );
 }
 
+const sum = (ds: readonly KascovTokenEvent[]) =>
+  ds.reduce((s, d) => s + d.amount, 0n);
+
+/**
+ * One entry per transition of the event log that touches the wallet, in log order: the
+ * fallback when /transfers has no rows (it covers verified-market tokens only).
+ * A split names its one source owner on every delta, so what the wallet lost or gained
+ * reads straight off the deltas. A merge names no input owner: the wallet's share of its
+ * inputs is unknown, so that row stays unattributed and carries no amount.
+ */
+export function eventEntries(
+  events: readonly KascovTokenEvent[],
+  own: ReadonlySet<string>,
+  tip: DaaTip,
+): Kcc20HistoryEntry[] {
+  const byId = new Map<string, KascovTokenEvent[]>();
+  for (const e of events) {
+    const id = `${e.txid}:${e.seq}`;
+    byId.set(id, [...(byId.get(id) ?? []), e]);
+  }
+  const entries: Kcc20HistoryEntry[] = [];
+  for (const [id, ds] of byId) {
+    const from = ds[0].ownerFrom;
+    const toOwn = ds.filter((d) => own.has(d.ownerTo));
+    const out = ds.filter((d) => !own.has(d.ownerTo));
+    const fromOwn = from !== undefined && own.has(from);
+    if (!fromOwn && toOwn.length === 0) continue;
+    const base = {
+      id,
+      txid: ds[0].txid,
+      seq: ds[0].seq,
+      acceptingDaa: ds[0].acceptingDaa,
+      timestampMs: daaToMs(ds[0].acceptingDaa, tip.daa, tip.atMs),
+      approxTime: true as const,
+    };
+    if (!from || ds.some((d) => d.ownerFrom !== from))
+      entries.push({ ...base, kind: "unknown", ambiguous: true });
+    else if (!fromOwn)
+      entries.push({
+        ...base,
+        kind: "receive",
+        amount: sum(toOwn),
+        ambiguous: false,
+        counterparty: from,
+      });
+    else if (out.length === 0)
+      entries.push({ ...base, kind: "self", ambiguous: false });
+    else {
+      const to = new Set(out.map((d) => d.ownerTo));
+      entries.push({
+        ...base,
+        kind: "send",
+        amount: sum(out),
+        ambiguous: false,
+        ...(to.size === 1 && { counterparty: [...to][0] }),
+      });
+    }
+  }
+  return entries;
+}
+
 export type Kcc20HistoryDirection = "in" | "out" | "self";
 
 /**

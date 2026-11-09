@@ -315,6 +315,12 @@ export function useKcc20Price(token?: Kcc20Token) {
     return { priceUsd: 0.0005 };
   return { priceUsd: undefined };
 }
+// The real module also exports the KRC-20 display fill; missing here, Rollup
+// shims it to undefined and every KCC-20 render throws.
+// ponytail: identity, the fill itself is covered by kcc20-history-attribution-unit.
+export function useKrc20FilledToken<T>(token: T): T {
+  return token;
+}
 export function useErc20Assets() {
   return { assets: [] };
 }

@@ -149,8 +149,11 @@ test("switching account mid-Manage never writes the old draft to the new account
   );
   // The toggle press that would have been Done; if the draft was discarded
   // it reads Manage, so open B's own draft and press Done on that.
-  const toggle = page.getByRole("button", { name: /^(Done|Manage)$/ });
-  if ((await toggle.textContent())?.trim() === "Manage") await toggle.click();
+  // Manage is icon-only (aria-label), so read the role name, not textContent.
+  await expect(
+    page.getByRole("button", { name: /^(Done|Manage)$/ }),
+  ).toBeVisible();
+  if (await manage(page).isVisible()) await manage(page).click();
   await done(page).click();
   await expect(switches(page)).toHaveCount(0);
   expect(await stored()).toBe(before);
@@ -241,6 +244,107 @@ test("one flat list: no heading between KAS and the tokens, and KAS cannot be hi
   }
   await expect(page.getByRole("heading")).toHaveCount(0);
   await expect(page.getByText("Tokens", { exact: true })).toHaveCount(0);
+});
+
+// Asset rows (one ticker each) and the Manage / Done control, in document order.
+const listOrder = (page: Page) =>
+  page.evaluate(() =>
+    [...document.querySelectorAll('[data-part="ticker"], button')]
+      .map((n) =>
+        n.matches('[data-part="ticker"]')
+          ? n.closest('[data-testid="kas-row"]')
+            ? "kas"
+            : "token"
+          : /^(Manage|Done)$/.test(
+                (n.getAttribute("aria-label") ?? n.textContent ?? "").trim(),
+              )
+            ? "control"
+            : "",
+      )
+      .filter(Boolean),
+  );
+
+test("the Manage / Done control sits in a header row above every asset row", async ({
+  page,
+}) => {
+  await dashboard(page);
+  for (const mode of ["Manage", "Done"]) {
+    const order = await listOrder(page);
+    const control = order.indexOf("control");
+    expect(control, `${mode}: ${order}`).toBeGreaterThanOrEqual(0);
+    expect(control, `${mode}: ${order}`).toBeLessThan(order.indexOf("kas"));
+    // KAS, then the tokens, continuous: no control between them.
+    const between = order.slice(order.indexOf("kas"), order.indexOf("token"));
+    expect(between, mode).not.toContain("control");
+    if (mode === "Manage") await manage(page).click();
+  }
+  await expect(done(page)).toBeVisible();
+});
+
+const search = (page: Page) =>
+  page.getByRole("searchbox", { name: "Search assets" });
+const tickers = (page: Page) => page.locator('[data-part="ticker"]');
+
+test("typing a token's label narrows the list to it; clear restores it", async ({
+  page,
+}) => {
+  const errors = await dashboard(page);
+  const all = await tickers(page).count();
+  await expect(page.getByRole("button", { name: "Clear search" })).toHaveCount(
+    0,
+  );
+  // Case-insensitive, on the displayed ticker.
+  await search(page).fill("nacho");
+  await expect(tickers(page)).toHaveText(["NACHO"]);
+  await expect(page.getByTestId("kas-row")).toHaveCount(0);
+  await page.getByRole("button", { name: "Clear search" }).click();
+  await expect(search(page)).toHaveValue("");
+  await expect(tickers(page)).toHaveCount(all);
+  await expect(page.getByText("NACHO")).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test("in manage mode the search still works, KAS has no switch, a token row does", async ({
+  page,
+}) => {
+  await dashboard(page);
+  await manage(page).click();
+  await expect(page.getByTestId("kas-row").getByRole("switch")).toHaveCount(0);
+  await expect(
+    page
+      .getByTestId("manage-row")
+      .filter({ hasText: "KASPY" })
+      .getByRole("switch"),
+  ).toHaveCount(1);
+  await search(page).fill("KASPY");
+  await expect(switches(page)).toHaveCount(1);
+  await expect(page.getByRole("switch", { name: "Show KASPY" })).toBeVisible();
+  await search(page).fill("kas");
+  await expect(page.getByTestId("kas-row")).toBeVisible();
+  await expect(page.getByTestId("kas-row").getByRole("switch")).toHaveCount(0);
+  await expect(done(page)).toBeVisible();
+});
+
+test("an unmatched query shows the empty state with the way back", async ({
+  page,
+}) => {
+  await dashboard(page);
+  const empty = page.getByTestId("assets-no-match");
+  await expect(empty).toHaveCount(0);
+  await search(page).fill("zzzz-no-such-asset");
+  await expect(tickers(page)).toHaveCount(0);
+  await expect(empty).toBeVisible();
+  await expect(empty).toContainText("No assets match");
+  // Search and Manage stay reachable while the list is empty.
+  await expect(search(page)).toBeVisible();
+  await expect(manage(page)).toBeVisible();
+  await empty.getByRole("button", { name: "Show all assets" }).click();
+  await expect(search(page)).toHaveValue("");
+  await expect(page.getByTestId("kas-row")).toBeVisible();
+  // A matching query keeps the empty state hidden.
+  await search(page).fill("KTEST");
+  await expect(empty).toBeHidden();
+  await expect(tickers(page)).toHaveCount(2);
 });
 
 test("a kascov-LISTED KCC-20 row reads like every other token row", async ({
