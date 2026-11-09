@@ -6,6 +6,8 @@ export type AssetTab = "history" | "info";
 type Props = {
   active: AssetTab;
   onChange: (tab: AssetTab) => void;
+  /** Set only by a page that renders `assetPanelId(tab)` panels; else aria-controls would dangle. */
+  panelled?: boolean;
 };
 
 const TABS: { tab: AssetTab; label: string }[] = [
@@ -19,7 +21,7 @@ export const assetPanelId = (tab: AssetTab) => `asset-panel-${tab}`;
 
 // The History | Token info control on top of every tabbed asset detail page.
 // Real tabs: one tab stop, arrows / Home / End move and select.
-export default function AssetTabs({ active, onChange }: Props) {
+export default function AssetTabs({ active, onChange, panelled }: Props) {
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const onKeyDown = (event: React.KeyboardEvent, index: number) => {
@@ -61,7 +63,7 @@ export default function AssetTabs({ active, onChange }: Props) {
           type="button"
           role="tab"
           id={assetTabId(tab)}
-          aria-controls={assetPanelId(tab)}
+          aria-controls={panelled ? assetPanelId(tab) : undefined}
           aria-selected={active === tab}
           tabIndex={active === tab ? 0 : -1}
           className={twMerge(

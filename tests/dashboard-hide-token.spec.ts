@@ -250,10 +250,6 @@ test("a kascov-LISTED KCC-20 row reads like every other token row", async ({
   expect(Math.round((await tick(luke)).x)).toBe(
     Math.round((await tick(kas)).x),
   );
-  await page.screenshot({
-    path: "/Users/leonardo/kastle-qa/qa6-shots/03-dashboard.png",
-    fullPage: true,
-  });
   expect(errors).toEqual([]);
 });
 
@@ -268,9 +264,5 @@ test("a kascov-LISTED KCC-20 detail page shows the scaled balance", async ({
   await expect(page.getByText("2,000 LUKE")).toBeVisible();
   await expect(page.getByText("8", { exact: true })).toBeVisible();
   await expect(page.getByText(/base units/)).toHaveCount(0);
-  await page.screenshot({
-    path: "/Users/leonardo/kastle-qa/qa6-shots/03-detail.png",
-    fullPage: true,
-  });
   expect(errors).toEqual([]);
 });

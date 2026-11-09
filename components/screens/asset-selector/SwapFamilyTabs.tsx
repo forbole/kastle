@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { twMerge } from "tailwind-merge";
 import braidLogo from "@/assets/images/providers/braid-logo.svg";
 import kronLogo from "@/assets/images/providers/kron-logo.png";
@@ -43,18 +44,47 @@ export default function SwapFamilyTabs({
   empty: boolean;
 }) {
   const label = FAMILY_TABS.find((t) => t.key === value)?.label;
+  const refs = useRef<(HTMLButtonElement | null)[]>([]);
+
+  // Same keys as AssetTabs: arrows wrap, Home / End jump; focus follows selection.
+  const onKeyDown = (event: React.KeyboardEvent, index: number) => {
+    const last = FAMILY_TABS.length - 1;
+    const next =
+      event.key === "ArrowRight"
+        ? index === last
+          ? 0
+          : index + 1
+        : event.key === "ArrowLeft"
+          ? index === 0
+            ? last
+            : index - 1
+          : event.key === "Home"
+            ? 0
+            : event.key === "End"
+              ? last
+              : undefined;
+    if (next === undefined) return;
+    event.preventDefault();
+    refs.current[next]?.focus();
+    onChange(FAMILY_TABS[next].key);
+  };
   return (
     <div className="pb-2">
       {/* --prevent-on-load-init: Preline's HSTabs autoInit claims
           [role=tablist] and throws when no child carries its `active` class. */}
       <div role="tablist" className="--prevent-on-load-init flex gap-2">
-        {FAMILY_TABS.map((t) => (
+        {FAMILY_TABS.map((t, index) => (
           <button
             key={t.key}
+            ref={(el) => {
+              refs.current[index] = el;
+            }}
             type="button"
             role="tab"
             aria-selected={t.key === value}
+            tabIndex={t.key === value ? 0 : -1}
             onClick={() => onChange(t.key)}
+            onKeyDown={(event) => onKeyDown(event, index)}
             className={twMerge(
               "flex h-9 items-center gap-2 rounded-full border px-4 text-sm font-medium",
               t.key === value
