@@ -213,6 +213,43 @@ test("one flat list: no heading between KAS and the tokens, and KAS cannot be hi
   await expect(page.getByText("Tokens", { exact: true })).toHaveCount(0);
 });
 
+// Every element child of the list container, in DOM order, by role.
+const listOrder = (page: Page) =>
+  page.getByTestId("kas-row").evaluate((kas) =>
+    [...kas.parentElement!.children].map((n) =>
+      n.getAttribute("data-testid") === "kas-row"
+        ? "kas"
+        : n.getAttribute("data-testid") === "manage-row" ||
+            /KASPY|NACHO|KTEST/.test(n.textContent ?? "")
+          ? "token"
+          : n.querySelector("button") &&
+              /^(Manage|Done)$/.test(
+                (n.querySelector("button")!.getAttribute("aria-label") ??
+                  n.querySelector("button")!.textContent ??
+                  "").trim(),
+              )
+            ? "control"
+            : "other",
+    ),
+  );
+
+test("the Manage / Done control sits in a header row above every asset row", async ({
+  page,
+}) => {
+  await dashboard(page);
+  for (const mode of ["Manage", "Done"]) {
+    const order = await listOrder(page);
+    const control = order.indexOf("control");
+    expect(control, `${mode}: ${order}`).toBeGreaterThanOrEqual(0);
+    expect(control, `${mode}: ${order}`).toBeLessThan(order.indexOf("kas"));
+    // KAS, then the tokens, continuous: no control between them.
+    const between = order.slice(order.indexOf("kas"), order.indexOf("token"));
+    expect(between, mode).not.toContain("control");
+    if (mode === "Manage") await manage(page).click();
+  }
+  await expect(done(page)).toBeVisible();
+});
+
 test("a kascov-LISTED KCC-20 row reads like every other token row", async ({
   page,
 }) => {

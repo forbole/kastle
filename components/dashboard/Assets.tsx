@@ -117,6 +117,24 @@ export default function Assets() {
     </div>
   ) : (
     <div className="mb-4 flex flex-col items-stretch gap-2">
+      {/*Header row above every asset row: the Manage control sits at its right edge*/}
+      <div data-testid="assets-header" className="flex items-stretch gap-2">
+        {tokenCount > 0 && (
+          <button
+            type="button"
+            aria-label={managing ? undefined : "Manage"}
+            className="ml-auto flex h-11 min-w-11 shrink-0 items-center justify-center rounded-lg border border-daintree-700 bg-daintree-800 text-sm font-semibold text-icy-blue-400 hover:border-white hover:text-icy-blue-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-icy-blue-400"
+            onClick={managing ? leaveManage : enterManage}
+          >
+            {managing ? (
+              <span className="px-2">Done</span>
+            ) : (
+              <i className="hn hn-grid text-base" aria-hidden />
+            )}
+          </button>
+        )}
+      </div>
+
       {/*KAS: no toggle, it cannot be hidden*/}
       <div
         data-testid="kas-row"
@@ -141,19 +159,6 @@ export default function Assets() {
         supportEvmL2s.map((chain) => (
           <EvmKasAsset key={chain.id} chainId={numberToHex(chain.id)} />
         ))}
-
-      {/*Manage: hide or show KRC-20 / KCC-20 rows; no section header, one flat list*/}
-      {tokenCount > 0 && (
-        <div className="flex justify-end text-sm">
-          <button
-            type="button"
-            className="rounded-lg px-2 py-1 font-semibold text-icy-blue-400 hover:bg-daintree-800 hover:text-icy-blue-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-icy-blue-400"
-            onClick={managing ? leaveManage : enterManage}
-          >
-            {managing ? "Done" : "Manage"}
-          </button>
-        </div>
-      )}
 
       {allHidden && (
         <div
