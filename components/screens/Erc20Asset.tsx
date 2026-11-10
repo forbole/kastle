@@ -53,7 +53,7 @@ export default function Erc20Asset() {
         <AssetTabs active={activeTab} onChange={setActiveTab} />
 
         {activeTab === "history" && (
-          <div className="mt-8">
+          <div className="mt-8 flex flex-col">
             <HistoryList
               key={`${chainId}:${address}:${evmAddress}`}
               records={history.records}

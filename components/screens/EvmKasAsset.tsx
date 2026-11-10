@@ -50,7 +50,7 @@ export default function EvmKasAsset() {
 
         {activeTab === "info" && <EvmKasInfo chainId={chainId! ?? "0x0"} />}
         {activeTab === "history" && (
-          <div className="mt-8">
+          <div className="mt-8 flex flex-col">
             <HistoryList
               key={`${chainId}:${evmAddress}`}
               records={history.records}

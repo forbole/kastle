@@ -1046,4 +1046,21 @@ for (const s of [
     await expect(page.getByRole("button", { name: s.row })).toBeVisible();
     expect(await gapBelowTabs(page)).toBe(SECTION_GAP);
   });
+
+  // While page 1 loads, HistoryList's root is the Spinner, centred by
+  // `self-center`, which only works with a flex parent. The gap wrapper
+  // must stay a flex container or the spinner drops to the left edge.
+  test(`${s.key}: History wrapper is a flex container so the loading spinner stays centred`, async ({
+    page,
+  }) => {
+    await open(page, s.route);
+    await expect(page.getByRole("button", { name: s.row })).toBeVisible();
+    const display = await page.evaluate(() => {
+      let tabs = document.querySelector('[role="tablist"]') as HTMLElement;
+      while (!tabs.parentElement!.classList.contains("overflow-y-auto"))
+        tabs = tabs.parentElement!;
+      return getComputedStyle(tabs.nextElementSibling as HTMLElement).display;
+    });
+    expect(display).toBe("flex");
+  });
 }
