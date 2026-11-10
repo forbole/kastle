@@ -518,23 +518,27 @@ export default function Activity() {
         ) : (
           <>
             {warnings.length > 0 && (
-              <div className="flex items-start gap-1 rounded-lg border border-amber-500/30 bg-amber-500/10 py-2 pl-3 pr-0">
-                <div className="flex flex-1 flex-col gap-1">
+              <div className="flex items-center gap-1 rounded-lg border border-amber-500/30 bg-amber-500/10 py-0 pl-3 pr-0">
+                <div className="flex flex-1 flex-col gap-1 py-2">
                   {warnings.map((w) => (
                     <p key={w.code} className="text-xs text-amber-300">
                       {w.message}
                     </p>
                   ))}
                 </div>
-                {/* Figma's _button-icon-small (16 px icon, radius 8, no fill) in
-                    a 44×44 hit box; -my pulls it back so one line stays ~32 px. */}
+                {/* Figma's _button-icon-small (16 px icon, radius 8): an invisible
+                    44×44 hit box centred inside the panel (py-0, no negative
+                    margin, so nothing paints past the border); the 32 px span
+                    carries the hover fill and the inset focus ring. */}
                 <button
                   type="button"
                   aria-label="Dismiss"
                   onClick={dismissWarnings}
-                  className="-my-[14px] flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-lg text-amber-300 hover:bg-amber-500/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+                  className="group flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center text-amber-300 focus:outline-none"
                 >
-                  <i className="hn hn-times text-[16px]" />
+                  <span className="flex size-8 items-center justify-center rounded-md group-hover:bg-amber-500/10 group-focus-visible:ring-2 group-focus-visible:ring-inset group-focus-visible:ring-amber-400 group-active:bg-amber-500/20">
+                    <i className="hn hn-times text-[16px]" />
+                  </span>
                 </button>
               </div>
             )}

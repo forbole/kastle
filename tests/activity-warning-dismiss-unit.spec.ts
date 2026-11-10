@@ -263,3 +263,44 @@ test("an unanswered feed leaves the stored dismissals untouched", async ({
   await page.waitForTimeout(300);
   expect(await stored(page)).toEqual(store[KEY]);
 });
+
+test("Dismiss hit box sits inside the warning panel; one-line panel stays compact", async ({
+  page,
+}) => {
+  // Real Tailwind CSS for Activity.tsx (default theme covers every class the
+  // panel uses), so the bounding boxes below are the rendered geometry.
+  const { default: postcss } = await import("postcss");
+  const { default: tailwindcss } = await import("tailwindcss");
+  const { css } = await postcss([
+    tailwindcss({
+      content: [path.join(repo, "components/screens/Activity.tsx")],
+    }),
+  ]).process("@tailwind base; @tailwind utilities;", { from: undefined });
+  await mount(page, { feed: { swapSource: "swap_history_unavailable" } });
+  await page.addStyleTag({ content: css });
+  const btn = page.getByRole("button", { name: "Dismiss" });
+  await expect(btn).toBeVisible();
+  const g = await btn.evaluate((b) => {
+    const r = b.getBoundingClientRect();
+    const p = b.parentElement!.getBoundingClientRect();
+    return {
+      b: {
+        t: r.top,
+        b: r.bottom,
+        l: r.left,
+        r: r.right,
+        w: r.width,
+        h: r.height,
+      },
+      p: { t: p.top, b: p.bottom, l: p.left, r: p.right, h: p.height },
+    };
+  });
+  console.log("dismiss geometry:", JSON.stringify(g));
+  expect(g.b.t).toBeGreaterThanOrEqual(g.p.t - 0.5);
+  expect(g.b.b).toBeLessThanOrEqual(g.p.b + 0.5);
+  expect(g.b.l).toBeGreaterThanOrEqual(g.p.l - 0.5);
+  expect(g.b.r).toBeLessThanOrEqual(g.p.r + 0.5);
+  expect(g.b.w).toBeGreaterThanOrEqual(44);
+  expect(g.b.h).toBeGreaterThanOrEqual(44);
+  expect(g.p.h).toBeLessThanOrEqual(48);
+});
