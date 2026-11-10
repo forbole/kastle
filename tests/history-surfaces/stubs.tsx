@@ -81,7 +81,7 @@ export function useTokenInfo(tick?: string) {
 }
 
 // KAS: the adapter nets own inputs against own outputs, so every tx carries an
-// amount; "no amount" cannot happen. The net-zero self row is a known 0.
+// amount; "no amount" cannot happen. The self row shows its own outputs (100 KAS).
 const kas = (
   n: number,
   inputs: [string, number][],

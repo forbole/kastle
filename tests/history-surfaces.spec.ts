@@ -41,8 +41,8 @@ const SURFACES: Surface[] = [
     rows: [
       row("Sent", "To kaspa:qalice", "-250 KAS"),
       row("Received", "From kaspa:qbob", "+100 KAS"),
-      // Nets zero: a known 0, not a placeholder (pinned in evm-history-unit).
-      row("Self transfer", null, "0 KAS"),
+      // Self shows the own outputs that came back, never the fee-only net.
+      row("Self transfer", null, "100 KAS"),
       row("Received", "From kaspa:qbob", "+5 KAS", false),
       row("Sent", null, "-30 KAS"),
     ],

@@ -16,7 +16,7 @@ export function toHistoryRecord(
   ctx: {
     ownAddress: string;
     tick: string;
-    /** Positive integer, or the amount is shown in base units. */
+    /** Non-negative integer, or the amount is shown in base units. */
     decimals: number | undefined;
     network: NetworkType;
     usdPrice?: number;
@@ -56,7 +56,7 @@ export function toHistoryRecord(
   const dec =
     ctx.decimals !== undefined &&
     Number.isInteger(ctx.decimals) &&
-    ctx.decimals > 0
+    ctx.decimals >= 0
       ? ctx.decimals
       : null;
   const big = raw === null ? null : BigInt(raw);

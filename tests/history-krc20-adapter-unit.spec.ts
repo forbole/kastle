@@ -159,7 +159,7 @@ test("bad mtsAdd: time unavailable", () => {
   );
 });
 
-for (const decimals of [undefined, 1.5, -2, 0]) {
+for (const decimals of [undefined, 1.5, -2]) {
   test(`unknown scale (${decimals}): base units, no fiat, no throw`, () => {
     const r = toHistoryRecord(op({ amt: "100000000" }), { ...ctx, decimals });
     expect(r.amount).toEqual({
@@ -169,3 +169,19 @@ for (const decimals of [undefined, 1.5, -2, 0]) {
     expect(r.fiat.quality).toBe("unavailable");
   });
 }
+
+test("zero-decimals token: ticker, decimals 0, fiat from the price", () => {
+  const r = toHistoryRecord(op({ amt: "42" }), { ...ctx, decimals: 0 });
+  expect(r.amount).toEqual({
+    value: { raw: "42", decimals: 0, symbol: "KASPY" },
+    quality: "exact",
+  });
+  expect(r.fiat.quality).toBe("approximate");
+  expect(r.fiat.value?.usd).toBeCloseTo(21, 9);
+});
+
+test("decimals undefined: still base units, no fiat", () => {
+  const r = toHistoryRecord(op({ amt: "42" }), { ...ctx, decimals: undefined });
+  expect(r.amount.value?.symbol).toBe("base units");
+  expect(r.fiat).toEqual({ value: null, quality: "unavailable" });
+});

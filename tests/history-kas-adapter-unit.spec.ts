@@ -100,7 +100,7 @@ test("self-transfer nets zero and names no one", () => {
   );
   expect(r.direction).toBe("self");
   expect(r.kind).toBe("self");
-  expect(r.amount.value?.raw).toBe("0");
+  expect(r.amount.value?.raw).toBe("100000000");
   expect(r.counterparty.quality).toBe("unavailable");
 });
 
@@ -175,4 +175,55 @@ test("one external recipient: send", () => {
   expect(r.kind).toBe("send");
   expect(r.direction).toBe("out");
   expect(r.counterparty).toEqual({ value: { address: B }, quality: "exact" });
+});
+
+test("self transfer: amount is the own outputs (2.5 KAS), never the fee", () => {
+  // 2.51 KAS in, 2.5 KAS back in two own outputs: the 0.01 KAS fee is the net.
+  const r = toHistoryRecord(
+    tx({
+      inputs: [{ address: ME, amount: 251_000_000 }],
+      outputs: [
+        { address: ME, amount: 200_000_000 },
+        { address: ME, amount: 50_000_000 },
+      ],
+    }),
+    ME,
+    opts,
+  );
+  expect(r.direction).toBe("self");
+  expect(r.amount).toEqual({
+    value: { raw: "250000000", decimals: 8, symbol: "KAS" },
+    quality: "exact",
+  });
+  expect(r.fiat.value?.usd).toBeCloseTo(0.25, 9);
+});
+
+test("self transfer with no own outputs: amount unavailable", () => {
+  // Zero-value own outputs: nothing moved and came back.
+  const r = toHistoryRecord(
+    tx({
+      inputs: [{ address: ME, amount: 100_000_000 }],
+      outputs: [{ address: ME, amount: 0 }],
+    }),
+    ME,
+    opts,
+  );
+  expect(r.direction).toBe("self");
+  expect(r.amount).toEqual({ value: null, quality: "unavailable" });
+  expect(r.fiat).toEqual({ value: null, quality: "unavailable" });
+});
+
+test("unresolved input address with a net inflow: receive, not self", () => {
+  const r = toHistoryRecord(
+    tx({
+      inputs: [{ address: "", amount: 600_000_000 }],
+      outputs: [{ address: ME, amount: 500_000_000 }],
+    }),
+    ME,
+    opts,
+  );
+  expect(r.direction).toBe("in");
+  expect(r.kind).toBe("receive");
+  expect(r.amount.value?.raw).toBe("500000000");
+  expect(r.counterparty.quality).toBe("unavailable");
 });

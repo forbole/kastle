@@ -25,11 +25,14 @@ export function toHistoryRecord(
   opts: { network: NetworkType; usdPrice?: number },
 ): HistoryRecord {
   const net = sum(tx.outputs, ownAddress) - sum(tx.inputs, ownAddress);
-  // Party first: with no outside address on either side it is a transfer
-  // between own addresses, whatever the fee does to the net.
+  // Party first: with every address on both sides our own it is a transfer
+  // between own addresses, whatever the fee does to the net. An unresolved
+  // (empty) address is unknown, not own: it cannot prove self, so it counts
+  // as external and the net decides.
   const external =
-    others(tx.inputs, ownAddress).length > 0 ||
-    others(tx.outputs, ownAddress).length > 0;
+    tx.inputs.length === 0 ||
+    tx.outputs.length === 0 ||
+    [...tx.inputs, ...tx.outputs].some((x) => x.address !== ownAddress);
   const direction = !external
     ? "self"
     : net < 0n
@@ -37,7 +40,9 @@ export function toHistoryRecord(
       : net > 0n
         ? "in"
         : "self";
-  const abs = net < 0n ? -net : net;
+  // Self: the value that moved and came back, never the fee-only net.
+  const abs =
+    direction === "self" ? sum(tx.outputs, ownAddress) : net < 0n ? -net : net;
   const parties =
     direction === "out"
       ? others(tx.outputs, ownAddress)
@@ -54,13 +59,16 @@ export function toHistoryRecord(
     kind:
       direction === "out" ? "send" : direction === "in" ? "receive" : "self",
     direction,
-    amount: {
-      value: { raw: abs.toString(), decimals: 8, symbol: "KAS" },
-      quality: "exact",
-    },
+    amount:
+      direction === "self" && abs === 0n
+        ? NONE
+        : {
+            value: { raw: abs.toString(), decimals: 8, symbol: "KAS" },
+            quality: "exact",
+          },
     kasLeg: NONE,
     fiat:
-      usdPrice > 0
+      usdPrice > 0 && !(direction === "self" && abs === 0n)
         ? { value: { usd: kas * usdPrice }, quality: "approximate" }
         : NONE,
     time: {
