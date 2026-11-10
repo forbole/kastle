@@ -51,6 +51,12 @@ export default function Kcc20Send() {
       t.covenantId === covenantId &&
       (!rowExt || t.extensionCommitment === rowExt),
   );
+  // An unsettled lookup is not a verdict: SWR reports isLoading false while the
+  // key (the address) is still undefined, and on a revalidated key before data
+  // lands. Only a settled list without this row (or without its decimals)
+  // means the token cannot be sent.
+  const lookupSettled =
+    !!account?.address && !isLoading && tokens !== undefined;
 
   const form = useForm<KRC20SendForm>({
     defaultValues: {
@@ -201,7 +207,9 @@ export default function Kcc20Send() {
             <>
               <Header title="Send" onClose={onClose} onBack={onClose} />
               <p className="py-8 text-center text-sm text-daintree-400">
-                {isLoading ? "Loading token..." : "This token cannot be sent."}
+                {lookupSettled
+                  ? "This token cannot be sent."
+                  : "Loading token..."}
               </p>
             </>
           ))}

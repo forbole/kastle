@@ -1,5 +1,6 @@
 // Stubs for the hooks, the KCC-20 builder and the WASM the send screens reach
 // into. Scenario knobs come from the page's query string (see main.tsx).
+import { useEffect, useState } from "react";
 import type { Kcc20Token } from "@/lib/kcc20";
 
 export const OWNER = "kaspa:qowner";
@@ -241,8 +242,22 @@ export function useKcc20Price(token?: Pick<Kcc20Token, "family">) {
 export function useKrc20FilledToken<T>(token: T): T {
   return token;
 }
+// kcc20Unsettled=<ms>: SWR's in-between state (no data, isLoading false) for
+// that long; the settle time lands in window.__kcc20SettledAt.
 export function useKcc20Tokens(address?: string) {
+  const unsettledMs = query.get("kcc20Unsettled");
+  const [settled, setSettled] = useState(unsettledMs === null);
+  useEffect(() => {
+    if (settled) return;
+    const t = setTimeout(() => {
+      (window as unknown as { __kcc20SettledAt: number }).__kcc20SettledAt =
+        performance.now();
+      setSettled(true);
+    }, Number(unsettledMs));
+    return () => clearTimeout(t);
+  }, [settled]);
   if (query.has("kcc20Loading")) return { data: undefined, isLoading: true };
+  if (!settled) return { data: undefined, isLoading: false };
   return { data: address ? [kcc20Token] : undefined, isLoading: false };
 }
 

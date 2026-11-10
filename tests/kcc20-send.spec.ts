@@ -253,6 +253,61 @@ test("an unknown covenant id shows the unavailable state", async ({ page }) => {
   await expect(page.getByText("This token cannot be sent.")).toBeVisible();
 });
 
+// QA 4: an unsettled lookup (no data yet, isLoading already false) is not a
+// verdict. Records when the unavailable copy first paints, if ever.
+async function watchCannotSend(page: Page) {
+  await page.addInitScript(() => {
+    const w = window as unknown as { __cannotSendAt?: number };
+    new MutationObserver(() => {
+      if (
+        w.__cannotSendAt === undefined &&
+        document.body?.textContent?.includes("This token cannot be sent.")
+      ) {
+        w.__cannotSendAt = performance.now();
+      }
+    }).observe(document, {
+      subtree: true,
+      childList: true,
+      characterData: true,
+    });
+  });
+}
+const marks = (page: Page) =>
+  page.evaluate(() => {
+    const w = window as unknown as {
+      __cannotSendAt?: number;
+      __kcc20SettledAt?: number;
+    };
+    return { cannotSendAt: w.__cannotSendAt, settledAt: w.__kcc20SettledAt };
+  });
+
+test("an unsettled token lookup shows loading, then the form", async ({
+  page,
+}) => {
+  await watchCannotSend(page);
+  await page.goto(
+    `${base}/?route=/kcc20/send/${"ab".repeat(32)}&kcc20Unsettled=400`,
+  );
+  await expect(page.getByText("Loading token...")).toBeVisible();
+  await expect(page.getByText("Send to ...")).toBeVisible();
+  const { cannotSendAt, settledAt } = await marks(page);
+  expect(settledAt).toBeDefined();
+  expect(cannotSendAt).toBeUndefined();
+});
+
+test("the unavailable copy waits for the lookup to settle", async ({
+  page,
+}) => {
+  await watchCannotSend(page);
+  await page.goto(
+    `${base}/?route=/kcc20/send/${"cd".repeat(32)}&kcc20Unsettled=400`,
+  );
+  await expect(page.getByText("This token cannot be sent.")).toBeVisible();
+  const { cannotSendAt, settledAt } = await marks(page);
+  expect(settledAt).toBeDefined();
+  expect(cannotSendAt! >= settledAt!).toBe(true);
+});
+
 // As a KRC-20 or .k row: a tap opens the detail page, never send directly.
 test("a dashboard tap opens the detail page, not send", async ({ page }) => {
   const errors: string[] = [];
