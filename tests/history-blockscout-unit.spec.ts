@@ -25,8 +25,9 @@ const {
   blockscoutTransferToHistoryRecord,
   blockscoutTxToHistoryRecord,
   isNativeTransfer,
-  matchesSource,
+  isValueMove,
 } = await import("@/lib/history/blockscout");
+const { evmHistoryGate } = await import("@/hooks/evm/useEvmHistory");
 const { findChainByHexId, kasplexTestnet } = await import("@/lib/layer2");
 
 const KASPLEX = "0x3173b"; // 202555
@@ -111,17 +112,6 @@ test.describe("blockscoutPageUrl", () => {
     expect(url.pathname).toBe(`/api/v2/addresses/${OWNER}/token-transfers`);
     expect(url.searchParams.get("type")).toBe("ERC-20");
     expect(url.searchParams.get("token")).toBe(TOKEN);
-  });
-
-  test("ERC-721 instance uses the token instance endpoint", () => {
-    expect(
-      blockscoutPageUrl(
-        BASE,
-        OWNER,
-        { family: "erc721", token: TOKEN, tokenId: "42" },
-        null,
-      ),
-    ).toBe(`${BASE}/api/v2/tokens/${TOKEN}/instances/42/transfers`);
   });
 
   test("cursor round-trips and drops null values", () => {
@@ -315,21 +305,56 @@ test.describe("blockscoutTransferToHistoryRecord", () => {
     expect(r.amount).toEqual({ value: null, quality: "unavailable" });
   });
 
+  test("zero-value transfer (address poisoning) dropped, 1 wei kept", () => {
+    const zero = transfer({
+      from: { hash: OWNER },
+      to: { hash: OTHER },
+      total: { decimals: "6", value: "0" },
+    });
+    const oneWei = transfer({ total: { decimals: "18", value: "1" } });
+    expect([zero, oneWei].filter(isValueMove)).toEqual([oneWei]);
+    expect(isValueMove(transfer({ total: null }))).toBe(true);
+    expect(isValueMove(transfer({ total: { token_id: "7" } }))).toBe(true);
+  });
+
   test("unknown chain has no explorer", () => {
     expect(
       blockscoutTransferToHistoryRecord(transfer(), OWNER, UNKNOWN).explorer,
     ).toBeNull();
   });
+});
 
-  test("matchesSource filters one ERC-721 id by owner", () => {
-    const src = { family: "erc721", token: TOKEN, tokenId: "7" } as const;
-    const t = transfer({ total: { token_id: "7" } });
-    expect(matchesSource(t, src)).toBe(true);
-    expect(matchesSource(t, src, OWNER.toLowerCase())).toBe(true);
-    expect(matchesSource(t, src, ZERO)).toBe(false);
-    expect(matchesSource(transfer({ total: { token_id: "8" } }), src)).toBe(
-      false,
+test.describe("pending fee and wallet-load gate", () => {
+  test("a pending tx's maximum fee is approximate, an actual fee exact", () => {
+    const pending = blockscoutTxToHistoryRecord(
+      tx({
+        status: null,
+        result: "pending",
+        fee: { type: "maximum", value: "9" },
+      }),
+      OWNER,
+      KASPLEX,
     );
-    expect(matchesSource(t, { family: "evm-native" })).toBe(true);
+    expect(pending.fee.quality).toBe("approximate");
+    expect(blockscoutTxToHistoryRecord(tx(), OWNER, KASPLEX).fee.quality).toBe(
+      "exact",
+    );
+  });
+
+  test("addressPending with no address is loading, not the no-address reason", () => {
+    expect(evmHistoryGate(KASPLEX, undefined, true)).toEqual({
+      unavailable: null,
+      waiting: true,
+    });
+    expect(evmHistoryGate(KASPLEX, undefined, false).unavailable).toEqual({
+      reason: "History needs an EVM address on this account",
+    });
+    expect(evmHistoryGate(KASPLEX, OWNER, true)).toEqual({
+      unavailable: null,
+      waiting: false,
+    });
+    expect(evmHistoryGate(UNKNOWN, undefined, true).unavailable).toEqual({
+      reason: "History is not available for this network",
+    });
   });
 });

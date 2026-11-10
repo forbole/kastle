@@ -20,6 +20,8 @@
 //   listed=1      the KCC-20 holding is a kascov-LISTED row (listed_*, no
 //                 claimed_*), run through the real parse; kascov prices it
 //   evmHistoryDown=1  the Blockscout endpoints answer 500
+//   evmHistoryCalls=1 every Blockscout page is one zero-value call (dropped)
+//                 with a next page, answered after 300 ms
 import { useState, useSyncExternalStore } from "react";
 import { claimedMeta, type Kcc20Token } from "@/lib/kcc20";
 import { parseHolding } from "@/lib/kcc20/providers/kascov";
@@ -367,9 +369,31 @@ window.fetch = async (input, init) => {
     /\/api\/v2\/addresses\/(0x[0-9a-fA-F]{40})\/(transactions|token-transfers)$/,
   );
   if (!m) return realFetch(input, init);
+  // Counted so a spec can see Retry hit the endpoint again.
+  const w = window as unknown as { __evmHistoryCalls?: number };
+  w.__evmHistoryCalls = (w.__evmHistoryCalls ?? 0) + 1;
   if (query.has("evmHistoryDown")) return new Response("down", { status: 500 });
   const [, owner, kind] = m;
   const timestamp = "2026-01-02T03:04:05.000000Z";
+  if (query.has("evmHistoryCalls")) {
+    await new Promise((r) => setTimeout(r, 300));
+    const n = Number(url.searchParams.get("block_number") ?? 100);
+    return Response.json({
+      items: [
+        {
+          hash: `0x${n.toString(16).padStart(64, "0")}`,
+          from: { hash: owner },
+          to: { hash: EVM_OTHER },
+          value: "0",
+          fee: { type: "actual", value: "21000000000000" },
+          status: "ok",
+          result: "success",
+          timestamp,
+        },
+      ],
+      next_page_params: { block_number: n - 1 },
+    });
+  }
   const items =
     kind === "transactions"
       ? [

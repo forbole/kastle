@@ -110,7 +110,7 @@ export const Unavailable: Story = {
     unavailable: { reason: "History is not available for this network" },
   },
 };
-export const Error: Story = {
+export const Failed: Story = {
   args: { error: new globalThis.Error("Explorer answered 502") },
 };
 export const ErrorWithRecords: Story = {

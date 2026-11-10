@@ -21,14 +21,15 @@ export default function Erc20Asset() {
     chainId as `0x${string}`,
     address as `0x${string}`,
   );
+  const { wallet, isWalletSettingsLoading } = useWalletManager();
   // `address` is the token contract (route); the owner is the wallet's 0x address.
   const evmAddress = useEvmAddress();
   const history = useEvmHistory({
     chainId,
     address: evmAddress,
+    addressPending: isWalletSettingsLoading,
     source: { family: "erc20", token: address ?? "" },
   });
-  const { wallet, isWalletSettingsLoading } = useWalletManager();
   const { data: balance } = useErc20Balance(address ?? "", chainId ?? "");
   // As in the send asset picker: Ledger cannot send ERC-20. A wallet that has
   // not loaded yet is not known to be non-Ledger.

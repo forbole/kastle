@@ -1,5 +1,8 @@
 // The shared per-asset History record. Every family adapter maps its own
-// source into this shape; the shell (components/assets/history) renders it.
+// source into this shape. In the extension the EVM adapter is lib/history/*
+// (blockscout.ts) and the list/row that render it are ui/popup/evm-history/*.
+// HistoryFamily and HistoryKind list the shared vocabulary; this adapter
+// emits only some of it (evm-native/erc20/erc721; send/receive/self/deploy/mint).
 // Sits alongside lib/activity/types.ts, which stays the Activity feed's own.
 
 /**

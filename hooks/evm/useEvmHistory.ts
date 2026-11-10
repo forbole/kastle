@@ -7,7 +7,7 @@ import {
   blockscoutTxToHistoryRecord,
   fetchBlockscoutPage,
   isNativeTransfer,
-  matchesSource,
+  isValueMove,
   type BlockscoutPage,
   type BlockscoutSource,
   type BlockscoutTokenTransfer,
@@ -26,6 +26,8 @@ export function useEvmHistory(opts: {
   chainId?: string;
   address?: string;
   source: BlockscoutSource;
+  /** The wallet is still loading: the address is not known missing yet. */
+  addressPending?: boolean;
 }): {
   records: HistoryRecord[];
   isLoading: boolean;
@@ -37,13 +39,13 @@ export function useEvmHistory(opts: {
   loadMore: () => void;
   retry: () => void;
 } {
-  const { chainId, address, source } = opts;
+  const { chainId, address, source, addressPending = false } = opts;
 
-  const unavailable = !blockscoutApiBase(chainId)
-    ? { reason: "History is not available for this network" }
-    : !address
-      ? { reason: "History needs an EVM address on this account" }
-      : null;
+  const { unavailable, waiting } = evmHistoryGate(
+    chainId,
+    address,
+    addressPending,
+  );
 
   // The key returns null for an unsupported chain or a missing address, so
   // nothing is fetched in either case.
@@ -54,7 +56,7 @@ export function useEvmHistory(opts: {
     revalidateFirstPage: false,
   });
 
-  const tokenId = source.family === "erc721" ? source.tokenId : undefined;
+  const token = source.family === "erc20" ? source.token : undefined;
   const records = useMemo(() => {
     if (!data || !address || !chainId) return [];
     return data.flatMap((page) => {
@@ -65,15 +67,15 @@ export function useEvmHistory(opts: {
           .map((tx) => blockscoutTxToHistoryRecord(tx, address, chainId));
       }
       return (items as BlockscoutTokenTransfer[])
-        .filter((t) => matchesSource(t, source, address))
+        .filter(isValueMove)
         .map((t) => blockscoutTransferToHistoryRecord(t, address, chainId));
     });
     // `source` is a fresh object each render; key on its contents (a token
     // change also changes the SWR key, so `data` moves with it).
-  }, [data, address, chainId, source.family, tokenId]);
+  }, [data, address, chainId, source.family, token]);
 
   const hasMore = !!data?.[data.length - 1]?.next_page_params;
-  const isLoading = !unavailable && !data && !error;
+  const isLoading = waiting || (!unavailable && !data && !error);
   const isFetchingMore =
     !error && size > 1 && !!data && data[size - 1] === undefined;
 
@@ -111,5 +113,28 @@ export function useEvmHistory(opts: {
     isFetchingMore,
     loadMore,
     retry,
+  };
+}
+
+/**
+ * Why the read cannot work (or null), and whether it is waiting on the wallet.
+ * While the wallet loads the address is unknown, not missing: report loading,
+ * and name "no address" only once loading settles.
+ */
+export function evmHistoryGate(
+  chainId: string | undefined,
+  address: string | undefined,
+  addressPending = false,
+): { unavailable: { reason: string } | null; waiting: boolean } {
+  if (!blockscoutApiBase(chainId))
+    return {
+      unavailable: { reason: "History is not available for this network" },
+      waiting: false,
+    };
+  if (address) return { unavailable: null, waiting: false };
+  if (addressPending) return { unavailable: null, waiting: true };
+  return {
+    unavailable: { reason: "History needs an EVM address on this account" },
+    waiting: false,
   };
 }

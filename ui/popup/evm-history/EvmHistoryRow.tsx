@@ -9,15 +9,6 @@ import {
   historyTitle,
 } from "@/ui/popup/evm-history/format";
 
-export {
-  formatRawAmount,
-  historyAmountText,
-  historyStatusBadge,
-  historySubLine,
-  historyTimeText,
-  historyTitle,
-} from "@/ui/popup/evm-history/format";
-
 export interface EvmHistoryRowProps {
   record: HistoryRecord;
   /** Token (or native coin) image, 40 px. */
@@ -80,9 +71,14 @@ export function EvmHistoryRow({
             <span
               className={twMerge(
                 "shrink-0 text-sm font-medium",
-                record.direction === "in" && "text-[#14B8A6]",
-                record.direction === "out" && "text-[#EF4444]",
-                record.direction === "self" && "text-white",
+                // A failed tx moved nothing: neutral, never red or green.
+                record.status === "failed"
+                  ? "text-daintree-400"
+                  : record.direction === "in"
+                    ? "text-[#14B8A6]"
+                    : record.direction === "out"
+                      ? "text-[#EF4444]"
+                      : "text-white",
               )}
             >
               {amount}

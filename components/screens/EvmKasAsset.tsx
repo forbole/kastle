@@ -24,6 +24,7 @@ export default function EvmKasAsset() {
   const history = useEvmHistory({
     chainId,
     address: evmAddress,
+    addressPending: isWalletSettingsLoading,
     source: { family: "evm-native" },
   });
   // As in the send asset picker: Ledger cannot send EVM KAS. A wallet that has

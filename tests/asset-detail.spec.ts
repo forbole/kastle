@@ -818,3 +818,59 @@ for (const route of ["/evm-asset/0x1", `/erc20-asset/0x1/${ERC20}`]) {
     ).toHaveCount(0);
   });
 }
+
+test("ERC-20, Blockscout down: error and Retry, and Retry calls the endpoint again", async ({
+  page,
+}) => {
+  await open(page, `/erc20-asset/${KASPLEX}/${ERC20}`, "&evmHistoryDown=1");
+  const retry = page.getByRole("button", { name: "Retry", exact: true });
+  await expect(retry).toBeVisible();
+  await expect(page.getByText("No history yet")).toHaveCount(0);
+  const calls = () =>
+    page.evaluate(
+      () =>
+        (window as unknown as { __evmHistoryCalls?: number })
+          .__evmHistoryCalls ?? 0,
+    );
+  const before = await calls();
+  expect(before).toBeGreaterThan(0);
+  await retry.click();
+  await expect.poll(calls).toBeGreaterThan(before);
+});
+
+test('EVM KAS: pages of dropped calls are never "No history yet" while more exist', async ({
+  page,
+}) => {
+  // Latch the empty copy if it ever paints, even for one frame between pages.
+  await page.addInitScript(() => {
+    new MutationObserver(() => {
+      if (document.body?.innerText.includes("No history yet"))
+        (window as unknown as { __sawEmpty?: boolean }).__sawEmpty = true;
+    }).observe(document, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+  });
+  const sawEmpty = () =>
+    page.evaluate(
+      () => !!(window as unknown as { __sawEmpty?: boolean }).__sawEmpty,
+    );
+  await open(page, `/evm-asset/${KASPLEX}`, "&evmHistoryCalls=1");
+  // In flight (page 1, then the backfill): the loading rows, no empty copy.
+  await expect(
+    page.getByRole("status", { name: "loading" }).first(),
+  ).toBeVisible();
+  // Backfill cap reached, source still has more: loading rows + Load more.
+  const more = page.getByRole("button", { name: "Load more" });
+  await expect(more).toBeVisible({ timeout: 10_000 });
+  await expect(
+    page.getByRole("status", { name: "loading" }).first(),
+  ).toBeVisible();
+  await more.click();
+  await expect(more).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole("button", { name: /Sent|Received/ })).toHaveCount(
+    0,
+  );
+  expect(await sawEmpty()).toBe(false);
+});

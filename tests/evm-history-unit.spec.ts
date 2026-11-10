@@ -41,7 +41,7 @@ test.describe("evm-history format", () => {
   test("decimals 6 vs 18", () => {
     expect(formatRawAmount("1500000", 6)).toBe("1.5");
     expect(formatRawAmount("1500000000000000000", 18)).toBe("1.5");
-    expect(formatRawAmount("1", 18)).toBe("0");
+    expect(formatRawAmount("1", 18)).toBe("<0.00000001");
     expect(formatRawAmount("10000000", 8)).toBe("0.1");
     expect(formatRawAmount("1234567891234567", 6)).toBe("1,234,567,891.234567");
     expect(formatRawAmount("123456789", 0)).toBe("123,456,789");
@@ -94,5 +94,23 @@ test.describe("evm-history format", () => {
     expect(historyStatusBadge("failed")).toBe("Failed");
     expect(historyStatusBadge("finalized")).toBeNull();
     expect(historyStatusBadge("unknown")).toBeNull();
+  });
+
+  test("a 1-wei receive is bounded, never 0; exact zero stays 0", () => {
+    const wei = (raw: string) =>
+      rec({
+        direction: "in",
+        amount: {
+          value: { raw, decimals: 18, symbol: "KAS" },
+          quality: "exact",
+        },
+      });
+    expect(historyAmountText(wei("1"))).toBe("+<0.00000001 KAS");
+    expect(historyAmountText(wei("0"))).toBe("+0 KAS");
+    expect(formatRawAmount("10000000000", 18)).toBe("0.00000001");
+  });
+
+  test("a failed send carries no sign", () => {
+    expect(historyAmountText(rec({ status: "failed" }))).toBe("1.5 USDC");
   });
 });

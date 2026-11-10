@@ -62,11 +62,13 @@ export interface BlockscoutPage<T> {
   next_page_params: BlockscoutPageParams | null;
 }
 
-/** What one History list reads: the chain's native coin, or one token contract. */
+/**
+ * What one History list reads: the chain's native coin, or one ERC-20 contract.
+ * An ERC-721 list needs its own source (and endpoint) when a screen asks for it.
+ */
 export type BlockscoutSource =
   | { family: "evm-native" }
-  | { family: "erc20"; token: string }
-  | { family: "erc721"; token: string; tokenId?: string };
+  | { family: "erc20"; token: string };
 
 /** The chain's Blockscout API base, or null when the chain has none. */
 export function blockscoutApiBase(chainId?: string): string | null {
@@ -83,11 +85,8 @@ export function blockscoutPageUrl(
   cursor: BlockscoutPageParams | null,
 ): string {
   const query = new URLSearchParams();
-  // One ERC-721 id: the address endpoint rejects `token_id` ("Unexpected
-  // field"), the token instance's own transfers are filtered by the server.
-  const instance = source.family === "erc721" && source.tokenId !== undefined;
-  if (source.family !== "evm-native" && !instance) {
-    query.set("type", source.family === "erc20" ? "ERC-20" : "ERC-721");
+  if (source.family === "erc20") {
+    query.set("type", "ERC-20");
     query.set("token", source.token);
   }
   // The API pages at its own fixed size; it rejects a page_size param.
@@ -96,9 +95,6 @@ export function blockscoutPageUrl(
   }
   const qs = query.toString();
   const tail = qs ? `?${qs}` : "";
-  if (instance) {
-    return `${base}/api/v2/tokens/${source.token}/instances/${encodeURIComponent(source.tokenId!)}/transfers${tail}`;
-  }
   const path =
     source.family === "evm-native" ? "transactions" : "token-transfers";
   return `${base}/api/v2/addresses/${address}/${path}${tail}`;
@@ -197,6 +193,22 @@ export function isNativeTransfer(tx: BlockscoutTx): boolean {
   return !tx.to?.hash || BigInt(tx.value || "0") !== 0n;
 }
 
+/**
+ * A token row claims a movement too. A zero-value transfer needs no allowance
+ * (anyone can emit `transferFrom(you, lookalike, 0)`), so it is the address
+ * poisoning vector: dropped, never shown as "Sent 0". A transfer without a
+ * value total (an NFT id, or no total at all) is kept.
+ */
+export function isValueMove(transfer: BlockscoutTokenTransfer): boolean {
+  const total = transfer.total;
+  if (!total || !("value" in total)) return true;
+  try {
+    return BigInt(total.value || "0") !== 0n;
+  } catch {
+    return true;
+  }
+}
+
 export function blockscoutTxToHistoryRecord(
   tx: BlockscoutTx,
   owner: string,
@@ -225,7 +237,13 @@ export function blockscoutTxToHistoryRecord(
     counterparty: deploy
       ? UNAVAILABLE
       : counterpartyOf(direction, from, to, owner),
-    fee: tx.fee ? exact({ raw: tx.fee.value, symbol }) : UNAVAILABLE,
+    // Pending txs report fee.type "maximum": a cap, not the fee paid.
+    fee: tx.fee
+      ? {
+          value: { raw: tx.fee.value, symbol },
+          quality: tx.fee.type === "actual" ? "exact" : "approximate",
+        }
+      : UNAVAILABLE,
     status: statusOf(tx),
     explorer: explorerOf(tx.hash, chainId),
   };
@@ -278,22 +296,4 @@ export function blockscoutTransferToHistoryRecord(
     status: "finalized",
     explorer: explorerOf(transfer.transaction_hash, chainId),
   };
-}
-
-/**
- * Token transfers for one ERC-721 id only; every other family passes through.
- * The instance endpoint lists every holder's moves, so `owner`, when given,
- * keeps only the ones this wallet took part in.
- */
-export function matchesSource(
-  transfer: BlockscoutTokenTransfer,
-  source: BlockscoutSource,
-  owner?: string,
-): boolean {
-  if (source.family !== "erc721" || source.tokenId === undefined) return true;
-  const total = transfer.total;
-  if (!total || !("token_id" in total) || total.token_id !== source.tokenId)
-    return false;
-  if (owner === undefined) return true;
-  return same(transfer.from?.hash, owner) || same(transfer.to?.hash, owner);
 }

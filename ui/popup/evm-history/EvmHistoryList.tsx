@@ -32,6 +32,36 @@ function SkeletonRow() {
   );
 }
 
+function Skeleton() {
+  return (
+    <div className="flex flex-col gap-2" role="status" aria-label="loading">
+      <SkeletonRow />
+      <SkeletonRow />
+      <SkeletonRow />
+    </div>
+  );
+}
+
+function LoadMore({
+  isFetchingMore,
+  loadMore,
+}: Pick<EvmHistoryListProps, "isFetchingMore" | "loadMore">) {
+  return (
+    <button
+      type="button"
+      className="flex items-center justify-center self-center py-2 text-sm font-medium text-daintree-400 hover:text-white disabled:cursor-default"
+      disabled={isFetchingMore}
+      onClick={loadMore}
+    >
+      {isFetchingMore ? (
+        <span className={SPINNER} role="status" aria-label="loading" />
+      ) : (
+        "Load more"
+      )}
+    </button>
+  );
+}
+
 export function EvmHistoryList({
   records,
   isLoading,
@@ -49,16 +79,10 @@ export function EvmHistoryList({
 
   if (unavailable) return <p className={centred}>{unavailable.reason}</p>;
 
+  // "No history yet" only when nothing is in flight and the source has no
+  // more pages: a page of filtered-out calls is not an empty history.
   if (records.length === 0) {
-    if (isLoading) {
-      return (
-        <div className="flex flex-col gap-2" role="status" aria-label="loading">
-          <SkeletonRow />
-          <SkeletonRow />
-          <SkeletonRow />
-        </div>
-      );
-    }
+    if (isLoading || isFetchingMore) return <Skeleton />;
     if (error) {
       return (
         <div className={`${centred} flex flex-col items-center gap-3`}>
@@ -70,6 +94,14 @@ export function EvmHistoryList({
           >
             Retry
           </button>
+        </div>
+      );
+    }
+    if (hasMore) {
+      return (
+        <div className="flex flex-col items-stretch gap-2">
+          <Skeleton />
+          <LoadMore isFetchingMore={isFetchingMore} loadMore={loadMore} />
         </div>
       );
     }
@@ -97,18 +129,7 @@ export function EvmHistoryList({
         </p>
       )}
       {hasMore && (
-        <button
-          type="button"
-          className="flex items-center justify-center self-center py-2 text-sm font-medium text-daintree-400 hover:text-white disabled:cursor-default"
-          disabled={isFetchingMore}
-          onClick={loadMore}
-        >
-          {isFetchingMore ? (
-            <span className={SPINNER} role="status" aria-label="loading" />
-          ) : (
-            "Load more"
-          )}
-        </button>
+        <LoadMore isFetchingMore={isFetchingMore} loadMore={loadMore} />
       )}
     </div>
   );
