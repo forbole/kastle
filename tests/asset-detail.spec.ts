@@ -1019,3 +1019,31 @@ test("EVM KAS: a revalidation shows a new transfer on top, and the old row never
     ),
   ).toBe(false);
 });
+
+// The History list starts the asset pages' section gap (mt-8 = 32 px)
+// below the tab bar, as the real Info tabs do. The harness stubs the
+// Info tabs and KasHistory, so the gap is checked as a number.
+const SECTION_GAP = 32;
+const gapBelowTabs = (page: Page) =>
+  page.evaluate(() => {
+    let tabs = document.querySelector('[role="tablist"]') as HTMLElement;
+    while (!tabs.parentElement!.classList.contains("overflow-y-auto"))
+      tabs = tabs.parentElement!;
+    const body = tabs.nextElementSibling as HTMLElement;
+    return (
+      body.getBoundingClientRect().top - tabs.getBoundingClientRect().bottom
+    );
+  });
+
+for (const s of [
+  { key: "ERC-20", route: `/erc20-asset/${KASPLEX}/${ERC20}`, row: /Received/ },
+  { key: "EVM KAS", route: `/evm-asset/${KASPLEX}`, row: /Sent/ },
+]) {
+  test(`${s.key}: History list starts the section gap below the tabs`, async ({
+    page,
+  }) => {
+    await open(page, s.route);
+    await expect(page.getByRole("button", { name: s.row })).toBeVisible();
+    expect(await gapBelowTabs(page)).toBe(SECTION_GAP);
+  });
+}

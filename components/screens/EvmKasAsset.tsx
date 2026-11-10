@@ -50,17 +50,19 @@ export default function EvmKasAsset() {
 
         {activeTab === "info" && <EvmKasInfo chainId={chainId! ?? "0x0"} />}
         {activeTab === "history" && (
-          <HistoryList
-            key={`${chainId}:${evmAddress}`}
-            records={history.records}
-            isLoading={history.isLoading}
-            isLoadingMore={history.isFetchingMore}
-            error={history.error}
-            hasMore={history.hasMore}
-            onLoadMore={history.loadMore}
-            onRetry={history.retry}
-            unavailableMessage={history.unavailable?.reason}
-          />
+          <div className="mt-8">
+            <HistoryList
+              key={`${chainId}:${evmAddress}`}
+              records={history.records}
+              isLoading={history.isLoading}
+              isLoadingMore={history.isFetchingMore}
+              error={history.error}
+              hasMore={history.hasMore}
+              onLoadMore={history.loadMore}
+              onRetry={history.retry}
+              unavailableMessage={history.unavailable?.reason}
+            />
+          </div>
         )}
       </div>
 

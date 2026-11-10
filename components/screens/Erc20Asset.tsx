@@ -53,17 +53,19 @@ export default function Erc20Asset() {
         <AssetTabs active={activeTab} onChange={setActiveTab} />
 
         {activeTab === "history" && (
-          <HistoryList
-            key={`${chainId}:${address}:${evmAddress}`}
-            records={history.records}
-            isLoading={history.isLoading}
-            isLoadingMore={history.isFetchingMore}
-            error={history.error}
-            hasMore={history.hasMore}
-            onLoadMore={history.loadMore}
-            onRetry={history.retry}
-            unavailableMessage={history.unavailable?.reason}
-          />
+          <div className="mt-8">
+            <HistoryList
+              key={`${chainId}:${address}:${evmAddress}`}
+              records={history.records}
+              isLoading={history.isLoading}
+              isLoadingMore={history.isFetchingMore}
+              error={history.error}
+              hasMore={history.hasMore}
+              onLoadMore={history.loadMore}
+              onRetry={history.retry}
+              unavailableMessage={history.unavailable?.reason}
+            />
+          </div>
         )}
 
         {activeTab === "info" && asset && <Erc20Info asset={asset} />}
