@@ -1048,19 +1048,21 @@ for (const s of [
   });
 
   // While page 1 loads, HistoryList's root is the Spinner, centred by
-  // `self-center`, which only works with a flex parent. The gap wrapper
-  // must stay a flex container or the spinner drops to the left edge.
-  test(`${s.key}: History wrapper is a flex container so the loading spinner stays centred`, async ({
+  // `self-center`. The gap wrapper must be a flex COLUMN: the cross axis
+  // carries the spinner's `self-center`, and the column axis keeps the list
+  // full width. A row flex box would left-align the spinner and shrink the list.
+  test(`${s.key}: History wrapper is a flex column so the loading spinner stays centred`, async ({
     page,
   }) => {
     await open(page, s.route);
     await expect(page.getByRole("button", { name: s.row })).toBeVisible();
-    const display = await page.evaluate(() => {
+    const cs = await page.evaluate(() => {
       let tabs = document.querySelector('[role="tablist"]') as HTMLElement;
       while (!tabs.parentElement!.classList.contains("overflow-y-auto"))
         tabs = tabs.parentElement!;
-      return getComputedStyle(tabs.nextElementSibling as HTMLElement).display;
+      const style = getComputedStyle(tabs.nextElementSibling as HTMLElement);
+      return [style.display, style.flexDirection];
     });
-    expect(display).toBe("flex");
+    expect(cs).toEqual(["flex", "column"]);
   });
 }
