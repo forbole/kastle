@@ -395,7 +395,12 @@ window.fetch = async (input, init) => {
           hash: `0x${n.toString(16).padStart(64, "0")}`,
           from: { hash: owner },
           to: { hash: EVM_OTHER },
-          value: "0",
+          // window.__evmHistoryValue (set by a spec mid-test): pages from
+          // here on move value, so they yield rows.
+          value: (window as unknown as { __evmHistoryValue?: boolean })
+            .__evmHistoryValue
+            ? "1000000000000000000"
+            : "0",
           fee: { type: "actual", value: "21000000000000" },
           status: "ok",
           result: "success",

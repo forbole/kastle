@@ -21,7 +21,9 @@ import AssetSelect from "@/components/screens/asset-selector/AssetSelect";
 import TokenDetailPage, {
   TokenDetailTab,
 } from "@/ui/popup/kcc20/TokenDetailPage";
-import { Kcc20HistoryDetail } from "@/components/kcc20-asset/Kcc20History";
+import type { HistoryStatus } from "@/lib/history/types";
+import { HistoryDetail } from "@/ui/popup/history/HistoryDetail";
+import { HistoryList } from "@/ui/popup/history/HistoryList";
 
 const TXID = "0123456789abcdef".repeat(4);
 
@@ -45,27 +47,34 @@ function TokenInfoHarness() {
   );
 }
 
-// The activity sheet alone; status=X stands in for a feed that answers it.
+// The activity sheet alone; status=<HistoryStatus> stands in for a feed that answers it.
 function ActivityHarness() {
   const [open, setOpen] = React.useState(true);
-  const status = params.get("status") ?? undefined;
+  const status = (params.get("status") ?? "unknown") as HistoryStatus;
   return open ? (
     <div id="popup">
       <button type="button">opener</button>
-      <Kcc20HistoryDetail
-        row={{
+      <HistoryDetail
+        record={{
           id: "r1",
+          family: "kcc20",
           txid: TXID,
           kind: "send",
           direction: "out",
-          amount: 5n,
-          counterparty: {
-            address: "kaspa:qf34f0243",
-            label: "f34f0243...e9cad",
+          amount: {
+            value: { raw: "5", decimals: 0, symbol: "WHALE" },
+            quality: "exact",
           },
-          timeMs: Date.UTC(2026, 9, 1, 12),
-          approxTime: true,
+          kasLeg: { value: null, quality: "unavailable" },
+          fiat: { value: null, quality: "unavailable" },
+          time: { value: Date.UTC(2026, 9, 1, 12), quality: "approximate" },
+          counterparty: {
+            value: { address: "kaspa:qf34f0243", label: "f34f0243...e9cad" },
+            quality: "exact",
+          },
+          fee: { value: null, quality: "unavailable" },
           status,
+          explorer: { url: `https://kascov.io/#/mainnet/tx/${TXID}` },
         }}
         onClose={() => setOpen(false)}
       />
@@ -86,6 +95,38 @@ function PrelineShell() {
   const { pathname } = useLocation();
   useResetPreline([pathname]);
   return <Outlet />;
+}
+
+// The shell alone over a hand-driven source whose pages never add rows.
+// window.__requests counts onLoadMore; __start/__finish move one load through
+// its edges; __rerender re-renders the parent, handing a fresh onLoadMore.
+// inflight=1: a source reporting hasMore false while a page is still loading.
+function PagingHarness() {
+  const w = window as unknown as Record<string, unknown> & {
+    __requests: number;
+  };
+  const inflight = params.has("inflight");
+  const [loading, setLoading] = React.useState(inflight);
+  const [, setTick] = React.useState(0);
+  React.useEffect(() => {
+    w.__requests = 0;
+    w.__rerender = () => setTick((t) => t + 1);
+    w.__start = () => setLoading(true);
+    w.__finish = () => setLoading(false);
+  }, []);
+  return (
+    <HistoryList
+      records={[]}
+      isLoading={false}
+      isLoadingMore={loading}
+      error={null}
+      hasMore={!inflight}
+      onLoadMore={() => {
+        w.__requests++;
+      }}
+      onRetry={() => {}}
+    />
+  );
 }
 
 const params = new URLSearchParams(location.search);
@@ -126,6 +167,7 @@ const router = createMemoryRouter(
         },
         { path: "/token-detail-info", element: <TokenInfoHarness /> },
         { path: "/kcc20-activity", element: <ActivityHarness /> },
+        { path: "/history-paging", element: <PagingHarness /> },
         {
           path: "/dashboard-assets",
           element: (

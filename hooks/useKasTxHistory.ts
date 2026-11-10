@@ -17,7 +17,12 @@ export type KaspaTxHistoryItem = {
     address: string;
     amount: number;
   }>;
+  timeMs: number | null;
+  isAccepted: boolean;
 };
+
+// The API reports UNIX seconds; a value above 1e12 is already milliseconds.
+const ms = (s: number) => (s > 1e12 ? Math.round(s) : Math.round(s * 1000));
 
 function mapTxResponseToHistoryItem(
   tx: KaspaTxApiResponse,
@@ -32,6 +37,11 @@ function mapTxResponseToHistoryItem(
       address: output.script_public_key_address,
       amount: output.amount,
     })),
+    timeMs:
+      tx.accepting_block_time || tx.block_time
+        ? ms(tx.accepting_block_time || tx.block_time)
+        : null,
+    isAccepted: tx.is_accepted,
   };
 }
 
