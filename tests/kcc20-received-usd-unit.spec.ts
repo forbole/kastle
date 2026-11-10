@@ -266,3 +266,16 @@ test("no KAS price yet: no KCC-20 price is made up", () => {
   });
   expect(prices.size).toBe(0);
 });
+
+// SWR's default compare (dequal/lite) calls any two Maps equal, so a refreshed
+// spot was discarded. sameSpots is the compare the Activity spot fetch uses.
+test("sameSpots compares spot Maps by content, not by type", () => {
+  const before = new Map<string, number | null>([["abc", 0.2]]);
+  expect(m.sameSpots(before, new Map([["abc", 0.3]]))).toBe(false);
+  expect(m.sameSpots(before, new Map([["abc", 0.2]]))).toBe(true);
+  expect(m.sameSpots(before, new Map([["abc", null]]))).toBe(false);
+  expect(m.sameSpots(before, new Map([["xyz", 0.2]]))).toBe(false);
+  expect(m.sameSpots(before, new Map([["abc", 0.2], ["xyz", 1]]))).toBe(false);
+  expect(m.sameSpots(undefined, before)).toBe(false);
+  expect(m.sameSpots(undefined, undefined)).toBe(true);
+});

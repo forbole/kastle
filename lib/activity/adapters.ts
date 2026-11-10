@@ -449,3 +449,19 @@ export function toActivityItem(
     },
   };
 }
+
+/**
+ * SWR `compare` for a spot Map. SWR's default dequal/lite treats any two Maps
+ * as equal, which would discard every refreshed spot; compare entries instead.
+ */
+export function sameSpots(
+  a: ReadonlyMap<string, number | null> | undefined,
+  b: ReadonlyMap<string, number | null> | undefined,
+): boolean {
+  if (a === b) return true;
+  if (!a || !b || a.size !== b.size) return false;
+  for (const [key, value] of a) {
+    if (!b.has(key) || !Object.is(b.get(key), value)) return false;
+  }
+  return true;
+}

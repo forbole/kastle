@@ -22,6 +22,7 @@ import {
   ActivityItem,
   PillStatus,
   kcc20UsdPrices,
+  sameSpots,
   toActivityItem,
 } from "@/lib/activity/adapters";
 import { rowsForPage, type ActivityPageType } from "@/lib/activity/mappers";
@@ -29,6 +30,7 @@ import { fetchStandardMarketPrice } from "@/lib/kcc20/providers/kascov";
 import { fetchKronMarkets } from "@/lib/kcc20/swap";
 import { useKcc20CachedPrices } from "@/lib/kcc20/useKcc20Price";
 import useKcc20Tokens from "@/lib/kcc20/useKcc20Tokens";
+import { useFeatureFlags } from "@/hooks/useFeatureFlags";
 import type { BridgeHistoryDegradation } from "@/lib/bridge/kat-bridge-history";
 import type { IgraDepositDegradation } from "@/lib/bridge/igra-deposit-history";
 import type { KurveRegistryDegradation } from "@/lib/bridge/kat-registry";
@@ -134,9 +136,11 @@ function useTokenMaps(isMainnet: boolean) {
   );
   // The dashboard's token list (shared SWR entry), so a held token is priced
   // from the same family's source as its dashboard row.
+  // Gated on the kill switch as the dashboard is: flag off means no request.
   const { account } = useWalletManager();
+  const { isKcc20Enabled } = useFeatureFlags();
   const { data: tokens } = useKcc20Tokens(
-    isMainnet ? account?.address : undefined,
+    isMainnet && isKcc20Enabled ? account?.address : undefined,
   );
   // Standard tokens with a scale, as useKcc20Price asks kascov for them.
   const spotPairs = useMemo(
@@ -151,7 +155,7 @@ function useTokenMaps(isMainnet: boolean) {
   const { data: spots } = useSWR(
     isMainnet && spotPairs.length ? ["kascovMarkets", ...spotPairs] : null,
     fetchStandardSpots,
-    { refreshInterval: 60_000 },
+    { refreshInterval: 60_000, compare: sameSpots },
   );
   const [settings] = useSettings();
   const cached = useKcc20CachedPrices(settings?.networkId);
