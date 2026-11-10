@@ -86,6 +86,12 @@ import { useFeatureFlags } from "@/hooks/useFeatureFlags.ts";
 import useKaspaBalance from "@/hooks/wallet/useKaspaBalance";
 import useKaspaHotWalletSigner from "@/hooks/wallet/useKaspaHotWalletSigner";
 import useKcc20Tokens from "@/lib/kcc20/useKcc20Tokens";
+import { useSettings } from "@/hooks/useSettings";
+import {
+  hiddenTokensKey,
+  swapRowHideId,
+  useVisibleTokens,
+} from "@/lib/hidden-tokens";
 import { useKcc20Price } from "@/lib/kcc20/useKcc20Price";
 import { decimalsError, Kcc20Family } from "@/lib/kcc20";
 import { useBraidListing, useBraidRoutable } from "@/hooks/swap/braidListing";
@@ -114,6 +120,12 @@ type EvmChainKey = "kasplex" | "igra";
 // "kaspa" is L1: KAS and KCC-20 tokens traded on their KRON bonding curve.
 type ChainKey = EvmChainKey | "kaspa";
 const CHAINS = { kasplex: kasplexMainnet, igra: igraMainnet };
+// The hex chain id useErc20Assets keys its rows by, so swap rows hide by
+// the same erc20:<chain>:<addr> id the dashboard writes.
+const CHAIN_HEX: Record<string, string> = {
+  kasplex: numberToHex(kasplexMainnet.id),
+  igra: numberToHex(igraMainnet.id),
+};
 const NATIVE = "native";
 const KAS_DECIMALS = 8;
 const WKAS_ABI = parseAbi([
@@ -148,6 +160,8 @@ type SwapToken = SheetToken & {
   rawBalance?: number;
   family?: Kcc20Family;
 };
+
+const swapHideId = (t: SwapToken) => swapRowHideId(t, CHAIN_HEX[t.chain]);
 
 /** A Kaspa L1 row as the provider list reads it; undefined off L1. */
 const toL1Leg = (t?: SwapToken): L1Leg | undefined =>
@@ -828,14 +842,22 @@ export default function Swap() {
 
   const [family, setFamily] = useState<SwapFamilyTab>("all");
   // Each side's rows, rebuilt only when the list or a picked key changes.
+  // Tokens hidden on the dashboard leave both sheets (display only: the pair
+  // still resolves from `tokens`). Native rows have no hide id and stay.
+  const [settings] = useSettings();
+  const { items: shownTokens = tokens } = useVisibleTokens(
+    hiddenTokensKey(settings?.networkId, account?.address),
+    tokens,
+    swapHideId,
+  );
   const sideTokens = useMemo(
     () => ({
-      in: tokens
+      in: shownTokens
         .filter((t) => (t.rawBalance ?? 0) > 0)
         .map((t) => ({ ...t, disabled: t.key === tokenOutKey })),
-      out: tokens.map((t) => ({ ...t, disabled: t.key === tokenInKey })),
+      out: shownTokens.map((t) => ({ ...t, disabled: t.key === tokenInKey })),
     }),
-    [tokens, tokenInKey, tokenOutKey],
+    [shownTokens, tokenInKey, tokenOutKey],
   );
   const sheets = useMemo(
     () =>
