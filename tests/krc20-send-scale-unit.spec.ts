@@ -40,6 +40,18 @@ test("krc20Decimals matches applyDecimal's default of 8", () => {
   expect(applyDecimal(undefined).toInteger(1)).toBe(1e8);
 });
 
+test("a blank or missing dec falls back to 8 on both sides", () => {
+  for (const dec of ["", "   ", undefined]) {
+    expect(krc20Decimals(dec)).toBe(8);
+    expect(applyDecimal(dec).toInteger(1)).toBe(1e8);
+    const max = formatMaxAmount("123456789", krc20Decimals(dec));
+    expect(max).toBe("1.23456789");
+    expect(
+      String(Math.round(applyDecimal(dec).toInteger(parseFloat(max)))),
+    ).toBe("123456789");
+  }
+});
+
 test("form and transfer both read the token's own dec", () => {
   expect(src("components/send/krc20-send/DetailsStep.tsx")).toContain(
     "krc20Decimals(tokenBalance?.dec)",

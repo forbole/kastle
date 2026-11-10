@@ -128,6 +128,10 @@ function plainNumberString(value: number): string {
 // places, for when only the float is known. Never exponent notation, and
 // never rounds up: the digits are cut from the number's own decimal string
 // (toFixed would carry 1.999999999999 up to "2", more than the balance).
+// The never-above guarantee is against the float it receives, not the raw
+// on-chain balance: past ~15-16 significant digits the double can already sit
+// above the balance. The exact path is formatMaxAmount(rawString, dec); this
+// is only a fallback.
 export function formatFloatAmount(value: number, decimals: number): string {
   if (!Number.isFinite(value) || value <= 0) return "0";
   const digits = Math.min(Math.max(Math.trunc(decimals), 0), 8);
@@ -142,6 +146,7 @@ export function formatFloatAmount(value: number, decimals: number): string {
 // malformed, matching applyDecimal's default. The send form's Max and clamp
 // and the transfer's applyDecimal(dec) must convert with this same scale.
 export function krc20Decimals(dec: string | undefined): number {
-  const n = Number(dec ?? 8);
+  // Number("") and Number("   ") are 0, not "missing": treat blank as default.
+  const n = dec === undefined || dec.trim() === "" ? 8 : Number(dec);
   return Number.isInteger(n) && n >= 0 ? n : 8;
 }

@@ -34,7 +34,9 @@ export const FORBOLE_FEES: Record<Operation, ForboleFee> = {
 };
 
 export const applyDecimal = (decimalPlaces: string = "8") => {
-  const decimalCoefficient = Math.pow(10, parseInt(decimalPlaces, 10));
+  // parseInt("") is NaN; a blank dec falls back to the same default of 8.
+  const parsed = parseInt(decimalPlaces, 10);
+  const decimalCoefficient = Math.pow(10, Number.isNaN(parsed) ? 8 : parsed);
 
   return {
     toFloat: (amount: number) => amount / decimalCoefficient,
