@@ -30,8 +30,8 @@ import { priorityFeeFromEstimate } from "@/lib/kaspa";
 import {
   formatMaxAmount,
   krc20Decimals,
-  plainDecimalError,
   sanitizeDecimalInput,
+  validateKrc20Amount,
 } from "@/lib/decimalAmount";
 
 // What the shared details form needs from a token; each token standard
@@ -124,13 +124,14 @@ function useKrc20SendAsset(): TokenSendAsset {
   const tokenDecimals = krc20Decimals(tokenBalance?.dec);
 
   const tokenAmountValidator = async (value: string | undefined) => {
-    const notDecimal = plainDecimalError(value);
-    if (notDecimal !== undefined) return notDecimal;
-    const amountNumber = parseFloat(value ?? "0");
-
-    if (amountNumber < 0 || amountNumber > currentBalance) {
-      return "Oh, you don’t have enough funds";
-    }
+    // Bigints at the token's scale against the raw balance: the float
+    // currentBalance rounds past 2^53 and would reject an exact Max.
+    const amountError = validateKrc20Amount(value, {
+      decimals: tokenDecimals,
+      symbol: (tokenName ?? "").toUpperCase(),
+      balance: tokenBalance?.balance,
+    });
+    if (amountError !== true) return amountError;
 
     if (kasBalance * 1e8 < (commitFee ?? 0) + (revealFee ?? 0)) {
       return "Oh, you don't have enough KAS to cover the operation fees";

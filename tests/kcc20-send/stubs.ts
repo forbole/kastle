@@ -198,8 +198,11 @@ export function useTokenInfo(tick?: string) {
     isLoading: false,
   };
 }
+// krc20balance=<raw> overrides the KRC-20 balance (base units, dec 8).
 export function useTokenBalance() {
-  return { data: { result: [{ balance: "100000000000", dec: "8" }] } };
+  const balance =
+    new URLSearchParams(location.search).get("krc20balance") ?? "100000000000";
+  return { data: { result: [{ balance, dec: "8" }] } };
 }
 export function useKrc20Prices() {
   return { price: 0.5 };

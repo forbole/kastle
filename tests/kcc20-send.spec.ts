@@ -358,6 +358,32 @@ test("KRC-20 send still goes details → confirm", async ({ page }) => {
   await expect(confirm(page)).toBeEnabled();
 });
 
+// Copilot #437: Max past 2^53 used to fail a float compare against the balance.
+test("KRC-20 Max of a balance past 2^53 is exact and keeps Next enabled", async ({
+  page,
+}) => {
+  await page.goto(
+    `${base}/?route=/krc20/send/KASPY&krc20balance=9007199254740993`,
+  );
+  await expect(page.getByText("Estimated")).toBeVisible();
+  await fill(page, RECIPIENT, "1");
+  await page.getByRole("button", { name: "Max" }).click();
+  await expect(amount(page)).toHaveValue("90071992.54740993");
+  await expect(page.getByText("Oh, you don’t have enough funds")).toBeHidden();
+  await expect(next(page)).toBeEnabled();
+});
+
+// Copilot #437: a trailing or leading space used to skip the clamp.
+test("KRC-20 amount trims whitespace before clamping", async ({ page }) => {
+  await page.goto(`${base}/?route=/krc20/send/KASPY`);
+  await expect(page.getByText("Estimated")).toBeVisible();
+  await fill(page, RECIPIENT, "1");
+  for (const typed of ["0.000000001 ", " 0.000000001"]) {
+    await amount(page).fill(typed);
+    await expect(amount(page)).toHaveValue("0.00000000");
+  }
+});
+
 // The Send button's asset picker (/asset-select) lists KCC-20 beside KRC-20.
 const pickerRow = (page: Page, name: RegExp) =>
   page.getByRole("button", { name });

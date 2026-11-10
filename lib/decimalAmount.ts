@@ -36,10 +36,18 @@ export function formatMaxAmount(
 // Anything that is not a plain decimal is left as typed, so the validator can
 // name the problem instead of the field silently rewriting it ("2e-8" must
 // never become "28").
+// The field's one normal form: what the clamp cuts and the validator reads.
+export function normalizeDecimalInput(value: string | undefined): string {
+  return (value ?? "").trim();
+}
+
+// Surrounding whitespace is trimmed first, so " 0.000000001" cannot slip past
+// the clamp that the (trimming) validator then accepts.
 export function sanitizeDecimalInput(value: string, decimals: number): string {
-  if (!PLAIN_DECIMAL.test(value)) return value;
-  const [int, frac] = value.split(".");
-  if (frac === undefined || frac === "") return value;
+  const text = normalizeDecimalInput(value);
+  if (!PLAIN_DECIMAL.test(text)) return value;
+  const [int, frac] = text.split(".");
+  if (frac === undefined || frac === "") return text;
   return decimals ? `${int}.${frac.slice(0, decimals)}` : int;
 }
 
@@ -71,7 +79,7 @@ export function validateTokenAmount(
     spendable,
   }: { decimals: number; symbol: string; spendable?: bigint },
 ): string | true {
-  const text = (input ?? "").trim();
+  const text = normalizeDecimalInput(input);
   if (!PLAIN_DECIMAL.test(text)) return NOT_A_DECIMAL;
   const tooPrecise = decimalsError(text, decimals, symbol);
   if (tooPrecise) return tooPrecise;
@@ -82,12 +90,21 @@ export function validateTokenAmount(
   return true;
 }
 
-// The same check for a float-balanced standard (KRC-20): plain decimal, > 0.
-export function plainDecimalError(input: string | undefined) {
-  const text = (input ?? "").trim();
-  if (!PLAIN_DECIMAL.test(text)) return NOT_A_DECIMAL;
-  if (!(parseFloat(text) > 0)) return "";
-  return undefined;
+// The KRC-20 amount check: validateTokenAmount against the RAW integer balance
+// (base units, as the indexer returns it), compared as bigints at the token's
+// scale. A float compare rejected an exact Max past 2^53. A missing or
+// malformed balance spends as 0.
+export function validateKrc20Amount(
+  input: string | undefined,
+  {
+    decimals,
+    symbol,
+    balance,
+  }: { decimals: number; symbol: string; balance: string | undefined },
+): string | true {
+  const raw = (balance ?? "").trim();
+  const spendable = /^\d+$/.test(raw) ? BigInt(raw) : 0n;
+  return validateTokenAmount(input, { decimals, symbol, spendable });
 }
 
 export function isPlainDecimal(input: string | undefined): boolean {
@@ -146,7 +163,7 @@ export function formatFloatAmount(value: number, decimals: number): string {
 // malformed, matching applyDecimal's default. The send form's Max and clamp
 // and the transfer's applyDecimal(dec) must convert with this same scale.
 export function krc20Decimals(dec: string | undefined): number {
-  // Number("") and Number("   ") are 0, not "missing": treat blank as default.
-  const n = dec === undefined || dec.trim() === "" ? 8 : Number(dec);
-  return Number.isInteger(n) && n >= 0 ? n : 8;
+  // Digits only: "1.5", "-1", "1e1", "0x10" and a blank dec all mean "use 8".
+  const text = (dec ?? "").trim();
+  return /^\d+$/.test(text) ? Number(text) : 8;
 }
