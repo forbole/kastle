@@ -52,10 +52,17 @@ export const KCC20_EXT = "cd".repeat(32);
 // storage.local persists in localStorage, so a page reload keeps it.
 const LOCAL = "storage.local:";
 export const browser = {
-  // The last tab opened, so the spec can read the explorer URL a row opens.
+  // Records each opened URL on window.__opened (so a spec can assert exactly
+  // one tab opened) and the last one on window.__openedTab, so the spec can
+  // read the explorer URL a row opens.
   tabs: {
     create: ({ url }: { url: string }) => {
-      (window as unknown as { __openedTab: string }).__openedTab = url;
+      const w = window as unknown as {
+        __opened?: string[];
+        __openedTab?: string;
+      };
+      (w.__opened ??= []).push(url);
+      w.__openedTab = url;
     },
   },
   action: { setPopup: () => {} },
@@ -305,6 +312,9 @@ export const SighashType = {};
 // The activity sheet's explorer link, as the real Settings screen exports it.
 export const explorerTxLinks: Record<string, string> = {
   mainnet: "https://explorer.test/txs/",
+};
+export const kcc20TxLinks: Record<string, string> = {
+  mainnet: "https://kascov.io/#/mainnet/tx/", // = Settings.kcc20TxLinks
 };
 
 // Dashboard asset list

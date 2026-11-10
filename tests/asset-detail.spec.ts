@@ -708,6 +708,15 @@ test("KCC-20 activity sheet: Status shows only when the feed supplies it", async
   await open(page, "/kcc20-activity", "&status=Confirmed");
   await expect(sheet.getByText("Status", { exact: true })).toBeVisible();
   await expect(sheet.getByText("Confirmed", { exact: true })).toBeVisible();
+
+  // The token-history sheet opens kascov, which decodes the KCC-20 action.
+  await sheet.getByRole("button", { name: "View on Explorer" }).click();
+  const opened = await page.evaluate(
+    () => (window as unknown as { __opened?: string[] }).__opened ?? [],
+  );
+  expect(opened).toHaveLength(1);
+  expect(opened[0].startsWith("https://kascov.io/#/mainnet/tx/")).toBe(true);
+  expect(opened[0]).not.toContain("explorer.kaspa.org");
 });
 
 test("KCC-20 activity sheet: copy puts the full txid on the clipboard and says so", async ({

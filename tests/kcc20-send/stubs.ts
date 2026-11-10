@@ -323,6 +323,8 @@ export async function sendKcc20Transfer() {
 }
 
 export const explorerTxLinks = { mainnet: "https://explorer.kaspa.org/txs/" };
+// Mirrors the real Settings export: kascov's per-transaction page, mainnet only.
+export const kcc20TxLinks = { mainnet: "https://kascov.io/#/mainnet/tx/" };
 export const explorerAddressLinks = {
   mainnet: "https://explorer.kaspa.org/addresses/",
 };
