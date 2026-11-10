@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 import { browser } from "wxt/browser";
 
 /**
  * Tokens the user hid from the dashboard list, per network and account address.
- * A display filter only: nothing else (send, swap, detail, holdings, totals)
- * reads it, so a hidden token stays spendable and visible everywhere else.
+ * A display filter, app-wide: every holdings list (dashboard, send picker,
+ * swap selectors) drops hidden rows through useVisibleTokens. Balances,
+ * totals, sendability, detail routes and history never read it, so a hidden
+ * token keeps its money numbers and stays reachable by route.
  */
 const PREFIX = "hiddenTokens:";
 
@@ -78,4 +80,58 @@ export function useHiddenTokens(key: string | undefined) {
     [key],
   );
   return { hidden: entry.hidden, loaded: !key || entry.loaded, save };
+}
+
+// Row -> hide id, one per standard; the same inputs the dashboard writes with.
+export const krc20RowHideId = (t: { id: string }) => krc20HideId(t.id);
+export const kcc20RowHideId = (t: {
+  covenantId: string;
+  extensionCommitment?: string;
+}) => kcc20HideId(t.covenantId, t.extensionCommitment);
+export const erc20RowHideId = (a: { chainId: string; address: string }) =>
+  erc20HideId(a.chainId, a.address);
+
+/**
+ * A swap sheet row's hide id: Kaspa L1 rows carry the covenant id in
+ * `address` (one row per covenant, so it matches the base KCC-20 row), EVM
+ * rows an ERC-20 address on `evmChainId`. Native rows (no address) never hide.
+ */
+export const swapRowHideId = (
+  row: { chain: string; address?: string },
+  evmChainId?: string,
+) => {
+  if (!row.address) return undefined;
+  if (row.chain === "kaspa") return kcc20HideId(row.address);
+  return evmChainId ? erc20HideId(evmChainId, row.address) : undefined;
+};
+
+/** `items` without the hidden rows; a row with no id (native coin) always stays. */
+export function visibleTokens<T>(
+  hidden: ReadonlySet<string>,
+  items: T[],
+  idOf: (item: T) => string | undefined,
+): T[] {
+  if (hidden.size === 0) return items;
+  return items.filter((item) => {
+    const id = idOf(item);
+    return id === undefined || !hidden.has(id);
+  });
+}
+
+/**
+ * The visible rows of one list. Until storage is read (`loaded` false) the
+ * hidden set is empty, so the whole list renders and then settles: never a
+ * blank panel. Pass a stable `idOf` (module level) so the memo holds.
+ */
+export function useVisibleTokens<T>(
+  key: string | undefined,
+  items: T[] | undefined,
+  idOf: (item: T) => string | undefined,
+): { items: T[] | undefined; loaded: boolean } {
+  const { hidden, loaded } = useHiddenTokens(key);
+  const visible = useMemo(
+    () => items && visibleTokens(hidden, items, idOf),
+    [items, hidden, idOf],
+  );
+  return { items: visible, loaded };
 }

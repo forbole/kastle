@@ -367,6 +367,12 @@ export function buildDetails(row: ActivityRowDescriptor): DetailRow[] {
   return details;
 }
 
+const CHAIN_LOGOS: Record<string, string | undefined> = {
+  Kaspa: kaspaIcon,
+  Kasplex: kasplexMainnet.icon,
+  Igra: igraMainnet.icon,
+};
+
 export function toActivityItem(
   row: ActivityRowDescriptor,
   deps: AdapterDeps,
@@ -376,10 +382,12 @@ export function toActivityItem(
   const swap = !bridge;
   const inProgress = bridge && isInProgress(row);
   const settled = row.status === "completed";
-  const l2Logo =
-    row.type === KURVE_BRIDGE_ACTIVITY_TYPE || row.meta?.l2Chain === "Kasplex"
+  // KCC-20 swaps settle on Kaspa L1 (l2Chain "Kaspa"); an absent key is a
+  // locally-recorded swap and keeps the Igra fallback.
+  const chainLogo =
+    row.type === KURVE_BRIDGE_ACTIVITY_TYPE
       ? kasplexMainnet.icon
-      : igraMainnet.icon;
+      : (CHAIN_LOGOS[row.meta?.l2Chain ?? "Igra"] ?? igraMainnet.icon);
   const intoL2 = row.meta?.route === "l1-to-l2";
   const fromAsset = symbolText(row.sent?.symbol);
   const toAsset = symbolText(row.received?.symbol);
@@ -407,7 +415,7 @@ export function toActivityItem(
     dateTime,
     fromImage,
     toImage,
-    chainImage: l2Logo,
+    chainImage: chainLogo,
     amountNumber: amountLeg
       ? `${signed ? "+" : ""}${fmtAmount(amountLeg.value)}`
       : "-",
@@ -424,8 +432,8 @@ export function toActivityItem(
         fromImage,
         toImage,
         // A swap stays on one chain; a bridge is L1 on one side.
-        fromChainImage: swap ? l2Logo : intoL2 ? kaspaIcon : l2Logo,
-        toChainImage: swap ? l2Logo : intoL2 ? l2Logo : kaspaIcon,
+        fromChainImage: swap ? chainLogo : intoL2 ? kaspaIcon : chainLogo,
+        toChainImage: swap ? chainLogo : intoL2 ? chainLogo : kaspaIcon,
         sentLabel: swap ? "Paid" : "Sent",
         sentAmount: amountText(row.sent) ?? "-",
         sentUsd: usdText(row.sent, deps.priceFor),

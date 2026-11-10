@@ -21,14 +21,8 @@ import {
   getChainTokenSymbol,
 } from "@/lib/layer2";
 import useKaspaPrice from "@/hooks/useKaspaPrice";
-import {
-  createPublicClient,
-  http,
-  hexToNumber,
-  encodeFunctionData,
-  erc20Abi,
-  parseUnits,
-} from "viem";
+import { createPublicClient, http, hexToNumber } from "viem";
+import { erc20TransferData } from "./transfer";
 import { Erc20Asset } from "@/contexts/EvmAssets";
 import { formatToken } from "@/lib/utils.ts";
 import { useErc20Price } from "@/hooks/evm/useZealousSwapMetadata";
@@ -59,20 +53,18 @@ export const ConfirmStep = ({
   const { watch } = useFormContext<Erc20SendForm>();
   const { address: toAddress, amount } = watch();
 
-  const payload =
+  const transferData =
     evmAddress && toAddress && amount
-      ? {
-          account: evmAddress,
-          to: asset.address,
-          data: encodeFunctionData({
-            abi: erc20Abi,
-            functionName: "transfer",
-            args: [
-              toAddress as `0x${string}`,
-              parseUnits(amount, asset.decimals),
-            ],
-          }),
-        }
+      ? erc20TransferData(
+          toAddress as `0x${string}`,
+          amount,
+          asset.decimals,
+          undefined,
+        )
+      : undefined;
+  const payload =
+    evmAddress && transferData
+      ? { account: evmAddress, to: asset.address, data: transferData }
       : undefined;
 
   const { data: estimatedFee } = useFeeEstimate(asset.chainId, payload);

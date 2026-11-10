@@ -54,6 +54,11 @@ export const browser = {
   storage: {
     local: {
       get: async (key: string) => {
+        // slowStorage=<ms>: hold the read, as a cold storage.local can.
+        const slow = Number(
+          new URLSearchParams(location.search).get("slowStorage") ?? 0,
+        );
+        if (slow) await new Promise((r) => setTimeout(r, slow));
         const raw = localStorage.getItem(LOCAL + key);
         return raw === null ? {} : { [key]: JSON.parse(raw) };
       },

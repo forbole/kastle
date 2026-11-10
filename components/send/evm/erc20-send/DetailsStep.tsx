@@ -6,16 +6,15 @@ import { useFormContext } from "react-hook-form";
 import { Erc20SendForm } from "./Erc20Send";
 import { twMerge } from "tailwind-merge";
 import spinner from "@/assets/images/spinner.svg";
-import {
-  isAddress,
-  formatEther,
-  erc20Abi,
-  encodeFunctionData,
-  parseUnits,
-} from "viem";
+import { isAddress, formatEther } from "viem";
 import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import useFeeEstimate from "@/hooks/evm/useFeeEstimate";
-import { formatToken, truncToDecimals } from "@/lib/utils";
+import { formatToken } from "@/lib/utils";
+import {
+  erc20AmountFormatError,
+  erc20MaxAmount,
+  erc20TransferData,
+} from "./transfer";
 import useCurrencyValue from "@/hooks/useCurrencyValue";
 import Layer2AssetImage from "@/components/Layer2AssetImage";
 import {
@@ -64,22 +63,18 @@ export default function DetailsStep({
 
   const { userInput, address, domain, amount } = watch();
 
-  const payload =
+  const transferData =
     isAddress(address ?? "") && evmAddress
-      ? {
-          account: evmAddress,
-          to: asset.address,
-          data: encodeFunctionData({
-            abi: erc20Abi,
-            functionName: "transfer",
-            args: [
-              address as `0x${string}`,
-              amount
-                ? parseUnits(amount, asset.decimals)
-                : (balanceInfo?.rawBalance ?? 0n),
-            ],
-          }),
-        }
+      ? erc20TransferData(
+          address as `0x${string}`,
+          amount,
+          asset.decimals,
+          balanceInfo?.rawBalance,
+        )
+      : undefined;
+  const payload =
+    transferData && evmAddress
+      ? { account: evmAddress, to: asset.address, data: transferData }
       : undefined;
 
   const { data: estimatedFee } = useFeeEstimate(asset.chainId, payload);
@@ -165,6 +160,9 @@ export default function DetailsStep({
   const gasSymbol = getChainTokenSymbol(asset.chainId);
 
   const amountValidator = async (value: string | undefined) => {
+    const formatError = erc20AmountFormatError(value);
+    if (formatError) return formatError;
+
     const amountNumber = parseFloat(value ?? "0");
 
     if (amountNumber < 0 || amountNumber > currentBalance) {
@@ -196,10 +194,9 @@ export default function DetailsStep({
       return;
     }
 
-    const maxAmount = currentBalance;
     setValue(
       "amount",
-      maxAmount > 0 ? truncToDecimals(maxAmount, 8).toString() : "0",
+      erc20MaxAmount(balanceInfo?.rawBalance, currentBalance, asset.decimals),
       {
         shouldValidate: true,
       },

@@ -6,11 +6,24 @@ import { useNavigate } from "react-router-dom";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { CHAIN_BADGES } from "@/ui/popup/kcc20/AssetImage";
 import { formatKcc20Amount, KCC20_LABELS } from "@/ui/popup/kcc20/labels";
+import { useKrc20FilledToken } from "@/lib/kcc20/useKcc20Price";
 
 // Sending needs the scale: an amount typed without decimals has no meaning.
 export type SendableKcc20Token = Kcc20Token & {
   meta: NonNullable<Kcc20Token["meta"]> & { decimals: number };
 };
+
+/**
+ * The "Unverified" chip claims the wallet checked this token and rejected it. `meta.unverified`
+ * does not mean that: every standard row is issuer-claimed via kascov and never consults the
+ * registry, so the flag only says "not attested". No row carries a registry rejection today,
+ * so this is false; a future rejected-by-registry state turns the chip back on here.
+ * Read it off the unfilled row (`token.meta`): the KRC-20 fill stamps `unverified: true`.
+ */
+function isVerifiedAndRejected(meta: NonNullable<Kcc20Token["meta"]>): boolean {
+  void meta; // claimed-only metadata never records a registry verdict
+  return false;
+}
 
 interface Kcc20SelectItemProps {
   token: SendableKcc20Token;
@@ -21,6 +34,8 @@ export default function Kcc20SelectItem({ token }: Kcc20SelectItemProps) {
   const { wallet } = useWalletManager();
   // Ledger cannot sign v1 covenant transactions.
   const isLedger = wallet?.type === "ledger";
+  // Display only (logo, symbol): the send route is keyed by covenant id and reads the unfilled row.
+  const shown = useKrc20FilledToken(token).meta ?? token.meta;
 
   return (
     <>
@@ -47,19 +62,19 @@ export default function Kcc20SelectItem({ token }: Kcc20SelectItemProps) {
           )}
         >
           <Layer2AssetImage
-            tokenImage={token.meta.logoURI}
+            tokenImage={shown.logoURI}
             chainImage={CHAIN_BADGES.kcc20}
             chainImageSize={16}
             chainImageBottomPosition={-2}
           />
           <div className="flex flex-col items-start">
             <span className="flex items-center gap-2">
-              {token.meta.symbol || (
+              {shown.symbol || (
                 <span className="font-mono">
                   {textEllipsis(token.covenantId)}
                 </span>
               )}
-              {token.meta.unverified && (
+              {isVerifiedAndRejected(token.meta) && (
                 <span className="text-xs text-daintree-400">
                   {KCC20_LABELS.unverified}
                 </span>

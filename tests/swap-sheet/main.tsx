@@ -14,6 +14,7 @@ import SwapFamilyTabs, {
 import { L1_PROVIDERS } from "@/hooks/swap/l1Providers";
 import type { Kcc20Family } from "@/lib/kcc20";
 import kasIcon from "@/assets/images/network-logos/kaspa.svg";
+import { swapRowHideId, visibleTokens } from "@/lib/hidden-tokens";
 
 type Row = SheetToken & { family?: Kcc20Family };
 const params = new URLSearchParams(location.search);
@@ -49,8 +50,14 @@ function Sheet() {
   const [out, setOut] = useState<string>();
   const [family, setFamily] = useState<SwapFamilyTab>("all");
   window.__swap = { in: "kas", out, family };
+  // hidden=<id,id>: the dashboard's hidden set, filtered as Swap filters it.
   const side = useMemo(
-    () => rows.map((t) => ({ ...t, disabled: t.key === "kas" })),
+    () =>
+      visibleTokens(
+        new Set(params.get("hidden")?.split(",") ?? []),
+        rows,
+        (t) => swapRowHideId(t),
+      ).map((t) => ({ ...t, disabled: t.key === "kas" })),
     [],
   );
   return (

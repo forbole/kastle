@@ -16,6 +16,7 @@ export default defineConfig({
     alias: [
       { find: /^@\/hooks\/useStorageState$/, replacement: stubs },
       { find: /^@\/contexts\/SettingsContext$/, replacement: stubs },
+      { find: /^wxt\/browser$/, replacement: stubs },
       {
         find: /^\/node_modules\/(.*)$/,
         replacement: `${repo}/node_modules/$1`,

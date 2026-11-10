@@ -83,6 +83,19 @@ test.beforeAll(async () => {
       ".webp": "empty",
       ".css": "empty",
     },
+    // Logos resolve to their basename so a spec can tell kaspa.svg from
+    // igra.svg; the empty loader made every network mark undefined.
+    plugins: [
+      {
+        name: "svg-basename",
+        setup(b) {
+          b.onLoad({ filter: /\.svg$/ }, (args) => ({
+            contents: `export default ${JSON.stringify(path.basename(args.path))};`,
+            loader: "js",
+          }));
+        },
+      },
+    ],
     logLevel: "silent",
   });
   m = (await import(pathToFileURL(outfile).href)) as Modules;
@@ -348,13 +361,29 @@ test("buy enrichment: feeAmount is the network fee alone, the cut rides in kastl
   });
   const desc = m.mapSwapActivity(row);
   expect(desc.meta?.l2Chain).toBe("Kaspa");
-  const item = JSON.stringify(
-    m.toActivityItem(desc, {
-      logoFor: () => undefined,
-      priceFor: () => undefined,
-    }),
-  );
+  const activity = m.toActivityItem(desc, {
+    logoFor: () => undefined,
+    priceFor: () => undefined,
+  });
+  // The KAS leg of a KCC-20 swap is native L1: Kaspa mark, never Igra's.
+  expect(activity.chainImage).toBe("kaspa.svg");
+  expect(activity.sheet.transfer.fromChainImage).toBe("kaspa.svg");
+  expect(activity.sheet.transfer.toChainImage).toBe("kaspa.svg");
+  const item = JSON.stringify(activity);
   expect(item).toContain(`https://explorer.kaspa.org/txs/${BUY_TXID}`);
+});
+
+test("chain logo: an Igra EVM swap, or one with no chainId, keeps the Igra mark", () => {
+  const deps = { logoFor: () => undefined, priceFor: () => undefined };
+  for (const chainId of [38833, undefined]) {
+    const desc = m.mapSwapActivity(
+      buyRow({ id: "0xevm", fromSymbol: "iKAS", toSymbol: "ZEAL", chainId }),
+    );
+    const activity = m.toActivityItem(desc, deps);
+    expect(activity.chainImage).toBe("igra.svg");
+    expect(activity.sheet.transfer.fromChainImage).toBe("igra.svg");
+    expect(activity.sheet.transfer.toChainImage).toBe("igra.svg");
+  }
 });
 
 test("two-token transaction: the fetched read is refused and the row keeps its placeholder", async () => {
