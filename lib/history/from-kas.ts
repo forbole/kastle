@@ -40,9 +40,18 @@ export function toHistoryRecord(
       : net > 0n
         ? "in"
         : "self";
-  // Self: the value that moved and came back, never the fee-only net.
+  // Self: only a lone own output is unambiguously the value that stayed; with
+  // several (self + change) the sum is the balance, not what moved → 0n, shown
+  // as unavailable below. Never the fee-only net.
+  const ownOuts = tx.outputs.filter((x) => x.address === ownAddress);
   const abs =
-    direction === "self" ? sum(tx.outputs, ownAddress) : net < 0n ? -net : net;
+    direction !== "self"
+      ? net < 0n
+        ? -net
+        : net
+      : ownOuts.length === 1
+        ? BigInt(ownOuts[0].amount)
+        : 0n;
   const parties =
     direction === "out"
       ? others(tx.outputs, ownAddress)

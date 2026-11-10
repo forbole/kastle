@@ -177,15 +177,12 @@ test("one external recipient: send", () => {
   expect(r.counterparty).toEqual({ value: { address: B }, quality: "exact" });
 });
 
-test("self transfer: amount is the own outputs (2.5 KAS), never the fee", () => {
-  // 2.51 KAS in, 2.5 KAS back in two own outputs: the 0.01 KAS fee is the net.
+test("self transfer: one own output (2.5 KAS) is the amount, never the fee", () => {
+  // 2.51 KAS in, 2.5 KAS back in one own output: the 0.01 KAS fee is the net.
   const r = toHistoryRecord(
     tx({
       inputs: [{ address: ME, amount: 251_000_000 }],
-      outputs: [
-        { address: ME, amount: 200_000_000 },
-        { address: ME, amount: 50_000_000 },
-      ],
+      outputs: [{ address: ME, amount: 250_000_000 }],
     }),
     ME,
     opts,
@@ -196,6 +193,25 @@ test("self transfer: amount is the own outputs (2.5 KAS), never the fee", () => 
     quality: "exact",
   });
   expect(r.fiat.value?.usd).toBeCloseTo(0.25, 9);
+});
+
+test("self transfer with self and change outputs: amount unavailable", () => {
+  // 150 KAS in, 100 KAS to self + 49.99 KAS change: the sum is the balance
+  // minus the fee, not what moved, and nothing says which output is which.
+  const r = toHistoryRecord(
+    tx({
+      inputs: [{ address: ME, amount: 15_000_000_000 }],
+      outputs: [
+        { address: ME, amount: 10_000_000_000 },
+        { address: ME, amount: 4_999_000_000 },
+      ],
+    }),
+    ME,
+    opts,
+  );
+  expect(r.direction).toBe("self");
+  expect(r.amount).toEqual({ value: null, quality: "unavailable" });
+  expect(r.fiat).toEqual({ value: null, quality: "unavailable" });
 });
 
 test("self transfer with no own outputs: amount unavailable", () => {
