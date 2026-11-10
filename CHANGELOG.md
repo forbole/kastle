@@ -1,5 +1,37 @@
 # Changelog
 
+## [2.62.0](https://github.com/forbole/kastle/compare/v2.61.4...v2.62.0) (2026-11-10)
+
+
+### Features
+
+* allow KCC-20 tokens on testnet-10 (extension) ([#413](https://github.com/forbole/kastle/issues/413)) ([894aae2](https://github.com/forbole/kastle/commit/894aae2878c8b1b0f41f3fae154bc7acb66aac4d))
+* **evm-history:** in-app EVM and ERC-20 token history ([#440](https://github.com/forbole/kastle/issues/440)) ([b152757](https://github.com/forbole/kastle/commit/b15275750c50bfd387b28bee341c36a91923db13))
+* integrate the Kasseal launchpad ([#411](https://github.com/forbole/kastle/issues/411)) ([30c1add](https://github.com/forbole/kastle/commit/30c1addcb26dcb46b336566f3325ae2ec58a008f))
+* **kcc20:** full KCC-20 parity with mobile in one branch ([#420](https://github.com/forbole/kastle/issues/420)) ([3105c5b](https://github.com/forbole/kastle/commit/3105c5b5f6bd318574b83f3ba54ec18f215e4f5d))
+* **kcc20:** KCC-20 standard read path and transfer builder ([#406](https://github.com/forbole/kastle/issues/406)) ([2e554b1](https://github.com/forbole/kastle/commit/2e554b1587183caf26b7f3d3eefa65a6426564d4))
+* **optimize:** consolidate small UTXOs so sends are cheap and Ledger works ([#424](https://github.com/forbole/kastle/issues/424)) ([259c0c5](https://github.com/forbole/kastle/commit/259c0c55fb2560982a0f863c8605b79a13464152))
+
+
+### Bug Fixes
+
+* **activity:** dismissible warning panel, and KCC-20 links to kascov ([#439](https://github.com/forbole/kastle/issues/439)) ([1a318b8](https://github.com/forbole/kastle/commit/1a318b85013a8c00952c7c5d73bef94aa3de22d0))
+* **activity:** keep the warning panel's dismiss button inside its box ([#441](https://github.com/forbole/kastle/issues/441)) ([5042dbc](https://github.com/forbole/kastle/commit/5042dbc96f054deff7884a2f9e10ab6442f74084))
+* **activity:** show the L1 Kaspa mark on the KAS leg of a KCC-20 swap ([#433](https://github.com/forbole/kastle/issues/433)) ([195572f](https://github.com/forbole/kastle/commit/195572fe209f7092dfd4803092075b019de3c07c))
+* **activity:** show the Received leg's USD in the swap detail sheet ([#431](https://github.com/forbole/kastle/issues/431)) ([0e2db97](https://github.com/forbole/kastle/commit/0e2db9778ed8d56da299ae59b18ad44e69389896))
+* **currency:** replace the dead exchange rates domain and cache rates for 10 min ([#429](https://github.com/forbole/kastle/issues/429)) ([40a558b](https://github.com/forbole/kastle/commit/40a558b3e7715d704ac566857c2ec45d32f4d3bd))
+* **dashboard:** give every asset row the hide/show switch ([#432](https://github.com/forbole/kastle/issues/432)) ([9c32110](https://github.com/forbole/kastle/commit/9c32110bc4f3347122b35fedf254b5e00a0c95d0))
+* **hidden-tokens:** land the hidden filter on main ([#436](https://github.com/forbole/kastle/issues/436) merged into a dead base) ([#438](https://github.com/forbole/kastle/issues/438)) ([9b2dbf7](https://github.com/forbole/kastle/commit/9b2dbf781ed96eafd8584539df121c08c8135dfc))
+* **history:** one shared history shell for every token family ([#442](https://github.com/forbole/kastle/issues/442)) ([0aa680e](https://github.com/forbole/kastle/commit/0aa680e22a0050d5ba34e5aaa87ba3d11a914236))
+* KCC-20 send reuses the shared send screen ([#414](https://github.com/forbole/kastle/issues/414)) ([1658137](https://github.com/forbole/kastle/commit/1658137df5ba0053c74ecb5d5d1f0755f6c000c7))
+* **kcc20-send:** give the picker row the NACHO logo and drop the false Unverified chip ([#435](https://github.com/forbole/kastle/issues/435)) ([04dbb0b](https://github.com/forbole/kastle/commit/04dbb0b9978a463b7aaecbe41179ccb97fb4ebf1))
+* **kcc20:** resume stored Braid deposits without waiting for a Braid pair ([#426](https://github.com/forbole/kastle/issues/426)) ([95cd39f](https://github.com/forbole/kastle/commit/95cd39f4083ea8abf9999dc7e553ebc8abfc1062))
+* **qa:** 2.61.5 — six QA defects on the KCC-20 parity line ([#427](https://github.com/forbole/kastle/issues/427)) ([c2d115f](https://github.com/forbole/kastle/commit/c2d115fecb5e010f0b8911f01dfd53522a3002c6))
+* **qa7:** received-leg USD, NACHO attribution, asset header with search ([#430](https://github.com/forbole/kastle/issues/430)) ([8c49bae](https://github.com/forbole/kastle/commit/8c49baed1e6a8c9d89cee3e03968de1fd12c9571))
+* **send:** select UTXOs in the app and price Max against the real batch fee ([#422](https://github.com/forbole/kastle/issues/422)) ([08e1633](https://github.com/forbole/kastle/commit/08e163328ff6295107b32bdcf7136050dc5e9caf))
+* **send:** stop the false 'cannot be sent' flash and the Max-amount crash ([#437](https://github.com/forbole/kastle/issues/437)) ([3366683](https://github.com/forbole/kastle/commit/3366683afce119cf1e93015554826fa0143d551d))
+* **sign-broadcast:** keep covenant binding on rebuilt change output ([#434](https://github.com/forbole/kastle/issues/434)) ([87ae4bc](https://github.com/forbole/kastle/commit/87ae4bcd68dba0dc772caccdcab18af77f681fe6))
+
 ## [2.61.4](https://github.com/forbole/kastle/compare/v2.61.3...v2.61.4) (2026-10-22)
 
 
