@@ -71,6 +71,66 @@ export function kcc20PriceKas(
   return market?.priceKas;
 }
 
+/** What useKcc20Price has fetched for a token; undefined means not answered yet. */
+export type Kcc20PriceSources = {
+  markets?: KronMarkets;
+  /** kascov's spot in KAS; null when kascov has no market for the token. */
+  spot?: number | null;
+  /** The KRC-20 list, USD prices by symbol. */
+  krc20?: readonly { symbol: string; price: number }[];
+  kaspaPrice: number;
+  /** The token's last price cached under the current network. */
+  cached?: number;
+};
+
+/**
+ * useKcc20Price's resolution, for a screen that prices many tokens at once:
+ * `live` is the sources' answer, `priceKas` the price shown.
+ */
+export function resolveKcc20Price(
+  token: Pick<Kcc20Token, "covenantId" | "family" | "meta">,
+  { markets, spot, krc20, kaspaPrice, cached }: Kcc20PriceSources,
+): { live?: number; priceKas?: number } {
+  const isStandard = token.family === "kcc20-standard";
+  // No kascov market: the KRC-20 list's USD price for the same symbol (one entry only).
+  const symbol = token.meta?.symbol.toUpperCase();
+  const namesakes = symbol
+    ? (krc20 ?? []).filter((t) => t.symbol.toUpperCase() === symbol)
+    : [];
+  const krc20Kas =
+    namesakes.length === 1 && namesakes[0].price > 0 && kaspaPrice
+      ? namesakes[0].price / kaspaPrice
+      : undefined;
+  const live = isStandard
+    ? (spot ?? krc20Kas)
+    : kcc20PriceKas(markets, token.covenantId);
+  // null is an answer: kascov has no market, so no cached price may stand in.
+  const answered = isStandard ? spot !== undefined : markets !== undefined;
+  return { live, priceKas: answered ? live : cached };
+}
+
+/** The prices cached under `networkId`; a cold start reads them from storage. */
+export function useKcc20CachedPrices(
+  networkId: string | undefined,
+): Record<string, number> | undefined {
+  const [cache, setCache] = useState(mirror);
+
+  // A cold start shows the last price until the source answers.
+  useEffect(() => {
+    if (!networkId || cache?.networkId === networkId) return;
+    let active = true;
+    loadPrices(networkId).then((entry) => {
+      if (active) setCache(entry);
+    });
+    return () => {
+      active = false;
+    };
+  }, [cache, networkId]);
+
+  // Only a price cached under the current network may stand in.
+  return cache && cache.networkId === networkId ? cache.prices : undefined;
+}
+
 export function useKcc20Price(
   token: Pick<Kcc20Token, "covenantId" | "family" | "meta">,
 ) {
@@ -95,46 +155,21 @@ export function useKcc20Price(
     ([, id, decimals]) => fetchStandardMarketPrice(id, decimals),
     { refreshInterval: 60_000 },
   );
-  // No kascov market: the KRC-20 list's USD price for the same symbol (one entry only).
   const { data: krc20 } = useZealousSwapTokensMetadata();
-  const symbol = meta?.symbol.toUpperCase();
-  const namesakes = symbol
-    ? (krc20?.tokens ?? []).filter((t) => t.symbol.toUpperCase() === symbol)
-    : [];
-  const krc20Kas =
-    namesakes.length === 1 && namesakes[0].price > 0 && kaspaPrice
-      ? namesakes[0].price / kaspaPrice
-      : undefined;
-  const [cache, setCache] = useState(mirror);
-  const live = isStandard
-    ? (spot ?? krc20Kas)
-    : kcc20PriceKas(markets, covenantId);
-  // null is an answer: kascov has no market, so no cached price may stand in.
-  const answered = isStandard ? spot !== undefined : markets !== undefined;
-
-  // A cold start shows the last price until the source answers.
-  useEffect(() => {
-    if (!networkId || cache?.networkId === networkId) return;
-    let active = true;
-    loadPrices(networkId).then((entry) => {
-      if (active) setCache(entry);
-    });
-    return () => {
-      active = false;
-    };
-  }, [cache, networkId]);
+  const cache = useKcc20CachedPrices(networkId);
+  const { live, priceKas } = resolveKcc20Price(token, {
+    markets,
+    spot,
+    krc20: krc20?.tokens,
+    kaspaPrice,
+    cached: cache?.[covenantId],
+  });
 
   useEffect(() => {
     if (networkId && live !== undefined)
       mergePrice(networkId, covenantId, live).catch(() => {});
   }, [live, covenantId, networkId]);
 
-  // Only a price cached under the current network may stand in.
-  const cached =
-    cache && cache.networkId === networkId
-      ? cache.prices[covenantId]
-      : undefined;
-  const priceKas = answered ? live : cached;
   return {
     priceKas,
     // The KAS price reads 0 until it loads: unknown, not worthless.
