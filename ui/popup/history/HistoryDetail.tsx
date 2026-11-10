@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, Copy, ExternalLink } from "lucide-react";
 import type { HistoryRecord } from "@/lib/history/types";
-import { textEllipsis } from "@/lib/utils";
-import { historyTimeText } from "@/ui/popup/history/format";
+import useCurrencyValue from "@/hooks/useCurrencyValue";
+import { formatCurrency, textEllipsis } from "@/lib/utils";
+import { historyFiatUsd, historyTimeText } from "@/ui/popup/history/format";
 
 const STATUS_LABEL: Record<HistoryRecord["status"], string | null> = {
   finalized: "Finalized",
@@ -74,6 +75,8 @@ export function HistoryDetail({
   const time = historyTimeText(record.time.value);
   const status = STATUS_LABEL[record.status];
   const explorer = record.explorer;
+  const usd = historyFiatUsd(record);
+  const fiat = useCurrencyValue(usd ?? 0);
 
   // The sheet holds focus while open, Escape closes it, and focus returns on close.
   useEffect(() => {
@@ -133,6 +136,11 @@ export function HistoryDetail({
             <span className="rounded-full bg-white/10 px-2.5 py-0.5 text-xs font-medium">
               {status}
             </span>
+          </DetailRow>
+        )}
+        {usd !== null && (
+          <DetailRow label="Value">
+            <span>≈ {formatCurrency(fiat.amount, fiat.code)}</span>
           </DetailRow>
         )}
         {record.txid && (

@@ -95,3 +95,10 @@ export function historyCounterpartyText(record: HistoryRecord): string | null {
     counterparty.value.label ?? textEllipsis(counterparty.value.address);
   return `${direction === "in" ? "From" : "To"} ${who}`;
 }
+
+/** USD figure for the detail sheet's Value row; null when the source has none. */
+export function historyFiatUsd(record: HistoryRecord): number | null {
+  return record.fiat.quality === "unavailable"
+    ? null
+    : (record.fiat.value?.usd ?? null);
+}
