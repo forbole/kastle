@@ -882,4 +882,58 @@ test('EVM KAS: pages of dropped calls are never "No history yet" while more exis
     0,
   );
   expect(await sawEmpty()).toBe(false);
+  // A first-page revalidation (focus, past SWR's 5 s focus throttle) refetches
+  // page 1 only: the backfill neither restarts nor fires again.
+  const calls = () =>
+    page.evaluate(
+      () =>
+        (window as unknown as { __evmHistoryCalls?: number })
+          .__evmHistoryCalls ?? 0,
+    );
+  await page.waitForTimeout(5_100);
+  const before = await calls();
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect.poll(calls).toBe(before + 1);
+  await page.waitForTimeout(1_500);
+  expect(await calls()).toBe(before + 1);
+  await expect(more).toBeVisible();
+});
+
+test("EVM KAS: a revalidation shows a new transfer on top, and the old row never blanks", async ({
+  page,
+}) => {
+  // Latch if the old row ever disappears, even for one frame mid-refetch.
+  await page.addInitScript(() => {
+    new MutationObserver(() => {
+      const w = window as unknown as {
+        __sawOld?: boolean;
+        __lostOld?: boolean;
+      };
+      const has = !!document.body?.innerText.includes("1.5");
+      if (has) w.__sawOld = true;
+      else if (w.__sawOld) w.__lostOld = true;
+    }).observe(document, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+  });
+  await open(page, `/evm-asset/${KASPLEX}`);
+  const rows = page.getByRole("button", { name: /Sent/ });
+  await expect(rows).toHaveCount(1);
+  // SWR ignores focus for 5 s after mount (focusThrottleInterval); past it,
+  // focus runs the same first-page revalidation a reopen runs on a cached key.
+  await page.waitForTimeout(5_100);
+  await page.evaluate(() => {
+    (window as unknown as { __evmHistoryNewTx?: boolean }).__evmHistoryNewTx =
+      true;
+    window.dispatchEvent(new Event("focus"));
+  });
+  await expect(rows).toHaveCount(2);
+  await expect(rows.first()).toContainText("3");
+  expect(
+    await page.evaluate(
+      () => !!(window as unknown as { __lostOld?: boolean }).__lostOld,
+    ),
+  ).toBe(false);
 });

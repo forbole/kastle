@@ -371,6 +371,7 @@ export function useAnalytics() {
 // Every other URL goes to the real fetch.
 export const EVM_TX_HASH = `0x${"a1".repeat(32)}`;
 export const ERC20_TX_HASH = `0x${"b2".repeat(32)}`;
+const EVM_NEW_TX_HASH = `0x${"c3".repeat(32)}`;
 const EVM_OTHER = "0x2222222222222222222222222222222222222222";
 const realFetch = window.fetch.bind(window);
 window.fetch = async (input, init) => {
@@ -404,9 +405,29 @@ window.fetch = async (input, init) => {
       next_page_params: { block_number: n - 1 },
     });
   }
+  // window.__evmHistoryNewTx (set by a spec mid-test): a newer 3 KAS send
+  // lands on top, answered after 300 ms, as if just sent from this wallet.
+  const fresh =
+    kind === "transactions" &&
+    !!(window as unknown as { __evmHistoryNewTx?: boolean }).__evmHistoryNewTx;
+  if (fresh) await new Promise((r) => setTimeout(r, 300));
   const items =
     kind === "transactions"
       ? [
+          ...(fresh
+            ? [
+                {
+                  hash: EVM_NEW_TX_HASH,
+                  from: { hash: owner },
+                  to: { hash: EVM_OTHER },
+                  value: "3000000000000000000",
+                  fee: { type: "actual", value: "21000000000000" },
+                  status: "ok",
+                  result: "success",
+                  timestamp: "2026-01-03T03:04:05.000000Z",
+                },
+              ]
+            : []),
           {
             hash: EVM_TX_HASH,
             from: { hash: owner },

@@ -49,12 +49,15 @@ export function useEvmHistory(opts: {
 
   // The key returns null for an unsupported chain or a missing address, so
   // nothing is fetched in either case.
-  const { data, error, size, setSize, mutate } = useSWRInfinite<
+  // revalidateFirstPage stays at SWR's default (true): the popup unmounts on
+  // close, so a cached first page must refetch on mount and focus, or a
+  // transfer just sent never shows on reopen. SWR keeps the old `data` while
+  // it refetches, so the rows on screen stay. Cost: each setSize also
+  // refetches page 1 (a full backfill is 5 requests, not 3).
+  const { data, error, size, setSize, mutate, isValidating } = useSWRInfinite<
     BlockscoutPage<Item>,
     Error
-  >(blockscoutPageKey(chainId, address, source), fetchBlockscoutPage<Item>, {
-    revalidateFirstPage: false,
-  });
+  >(blockscoutPageKey(chainId, address, source), fetchBlockscoutPage<Item>);
 
   const token = source.family === "erc20" ? source.token : undefined;
   const records = useMemo(() => {
@@ -81,12 +84,14 @@ export function useEvmHistory(opts: {
 
   // Backfill: a short first read (the native filter drops zero-value calls)
   // pulls more pages until it holds a screenful, capped at BACKFILL_PAGES.
-  // Loop guard: only once the requested pages have all landed, never after an
-  // error, never past the cap.
+  // Loop guard: only once the requested pages have all landed and nothing is
+  // in flight (a revalidating first page means wait, not fetch another page),
+  // never after an error, never past the cap.
   const loaded = data?.length ?? 0;
   useEffect(() => {
     if (
       !error &&
+      !isValidating &&
       hasMore &&
       loaded === size &&
       size < BACKFILL_PAGES &&
@@ -94,7 +99,7 @@ export function useEvmHistory(opts: {
     ) {
       setSize(size + 1);
     }
-  }, [error, hasMore, loaded, size, records.length, setSize]);
+  }, [error, isValidating, hasMore, loaded, size, records.length, setSize]);
 
   const loadMore = useCallback(() => {
     if (hasMore && !isFetchingMore) setSize((s) => s + 1);
