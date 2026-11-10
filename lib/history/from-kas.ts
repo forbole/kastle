@@ -25,7 +25,18 @@ export function toHistoryRecord(
   opts: { network: NetworkType; usdPrice?: number },
 ): HistoryRecord {
   const net = sum(tx.outputs, ownAddress) - sum(tx.inputs, ownAddress);
-  const direction = net < 0n ? "out" : net > 0n ? "in" : "self";
+  // Party first: with no outside address on either side it is a transfer
+  // between own addresses, whatever the fee does to the net.
+  const external =
+    others(tx.inputs, ownAddress).length > 0 ||
+    others(tx.outputs, ownAddress).length > 0;
+  const direction = !external
+    ? "self"
+    : net < 0n
+      ? "out"
+      : net > 0n
+        ? "in"
+        : "self";
   const abs = net < 0n ? -net : net;
   const parties =
     direction === "out"

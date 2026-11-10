@@ -144,3 +144,35 @@ test("sompi sums stay exact past 2^53", () => {
   );
   expect(r.amount.value?.raw).toBe((BigInt(big) + 1n).toString());
 });
+
+test("every input and output own: self whatever the fee, no counterparty", () => {
+  // 10 KAS in, 9.99 KAS back to self: nets −0.01 KAS from the fee alone.
+  const r = toHistoryRecord(
+    tx({
+      inputs: [{ address: ME, amount: 1_000_000_000 }],
+      outputs: [{ address: ME, amount: 999_000_000 }],
+    }),
+    ME,
+    opts,
+  );
+  expect(r.direction).toBe("self");
+  expect(r.kind).toBe("self");
+  expect(r.counterparty.quality).toBe("unavailable");
+});
+
+test("one external recipient: send", () => {
+  const r = toHistoryRecord(
+    tx({
+      inputs: [{ address: ME, amount: 1_000_000_000 }],
+      outputs: [
+        { address: B, amount: 100_000_000 },
+        { address: ME, amount: 899_000_000 },
+      ],
+    }),
+    ME,
+    opts,
+  );
+  expect(r.kind).toBe("send");
+  expect(r.direction).toBe("out");
+  expect(r.counterparty).toEqual({ value: { address: B }, quality: "exact" });
+});

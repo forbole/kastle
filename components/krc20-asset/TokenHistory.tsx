@@ -9,6 +9,11 @@ import { NetworkType } from "@/contexts/SettingsContext";
 import { toHistoryRecord } from "@/lib/history/from-krc20";
 import { HistoryList } from "@/ui/popup/history/HistoryList";
 
+const decimalsOf = (dec: unknown) => {
+  const n = Number(dec);
+  return Number.isInteger(n) && n > 0 ? n : undefined;
+};
+
 export function TokenHistory() {
   const { ticker } = useParams();
   const { data: tokenInfoResponse } = useTokenInfo(ticker);
@@ -30,9 +35,11 @@ export function TokenHistory() {
   const tokenInfo = tokenInfoResponse?.result?.[0];
   const ctx = {
     ownAddress: ownAddress ?? "",
-    tick: tokenInfo?.tick ?? ticker ?? "",
-    // ponytail: dec is a string from Kasplex; garbage → 0.
-    decimals: Number(tokenInfo?.dec) || 0,
+    // Never the route param: for issue-mode tokens it is a contract address.
+    tick: tokenInfo?.tick ?? tokenInfo?.name ?? "",
+    // dec is a string from Kasplex; anything but a positive integer is
+    // unknown, and the adapter falls back to base units.
+    decimals: decimalsOf(tokenInfo?.dec),
     network: (networkId ?? NetworkType.Mainnet) as NetworkType,
     usdPrice: price,
   };

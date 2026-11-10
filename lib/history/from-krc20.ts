@@ -2,6 +2,7 @@ import type { Op } from "@/hooks/useOpListByAddressAndTicker";
 import type { NetworkType } from "@/contexts/SettingsContext";
 import { explorerTxLinks } from "@/components/screens/Settings";
 import type { HistoryRecord } from "@/lib/history/types";
+import { KCC20_LABELS } from "@/ui/popup/kcc20/labels";
 
 const NONE = { value: null, quality: "unavailable" } as const;
 
@@ -15,7 +16,8 @@ export function toHistoryRecord(
   ctx: {
     ownAddress: string;
     tick: string;
-    decimals: number;
+    /** Positive integer, or the amount is shown in base units. */
+    decimals: number | undefined;
     network: NetworkType;
     usdPrice?: number;
   },
@@ -50,12 +52,19 @@ export function toHistoryRecord(
     src && /^\d+$/.test(src) && (op.op !== "deploy" || BigInt(src) > 0n)
       ? src
       : null;
+  // Unknown or garbage scale: show base units, never pretend they are tokens.
+  const dec =
+    ctx.decimals !== undefined &&
+    Number.isInteger(ctx.decimals) &&
+    ctx.decimals > 0
+      ? ctx.decimals
+      : null;
   const big = raw === null ? null : BigInt(raw);
-  const scale = 10n ** BigInt(ctx.decimals);
   const float =
-    big === null
+    big === null || dec === null
       ? null
-      : Number(big / scale) + Number(big % scale) / 10 ** ctx.decimals;
+      : Number(big / 10n ** BigInt(dec)) +
+        Number(big % 10n ** BigInt(dec)) / 10 ** dec;
   const usdPrice = ctx.usdPrice ?? 0;
 
   const timeMs = parseInt(op.mtsAdd, 10);
@@ -75,8 +84,8 @@ export function toHistoryRecord(
         : {
             value: {
               raw,
-              decimals: ctx.decimals,
-              symbol: ctx.tick,
+              decimals: dec ?? 0,
+              symbol: dec === null ? KCC20_LABELS.baseUnits : ctx.tick,
             },
             quality: "exact",
           },

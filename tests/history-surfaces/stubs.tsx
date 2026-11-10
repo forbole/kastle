@@ -7,6 +7,10 @@
 //   state=loading  page 1 in flight
 //   state=pager    KRC-20 only: every page loads (isValidating) and adds no
 //                  rows, another always remains; window.__pagesRequested counts
+//   state=stall    EVM only: loadMore serves a cached page — no flag, no row
+//                  changes; window.__pagesRequested counts
+//   state=refresh  KAS only: row 0 starts pending; window.__finalize() lands
+//                  the refresh that finalizes it
 import { useState } from "react";
 import type { KaspaTxHistoryItem } from "@/hooks/useKasTxHistory";
 import type { Op } from "@/hooks/useOpListByAddressAndTicker";
@@ -119,9 +123,15 @@ const KAS_TXS = [
     ],
   ), // no party
 ];
+const kasWindow = window as unknown as { __finalize: () => void };
 export function useKasTxHistory() {
+  const [accepted, setAccepted] = useState(state !== "refresh");
+  kasWindow.__finalize = () => setAccepted(true);
+  const txs = accepted
+    ? KAS_TXS
+    : [{ ...KAS_TXS[0], isAccepted: false }, ...KAS_TXS.slice(1)];
   return {
-    txs: empty || loading ? [] : KAS_TXS,
+    txs: empty || loading ? [] : txs,
     error: undefined,
     isLoading: loading,
     isLoadingMore: false,
@@ -282,9 +292,9 @@ export function useEvmHistory({
     isLoading: loading,
     error: null,
     unavailable: null,
-    hasMore: more,
+    hasMore: more || state === "stall",
     isFetchingMore: false,
-    loadMore: noop,
+    loadMore: () => (pagesWindow.__pagesRequested += 1),
     retry: noop,
   };
 }

@@ -158,3 +158,14 @@ test("bad mtsAdd: time unavailable", () => {
     "unavailable",
   );
 });
+
+for (const decimals of [undefined, 1.5, -2, 0]) {
+  test(`unknown scale (${decimals}): base units, no fiat, no throw`, () => {
+    const r = toHistoryRecord(op({ amt: "100000000" }), { ...ctx, decimals });
+    expect(r.amount).toEqual({
+      value: { raw: "100000000", decimals: 0, symbol: "base units" },
+      quality: "exact",
+    });
+    expect(r.fiat.quality).toBe("unavailable");
+  });
+}

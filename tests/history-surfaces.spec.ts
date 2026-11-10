@@ -302,3 +302,36 @@ test("krc20: switching ticker remounts the list, a capped source never caps the 
   await expect(loadMore).toBeVisible();
   expect(errors).toEqual([]);
 });
+
+// A source that serves a cached page flips no flag and adds no row; without
+// the stall escape the request never ends and the list spins forever.
+test("evm: a request that changes nothing ends at Load more, not a stuck spinner", async ({
+  page,
+}) => {
+  const errors = await open(page, "/evm", "state=stall");
+  const pages = () =>
+    page.evaluate(
+      () =>
+        (window as unknown as { __pagesRequested: number }).__pagesRequested,
+    );
+  await expect(page.getByRole("button", { name: "Load more" })).toBeVisible({
+    timeout: 15_000,
+  });
+  expect(await pages()).toBe(3);
+  expect(errors).toEqual([]);
+});
+
+test("kas: an open sheet follows its record through a refresh", async ({
+  page,
+}) => {
+  const errors = await open(page, "/kas", "state=refresh");
+  await rowsOf(page).nth(0).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toContainText("Pending");
+  await page.evaluate(() =>
+    (window as unknown as { __finalize: () => void }).__finalize(),
+  );
+  await expect(dialog).toContainText("Finalized");
+  await expect(dialog).not.toContainText("Pending");
+  expect(errors).toEqual([]);
+});

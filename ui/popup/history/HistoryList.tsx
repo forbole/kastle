@@ -39,6 +39,8 @@ function Notice({ children }: { children: React.ReactNode }) {
 }
 
 const EMPTY_PAGE_CAP = 3;
+/** How long a request may change nothing before it counts as an empty page. */
+const STALL_GRACE_MS = 2000;
 
 /**
  * The one history shell every family renders, paged as the sentinel scrolls in.
@@ -56,8 +58,12 @@ export function HistoryList({
   emptyMessage = "No history yet.",
   truncatedMessage,
 }: HistoryListProps): React.ReactElement {
+  // The record captured at click time; the sheet shows its live version from
+  // `records`, falling back to the capture only once it has left the list.
   const [selected, setSelected] = useState<HistoryRecord>();
   const close = useCallback(() => setSelected(undefined), []);
+  const shown =
+    selected && (records.find((r) => r.id === selected.id) ?? selected);
 
   // React to the state, not the intersection edge: on a page with no rows the
   // sentinel is already in view when the previous load ends, so an
@@ -81,13 +87,33 @@ export function HistoryList({
   const countAtRequest = useRef(0);
   const streak = useRef(0);
   const [emptyStreak, setEmptyStreak] = useState(0);
+  const countNow = useRef(records.length);
+  countNow.current = records.length;
+  // A source that serves a cached page changes no flag and no row, so the
+  // gate below would wait in "requested" forever: after a grace period such a
+  // request counts as an empty page and the cycle ends.
+  const stall = useRef<ReturnType<typeof setTimeout>>();
+  const clearStall = () => clearTimeout(stall.current);
+  useEffect(() => clearStall, []);
   const request = useCallback(() => {
     phase.current = "requested";
     countAtRequest.current = records.length;
+    clearStall();
+    stall.current = setTimeout(() => {
+      if (
+        phase.current !== "requested" ||
+        countNow.current !== countAtRequest.current
+      )
+        return;
+      phase.current = "idle";
+      streak.current += 1;
+      setEmptyStreak(streak.current);
+    }, STALL_GRACE_MS);
     loadMoreRef.current();
   }, [records.length]);
   useEffect(() => {
     if (phase.current === "requested" && isLoadingMore) {
+      clearStall();
       phase.current = "loading";
     } else if (phase.current === "loading" && !isLoadingMore) {
       phase.current = "idle";
@@ -98,9 +124,7 @@ export function HistoryList({
       phase.current === "requested" &&
       (error || !hasMore || records.length !== countAtRequest.current)
     ) {
-      // ponytail: a request that never flips isLoadingMore (cache hit, no-op)
-      // is released only by rows, an error or the end of the feed; add a
-      // timeout here if a source ever swallows a setSize silently.
+      clearStall();
       phase.current = "idle";
     }
     if (
@@ -184,8 +208,8 @@ export function HistoryList({
       )}
       {/* A zero-height sentinel sits a subpixel past the scroll body's edge and never fires. */}
       <div ref={sentinel} className="h-1 shrink-0" />
-      <ActionSheet isOpen={!!selected} onClose={close}>
-        {selected && <HistoryDetail record={selected} onClose={close} />}
+      <ActionSheet isOpen={!!shown} onClose={close}>
+        {shown && <HistoryDetail record={shown} onClose={close} />}
       </ActionSheet>
     </div>
   );
