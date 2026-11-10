@@ -296,6 +296,9 @@ export const SighashType = {};
 export const explorerTxLinks: Record<string, string> = {
   mainnet: "https://explorer.test/txs/",
 };
+export const kcc20TxLinks: Record<string, string> = {
+  mainnet: "https://kascov.test/tx/",
+};
 
 // Dashboard asset list
 export function useKaspaPrice() {

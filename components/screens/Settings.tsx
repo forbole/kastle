@@ -22,6 +22,12 @@ export const explorerTxLinks = {
   [NetworkType.TestnetT10]: "https://explorer-tn10.kaspa.org/txs/",
 };
 
+// KCC-20 operations open on kascov, which decodes covenant token actions; the
+// Kaspa explorer shows them as plain KAS moves. Mainnet only: no testnet route.
+export const kcc20TxLinks: Partial<Record<NetworkType, string>> = {
+  [NetworkType.Mainnet]: "https://kascov.io/#/mainnet/tx/",
+};
+
 export const explorerAddressLinks = {
   [NetworkType.Mainnet]: "https://explorer.kaspa.org/addresses/",
   [NetworkType.TestnetT10]: "https://explorer-tn10.kaspa.org/addresses/",
