@@ -55,7 +55,7 @@ test("unattributed row: amount and counterparty unavailable, kind unknown", () =
   expect(r.explorer).toBeNull();
 });
 
-test("no-decimals token: base units, empty symbol, amount kept", () => {
+test('no-decimals token: base units, labelled "base units", amount kept', () => {
   const r = toHistoryRecord(
     row({ kind: "receive", direction: "in", amount: 42n }),
     {
@@ -63,7 +63,7 @@ test("no-decimals token: base units, empty symbol, amount kept", () => {
     },
   );
   expect(r.amount).toEqual({
-    value: { raw: "42", decimals: 0, symbol: "" },
+    value: { raw: "42", decimals: 0, symbol: "base units" },
     quality: "exact",
   });
 });

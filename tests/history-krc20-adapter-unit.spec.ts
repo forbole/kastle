@@ -90,16 +90,35 @@ test("self transfer: self, no counterparty", () => {
   expect(r.counterparty.quality).toBe("unavailable");
 });
 
-test("deploy: amount comes from pre", () => {
+test("deploy: the premint is a receipt (in), amount comes from pre", () => {
   const r = toHistoryRecord(
     op({ op: "deploy", amt: "", pre: "5000", to: undefined }),
     ctx,
   );
   expect(r.kind).toBe("deploy");
-  expect(r.direction).toBe("out");
+  expect(r.direction).toBe("in");
   expect(r.amount.value?.raw).toBe("5000");
   expect(r.counterparty.quality).toBe("unavailable");
   expect(r.id).toBe(`${TX}:${T}:deploy`);
+});
+
+test("deploy with pre 1000: in, amount 1000", () => {
+  const r = toHistoryRecord(op({ op: "deploy", amt: "", pre: "1000" }), ctx);
+  expect(r.direction).toBe("in");
+  expect(r.amount).toEqual({
+    value: { raw: "1000", decimals: 8, symbol: "KASPY" },
+    quality: "exact",
+  });
+});
+
+test("deploy without a premint: amount unavailable, kind still deploy", () => {
+  for (const pre of ["0", ""]) {
+    const r = toHistoryRecord(op({ op: "deploy", amt: "", pre }), ctx);
+    expect(r.kind).toBe("deploy");
+    expect(r.direction).toBe("in");
+    expect(r.amount).toEqual({ value: null, quality: "unavailable" });
+    expect(r.fiat.quality).toBe("unavailable");
+  }
 });
 
 test("mint: in, amt, no counterparty", () => {

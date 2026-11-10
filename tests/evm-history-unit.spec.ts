@@ -53,17 +53,21 @@ function rec(over: Partial<HistoryRecord> = {}): HistoryRecord {
 }
 
 test.describe("evm-history format", () => {
-  test("decimals 6 vs 18", () => {
+  test("decimals 6 vs 18, 3 places rounded", () => {
     expect(formatRawAmount("1500000", 6)).toBe("1.5");
     expect(formatRawAmount("1500000000000000000", 18)).toBe("1.5");
-    expect(formatRawAmount("1", 18)).toBe("<0.00000001");
+    expect(formatRawAmount("1", 18)).toBe("0.000000000000000001");
     expect(formatRawAmount("10000000", 8)).toBe("0.1");
-    expect(formatRawAmount("1234567891234567", 6)).toBe("1,234,567,891.234567");
+    expect(formatRawAmount("1234567891234567", 6)).toBe("1,234,567,891.235");
+    // NACHO, 8 decimals: rounded to 3 places, the kcc20-send display.
+    expect(formatRawAmount("210759267306", 8)).toBe("2,107.593");
+    expect(formatRawAmount("1999500", 6)).toBe("2");
+    expect(formatRawAmount("0", 8)).toBe("0");
     expect(formatRawAmount("123456789", 0)).toBe("123,456,789");
   });
 
   test("signed amount text by direction", () => {
-    expect(historyAmountText(rec())).toBe("−1.5 USDC");
+    expect(historyAmountText(rec())).toBe("-1.5 USDC");
     expect(historyAmountText(rec({ direction: "in" }))).toBe("+1.5 USDC");
     expect(historyAmountText(rec({ direction: "self" }))).toBe("1.5 USDC");
   });
@@ -72,7 +76,7 @@ test.describe("evm-history format", () => {
     expect(historyAmountText(rec({ amount: NA }))).toBeNull();
   });
 
-  test("an exact zero amount is not treated as missing", () => {
+  test("an exact zero amount is not treated as missing, and takes no sign", () => {
     const zero = rec({
       direction: "in",
       amount: {
@@ -80,7 +84,8 @@ test.describe("evm-history format", () => {
         quality: "exact",
       },
     });
-    expect(historyAmountText(zero)).toBe("+0 KAS");
+    expect(historyAmountText(zero)).toBe("0 KAS");
+    expect(historyAmountText({ ...zero, direction: "out" })).toBe("0 KAS");
   });
 
   test("title by kind", () => {
@@ -123,7 +128,7 @@ test.describe("evm-history format", () => {
     expect(historyCounterpartyText(labelled)).toBe("To Treasury");
   });
 
-  test("a 1-wei receive is bounded, never 0; exact zero stays 0", () => {
+  test("a 1-wei receive shows its exact value, never 0; exact zero stays 0", () => {
     const wei = (raw: string) =>
       rec({
         direction: "in",
@@ -132,9 +137,13 @@ test.describe("evm-history format", () => {
           quality: "exact",
         },
       });
-    expect(historyAmountText(wei("1"))).toBe("+<0.00000001 KAS");
-    expect(historyAmountText(wei("0"))).toBe("+0 KAS");
+    expect(historyAmountText(wei("1"))).toBe("+0.000000000000000001 KAS");
+    expect(historyAmountText(wei("0"))).toBe("0 KAS");
+    // Below 3 places the exact value shows, trailing zeros trimmed.
     expect(formatRawAmount("10000000000", 18)).toBe("0.00000001");
+    expect(formatRawAmount("400000000000000", 18)).toBe("0.0004");
+    // At or above the threshold the 3-place rounding applies.
+    expect(formatRawAmount("500000000000000", 18)).toBe("0.001");
   });
 
   test("a failed send carries no sign", () => {

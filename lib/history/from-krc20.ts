@@ -31,9 +31,10 @@ export function toHistoryRecord(
         ? op.op
         : "unknown";
   const direction =
-    kind === "receive" || kind === "mint"
+    // A deploy credits its premint `pre` to the deployer: a receipt.
+    kind === "receive" || kind === "mint" || kind === "deploy"
       ? "in"
-      : kind === "send" || kind === "deploy"
+      : kind === "send"
         ? "out"
         : "self";
 
@@ -43,8 +44,12 @@ export function toHistoryRecord(
       : op.op === "transfer" || op.op === "mint"
         ? op.amt
         : undefined;
-  // Unparsable stays null — never a 0.
-  const raw = src && /^\d+$/.test(src) ? src : null;
+  // Unparsable stays null — never a 0. A deploy without a premint has no
+  // figure at all, never "+0 TICK".
+  const raw =
+    src && /^\d+$/.test(src) && (op.op !== "deploy" || BigInt(src) > 0n)
+      ? src
+      : null;
   const big = raw === null ? null : BigInt(raw);
   const scale = 10n ** BigInt(ctx.decimals);
   const float =

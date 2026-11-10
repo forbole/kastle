@@ -1,12 +1,13 @@
 // KCC-20 adapter: one kascov history row → the shared HistoryRecord.
 import type { Kcc20HistoryRow } from "@/lib/kcc20/history";
 import type { HistoryRecord } from "@/lib/history/types";
+import { KCC20_LABELS } from "@/ui/popup/kcc20/labels";
 
 const NONE = { value: null, quality: "unavailable" } as const;
 
 /**
  * kascov alone has no fee, fiat, KAS leg or finality, so those stay unavailable
- * and status unknown. Without decimals the amount stays in base units, unlabelled.
+ * and status unknown. Without decimals the amount stays in base units, labelled so.
  */
 export function toHistoryRecord(
   row: Kcc20HistoryRow,
@@ -26,7 +27,10 @@ export function toHistoryRecord(
             value: {
               raw: row.amount.toString(),
               decimals: view.decimals ?? 0,
-              symbol: view.decimals === undefined ? "" : view.symbol,
+              symbol:
+                view.decimals === undefined
+                  ? KCC20_LABELS.baseUnits
+                  : view.symbol,
             },
             quality: "exact",
           },

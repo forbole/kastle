@@ -7,12 +7,6 @@ import type {
 } from "@/lib/history/types";
 import { textEllipsis } from "@/lib/utils";
 
-/** Display precision for a token amount; extra digits are truncated, not rounded. */
-const MAX_FRACTION_DIGITS = 8;
-
-/** Smallest amount the display shows; anything non-zero below it reads "<" this. */
-const DISPLAY_FLOOR = `0.${"1".padStart(MAX_FRACTION_DIGITS, "0")}`;
-
 const TITLES: Record<HistoryKind, string> = {
   send: "Sent",
   receive: "Received",
@@ -34,22 +28,22 @@ export function historyTitle(
 }
 
 /**
- * Integer string + decimals → "1,234.5678", all bigint, no float. A non-zero
- * amount that truncates to nothing reads "<0.00000001", never "0".
+ * Integer string + decimals → "1,234.568": KCC-20's display (mobile's
+ * formatNumber), 3 places rounded, built from the exact decimal string so no
+ * float. A non-zero amount that would round to "0" shows its exact value.
  */
 export function formatRawAmount(raw: string, decimals: number): string {
   const negative = raw.startsWith("-");
   const value = BigInt(negative ? raw.slice(1) : raw);
+  if (value === 0n) return "0";
   const padded = value.toString().padStart(decimals + 1, "0");
-  const intPart = padded.slice(0, padded.length - decimals) || "0";
-  const fraction = padded
-    .slice(padded.length - decimals)
-    .slice(0, MAX_FRACTION_DIGITS)
-    .replace(/0+$/, "");
-  const grouped = BigInt(intPart).toLocaleString("en-US");
-  if (value !== 0n && grouped === "0" && !fraction)
-    return `${negative ? "-" : ""}<${DISPLAY_FLOOR}`;
-  return `${negative ? "-" : ""}${grouped}${fraction ? `.${fraction}` : ""}`;
+  const intPart = padded.slice(0, padded.length - decimals);
+  const fraction = padded.slice(padded.length - decimals).replace(/0+$/, "");
+  const exact = fraction ? `${intPart}.${fraction}` : intPart;
+  const shown = new Intl.NumberFormat("en-US", {
+    maximumFractionDigits: 3,
+  }).format(exact as Intl.StringNumericLiteral);
+  return `${negative ? "-" : ""}${shown === "0" ? exact : shown}`;
 }
 
 /**
@@ -59,13 +53,14 @@ export function formatRawAmount(raw: string, decimals: number): string {
 export function historyAmountText(record: HistoryRecord): string | null {
   const { amount, direction, status } = record;
   if (amount.quality === "unavailable" || !amount.value) return null;
+  // A zero moved nothing either way, so it takes no sign.
   const sign =
-    status === "failed"
+    status === "failed" || BigInt(amount.value.raw) === 0n
       ? ""
       : direction === "in"
         ? "+"
         : direction === "out"
-          ? "−"
+          ? "-"
           : "";
   const approx = amount.quality === "approximate" ? "≈ " : "";
   const symbol = amount.value.symbol ? ` ${amount.value.symbol}` : "";
