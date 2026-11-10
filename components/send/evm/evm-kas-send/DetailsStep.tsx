@@ -26,7 +26,7 @@ import {
 } from "@/lib/layer2";
 import useEvmAddress from "@/hooks/evm/useEvmAddress";
 import { useIns } from "@/hooks/ins/useIns";
-import { lookupInsNameOnChain } from "@/lib/ins/insRegistry";
+import { lookupInsNameOnChain, toInsLabel } from "@/lib/ins/insRegistry";
 
 export default function DetailsStep({
   chainId,
@@ -96,6 +96,8 @@ export default function DetailsStep({
     const seq = ++resolutionSeq.current;
     setValue("address", undefined);
     setValue("domain", undefined);
+    setValue("resolvedFor", undefined);
+    setValue("resolvedAt", undefined);
     setInsNotice(undefined);
 
     if (!value) return undefined;
@@ -115,7 +117,7 @@ export default function DetailsStep({
         // ...but the destination is only ever the on-chain owner. resolve()
         // is a routing pointer that transferFrom never updates, so it keeps
         // returning the previous owner after a transfer.
-        const onChain = await lookupInsNameOnChain(value);
+        const onChain = await lookupInsNameOnChain(value, chainId);
 
         // A newer keystroke superseded this run -- let that one own the form.
         if (seq !== resolutionSeq.current) return genericErrorMessage;
@@ -124,6 +126,10 @@ export default function DetailsStep({
 
         setValue("address", onChain.address);
         setValue("domain", value);
+        // The Confirm step refuses this address once it is stale or no longer
+        // matches the input it came from.
+        setValue("resolvedFor", toInsLabel(value));
+        setValue("resolvedAt", Date.now());
 
         if (
           record?.address &&
