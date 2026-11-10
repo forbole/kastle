@@ -131,3 +131,16 @@ test("the row opens the send form by covenant id with its metadata unfilled", as
     `/kcc20/send/${NACHO_COVID}`,
   );
 });
+
+test("picker search finds a name-only claimed holding by the name it displays", async ({
+  page,
+}) => {
+  // symbol "", name "NACHO": the row shows NACHO, so typing "nac" must keep it.
+  const { errors } = await open(page, "krc20=1&nameonly=1&q=nac");
+  expect(errors).toEqual([]);
+  await page.goto(`${base}/?krc20=1&nameonly=1&q=zeal`);
+  await expect(page.getByTestId("ready")).toBeAttached();
+  await expect(
+    page.getByRole("button").filter({ hasText: "NACHO" }),
+  ).toHaveCount(0);
+});
