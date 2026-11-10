@@ -858,6 +858,64 @@ test("ERC-20, Blockscout down: error and Retry, and Retry calls the endpoint aga
   await expect.poll(calls).toBeGreaterThan(before);
 });
 
+test("history shell: one request per load cycle, none per re-render, cap after three empty pages", async ({
+  page,
+}) => {
+  await open(page, "/history-paging");
+  const w = (fn: string) =>
+    page.evaluate(
+      (f) => (window as unknown as Record<string, () => void>)[f](),
+      fn,
+    );
+  const requests = () =>
+    page.evaluate(
+      () => (window as unknown as { __requests: number }).__requests,
+    );
+  const loadMore = page.getByRole("button", { name: "Load more" });
+  // Sentinel in view: exactly one request, and re-renders before the load
+  // starts (fresh onLoadMore each time) add none.
+  await expect.poll(requests).toBe(1);
+  for (let i = 0; i < 3; i++) await w("__rerender");
+  await page.waitForTimeout(300);
+  expect(await requests()).toBe(1);
+  // Each empty page that completes earns exactly one further request, until
+  // three in a row have loaded automatically.
+  for (const expected of [2, 3]) {
+    await w("__start");
+    await w("__rerender");
+    await w("__finish");
+    await expect.poll(requests).toBe(expected);
+    await w("__rerender");
+    await page.waitForTimeout(300);
+    expect(await requests()).toBe(expected);
+  }
+  // Third empty page lands: no fourth automatic request, the button instead.
+  await w("__start");
+  await w("__finish");
+  await expect(loadMore).toBeVisible();
+  await w("__rerender");
+  await page.waitForTimeout(500);
+  expect(await requests()).toBe(3);
+  // The button asks for exactly one page.
+  await loadMore.click();
+  expect(await requests()).toBe(4);
+  await w("__rerender");
+  await page.waitForTimeout(300);
+  expect(await requests()).toBe(4);
+});
+
+test('history shell: hasMore false with a page in flight is a spinner, never "No history yet"', async ({
+  page,
+}) => {
+  await open(page, "/history-paging", "&inflight=1");
+  await expect(page.getByRole("status", { name: "loading" })).toBeVisible();
+  await expect(page.getByText("No history yet.")).toHaveCount(0);
+  await page.evaluate(() =>
+    (window as unknown as { __finish: () => void }).__finish(),
+  );
+  await expect(page.getByText("No history yet.")).toBeVisible();
+});
+
 test('EVM KAS: pages of dropped calls are never "No history yet" while more exist', async ({
   page,
 }) => {

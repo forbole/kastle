@@ -23,6 +23,7 @@ import TokenDetailPage, {
 } from "@/ui/popup/kcc20/TokenDetailPage";
 import type { HistoryStatus } from "@/lib/history/types";
 import { HistoryDetail } from "@/ui/popup/history/HistoryDetail";
+import { HistoryList } from "@/ui/popup/history/HistoryList";
 
 const TXID = "0123456789abcdef".repeat(4);
 
@@ -96,6 +97,38 @@ function PrelineShell() {
   return <Outlet />;
 }
 
+// The shell alone over a hand-driven source whose pages never add rows.
+// window.__requests counts onLoadMore; __start/__finish move one load through
+// its edges; __rerender re-renders the parent, handing a fresh onLoadMore.
+// inflight=1: a source reporting hasMore false while a page is still loading.
+function PagingHarness() {
+  const w = window as unknown as Record<string, unknown> & {
+    __requests: number;
+  };
+  const inflight = params.has("inflight");
+  const [loading, setLoading] = React.useState(inflight);
+  const [, setTick] = React.useState(0);
+  React.useEffect(() => {
+    w.__requests = 0;
+    w.__rerender = () => setTick((t) => t + 1);
+    w.__start = () => setLoading(true);
+    w.__finish = () => setLoading(false);
+  }, []);
+  return (
+    <HistoryList
+      records={[]}
+      isLoading={false}
+      isLoadingMore={loading}
+      error={null}
+      hasMore={!inflight}
+      onLoadMore={() => {
+        w.__requests++;
+      }}
+      onRetry={() => {}}
+    />
+  );
+}
+
 const params = new URLSearchParams(location.search);
 const router = createMemoryRouter(
   [
@@ -134,6 +167,7 @@ const router = createMemoryRouter(
         },
         { path: "/token-detail-info", element: <TokenInfoHarness /> },
         { path: "/kcc20-activity", element: <ActivityHarness /> },
+        { path: "/history-paging", element: <PagingHarness /> },
         {
           path: "/dashboard-assets",
           element: (

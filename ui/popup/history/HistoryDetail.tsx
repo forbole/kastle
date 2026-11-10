@@ -81,7 +81,10 @@ export function HistoryDetail({
   // The sheet holds focus while open, Escape closes it, and focus returns on close.
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null;
-    root.current?.querySelector<HTMLElement>(FOCUSABLE)?.focus();
+    // No txid and no explorer leaves no control: the root takes focus instead.
+    (
+      root.current?.querySelector<HTMLElement>(FOCUSABLE) ?? root.current
+    )?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
@@ -90,7 +93,11 @@ export function HistoryDetail({
       }
       if (event.key !== "Tab" || !root.current) return;
       const items = [...root.current.querySelectorAll<HTMLElement>(FOCUSABLE)];
-      if (items.length === 0) return;
+      if (items.length === 0) {
+        event.preventDefault();
+        root.current.focus();
+        return;
+      }
       const first = items[0];
       const last = items[items.length - 1];
       const inside = root.current.contains(document.activeElement);
@@ -118,7 +125,8 @@ export function HistoryDetail({
       role="dialog"
       aria-modal="true"
       aria-labelledby="history-detail-title"
-      className="flex flex-col gap-4 pt-4"
+      tabIndex={-1}
+      className="flex flex-col gap-4 pt-4 outline-none"
     >
       <div className="flex flex-col items-center gap-1">
         <h3

@@ -59,32 +59,62 @@ export function HistoryList({
   const [selected, setSelected] = useState<HistoryRecord>();
   const close = useCallback(() => setSelected(undefined), []);
 
-  // React to the state, not the transition: on a page with no rows the
+  // React to the state, not the intersection edge: on a page with no rows the
   // sentinel is already in view when the previous load ends, so an
   // intersection change never comes and the list would stall on a spinner.
   const { ref: sentinel, isIntersecting } = useIntersectionObserver({
     threshold: 0.5,
   });
-  // Pages that add no rows (Blockscout calls that moved no value) keep the
-  // sentinel in view: after EMPTY_PAGE_CAP of them in a row, auto-paging
-  // stops and a button asks for the next page instead.
+  // Callers pass fresh lambdas each render: read them through refs so a
+  // re-render never counts as a reason to load.
+  const loadMoreRef = useRef(onLoadMore);
+  const retryRef = useRef(onRetry);
+  loadMoreRef.current = onLoadMore;
+  retryRef.current = onRetry;
+  // One request per load cycle: idle → requested (onLoadMore called) →
+  // loading (isLoadingMore true) → idle (isLoadingMore false). Pages that add
+  // no rows (Blockscout calls that moved no value) keep the sentinel in view:
+  // after EMPTY_PAGE_CAP of them in a row, auto-paging stops and a button asks
+  // for the next page instead. The streak lives in a ref so the cap engages in
+  // the same effect that ends the cycle, before it could request again.
+  const phase = useRef<"idle" | "requested" | "loading">("idle");
+  const countAtRequest = useRef(0);
+  const streak = useRef(0);
   const [emptyStreak, setEmptyStreak] = useState(0);
-  const countAtRequest = useRef<number>();
+  const request = useCallback(() => {
+    phase.current = "requested";
+    countAtRequest.current = records.length;
+    loadMoreRef.current();
+  }, [records.length]);
   useEffect(() => {
-    if (isLoadingMore) {
-      countAtRequest.current = records.length;
-    } else if (countAtRequest.current !== undefined) {
-      const grew = records.length > countAtRequest.current;
-      countAtRequest.current = undefined;
-      setEmptyStreak((n) => (grew ? 0 : n + 1));
+    if (phase.current === "requested" && isLoadingMore) {
+      phase.current = "loading";
+    } else if (phase.current === "loading" && !isLoadingMore) {
+      phase.current = "idle";
+      streak.current =
+        records.length > countAtRequest.current ? 0 : streak.current + 1;
+      setEmptyStreak(streak.current);
+    } else if (
+      phase.current === "requested" &&
+      (error || !hasMore || records.length !== countAtRequest.current)
+    ) {
+      // ponytail: a request that never flips isLoadingMore (cache hit, no-op)
+      // is released only by rows, an error or the end of the feed; add a
+      // timeout here if a source ever swallows a setSize silently.
+      phase.current = "idle";
     }
-    // Only the load's edges matter, not every records change.
-  }, [isLoadingMore]);
+    if (
+      phase.current === "idle" &&
+      isIntersecting &&
+      hasMore &&
+      !isLoadingMore &&
+      !error &&
+      streak.current < EMPTY_PAGE_CAP
+    )
+      request();
+  });
   const capped = emptyStreak >= EMPTY_PAGE_CAP;
-  useEffect(() => {
-    if (isIntersecting && hasMore && !isLoadingMore && !error && !capped)
-      onLoadMore();
-  }, [isIntersecting, hasMore, isLoadingMore, error, capped, onLoadMore]);
+  const retry = () => retryRef.current();
 
   // State order is fixed: each check assumes every one above it failed.
   if (unavailableMessage) return <Notice>{unavailableMessage}</Notice>;
@@ -97,7 +127,7 @@ export function HistoryList({
           <span>Could not load history.</span>
           <button
             type="button"
-            onClick={onRetry}
+            onClick={retry}
             className="rounded-full border border-daintree-700 px-4 py-1.5 text-white hover:border-white"
           >
             Retry
@@ -110,7 +140,9 @@ export function HistoryList({
 
   // A page may hold nothing of this wallet's and still have pages after it:
   // empty means empty only once the query has none left.
-  if (records.length === 0 && !hasMore) return <Notice>{emptyMessage}</Notice>;
+  // KAS derives hasMore from its last page, undefined while that page loads.
+  if (records.length === 0 && !hasMore && !isLoadingMore)
+    return <Notice>{emptyMessage}</Notice>;
 
   return (
     <div className="flex flex-col items-stretch gap-2">
@@ -124,7 +156,7 @@ export function HistoryList({
       {error ? (
         <button
           type="button"
-          onClick={onRetry}
+          onClick={retry}
           className="self-center rounded-full border border-daintree-700 px-4 py-1.5 text-sm text-white hover:border-white"
         >
           Retry
@@ -135,7 +167,7 @@ export function HistoryList({
           // The streak stays put: an empty page keeps the button, a page
           // with rows resets it and auto-paging resumes. Touching it here
           // would let the sentinel fire a second page before this one starts.
-          onClick={onLoadMore}
+          onClick={request}
           className="self-center py-2 text-sm font-medium text-daintree-400 hover:text-white"
         >
           Load more

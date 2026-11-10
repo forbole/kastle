@@ -20,6 +20,7 @@ export function TokenHistory() {
     data: opList,
     setSize,
     isLoading,
+    isValidating,
     error,
     mutate,
   } = useOpListByAddressAndTicker(
@@ -49,7 +50,7 @@ export function TokenHistory() {
       <HistoryList
         records={records}
         isLoading={isLoading && !opList}
-        isLoadingMore={isLoading && !!opList?.length}
+        isLoadingMore={isValidating && !!opList?.length}
         error={error ?? null}
         hasMore={!finished}
         onLoadMore={() => setSize((prev) => prev + 1)}
