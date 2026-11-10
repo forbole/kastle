@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.62.1](https://github.com/forbole/kastle/compare/v2.62.0...v2.62.1) (2026-11-10)
+
+
+### Bug Fixes
+
+* **asset-detail:** start the ERC-20 and EVM-KAS history lists below the tabs ([#444](https://github.com/forbole/kastle/issues/444)) ([5311892](https://github.com/forbole/kastle/commit/53118929b80a227c8077099d80ab6884867294df))
+
 ## [2.62.0](https://github.com/forbole/kastle/compare/v2.61.4...v2.62.0) (2026-11-10)
 
 
