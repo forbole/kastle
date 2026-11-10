@@ -181,8 +181,9 @@ for (const s of SCREENS) {
     page,
   }) => {
     await open(page, s.route, "&tall=1&h=320");
-    // KCC-20 has real tab bodies, not stubs: only Token info is that tall.
-    if (s.key === "KCC-20")
+    // KCC-20, ERC-20 and EVM KAS have a real History list, not a stub: only
+    // Token info is that tall.
+    if (s.key === "KCC-20" || s.key === "ERC-20" || s.key === "EVM KAS")
       await page.getByRole("tab", { name: "Token info", exact: true }).click();
     const body = page.locator("#popup .overflow-y-auto").first();
     const send = sendButton(page, s.ticker);
@@ -425,7 +426,7 @@ const TABBED = [
   {
     key: "ERC-20",
     route: `/erc20-asset/0x97b4/${ERC20}`,
-    active: "Token info",
+    active: "History",
   },
   { key: "EVM KAS", route: "/evm-asset/0x97b4", active: "History" },
   { key: "KCC-20", route: `/kcc20/${KCC20_ID}`, active: "History" },
@@ -761,4 +762,178 @@ test("KCC-20 activity sheet: focus stays inside and Escape closes it", async ({
   await expect(explorer).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(page.getByTestId("closed")).toBeVisible();
+});
+
+// In-app EVM history (Blockscout, stubbed in tests/asset-detail/stubs.tsx).
+// Kasplex mainnet has an apiUrl; 0x1 is no chain in lib/layer2, so none.
+const KASPLEX = "0x3173b";
+const KASPLEX_EXPLORER = "https://explorer.kasplex.org/tx/";
+const EVM_TX_HASH = `0x${"a1".repeat(32)}`;
+const ERC20_TX_HASH = `0x${"b2".repeat(32)}`;
+const openedTab = (page: Page) =>
+  page.evaluate(
+    () => (window as unknown as { __openedTab?: string }).__openedTab,
+  );
+
+test("EVM KAS: History lists the Blockscout txs in-app, and a row opens the explorer", async ({
+  page,
+}) => {
+  const errors = await open(page, `/evm-asset/${KASPLEX}`);
+  const row = page.getByRole("button", { name: /Sent/ });
+  await expect(row).toBeVisible();
+  await expect(row).toContainText("1.5");
+  await expect(row.locator(".hn-external-link")).toHaveCount(1);
+  await row.click();
+  expect(await openedTab(page)).toBe(KASPLEX_EXPLORER + EVM_TX_HASH);
+  expect(errors).toEqual([]);
+});
+
+test("ERC-20: opens on History, lists the token's transfers, and a row opens the explorer", async ({
+  page,
+}) => {
+  const errors = await open(page, `/erc20-asset/${KASPLEX}/${ERC20}`);
+  await expect(
+    page.getByRole("tab", { name: "History", exact: true }),
+  ).toHaveAttribute("aria-selected", "true");
+  const row = page.getByRole("button", { name: /Received/ });
+  await expect(row).toBeVisible();
+  await expect(row).toContainText("2.5");
+  await expect(row.locator(".hn-external-link")).toHaveCount(1);
+  await row.click();
+  expect(await openedTab(page)).toBe(KASPLEX_EXPLORER + ERC20_TX_HASH);
+  expect(errors).toEqual([]);
+});
+
+test("ERC-20: the History tab is reachable by click from Token info", async ({
+  page,
+}) => {
+  await open(page, `/erc20-asset/${KASPLEX}/${ERC20}`);
+  await page.getByRole("tab", { name: "Token info", exact: true }).click();
+  await expect(page.getByRole("button", { name: /Received/ })).toHaveCount(0);
+  await page.getByRole("tab", { name: "History", exact: true }).click();
+  await expect(page.getByRole("button", { name: /Received/ })).toBeVisible();
+});
+
+for (const route of ["/evm-asset/0x1", `/erc20-asset/0x1/${ERC20}`]) {
+  test(`${route}: a chain with no apiUrl shows the reason and no rows`, async ({
+    page,
+  }) => {
+    await open(page, route);
+    await expect(
+      page.getByText("History is not available for this network"),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /Sent|Received/ }),
+    ).toHaveCount(0);
+  });
+}
+
+test("ERC-20, Blockscout down: error and Retry, and Retry calls the endpoint again", async ({
+  page,
+}) => {
+  await open(page, `/erc20-asset/${KASPLEX}/${ERC20}`, "&evmHistoryDown=1");
+  const retry = page.getByRole("button", { name: "Retry", exact: true });
+  await expect(retry).toBeVisible();
+  await expect(page.getByText("No history yet")).toHaveCount(0);
+  const calls = () =>
+    page.evaluate(
+      () =>
+        (window as unknown as { __evmHistoryCalls?: number })
+          .__evmHistoryCalls ?? 0,
+    );
+  const before = await calls();
+  expect(before).toBeGreaterThan(0);
+  await retry.click();
+  await expect.poll(calls).toBeGreaterThan(before);
+});
+
+test('EVM KAS: pages of dropped calls are never "No history yet" while more exist', async ({
+  page,
+}) => {
+  // Latch the empty copy if it ever paints, even for one frame between pages.
+  await page.addInitScript(() => {
+    new MutationObserver(() => {
+      if (document.body?.innerText.includes("No history yet"))
+        (window as unknown as { __sawEmpty?: boolean }).__sawEmpty = true;
+    }).observe(document, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+  });
+  const sawEmpty = () =>
+    page.evaluate(
+      () => !!(window as unknown as { __sawEmpty?: boolean }).__sawEmpty,
+    );
+  await open(page, `/evm-asset/${KASPLEX}`, "&evmHistoryCalls=1");
+  // In flight (page 1, then the backfill): the loading rows, no empty copy.
+  await expect(
+    page.getByRole("status", { name: "loading" }).first(),
+  ).toBeVisible();
+  // Backfill cap reached, source still has more: loading rows + Load more.
+  const more = page.getByRole("button", { name: "Load more" });
+  await expect(more).toBeVisible({ timeout: 10_000 });
+  await expect(
+    page.getByRole("status", { name: "loading" }).first(),
+  ).toBeVisible();
+  await more.click();
+  await expect(more).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole("button", { name: /Sent|Received/ })).toHaveCount(
+    0,
+  );
+  expect(await sawEmpty()).toBe(false);
+  // A first-page revalidation (focus, past SWR's 5 s focus throttle) refetches
+  // page 1 only: the backfill neither restarts nor fires again.
+  const calls = () =>
+    page.evaluate(
+      () =>
+        (window as unknown as { __evmHistoryCalls?: number })
+          .__evmHistoryCalls ?? 0,
+    );
+  await page.waitForTimeout(5_100);
+  const before = await calls();
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect.poll(calls).toBe(before + 1);
+  await page.waitForTimeout(1_500);
+  expect(await calls()).toBe(before + 1);
+  await expect(more).toBeVisible();
+});
+
+test("EVM KAS: a revalidation shows a new transfer on top, and the old row never blanks", async ({
+  page,
+}) => {
+  // Latch if the old row ever disappears, even for one frame mid-refetch.
+  await page.addInitScript(() => {
+    new MutationObserver(() => {
+      const w = window as unknown as {
+        __sawOld?: boolean;
+        __lostOld?: boolean;
+      };
+      const has = !!document.body?.innerText.includes("1.5");
+      if (has) w.__sawOld = true;
+      else if (w.__sawOld) w.__lostOld = true;
+    }).observe(document, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+  });
+  await open(page, `/evm-asset/${KASPLEX}`);
+  const rows = page.getByRole("button", { name: /Sent/ });
+  await expect(rows).toHaveCount(1);
+  // SWR ignores focus for 5 s after mount (focusThrottleInterval); past it,
+  // focus runs the same first-page revalidation a reopen runs on a cached key.
+  await page.waitForTimeout(5_100);
+  await page.evaluate(() => {
+    (window as unknown as { __evmHistoryNewTx?: boolean }).__evmHistoryNewTx =
+      true;
+    window.dispatchEvent(new Event("focus"));
+  });
+  await expect(rows).toHaveCount(2);
+  await expect(rows.first()).toContainText("3");
+  expect(
+    await page.evaluate(
+      () => !!(window as unknown as { __lostOld?: boolean }).__lostOld,
+    ),
+  ).toBe(false);
 });

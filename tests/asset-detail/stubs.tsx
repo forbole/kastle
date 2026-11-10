@@ -19,6 +19,9 @@
 //   ktestSymbol=, ktestAmount=  override the KTEST row's symbol / base units
 //   listed=1      the KCC-20 holding is a kascov-LISTED row (listed_*, no
 //                 claimed_*), run through the real parse; kascov prices it
+//   evmHistoryDown=1  the Blockscout endpoints answer 500
+//   evmHistoryCalls=1 every Blockscout page is one zero-value call (dropped)
+//                 with a next page, answered after 300 ms
 import { useState, useSyncExternalStore } from "react";
 import { claimedMeta, type Kcc20Token } from "@/lib/kcc20";
 import { parseHolding } from "@/lib/kcc20/providers/kascov";
@@ -49,11 +52,17 @@ export const KCC20_EXT = "cd".repeat(32);
 // storage.local persists in localStorage, so a page reload keeps it.
 const LOCAL = "storage.local:";
 export const browser = {
-  // Records each opened URL on window.__opened for the spec to read.
+  // Records each opened URL on window.__opened (so a spec can assert exactly
+  // one tab opened) and the last one on window.__openedTab, so the spec can
+  // read the explorer URL a row opens.
   tabs: {
     create: ({ url }: { url: string }) => {
-      const w = window as unknown as { __opened?: string[] };
+      const w = window as unknown as {
+        __opened?: string[];
+        __openedTab?: string;
+      };
       (w.__opened ??= []).push(url);
+      w.__openedTab = url;
     },
   },
   action: { setPopup: () => {} },
@@ -134,6 +143,8 @@ export function useWalletManager() {
     account: {
       address: second ? "kaspa:qsecond" : OWNER,
       publicKeys: [],
+      // Any 65-byte key: the real useEvmAddress hashes it to the 0x address.
+      evmPublicKey: `0x04${"11".repeat(64)}`,
     },
     wallet: walletLoading
       ? undefined
@@ -353,3 +364,97 @@ export function useErc20Image() {
 export function useAnalytics() {
   return new Proxy({}, { get: () => () => {} });
 }
+
+// Blockscout: the address transactions and token-transfers endpoints answer
+// one page (no next_page_params), shaped like the live API. The owner is the
+// address in the URL, so the native tx is a send and the transfer a receive.
+// Every other URL goes to the real fetch.
+export const EVM_TX_HASH = `0x${"a1".repeat(32)}`;
+export const ERC20_TX_HASH = `0x${"b2".repeat(32)}`;
+const EVM_NEW_TX_HASH = `0x${"c3".repeat(32)}`;
+const EVM_OTHER = "0x2222222222222222222222222222222222222222";
+const realFetch = window.fetch.bind(window);
+window.fetch = async (input, init) => {
+  const url = new URL(String(input instanceof Request ? input.url : input));
+  const m = url.pathname.match(
+    /\/api\/v2\/addresses\/(0x[0-9a-fA-F]{40})\/(transactions|token-transfers)$/,
+  );
+  if (!m) return realFetch(input, init);
+  // Counted so a spec can see Retry hit the endpoint again.
+  const w = window as unknown as { __evmHistoryCalls?: number };
+  w.__evmHistoryCalls = (w.__evmHistoryCalls ?? 0) + 1;
+  if (query.has("evmHistoryDown")) return new Response("down", { status: 500 });
+  const [, owner, kind] = m;
+  const timestamp = "2026-01-02T03:04:05.000000Z";
+  if (query.has("evmHistoryCalls")) {
+    await new Promise((r) => setTimeout(r, 300));
+    const n = Number(url.searchParams.get("block_number") ?? 100);
+    return Response.json({
+      items: [
+        {
+          hash: `0x${n.toString(16).padStart(64, "0")}`,
+          from: { hash: owner },
+          to: { hash: EVM_OTHER },
+          value: "0",
+          fee: { type: "actual", value: "21000000000000" },
+          status: "ok",
+          result: "success",
+          timestamp,
+        },
+      ],
+      next_page_params: { block_number: n - 1 },
+    });
+  }
+  // window.__evmHistoryNewTx (set by a spec mid-test): a newer 3 KAS send
+  // lands on top, answered after 300 ms, as if just sent from this wallet.
+  const fresh =
+    kind === "transactions" &&
+    !!(window as unknown as { __evmHistoryNewTx?: boolean }).__evmHistoryNewTx;
+  if (fresh) await new Promise((r) => setTimeout(r, 300));
+  const items =
+    kind === "transactions"
+      ? [
+          ...(fresh
+            ? [
+                {
+                  hash: EVM_NEW_TX_HASH,
+                  from: { hash: owner },
+                  to: { hash: EVM_OTHER },
+                  value: "3000000000000000000",
+                  fee: { type: "actual", value: "21000000000000" },
+                  status: "ok",
+                  result: "success",
+                  timestamp: "2026-01-03T03:04:05.000000Z",
+                },
+              ]
+            : []),
+          {
+            hash: EVM_TX_HASH,
+            from: { hash: owner },
+            to: { hash: EVM_OTHER },
+            value: "1500000000000000000",
+            fee: { type: "actual", value: "21000000000000" },
+            status: "ok",
+            result: "success",
+            timestamp,
+          },
+        ]
+      : [
+          {
+            transaction_hash: ERC20_TX_HASH,
+            log_index: 7,
+            from: { hash: EVM_OTHER },
+            to: { hash: owner },
+            token: {
+              address_hash: url.searchParams.get("token") ?? EVM_OTHER,
+              symbol: "WKAS",
+              decimals: "18",
+              type: "ERC-20",
+            },
+            total: { decimals: "18", value: "2500000000000000000" },
+            type: "token_transfer",
+            timestamp,
+          },
+        ];
+  return Response.json({ items, next_page_params: null });
+};
