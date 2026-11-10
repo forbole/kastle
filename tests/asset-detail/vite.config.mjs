@@ -78,9 +78,14 @@ export * from ${JSON.stringify(stubs)};`
     },
     Unimport.vite({
       presets: ["react"],
-      // WXT auto-imports this one; the dashboard list relies on it.
+      // WXT auto-imports these; the dashboard list relies on them.
       imports: [
         { name: "default", as: "useSettings", from: "@/hooks/useSettings" },
+        {
+          name: "default",
+          as: "useCurrencyValue",
+          from: "@/hooks/useCurrencyValue",
+        },
       ],
     }),
     react(),

@@ -8,6 +8,7 @@
 //   dotkOff=1     the dotK feature flag is off
 //   spendable0=1  the KCC-20 token has nothing spendable
 //   erc20Zero=1   the ERC-20 balance is "0.0"; erc20None=1 it has no balance
+//   erc20=1       the dashboard lists one ERC-20 row (WKAS on Kasplex L2)
 //   kcc20Loading=1  the KCC-20 lookup has not answered; kcc20Error=1 it failed
 //   tall=1        every tab body is taller than the popup
 //   account2=1    a second account (its own hidden-token set)
@@ -32,6 +33,7 @@ const dotkOff = query.has("dotkOff");
 const spendable0 = query.has("spendable0");
 const erc20Zero = query.has("erc20Zero");
 const erc20None = query.has("erc20None");
+const erc20 = query.has("erc20");
 const kcc20Loading = query.has("kcc20Loading");
 const kcc20Error = query.has("kcc20Error");
 const tall = query.has("tall");
@@ -321,8 +323,18 @@ export function useKcc20Price(token?: Kcc20Token) {
 export function useKrc20FilledToken<T>(token: T): T {
   return token;
 }
+// Mixed-case address, so the spec can pin the lowercased hide id.
+export const ERC20_ASSET = {
+  address: "0xAbCdEf0123456789aBcDeF0123456789AbCdEf01",
+  symbol: "WKAS",
+  decimals: 18,
+  chainId: "0x3173b",
+} as const;
 export function useErc20Assets() {
-  return { assets: [] };
+  return { assets: erc20 ? [ERC20_ASSET] : [] };
+}
+export function useErc20Image() {
+  return { logoUrl: undefined };
 }
 export function useAnalytics() {
   return new Proxy({}, { get: () => () => {} });

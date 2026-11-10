@@ -13,8 +13,19 @@ import {
   useErc20Image,
   useErc20Price,
 } from "@/hooks/evm/useZealousSwapMetadata";
+import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
+import {
+  ManagedRow,
+  type ManageRow,
+} from "@/components/dashboard/TokenListItem.tsx";
 
-export default function Erc20Asset({ asset }: { asset: Erc20Asset }) {
+export default function Erc20Asset({
+  asset,
+  manage,
+}: {
+  asset: Erc20Asset;
+  manage?: ManageRow;
+}) {
   const navigate = useNavigate();
   const [settings] = useSettings();
   const { data } = useErc20Balance(asset.address, asset.chainId);
@@ -30,11 +41,8 @@ export default function Erc20Asset({ asset }: { asset: Erc20Asset }) {
   const showBalance = !settings?.hideBalances;
   const balance = formatToken(data?.balance ?? 0);
 
-  return (
-    <div
-      className="flex cursor-pointer items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3 hover:border-white"
-      onClick={() => navigate(`/erc20-asset/${asset.chainId}/${asset.address}`)}
-    >
+  const body = (
+    <>
       <Layer2AssetImage
         tokenImage={asset.image ?? logoUrl}
         chainImage={getChainImage(asset.chainId as `0x${string}`)}
@@ -58,6 +66,23 @@ export default function Erc20Asset({ asset }: { asset: Erc20Asset }) {
           </span>
         </div>
       </div>
+    </>
+  );
+
+  // Manage mode: the shared switch row, no navigation.
+  if (manage)
+    return (
+      <ManagedRow manage={manage} label={asset.symbol}>
+        {body}
+      </ManagedRow>
+    );
+
+  return (
+    <div
+      className="flex cursor-pointer items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3 hover:border-white"
+      onClick={() => navigate(`/erc20-asset/${asset.chainId}/${asset.address}`)}
+    >
+      {body}
     </div>
   );
 }

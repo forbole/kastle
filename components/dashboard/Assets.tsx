@@ -31,6 +31,7 @@ import useKaspaBalance from "@/hooks/wallet/useKaspaBalance";
 import { useFeatureFlags } from "@/hooks/useFeatureFlags.ts";
 import { useState } from "react";
 import {
+  erc20HideId,
   hiddenTokensKey,
   kcc20HideId,
   krc20HideId,
@@ -107,14 +108,22 @@ export default function Assets() {
     kcc20HideId(t.covenantId, t.extensionCommitment);
   const shownKrc20 = tokens?.filter((t) => isShown(krc20HideId(t.id)));
   const shownKcc20 = kcc20Tokens?.filter((t) => isShown(kcc20Id(t)));
-  const tokenCount = (tokens?.length ?? 0) + (kcc20Tokens?.length ?? 0);
+  const { assets: erc20Assets } = useErc20Assets();
+  const erc20Id = (a: { chainId: string; address: string }) =>
+    erc20HideId(a.chainId, a.address);
+  const shownErc20 = erc20Assets.filter((a) => isShown(erc20Id(a)));
+  const tokenCount =
+    (tokens?.length ?? 0) + (kcc20Tokens?.length ?? 0) + erc20Assets.length;
   const allHidden =
-    !managing && tokenCount > 0 && !shownKrc20?.length && !shownKcc20?.length;
+    !managing &&
+    tokenCount > 0 &&
+    !shownKrc20?.length &&
+    !shownKcc20?.length &&
+    !shownErc20.length;
 
   // Search filters in place on the label each row renders; ids only add matches.
   const [query, setQuery] = useState("");
   const searching = query.trim() !== "";
-  const { assets: erc20Assets } = useErc20Assets();
 
   const isAssetListLoading = balance === undefined || !hiddenLoaded;
 
@@ -254,12 +263,13 @@ export default function Assets() {
           ))}
 
         {/* ERC20 tokens */}
-        {erc20Assets
+        {shownErc20
           .filter((asset) => matchesQuery(query, asset.symbol))
           .map((asset) => (
             <Erc20Asset
               key={`${asset.chainId}-${asset.address}`}
               asset={asset}
+              manage={manageFor(erc20Id(asset))}
             />
           ))}
 
