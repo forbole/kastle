@@ -1,6 +1,6 @@
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { FormProvider, useForm } from "react-hook-form";
-import { formatUnits, parseUnits } from "viem";
+import { formatUnits } from "viem";
 import Header from "@/components/GeneralHeader";
 import {
   TokenSendAsset,
@@ -13,7 +13,11 @@ import { SuccessStatus } from "@/components/send/SuccessStatus.tsx";
 import { FailStatus } from "@/components/send/FailStatus.tsx";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import useKcc20Tokens from "@/lib/kcc20/useKcc20Tokens";
-import { decimalsError } from "@/lib/kcc20";
+import {
+  formatMaxAmount,
+  parseTokenAmount,
+  validateTokenAmount,
+} from "@/lib/decimalAmount";
 import { formatUsdAmount, textEllipsis } from "@/lib/utils.ts";
 import useKaspaHotWalletSigner from "@/hooks/wallet/useKaspaHotWalletSigner";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
@@ -45,12 +49,21 @@ export default function Kcc20Send() {
   const signer = useKaspaHotWalletSigner();
   const { addRecentAddress } = useRecentAddresses();
   const { kaspaPrice } = useKaspaPrice();
-  const { data: tokens, isLoading } = useKcc20Tokens(account?.address);
+  const { data: tokens, isLoading, error } = useKcc20Tokens(account?.address);
   const token = tokens?.find(
     (t) =>
       t.covenantId === covenantId &&
       (!rowExt || t.extensionCommitment === rowExt),
   );
+  // An unsettled lookup is not a verdict: SWR reports isLoading false while the
+  // key (the address) is still undefined, and on a revalidated key before data
+  // lands. Only a settled list without this row (or without its decimals)
+  // means the token cannot be sent. A rejected lookup is settled too: it
+  // never resolves into data, so waiting on it would spin forever.
+  const lookupSettled =
+    !!account?.address &&
+    !isLoading &&
+    (tokens !== undefined || error !== undefined);
 
   const form = useForm<KRC20SendForm>({
     defaultValues: {
@@ -99,16 +112,8 @@ export default function Kcc20Send() {
     feeKas * kaspaPrice,
   );
 
-  // parseUnits rounds excess decimals: "0.6" of a 0-decimal token would send 1.
-  const parseAmount = (input: string) => {
-    if (decimalsError(input, decimals, symbol)) return undefined;
-    try {
-      const value = parseUnits(input.trim(), decimals);
-      return value > 0n ? value : undefined;
-    } catch {
-      return undefined;
-    }
-  };
+  // Never throws: undefined for empty, zero, exponent-form or too precise.
+  const parseAmount = (input: string) => parseTokenAmount(input, decimals);
 
   const asset: TokenSendAsset = {
     name: symbol,
@@ -118,19 +123,13 @@ export default function Kcc20Send() {
     balanceText: token ? formatBalance(token.spendable, decimals) : "0",
     price: 0,
     decimals,
-    maxAmount: token ? formatUnits(token.spendable, decimals) : "0",
-    validateAmount: (value) => {
-      const input = value ?? "";
-      const tooPrecise = decimalsError(input, decimals, symbol);
-      if (tooPrecise) return tooPrecise;
-      const amount = parseAmount(input);
-      // Empty, zero or unparsable: Next stays disabled without a message.
-      if (amount === undefined) return "";
-      if (token && amount > token.spendable) {
-        return "Oh, you don’t have enough funds";
-      }
-      return true;
-    },
+    maxAmount: formatMaxAmount(token?.spendable, decimals),
+    validateAmount: (value) =>
+      validateTokenAmount(value, {
+        decimals,
+        symbol,
+        spendable: token?.spendable,
+      }),
     label: "KCC-20",
     feeInfo: "KCC-20 fees are calculated when the transfer is built.",
     onNext: async ({ address, domain, amount: amountInput }) => {
@@ -201,7 +200,9 @@ export default function Kcc20Send() {
             <>
               <Header title="Send" onClose={onClose} onBack={onClose} />
               <p className="py-8 text-center text-sm text-daintree-400">
-                {isLoading ? "Loading token..." : "This token cannot be sent."}
+                {lookupSettled
+                  ? "This token cannot be sent."
+                  : "Loading token..."}
               </p>
             </>
           ))}

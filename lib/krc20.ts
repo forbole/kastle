@@ -6,6 +6,7 @@ import {
 } from "@/wasm/core/kaspa";
 import { IWallet, PaymentOutput } from "@/lib/wallet/wallet-interface.ts";
 import { CommitRevealHelper } from "./commit-reveal";
+import { krc20Decimals } from "@/lib/decimalAmount";
 
 export type Operation = "deploy" | "mint" | "transfer";
 
@@ -33,8 +34,10 @@ export const FORBOLE_FEES: Record<Operation, ForboleFee> = {
   transfer: ForboleFee.None,
 };
 
-export const applyDecimal = (decimalPlaces: string = "8") => {
-  const decimalCoefficient = Math.pow(10, parseInt(decimalPlaces, 10));
+export const applyDecimal = (decimalPlaces?: string) => {
+  // The send form's scale too: one derivation, so a malformed dec ("1.5")
+  // cannot convert Max at a different scale than the form cut it at.
+  const decimalCoefficient = Math.pow(10, krc20Decimals(decimalPlaces));
 
   return {
     toFloat: (amount: number) => amount / decimalCoefficient,

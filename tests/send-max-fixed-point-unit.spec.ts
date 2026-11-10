@@ -15,6 +15,14 @@ import {
   orderEntries,
   planTransfer,
 } from "@/lib/sendFee";
+import { parseUnits } from "viem";
+import {
+  NOT_A_DECIMAL,
+  formatFloatAmount,
+  formatMaxAmount,
+  sanitizeDecimalInput,
+  validateTokenAmount,
+} from "@/lib/decimalAmount";
 
 const TESTS_DIR = path.dirname(fileURLToPath(import.meta.url));
 
@@ -140,4 +148,101 @@ test.describe("findMaxSendable", () => {
       expect(transactions.length).toBeGreaterThan(0);
     }
   });
+});
+
+// QA 5: Max on a tiny balance, then a pasted recipient, crashed the popup with
+// viem's "Number `2e-8` is not a valid decimal number". The amount must stay a
+// plain decimal string, and no validator may throw on what the user typed.
+test.describe("token amount: plain decimal string, validator never throws", () => {
+  const NACHO = { decimals: 8, symbol: "NACHO" };
+
+  test("Max of 2 base units at 8 decimals is exactly 0.00000002", () => {
+    const max = formatMaxAmount(2n, 8);
+    expect(max).toBe("0.00000002");
+    // the float the old number input handed the form
+    expect(String(Number(max))).toBe("2e-8");
+    expect(validateTokenAmount(max, { ...NACHO, spendable: 2n })).toBe(true);
+    expect(validateTokenAmount(max, { ...NACHO, spendable: 1n })).toBe(
+      "Oh, you don’t have enough funds",
+    );
+  });
+
+  test("a 0-decimal token: Max is an integer, a fraction is refused", () => {
+    expect(formatMaxAmount(5n, 0)).toBe("5");
+    expect(formatMaxAmount("12345678901234567890", 0)).toBe(
+      "12345678901234567890",
+    );
+    const zeroDec = { decimals: 0, symbol: "WHOLE", spendable: 5n };
+    expect(validateTokenAmount("5", zeroDec)).toBe(true);
+    expect(validateTokenAmount("0.5", zeroDec)).toBe(
+      "WHOLE has no decimal places",
+    );
+    expect(sanitizeDecimalInput("3.7", 0)).toBe("3");
+  });
+
+  test("Max never rounds, pads or uses exponent notation", () => {
+    expect(formatMaxAmount(1_000_000_000n, 8)).toBe("10");
+    expect(formatMaxAmount(123_456_789_012n, 11)).toBe("1.23456789012");
+    expect(formatMaxAmount(10n ** 30n, 8)).toBe("10000000000000000000000");
+    expect(formatMaxAmount(0n, 8)).toBe("0");
+    expect(formatMaxAmount(undefined, 8)).toBe("0");
+    expect(formatMaxAmount("not-a-number", 8)).toBe("0");
+  });
+
+  test("an exponent-form amount returns a message instead of throwing", () => {
+    // what threw: viem refuses exponent notation
+    expect(() => parseUnits("2e-8", 8)).toThrow(/not a valid decimal number/);
+    for (const input of ["2e-8", "1e3", "-1", "1.2.3", "abc", "1,5"]) {
+      expect(
+        validateTokenAmount(input, { ...NACHO, spendable: 10n ** 18n }),
+        input,
+      ).toBe(NOT_A_DECIMAL);
+    }
+    // the clamp leaves non-decimal text alone so the validator can say so
+    expect(sanitizeDecimalInput("2e-8", 8)).toBe("2e-8");
+  });
+
+  test("empty, zero or a lone point keeps Next disabled without a message", () => {
+    for (const input of [undefined, "", " ", ".", "0", "0.000"]) {
+      expect(
+        validateTokenAmount(input, { ...NACHO, spendable: 10n }),
+        String(input),
+      ).toBe("");
+    }
+  });
+
+  test("the input clamp keeps at most `decimals` fraction digits", () => {
+    expect(sanitizeDecimalInput("0.123456789", 8)).toBe("0.12345678");
+    expect(sanitizeDecimalInput("12.", 8)).toBe("12.");
+    expect(sanitizeDecimalInput(".5", 8)).toBe(".5");
+  });
+});
+
+// Review: toFixed carried digits 9-10 up ("1.999999999999" -> "2").
+test("formatFloatAmount truncates, never rounds up", () => {
+  expect(formatFloatAmount(1.999999999999, 8)).toBe("1.99999999");
+  expect(formatFloatAmount(0.123456789999, 8)).toBe("0.12345678");
+  expect(formatFloatAmount(9.99999, 2)).toBe("9.99");
+  expect(formatFloatAmount(1e-7, 8)).toBe("0.0000001");
+  expect(formatFloatAmount(1e-9, 8)).toBe("0");
+  expect(formatFloatAmount(1e21, 8)).toBe("1000000000000000000000");
+});
+
+test("formatFloatAmount never exceeds its input", () => {
+  for (const v of [
+    1.999999999999,
+    0.999999999,
+    123.456789999,
+    7.0000000099,
+    0.1 + 0.2,
+    2.9999999999999996,
+    1e-7,
+    5e-324,
+    1e21,
+    123456789.9876,
+  ]) {
+    for (const d of [0, 2, 6, 8, 18]) {
+      expect(parseFloat(formatFloatAmount(v, d)) <= v).toBe(true);
+    }
+  }
 });

@@ -27,6 +27,12 @@ import { KRC20SendForm } from "./Krc20Send";
 import Layer2AssetImage from "@/components/Layer2AssetImage";
 import useKaspaBalance from "@/hooks/wallet/useKaspaBalance";
 import { priorityFeeFromEstimate } from "@/lib/kaspa";
+import {
+  formatMaxAmount,
+  krc20Decimals,
+  sanitizeDecimalInput,
+  validateKrc20Amount,
+} from "@/lib/decimalAmount";
 
 // What the shared details form needs from a token; each token standard
 // supplies its own (see useKrc20SendAsset).
@@ -114,12 +120,18 @@ function useKrc20SendAsset(): TokenSendAsset {
   const kasBalance = useKaspaBalance(account?.address) ?? 0;
   const currentBalance = tokenBalanceFloat;
 
-  const tokenAmountValidator = async (value: string | undefined) => {
-    const amountNumber = parseFloat(value ?? "0");
+  // Same scale Krc20Transfer converts the amount with (applyDecimal(dec)).
+  const tokenDecimals = krc20Decimals(tokenBalance?.dec);
 
-    if (amountNumber < 0 || amountNumber > currentBalance) {
-      return "Oh, you don’t have enough funds";
-    }
+  const tokenAmountValidator = async (value: string | undefined) => {
+    // Bigints at the token's scale against the raw balance: the float
+    // currentBalance rounds past 2^53 and would reject an exact Max.
+    const amountError = validateKrc20Amount(value, {
+      decimals: tokenDecimals,
+      symbol: (tokenName ?? "").toUpperCase(),
+      balance: tokenBalance?.balance,
+    });
+    if (amountError !== true) return amountError;
 
     if (kasBalance * 1e8 < (commitFee ?? 0) + (revealFee ?? 0)) {
       return "Oh, you don't have enough KAS to cover the operation fees";
@@ -146,8 +158,10 @@ function useKrc20SendAsset(): TokenSendAsset {
     logo,
     balance: currentBalance,
     price: tokenPrice,
-    decimals: 8,
-    maxAmount: currentBalance > 0 ? currentBalance.toFixed(8) : "0",
+    decimals: tokenDecimals,
+    // From the raw integer balance: toFixed(8) on the float rounded a
+    // 0-decimal or >8-decimal token.
+    maxAmount: formatMaxAmount(tokenBalance?.balance, tokenDecimals),
     validateAmount: tokenAmountValidator,
     label: "KRC20",
     fee: (commitFee ?? 0) + (revealFee ?? 0),
@@ -425,17 +439,22 @@ export const TokenSendDetails = ({
                 {...register("amount", {
                   required: true,
                   validate: asset.validateAmount,
+                  // Clamp the fraction to the token's decimals. The form
+                  // value is the field's string; nothing reads it as a number.
                   onChange: (event) => {
-                    const [int, dec] = event.target.value.split(".");
-
-                    if (!!dec && dec !== "") {
-                      event.target.value = asset.decimals
-                        ? `${int}.${dec.slice(0, asset.decimals)}`
-                        : int;
+                    const typed = event.target.value;
+                    const clamped = sanitizeDecimalInput(typed, asset.decimals);
+                    if (clamped !== typed) {
+                      event.target.value = clamped;
+                      setValue("amount", clamped, { shouldValidate: true });
                     }
                   },
                 })}
-                type="number"
+                // Text, not number: a number input hands back floats ("2e-8")
+                // and cannot hold a token's full precision.
+                type="text"
+                inputMode="decimal"
+                autoComplete="off"
                 className={twMerge(
                   "block w-full rounded-e-lg bg-[#102831] px-4 py-3 pe-11 text-sm shadow-sm focus:z-10 disabled:pointer-events-none disabled:opacity-50 sm:p-5 [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
                   errors.amount

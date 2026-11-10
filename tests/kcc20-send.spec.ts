@@ -60,7 +60,7 @@ const sendAction = (page: Page) =>
   page.getByRole("button", { name: "Send NACHO" });
 
 const address = (page: Page) => page.locator("textarea");
-const amount = (page: Page) => page.locator('input[type="number"]');
+const amount = (page: Page) => page.locator('input[inputmode="decimal"]');
 const next = (page: Page) => page.getByRole("button", { name: "Next" });
 const confirm = (page: Page) => page.getByRole("button", { name: "Confirm" });
 const h = (page: Page) => page.evaluate(() => window.__kcc20Send);
@@ -253,6 +253,71 @@ test("an unknown covenant id shows the unavailable state", async ({ page }) => {
   await expect(page.getByText("This token cannot be sent.")).toBeVisible();
 });
 
+// Review: a rejected lookup never yields data; it must not spin on
+// "Loading token..." forever but land on the unavailable copy.
+test("a rejected token lookup shows the unavailable state, not loading", async ({
+  page,
+}) => {
+  await page.goto(`${base}/?route=/kcc20/send/${"ab".repeat(32)}&kcc20Error=1`);
+  await expect(page.getByText("This token cannot be sent.")).toBeVisible();
+  await expect(page.getByText("Loading token...")).toHaveCount(0);
+});
+
+// QA 4: an unsettled lookup (no data yet, isLoading already false) is not a
+// verdict. Records when the unavailable copy first paints, if ever.
+async function watchCannotSend(page: Page) {
+  await page.addInitScript(() => {
+    const w = window as unknown as { __cannotSendAt?: number };
+    new MutationObserver(() => {
+      if (
+        w.__cannotSendAt === undefined &&
+        document.body?.textContent?.includes("This token cannot be sent.")
+      ) {
+        w.__cannotSendAt = performance.now();
+      }
+    }).observe(document, {
+      subtree: true,
+      childList: true,
+      characterData: true,
+    });
+  });
+}
+const marks = (page: Page) =>
+  page.evaluate(() => {
+    const w = window as unknown as {
+      __cannotSendAt?: number;
+      __kcc20SettledAt?: number;
+    };
+    return { cannotSendAt: w.__cannotSendAt, settledAt: w.__kcc20SettledAt };
+  });
+
+test("an unsettled token lookup shows loading, then the form", async ({
+  page,
+}) => {
+  await watchCannotSend(page);
+  await page.goto(
+    `${base}/?route=/kcc20/send/${"ab".repeat(32)}&kcc20Unsettled=400`,
+  );
+  await expect(page.getByText("Loading token...")).toBeVisible();
+  await expect(page.getByText("Send to ...")).toBeVisible();
+  const { cannotSendAt, settledAt } = await marks(page);
+  expect(settledAt).toBeDefined();
+  expect(cannotSendAt).toBeUndefined();
+});
+
+test("the unavailable copy waits for the lookup to settle", async ({
+  page,
+}) => {
+  await watchCannotSend(page);
+  await page.goto(
+    `${base}/?route=/kcc20/send/${"cd".repeat(32)}&kcc20Unsettled=400`,
+  );
+  await expect(page.getByText("This token cannot be sent.")).toBeVisible();
+  const { cannotSendAt, settledAt } = await marks(page);
+  expect(settledAt).toBeDefined();
+  expect(cannotSendAt! >= settledAt!).toBe(true);
+});
+
 // As a KRC-20 or .k row: a tap opens the detail page, never send directly.
 test("a dashboard tap opens the detail page, not send", async ({ page }) => {
   const errors: string[] = [];
@@ -291,6 +356,32 @@ test("KRC-20 send still goes details → confirm", async ({ page }) => {
   await expect(page.getByText("Sending amount")).toBeVisible();
   await expect(page.getByText("2", { exact: true })).toBeVisible();
   await expect(confirm(page)).toBeEnabled();
+});
+
+// Copilot #437: Max past 2^53 used to fail a float compare against the balance.
+test("KRC-20 Max of a balance past 2^53 is exact and keeps Next enabled", async ({
+  page,
+}) => {
+  await page.goto(
+    `${base}/?route=/krc20/send/KASPY&krc20balance=9007199254740993`,
+  );
+  await expect(page.getByText("Estimated")).toBeVisible();
+  await fill(page, RECIPIENT, "1");
+  await page.getByRole("button", { name: "Max" }).click();
+  await expect(amount(page)).toHaveValue("90071992.54740993");
+  await expect(page.getByText("Oh, you don’t have enough funds")).toBeHidden();
+  await expect(next(page)).toBeEnabled();
+});
+
+// Copilot #437: a trailing or leading space used to skip the clamp.
+test("KRC-20 amount trims whitespace before clamping", async ({ page }) => {
+  await page.goto(`${base}/?route=/krc20/send/KASPY`);
+  await expect(page.getByText("Estimated")).toBeVisible();
+  await fill(page, RECIPIENT, "1");
+  for (const typed of ["0.000000001 ", " 0.000000001"]) {
+    await amount(page).fill(typed);
+    await expect(amount(page)).toHaveValue("0.00000000");
+  }
 });
 
 // The Send button's asset picker (/asset-select) lists KCC-20 beside KRC-20.
