@@ -181,8 +181,9 @@ for (const s of SCREENS) {
     page,
   }) => {
     await open(page, s.route, "&tall=1&h=320");
-    // KCC-20 has real tab bodies, not stubs: only Token info is that tall.
-    if (s.key === "KCC-20")
+    // KCC-20, ERC-20 and EVM KAS have a real History list, not a stub: only
+    // Token info is that tall.
+    if (s.key === "KCC-20" || s.key === "ERC-20" || s.key === "EVM KAS")
       await page.getByRole("tab", { name: "Token info", exact: true }).click();
     const body = page.locator("#popup .overflow-y-auto").first();
     const send = sendButton(page, s.ticker);
@@ -425,7 +426,7 @@ const TABBED = [
   {
     key: "ERC-20",
     route: `/erc20-asset/0x97b4/${ERC20}`,
-    active: "Token info",
+    active: "History",
   },
   { key: "EVM KAS", route: "/evm-asset/0x97b4", active: "History" },
   { key: "KCC-20", route: `/kcc20/${KCC20_ID}`, active: "History" },
@@ -753,3 +754,67 @@ test("KCC-20 activity sheet: focus stays inside and Escape closes it", async ({
   await page.keyboard.press("Escape");
   await expect(page.getByTestId("closed")).toBeVisible();
 });
+
+// In-app EVM history (Blockscout, stubbed in tests/asset-detail/stubs.tsx).
+// Kasplex mainnet has an apiUrl; 0x1 is no chain in lib/layer2, so none.
+const KASPLEX = "0x3173b";
+const KASPLEX_EXPLORER = "https://explorer.kasplex.org/tx/";
+const EVM_TX_HASH = `0x${"a1".repeat(32)}`;
+const ERC20_TX_HASH = `0x${"b2".repeat(32)}`;
+const openedTab = (page: Page) =>
+  page.evaluate(
+    () => (window as unknown as { __openedTab?: string }).__openedTab,
+  );
+
+test("EVM KAS: History lists the Blockscout txs in-app, and a row opens the explorer", async ({
+  page,
+}) => {
+  const errors = await open(page, `/evm-asset/${KASPLEX}`);
+  const row = page.getByRole("button", { name: /Sent/ });
+  await expect(row).toBeVisible();
+  await expect(row).toContainText("1.5");
+  await expect(row.locator(".hn-external-link")).toHaveCount(1);
+  await row.click();
+  expect(await openedTab(page)).toBe(KASPLEX_EXPLORER + EVM_TX_HASH);
+  expect(errors).toEqual([]);
+});
+
+test("ERC-20: opens on History, lists the token's transfers, and a row opens the explorer", async ({
+  page,
+}) => {
+  const errors = await open(page, `/erc20-asset/${KASPLEX}/${ERC20}`);
+  await expect(
+    page.getByRole("tab", { name: "History", exact: true }),
+  ).toHaveAttribute("aria-selected", "true");
+  const row = page.getByRole("button", { name: /Received/ });
+  await expect(row).toBeVisible();
+  await expect(row).toContainText("2.5");
+  await expect(row.locator(".hn-external-link")).toHaveCount(1);
+  await row.click();
+  expect(await openedTab(page)).toBe(KASPLEX_EXPLORER + ERC20_TX_HASH);
+  expect(errors).toEqual([]);
+});
+
+test("ERC-20: the History tab is reachable by click from Token info", async ({
+  page,
+}) => {
+  await open(page, `/erc20-asset/${KASPLEX}/${ERC20}`);
+  await page.getByRole("tab", { name: "Token info", exact: true }).click();
+  await expect(page.getByRole("button", { name: /Received/ })).toHaveCount(0);
+  await page.getByRole("tab", { name: "History", exact: true }).click();
+  await expect(page.getByRole("button", { name: /Received/ })).toBeVisible();
+});
+
+for (const route of ["/evm-asset/0x1", `/erc20-asset/0x1/${ERC20}`]) {
+  test(`${route}: a chain with no apiUrl shows the reason and no rows`, async ({
+    page,
+  }) => {
+    await open(page, route);
+    await expect(
+      page.getByText("History is not available for this network"),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /Sent|Received/ }),
+    ).toHaveCount(0);
+  });
+}

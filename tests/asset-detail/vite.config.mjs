@@ -46,7 +46,6 @@ const modules = {
   "components/krc20-asset/TokenInfo": "Tab",
   "components/erc20-asset/Erc20Info": "Tab",
   "components/evm-kas-asset/EvmKasInfo": "Tab",
-  "components/evm-kas-asset/EvmKasHistory": "Tab",
   "wasm/core/kaspa": "Tab",
 };
 

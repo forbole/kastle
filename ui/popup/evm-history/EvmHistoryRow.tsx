@@ -80,8 +80,8 @@ export function EvmHistoryRow({
             <span
               className={twMerge(
                 "shrink-0 text-sm font-medium",
-                record.direction === "in" && "text-teal-400",
-                record.direction === "out" && "text-red-400",
+                record.direction === "in" && "text-[#14B8A6]",
+                record.direction === "out" && "text-[#EF4444]",
                 record.direction === "self" && "text-white",
               )}
             >

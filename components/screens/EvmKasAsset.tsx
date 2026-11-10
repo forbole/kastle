@@ -4,8 +4,11 @@ import React, { useState } from "react";
 import AssetTabs, { AssetTab } from "@/components/AssetTabs";
 import EvmKasInfo from "@/components//evm-kas-asset/EvmKasInfo";
 import { useParams } from "react-router-dom";
-import EvmKasHistory from "../evm-kas-asset/EvmKasHistory";
-import { getChainTokenSymbol } from "@/lib/layer2";
+import { getChainImage, getChainTokenSymbol } from "@/lib/layer2";
+import kasIcon from "@/assets/images/network-logos/kaspa.svg";
+import useEvmAddress from "@/hooks/evm/useEvmAddress";
+import { useEvmHistory } from "@/hooks/evm/useEvmHistory";
+import { EvmHistoryList } from "@/ui/popup/evm-history/EvmHistoryList";
 import useEvmKasBalance from "@/hooks/evm/useEvmKasBalance";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import AssetSendButton from "@/components/AssetSendButton";
@@ -17,6 +20,12 @@ export default function EvmKasAsset() {
   const symbol = getChainTokenSymbol(chainId ?? "0x0");
   const { wallet, isWalletSettingsLoading } = useWalletManager();
   const { data: balance } = useEvmKasBalance(chainId);
+  const evmAddress = useEvmAddress();
+  const history = useEvmHistory({
+    chainId,
+    address: evmAddress,
+    source: { family: "evm-native" },
+  });
   // As in the send asset picker: Ledger cannot send EVM KAS. A wallet that has
   // not loaded yet is not known to be non-Ledger.
   const canSend =
@@ -41,7 +50,13 @@ export default function EvmKasAsset() {
 
         {activeTab === "info" && <EvmKasInfo chainId={chainId! ?? "0x0"} />}
         {activeTab === "history" && (
-          <EvmKasHistory chainId={chainId ?? "0x0"} />
+          <EvmHistoryList
+            {...history}
+            onRetry={history.retry}
+            logo={kasIcon}
+            symbol={symbol}
+            chainImage={getChainImage(chainId ?? "0x0")}
+          />
         )}
       </div>
 

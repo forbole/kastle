@@ -7,16 +7,27 @@ import useErc20Info from "@/hooks/evm/useErc20Info";
 import useErc20Balance from "@/hooks/evm/useErc20Balance";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import AssetSendButton from "@/components/AssetSendButton";
+import useEvmAddress from "@/hooks/evm/useEvmAddress";
+import { useEvmHistory } from "@/hooks/evm/useEvmHistory";
+import { getChainImage } from "@/lib/layer2";
+import { EvmHistoryList } from "@/ui/popup/evm-history/EvmHistoryList";
 
 export default function Erc20Asset() {
   const navigate = useNavigate();
   const { chainId, address } = useParams();
-  const [activeTab, setActiveTab] = useState<AssetTab>("info");
+  const [activeTab, setActiveTab] = useState<AssetTab>("history");
 
   const asset = useErc20Info(
     chainId as `0x${string}`,
     address as `0x${string}`,
   );
+  // `address` is the token contract (route); the owner is the wallet's 0x address.
+  const evmAddress = useEvmAddress();
+  const history = useEvmHistory({
+    chainId,
+    address: evmAddress,
+    source: { family: "erc20", token: address ?? "" },
+  });
   const { wallet, isWalletSettingsLoading } = useWalletManager();
   const { data: balance } = useErc20Balance(address ?? "", chainId ?? "");
   // As in the send asset picker: Ledger cannot send ERC-20. A wallet that has
@@ -39,11 +50,17 @@ export default function Erc20Asset() {
       />
 
       <div className="no-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto">
-        <AssetTabs
-          active={activeTab}
-          // TODO: Enable history tab when implemented
-          onChange={(tab) => tab === "info" && setActiveTab(tab)}
-        />
+        <AssetTabs active={activeTab} onChange={setActiveTab} />
+
+        {activeTab === "history" && (
+          <EvmHistoryList
+            {...history}
+            onRetry={history.retry}
+            logo={asset?.image}
+            symbol={asset?.symbol}
+            chainImage={getChainImage((chainId ?? "0x0") as `0x${string}`)}
+          />
+        )}
 
         {activeTab === "info" && asset && <Erc20Info asset={asset} />}
       </div>
