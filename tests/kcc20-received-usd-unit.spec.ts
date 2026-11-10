@@ -275,7 +275,15 @@ test("sameSpots compares spot Maps by content, not by type", () => {
   expect(m.sameSpots(before, new Map([["abc", 0.2]]))).toBe(true);
   expect(m.sameSpots(before, new Map([["abc", null]]))).toBe(false);
   expect(m.sameSpots(before, new Map([["xyz", 0.2]]))).toBe(false);
-  expect(m.sameSpots(before, new Map([["abc", 0.2], ["xyz", 1]]))).toBe(false);
+  expect(
+    m.sameSpots(
+      before,
+      new Map([
+        ["abc", 0.2],
+        ["xyz", 1],
+      ]),
+    ),
+  ).toBe(false);
   expect(m.sameSpots(undefined, before)).toBe(false);
   expect(m.sameSpots(undefined, undefined)).toBe(true);
 });
