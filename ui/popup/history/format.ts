@@ -1,6 +1,10 @@
 // Pure display helpers for the shared history shell, kept free of React so a
 // unit spec imports them directly.
-import type { HistoryKind, HistoryRecord } from "@/lib/history/types";
+import type {
+  HistoryFamily,
+  HistoryKind,
+  HistoryRecord,
+} from "@/lib/history/types";
 import { textEllipsis } from "@/lib/utils";
 
 /** Display precision for a token amount; extra digits are truncated, not rounded. */
@@ -20,7 +24,12 @@ const TITLES: Record<HistoryKind, string> = {
   unknown: "Transaction",
 };
 
-export function historyTitle(kind: HistoryKind): string {
+export function historyTitle(
+  kind: HistoryKind,
+  family?: HistoryFamily,
+): string {
+  // KCC-20 rows kascov could not attribute keep their own name.
+  if (kind === "unknown" && family === "kcc20") return "Unattributed movement";
   return TITLES[kind] ?? TITLES.unknown;
 }
 

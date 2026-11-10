@@ -705,9 +705,10 @@ test("KCC-20 activity sheet: Status shows only when the feed supplies it", async
     sheet.getByRole("button", { name: "View on Explorer" }),
   ).toBeVisible();
 
-  await open(page, "/kcc20-activity", "&status=Confirmed");
+  // The shared status vocabulary is closed: a feed answers one of HistoryStatus.
+  await open(page, "/kcc20-activity", "&status=finalized");
   await expect(sheet.getByText("Status", { exact: true })).toBeVisible();
-  await expect(sheet.getByText("Confirmed", { exact: true })).toBeVisible();
+  await expect(sheet.getByText("Finalized", { exact: true })).toBeVisible();
 
   // The token-history sheet opens kascov, which decodes the KCC-20 action.
   await sheet.getByRole("button", { name: "View on Explorer" }).click();

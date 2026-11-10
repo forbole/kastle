@@ -74,7 +74,7 @@ export function HistoryRow({
       <div className="flex min-w-0 flex-grow flex-col gap-1">
         <div className="flex min-w-0 items-center gap-2">
           <span className="truncate text-base text-white">
-            {historyTitle(record.kind)}
+            {historyTitle(record.kind, record.family)}
           </span>
           <StatusBadge status={record.status} />
         </div>
