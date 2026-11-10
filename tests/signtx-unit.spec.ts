@@ -13,9 +13,14 @@ import init, {
   ScriptBuilder,
   SighashType,
   Transaction,
+  TransactionOutput,
+  CovenantBinding,
+  Hash,
   signMessage,
 } from "@/wasm/core/kaspa";
 import { deserializeTransaction } from "@/lib/kaspa-compat";
+import { applyP2SHFeeAdjustment } from "@/lib/p2sh-fee";
+import { calcRevealInputMass } from "@/lib/kaspaFee";
 import * as Sentry from "@sentry/react";
 import { REDACTED, scrubPayload, sentryScrubHooks } from "@/lib/sentry-scrub";
 
@@ -2319,5 +2324,118 @@ test.describe("stale address after switchNetwork (N1)", () => {
       deriveKaspaAddress(undefined, "mainnet" as NetworkType),
     ).toBeUndefined();
     expect(deriveKaspaAddress([], "mainnet" as NetworkType)).toBeUndefined();
+  });
+});
+
+test.describe("P2SH fee adjustment keeps covenant binding (sign-and-broadcast)", () => {
+  const COVENANT_ID = "c0".repeat(32);
+  const REDEEM_SCRIPT = "51".repeat(40);
+  const EXTRA_FEE = calcRevealInputMass(REDEEM_SCRIPT) * 100n;
+  const scripts = [{ inputIndex: 0, scriptHex: REDEEM_SCRIPT }];
+  let userAddress: string;
+  let otherAddress: string;
+
+  // wasm is initialised by the file-level beforeAll, so derive keys here.
+  test.beforeAll(() => {
+    userAddress = new PrivateKey(TEST_KEY)
+      .toPublicKey()
+      .toAddress("testnet-10")
+      .toString();
+    otherAddress = new PrivateKey("22".repeat(32))
+      .toPublicKey()
+      .toAddress("testnet-10")
+      .toString();
+  });
+
+  // One P2SH input; outputs are set by the caller as TransactionOutput objects.
+  function p2shTx(outputs: TransactionOutput[]): Transaction {
+    const tx = Transaction.deserializeFromSafeJSON(
+      JSON.stringify({
+        id: "00".repeat(32),
+        version: 1,
+        inputs: [
+          {
+            transactionId: "01".repeat(32),
+            index: 0,
+            sequence: "0",
+            sigOpCount: 1,
+            computeBudget: 0,
+            signatureScript: "",
+            utxo: {
+              address: null,
+              amount: "600000000",
+              scriptPublicKey: "0000aa20" + "ab".repeat(32) + "87",
+              blockDaaScore: "1000",
+              isCoinbase: false,
+            },
+          },
+        ],
+        outputs: [],
+        lockTime: "0",
+        subnetworkId: "00".repeat(20),
+        gas: "0",
+        payload: "",
+      }),
+    );
+    tx.outputs = outputs;
+    return tx;
+  }
+
+  test("rebuilt change output keeps its covenant binding", () => {
+    const tx = p2shTx([
+      new TransactionOutput(1000n, payToAddressScript(otherAddress), undefined),
+      new TransactionOutput(
+        500000000n,
+        payToAddressScript(userAddress),
+        new CovenantBinding(0, new Hash(COVENANT_ID)),
+      ),
+    ]);
+
+    expect(applyP2SHFeeAdjustment(tx, scripts, userAddress)).toBe(true);
+    expect(tx.outputs[1].value).toBe(500000000n - EXTRA_FEE);
+    // The regression this test exists for: the reduced change output must
+    // stay bound to the covenant.
+    expect(JSON.parse(tx.serializeToSafeJSON()).outputs[1].covenant).toEqual({
+      authorizingInput: 0,
+      covenantId: COVENANT_ID,
+    });
+  });
+
+  test("outputs without a covenant stay without one", () => {
+    const tx = p2shTx([
+      new TransactionOutput(1000n, payToAddressScript(otherAddress), undefined),
+      new TransactionOutput(
+        500000000n,
+        payToAddressScript(userAddress),
+        undefined,
+      ),
+    ]);
+
+    expect(applyP2SHFeeAdjustment(tx, scripts, userAddress)).toBe(true);
+    expect(tx.outputs[1].value).toBe(500000000n - EXTRA_FEE);
+    for (const o of JSON.parse(tx.serializeToSafeJSON()).outputs) {
+      expect(o.covenant ?? undefined).toBeUndefined();
+    }
+  });
+
+  test("returns false and leaves the tx untouched when no output pays the user", () => {
+    const tx = p2shTx([
+      new TransactionOutput(1000n, payToAddressScript(otherAddress), undefined),
+    ]);
+    const before = tx.serializeToSafeJSON();
+
+    expect(applyP2SHFeeAdjustment(tx, scripts, userAddress)).toBe(false);
+    expect(tx.serializeToSafeJSON()).toBe(before);
+  });
+
+  test("returns false and leaves the tx untouched when change <= extra fee", () => {
+    const tx = p2shTx([
+      new TransactionOutput(1000n, payToAddressScript(otherAddress), undefined),
+      new TransactionOutput(EXTRA_FEE, payToAddressScript(userAddress), undefined),
+    ]);
+    const before = tx.serializeToSafeJSON();
+
+    expect(applyP2SHFeeAdjustment(tx, scripts, userAddress)).toBe(false);
+    expect(tx.serializeToSafeJSON()).toBe(before);
   });
 });
