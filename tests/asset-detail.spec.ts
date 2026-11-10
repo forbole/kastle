@@ -882,23 +882,45 @@ test('EVM KAS: pages of dropped calls are never "No history yet" while more exis
     page.getByRole("status", { name: "loading" }).first(),
   ).toBeVisible();
   // Backfill cap reached, source still has more: the sentinel under the
-  // spinner asks for the next page by itself, no button press.
+  // spinner asks for the next page by itself, but only for a bounded run of
+  // pages that add no rows; then a Load more button takes over.
   const calls = () =>
     page.evaluate(
       () =>
         (window as unknown as { __evmHistoryCalls?: number })
           .__evmHistoryCalls ?? 0,
     );
-  const spinner = page.getByRole("status", { name: "loading" });
-  await expect(spinner).toBeVisible({ timeout: 10_000 });
-  await expect(page.getByRole("button", { name: "Load more" })).toHaveCount(0);
-  // Page 1 + the backfill make 5 calls; past them only the sentinel fetches.
-  await expect.poll(calls, { timeout: 10_000 }).toBeGreaterThan(5);
-  await expect(page.getByRole("button", { name: /Sent|Received/ })).toHaveCount(
-    0,
-  );
+  const loadMore = page.getByRole("button", { name: "Load more" });
+  const rows = page.getByRole("button", { name: /Sent|Received/ });
+  // Page 1 + the backfill make 5 calls; the sentinel then adds 3 empty pages
+  // (the cap). Every page past the first costs 2 calls: SWR refetches page 1
+  // with each setSize (useEvmHistory revalidateFirstPage).
+  const PER_PAGE = 2;
+  const BOUND = 5 + 3 * PER_PAGE;
+  await expect(loadMore).toBeVisible({ timeout: 15_000 });
+  expect(await calls()).toBe(BOUND);
+  await page.waitForTimeout(2_000);
+  expect(await calls()).toBe(BOUND);
+  await expect(rows).toHaveCount(0);
   expect(await sawEmpty()).toBe(false);
-  await expect(spinner).toBeVisible();
+  // One press, one page; still empty, so the button comes straight back.
+  await loadMore.click();
+  await expect.poll(calls).toBe(BOUND + PER_PAGE);
+  await expect(loadMore).toBeVisible();
+  await page.waitForTimeout(2_000);
+  expect(await calls()).toBe(BOUND + PER_PAGE);
+  // Pages now move value: one press yields a row and restores auto-paging,
+  // so further pages load with no press and no button.
+  await page.evaluate(() => {
+    (window as unknown as { __evmHistoryValue?: boolean }).__evmHistoryValue =
+      true;
+  });
+  await loadMore.click();
+  await expect(rows.first()).toBeVisible();
+  await expect.poll(async () => rows.count()).toBeGreaterThan(1);
+  await expect.poll(calls).toBeGreaterThan(BOUND + 2 * PER_PAGE);
+  await expect(loadMore).toHaveCount(0);
+  expect(await sawEmpty()).toBe(false);
 });
 
 test("EVM KAS: a revalidation shows a new transfer on top, and the old row never blanks", async ({

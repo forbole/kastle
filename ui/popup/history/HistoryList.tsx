@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useIntersectionObserver } from "usehooks-ts";
 import type { HistoryRecord } from "@/lib/history/types";
 import ActionSheet from "@/ui/general/ActionSheet";
@@ -38,6 +38,8 @@ function Notice({ children }: { children: React.ReactNode }) {
   );
 }
 
+const EMPTY_PAGE_CAP = 3;
+
 /**
  * The one history shell every family renders, paged as the sentinel scrolls in.
  * Renders inside the page's scroll body: no height of its own.
@@ -63,9 +65,26 @@ export function HistoryList({
   const { ref: sentinel, isIntersecting } = useIntersectionObserver({
     threshold: 0.5,
   });
+  // Pages that add no rows (Blockscout calls that moved no value) keep the
+  // sentinel in view: after EMPTY_PAGE_CAP of them in a row, auto-paging
+  // stops and a button asks for the next page instead.
+  const [emptyStreak, setEmptyStreak] = useState(0);
+  const countAtRequest = useRef<number>();
   useEffect(() => {
-    if (isIntersecting && hasMore && !isLoadingMore && !error) onLoadMore();
-  }, [isIntersecting, hasMore, isLoadingMore, error, onLoadMore]);
+    if (isLoadingMore) {
+      countAtRequest.current = records.length;
+    } else if (countAtRequest.current !== undefined) {
+      const grew = records.length > countAtRequest.current;
+      countAtRequest.current = undefined;
+      setEmptyStreak((n) => (grew ? 0 : n + 1));
+    }
+    // Only the load's edges matter, not every records change.
+  }, [isLoadingMore]);
+  const capped = emptyStreak >= EMPTY_PAGE_CAP;
+  useEffect(() => {
+    if (isIntersecting && hasMore && !isLoadingMore && !error && !capped)
+      onLoadMore();
+  }, [isIntersecting, hasMore, isLoadingMore, error, capped, onLoadMore]);
 
   // State order is fixed: each check assumes every one above it failed.
   if (unavailableMessage) return <Notice>{unavailableMessage}</Notice>;
@@ -109,6 +128,17 @@ export function HistoryList({
           className="self-center rounded-full border border-daintree-700 px-4 py-1.5 text-sm text-white hover:border-white"
         >
           Retry
+        </button>
+      ) : capped && hasMore && !isLoadingMore ? (
+        <button
+          type="button"
+          // The streak stays put: an empty page keeps the button, a page
+          // with rows resets it and auto-paging resumes. Touching it here
+          // would let the sentinel fire a second page before this one starts.
+          onClick={onLoadMore}
+          className="self-center py-2 text-sm font-medium text-daintree-400 hover:text-white"
+        >
+          Load more
         </button>
       ) : (
         // records.length === 0 here means hasMore: state 5, a spinner, with the
