@@ -89,3 +89,36 @@ export function plainDecimalError(input: string | undefined) {
   if (!(parseFloat(text) > 0)) return "";
   return undefined;
 }
+
+export function isPlainDecimal(input: string | undefined): boolean {
+  return PLAIN_DECIMAL.test((input ?? "").trim());
+}
+
+// Base units for a plain decimal string, zero included, or undefined when it
+// is empty or not a plain decimal. Excess precision rounds as parseUnits does.
+// Never throws, so it is safe to call while rendering.
+export function parseDecimalUnits(
+  input: string | undefined,
+  decimals: number,
+): bigint | undefined {
+  const text = (input ?? "").trim();
+  if (!PLAIN_DECIMAL.test(text) || text === "" || text === ".")
+    return undefined;
+  try {
+    return parseUnits(text, decimals);
+  } catch {
+    return undefined;
+  }
+}
+
+// A float balance as a plain decimal string truncated to min(decimals, 8)
+// places, for when only the float is known. Never exponent notation.
+export function formatFloatAmount(value: number, decimals: number): string {
+  if (!Number.isFinite(value) || value <= 0) return "0";
+  const digits = Math.min(decimals, 8);
+  const fixed = value.toFixed(digits + 2);
+  if (!PLAIN_DECIMAL.test(fixed)) return "0";
+  const [int, frac = ""] = fixed.split(".");
+  const kept = frac.slice(0, digits).replace(/0+$/, "");
+  return kept ? `${int}.${kept}` : int;
+}

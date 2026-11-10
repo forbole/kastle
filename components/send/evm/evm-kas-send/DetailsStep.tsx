@@ -10,7 +10,12 @@ import { isAddress, formatEther, parseEther } from "viem";
 import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import useEvmKasBalance from "@/hooks/evm/useEvmKasBalance";
 import useFeeEstimate from "@/hooks/evm/useFeeEstimate";
-import { formatToken, truncToDecimals } from "@/lib/utils";
+import { formatToken } from "@/lib/utils";
+import {
+  NOT_A_DECIMAL,
+  formatMaxAmount,
+  parseDecimalUnits,
+} from "@/lib/decimalAmount";
 import useKaspaPrice from "@/hooks/useKaspaPrice";
 import useCurrencyValue from "@/hooks/useCurrencyValue";
 import Layer2AssetImage from "@/components/Layer2AssetImage";
@@ -144,7 +149,8 @@ export default function DetailsStep({
   };
 
   const amountValidator = async (value: string | undefined) => {
-    const amountNumber = parseEther(value ?? "0");
+    const amountNumber = parseDecimalUnits(value || "0", 18);
+    if (amountNumber === undefined) return NOT_A_DECIMAL;
 
     // Same floor as mobile's L2 KAS send.
     if (amountNumber < parseEther("0.2")) {
@@ -175,13 +181,13 @@ export default function DetailsStep({
       return;
     }
 
-    const maxAmount = parseFloat(
-      formatEther(currentBalance - (estimatedFee ?? 0n)),
-    );
-
+    // Truncated to 8 places in base units, as before, but never via a float:
+    // a dust remainder must read "0.00000002", not "2e-8".
+    const step = 10n ** 10n;
+    const spendable = currentBalance - (estimatedFee ?? 0n);
     setValue(
       "amount",
-      maxAmount > 0 ? truncToDecimals(maxAmount, 8).toString() : "0",
+      formatMaxAmount(spendable > 0n ? (spendable / step) * step : 0n, 18),
       {
         shouldValidate: true,
       },

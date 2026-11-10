@@ -21,7 +21,7 @@ import {
   formatMaxAmount,
   sanitizeDecimalInput,
   validateTokenAmount,
-} from "@/lib/kcc20/decimalAmount";
+} from "@/lib/decimalAmount";
 
 const TESTS_DIR = path.dirname(fileURLToPath(import.meta.url));
 

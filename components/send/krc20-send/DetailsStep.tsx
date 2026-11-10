@@ -31,7 +31,7 @@ import {
   formatMaxAmount,
   plainDecimalError,
   sanitizeDecimalInput,
-} from "@/lib/kcc20/decimalAmount";
+} from "@/lib/decimalAmount";
 
 // What the shared details form needs from a token; each token standard
 // supplies its own (see useKrc20SendAsset).

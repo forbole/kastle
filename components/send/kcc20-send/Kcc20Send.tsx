@@ -17,7 +17,7 @@ import {
   formatMaxAmount,
   parseTokenAmount,
   validateTokenAmount,
-} from "@/lib/kcc20/decimalAmount";
+} from "@/lib/decimalAmount";
 import { formatUsdAmount, textEllipsis } from "@/lib/utils.ts";
 import useKaspaHotWalletSigner from "@/hooks/wallet/useKaspaHotWalletSigner";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";

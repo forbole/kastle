@@ -635,4 +635,4 @@ async function fetchLegacyTokens(
 }
 
 /** An error for an amount with more fractional digits than the token has: parseUnits would silently round it. */
-export { decimalsError } from "./decimalAmount";
+export { decimalsError } from "../decimalAmount";
