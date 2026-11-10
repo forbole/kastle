@@ -443,9 +443,14 @@ test("the picker shows no empty state while KCC-20 is loading", async ({
   await expect(page.getByText("No result found")).toBeHidden();
 });
 
-test("the picker marks an unverified KCC-20 row", async ({ page }) => {
+// unverified only means issuer-claimed, never attested: no registry rejected the
+// row, so the picker must not claim a failed verification (QA issue 3).
+test("the picker shows no Unverified chip on an issuer-claimed KCC-20 row", async ({
+  page,
+}) => {
   await page.goto(`${base}/?route=/asset-select&unverified=1`);
-  await expect(pickerRow(page, /NACHO/)).toContainText("Unverified");
+  await expect(pickerRow(page, /NACHO/)).toBeVisible();
+  await expect(pickerRow(page, /NACHO/)).not.toContainText("Unverified");
   await page.goto(`${base}/?route=/asset-select`);
   await expect(pickerRow(page, /NACHO/)).toBeVisible();
   await expect(pickerRow(page, /NACHO/)).not.toContainText("Unverified");

@@ -14,6 +14,7 @@ import useAnalytics from "@/hooks/useAnalytics";
 import useKcc20Tokens from "@/lib/kcc20/useKcc20Tokens";
 import { useFeatureFlags } from "@/hooks/useFeatureFlags.ts";
 import Kcc20SelectItem, { SendableKcc20Token } from "./Kcc20SelectItem";
+import { matchesKcc20Search } from "./kcc20Search";
 
 export default function AssetSelect() {
   const navigate = useNavigate();
@@ -60,11 +61,7 @@ export default function AssetSelect() {
       (token): token is SendableKcc20Token =>
         token.meta?.decimals !== undefined && token.spendable > 0n,
     )
-    .filter((token) =>
-      hasSearchQuery
-        ? true
-        : token.meta.symbol.toLowerCase().startsWith(searchQuery.toLowerCase()),
-    );
+    .filter((token) => matchesKcc20Search(token, searchQuery));
 
   return (
     <div className="flex h-full w-full flex-col">
