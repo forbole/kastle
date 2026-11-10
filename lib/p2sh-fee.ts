@@ -42,7 +42,12 @@ export function applyP2SHFeeAdjustment(
 
   tx.outputs = outputs.map((o, i) =>
     i === changeIdx
-      ? new TransactionOutput(o.value - extraFee, o.scriptPublicKey)
+      ? // Carry the covenant binding over; a v1 change output must stay bound.
+        new TransactionOutput(
+          o.value - extraFee,
+          o.scriptPublicKey,
+          o.covenant ?? undefined,
+        )
       : o,
   );
   tx.finalize();
