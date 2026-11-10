@@ -8,3 +8,9 @@ export default function useStorageState<T>(_key: string, initial: T) {
   return [value, set, false] as const;
 }
 export const NetworkType = { Mainnet: "mainnet", TestnetT10: "testnet-10" };
+
+// lib/hidden-tokens reads storage.local; the real wxt/browser polyfill
+// throws outside an extension. The sheet's hidden set comes from ?hidden=.
+export const browser = {
+  storage: { local: { get: async () => ({}), set: async () => {} } },
+};

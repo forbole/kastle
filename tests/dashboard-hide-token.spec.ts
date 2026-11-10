@@ -162,23 +162,70 @@ test("switching account mid-Manage never writes the old draft to the new account
   expect(errors).toEqual([]);
 });
 
-test("a hidden token still shows in the send picker and its detail page", async ({
+// Native KAS in the send picker: its row is a button whose label is exactly "KAS".
+const kasPick = (page: Page) =>
+  page
+    .getByRole("button")
+    .filter({ has: page.getByText("KAS", { exact: true }) });
+
+test("a hidden KRC-20 and KCC-20 leave the send picker; KAS and the detail route stay", async ({
   page,
 }) => {
   await dashboard(page);
-  await hide(page, /^Show KASPY$/);
+  await manage(page).click();
+  await page.getByRole("switch", { name: "Show KASPY" }).click();
+  for (const sw of await page.getByRole("switch", { name: /KTEST/ }).all())
+    await sw.click();
+  await done(page).click();
   await expect(page.getByText("KASPY")).toHaveCount(0);
-  await open(page, "/asset-select");
-  await expect(page.getByText("KASPY").first()).toBeVisible();
-  await expect(page.getByText("KTEST").first()).toBeVisible();
+  await expect(page.getByText("KTEST")).toHaveCount(0);
+
+  const errors = await open(page, "/asset-select");
+  await expect(page.getByText("NACHO").first()).toBeVisible();
+  await expect(kasPick(page)).toBeVisible();
+  await expect(page.getByText("KASPY")).toHaveCount(0);
+  await expect(page.getByText("KTEST")).toHaveCount(0);
+  expect(errors).toEqual([]);
+
+  // Hidden, not deleted: the detail screen still opens and still sends.
   await open(page, "/token-asset/KASPY");
   await expect(
     page.getByRole("button", { name: "Send KASPY", exact: true }),
   ).toBeVisible();
 });
 
-test("only the dashboard list reads the hidden set", () => {
-  // Display filter only: send, swap, detail, holdings and totals never import it.
+test("the send picker lists everything while storage is still being read, then settles", async ({
+  page,
+}) => {
+  await dashboard(page);
+  await hide(page, /^Show KASPY$/);
+  await open(page, "/asset-select", "&slowStorage=2500");
+  // loaded === false: the whole list, never a blank panel.
+  await expect(page.getByText("KASPY").first()).toBeVisible();
+  await expect(page.getByText("NACHO").first()).toBeVisible();
+  await expect(page.getByText("KASPY")).toHaveCount(0, { timeout: 6000 });
+  await expect(page.getByText("NACHO").first()).toBeVisible();
+});
+
+test("with every token hidden the send picker still reaches native KAS", async ({
+  page,
+}) => {
+  await dashboard(page);
+  await manage(page).click();
+  for (const sw of await switches(page).all()) await sw.click();
+  await done(page).click();
+  await expect(page.getByTestId("tokens-all-hidden")).toBeVisible();
+  const errors = await open(page, "/asset-select");
+  await expect(kasPick(page)).toBeVisible();
+  for (const t of ["KASPY", "NACHO", "KTEST"])
+    await expect(page.getByText(t)).toHaveCount(0);
+  await expect(page.getByText("No result found")).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test("only the holdings lists read the hidden set", () => {
+  // Dashboard, send picker, swap selectors. Not Activity (a record of what
+  // happened), token detail screens, MintToken, balances or totals.
   const hits: string[] = [];
   const walk = (dir: string) => {
     for (const e of readdirSync(dir, { withFileTypes: true })) {
@@ -190,9 +237,13 @@ test("only the dashboard list reads the hidden set", () => {
   };
   for (const d of ["components", "hooks", "lib", "ui", "entrypoints"])
     walk(path.resolve(d));
-  expect(hits.map((p) => path.relative(process.cwd(), p))).toEqual([
-    path.join("components", "dashboard", "Assets.tsx"),
-  ]);
+  expect(hits.map((p) => path.relative(process.cwd(), p)).sort()).toEqual(
+    [
+      path.join("components", "dashboard", "Assets.tsx"),
+      path.join("components", "screens", "Swap.tsx"),
+      path.join("components", "screens", "asset-selector", "AssetSelect.tsx"),
+    ].sort(),
+  );
 });
 
 test("hiding every token shows a calm empty state with the way back", async ({
