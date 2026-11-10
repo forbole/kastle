@@ -370,7 +370,9 @@ test("buy enrichment: feeAmount is the network fee alone, the cut rides in kastl
   expect(activity.sheet.transfer.fromChainImage).toBe("kaspa.svg");
   expect(activity.sheet.transfer.toChainImage).toBe("kaspa.svg");
   const item = JSON.stringify(activity);
-  expect(item).toContain(`https://explorer.kaspa.org/txs/${BUY_TXID}`);
+  // KCC-20 operations open on kascov, never the Kaspa explorer.
+  expect(item).toContain(`https://kascov.io/#/mainnet/tx/${BUY_TXID}`);
+  expect(item).not.toContain("explorer.kaspa.org");
 });
 
 test("chain logo: an Igra EVM swap, or one with no chainId, keeps the Igra mark", () => {

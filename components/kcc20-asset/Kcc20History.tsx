@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { twMerge } from "tailwind-merge";
 import { useIntersectionObserver } from "usehooks-ts";
-import { explorerTxLinks } from "@/components/screens/Settings";
+import { kcc20TxLinks } from "@/components/screens/Settings";
 import { NetworkType } from "@/contexts/SettingsContext";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import type { Kcc20Token } from "@/lib/kcc20";
@@ -221,7 +221,8 @@ export function Kcc20HistoryDetail({
   onClose: () => void;
 }) {
   const { networkId } = useRpcClientStateful();
-  const explorer = explorerTxLinks[networkId ?? NetworkType.Mainnet];
+  // kascov only, and only where it has a route: no link beats the wrong explorer.
+  const explorer = kcc20TxLinks[networkId ?? NetworkType.Mainnet];
   const root = useRef<HTMLDivElement>(null);
 
   // The sheet holds focus while open, Escape closes it, and focus returns on close.

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import useSWR from "swr";
 import { twMerge } from "tailwind-merge";
@@ -104,6 +104,29 @@ const PILL_CLASS: Record<PillStatus, string> = {
 };
 
 const openUrl = (url: string) => browser.tabs.create({ url });
+
+// Dismissed warning codes per page. Codes, not copy, so a NEW failure (a code
+// never dismissed) always shows; a refresh repeating a dismissed one stays hidden.
+const DISMISSED_KEY = "activity-warnings-dismissed";
+type Dismissed = Record<ActivityPageType, string[]>;
+const NONE_DISMISSED: Dismissed = { swap: [], bridge: [] };
+type Warning = { code: string; message: string };
+
+async function readDismissed(): Promise<Dismissed> {
+  try {
+    const stored = (await browser.storage.local.get(DISMISSED_KEY))[
+      DISMISSED_KEY
+    ] as Partial<Dismissed> | undefined;
+    const codes = (v: unknown) =>
+      Array.isArray(v)
+        ? v.filter((c): c is string => typeof c === "string")
+        : [];
+    return { swap: codes(stored?.swap), bridge: codes(stored?.bridge) };
+  } catch {
+    // Unreadable storage hides nothing.
+    return NONE_DISMISSED;
+  }
+}
 
 const toList = <T,>(value: T | T[] | null): T[] =>
   !value ? [] : Array.isArray(value) ? value : [value];
@@ -391,13 +414,72 @@ export default function Activity() {
     .sort((a, b) => Number(b.isInProgress) - Number(a.isInProgress));
   const open = items?.find((i) => i.id === openId);
 
+  const [dismissed, setDismissed] = useState<Dismissed>();
+  useEffect(() => {
+    void readDismissed().then(setDismissed);
+  }, []);
+
   const warnings = (
-    pageType === "bridge"
-      ? [feed.bridgeSource, feed.depositSource, feed.kurveSource].map((t) =>
-          t ? BRIDGE_SOURCE_MESSAGE[t] : undefined,
+    (pageType === "bridge"
+      ? [feed.bridgeSource, feed.depositSource, feed.kurveSource].map((code) =>
+          code ? { code, message: BRIDGE_SOURCE_MESSAGE[code] } : undefined,
         )
-      : toList(feed.swapSource).map((t) => SWAP_SOURCE_MESSAGE[t])
-  ).filter((m): m is string => !!m);
+      : toList(feed.swapSource).map((code) => ({
+          code,
+          message: SWAP_SOURCE_MESSAGE[code],
+        }))) as (Warning | undefined)[]
+  ).filter(
+    (w): w is Warning =>
+      !!w?.message && !!dismissed && !dismissed[pageType].includes(w.code),
+  );
+
+  // A source that recovered drops its dismissal, so a later failure with the
+  // same code is shown again. Only an answered, error-free read prunes:
+  // `undefined` (unanswered) or an error with no code proves nothing.
+  const pageSources =
+    pageType === "bridge"
+      ? [feed.bridgeSource, feed.depositSource, feed.kurveSource]
+      : [feed.swapSource];
+  const answered =
+    feed.rows != null &&
+    !feed.error &&
+    pageSources.every((s) => s !== undefined);
+  const liveCodes = pageSources.flatMap((s) => toList(s ?? null)) as string[];
+  const liveKey = answered ? liveCodes.join(",") : undefined;
+  useEffect(() => {
+    if (liveKey === undefined || !dismissed) return;
+    const live = liveKey.split(",");
+    const keep = (codes: string[]) => codes.filter((c) => live.includes(c));
+    if (keep(dismissed[pageType]).length === dismissed[pageType].length) return;
+    setDismissed((d) => d && { ...d, [pageType]: keep(d[pageType]) });
+    void (async () => {
+      try {
+        const stored = await readDismissed();
+        await browser.storage.local.set({
+          [DISMISSED_KEY]: { ...stored, [pageType]: keep(stored[pageType]) },
+        });
+      } catch {
+        // The session already behaves; storage catches up next time.
+      }
+    })();
+  }, [liveKey, dismissed, pageType]);
+
+  const dismissWarnings = async () => {
+    const codes = warnings.map((w) => w.code);
+    // Hide now; a failed write still hides the panel for this session.
+    setDismissed((d) => d && { ...d, [pageType]: [...d[pageType], ...codes] });
+    try {
+      const stored = await readDismissed();
+      await browser.storage.local.set({
+        [DISMISSED_KEY]: {
+          ...stored,
+          [pageType]: [...new Set([...stored[pageType], ...codes])],
+        },
+      });
+    } catch {
+      // Session-only dismissal.
+    }
+  };
 
   const [emptyTitle, emptyBody] = EMPTY_COPY[pageType];
 
@@ -436,12 +518,24 @@ export default function Activity() {
         ) : (
           <>
             {warnings.length > 0 && (
-              <div className="flex flex-col gap-1 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2">
-                {warnings.map((m) => (
-                  <p key={m} className="text-xs text-amber-300">
-                    {m}
-                  </p>
-                ))}
+              <div className="flex items-start gap-1 rounded-lg border border-amber-500/30 bg-amber-500/10 py-2 pl-3 pr-0">
+                <div className="flex flex-1 flex-col gap-1">
+                  {warnings.map((w) => (
+                    <p key={w.code} className="text-xs text-amber-300">
+                      {w.message}
+                    </p>
+                  ))}
+                </div>
+                {/* Figma's _button-icon-small (16 px icon, radius 8, no fill) in
+                    a 44×44 hit box; -my pulls it back so one line stays ~32 px. */}
+                <button
+                  type="button"
+                  aria-label="Dismiss"
+                  onClick={dismissWarnings}
+                  className="-my-[14px] flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-lg text-amber-300 hover:bg-amber-500/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+                >
+                  <i className="hn hn-times text-[16px]" />
+                </button>
               </div>
             )}
 

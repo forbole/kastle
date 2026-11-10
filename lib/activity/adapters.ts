@@ -16,7 +16,7 @@ import { ALL_SWAP_PROVIDERS } from "@/lib/evm/swap/constants";
 import { L1_PROVIDERS } from "@/hooks/swap/l1Providers";
 import { igraMainnet, kasplexMainnet } from "@/lib/layer2";
 import { NetworkType } from "@/contexts/SettingsContext";
-import { TX_EXPLORER } from "@/lib/activity/externals";
+import { kcc20TxLinks } from "@/components/screens/Settings";
 import type { Kcc20Token } from "@/lib/kcc20";
 import { fillFromKrc20, type Krc20Entry } from "@/lib/kcc20/krc20Fill";
 import {
@@ -335,14 +335,18 @@ export function buildDetails(row: ActivityRowDescriptor): DetailRow[] {
     }
     // Mobile opened every swap on the Igra explorer; a Kasplex swap belongs on
     // Kasplex's.
-    // A KCC-20 swap is an L1 transaction: the Kaspa explorer's txs path.
+    // A KCC-20 swap is an L1 covenant transaction: kascov decodes its token
+    // actions, the Kaspa explorer would show a plain KAS move.
     const explorer =
       row.meta?.l2Chain === "Kaspa"
-        ? TX_EXPLORER[NetworkType.Mainnet]
+        ? kcc20TxLinks[NetworkType.Mainnet]
         : `${(row.meta?.l2Chain === "Kasplex" ? kasplexMainnet : igraMainnet).blockExplorers.default.url}/tx/`;
     const txHash = row.meta?.txHash;
     details.push(
-      linkRow("Transaction", txHash ? `${explorer}${txHash}` : undefined),
+      linkRow(
+        "Transaction",
+        explorer && txHash ? `${explorer}${txHash}` : undefined,
+      ),
     );
     return details;
   }
