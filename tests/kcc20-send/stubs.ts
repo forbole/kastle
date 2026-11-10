@@ -257,6 +257,13 @@ export function useKcc20Tokens(address?: string) {
     return () => clearTimeout(t);
   }, [settled]);
   if (query.has("kcc20Loading")) return { data: undefined, isLoading: true };
+  // kcc20Error=1: the scan rejected (SWR keeps data undefined, sets error).
+  if (query.has("kcc20Error"))
+    return {
+      data: undefined,
+      isLoading: false,
+      error: new Error("kascov unreachable"),
+    };
   if (!settled) return { data: undefined, isLoading: false };
   return { data: address ? [kcc20Token] : undefined, isLoading: false };
 }

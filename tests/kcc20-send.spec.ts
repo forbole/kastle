@@ -253,6 +253,16 @@ test("an unknown covenant id shows the unavailable state", async ({ page }) => {
   await expect(page.getByText("This token cannot be sent.")).toBeVisible();
 });
 
+// Review: a rejected lookup never yields data; it must not spin on
+// "Loading token..." forever but land on the unavailable copy.
+test("a rejected token lookup shows the unavailable state, not loading", async ({
+  page,
+}) => {
+  await page.goto(`${base}/?route=/kcc20/send/${"ab".repeat(32)}&kcc20Error=1`);
+  await expect(page.getByText("This token cannot be sent.")).toBeVisible();
+  await expect(page.getByText("Loading token...")).toHaveCount(0);
+});
+
 // QA 4: an unsettled lookup (no data yet, isLoading already false) is not a
 // verdict. Records when the unavailable copy first paints, if ever.
 async function watchCannotSend(page: Page) {

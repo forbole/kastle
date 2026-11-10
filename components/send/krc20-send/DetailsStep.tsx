@@ -29,6 +29,7 @@ import useKaspaBalance from "@/hooks/wallet/useKaspaBalance";
 import { priorityFeeFromEstimate } from "@/lib/kaspa";
 import {
   formatMaxAmount,
+  krc20Decimals,
   plainDecimalError,
   sanitizeDecimalInput,
 } from "@/lib/decimalAmount";
@@ -119,8 +120,8 @@ function useKrc20SendAsset(): TokenSendAsset {
   const kasBalance = useKaspaBalance(account?.address) ?? 0;
   const currentBalance = tokenBalanceFloat;
 
-  const krc20Decimals = Number(tokenBalance?.dec ?? 8);
-  const tokenDecimals = Number.isInteger(krc20Decimals) ? krc20Decimals : 8;
+  // Same scale Krc20Transfer converts the amount with (applyDecimal(dec)).
+  const tokenDecimals = krc20Decimals(tokenBalance?.dec);
 
   const tokenAmountValidator = async (value: string | undefined) => {
     const notDecimal = plainDecimalError(value);

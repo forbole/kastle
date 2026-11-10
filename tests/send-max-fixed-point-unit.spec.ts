@@ -18,6 +18,7 @@ import {
 import { parseUnits } from "viem";
 import {
   NOT_A_DECIMAL,
+  formatFloatAmount,
   formatMaxAmount,
   sanitizeDecimalInput,
   validateTokenAmount,
@@ -215,4 +216,33 @@ test.describe("token amount: plain decimal string, validator never throws", () =
     expect(sanitizeDecimalInput("12.", 8)).toBe("12.");
     expect(sanitizeDecimalInput(".5", 8)).toBe(".5");
   });
+});
+
+// Review: toFixed carried digits 9-10 up ("1.999999999999" -> "2").
+test("formatFloatAmount truncates, never rounds up", () => {
+  expect(formatFloatAmount(1.999999999999, 8)).toBe("1.99999999");
+  expect(formatFloatAmount(0.123456789999, 8)).toBe("0.12345678");
+  expect(formatFloatAmount(9.99999, 2)).toBe("9.99");
+  expect(formatFloatAmount(1e-7, 8)).toBe("0.0000001");
+  expect(formatFloatAmount(1e-9, 8)).toBe("0");
+  expect(formatFloatAmount(1e21, 8)).toBe("1000000000000000000000");
+});
+
+test("formatFloatAmount never exceeds its input", () => {
+  for (const v of [
+    1.999999999999,
+    0.999999999,
+    123.456789999,
+    7.0000000099,
+    0.1 + 0.2,
+    2.9999999999999996,
+    1e-7,
+    5e-324,
+    1e21,
+    123456789.9876,
+  ]) {
+    for (const d of [0, 2, 6, 8, 18]) {
+      expect(parseFloat(formatFloatAmount(v, d)) <= v).toBe(true);
+    }
+  }
 });

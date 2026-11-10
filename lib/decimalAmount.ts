@@ -111,14 +111,37 @@ export function parseDecimalUnits(
   }
 }
 
+// A finite positive number's shortest round-trip decimal string, without
+// exponent notation ("1e-7" -> "0.0000001", "1e+21" -> "1000...0").
+function plainNumberString(value: number): string {
+  const s = String(value);
+  const m = /^(\d)(?:\.(\d+))?e([+-]\d+)$/.exec(s);
+  if (!m) return s;
+  const digits = m[1] + (m[2] ?? "");
+  const point = 1 + Number(m[3]);
+  if (point <= 0) return `0.${"0".repeat(-point)}${digits}`;
+  if (point >= digits.length) return digits + "0".repeat(point - digits.length);
+  return `${digits.slice(0, point)}.${digits.slice(point)}`;
+}
+
 // A float balance as a plain decimal string truncated to min(decimals, 8)
-// places, for when only the float is known. Never exponent notation.
+// places, for when only the float is known. Never exponent notation, and
+// never rounds up: the digits are cut from the number's own decimal string
+// (toFixed would carry 1.999999999999 up to "2", more than the balance).
 export function formatFloatAmount(value: number, decimals: number): string {
   if (!Number.isFinite(value) || value <= 0) return "0";
-  const digits = Math.min(decimals, 8);
-  const fixed = value.toFixed(digits + 2);
-  if (!PLAIN_DECIMAL.test(fixed)) return "0";
-  const [int, frac = ""] = fixed.split(".");
+  const digits = Math.min(Math.max(Math.trunc(decimals), 0), 8);
+  const plain = plainNumberString(value);
+  if (!PLAIN_DECIMAL.test(plain)) return "0";
+  const [int, frac = ""] = plain.split(".");
   const kept = frac.slice(0, digits).replace(/0+$/, "");
   return kept ? `${int}.${kept}` : int;
+}
+
+// A KRC-20 token's scale from its indexer `dec` string; 8 when absent or
+// malformed, matching applyDecimal's default. The send form's Max and clamp
+// and the transfer's applyDecimal(dec) must convert with this same scale.
+export function krc20Decimals(dec: string | undefined): number {
+  const n = Number(dec ?? 8);
+  return Number.isInteger(n) && n >= 0 ? n : 8;
 }

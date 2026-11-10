@@ -49,7 +49,7 @@ export default function Kcc20Send() {
   const signer = useKaspaHotWalletSigner();
   const { addRecentAddress } = useRecentAddresses();
   const { kaspaPrice } = useKaspaPrice();
-  const { data: tokens, isLoading } = useKcc20Tokens(account?.address);
+  const { data: tokens, isLoading, error } = useKcc20Tokens(account?.address);
   const token = tokens?.find(
     (t) =>
       t.covenantId === covenantId &&
@@ -58,9 +58,12 @@ export default function Kcc20Send() {
   // An unsettled lookup is not a verdict: SWR reports isLoading false while the
   // key (the address) is still undefined, and on a revalidated key before data
   // lands. Only a settled list without this row (or without its decimals)
-  // means the token cannot be sent.
+  // means the token cannot be sent. A rejected lookup is settled too: it
+  // never resolves into data, so waiting on it would spin forever.
   const lookupSettled =
-    !!account?.address && !isLoading && tokens !== undefined;
+    !!account?.address &&
+    !isLoading &&
+    (tokens !== undefined || error !== undefined);
 
   const form = useForm<KRC20SendForm>({
     defaultValues: {
