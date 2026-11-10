@@ -48,6 +48,7 @@ export function TokenHistory() {
   return (
     <div className="mt-8">
       <HistoryList
+        key={`${ownAddress}:${ticker}`}
         records={records}
         isLoading={isLoading && !opList}
         isLoadingMore={isValidating && !!opList?.length}

@@ -274,3 +274,31 @@ for (const [i, s] of SURFACES.entries()) {
     expect(errors).toEqual([]);
   });
 }
+
+// React Router keeps a route element mounted across a param change, so the
+// list's paging state (empty-page streak, phase) must be reset by its key.
+test("krc20: switching ticker remounts the list, a capped source never caps the next", async ({
+  page,
+}) => {
+  const errors = await open(page, "/krc20/KASPY", "state=pager");
+  const loadMore = page.getByRole("button", { name: "Load more" });
+  const pages = () =>
+    page.evaluate(
+      () =>
+        (window as unknown as { __pagesRequested: number }).__pagesRequested,
+    );
+  // Three empty pages in a row cap auto-paging behind the button.
+  await expect(loadMore).toBeVisible();
+  expect(await pages()).toBe(3);
+
+  await page.evaluate(() =>
+    (
+      window as unknown as { __harnessNavigate: (to: string) => void }
+    ).__harnessNavigate("/krc20/NACHO"),
+  );
+  // A fresh list pages on its own again: without the key the stale streak
+  // keeps the button up and no request is ever made.
+  await expect.poll(pages).toBe(6);
+  await expect(loadMore).toBeVisible();
+  expect(errors).toEqual([]);
+});

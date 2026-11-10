@@ -59,6 +59,7 @@ export function Kcc20History({
 
   return (
     <HistoryList
+      key={`${address}:${token?.covenantId ?? token?.tick}`}
       records={records}
       // No token yet reads as loading, as before.
       isLoading={isLoading || !token}

@@ -5,6 +5,9 @@
 //   state=empty    one page, no rows, nothing left
 //   state=more     no rows yet, another page remains, nothing in flight
 //   state=loading  page 1 in flight
+//   state=pager    KRC-20 only: every page loads (isValidating) and adds no
+//                  rows, another always remains; window.__pagesRequested counts
+import { useState } from "react";
 import type { KaspaTxHistoryItem } from "@/hooks/useKasTxHistory";
 import type { Op } from "@/hooks/useOpListByAddressAndTicker";
 import type { Kcc20HistoryEntry } from "@/lib/kcc20/history";
@@ -157,7 +160,32 @@ const OPS = [
   // No recipient and no hash: no counterparty, no TX ID, no explorer.
   op(6, { to: undefined, hashRev: "" }),
 ];
+const pagesWindow = window as unknown as { __pagesRequested: number };
+pagesWindow.__pagesRequested = 0;
+
+function usePagerOpList() {
+  const [size, setSize] = useState(1);
+  const [validating, setValidating] = useState(false);
+  return {
+    data: Array.from({ length: size }, () => ({ result: [], next: "p" })),
+    setSize: (next: (n: number) => number) => {
+      pagesWindow.__pagesRequested += 1;
+      setValidating(true);
+      setTimeout(() => {
+        setSize(next);
+        setValidating(false);
+      }, 30);
+    },
+    isLoading: false,
+    isValidating: validating,
+    error: undefined,
+    mutate: noop,
+  };
+}
+
 export function useOpListByAddressAndTicker() {
+  const pager = usePagerOpList();
+  if (state === "pager") return pager;
   return {
     data: loading
       ? undefined

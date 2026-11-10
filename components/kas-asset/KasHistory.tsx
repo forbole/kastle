@@ -26,6 +26,7 @@ export default function KasHistory() {
   return (
     <div className="mt-8 flex flex-col items-stretch gap-2">
       <HistoryList
+        key={address}
         records={
           address
             ? txs.map((tx) =>

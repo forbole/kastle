@@ -50,6 +50,10 @@ const router = createMemoryRouter(
   { initialEntries: [params.get("route") ?? "/kas"] },
 );
 
+// Drives in-app navigation (a route param change) from the spec.
+(window as unknown as { __harnessNavigate: unknown }).__harnessNavigate =
+  router.navigate;
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <div
     id="popup"

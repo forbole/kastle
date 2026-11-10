@@ -51,6 +51,7 @@ export default function EvmKasAsset() {
         {activeTab === "info" && <EvmKasInfo chainId={chainId! ?? "0x0"} />}
         {activeTab === "history" && (
           <HistoryList
+            key={`${chainId}:${evmAddress}`}
             records={history.records}
             isLoading={history.isLoading}
             isLoadingMore={history.isFetchingMore}

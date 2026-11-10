@@ -54,6 +54,7 @@ export default function Erc20Asset() {
 
         {activeTab === "history" && (
           <HistoryList
+            key={`${chainId}:${address}:${evmAddress}`}
             records={history.records}
             isLoading={history.isLoading}
             isLoadingMore={history.isFetchingMore}
