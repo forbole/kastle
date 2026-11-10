@@ -433,6 +433,37 @@ export default function Activity() {
       !!w?.message && !!dismissed && !dismissed[pageType].includes(w.code),
   );
 
+  // A source that recovered drops its dismissal, so a later failure with the
+  // same code is shown again. Only an answered, error-free read prunes:
+  // `undefined` (unanswered) or an error with no code proves nothing.
+  const pageSources =
+    pageType === "bridge"
+      ? [feed.bridgeSource, feed.depositSource, feed.kurveSource]
+      : [feed.swapSource];
+  const answered =
+    feed.rows != null &&
+    !feed.error &&
+    pageSources.every((s) => s !== undefined);
+  const liveCodes = pageSources.flatMap((s) => toList(s ?? null)) as string[];
+  const liveKey = answered ? liveCodes.join(",") : undefined;
+  useEffect(() => {
+    if (liveKey === undefined || !dismissed) return;
+    const live = liveKey.split(",");
+    const keep = (codes: string[]) => codes.filter((c) => live.includes(c));
+    if (keep(dismissed[pageType]).length === dismissed[pageType].length) return;
+    setDismissed((d) => d && { ...d, [pageType]: keep(d[pageType]) });
+    void (async () => {
+      try {
+        const stored = await readDismissed();
+        await browser.storage.local.set({
+          [DISMISSED_KEY]: { ...stored, [pageType]: keep(stored[pageType]) },
+        });
+      } catch {
+        // The session already behaves; storage catches up next time.
+      }
+    })();
+  }, [liveKey, dismissed, pageType]);
+
   const dismissWarnings = async () => {
     const codes = warnings.map((w) => w.code);
     // Hide now; a failed write still hides the panel for this session.

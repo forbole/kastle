@@ -343,7 +343,10 @@ export function buildDetails(row: ActivityRowDescriptor): DetailRow[] {
         : `${(row.meta?.l2Chain === "Kasplex" ? kasplexMainnet : igraMainnet).blockExplorers.default.url}/tx/`;
     const txHash = row.meta?.txHash;
     details.push(
-      linkRow("Transaction", txHash ? `${explorer}${txHash}` : undefined),
+      linkRow(
+        "Transaction",
+        explorer && txHash ? `${explorer}${txHash}` : undefined,
+      ),
     );
     return details;
   }

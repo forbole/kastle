@@ -213,3 +213,53 @@ test("storage errors: a failed read shows every warning, a failed write still hi
   await page.getByRole("button", { name: "Dismiss" }).click();
   await expect(page.getByText(SWAP_MSG)).toHaveCount(0);
 });
+
+test("a stored code the answered feed no longer reports is pruned from storage", async ({
+  page,
+}) => {
+  await mount(page, {
+    feed: { swapSource: "swap_history_kcc20_unavailable" },
+    store: {
+      [KEY]: {
+        swap: ["swap_history_unavailable", "swap_history_kcc20_unavailable"],
+        bridge: ["bridge_history_unavailable"],
+      },
+    },
+  });
+  await expect(page.getByText(KCC20_MSG)).toHaveCount(0);
+  // Only the recovered swap code goes; the bridge page's list is untouched.
+  await expect
+    .poll(() => stored(page))
+    .toEqual({
+      swap: ["swap_history_kcc20_unavailable"],
+      bridge: ["bridge_history_unavailable"],
+    });
+});
+
+test("a stored code the feed still reports stays dismissed and hidden", async ({
+  page,
+}) => {
+  const store = {
+    [KEY]: { swap: ["swap_history_unavailable"], bridge: [] },
+  };
+  await mount(page, {
+    feed: { swapSource: "swap_history_unavailable" },
+    store,
+  });
+  // Mount settles: storage read, effect ran, nothing to prune.
+  await page.waitForTimeout(300);
+  await expect(page.getByText(SWAP_MSG)).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Dismiss" })).toHaveCount(0);
+  expect(await stored(page)).toEqual(store[KEY]);
+});
+
+test("an unanswered feed leaves the stored dismissals untouched", async ({
+  page,
+}) => {
+  const store = {
+    [KEY]: { swap: ["swap_history_unavailable"], bridge: [] },
+  };
+  await mount(page, { feed: { swapSource: undefined }, store });
+  await page.waitForTimeout(300);
+  expect(await stored(page)).toEqual(store[KEY]);
+});
