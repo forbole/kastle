@@ -1,6 +1,6 @@
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { FormProvider, useForm } from "react-hook-form";
-import { formatUnits, parseUnits } from "viem";
+import { formatUnits } from "viem";
 import Header from "@/components/GeneralHeader";
 import {
   TokenSendAsset,
@@ -13,7 +13,11 @@ import { SuccessStatus } from "@/components/send/SuccessStatus.tsx";
 import { FailStatus } from "@/components/send/FailStatus.tsx";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import useKcc20Tokens from "@/lib/kcc20/useKcc20Tokens";
-import { decimalsError } from "@/lib/kcc20";
+import {
+  formatMaxAmount,
+  parseTokenAmount,
+  validateTokenAmount,
+} from "@/lib/kcc20/decimalAmount";
 import { formatUsdAmount, textEllipsis } from "@/lib/utils.ts";
 import useKaspaHotWalletSigner from "@/hooks/wallet/useKaspaHotWalletSigner";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
@@ -105,16 +109,8 @@ export default function Kcc20Send() {
     feeKas * kaspaPrice,
   );
 
-  // parseUnits rounds excess decimals: "0.6" of a 0-decimal token would send 1.
-  const parseAmount = (input: string) => {
-    if (decimalsError(input, decimals, symbol)) return undefined;
-    try {
-      const value = parseUnits(input.trim(), decimals);
-      return value > 0n ? value : undefined;
-    } catch {
-      return undefined;
-    }
-  };
+  // Never throws: undefined for empty, zero, exponent-form or too precise.
+  const parseAmount = (input: string) => parseTokenAmount(input, decimals);
 
   const asset: TokenSendAsset = {
     name: symbol,
@@ -124,19 +120,13 @@ export default function Kcc20Send() {
     balanceText: token ? formatBalance(token.spendable, decimals) : "0",
     price: 0,
     decimals,
-    maxAmount: token ? formatUnits(token.spendable, decimals) : "0",
-    validateAmount: (value) => {
-      const input = value ?? "";
-      const tooPrecise = decimalsError(input, decimals, symbol);
-      if (tooPrecise) return tooPrecise;
-      const amount = parseAmount(input);
-      // Empty, zero or unparsable: Next stays disabled without a message.
-      if (amount === undefined) return "";
-      if (token && amount > token.spendable) {
-        return "Oh, you don’t have enough funds";
-      }
-      return true;
-    },
+    maxAmount: formatMaxAmount(token?.spendable, decimals),
+    validateAmount: (value) =>
+      validateTokenAmount(value, {
+        decimals,
+        symbol,
+        spendable: token?.spendable,
+      }),
     label: "KCC-20",
     feeInfo: "KCC-20 fees are calculated when the transfer is built.",
     onNext: async ({ address, domain, amount: amountInput }) => {

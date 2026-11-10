@@ -60,7 +60,7 @@ const sendAction = (page: Page) =>
   page.getByRole("button", { name: "Send NACHO" });
 
 const address = (page: Page) => page.locator("textarea");
-const amount = (page: Page) => page.locator('input[type="number"]');
+const amount = (page: Page) => page.locator('input[inputmode="decimal"]');
 const next = (page: Page) => page.getByRole("button", { name: "Next" });
 const confirm = (page: Page) => page.getByRole("button", { name: "Confirm" });
 const h = (page: Page) => page.evaluate(() => window.__kcc20Send);

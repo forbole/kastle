@@ -635,9 +635,4 @@ async function fetchLegacyTokens(
 }
 
 /** An error for an amount with more fractional digits than the token has: parseUnits would silently round it. */
-export function decimalsError(input: string, decimals: number, symbol: string) {
-  if ((input.trim().split(".")[1]?.length ?? 0) <= decimals) return undefined;
-  return decimals === 0
-    ? `${symbol} has no decimal places`
-    : `${symbol} has at most ${decimals} decimal places`;
-}
+export { decimalsError } from "./decimalAmount";
