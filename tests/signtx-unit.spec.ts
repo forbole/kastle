@@ -2431,7 +2431,11 @@ test.describe("P2SH fee adjustment keeps covenant binding (sign-and-broadcast)",
   test("returns false and leaves the tx untouched when change <= extra fee", () => {
     const tx = p2shTx([
       new TransactionOutput(1000n, payToAddressScript(otherAddress), undefined),
-      new TransactionOutput(EXTRA_FEE, payToAddressScript(userAddress), undefined),
+      new TransactionOutput(
+        EXTRA_FEE,
+        payToAddressScript(userAddress),
+        undefined,
+      ),
     ]);
     const before = tx.serializeToSafeJSON();
 
