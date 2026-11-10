@@ -20,6 +20,8 @@ import {
   shouldIncludeToken,
   verifiedMeta,
 } from "@/lib/kcc20";
+import type { Kcc20Token } from "@/lib/kcc20";
+import { fillFromKrc20 } from "@/lib/kcc20/krc20Fill";
 
 const TESTS_DIR = path.dirname(fileURLToPath(import.meta.url));
 
@@ -205,4 +207,26 @@ test("claimed standard metadata keeps whichever half kascov claimed", () => {
     }),
   ).toEqual({ symbol: "NACHO", name: "Nacho", decimals: 0, unverified: true });
   expect(claimedMeta({})).toBeUndefined();
+});
+
+test("a claimed standard row has no logo; only one KRC-20 namesake fills it", () => {
+  const meta = claimedMeta({ claimedTicker: "NACHO", displayDecimals: 8 });
+  expect(meta && "logoURI" in meta).toBe(false);
+  const row: Kcc20Token = {
+    covenantId: "41".repeat(32),
+    family: "kcc20-standard",
+    tick: "",
+    amount: 1n,
+    spendable: 1n,
+    meta,
+  };
+  const entry = { symbol: "nacho", decimals: 6, logoURI: "https://x/n.png" };
+  const filled = fillFromKrc20(row, [entry]);
+  expect(filled.meta?.logoURI).toBe("https://x/n.png");
+  // Decimals stay the covenant's, never the namesake's.
+  expect(filled.meta?.decimals).toBe(8);
+  // The row object itself is never mutated: the send form reads it unfilled.
+  expect(row.meta && "logoURI" in row.meta).toBe(false);
+  expect(fillFromKrc20(row, [entry, entry])).toBe(row);
+  expect(fillFromKrc20(row, undefined)).toBe(row);
 });
