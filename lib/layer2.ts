@@ -145,3 +145,15 @@ export const getChainTokenSymbol = (chainId: `0x${string}`) => {
 
   return "KAS";
 };
+
+// The supported L2 for a hex chain id; undefined for an unknown or unparseable
+// id. Takes a plain string because route params arrive untyped.
+export const findChainByHexId = (chainId?: string) => {
+  if (!chainId) return undefined;
+  try {
+    const id = hexToNumber(chainId as `0x${string}`);
+    return ALL_SUPPORTED_EVM_L2_CHAINS.find((c) => c.id === id);
+  } catch {
+    return undefined;
+  }
+};
