@@ -776,20 +776,25 @@ const openedTab = (page: Page) =>
     () => (window as unknown as { __openedTab?: string }).__openedTab,
   );
 
-test("EVM KAS: History lists the Blockscout txs in-app, and a row opens the explorer", async ({
+test("EVM KAS: History lists the Blockscout txs in-app, a row opens the sheet, and the sheet opens the explorer", async ({
   page,
 }) => {
   const errors = await open(page, `/evm-asset/${KASPLEX}`);
   const row = page.getByRole("button", { name: /Sent/ });
   await expect(row).toBeVisible();
   await expect(row).toContainText("1.5");
-  await expect(row.locator(".hn-external-link")).toHaveCount(1);
   await row.click();
+  const sheet = page.getByRole("dialog", { name: "TX Hash" });
+  await expect(sheet).toBeVisible();
+  await expect(sheet).toContainText("TX ID");
+  // The tap opens the sheet, not the explorer: that is one tap deeper.
+  expect(await openedTab(page)).toBeUndefined();
+  await sheet.getByRole("button", { name: "View on Explorer" }).click();
   expect(await openedTab(page)).toBe(KASPLEX_EXPLORER + EVM_TX_HASH);
   expect(errors).toEqual([]);
 });
 
-test("ERC-20: opens on History, lists the token's transfers, and a row opens the explorer", async ({
+test("ERC-20: opens on History, lists the token's transfers, a row opens the sheet, and the sheet opens the explorer", async ({
   page,
 }) => {
   const errors = await open(page, `/erc20-asset/${KASPLEX}/${ERC20}`);
@@ -799,8 +804,13 @@ test("ERC-20: opens on History, lists the token's transfers, and a row opens the
   const row = page.getByRole("button", { name: /Received/ });
   await expect(row).toBeVisible();
   await expect(row).toContainText("2.5");
-  await expect(row.locator(".hn-external-link")).toHaveCount(1);
   await row.click();
+  const sheet = page.getByRole("dialog", { name: "TX Hash" });
+  await expect(sheet).toBeVisible();
+  await expect(sheet).toContainText("TX ID");
+  // The tap opens the sheet, not the explorer: that is one tap deeper.
+  expect(await openedTab(page)).toBeUndefined();
+  await sheet.getByRole("button", { name: "View on Explorer" }).click();
   expect(await openedTab(page)).toBe(KASPLEX_EXPLORER + ERC20_TX_HASH);
   expect(errors).toEqual([]);
 });
@@ -867,37 +877,28 @@ test('EVM KAS: pages of dropped calls are never "No history yet" while more exis
       () => !!(window as unknown as { __sawEmpty?: boolean }).__sawEmpty,
     );
   await open(page, `/evm-asset/${KASPLEX}`, "&evmHistoryCalls=1");
-  // In flight (page 1, then the backfill): the loading rows, no empty copy.
+  // In flight (page 1, then the backfill): a spinner, no empty copy.
   await expect(
     page.getByRole("status", { name: "loading" }).first(),
   ).toBeVisible();
-  // Backfill cap reached, source still has more: loading rows + Load more.
-  const more = page.getByRole("button", { name: "Load more" });
-  await expect(more).toBeVisible({ timeout: 10_000 });
-  await expect(
-    page.getByRole("status", { name: "loading" }).first(),
-  ).toBeVisible();
-  await more.click();
-  await expect(more).toBeVisible({ timeout: 10_000 });
-  await expect(page.getByRole("button", { name: /Sent|Received/ })).toHaveCount(
-    0,
-  );
-  expect(await sawEmpty()).toBe(false);
-  // A first-page revalidation (focus, past SWR's 5 s focus throttle) refetches
-  // page 1 only: the backfill neither restarts nor fires again.
+  // Backfill cap reached, source still has more: the sentinel under the
+  // spinner asks for the next page by itself, no button press.
   const calls = () =>
     page.evaluate(
       () =>
         (window as unknown as { __evmHistoryCalls?: number })
           .__evmHistoryCalls ?? 0,
     );
-  await page.waitForTimeout(5_100);
-  const before = await calls();
-  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
-  await expect.poll(calls).toBe(before + 1);
-  await page.waitForTimeout(1_500);
-  expect(await calls()).toBe(before + 1);
-  await expect(more).toBeVisible();
+  const spinner = page.getByRole("status", { name: "loading" });
+  await expect(spinner).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole("button", { name: "Load more" })).toHaveCount(0);
+  // Page 1 + the backfill make 5 calls; past them only the sentinel fetches.
+  await expect.poll(calls, { timeout: 10_000 }).toBeGreaterThan(5);
+  await expect(page.getByRole("button", { name: /Sent|Received/ })).toHaveCount(
+    0,
+  );
+  expect(await sawEmpty()).toBe(false);
+  await expect(spinner).toBeVisible();
 });
 
 test("EVM KAS: a revalidation shows a new transfer on top, and the old row never blanks", async ({

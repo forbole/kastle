@@ -4,11 +4,10 @@ import React, { useState } from "react";
 import AssetTabs, { AssetTab } from "@/components/AssetTabs";
 import EvmKasInfo from "@/components//evm-kas-asset/EvmKasInfo";
 import { useParams } from "react-router-dom";
-import { getChainImage, getChainTokenSymbol } from "@/lib/layer2";
-import kasIcon from "@/assets/images/network-logos/kaspa.svg";
+import { getChainTokenSymbol } from "@/lib/layer2";
 import useEvmAddress from "@/hooks/evm/useEvmAddress";
 import { useEvmHistory } from "@/hooks/evm/useEvmHistory";
-import { EvmHistoryList } from "@/ui/popup/evm-history/EvmHistoryList";
+import { HistoryList } from "@/ui/popup/history/HistoryList";
 import useEvmKasBalance from "@/hooks/evm/useEvmKasBalance";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import AssetSendButton from "@/components/AssetSendButton";
@@ -51,12 +50,15 @@ export default function EvmKasAsset() {
 
         {activeTab === "info" && <EvmKasInfo chainId={chainId! ?? "0x0"} />}
         {activeTab === "history" && (
-          <EvmHistoryList
-            {...history}
+          <HistoryList
+            records={history.records}
+            isLoading={history.isLoading}
+            isLoadingMore={history.isFetchingMore}
+            error={history.error}
+            hasMore={history.hasMore}
+            onLoadMore={history.loadMore}
             onRetry={history.retry}
-            logo={kasIcon}
-            symbol={symbol}
-            chainImage={getChainImage(chainId ?? "0x0")}
+            unavailableMessage={history.unavailable?.reason}
           />
         )}
       </div>

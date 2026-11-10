@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useIntersectionObserver } from "usehooks-ts";
 import type { HistoryRecord } from "@/lib/history/types";
 import ActionSheet from "@/ui/general/ActionSheet";
@@ -57,12 +57,15 @@ export function HistoryList({
   const [selected, setSelected] = useState<HistoryRecord>();
   const close = useCallback(() => setSelected(undefined), []);
 
-  const { ref: sentinel } = useIntersectionObserver({
+  // React to the state, not the transition: on a page with no rows the
+  // sentinel is already in view when the previous load ends, so an
+  // intersection change never comes and the list would stall on a spinner.
+  const { ref: sentinel, isIntersecting } = useIntersectionObserver({
     threshold: 0.5,
-    onChange: (isIntersecting) => {
-      if (isIntersecting && hasMore && !isLoadingMore && !error) onLoadMore();
-    },
   });
+  useEffect(() => {
+    if (isIntersecting && hasMore && !isLoadingMore && !error) onLoadMore();
+  }, [isIntersecting, hasMore, isLoadingMore, error, onLoadMore]);
 
   // State order is fixed: each check assumes every one above it failed.
   if (unavailableMessage) return <Notice>{unavailableMessage}</Notice>;

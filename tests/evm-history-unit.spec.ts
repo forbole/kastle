@@ -1,13 +1,28 @@
+import { registerHooks } from "node:module";
 import { expect, test } from "@playwright/test";
 import type { HistoryRecord } from "@/lib/history/types";
-import {
+// The shell's format module reaches network logos and package.json; stub
+// images as their path and load JSON as JSON (as history-kas-adapter does).
+registerHooks({
+  load(url, context, next) {
+    if (url.endsWith(".json"))
+      return next(url, { ...context, importAttributes: { type: "json" } });
+    if (!/\.(svg|png)$/.test(url)) return next(url, context);
+    return {
+      format: "commonjs",
+      source: `module.exports = ${JSON.stringify(url)};`,
+      shortCircuit: true,
+    };
+  },
+});
+
+const {
   formatRawAmount,
   historyAmountText,
-  historyStatusBadge,
-  historySubLine,
+  historyCounterpartyText,
   historyTimeText,
   historyTitle,
-} from "@/ui/popup/evm-history/format";
+} = await import("@/ui/popup/history/format");
 
 const NA = { value: null, quality: "unavailable" } as const;
 const T = Date.UTC(2026, 10, 10, 15, 4);
@@ -77,23 +92,35 @@ test.describe("evm-history format", () => {
     expect(historyTitle("buy")).toBe("Bought");
     expect(historyTitle("sell")).toBe("Sold");
     expect(historyTitle("unknown")).toBe("Transaction");
+    // The family argument leaves the EVM titles as they were.
+    expect(historyTitle("send", "erc20")).toBe("Sent");
+    expect(historyTitle("receive", "evm-native")).toBe("Received");
   });
 
-  test("sub-line: time then counterparty", () => {
-    const time = historyTimeText(rec().time)!;
-    expect(historySubLine(rec())).toBe(`${time} · 0xab…bc`);
-    expect(historySubLine(rec({ counterparty: NA }))).toBe(time);
-    expect(historySubLine(rec({ time: NA, counterparty: NA }))).toBe("");
-    expect(
-      historySubLine(rec({ time: { value: T, quality: "approximate" } })),
-    ).toBe(`≈ ${time} · 0xab…bc`);
+  test("time text takes raw ms and is never approximate", () => {
+    const time = historyTimeText(T)!;
+    expect(time).toBeTruthy();
+    expect(time.startsWith("≈")).toBe(false);
+    expect(historyTimeText(null)).toBeNull();
   });
 
-  test("status badge only for pending and failed", () => {
-    expect(historyStatusBadge("pending")).toBe("Pending");
-    expect(historyStatusBadge("failed")).toBe("Failed");
-    expect(historyStatusBadge("finalized")).toBeNull();
-    expect(historyStatusBadge("unknown")).toBeNull();
+  test("counterparty: To for out, From for in, none for self or unavailable", () => {
+    expect(historyCounterpartyText(rec())).toBe("To 0xab…bc");
+    expect(historyCounterpartyText(rec({ direction: "in" }))).toBe(
+      "From 0xab…bc",
+    );
+    expect(historyCounterpartyText(rec({ direction: "self" }))).toBeNull();
+    expect(historyCounterpartyText(rec({ counterparty: NA }))).toBeNull();
+  });
+
+  test("counterparty prefers the label over the address", () => {
+    const labelled = rec({
+      counterparty: {
+        value: { address: "0x1234567890abcdef1234", label: "Treasury" },
+        quality: "exact",
+      },
+    });
+    expect(historyCounterpartyText(labelled)).toBe("To Treasury");
   });
 
   test("a 1-wei receive is bounded, never 0; exact zero stays 0", () => {
