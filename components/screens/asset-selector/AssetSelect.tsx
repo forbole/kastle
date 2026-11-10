@@ -15,6 +15,14 @@ import useKcc20Tokens from "@/lib/kcc20/useKcc20Tokens";
 import { useFeatureFlags } from "@/hooks/useFeatureFlags.ts";
 import Kcc20SelectItem, { SendableKcc20Token } from "./Kcc20SelectItem";
 import { matchesKcc20Search } from "./kcc20Search";
+import { useSettings } from "@/hooks/useSettings";
+import {
+  erc20RowHideId,
+  hiddenTokensKey,
+  kcc20RowHideId,
+  krc20RowHideId,
+  useVisibleTokens,
+} from "@/lib/hidden-tokens";
 
 export default function AssetSelect() {
   const navigate = useNavigate();
@@ -27,8 +35,21 @@ export default function AssetSelect() {
   const isKasShown =
     hasSearchQuery || "kas".startsWith(searchQuery.toLowerCase());
 
-  const tokenListItems = useTokenListByAddress(kasAddress ?? undefined);
-  const { assets } = useErc20Assets();
+  // Tokens hidden on the dashboard are hidden here too (same key, same ids);
+  // native KAS has no hide id, so the picker always reaches it.
+  const [settings] = useSettings();
+  const hiddenKey = hiddenTokensKey(settings?.networkId, kasAddress);
+  const { items: tokenListItems } = useVisibleTokens(
+    hiddenKey,
+    useTokenListByAddress(kasAddress ?? undefined),
+    krc20RowHideId,
+  );
+  const { assets: allErc20Assets } = useErc20Assets();
+  const { items: assets = [] } = useVisibleTokens(
+    hiddenKey,
+    allErc20Assets,
+    erc20RowHideId,
+  );
 
   const filteredErc20Assets = assets.filter((asset) =>
     hasSearchQuery
@@ -52,8 +73,12 @@ export default function AssetSelect() {
 
   // Same source and kill switch as the dashboard rows; the hook skips networks KRON does not serve.
   const { isKcc20Enabled } = useFeatureFlags();
-  const { data: kcc20TokenItems, isLoading: isKcc20Loading } = useKcc20Tokens(
-    isKcc20Enabled ? kasAddress : undefined,
+  const { data: allKcc20TokenItems, isLoading: isKcc20Loading } =
+    useKcc20Tokens(isKcc20Enabled ? kasAddress : undefined);
+  const { items: kcc20TokenItems } = useVisibleTokens(
+    hiddenKey,
+    allKcc20TokenItems,
+    kcc20RowHideId,
   );
   // Only verified, ADDRESS-owned pieces are sendable: other rows would land on "cannot be sent".
   const kcc20Tokens = kcc20TokenItems

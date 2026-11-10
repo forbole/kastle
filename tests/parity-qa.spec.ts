@@ -512,3 +512,37 @@ test("08b a long claimed symbol stays on one line, so every sheet row keeps one 
   expect(new Set(heights.slice(1)).size).toBe(1);
   expect(errors).toEqual([]);
 });
+
+// QA issue 6: the swap selector drops tokens hidden on the dashboard, by the
+// same kcc20:<covenant> id; KAS has no id and always stays.
+const STD0 = "kcc20:" + "ab".repeat(31) + "00";
+// The sheet's rows in order, by their symbol, as test 06 reads them.
+const sheetSymbols = (page: Page) =>
+  page
+    .locator("dialog button:not([role=tab])")
+    .evaluateAll((bs) =>
+      bs
+        .map((b) => b.querySelector("span.font-semibold")?.textContent)
+        .filter(Boolean),
+    );
+
+test("a token hidden on the dashboard is absent from the swap selector", async ({
+  page,
+}) => {
+  const errors = await open(page, "swap", `rows=4&hidden=${STD0}`);
+  await expect(page.getByRole("button", { name: /KRON1/ })).toBeVisible();
+  expect(await sheetSymbols(page)).toEqual(["KAS", "KRON1", "STD2", "KRON3"]);
+  expect(errors).toEqual([]);
+});
+
+test("with every token hidden the swap selector still lists KAS", async ({
+  page,
+}) => {
+  const all = [0, 1, 2, 3]
+    .map((i) => "kcc20:" + (i % 2 ? "cd" : "ab").repeat(31) + `0${i}`)
+    .join(",");
+  const errors = await open(page, "swap", `rows=4&hidden=${all}`);
+  await expect(page.getByRole("button", { name: /KAS/ })).toBeVisible();
+  expect(await sheetSymbols(page)).toEqual(["KAS"]);
+  expect(errors).toEqual([]);
+});

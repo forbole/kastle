@@ -89,6 +89,7 @@ export default defineConfig({
       },
       { find: /^@sentry\/react$/, replacement: stubs },
       { find: /^wxt\/storage$/, replacement: stubs },
+      { find: /^wxt\/browser$/, replacement: stubs },
       { find: /^@\/(.*)$/, replacement: `${repo}/$1` },
     ],
   },

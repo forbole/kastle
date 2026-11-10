@@ -348,3 +348,14 @@ export const storage = {
 };
 // lib/utils maps this enum at import time.
 export const SighashType = {};
+
+// lib/hidden-tokens (via AssetSelect) reads storage.local; the real
+// wxt/browser polyfill throws outside an extension. Nothing is hidden here.
+export const browser = {
+  storage: {
+    local: {
+      get: async () => ({}),
+      set: async () => {},
+    },
+  },
+};
