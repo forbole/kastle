@@ -101,6 +101,17 @@ test("an issuer-claimed row shows no Unverified chip", async ({ page }) => {
   }
 });
 
+test("the chip reads the unfilled row, not the fill that stamps unverified", async ({
+  page,
+}) => {
+  const { row } = await open(page, "krc20=1&attested=1");
+  const meta = await page.evaluate(
+    () => (window as unknown as { __row: { meta: object } }).__row.meta,
+  );
+  expect(meta).not.toHaveProperty("unverified");
+  await expect(row.getByText("Unverified", { exact: true })).toHaveCount(0);
+});
+
 test("the row opens the send form by covenant id with its metadata unfilled", async ({
   page,
 }) => {
@@ -119,4 +130,17 @@ test("the row opens the send form by covenant id with its metadata unfilled", as
   await expect(page.getByTestId("landed")).toHaveText(
     `/kcc20/send/${NACHO_COVID}`,
   );
+});
+
+test("picker search finds a name-only claimed holding by the name it displays", async ({
+  page,
+}) => {
+  // symbol "", name "NACHO": the row shows NACHO, so typing "nac" must keep it.
+  const { errors } = await open(page, "krc20=1&nameonly=1&q=nac");
+  expect(errors).toEqual([]);
+  await page.goto(`${base}/?krc20=1&nameonly=1&q=zeal`);
+  await expect(page.getByTestId("ready")).toBeAttached();
+  await expect(
+    page.getByRole("button").filter({ hasText: "NACHO" }),
+  ).toHaveCount(0);
 });

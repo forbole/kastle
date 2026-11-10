@@ -18,6 +18,7 @@ export type SendableKcc20Token = Kcc20Token & {
  * does not mean that: every standard row is issuer-claimed via kascov and never consults the
  * registry, so the flag only says "not attested". No row carries a registry rejection today,
  * so this is false; a future rejected-by-registry state turns the chip back on here.
+ * Read it off the unfilled row (`token.meta`): the KRC-20 fill stamps `unverified: true`.
  */
 function isVerifiedAndRejected(meta: NonNullable<Kcc20Token["meta"]>): boolean {
   void meta; // claimed-only metadata never records a registry verdict
@@ -73,7 +74,7 @@ export default function Kcc20SelectItem({ token }: Kcc20SelectItemProps) {
                   {textEllipsis(token.covenantId)}
                 </span>
               )}
-              {isVerifiedAndRejected(shown) && (
+              {isVerifiedAndRejected(token.meta) && (
                 <span className="text-xs text-daintree-400">
                   {KCC20_LABELS.unverified}
                 </span>
