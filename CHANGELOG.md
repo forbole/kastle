@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.62.2](https://github.com/forbole/kastle/compare/v2.62.1...v2.62.2) (2026-11-11)
+
+
+### Bug Fixes
+
+* **kaspa:** decode covenant dApp requests instead of refusing them ([#447](https://github.com/forbole/kastle/issues/447)) ([16f7cf1](https://github.com/forbole/kastle/commit/16f7cf1370ffcccff21772c361cda8432f5e7f61))
+* **optimize:** keep the node's reason, stop a dead round, and let the user copy a report ([#449](https://github.com/forbole/kastle/issues/449)) ([ca4795f](https://github.com/forbole/kastle/commit/ca4795fbaca08f69f93f2edffa99d0377475b9b1))
+
 ## [2.62.1](https://github.com/forbole/kastle/compare/v2.62.0...v2.62.1) (2026-11-10)
 
 
