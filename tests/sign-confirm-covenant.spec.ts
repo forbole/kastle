@@ -82,6 +82,9 @@ test("v1 spending a wallet piece lists it, with the caveat, and confirms", async
   ).toBeVisible();
   await expect(page.getByText(CAVEAT)).toBeVisible();
   await expect(confirm(page)).toBeEnabled();
+  expect(await confirm(page).getAttribute("class")).toBe(
+    "flex flex-auto items-center justify-center rounded-full bg-icy-blue-400 py-5 font-semibold hover:bg-icy-blue-600",
+  );
   await confirm(page).click();
   const harness = await h(page);
   expect(harness.confirmed).toBe(1);
@@ -155,6 +158,10 @@ test("Ledger: covenant confirm is blocked with one line, Cancel still works", as
     page.getByText("Covenant transactions cannot be signed on Ledger."),
   ).toBeVisible();
   await expect(confirm(page)).toBeDisabled();
+  // L1: the blocked classes are space-separated from the base list.
+  expect(await confirm(page).getAttribute("class")).toBe(
+    "flex flex-auto items-center justify-center rounded-full bg-icy-blue-400 py-5 font-semibold hover:bg-icy-blue-600 cursor-not-allowed opacity-50 hover:bg-icy-blue-400",
+  );
   await confirm(page).click({ force: true });
   expect((await h(page)).confirmed).toBe(0);
   await page.getByRole("button", { name: "Cancel" }).click();

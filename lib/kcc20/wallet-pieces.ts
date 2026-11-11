@@ -29,7 +29,8 @@ const displayDecimals = (d: unknown) =>
  * Every node-verified KCC-20 piece `address` holds, for the dApp sign guard.
  * Throws on any failure or incomplete scan (indexer, registry list cap, RPC,
  * kascov, truncated cells): the caller refuses to sign rather than show "nothing".
- * Metadata is display-only (registry entry or kascov claims), never verified here.
+ * Metadata is display-only (indexer row, then registry entry, or kascov claims),
+ * never verified here.
  * Standard pieces via kascov need mainnet and `standard`; elsewhere only what the
  * KRON indexer reports (legacy, plus any standard piece it classifies).
  */
@@ -65,14 +66,20 @@ export async function walletKcc20Pieces(
   // A missing list or an unidentifiable row is an incomplete scan, never "no tokens".
   if (!Array.isArray(rows))
     throw new Error("KRON indexer returned no token list");
-  const tickByCovid = new Map<string, string>();
-  for (const row of rows as { tick: string; covenantId?: string }[]) {
+  type Row = {
+    tick: string;
+    covenantId?: string;
+    symbol?: unknown;
+    dec?: unknown;
+  };
+  const rowByCovid = new Map<string, Row>();
+  for (const row of rows as Row[]) {
     const covid = covenantSelect.normalizedCovenantId(row?.covenantId);
     if (!covid)
       throw new Error(`KRON indexer row without a covenant id (${row?.tick})`);
-    if (!tickByCovid.has(covid)) tickByCovid.set(covid, row.tick);
+    if (!rowByCovid.has(covid)) rowByCovid.set(covid, row);
   }
-  if (tickByCovid.size > PIECES_TOKEN_CAP)
+  if (rowByCovid.size > PIECES_TOKEN_CAP)
     throw new Error(`more than ${PIECES_TOKEN_CAP} KCC-20 tokens`);
 
   const pieces = new Map<string, WalletKcc20Piece>();
@@ -80,20 +87,25 @@ export async function walletKcc20Pieces(
 
   // No per-token catch: one token failing to load fails the whole scan.
   const legacyScans = await Promise.all(
-    [...tickByCovid].map(async ([covid, tick]) => ({
+    [...rowByCovid].map(async ([covid, row]) => ({
       covid,
+      row,
       entry: registry?.tokens.find(
         (t) =>
           t.network === hosts.registryNetwork &&
           covenantSelect.normalizedCovenantId(t.covenantId) === covid,
       ),
-      ...(await classifiedPieces(indexer, rpc, tick, address, covid, net)),
+      ...(await classifiedPieces(indexer, rpc, row.tick, address, covid, net)),
     })),
   );
-  for (const { covid, entry, legacy, standard: std } of legacyScans) {
+  for (const { covid, row, entry, legacy, standard: std } of legacyScans) {
+    // The indexer row first, the registry entry as fallback.
     const meta = {
-      symbol: entry?.symbol ?? "",
-      decimals: displayDecimals(entry?.decimals),
+      symbol:
+        typeof row.symbol === "string" && row.symbol
+          ? row.symbol
+          : (entry?.symbol ?? ""),
+      decimals: displayDecimals(row.dec) ?? displayDecimals(entry?.decimals),
     };
     for (const p of legacy)
       add({

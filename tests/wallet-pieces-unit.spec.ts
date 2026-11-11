@@ -325,3 +325,45 @@ test("L4: kascov-claimed decimals outside 0..18 integers are dropped", async () 
     expect(piece.decimals).toBeUndefined();
   }
 });
+
+test("indexer row symbol and dec win when the registry lists nothing", async () => {
+  const redeem = legacyRedeem(12_345n);
+  const held = [{ n: 1, redeem, covid: LEGACY_COVID }];
+  const [piece] = await scan(
+    {
+      indexer: indexer(
+        [{ tick: "LEG", covenantId: LEGACY_COVID, symbol: "ROW", dec: 3 }],
+        { LEG: held },
+      ),
+    },
+    node(held),
+  );
+  expect(piece).toMatchObject({ symbol: "ROW", decimals: 3 });
+});
+
+test("a row without symbol or dec falls back to the registry entry", async () => {
+  const redeem = legacyRedeem(12_345n);
+  const held = [{ n: 1, redeem, covid: LEGACY_COVID }];
+  const listed = {
+    tokenlist: async () => ({
+      tokens: [
+        {
+          network: "mainnet",
+          covenantId: LEGACY_COVID,
+          symbol: "REG",
+          decimals: 8,
+        },
+      ],
+    }),
+  } as unknown as client.RegistryClient;
+  const [piece] = await scan(
+    {
+      indexer: indexer([{ tick: "LEG", covenantId: LEGACY_COVID }], {
+        LEG: held,
+      }),
+      registry: listed,
+    },
+    node(held),
+  );
+  expect(piece).toMatchObject({ symbol: "REG", decimals: 8 });
+});

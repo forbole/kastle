@@ -354,9 +354,10 @@ export default function SignConfirm({
           {!zeroOutputCommitment && (
             <button
               className={`flex flex-auto items-center justify-center rounded-full bg-icy-blue-400 py-5 font-semibold hover:bg-icy-blue-600${
-                // Version 0 keeps its exact class list.
+                // Version 0 keeps its exact class list. The separate " " survives
+                // prettier-plugin-tailwindcss, which trims a literal's leading space.
                 confirmBlocked
-                  ? "cursor-not-allowed opacity-50 hover:bg-icy-blue-400"
+                  ? " " + "cursor-not-allowed opacity-50 hover:bg-icy-blue-400"
                   : ""
               }`}
               disabled={confirmBlocked}
