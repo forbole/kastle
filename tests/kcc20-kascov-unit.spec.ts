@@ -826,3 +826,19 @@ test("market price: spot is sompi per base unit; 404 or a missing spot is no mar
     );
   });
 });
+
+test("strict holdings (sign guard) throws on a malformed row; the display path drops it", async () => {
+  await withFetch(
+    {
+      kascov: () => ({
+        token_holdings: [holding(COVID, "STD"), { token_id: "zz" }],
+      }),
+    },
+    async () => {
+      expect(await fetchStandardHoldings(address)).toHaveLength(1);
+      await expect(
+        fetchStandardHoldings(address, { strict: true }),
+      ).rejects.toThrow("kascov: 1 malformed holdings rows");
+    },
+  );
+});

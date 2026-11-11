@@ -162,13 +162,19 @@ async function getHoldingsDoc(address: string, signal?: AbortSignal) {
   return body;
 }
 
-/** Every standard holding kascov reports for `address`; drops only malformed rows. */
+/**
+ * Every standard holding kascov reports for `address`; drops only malformed rows,
+ * or with `strict` (the sign guard) throws on any.
+ */
 export async function fetchStandardHoldings(
   address: string,
-  { signal }: Opts = {},
+  { signal, strict }: Opts & { strict?: boolean } = {},
 ): Promise<KascovHolding[]> {
   const body = await getHoldingsDoc(address, signal);
-  return parseRows(body.token_holdings, parseHolding).rows;
+  const { rows, dropped } = parseRows(body.token_holdings, parseHolding);
+  if (strict && dropped > 0)
+    throw new Error(`kascov: ${dropped} malformed holdings rows`);
+  return rows;
 }
 
 /**

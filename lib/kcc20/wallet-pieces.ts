@@ -137,7 +137,10 @@ export async function walletKcc20Pieces(
       );
     const holdings = [
       ...new Map(
-        (await kascov.holdings(address)).map((h) => [h.tokenId, h]),
+        (await kascov.holdings(address, { strict: true })).map((h) => [
+          h.tokenId,
+          h,
+        ]),
       ).values(),
     ];
     if (holdings.length > PIECES_TOKEN_CAP)
