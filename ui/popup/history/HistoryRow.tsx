@@ -13,9 +13,11 @@ import type { HistoryDirection, HistoryRecord } from "@/lib/history/types";
 import AssetImage from "@/ui/popup/kcc20/AssetImage";
 import {
   historyAmountText,
+  historyCounterpartyText,
   historyFiatText,
   historyHoverDateText,
   historyStatusLabel,
+  historyTimeText,
   historyTitle,
 } from "@/ui/popup/history/format";
 
@@ -209,8 +211,79 @@ function HashCard({
   );
 }
 
+// The row as it was before the redesign: direction icon, "To/From …", date.
+// What a screen gets until it passes any extra.
+function LegacyRow({
+  record,
+  onClick,
+}: {
+  record: HistoryRecord;
+  onClick?: () => void;
+}) {
+  const amount = historyAmountText(record);
+  const counterparty = historyCounterpartyText(record);
+  const time = historyTimeText(record.time.value);
+  const tone = movementTone(record);
+  const Icon =
+    record.kind === "unknown" ? HelpCircle : DIRECTION_ICON[record.direction];
+
+  const content = (
+    <>
+      <span
+        aria-hidden="true"
+        className={twMerge(
+          "flex size-10 shrink-0 items-center justify-center rounded-full bg-white/5",
+          tone,
+        )}
+      >
+        <Icon className="size-5" />
+      </span>
+      <div className="flex min-w-0 flex-grow flex-col gap-1">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="truncate text-base text-white">
+            {historyTitle(record.kind, record.family)}
+          </span>
+          <StatusBadge status={record.status} />
+        </div>
+        {counterparty && (
+          <span className="truncate text-sm text-daintree-400">
+            {counterparty}
+          </span>
+        )}
+      </div>
+      <div className="flex shrink-0 flex-col items-end gap-1">
+        {amount && <span className={twMerge("text-base", tone)}>{amount}</span>}
+        {time && <span className="text-sm text-daintree-400">{time}</span>}
+      </div>
+    </>
+  );
+
+  if (!onClick) return <div className={ROW_CLASS}>{content}</div>;
+  return (
+    <button type="button" onClick={onClick} className={ROW_CLASS}>
+      {content}
+    </button>
+  );
+}
+
+/**
+ * The designed row applies only when a screen passes at least one extra;
+ * with none it is the pre-redesign row, text for text.
+ */
+export function HistoryRow(
+  props: { record: HistoryRecord; onClick?: () => void } & HistoryRowExtras,
+) {
+  const { record, onClick, ...extras } = props;
+  const isDesigned = Object.values(extras).some((v) => v !== undefined);
+  return isDesigned ? (
+    <DesignedRow record={record} onClick={onClick} {...extras} />
+  ) : (
+    <LegacyRow record={record} onClick={onClick} />
+  );
+}
+
 // Logo (or direction icon), what happened, "TX Hash"; amount and fiat on the right.
-export function HistoryRow({
+function DesignedRow({
   record,
   onClick,
   logo,
