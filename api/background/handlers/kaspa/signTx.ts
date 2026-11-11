@@ -2,6 +2,7 @@ import { Handler } from "@/api/background/utils";
 import { ApiRequestWithHost, RPC_ERRORS } from "@/api/message";
 import { ApiUtils } from "@/api/background/utils";
 import { SignTxPayloadSchema, isCovenantTxJson } from "./utils";
+import { canDecodeCovenantRequest } from "./covenant-guard";
 
 /** signTxHandler to serve BrowserMessageType.SIGN_TX message */
 export const signTxHandler: Handler = async (
@@ -37,12 +38,16 @@ export const signTxHandler: Handler = async (
     return;
   }
 
-  if (isCovenantTxJson(result.data.txJson)) {
+  // Version 0 never fetches; a covenant request opens only once it decodes.
+  if (
+    isCovenantTxJson(result.data.txJson) &&
+    !(await canDecodeCovenantRequest(result.data.txJson))
+  ) {
     sendResponse(
       ApiUtils.createApiResponse(
         message.id,
         null,
-        RPC_ERRORS.COVENANT_TX_UNSUPPORTED,
+        RPC_ERRORS.COVENANT_TX_UNDECODABLE,
       ),
     );
     return;
