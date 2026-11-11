@@ -204,6 +204,34 @@ test("Ledger: covenant confirm is blocked with one line, Cancel still works", as
   expect(errors).toEqual([]);
 });
 
+const PARTIAL_SIGHASH =
+  "This request signs with a partial sighash, so the KCC-20 movement shown above could change after you approve.";
+
+for (const sign of ["AllAnyOneCanPay", "SingleAnyOneCanPay"]) {
+  test(`v1 signed with ${sign} blocks confirm with one line`, async ({
+    page,
+  }) => {
+    const errors = await open(page, `tx=v1&pieces=a&sign=${sign}`);
+    await expect(
+      page.getByText(PARTIAL_SIGHASH, { exact: true }),
+    ).toBeVisible();
+    await expect(confirm(page)).toBeDisabled();
+    await confirm(page).click({ force: true });
+    expect((await h(page)).confirmed).toBe(0);
+    await expect(page.getByRole("button", { name: "Cancel" })).toBeEnabled();
+    expect(errors).toEqual([]);
+  });
+}
+
+test("v1 signed with All confirms", async ({ page }) => {
+  await open(page, "tx=v1&pieces=a&sign=All");
+  await expect(page.getByText("AAA", { exact: true })).toBeVisible();
+  await expect(page.getByText(PARTIAL_SIGHASH)).toHaveCount(0);
+  await expect(confirm(page)).toBeEnabled();
+  await confirm(page).click();
+  expect((await h(page)).confirmed).toBe(1);
+});
+
 test("v0 renders no token section, no caveat and never fetches", async ({
   page,
 }) => {

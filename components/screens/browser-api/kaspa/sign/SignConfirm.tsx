@@ -19,7 +19,10 @@ import ledgerSignImage from "@/assets/images/ledger-on-sign.svg";
 import { formatUsdAmount } from "@/lib/utils.ts";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 import { deserializeTransaction } from "@/lib/kaspa-compat";
-import { hasZeroOutputCommitment } from "@/lib/wallet/sign-script.ts";
+import {
+  hasScriptOptions,
+  hasZeroOutputCommitment,
+} from "@/lib/wallet/sign-script.ts";
 import { useDappCovenantDecode } from "@/lib/kcc20/useDappCovenantDecode";
 import { CovenantTokenMovements } from "@/ui/popup/browser-api/CovenantTokenMovements";
 
@@ -28,6 +31,8 @@ const ZERO_OUTPUT_COMMITMENT_ERROR =
 
 const LEDGER_COVENANT_ERROR =
   "Covenant transactions cannot be signed on Ledger.";
+const PARTIAL_SIGHASH_COVENANT_ERROR =
+  "This request signs with a partial sighash, so the KCC-20 movement shown above could change after you approve.";
 const COVENANT_CAVEAT =
   "Kastle verifies the pieces leaving your wallet. It cannot show the token amounts inside the destination covenant.";
 
@@ -67,8 +72,16 @@ export default function SignConfirm({
   // Defence in depth: LedgerSignAndBroadcast already refuses version 1+
   // (hasUnsignableFields), but this screen must never invite a Ledger to sign one.
   const ledgerCovenant = covenant.isCovenant && wallet?.type === "ledger";
+  // AnyOneCanPay/Single/None do not commit to every input and output: after
+  // approval a dApp could swap in another wallet piece under this signature.
+  const partialSighashCovenant =
+    covenant.isCovenant &&
+    hasScriptOptions(payload.scripts) &&
+    payload.scripts!.some((o) => o != null && (o.signType ?? "All") !== "All");
   const confirmBlocked =
-    ledgerCovenant || (covenant.isCovenant && covenant.status !== "ready");
+    ledgerCovenant ||
+    partialSighashCovenant ||
+    (covenant.isCovenant && covenant.status !== "ready");
   const shownWarning = covenant.isCovenant
     ? [
         warning,
@@ -273,6 +286,14 @@ export default function SignConfirm({
                 status={covenant.status}
                 network={networkId ?? ""}
               />
+            )}
+            {partialSighashCovenant && (
+              <div
+                className="mt-3 rounded-lg border border-red-900 bg-red-800/30 px-4 py-2 text-xs text-red-500"
+                role="alert"
+              >
+                {PARTIAL_SIGHASH_COVENANT_ERROR}
+              </div>
             )}
             <ul className="mt-3 flex flex-col rounded-lg bg-daintree-800">
               <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">

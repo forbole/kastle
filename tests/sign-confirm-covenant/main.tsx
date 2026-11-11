@@ -39,7 +39,10 @@ const payload = {
   txJson:
     { v0: v0TxJson, v1unknown: v1UnknownTxJson }[params.get("tx") ?? ""] ??
     v1TxJson,
-  scripts: [],
+  // ?sign=<SignType>: one script option on the wallet input (index 2).
+  scripts: params.get("sign")
+    ? [{ inputIndex: 2, signType: params.get("sign") as "All" }]
+    : [],
 };
 
 const router = createMemoryRouter([
