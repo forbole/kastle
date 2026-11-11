@@ -1,4 +1,5 @@
 import {
+  ConnectStrategy,
   createTransactions,
   IGeneratorSettingsObject,
   IUtxoEntry,
@@ -188,8 +189,13 @@ export function describeRound({
 }): string {
   const sent = `${submitted} of ${total} transactions sent`;
   if (submitted === 0) {
-    const all = rejected === total ? `all ${total}` : `${rejected}`;
-    return `${sent} · ${all} rejected · nothing paid`;
+    // all-rejected is reachable only by a one-transaction plan (N+1 inputs);
+    // anything bigger stops at the first rejection (runConsolidation)
+    const what =
+      rejected === total
+        ? `all ${total} rejected`
+        : "stopped after the first rejection";
+    return `${sent} · ${what} · nothing paid`;
   }
   return `${sent} · ${rejected} rejected · fee paid ${feePaid} KAS`;
 }
@@ -272,10 +278,11 @@ export async function runConsolidation(
     // the context never hears a socket drop: ask the WASM client itself
     if (rpcClient.isConnected === false) {
       try {
-        await rpcClient.connect?.();
+        // Fallback: one attempt, returns at once; Retry would block forever
+        await rpcClient.connect?.({ strategy: ConnectStrategy.Fallback });
       } catch {
         throw new Error(
-          "the node connection dropped before the round could start",
+          "the node connection dropped; nothing further was sent",
         );
       }
     }

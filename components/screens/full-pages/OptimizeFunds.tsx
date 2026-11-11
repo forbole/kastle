@@ -6,7 +6,6 @@ import { IUtxoEntry, sompiToKaspaString, version } from "@/wasm/core/kaspa";
 import {
   buildRoundReport,
   classifyConsolidation,
-  describeRound,
   ConsolidationPlan,
   ConsolidationProgress,
   ConsolidationResult,
@@ -254,15 +253,6 @@ export default function OptimizeFunds() {
               <span className="text-daintree-400">
                 Cancelled before the first transaction. Nothing was paid.
               </span>
-              {cancelledEarly.rejected > 0 && (
-                <span className="text-daintree-400">
-                  {describeRound({
-                    ...cancelledEarly,
-                    total,
-                    feePaid: sompiToKaspaString(cancelledEarly.feePaid),
-                  })}
-                </span>
-              )}
             </div>
           )}
 

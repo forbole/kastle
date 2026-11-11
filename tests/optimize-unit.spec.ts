@@ -6,6 +6,7 @@ import ts from "typescript";
 import { expect, test } from "@playwright/test";
 import type { PendingTransaction } from "@/wasm/core/kaspa";
 import type { IUtxoEntry } from "@/wasm/core/kaspa";
+import { ConnectStrategy } from "@/wasm/core/kaspa";
 import {
   buildRoundReport,
   classifyConsolidation,
@@ -377,17 +378,35 @@ test.describe("optimize diagnostics", () => {
         },
         submitTransaction: async () => (submits++, { transactionId: "id" }),
       } as any),
-    ).rejects.toThrow(
-      "the node connection dropped before the round could start",
-    );
+    ).rejects.toThrow("the node connection dropped; nothing further was sent");
     expect(connects).toBe(1);
     expect(submits).toBe(0);
   });
 
+  test("reconnect is one non-blocking attempt (Fallback, not Retry)", async () => {
+    const args: unknown[] = [];
+    const client = {
+      isConnected: false,
+      connect: async (arg: unknown) => {
+        args.push(arg);
+        client.isConnected = true;
+      },
+      submitTransaction: async () => ({ transactionId: "id" }),
+    };
+    const result = await runConsolidation(planned(2), signer, client as any);
+    expect(result.submitted).toBe(2);
+    expect(args).toEqual([{ strategy: ConnectStrategy.Fallback }]);
+  });
+
   test("summary counts transactions, not UTXOs", () => {
     expect(
-      describeRound({ submitted: 0, rejected: 144, total: 144, feePaid: "0" }),
-    ).toBe("0 of 144 transactions sent · all 144 rejected · nothing paid");
+      describeRound({ submitted: 0, rejected: 1, total: 1, feePaid: "0" }),
+    ).toBe("0 of 1 transactions sent · all 1 rejected · nothing paid");
+    expect(
+      describeRound({ submitted: 0, rejected: 1, total: 144, feePaid: "0" }),
+    ).toBe(
+      "0 of 144 transactions sent · stopped after the first rejection · nothing paid",
+    );
     expect(
       describeRound({
         submitted: 97,
@@ -454,7 +473,7 @@ test.describe("optimize diagnostics", () => {
       React.createElement(TokenOperationFailed),
     ) as string;
     expect(html).toContain(
-      "0 of 144 transactions sent · 1 rejected · nothing paid",
+      "0 of 144 transactions sent · stopped after the first rejection · nothing paid",
     );
     expect(html).toContain("is already spent");
     expect(html).toContain("Copy report");
