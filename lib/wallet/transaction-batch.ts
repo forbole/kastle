@@ -32,6 +32,16 @@ export async function signAndSubmitBatch(
   for (const [index, pending] of transactions.entries()) {
     callbacks.onSigning?.(index + 1, transactions.length);
     const signedTransaction = await signer.signTx(pending.transaction);
+    // A signer leaves inputs it holds no key for with an empty script and no
+    // error; the node would reject them. Stop here, before anything goes out.
+    const unsigned = signedTransaction.inputs.filter(
+      (input) => !input.signatureScript?.length,
+    ).length;
+    if (unsigned > 0) {
+      throw new Error(
+        `${unsigned} of ${signedTransaction.inputs.length} inputs are unsigned; ${index === 0 ? "nothing was" : "nothing further was"} submitted`,
+      );
+    }
     const { transactionId } = await rpcClient.submitTransaction({
       transaction: signedTransaction,
     });

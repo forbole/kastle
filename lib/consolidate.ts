@@ -3,9 +3,11 @@ import {
   createTransactions,
   IGeneratorSettingsObject,
   IUtxoEntry,
+  payToAddressScript,
   PendingTransaction,
   RpcClient,
 } from "@/wasm/core/kaspa";
+import { covenantSelect } from "@kronsdk/kron-sdk";
 import { orderEntries } from "@/lib/sendFee";
 import { isFragmentationError } from "@/lib/kaspa";
 import { redactString } from "@/lib/sentry-scrub";
@@ -19,13 +21,60 @@ const DEFAULT_INPUTS_PER_TRANSACTION = 80;
 // Ledger signs at most two outputs per transaction.
 const MAX_OUTPUTS = 2;
 
+// Kaspa coinbase outputs are spendable 100 DAA scores after their block.
+export const COINBASE_MATURITY = 100n;
+
 export type ConsolidationPlan = {
   transactions: PendingTransaction[];
   // summary.fees summed across every chunk
   fee: bigint;
   inputCount: number;
   outputCount: number;
+  // entries left out of the round (covenant-bound, another key's script, or
+  // an immature coinbase)
+  skipped: number;
+  // the virtual DAA score was unavailable: coinbase maturity went unchecked
+  maturityUnknown: boolean;
 };
+
+/**
+ * Whether the round may spend `entry`: plain KAS, locked to `address` itself
+ * (the only script the wallet's key signs; any other input would go out with
+ * an empty signature script), and not an immature coinbase. Maturity is
+ * skipped when `virtualDaaScore` is unknown.
+ */
+export function isConsolidatableEntry(
+  entry: IUtxoEntry,
+  address: string,
+  virtualDaaScore?: bigint,
+): boolean {
+  if (
+    covenantSelect.normalizedCovenantId(
+      (entry as { covenantId?: string }).covenantId,
+    )
+  ) {
+    return false;
+  }
+  if (entry.scriptPublicKey?.script !== payToAddressScript(address).script) {
+    return false;
+  }
+  if (entry.isCoinbase && virtualDaaScore !== undefined) {
+    return virtualDaaScore - BigInt(entry.blockDaaScore) >= COINBASE_MATURITY;
+  }
+  return true;
+}
+
+async function readVirtualDaaScore(
+  rpcClient?: Pick<RpcClient, "getBlockDagInfo">,
+): Promise<bigint | undefined> {
+  if (!rpcClient) return undefined;
+  try {
+    return BigInt((await rpcClient.getBlockDagInfo()).virtualDaaScore);
+  } catch (error) {
+    console.warn("getBlockDagInfo failed; coinbase maturity unchecked", error);
+    return undefined;
+  }
+}
 
 export class ConsolidationError extends Error {
   constructor(
@@ -45,25 +94,37 @@ export class ConsolidationError extends Error {
  * priorityFee, 0n included, throws "Fees::SenderPays or Fees::ReceiverPays are
  * not allowed in sweep transactions".
  *
- * Returns undefined when the wallet already fits in a single transaction.
+ * Only entries `isConsolidatableEntry` accepts for `changeAddress` are
+ * planned; the rest are counted in `skipped`. Coinbase maturity reads the
+ * virtual DAA score from `rpcClient` once; without it the plan still builds,
+ * flagged `maturityUnknown`.
+ *
+ * Returns undefined when the spendable entries already fit in a single
+ * transaction.
  */
 export async function planConsolidation({
   entries,
   changeAddress,
   networkId,
   inputsPerTransaction = DEFAULT_INPUTS_PER_TRANSACTION,
+  rpcClient,
 }: {
   entries: readonly IUtxoEntry[];
   changeAddress: string;
   networkId: string;
   inputsPerTransaction?: number;
+  rpcClient?: Pick<RpcClient, "getBlockDagInfo">;
 }): Promise<ConsolidationPlan | undefined> {
   if (!entries.length) {
     throw new ConsolidationError("no-entries", "No UTXOs to consolidate");
   }
-  if (entries.length <= inputsPerTransaction) return undefined;
+  const virtualDaaScore = await readVirtualDaaScore(rpcClient);
+  const spendable = entries.filter((entry) =>
+    isConsolidatableEntry(entry, changeAddress, virtualDaaScore),
+  );
+  if (spendable.length <= inputsPerTransaction) return undefined;
 
-  const ordered = orderEntries(entries);
+  const ordered = orderEntries(spendable);
   const transactions: PendingTransaction[] = [];
   let fee = 0n;
   let inputCount = 0;
@@ -103,6 +164,8 @@ export async function planConsolidation({
     fee,
     inputCount,
     outputCount: transactions.length,
+    skipped: entries.length - spendable.length,
+    maturityUnknown: virtualDaaScore === undefined,
   };
 }
 

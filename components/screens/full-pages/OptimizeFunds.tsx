@@ -30,7 +30,9 @@ export function OptimizeFundsConfirm({
   isLedger,
   canConfirm,
   onConfirm,
+  skipped = 0,
 }: {
+  skipped?: number;
   entriesBefore: number;
   entriesAfter: number;
   transactionCount: number;
@@ -64,6 +66,11 @@ export function OptimizeFundsConfirm({
             {sompiToKaspaString(feeSompi)} KAS
           </span>
         </div>
+        {skipped > 0 && (
+          <span className="text-daintree-400">
+            {`${skipped.toLocaleString()} ${skipped === 1 ? "UTXO carries" : "UTXOs carry"} token state or belong to another key and stay as they are.`}
+          </span>
+        )}
         {isLedger && (
           <span className="font-semibold text-[#14B8A6]">
             {`${transactionCount} transactions · ${transactionCount} approvals on your Ledger`}
@@ -134,6 +141,7 @@ export default function OptimizeFunds() {
           entries: live,
           changeAddress: account.address,
           networkId,
+          rpcClient,
         });
         setPlan(planned ?? null);
       })
@@ -189,7 +197,10 @@ export default function OptimizeFunds() {
       submitted: result.submitted,
       rejected: result.rejected,
       feePaid: sompiToKaspaString(result.feePaid),
-      entriesBefore: entries?.length,
+      // only the entries the round could spend; skipped stay as they are
+      entriesBefore:
+        entries === undefined ? undefined : entries.length - plan.skipped,
+      skipped: plan.skipped,
       // last rejection and the error that stopped the round: not the same
       // when a later sign or reconnect failure ended it
       lastError: result.lastError,
@@ -267,8 +278,14 @@ export default function OptimizeFunds() {
 
           {!isRunning && !cancelledEarly && plan && entries && (
             <OptimizeFundsConfirm
-              entriesBefore={entries.length}
-              entriesAfter={entries.length - plan.inputCount + plan.outputCount}
+              entriesBefore={entries.length - plan.skipped}
+              entriesAfter={
+                entries.length -
+                plan.skipped -
+                plan.inputCount +
+                plan.outputCount
+              }
+              skipped={plan.skipped}
               transactionCount={total}
               feeSompi={plan.fee}
               isLedger={isLedger}

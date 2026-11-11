@@ -148,7 +148,12 @@ test.describe("optimize run loop", () => {
     Array.from({ length: count }, (_, i) => ({
       transaction: {
         id: i,
-        inputs: [{ previousOutpoint: { transactionId: `tx${i}`, index: 0 } }],
+        inputs: [
+          {
+            previousOutpoint: { transactionId: `tx${i}`, index: 0 },
+            signatureScript: "00",
+          },
+        ],
       },
       feeAmount: 1_000n,
     })) as unknown as PendingTransaction[];
@@ -333,7 +338,12 @@ test.describe("optimize diagnostics", () => {
     Array.from({ length: count }, (_, i) => ({
       transaction: {
         id: i,
-        inputs: [{ previousOutpoint: { transactionId: `tx${i}`, index: 0 } }],
+        inputs: [
+          {
+            previousOutpoint: { transactionId: `tx${i}`, index: 0 },
+            signatureScript: "00",
+          },
+        ],
       },
       feeAmount: 1_000n,
     })) as unknown as PendingTransaction[];
