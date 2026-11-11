@@ -1,86 +1,17 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import type { HistoryRecord } from "@/lib/history/types";
+import { userEvent, within } from "storybook/test";
 import { HistoryList } from "@/ui/popup/history/HistoryList";
-
-const NOW = Date.UTC(2026, 10, 10, 11, 51);
-const ADDRESS =
-  "kaspa:qpamkvhgh0kzx50gwvvp5xs8ktmqutcy3dfs9dc3w7lm9rq0zs76vf959mmrp";
-const TXID = "9f1c2b7e4d3a5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8";
-
-function record(overrides: Partial<HistoryRecord> & { id: string }) {
-  return {
-    family: "kcc20",
-    txid: TXID,
-    kind: "receive",
-    direction: "in",
-    amount: {
-      value: { raw: "123456000000", decimals: 8, symbol: "NACHO" },
-      quality: "exact",
-    },
-    kasLeg: { value: null, quality: "unavailable" },
-    fiat: { value: null, quality: "unavailable" },
-    time: { value: NOW, quality: "exact" },
-    counterparty: { value: { address: ADDRESS }, quality: "exact" },
-    fee: { value: null, quality: "unavailable" },
-    status: "finalized",
-    explorer: { url: `https://kaspa.stream/transactions/${TXID}` },
-    ...overrides,
-  } satisfies HistoryRecord;
-}
-
-const RECORDS: HistoryRecord[] = [
-  record({ id: "in" }),
-  record({
-    id: "out",
-    kind: "send",
-    direction: "out",
-    counterparty: {
-      value: { address: ADDRESS, label: "alice.kas" },
-      quality: "exact",
-    },
-    time: { value: NOW - 3_600_000, quality: "exact" },
-  }),
-  record({
-    id: "self",
-    kind: "self",
-    direction: "self",
-    time: { value: NOW - 7_200_000, quality: "exact" },
-  }),
-  record({
-    id: "unknown",
-    kind: "unknown",
-    direction: "in",
-    status: "unknown",
-    amount: {
-      value: { raw: "50000000", decimals: 8, symbol: "NACHO" },
-      quality: "approximate",
-    },
-    explorer: null,
-  }),
-  record({ id: "pending", status: "pending" }),
-  record({
-    id: "failed",
-    kind: "send",
-    direction: "out",
-    status: "failed",
-  }),
-  record({
-    id: "no-amount",
-    kind: "buy",
-    amount: { value: null, quality: "unavailable" },
-    counterparty: { value: null, quality: "unavailable" },
-  }),
-  record({
-    id: "no-time",
-    kind: "sell",
-    direction: "out",
-    time: { value: null, quality: "unavailable" },
-    txid: null,
-  }),
-];
+import {
+  COMMON_EXTRAS,
+  KCC20_RECORDS,
+  KRC20_EXTRAS,
+  KRC20_RECORDS,
+  RECORDS,
+  designedRow,
+} from "@/ui/popup/history/historyFixtures";
 
 const meta = {
-  title: "Popup/History/HistoryList",
+  title: "Popup/History/Components/HistoryList",
   component: HistoryList,
   decorators: [
     (Story) => (
@@ -90,6 +21,7 @@ const meta = {
     ),
   ],
   args: {
+    getRowExtras: designedRow,
     records: RECORDS,
     isLoading: false,
     isLoadingMore: false,
@@ -120,4 +52,29 @@ export const Unavailable: Story = {
 
 export const Truncated: Story = {
   args: { truncatedMessage: "Older history is not shown." },
+};
+
+// Pointer over "TX Hash" opens the card: date, Committed, Revealed (KRC-20 only).
+export const Hover: Story = {
+  args: { records: KRC20_RECORDS, getRowExtras: () => KRC20_EXTRAS },
+  play: async ({ canvasElement }) => {
+    const [hash] = within(canvasElement).getAllByText("TX Hash");
+    await userEvent.hover(hash);
+  },
+};
+
+// Any other family: date, then the record's status with the explorer link.
+export const HoverOtherFamily: Story = {
+  args: { records: KCC20_RECORDS, getRowExtras: () => COMMON_EXTRAS },
+  play: Hover.play,
+};
+
+// Next page in flight: the small spinner under the last row.
+export const LoadMore: Story = {
+  args: {
+    records: KRC20_RECORDS,
+    hasMore: true,
+    isLoadingMore: true,
+    getRowExtras: () => KRC20_EXTRAS,
+  },
 };
