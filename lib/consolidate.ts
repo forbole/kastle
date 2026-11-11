@@ -7,6 +7,7 @@ import {
 } from "@/wasm/core/kaspa";
 import { orderEntries } from "@/lib/sendFee";
 import { isFragmentationError } from "@/lib/kaspa";
+import { redactString } from "@/lib/sentry-scrub";
 import { signAndSubmitBatch } from "@/lib/wallet/transaction-batch";
 import type { IWalletWithGetAddress } from "@/lib/wallet/wallet-interface";
 
@@ -138,6 +139,8 @@ export type ConsolidationProgress = {
   // outpoints of the submitted transactions' inputs: a retry drops them, the
   // UTXO index lists them until the node accepts the spend
   spentOutpoints: string[];
+  // the node's text for the last rejection, trimmed: the only clue to why
+  lastError?: string;
 };
 
 export type ConsolidationResult = ConsolidationProgress & {
@@ -171,6 +174,49 @@ export function classifyConsolidation({
   return "incomplete";
 }
 
+/** One line for a finished round, in transactions (never UTXO counts). */
+export function describeRound({
+  submitted,
+  rejected,
+  total,
+  feePaid,
+}: {
+  submitted: number;
+  rejected: number;
+  total: number;
+  feePaid: string;
+}): string {
+  const sent = `${submitted} of ${total} transactions sent`;
+  if (submitted === 0) {
+    const all = rejected === total ? `all ${total}` : `${rejected}`;
+    return `${sent} · ${all} rejected · nothing paid`;
+  }
+  return `${sent} · ${rejected} rejected · fee paid ${feePaid} KAS`;
+}
+
+/** 64-hex runs (txids, keys) via the Sentry redactor, then addresses. */
+export const scrubReportText = (text: string) =>
+  redactString(text).replace(/kaspa(?:test|dev|sim)?:[a-z0-9]+/g, "[ADDRESS]");
+
+/**
+ * What the failure screen's "Copy report" hands the user to send us: counts,
+ * versions and the node's reason. No address, outpoint or txid: every string
+ * field is scrubbed.
+ */
+export function buildRoundReport<
+  T extends Record<string, string | number | undefined>,
+>(fields: T): T & { timestamp: string } {
+  return {
+    ...Object.fromEntries(
+      Object.entries(fields).map(([key, value]) => [
+        key,
+        typeof value === "string" ? scrubReportText(value) : value,
+      ]),
+    ),
+    timestamp: new Date().toISOString(),
+  } as T & { timestamp: string };
+}
+
 export const outpointKey = (outpoint: {
   transactionId: string;
   index: number;
@@ -194,12 +240,15 @@ export async function loadLiveEntries(
  * Signs and submits each planned transaction on its own, stopping early when
  * `isCanceled` turns true. A signing failure (locked keyring, Ledger
  * rejection) throws; a submit rejection increments `rejected` and continues,
- * since the chunks are disjoint and the next one does not depend on it.
+ * since the chunks are disjoint and the next one does not depend on it —
+ * unless nothing has landed yet: a first rejection stops the round, since a
+ * transaction-wide refusal would only repeat on every remaining chunk.
  */
 export async function runConsolidation(
   transactions: readonly PendingTransaction[],
   signer: Pick<IWalletWithGetAddress, "signTx">,
-  rpcClient: Pick<RpcClient, "submitTransaction">,
+  rpcClient: Pick<RpcClient, "submitTransaction"> &
+    Partial<Pick<RpcClient, "isConnected" | "connect">>,
   {
     isCanceled = () => false,
     onTransaction,
@@ -219,6 +268,16 @@ export async function runConsolidation(
     if (isCanceled()) {
       cancelled = true;
       break;
+    }
+    // the context never hears a socket drop: ask the WASM client itself
+    if (rpcClient.isConnected === false) {
+      try {
+        await rpcClient.connect?.();
+      } catch {
+        throw new Error(
+          "the node connection dropped before the round could start",
+        );
+      }
     }
     let signed = false;
     const markSigned: Pick<IWalletWithGetAddress, "signTx"> = {
@@ -241,6 +300,11 @@ export async function runConsolidation(
     } catch (error) {
       if (!signed) throw error;
       progress.rejected++;
+      progress.lastError = String(error).slice(0, 300);
+      if (progress.submitted === 0) {
+        onTransaction?.({ ...progress });
+        break;
+      }
     }
     onTransaction?.({ ...progress });
   }

@@ -7,12 +7,15 @@ import { expect, test } from "@playwright/test";
 import type { PendingTransaction } from "@/wasm/core/kaspa";
 import type { IUtxoEntry } from "@/wasm/core/kaspa";
 import {
+  buildRoundReport,
   classifyConsolidation,
+  describeRound,
   loadLiveEntries,
   OPTIMIZE_FEE_THRESHOLD_SOMPI,
   runConsolidation,
   shouldOfferOptimize,
 } from "@/lib/consolidate";
+import { describeTokenOperationError } from "@/lib/token-operation-error";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const nodeRequire = createRequire(import.meta.url);
@@ -320,5 +323,146 @@ test.describe("optimize ledger connect step", () => {
 
   test("a connected ledger skips the connect step", () => {
     expect(render({ signTx: () => {} })).not.toContain("ledger-connect");
+  });
+});
+
+test.describe("optimize diagnostics", () => {
+  const planned = (count: number) =>
+    Array.from({ length: count }, (_, i) => ({
+      transaction: {
+        id: i,
+        inputs: [{ previousOutpoint: { transactionId: `tx${i}`, index: 0 } }],
+      },
+      feeAmount: 1_000n,
+    })) as unknown as PendingTransaction[];
+  const signer = { signTx: async (tx: any) => tx };
+
+  test("a first rejection carries the node's reason and stops the round", async () => {
+    let submits = 0;
+    const result = await runConsolidation(planned(144), signer, {
+      submitTransaction: async () => {
+        submits++;
+        throw new Error("transaction mass 101234 exceeds the standard limit");
+      },
+    } as any);
+    expect(submits).toBe(1);
+    expect(result.rejected).toBe(1);
+    expect(result.submitted).toBe(0);
+    expect(result.lastError).toContain("exceeds the standard limit");
+  });
+
+  test("a round that landed one transaction keeps going after a rejection", async () => {
+    let n = 0;
+    const result = await runConsolidation(planned(4), signer, {
+      submitTransaction: async () => {
+        if (n++ === 1) throw new Error("orphan");
+        return { transactionId: "id" };
+      },
+    } as any);
+    expect(n).toBe(4);
+    expect(result.submitted).toBe(3);
+    expect(result.rejected).toBe(1);
+    expect(result.lastError).toBe("Error: orphan");
+  });
+
+  test("a dropped socket is caught before the first submit", async () => {
+    let submits = 0;
+    let connects = 0;
+    await expect(
+      runConsolidation(planned(3), signer, {
+        isConnected: false,
+        connect: async () => {
+          connects++;
+          throw new Error("WebSocket closed");
+        },
+        submitTransaction: async () => (submits++, { transactionId: "id" }),
+      } as any),
+    ).rejects.toThrow(
+      "the node connection dropped before the round could start",
+    );
+    expect(connects).toBe(1);
+    expect(submits).toBe(0);
+  });
+
+  test("summary counts transactions, not UTXOs", () => {
+    expect(
+      describeRound({ submitted: 0, rejected: 144, total: 144, feePaid: "0" }),
+    ).toBe("0 of 144 transactions sent · all 144 rejected · nothing paid");
+    expect(
+      describeRound({
+        submitted: 97,
+        rejected: 47,
+        total: 144,
+        feePaid: "8.73",
+      }),
+    ).toBe("97 of 144 transactions sent · 47 rejected · fee paid 8.73 KAS");
+  });
+
+  test("failure screen shows the reason and copies a scrubbed report", () => {
+    const txid = "a".repeat(64);
+    const address =
+      "kaspa:qpamkvhgh0kzx50gwvvp5xs8ktmqutcy3dfs9dc3w7lm9rq0zs76vf959mmrp";
+    const reason = `transaction ${txid} input ${txid}:0 of ${address} is already spent`;
+    const report = buildRoundReport({
+      extensionVersion: "2.62.1",
+      networkId: "mainnet",
+      rpcUrl: "wss://node.example/kaspa",
+      walletType: "hot",
+      total: 144,
+      submitted: 0,
+      rejected: 1,
+      feePaid: "0",
+      lastError: reason,
+    });
+    const copied: string[] = [];
+    const { TokenOperationFailed } = loadModule(
+      "components/screens/full-pages/TokenOperationFailed.tsx",
+      {
+        react: React,
+        "react/jsx-runtime": nodeRequire("react/jsx-runtime"),
+        "react-router-dom": { useNavigate: () => () => {} },
+        "react-router": {
+          useLocation: () => ({
+            state: {
+              op: "optimize",
+              submitted: 0,
+              rejected: 1,
+              total: 144,
+              feePaid: "0",
+              lastError: report.lastError,
+              report,
+            },
+          }),
+        },
+        "@/hooks/kasplex/useTokenInfo": { useTokenInfo: () => ({}) },
+        "@/lib/krc20.ts": { applyDecimal: () => ({ toFloat: Number }) },
+        "@/hooks/useExtensionUtils.ts": () => ({}),
+        "@/lib/token-operation-error": { describeTokenOperationError },
+        "@/lib/consolidate": { describeRound },
+        "@/components/dashboard/ClipboardCopy": ({
+          textToCopy,
+          children,
+        }: any) => {
+          copied.push(textToCopy);
+          return React.createElement("div", null, children);
+        },
+        "@/components/GeneralHeader": () => null,
+        "@/assets/images/fail.png": "fail.png",
+      },
+    );
+    const html = renderToStaticMarkup(
+      React.createElement(TokenOperationFailed),
+    ) as string;
+    expect(html).toContain(
+      "0 of 144 transactions sent · 1 rejected · nothing paid",
+    );
+    expect(html).toContain("is already spent");
+    expect(html).toContain("Copy report");
+    expect(copied).toHaveLength(1);
+    expect(JSON.parse(copied[0]).rejected).toBe(1);
+    expect(copied[0]).toContain("is already spent");
+    expect(copied[0]).not.toMatch(/[0-9a-fA-F]{64}/);
+    expect(copied[0]).not.toContain("kaspa:q");
+    expect(html).not.toMatch(/[0-9a-fA-F]{64}/);
   });
 });

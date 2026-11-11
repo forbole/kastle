@@ -11,6 +11,7 @@ type ClipboardCopyProps = {
 export default function ClipboardCopy({
   textToCopy,
   className,
+  children,
 }: ClipboardCopyProps) {
   const [copied, setCopied] = useState(false);
   const [, copy] = useCopyToClipboard();
@@ -53,6 +54,7 @@ export default function ClipboardCopy({
           copied ? "hn-check" : "hn-copy",
         )}
       />
+      {children}
     </div>
   );
 }
