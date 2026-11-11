@@ -20,9 +20,14 @@ import { formatUsdAmount } from "@/lib/utils.ts";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 import { deserializeTransaction } from "@/lib/kaspa-compat";
 import { hasZeroOutputCommitment } from "@/lib/wallet/sign-script.ts";
+import { useDappCovenantDecode } from "@/lib/kcc20/useDappCovenantDecode";
+import { CovenantTokenMovements } from "@/ui/popup/browser-api/CovenantTokenMovements";
 
 const ZERO_OUTPUT_COMMITMENT_ERROR =
   "This request cannot be signed. It uses a Single sighash on an input that has no matching output, so your signature would commit to no outputs at all. Every output, including where your funds go, could be rewritten after you approve.";
+
+const COVENANT_CAVEAT =
+  "Kastle verifies the pieces leaving your wallet. It cannot show the token amounts inside the destination covenant.";
 
 type SignConfirmProps = {
   payload: SignTxPayload;
@@ -50,6 +55,13 @@ export default function SignConfirm({
     transaction,
     payload.scripts,
   );
+
+  // Version 1+: the KCC-20 pieces this request spends; confirm waits for the decode.
+  const covenant = useDappCovenantDecode(payload.txJson, account?.address);
+  const confirmBlocked = covenant.isCovenant && covenant.status !== "ready";
+  const shownWarning = covenant.isCovenant
+    ? [warning, COVENANT_CAVEAT].filter(Boolean).join("\n\n")
+    : warning;
 
   const inputsAmount = transaction.inputs.reduce(
     (acc, input) => acc + (input.utxo?.amount ?? 0n),
@@ -157,7 +169,7 @@ export default function SignConfirm({
   };
 
   const onConfirm = async () => {
-    if (isSigning || zeroOutputCommitment) {
+    if (isSigning || zeroOutputCommitment || confirmBlocked) {
       return;
     }
 
@@ -224,11 +236,17 @@ export default function SignConfirm({
                 {ZERO_OUTPUT_COMMITMENT_ERROR}
               </div>
             ) : (
-              warning && (
+              shownWarning && (
                 <div className="mt-3 whitespace-pre-line rounded-lg border border-yellow-600 bg-yellow-900/30 px-4 py-2 text-xs text-yellow-400">
-                  {warning}
+                  {shownWarning}
                 </div>
               )
+            )}
+            {covenant.isCovenant && (
+              <CovenantTokenMovements
+                movements={covenant.movements}
+                status={covenant.status}
+              />
             )}
             <ul className="mt-3 flex flex-col rounded-lg bg-daintree-800">
               <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
@@ -321,7 +339,13 @@ export default function SignConfirm({
           </button>
           {!zeroOutputCommitment && (
             <button
-              className="flex flex-auto items-center justify-center rounded-full bg-icy-blue-400 py-5 font-semibold hover:bg-icy-blue-600"
+              className={`flex flex-auto items-center justify-center rounded-full bg-icy-blue-400 py-5 font-semibold hover:bg-icy-blue-600${
+                // Version 0 keeps its exact class list.
+                confirmBlocked
+                  ? "cursor-not-allowed opacity-50 hover:bg-icy-blue-400"
+                  : ""
+              }`}
+              disabled={confirmBlocked}
               onClick={onConfirm}
             >
               {isSigning ? (
