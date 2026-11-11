@@ -95,15 +95,50 @@ test("v1 spending a wallet piece lists it, with the caveat, and confirms", async
   expect(errors).toEqual([]);
 });
 
+const MAINNET_NONE =
+  "This request does not move any KCC-20 tokens from your wallet.";
+const OFF_MAINNET_NONE =
+  "No KCC-20 tokens that Kastle can check on this network move in this request. Standard KCC-20 tokens cannot be checked here.";
+const OFF_MAINNET_CAVEAT =
+  "Standard KCC-20 tokens cannot be checked on this network.";
+
+test("v1 spending no piece on mainnet says so definitely, without the off-mainnet caveat", async ({
+  page,
+}) => {
+  await open(page, "tx=v1&pieces=none&network=mainnet");
+  await expect(page.getByText(MAINNET_NONE, { exact: true })).toBeVisible();
+  await expect(page.getByText(OFF_MAINNET_NONE)).toHaveCount(0);
+  await expect(page.getByText(CAVEAT, { exact: true })).toBeVisible();
+  await expect(page.getByText(OFF_MAINNET_CAVEAT)).toHaveCount(0);
+  await expect(confirm(page)).toBeEnabled();
+});
+
+test("v1 spending no piece on testnet-10 says only checkable tokens, with the extra caveat", async ({
+  page,
+}) => {
+  await open(page, "tx=v1&pieces=none&network=testnet-10");
+  await expect(page.getByText(OFF_MAINNET_NONE, { exact: true })).toBeVisible();
+  await expect(page.getByText(MAINNET_NONE)).toHaveCount(0);
+  await expect(
+    page.getByText(`${CAVEAT} ${OFF_MAINNET_CAVEAT}`, { exact: true }),
+  ).toBeVisible();
+});
+
+test("an authorized output with no address shows as an unknown destination", async ({
+  page,
+}) => {
+  await open(page, "tx=v1unknown&pieces=a");
+  await expect(
+    page.getByText(/^To Unknown destination \(output 0\), kaspates/),
+  ).toBeVisible();
+  await expect(confirm(page)).toBeEnabled();
+});
+
 test("v1 spending no piece says so in one line and confirms", async ({
   page,
 }) => {
   await open(page, "tx=v1&pieces=none");
-  await expect(
-    page.getByText(
-      "This request does not move any KCC-20 tokens from your wallet.",
-    ),
-  ).toBeVisible();
+  await expect(page.getByText(OFF_MAINNET_NONE)).toBeVisible();
   await expect(page.getByText("KCC-20 tokens leaving your wallet")).toHaveCount(
     0,
   );

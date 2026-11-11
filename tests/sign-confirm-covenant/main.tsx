@@ -25,9 +25,20 @@ const v0TxJson = JSON.stringify({
   outputs: [v1.outputs[3]],
 });
 
+// ?tx=v1unknown: output 0 (bound to input 0) carries a script no address spells.
+const v1UnknownTxJson = JSON.stringify({
+  ...v1,
+  outputs: v1.outputs.map((o: { scriptPublicKey: string }, i: number) =>
+    i === 0 ? { ...o, scriptPublicKey: "00006a" } : o,
+  ),
+});
+
 const payload = {
-  networkId,
-  txJson: params.get("tx") === "v0" ? v0TxJson : v1TxJson,
+  // ?network= overrides both the request and the settings network (stubs.ts).
+  networkId: params.get("network") ?? networkId,
+  txJson:
+    { v0: v0TxJson, v1unknown: v1UnknownTxJson }[params.get("tx") ?? ""] ??
+    v1TxJson,
   scripts: [],
 };
 

@@ -26,7 +26,8 @@ export type DappTokenMovement = {
   decimals?: number;
   // base units, from the piece state
   amount: bigint;
-  destinations: { address: string; outputIndex: number }[];
+  // address null: the output is authorized but its script spells no address.
+  destinations: { address: string | null; outputIndex: number }[];
 };
 
 export type DappCovenantDecode =
@@ -57,12 +58,13 @@ export function decodeCovenantRequest(
       const destinations: DappTokenMovement["destinations"] = [];
       outputs.forEach((output, outputIndex) => {
         if (output.covenant?.authorizingInput !== inputIndex) return;
-        // An unresolvable script is skipped, never given an invented address.
-        const address = addressFromScriptPublicKey(
-          output.scriptPublicKey,
-          network,
-        )?.toString();
-        if (address) destinations.push({ address, outputIndex });
+        // An unresolvable script is kept as null, never given an invented address.
+        const address =
+          addressFromScriptPublicKey(
+            output.scriptPublicKey,
+            network,
+          )?.toString() || null;
+        destinations.push({ address, outputIndex });
       });
       movements.push({
         inputIndex,

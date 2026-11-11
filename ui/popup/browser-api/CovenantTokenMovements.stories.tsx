@@ -36,6 +36,7 @@ const movement = {
 
 export const Leaving: Story = {
   args: {
+    network: "mainnet",
     status: "ready",
     movements: [
       movement,
@@ -53,13 +54,13 @@ export const Leaving: Story = {
 };
 
 export const NothingLeaving: Story = {
-  args: { status: "ready", movements: [] },
+  args: { status: "ready", movements: [], network: "mainnet" },
 };
 
 export const Loading: Story = {
-  args: { status: "loading", movements: [] },
+  args: { status: "loading", movements: [], network: "mainnet" },
 };
 
 export const Failed: Story = {
-  args: { status: "failed", movements: [] },
+  args: { status: "failed", movements: [], network: "mainnet" },
 };

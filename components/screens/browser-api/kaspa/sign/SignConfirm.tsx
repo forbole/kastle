@@ -31,6 +31,10 @@ const LEDGER_COVENANT_ERROR =
 const COVENANT_CAVEAT =
   "Kastle verifies the pieces leaving your wallet. It cannot show the token amounts inside the destination covenant.";
 
+// kascov (standard KCC-20) is only consulted on mainnet.
+const COVENANT_CAVEAT_OFF_MAINNET =
+  "Standard KCC-20 tokens cannot be checked on this network.";
+
 type SignConfirmProps = {
   payload: SignTxPayload;
   confirm: () => void;
@@ -66,7 +70,14 @@ export default function SignConfirm({
   const confirmBlocked =
     ledgerCovenant || (covenant.isCovenant && covenant.status !== "ready");
   const shownWarning = covenant.isCovenant
-    ? [warning, COVENANT_CAVEAT].filter(Boolean).join("\n\n")
+    ? [
+        warning,
+        settings?.networkId === NetworkType.Mainnet
+          ? COVENANT_CAVEAT
+          : `${COVENANT_CAVEAT} ${COVENANT_CAVEAT_OFF_MAINNET}`,
+      ]
+        .filter(Boolean)
+        .join("\n\n")
     : warning;
 
   const inputsAmount = transaction.inputs.reduce(
@@ -260,6 +271,7 @@ export default function SignConfirm({
               <CovenantTokenMovements
                 movements={covenant.movements}
                 status={covenant.status}
+                network={networkId ?? ""}
               />
             )}
             <ul className="mt-3 flex flex-col rounded-lg bg-daintree-800">

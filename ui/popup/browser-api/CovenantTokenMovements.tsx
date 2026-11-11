@@ -6,6 +6,8 @@ import type { DappTokenMovement } from "@/lib/kcc20/dapp-request";
 export type CovenantTokenMovementsProps = {
   movements: DappTokenMovement[];
   status: "loading" | "ready" | "failed";
+  // "mainnet" is the only network where standard KCC-20 pieces are checked.
+  network: string;
 };
 
 const ROW =
@@ -21,7 +23,13 @@ function byToken(movements: DappTokenMovement[]) {
     const key = `${m.covenantId}:${m.extensionCommitment ?? ""}`;
     const row = rows.get(key) ?? { m, amount: 0n, to: new Set<string>() };
     row.amount += m.amount;
-    m.destinations.forEach((d) => row.to.add(d.address));
+    m.destinations.forEach((d) =>
+      row.to.add(
+        d.address === null
+          ? `Unknown destination (output ${d.outputIndex})`
+          : textEllipsis(d.address),
+      ),
+    );
     rows.set(key, row);
   }
   return [...rows.values()];
@@ -31,6 +39,7 @@ function byToken(movements: DappTokenMovement[]) {
 export function CovenantTokenMovements({
   movements,
   status,
+  network,
 }: CovenantTokenMovementsProps) {
   return (
     <ul className="mt-3 flex flex-col rounded-lg bg-daintree-800">
@@ -47,7 +56,9 @@ export function CovenantTokenMovements({
       )}
       {status === "ready" && movements.length === 0 && (
         <li className={ROW}>
-          This request does not move any KCC-20 tokens from your wallet.
+          {network === "mainnet"
+            ? "This request does not move any KCC-20 tokens from your wallet."
+            : "No KCC-20 tokens that Kastle can check on this network move in this request. Standard KCC-20 tokens cannot be checked here."}
         </li>
       )}
       {status === "ready" && movements.length > 0 && (
@@ -62,11 +73,7 @@ export function CovenantTokenMovements({
             >
               <TokenItem
                 name={m.symbol || textEllipsis(m.covenantId)}
-                subtitle={
-                  to.size > 0
-                    ? `To ${[...to].map((a) => textEllipsis(a)).join(", ")}`
-                    : undefined
-                }
+                subtitle={to.size > 0 ? `To ${[...to].join(", ")}` : undefined}
                 amount={
                   m.decimals === undefined
                     ? `-${amount} base units`

@@ -116,6 +116,23 @@ test.describe("decodeCovenantRequest", () => {
     expect(all.map((d) => d.address)).not.toContain(WALLET);
   });
 
+  test("an authorized output with no address is kept as null, never dropped", () => {
+    const tx = JSON.parse(TX_JSON);
+    // OP_RETURN: a script no address can spell.
+    tx.outputs[0].scriptPublicKey = "00006a";
+    const result = decodeCovenantRequest(
+      deserializeTransaction(JSON.stringify(tx)),
+      [pieceA],
+      NETWORK,
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.movements[0].destinations).toEqual([
+      { address: null, outputIndex: 0 },
+      { address: INPUT0_P2SH, outputIndex: 1 },
+    ]);
+  });
+
   test("a piece with unknown decimals is still a movement", () => {
     const result = decode([pieceB]);
     expect(result.ok).toBe(true);

@@ -69,7 +69,10 @@ export function useRpcClientStateful() {
 export function useFeatureFlags() {
   return { isKcc20StandardEnabled: false };
 }
-const settings = { networkId: "testnet-10", currency: "USD" };
+const settings = {
+  networkId: query.get("network") ?? "testnet-10",
+  currency: "USD",
+};
 export function useSettings() {
   return [settings, () => {}];
 }
