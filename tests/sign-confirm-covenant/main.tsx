@@ -10,7 +10,7 @@ import SignConfirm from "@/components/screens/browser-api/kaspa/sign/SignConfirm
 await init({ module_or_path: wasmUrl });
 
 const params = new URLSearchParams(location.search);
-window.__signHarness = { confirmed: 0, pieceCalls: [] };
+window.__signHarness = { confirmed: 0, cancelled: 0, pieceCalls: [] };
 
 // ?tx=v1: the kaspa.com repro (version 1). ?tx=v0: a version-0 spend of the
 // same wallet input, so both screens read the same account.
@@ -40,7 +40,9 @@ const router = createMemoryRouter([
         confirm={() => {
           window.__signHarness.confirmed++;
         }}
-        cancel={() => {}}
+        cancel={() => {
+          window.__signHarness.cancelled++;
+        }}
         warning={params.get("warning") ?? undefined}
       />
     ),

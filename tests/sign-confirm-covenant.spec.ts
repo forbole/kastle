@@ -147,6 +147,21 @@ test("v1 keeps the caller's warning and appends the caveat", async ({
   await expect(page.getByText(`Partial outputs\n\n${CAVEAT}`)).toBeVisible();
 });
 
+test("Ledger: covenant confirm is blocked with one line, Cancel still works", async ({
+  page,
+}) => {
+  const errors = await open(page, "tx=v1&pieces=a&wallet=ledger");
+  await expect(
+    page.getByText("Covenant transactions cannot be signed on Ledger."),
+  ).toBeVisible();
+  await expect(confirm(page)).toBeDisabled();
+  await confirm(page).click({ force: true });
+  expect((await h(page)).confirmed).toBe(0);
+  await page.getByRole("button", { name: "Cancel" }).click();
+  expect((await h(page)).cancelled).toBe(1);
+  expect(errors).toEqual([]);
+});
+
 test("v0 renders no token section, no caveat and never fetches", async ({
   page,
 }) => {

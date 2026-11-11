@@ -4,7 +4,11 @@ const query = new URLSearchParams(location.search);
 
 declare global {
   interface Window {
-    __signHarness: { confirmed: number; pieceCalls: unknown[] };
+    __signHarness: {
+      confirmed: number;
+      cancelled: number;
+      pieceCalls: unknown[];
+    };
   }
 }
 
@@ -56,7 +60,7 @@ export async function walletKcc20Pieces(...args: unknown[]) {
 export function useWalletManager() {
   return {
     account: { address: WALLET, publicKeys: [] },
-    wallet: { type: "software" },
+    wallet: { type: query.get("wallet") ?? "software" },
   };
 }
 export function useRpcClientStateful() {

@@ -26,6 +26,8 @@ import { CovenantTokenMovements } from "@/ui/popup/browser-api/CovenantTokenMove
 const ZERO_OUTPUT_COMMITMENT_ERROR =
   "This request cannot be signed. It uses a Single sighash on an input that has no matching output, so your signature would commit to no outputs at all. Every output, including where your funds go, could be rewritten after you approve.";
 
+const LEDGER_COVENANT_ERROR =
+  "Covenant transactions cannot be signed on Ledger.";
 const COVENANT_CAVEAT =
   "Kastle verifies the pieces leaving your wallet. It cannot show the token amounts inside the destination covenant.";
 
@@ -58,7 +60,11 @@ export default function SignConfirm({
 
   // Version 1+: the KCC-20 pieces this request spends; confirm waits for the decode.
   const covenant = useDappCovenantDecode(payload.txJson, account?.address);
-  const confirmBlocked = covenant.isCovenant && covenant.status !== "ready";
+  // Defence in depth: LedgerSignAndBroadcast already refuses version 1+
+  // (hasUnsignableFields), but this screen must never invite a Ledger to sign one.
+  const ledgerCovenant = covenant.isCovenant && wallet?.type === "ledger";
+  const confirmBlocked =
+    ledgerCovenant || (covenant.isCovenant && covenant.status !== "ready");
   const shownWarning = covenant.isCovenant
     ? [warning, COVENANT_CAVEAT].filter(Boolean).join("\n\n")
     : warning;
@@ -241,6 +247,14 @@ export default function SignConfirm({
                   {shownWarning}
                 </div>
               )
+            )}
+            {ledgerCovenant && (
+              <div
+                className="mt-3 rounded-lg border border-red-900 bg-red-800/30 px-4 py-2 text-xs text-red-500"
+                role="alert"
+              >
+                {LEDGER_COVENANT_ERROR}
+              </div>
             )}
             {covenant.isCovenant && (
               <CovenantTokenMovements
