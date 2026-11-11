@@ -71,6 +71,7 @@ export async function walletKcc20Pieces(
     covenantId?: string;
     symbol?: unknown;
     dec?: unknown;
+    utxoCount?: unknown;
   };
   const rowByCovid = new Map<string, Row>();
   for (const row of rows as Row[]) {
@@ -171,6 +172,18 @@ export async function walletKcc20Pieces(
           decimals: displayDecimals(meta?.decimals),
         });
     }
+  }
+  // The indexer counts the token's utxos at this address: some count, no
+  // piece means an undecodable or unowned redeem was skipped, not "no tokens".
+  const decoded = new Set([...pieces.values()].map((p) => p.covenantId));
+  for (const row of rows as Row[]) {
+    const n = row.utxoCount;
+    if (
+      typeof n === "number" &&
+      n > 0 &&
+      !decoded.has(covenantSelect.normalizedCovenantId(row.covenantId)!)
+    )
+      throw new Error(`${row.tick} reports ${n} utxos but none decoded`);
   }
   return [...pieces.values()];
 }

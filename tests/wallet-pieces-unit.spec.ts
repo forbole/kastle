@@ -368,6 +368,34 @@ test("a row without symbol or dec falls back to the registry entry", async () =>
   expect(piece).toMatchObject({ symbol: "REG", decimals: 8 });
 });
 
+test("a row reporting utxos with no decoded piece is refused", async () => {
+  // The indexer counts 2 utxos, but the redeem it returns is not a KCC-20 one.
+  await expect(
+    scan({
+      indexer: indexer(
+        [{ tick: "LEG", covenantId: LEGACY_COVID, utxoCount: 2 }],
+        {
+          LEG: [{ n: 1, redeem: new Uint8Array([0x51]), covid: LEGACY_COVID }],
+        },
+      ),
+    }),
+  ).rejects.toThrow("LEG reports 2 utxos but none decoded");
+  // The same row with its piece decoded passes.
+  const redeem = legacyRedeem(3n);
+  const held = [{ n: 1, redeem, covid: LEGACY_COVID }];
+  expect(
+    await scan(
+      {
+        indexer: indexer(
+          [{ tick: "LEG", covenantId: LEGACY_COVID, utxoCount: 1 }],
+          { LEG: held },
+        ),
+      },
+      node(held),
+    ),
+  ).toHaveLength(1);
+});
+
 test("a kascov-claimed cell the node does not verify is refused", async () => {
   const std = standardRedeem(500n);
   const { fetchers } = kascov([{ tokenId: STD_COVID }], {
