@@ -9,7 +9,10 @@ import {
   ConsolidationPlan,
   isConsolidatableEntry,
   planConsolidation,
+  planConsolidationRound,
+  runConsolidation,
 } from "@/lib/consolidate";
+import { UnsignedInputsError } from "@/lib/wallet/transaction-batch";
 import { isShortfall, planTransfer } from "@/lib/sendFee";
 
 const TESTS_DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -282,5 +285,77 @@ test.describe("planConsolidation spends only entries the wallet can sign", () =>
     expect(result.maturityUnknown).toBe(true);
     expect(result.skipped).toBe(0);
     expect(result.inputCount).toBe(82);
+  });
+
+  test("token state / other key and immature coinbase are counted apart", async () => {
+    const base = syntheticEntries(Array(81).fill(206_040_000n));
+    const immature = withOutpoint(base[0], "c4".repeat(32), {
+      isCoinbase: true,
+      blockDaaScore: 1_000n,
+    });
+    const result = (await planConsolidation({
+      entries: [...base, p2shEntry(), otherKeyEntry(), immature],
+      changeAddress: senderAddress().toString(),
+      networkId: "mainnet",
+      rpcClient: dagInfo(1_050n),
+    })) as ConsolidationPlan;
+    expect(result.skippedCovenant).toBe(2);
+    expect(result.skippedImmature).toBe(1);
+    expect(result.skipped).toBe(3);
+  });
+
+  test("all entries dropped: no plan, the split is still reported", async () => {
+    const { plan, screen } = await planConsolidationRound({
+      entries: [p2shEntry(), otherKeyEntry()],
+      changeAddress: senderAddress().toString(),
+      networkId: "mainnet",
+      rpcClient: dagInfo(1_050n),
+    });
+    expect(plan).toBeUndefined();
+    expect(screen).toEqual({
+      spendable: 0,
+      skippedCovenant: 2,
+      skippedImmature: 0,
+      maturityUnknown: false,
+    });
+  });
+
+  test("the script match ignores hex case", () => {
+    const address = senderAddress().toString();
+    const own = syntheticEntries([206_040_000n])[0];
+    const script = payToAddressScript(address).script;
+    for (const variant of [script.toUpperCase(), script.toLowerCase()]) {
+      const entry = {
+        ...own,
+        scriptPublicKey: { version: 0, script: variant },
+      } as unknown as IUtxoEntry;
+      expect(isConsolidatableEntry(entry, address)).toBe(true);
+    }
+  });
+
+  test("an unsigned input stops the round as a signing failure, not a rejection", async () => {
+    let submits = 0;
+    const pending = {
+      transaction: { inputs: [] },
+      feeAmount: 1n,
+    } as never;
+    const signer = {
+      signTx: async () =>
+        ({
+          inputs: [{ signatureScript: "aa" }, { signatureScript: "" }],
+        }) as never,
+    };
+    const rpc = {
+      submitTransaction: async () => {
+        submits++;
+        return { transactionId: "00".repeat(32) } as never;
+      },
+    };
+    const run = runConsolidation([pending, pending], signer, rpc);
+    await expect(run).rejects.toBeInstanceOf(UnsignedInputsError);
+    await expect(run).rejects.toThrow(
+      "1 of 2 inputs are unsigned; this transaction was not submitted.",
+    );
+    expect(submits).toBe(0);
   });
 });

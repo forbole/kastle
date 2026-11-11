@@ -9,8 +9,9 @@ import {
   ConsolidationPlan,
   ConsolidationProgress,
   ConsolidationResult,
+  EntryScreen,
   loadLiveEntries,
-  planConsolidation,
+  planConsolidationRound,
   runConsolidation,
   reportError,
   scrubReportText,
@@ -22,6 +23,48 @@ import useKaspaHotWalletSigner from "@/hooks/wallet/useKaspaHotWalletSigner";
 import useKaspaLedgerSigner from "@/hooks/wallet/useKaspaLedgerSigner";
 import LedgerConnectForSign from "@/components/screens/ledger-connect/LedgerConnectForSign";
 
+/** One sentence per reason entries stay out of the round. */
+export function describeSkipped({
+  skippedCovenant,
+  skippedImmature,
+}: {
+  skippedCovenant: number;
+  skippedImmature: number;
+}): string[] {
+  const lines: string[] = [];
+  if (skippedCovenant > 0) {
+    lines.push(
+      skippedCovenant === 1
+        ? "1 UTXO carries token state or belongs to another key and stays as it is."
+        : `${skippedCovenant.toLocaleString()} UTXOs carry token state or belong to another key and stay as they are.`,
+    );
+  }
+  if (skippedImmature > 0) {
+    lines.push(
+      skippedImmature === 1
+        ? "1 UTXO is a coinbase payout that is not spendable yet and stays out of this round."
+        : `${skippedImmature.toLocaleString()} UTXOs are coinbase payouts that are not spendable yet and stay out of this round.`,
+    );
+  }
+  return lines;
+}
+
+export const MATURITY_UNKNOWN_NOTE =
+  "Coinbase maturity could not be checked, so the node may refuse the round if it includes a payout that is not spendable yet.";
+
+/** Why there is no round to run, true whether or not entries were dropped. */
+export function describeNoPlan(screen: EntryScreen | undefined): string {
+  const skipped = screen ? describeSkipped(screen) : [];
+  if (!screen || skipped.length === 0) {
+    return "Your funds already fit in a single transaction.";
+  }
+  const head =
+    screen.spendable === 0
+      ? "No UTXO can be optimized."
+      : "The UTXOs this round can spend already fit in a single transaction.";
+  return [head, ...skipped].join(" ");
+}
+
 export function OptimizeFundsConfirm({
   entriesBefore,
   entriesAfter,
@@ -30,9 +73,13 @@ export function OptimizeFundsConfirm({
   isLedger,
   canConfirm,
   onConfirm,
-  skipped = 0,
+  skippedCovenant = 0,
+  skippedImmature = 0,
+  maturityUnknown = false,
 }: {
-  skipped?: number;
+  skippedCovenant?: number;
+  skippedImmature?: number;
+  maturityUnknown?: boolean;
   entriesBefore: number;
   entriesAfter: number;
   transactionCount: number;
@@ -66,10 +113,13 @@ export function OptimizeFundsConfirm({
             {sompiToKaspaString(feeSompi)} KAS
           </span>
         </div>
-        {skipped > 0 && (
-          <span className="text-daintree-400">
-            {`${skipped.toLocaleString()} ${skipped === 1 ? "UTXO carries" : "UTXOs carry"} token state or belong to another key and stay as they are.`}
+        {describeSkipped({ skippedCovenant, skippedImmature }).map((line) => (
+          <span key={line} className="text-daintree-400">
+            {line}
           </span>
+        ))}
+        {maturityUnknown && (
+          <span className="text-daintree-400">{MATURITY_UNKNOWN_NOTE}</span>
         )}
         {isLedger && (
           <span className="font-semibold text-[#14B8A6]">
@@ -109,6 +159,7 @@ export default function OptimizeFunds() {
   const [entries, setEntries] = useState<IUtxoEntry[]>();
   const [plan, setPlan] = useState<ConsolidationPlan | null>();
   const [planError, setPlanError] = useState<string>();
+  const [screened, setScreened] = useState<EntryScreen>();
   const [isRunning, setIsRunning] = useState(false);
   const [progress, setProgress] = useState<ConsolidationProgress>({
     submitted: 0,
@@ -137,12 +188,13 @@ export default function OptimizeFunds() {
     loadLiveEntries(() => revalidateEntries(), spentOutpoints)
       .then(async (live) => {
         setEntries(live);
-        const planned = await planConsolidation({
+        const { plan: planned, screen } = await planConsolidationRound({
           entries: live,
           changeAddress: account.address,
           networkId,
           rpcClient,
         });
+        setScreened(screen);
         setPlan(planned ?? null);
       })
       .catch((error) => {
@@ -285,7 +337,9 @@ export default function OptimizeFunds() {
                 plan.inputCount +
                 plan.outputCount
               }
-              skipped={plan.skipped}
+              skippedCovenant={plan.skippedCovenant}
+              skippedImmature={plan.skippedImmature}
+              maturityUnknown={plan.maturityUnknown}
               transactionCount={total}
               feeSompi={plan.fee}
               isLedger={isLedger}
@@ -296,7 +350,7 @@ export default function OptimizeFunds() {
 
           {!isRunning && !cancelledEarly && plan === null && (
             <span className="self-center text-daintree-400">
-              {planError ?? "Your funds already fit in a single transaction."}
+              {planError ?? describeNoPlan(screened)}
             </span>
           )}
 

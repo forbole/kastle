@@ -238,6 +238,8 @@ test("signAndSubmitBatch refuses a transaction with an unsigned input", async ()
         return { transactionId: "id" };
       },
     }),
-  ).rejects.toThrow("1 of 2 inputs are unsigned; nothing was submitted");
+  ).rejects.toThrow(
+    "1 of 2 inputs are unsigned; this transaction was not submitted.",
+  );
   expect(submits).toBe(0);
 });
