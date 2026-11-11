@@ -13,6 +13,7 @@ import {
   describeRound,
   loadLiveEntries,
   OPTIMIZE_FEE_THRESHOLD_SOMPI,
+  reportError,
   runConsolidation,
   shouldOfferOptimize,
 } from "@/lib/consolidate";
@@ -378,7 +379,12 @@ test.describe("optimize diagnostics", () => {
         },
         submitTransaction: async () => (submits++, { transactionId: "id" }),
       } as any),
-    ).rejects.toThrow("the node connection dropped; nothing further was sent");
+    ).rejects.toThrow(
+      expect.objectContaining({
+        message: "the node connection dropped; nothing further was sent",
+        cause: "Error: WebSocket closed",
+      }),
+    );
     expect(connects).toBe(1);
     expect(submits).toBe(0);
   });
@@ -408,6 +414,11 @@ test.describe("optimize diagnostics", () => {
       "0 of 144 transactions sent · stopped after the first rejection · nothing paid",
     );
     expect(
+      describeRound({ submitted: 0, rejected: 0, total: 144, feePaid: "0" }),
+    ).toBe(
+      "0 of 144 transactions sent · stopped before sending · nothing paid",
+    );
+    expect(
       describeRound({
         submitted: 97,
         rejected: 47,
@@ -415,6 +426,42 @@ test.describe("optimize diagnostics", () => {
         feePaid: "8.73",
       }),
     ).toBe("97 of 144 transactions sent · 47 rejected · fee paid 8.73 KAS");
+  });
+
+  test("a txid straddling the 300-char cut is redacted, not half-kept", () => {
+    const txid = "b".repeat(64);
+    // cut-then-scrub would keep a 60-hex prefix the 64-hex redactor misses
+    const error = new Error(
+      `${"x".repeat(240 - "Error: ".length)}${txid} tail`,
+    );
+    expect(String(error).slice(0, 300)).toMatch(/b{60}$/);
+    const out = reportError(error);
+    expect(out.length).toBeLessThanOrEqual(300);
+    expect(out).not.toMatch(/[0-9a-f]{32,}/i);
+  });
+
+  test("copy control is a native button", () => {
+    const { default: ClipboardCopy } = loadModule(
+      "components/dashboard/ClipboardCopy.tsx",
+      {
+        react: React,
+        "react/jsx-runtime": nodeRequire("react/jsx-runtime"),
+        "tailwind-merge": nodeRequire("tailwind-merge"),
+        "usehooks-ts": { useCopyToClipboard: () => [null, async () => true] },
+        "react-tooltip": { Tooltip: () => null },
+      },
+    );
+    const icon = renderToStaticMarkup(
+      React.createElement(ClipboardCopy, { textToCopy: "x", className: "p-2" }),
+    );
+    expect(icon).toMatch(
+      /^<button type="button" class="p-2" aria-label="Copy">/,
+    );
+    expect(icon).not.toContain("<a");
+    const labelled = renderToStaticMarkup(
+      React.createElement(ClipboardCopy, { textToCopy: "x" }, "Copy report"),
+    );
+    expect(labelled).toMatch(/^<button type="button">.*Copy report<\/button>$/);
   });
 
   test("failure screen shows the reason and copies a scrubbed report", () => {

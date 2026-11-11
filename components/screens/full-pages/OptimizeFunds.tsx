@@ -12,6 +12,7 @@ import {
   loadLiveEntries,
   planConsolidation,
   runConsolidation,
+  reportError,
   scrubReportText,
 } from "@/lib/consolidate";
 import { useUtxoEntries } from "@/hooks/useKasFeeEstimate";
@@ -189,9 +190,17 @@ export default function OptimizeFunds() {
       rejected: result.rejected,
       feePaid: sompiToKaspaString(result.feePaid),
       entriesBefore: entries?.length,
-      lastError:
-        result.lastError ??
-        (error === undefined ? undefined : String(error).slice(0, 300)),
+      // last rejection and the error that stopped the round: not the same
+      // when a later sign or reconnect failure ended it
+      lastError: result.lastError,
+      terminalError:
+        error === undefined
+          ? undefined
+          : reportError(
+              error instanceof Error && error.cause !== undefined
+                ? `${error}: ${error.cause}`
+                : error,
+            ),
     });
     return navigate(
       { pathname: "/token-operation-failed" },

@@ -140,7 +140,7 @@ export type ConsolidationProgress = {
   // outpoints of the submitted transactions' inputs: a retry drops them, the
   // UTXO index lists them until the node accepts the spend
   spentOutpoints: string[];
-  // the node's text for the last rejection, trimmed: the only clue to why
+  // the node's text for the last rejection, scrubbed and trimmed
   lastError?: string;
 };
 
@@ -191,10 +191,13 @@ export function describeRound({
   if (submitted === 0) {
     // all-rejected is reachable only by a one-transaction plan (N+1 inputs);
     // anything bigger stops at the first rejection (runConsolidation)
+    // no rejection: signing or the reconnect failed before anything went out
     const what =
-      rejected === total
-        ? `all ${total} rejected`
-        : "stopped after the first rejection";
+      rejected === 0
+        ? "stopped before sending"
+        : rejected === total
+          ? `all ${total} rejected`
+          : "stopped after the first rejection";
     return `${sent} · ${what} · nothing paid`;
   }
   return `${sent} · ${rejected} rejected · fee paid ${feePaid} KAS`;
@@ -203,6 +206,10 @@ export function describeRound({
 /** 64-hex runs (txids, keys) via the Sentry redactor, then addresses. */
 export const scrubReportText = (text: string) =>
   redactString(text).replace(/kaspa(?:test|dev|sim)?:[a-z0-9]+/g, "[ADDRESS]");
+
+/** Scrubbed, then cut: a cut 64-hex run would slip past the redactor. */
+export const reportError = (error: unknown) =>
+  scrubReportText(String(error)).slice(0, 300);
 
 /**
  * What the failure screen's "Copy report" hands the user to send us: counts,
@@ -280,9 +287,11 @@ export async function runConsolidation(
       try {
         // Fallback: one attempt, returns at once; Retry would block forever
         await rpcClient.connect?.({ strategy: ConnectStrategy.Fallback });
-      } catch {
+      } catch (cause) {
+        // the short sentence for the user; the node's reason rides as cause
         throw new Error(
           "the node connection dropped; nothing further was sent",
+          { cause: scrubReportText(String(cause)) },
         );
       }
     }
@@ -307,7 +316,7 @@ export async function runConsolidation(
     } catch (error) {
       if (!signed) throw error;
       progress.rejected++;
-      progress.lastError = String(error).slice(0, 300);
+      progress.lastError = reportError(error);
       if (progress.submitted === 0) {
         onTransaction?.({ ...progress });
         break;
