@@ -52,9 +52,24 @@ const STUBS: Record<string, string> = {
       return globalThis.__covenantGuard.pieces(...args);
     };`,
 };
+// Hooks are process-wide and specs share a worker: stub only what the handlers
+// import, under its own URL, so other specs still load the real modules
+// (wallet-pieces-unit.spec.ts tests the real walletKcc20Pieces).
+const MARK = "?covenant-guard-stub";
 registerHooks({
+  resolve: (specifier, ctx, next) => {
+    const r = next(specifier, ctx);
+    return ctx.parentURL?.includes("/api/background/handlers/") &&
+      Object.keys(STUBS).some((end) => r.url.endsWith(end))
+      ? { ...r, url: r.url + MARK }
+      : r;
+  },
   load: (url, ctx, next) => {
-    const stub = Object.entries(STUBS).find(([end]) => url.endsWith(end));
+    const stub =
+      url.endsWith(MARK) &&
+      Object.entries(STUBS).find(([end]) =>
+        url.slice(0, -MARK.length).endsWith(end),
+      );
     return stub
       ? { format: "module", source: stub[1], shortCircuit: true }
       : next(url, ctx);

@@ -62,10 +62,15 @@ export async function walletKcc20Pieces(
     // Metadata only: without the list every symbol falls back to the short id.
     registryClient.tokenlist().catch(() => undefined),
   ]);
+  // A missing list or an unidentifiable row is an incomplete scan, never "no tokens".
+  if (!Array.isArray(rows))
+    throw new Error("KRON indexer returned no token list");
   const tickByCovid = new Map<string, string>();
-  for (const row of (rows ?? []) as { tick: string; covenantId?: string }[]) {
-    const covid = covenantSelect.normalizedCovenantId(row.covenantId);
-    if (covid && !tickByCovid.has(covid)) tickByCovid.set(covid, row.tick);
+  for (const row of rows as { tick: string; covenantId?: string }[]) {
+    const covid = covenantSelect.normalizedCovenantId(row?.covenantId);
+    if (!covid)
+      throw new Error(`KRON indexer row without a covenant id (${row?.tick})`);
+    if (!tickByCovid.has(covid)) tickByCovid.set(covid, row.tick);
   }
   if (tickByCovid.size > PIECES_TOKEN_CAP)
     throw new Error(`more than ${PIECES_TOKEN_CAP} KCC-20 tokens`);
@@ -113,7 +118,11 @@ export async function walletKcc20Pieces(
   const pk = /^20([0-9a-f]{64})ac$/.exec(
     payToAddressScript(address).script,
   )?.[1];
-  if (standard && net === "mainnet" && pk) {
+  if (standard && net === "mainnet") {
+    if (!pk)
+      throw new Error(
+        "standard KCC-20 pieces can only be scanned for a Schnorr P2PK address",
+      );
     const holdings = [
       ...new Map(
         (await kascov.holdings(address)).map((h) => [h.tokenId, h]),
@@ -139,7 +148,7 @@ export async function walletKcc20Pieces(
           ).slice(2),
           amount: piece.state.amount,
           symbol: meta?.symbol ?? "",
-          decimals: meta?.decimals,
+          decimals: displayDecimals(meta?.decimals),
         });
     }
   }
