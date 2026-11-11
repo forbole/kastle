@@ -8,6 +8,8 @@ import { applyDecimal } from "@/lib/krc20.ts";
 import { setPopupPath } from "@/lib/utils.ts";
 import useExtensionUtils from "@/hooks/useExtensionUtils.ts";
 import { describeTokenOperationError } from "@/lib/token-operation-error";
+import { describeRound } from "@/lib/consolidate";
+import ClipboardCopy from "@/components/dashboard/ClipboardCopy";
 
 export const TokenOperationFailed = () => {
   const { reopenPopup } = useExtensionUtils();
@@ -25,6 +27,8 @@ export const TokenOperationFailed = () => {
       total,
       feePaid,
       spentOutpoints,
+      lastError,
+      report,
     },
   } = useLocation();
   const { data: tokenInfoResponse } = useTokenInfo(ticker);
@@ -130,12 +134,27 @@ export const TokenOperationFailed = () => {
                   Optimization Incomplete
                 </span>
                 <span className="px-2 text-sm text-gray-500">
-                  {`${submitted} of ${total} consolidated · ${rejected} skipped by the node · fee paid ${feePaid} KAS`}
+                  {describeRound({ submitted, rejected, total, feePaid })}
                 </span>
+                {lastError && (
+                  <span className="px-2 text-sm text-gray-500">
+                    {lastError}
+                  </span>
+                )}
                 {error !== undefined && (
                   <span className="px-2 text-sm text-gray-500">
                     {failure.message}
                   </span>
+                )}
+                {report && (
+                  <ClipboardCopy
+                    textToCopy={JSON.stringify(report)}
+                    className="flex cursor-pointer items-center justify-center gap-2 self-center"
+                  >
+                    <span className="text-sm font-semibold text-icy-blue-400">
+                      Copy report
+                    </span>
+                  </ClipboardCopy>
                 )}
               </div>
             ) : (

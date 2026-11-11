@@ -2,8 +2,9 @@ import { useLocation, useNavigate } from "react-router-dom";
 import React, { useEffect, useRef, useState } from "react";
 import Header from "@/components/GeneralHeader.tsx";
 import carriageImage from "@/assets/images/carriage.png";
-import { IUtxoEntry, sompiToKaspaString } from "@/wasm/core/kaspa";
+import { IUtxoEntry, sompiToKaspaString, version } from "@/wasm/core/kaspa";
 import {
+  buildRoundReport,
   classifyConsolidation,
   ConsolidationPlan,
   ConsolidationProgress,
@@ -11,6 +12,8 @@ import {
   loadLiveEntries,
   planConsolidation,
   runConsolidation,
+  reportError,
+  scrubReportText,
 } from "@/lib/consolidate";
 import { useUtxoEntries } from "@/hooks/useKasFeeEstimate";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
@@ -176,6 +179,29 @@ export default function OptimizeFunds() {
       setIsRunning(false);
       return setCancelledEarly(result);
     }
+    const report = buildRoundReport({
+      extensionVersion: browser.runtime.getManifest().version,
+      wasmVersion: version(),
+      networkId,
+      rpcUrl: rpcClient.url,
+      walletType: isLedger ? "ledger" : "hot",
+      total: plan.transactions.length,
+      submitted: result.submitted,
+      rejected: result.rejected,
+      feePaid: sompiToKaspaString(result.feePaid),
+      entriesBefore: entries?.length,
+      // last rejection and the error that stopped the round: not the same
+      // when a later sign or reconnect failure ended it
+      lastError: result.lastError,
+      terminalError:
+        error === undefined
+          ? undefined
+          : reportError(
+              error instanceof Error && error.cause !== undefined
+                ? `${error}: ${error.cause}`
+                : error,
+            ),
+    });
     return navigate(
       { pathname: "/token-operation-failed" },
       {
@@ -187,6 +213,8 @@ export default function OptimizeFunds() {
           total: plan.transactions.length,
           feePaid: sompiToKaspaString(result.feePaid),
           spentOutpoints: [...(spentOutpoints ?? []), ...result.spentOutpoints],
+          lastError: result.lastError && scrubReportText(result.lastError),
+          report,
         },
       },
     );
@@ -234,11 +262,6 @@ export default function OptimizeFunds() {
               <span className="text-daintree-400">
                 Cancelled before the first transaction. Nothing was paid.
               </span>
-              {cancelledEarly.rejected > 0 && (
-                <span className="text-daintree-400">
-                  {`${cancelledEarly.rejected} skipped by the node`}
-                </span>
-              )}
             </div>
           )}
 
@@ -305,7 +328,7 @@ export default function OptimizeFunds() {
                 </div>
                 {progress.rejected > 0 && (
                   <span className="text-daintree-400">
-                    {`${progress.rejected} skipped: rejected by the node`}
+                    {`${progress.submitted} of ${total} transactions sent · ${progress.rejected} rejected`}
                   </span>
                 )}
               </div>

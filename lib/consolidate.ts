@@ -1,4 +1,5 @@
 import {
+  ConnectStrategy,
   createTransactions,
   IGeneratorSettingsObject,
   IUtxoEntry,
@@ -7,6 +8,7 @@ import {
 } from "@/wasm/core/kaspa";
 import { orderEntries } from "@/lib/sendFee";
 import { isFragmentationError } from "@/lib/kaspa";
+import { redactString } from "@/lib/sentry-scrub";
 import { signAndSubmitBatch } from "@/lib/wallet/transaction-batch";
 import type { IWalletWithGetAddress } from "@/lib/wallet/wallet-interface";
 
@@ -138,6 +140,8 @@ export type ConsolidationProgress = {
   // outpoints of the submitted transactions' inputs: a retry drops them, the
   // UTXO index lists them until the node accepts the spend
   spentOutpoints: string[];
+  // the node's text for the last rejection, scrubbed and trimmed
+  lastError?: string;
 };
 
 export type ConsolidationResult = ConsolidationProgress & {
@@ -171,6 +175,61 @@ export function classifyConsolidation({
   return "incomplete";
 }
 
+/** One line for a finished round, in transactions (never UTXO counts). */
+export function describeRound({
+  submitted,
+  rejected,
+  total,
+  feePaid,
+}: {
+  submitted: number;
+  rejected: number;
+  total: number;
+  feePaid: string;
+}): string {
+  const sent = `${submitted} of ${total} transactions sent`;
+  if (submitted === 0) {
+    // all-rejected is reachable only by a one-transaction plan (N+1 inputs);
+    // anything bigger stops at the first rejection (runConsolidation)
+    // no rejection: signing or the reconnect failed before anything went out
+    const what =
+      rejected === 0
+        ? "stopped before sending"
+        : rejected === total
+          ? `all ${total} rejected`
+          : "stopped after the first rejection";
+    return `${sent} · ${what} · nothing paid`;
+  }
+  return `${sent} · ${rejected} rejected · fee paid ${feePaid} KAS`;
+}
+
+/** 64-hex runs (txids, keys) via the Sentry redactor, then addresses. */
+export const scrubReportText = (text: string) =>
+  redactString(text).replace(/kaspa(?:test|dev|sim)?:[a-z0-9]+/g, "[ADDRESS]");
+
+/** Scrubbed, then cut: a cut 64-hex run would slip past the redactor. */
+export const reportError = (error: unknown) =>
+  scrubReportText(String(error)).slice(0, 300);
+
+/**
+ * What the failure screen's "Copy report" hands the user to send us: counts,
+ * versions and the node's reason. No address, outpoint or txid: every string
+ * field is scrubbed.
+ */
+export function buildRoundReport<
+  T extends Record<string, string | number | undefined>,
+>(fields: T): T & { timestamp: string } {
+  return {
+    ...Object.fromEntries(
+      Object.entries(fields).map(([key, value]) => [
+        key,
+        typeof value === "string" ? scrubReportText(value) : value,
+      ]),
+    ),
+    timestamp: new Date().toISOString(),
+  } as T & { timestamp: string };
+}
+
 export const outpointKey = (outpoint: {
   transactionId: string;
   index: number;
@@ -194,12 +253,15 @@ export async function loadLiveEntries(
  * Signs and submits each planned transaction on its own, stopping early when
  * `isCanceled` turns true. A signing failure (locked keyring, Ledger
  * rejection) throws; a submit rejection increments `rejected` and continues,
- * since the chunks are disjoint and the next one does not depend on it.
+ * since the chunks are disjoint and the next one does not depend on it —
+ * unless nothing has landed yet: a first rejection stops the round, since a
+ * transaction-wide refusal would only repeat on every remaining chunk.
  */
 export async function runConsolidation(
   transactions: readonly PendingTransaction[],
   signer: Pick<IWalletWithGetAddress, "signTx">,
-  rpcClient: Pick<RpcClient, "submitTransaction">,
+  rpcClient: Pick<RpcClient, "submitTransaction"> &
+    Partial<Pick<RpcClient, "isConnected" | "connect">>,
   {
     isCanceled = () => false,
     onTransaction,
@@ -219,6 +281,19 @@ export async function runConsolidation(
     if (isCanceled()) {
       cancelled = true;
       break;
+    }
+    // the context never hears a socket drop: ask the WASM client itself
+    if (rpcClient.isConnected === false) {
+      try {
+        // Fallback: one attempt, returns at once; Retry would block forever
+        await rpcClient.connect?.({ strategy: ConnectStrategy.Fallback });
+      } catch (cause) {
+        // the short sentence for the user; the node's reason rides as cause
+        throw new Error(
+          "the node connection dropped; nothing further was sent",
+          { cause: scrubReportText(String(cause)) },
+        );
+      }
     }
     let signed = false;
     const markSigned: Pick<IWalletWithGetAddress, "signTx"> = {
@@ -241,6 +316,11 @@ export async function runConsolidation(
     } catch (error) {
       if (!signed) throw error;
       progress.rejected++;
+      progress.lastError = reportError(error);
+      if (progress.submitted === 0) {
+        onTransaction?.({ ...progress });
+        break;
+      }
     }
     onTransaction?.({ ...progress });
   }
