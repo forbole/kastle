@@ -96,13 +96,13 @@ test("v1 spending a wallet piece lists it, with the caveat, and confirms", async
 });
 
 const MAINNET_NONE =
-  "This request does not move any KCC-20 tokens from your wallet.";
+  "Kastle does not see any KCC-20 token of yours in this request.";
 const OFF_MAINNET_NONE =
   "No KCC-20 tokens that Kastle can check on this network move in this request. Standard KCC-20 tokens cannot be checked here.";
 const OFF_MAINNET_CAVEAT =
   "Standard KCC-20 tokens cannot be checked on this network.";
 
-test("v1 spending no piece on mainnet says so definitely, without the off-mainnet caveat", async ({
+test("v1 spending no piece on mainnet says Kastle sees none of yours, without the off-mainnet caveat", async ({
   page,
 }) => {
   await open(page, "tx=v1&pieces=none&network=mainnet");

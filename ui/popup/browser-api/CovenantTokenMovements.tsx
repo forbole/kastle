@@ -57,7 +57,7 @@ export function CovenantTokenMovements({
       {status === "ready" && movements.length === 0 && (
         <li className={ROW}>
           {network === "mainnet"
-            ? "This request does not move any KCC-20 tokens from your wallet."
+            ? "Kastle does not see any KCC-20 token of yours in this request."
             : "No KCC-20 tokens that Kastle can check on this network move in this request. Standard KCC-20 tokens cannot be checked here."}
         </li>
       )}
