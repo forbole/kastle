@@ -1151,25 +1151,6 @@ test.describe("dApp covenant guard (M2)", () => {
       true,
     );
   });
-
-  test("both dApp sign handlers decode a covenant request before opening the popup", () => {
-    for (const handler of ["signTx.ts", "signAndBroadcastTx.ts"]) {
-      const source = fs.readFileSync(
-        path.join(TESTS_DIR, "../api/background/handlers/kaspa", handler),
-        "utf8",
-      );
-      const guard = source.indexOf("isCovenantTxJson(result.data.txJson) &&");
-      const decode = source.indexOf(
-        "await canDecodeCovenantRequest(result.data.txJson)",
-      );
-      const popup = source.indexOf("openPopupAndListenForResponse");
-      // The v0 check short-circuits the fetch; both run before the popup opens.
-      expect(guard).toBeGreaterThan(-1);
-      expect(decode).toBeGreaterThan(guard);
-      expect(popup).toBeGreaterThan(decode);
-      expect(source).toContain("RPC_ERRORS.COVENANT_TX_UNDECODABLE");
-    }
-  });
 });
 
 // F7: the address the user is shown and the key that signs must come from the

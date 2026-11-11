@@ -46,9 +46,6 @@ export enum RpcErrorCode {
   COVENANT_TX_UNDECODABLE = 4301,
 }
 
-const COVENANT_TX_UNDECODABLE_MESSAGE =
-  "Kastle cannot verify what this covenant transaction does with your KCC-20 tokens right now, so it will not sign it. Try again in a moment.";
-
 export const RPC_ERRORS = {
   USER_REJECTED_REQUEST: RpcErrorSchema.parse({
     code: RpcErrorCode.USER_REJECTED_REQUEST,
@@ -79,17 +76,12 @@ export const RPC_ERRORS = {
     code: RpcErrorCode.INVALID_PARAMS,
     message: "Invalid params",
   }),
-  // Kept under its old code (4200) for callers that match on it; the dApp sign
-  // handlers answer with COVENANT_TX_UNDECODABLE.
-  COVENANT_TX_UNSUPPORTED: RpcErrorSchema.parse({
-    code: RpcErrorCode.METHOD_NOT_SUPPORTED,
-    message: COVENANT_TX_UNDECODABLE_MESSAGE,
-  }),
   // The wallet's KCC-20 pieces could not be read, or the request could not be
   // decoded against them: the confirm screen could not show what it moves.
   COVENANT_TX_UNDECODABLE: RpcErrorSchema.parse({
     code: RpcErrorCode.COVENANT_TX_UNDECODABLE,
-    message: COVENANT_TX_UNDECODABLE_MESSAGE,
+    message:
+      "Kastle cannot verify what this covenant transaction does with your KCC-20 tokens right now, so it will not sign it. Try again in a moment.",
   }),
   // A fragmented UTXO set makes the Generator return a daisy-chained batch
   // (compounding transactions first, the payment last). sendKaspa and
