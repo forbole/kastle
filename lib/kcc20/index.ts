@@ -451,6 +451,8 @@ export async function ownedStandardCells(
       )!,
     })),
     truncated: pages.some((p) => p.truncated),
+    // How many distinct cells kascov claimed, before node verification.
+    claimed: cells.size,
   };
 }
 

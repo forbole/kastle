@@ -150,8 +150,13 @@ export async function walletKcc20Pieces(
       h,
       ...(await ownedStandardCells(h.tokenId, rpc, walletPubkey32, kascov)),
     }));
-    for (const { h, owned, truncated } of scans) {
+    for (const { h, owned, truncated, claimed } of scans) {
       if (truncated) throw new Error(`kascov truncated ${h.tokenId}`);
+      // A claimed cell the node does not confirm may be a piece we cannot see.
+      if (owned.length < claimed)
+        throw new Error(
+          `kascov claims ${claimed} cells of ${h.tokenId} but ${owned.length} verified`,
+        );
       const meta = claimedMeta(h);
       for (const { piece } of owned)
         add({

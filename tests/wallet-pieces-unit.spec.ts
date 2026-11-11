@@ -367,3 +367,17 @@ test("a row without symbol or dec falls back to the registry entry", async () =>
   );
   expect(piece).toMatchObject({ symbol: "REG", decimals: 8 });
 });
+
+test("a kascov-claimed cell the node does not verify is refused", async () => {
+  const std = standardRedeem(500n);
+  const { fetchers } = kascov([{ tokenId: STD_COVID }], {
+    [STD_COVID]: [cell(2, std, 500n), cell(3, std, 500n)],
+  });
+  // The node holds only outpoint 2: kascov claims 2 cells, 1 verifies.
+  await expect(
+    scan(
+      { indexer: indexer([]), standard: true, kascov: fetchers },
+      node([{ n: 2, redeem: std, covid: STD_COVID }]),
+    ),
+  ).rejects.toThrow(`kascov claims 2 cells of ${STD_COVID} but 1 verified`);
+});
