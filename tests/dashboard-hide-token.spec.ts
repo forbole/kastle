@@ -1,13 +1,15 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { build } from "vite";
 import http from "node:http";
 import { readFileSync, existsSync, statSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-// Hide / unhide a token on the dashboard. Renders the real Assets list (and
-// the real send picker / KRC-20 detail screen) through the asset-detail
-// harness; its storage.local stub persists in localStorage across reloads.
+// Hide / unhide a token: the dashboard tab-row menu opens the Manage Assets
+// page, a switch there edits the hidden set, Back returns to the list. Renders
+// the real Dashboard, ManageAssets, Assets list, send picker and detail
+// screens through the asset-detail harness; its storage.local stub persists in
+// localStorage across reloads.
 
 let base: string;
 let server: http.Server;
@@ -57,62 +59,106 @@ async function open(page: Page, route: string, query = "") {
   return errors;
 }
 
+// The real Dashboard: tab row with the Manage Assets menu, then the list.
 const dashboard = (page: Page, query = "") =>
+  open(page, "/dashboard-home", query);
+// The Assets list alone, for layout checks that measure the rows themselves.
+const assetsList = (page: Page, query = "") =>
   open(page, "/dashboard-assets", query);
-const manage = (page: Page) =>
-  page.getByRole("button", { name: "Manage", exact: true });
-const done = (page: Page) => page.getByRole("button", { name: "Done" });
+const menuButton = (page: Page) =>
+  page.getByRole("button", { name: "Manage Assets", exact: true });
+const menuItem = (page: Page) =>
+  page.getByRole("menuitem", { name: "Manage Assets", exact: true });
+const back = (page: Page) => page.getByRole("button", { name: "Back" });
 const switches = (page: Page) => page.getByRole("switch");
+// Token switches; native KAS rows (every network) carry a disabled one.
+const tokenSwitches = (page: Page) =>
+  page.getByRole("switch", { disabled: false });
+const lockedSwitches = (page: Page) =>
+  page.getByRole("switch", { disabled: true });
+// "Show <ticker>" plus " on <chain>" when the row carries a chain badge.
+const sw = (page: Page, ticker: string) =>
+  page.getByRole("switch", { name: new RegExp(`^Show ${ticker}( on .+)?$`) });
 // Two KCC-20 rows (base + extension) and two KRC-20 rows in the stubs.
 const ROWS = 4;
 
-async function hide(page: Page, name: RegExp) {
-  await manage(page).click();
-  await page.getByRole("switch", { name }).first().click();
-  await done(page).click();
+/** Tab row icon -> its one-item menu -> the Manage Assets page. */
+async function openManage(page: Page) {
+  await menuButton(page).click();
+  await expect(menuItem(page)).toHaveCount(1);
+  await menuItem(page).click();
+  await expect(sw(page, "KAS").first()).toBeVisible();
 }
 
-test("entering manage mode puts a labelled switch on every token row", async ({
+/** Flip a switch to `shown`; retried, since a press before storage loads is ignored. */
+async function setShown(s: Locator, shown: boolean) {
+  await expect(async () => {
+    if ((await s.getAttribute("aria-checked")) !== String(shown))
+      await s.click();
+    await expect(s).toHaveAttribute("aria-checked", String(shown), {
+      timeout: 500,
+    });
+  }).toPass();
+}
+
+/** Back from the page lands on the dashboard list again. */
+async function goBack(page: Page) {
+  await back(page).click();
+  await expect(menuButton(page)).toBeVisible();
+}
+
+async function hide(page: Page, ticker: string) {
+  await openManage(page);
+  for (const s of await sw(page, ticker).all()) await setShown(s, false);
+  await goBack(page);
+}
+
+async function hideAll(page: Page, except?: string) {
+  await openManage(page);
+  for (const s of await tokenSwitches(page).all())
+    if (!except || !(await s.getAttribute("aria-label"))!.includes(except))
+      await setShown(s, false);
+  await goBack(page);
+}
+
+test("the tab-row menu opens the Manage Assets page, which puts a labelled switch on every token row", async ({
   page,
 }) => {
   const errors = await dashboard(page);
   await expect(switches(page)).toHaveCount(0);
-  await manage(page).click();
-  await expect(switches(page)).toHaveCount(ROWS);
-  for (const name of ["Show KASPY", "Show NACHO"]) {
-    const sw = page.getByRole("switch", { name, exact: true });
-    await expect(sw).toHaveAttribute("aria-checked", "true");
-  }
+  await openManage(page);
+  await expect(tokenSwitches(page)).toHaveCount(ROWS);
+  for (const name of ["KASPY", "NACHO"])
+    await expect(sw(page, name)).toHaveAttribute("aria-checked", "true");
+  await expect(sw(page, "KTEST")).toHaveCount(2);
   // Keyboard: Space flips the focused switch.
-  const kaspy = page.getByRole("switch", { name: "Show KASPY" });
+  const kaspy = sw(page, "KASPY");
   await kaspy.focus();
   await page.keyboard.press("Space");
   await expect(kaspy).toHaveAttribute("aria-checked", "false");
   // The balance column sits left of the switch, inside the row.
-  const row = page.getByTestId("manage-row").filter({ hasText: "KASPY" });
-  const bal = (await row.getByText("1", { exact: true }).boundingBox())!;
+  const row = page.getByRole("listitem").filter({ has: kaspy });
+  const bal = (await row.getByText("1 KASPY", { exact: true }).boundingBox())!;
   const swb = (await kaspy.boundingBox())!;
   expect(bal.x + bal.width).toBeLessThanOrEqual(swb.x);
   expect(errors).toEqual([]);
 });
 
-test("switching a token off and pressing Done removes only that row", async ({
+test("switching a token off and going back removes only that row", async ({
   page,
 }) => {
   await dashboard(page);
   await expect(page.getByText("KASPY")).toBeVisible();
-  await hide(page, /^Show KASPY$/);
+  await hide(page, "KASPY");
   await expect(switches(page)).toHaveCount(0);
   await expect(page.getByText("KASPY")).toHaveCount(0);
   await expect(page.getByText("NACHO")).toBeVisible();
   await expect(page.getByText("KTEST")).toHaveCount(2);
-  // The manage mode still lists it, switched off; on again brings it back.
-  await manage(page).click();
-  await expect(
-    page.getByRole("switch", { name: "Show KASPY" }),
-  ).toHaveAttribute("aria-checked", "false");
-  await page.getByRole("switch", { name: "Show KASPY" }).click();
-  await done(page).click();
+  // The page still lists it, switched off; on again brings it back.
+  await openManage(page);
+  await expect(sw(page, "KASPY")).toHaveAttribute("aria-checked", "false");
+  await setShown(sw(page, "KASPY"), true);
+  await goBack(page);
   await expect(page.getByText("KASPY")).toBeVisible();
 });
 
@@ -120,7 +166,7 @@ test("the choice survives a popup reload and stays per account", async ({
   page,
 }) => {
   await dashboard(page);
-  await hide(page, /^Show NACHO$/);
+  await hide(page, "NACHO");
   await page.reload();
   await expect(page.getByText("KASPY")).toBeVisible();
   await expect(page.getByText("NACHO")).toHaveCount(0);
@@ -129,34 +175,39 @@ test("the choice survives a popup reload and stays per account", async ({
   await expect(page.getByText("NACHO")).toBeVisible();
 });
 
-test("switching account mid-Manage never writes the old draft to the new account", async ({
+test("a toggle applies only to the account it was made on", async ({
   page,
 }) => {
+  const aKey = "storage.local:hiddenTokens:mainnet:kaspa:qowner";
+  const bKey = "storage.local:hiddenTokens:mainnet:kaspa:qsecond";
+  const stored = (k: string) =>
+    page.evaluate((key) => localStorage.getItem(key), k);
   // Account B hides NACHO on its own.
   await dashboard(page, "&account2=1");
-  await hide(page, /^Show NACHO$/);
-  const bKey = "storage.local:hiddenTokens:mainnet:kaspa:qsecond";
-  const stored = () => page.evaluate((k) => localStorage.getItem(k), bKey);
-  const before = await stored();
-  expect(before).toBe(JSON.stringify(["krc20:nacho"]));
-  // Account A opens Manage and switches KASPY off in its draft...
+  await hide(page, "NACHO");
+  expect(await stored(bKey)).toBe(JSON.stringify(["krc20:nacho"]));
+  // Account A switches KASPY off on the page: written to A alone.
   const errors = await dashboard(page);
-  await manage(page).click();
-  await page.getByRole("switch", { name: /^Show KASPY$/ }).click();
-  // ...then the side menu selects account B; the list stays mounted.
+  await openManage(page);
+  await setShown(sw(page, "KASPY"), false);
+  await expect.poll(() => stored(aKey)).toBe(JSON.stringify(["krc20:kaspy"]));
+  expect(await stored(bKey)).toBe(JSON.stringify(["krc20:nacho"]));
+  // The side menu selects account B while the page stays mounted: it now
+  // shows B's set, not A's.
   await page.evaluate(() =>
     (window as unknown as { __selectAccount2: () => void }).__selectAccount2(),
   );
-  // The toggle press that would have been Done; if the draft was discarded
-  // it reads Manage, so open B's own draft and press Done on that.
-  // Manage is icon-only (aria-label), so read the role name, not textContent.
-  await expect(
-    page.getByRole("button", { name: /^(Done|Manage)$/ }),
-  ).toBeVisible();
-  if (await manage(page).isVisible()) await manage(page).click();
-  await done(page).click();
-  await expect(switches(page)).toHaveCount(0);
-  expect(await stored()).toBe(before);
+  await expect(sw(page, "NACHO")).toHaveAttribute("aria-checked", "false");
+  await expect(sw(page, "KASPY")).toHaveAttribute("aria-checked", "true");
+  // A toggle made now lands on B, never on A.
+  await setShown(sw(page, "KTEST").first(), false);
+  await expect
+    .poll(async () => JSON.parse((await stored(bKey)) ?? "[]").length)
+    .toBe(2);
+  expect(JSON.parse((await stored(bKey))!)).toContain("krc20:nacho");
+  expect(await stored(aKey)).toBe(JSON.stringify(["krc20:kaspy"]));
+  // Back on the dashboard, account B: KASPY shows, NACHO stays hidden.
+  await goBack(page);
   await expect(page.getByText("KASPY")).toBeVisible();
   await expect(page.getByText("NACHO")).toHaveCount(0);
   expect(errors).toEqual([]);
@@ -172,11 +223,10 @@ test("a hidden KRC-20 and KCC-20 leave the send picker; KAS and the detail route
   page,
 }) => {
   await dashboard(page);
-  await manage(page).click();
-  await page.getByRole("switch", { name: "Show KASPY" }).click();
-  for (const sw of await page.getByRole("switch", { name: /KTEST/ }).all())
-    await sw.click();
-  await done(page).click();
+  await openManage(page);
+  await setShown(sw(page, "KASPY"), false);
+  for (const s of await sw(page, "KTEST").all()) await setShown(s, false);
+  await goBack(page);
   await expect(page.getByText("KASPY")).toHaveCount(0);
   await expect(page.getByText("KTEST")).toHaveCount(0);
 
@@ -198,7 +248,7 @@ test("the send picker lists everything while storage is still being read, then s
   page,
 }) => {
   await dashboard(page);
-  await hide(page, /^Show KASPY$/);
+  await hide(page, "KASPY");
   await open(page, "/asset-select", "&slowStorage=2500");
   // loaded === false: the whole list, never a blank panel.
   await expect(page.getByText("KASPY").first()).toBeVisible();
@@ -211,9 +261,7 @@ test("with every token hidden the send picker still reaches native KAS", async (
   page,
 }) => {
   await dashboard(page);
-  await manage(page).click();
-  for (const sw of await switches(page).all()) await sw.click();
-  await done(page).click();
+  await hideAll(page);
   await expect(page.getByTestId("tokens-all-hidden")).toBeVisible();
   const errors = await open(page, "/asset-select");
   await expect(kasPick(page)).toBeVisible();
@@ -224,8 +272,9 @@ test("with every token hidden the send picker still reaches native KAS", async (
 });
 
 test("only the holdings lists read the hidden set", () => {
-  // Dashboard, send picker, swap selectors. Not Activity (a record of what
-  // happened), token detail screens, MintToken, balances or totals.
+  // Dashboard, send picker, swap selectors, and the Manage Assets page that
+  // edits the set. Not Activity (a record of what happened), token detail
+  // screens, MintToken, balances or totals.
   const hits: string[] = [];
   const walk = (dir: string) => {
     for (const e of readdirSync(dir, { withFileTypes: true })) {
@@ -240,6 +289,7 @@ test("only the holdings lists read the hidden set", () => {
   expect(hits.map((p) => path.relative(process.cwd(), p)).sort()).toEqual(
     [
       path.join("components", "dashboard", "Assets.tsx"),
+      path.join("components", "screens", "ManageAssets.tsx"),
       path.join("components", "screens", "Swap.tsx"),
       path.join("components", "screens", "asset-selector", "AssetSelect.tsx"),
     ].sort(),
@@ -250,16 +300,17 @@ test("hiding every token shows a calm empty state with the way back", async ({
   page,
 }) => {
   await dashboard(page);
-  await manage(page).click();
-  for (const sw of await switches(page).all()) await sw.click();
-  await done(page).click();
+  await hideAll(page);
   const empty = page.getByTestId("tokens-all-hidden");
   await expect(empty).toContainText("All your tokens are hidden.");
   await expect(switches(page)).toHaveCount(0);
+  // The way back opens the Manage Assets page, every token switched off.
   await empty.getByRole("button", { name: "Show tokens" }).click();
-  await expect(switches(page)).toHaveCount(ROWS);
-  await page.getByRole("switch", { name: "Show NACHO" }).click();
-  await done(page).click();
+  await expect(tokenSwitches(page)).toHaveCount(ROWS);
+  for (const s of await tokenSwitches(page).all())
+    await expect(s).toHaveAttribute("aria-checked", "false");
+  await setShown(sw(page, "NACHO"), true);
+  await goBack(page);
   await expect(empty).toHaveCount(0);
   await expect(page.getByText("NACHO")).toBeVisible();
 });
@@ -267,18 +318,17 @@ test("hiding every token shows a calm empty state with the way back", async ({
 test("one flat list: no heading between KAS and the tokens, and KAS cannot be hidden", async ({
   page,
 }) => {
-  await dashboard(page);
-  await manage(page).click();
+  await assetsList(page);
   const kas = page.getByTestId("kas-row");
   await expect(kas).toBeVisible();
   await expect(kas.getByRole("switch")).toHaveCount(0);
-  await expect(page.getByTestId("manage-row").first()).toBeVisible();
+  await expect(page.locator('[data-part="ticker"]').nth(1)).toBeVisible();
   // Every sibling between the KAS row and the first token row.
   const between = await kas.evaluate((el) => {
     const out: { heading: boolean; text: string }[] = [];
     for (
       let n = el.nextElementSibling;
-      n && n.getAttribute("data-testid") !== "manage-row";
+      n && !n.querySelector('[data-part="ticker"]');
       n = n.nextElementSibling
     )
       out.push({
@@ -287,122 +337,145 @@ test("one flat list: no heading between KAS and the tokens, and KAS cannot be hi
           !!n.querySelector('h1,h2,h3,h4,h5,h6,[role="heading"]'),
         text: (n.textContent ?? "").trim(),
       });
-    return out;
+    return { out, reached: !!el.nextElementSibling };
   });
-  for (const b of between) {
+  expect(between.reached).toBe(true);
+  for (const b of between.out) {
     expect(b.heading).toBe(false);
     expect(b.text).not.toMatch(/\bTokens\b/);
   }
   await expect(page.getByRole("heading")).toHaveCount(0);
   await expect(page.getByText("Tokens", { exact: true })).toHaveCount(0);
+  // On the Manage Assets page the KAS row's switch is locked on.
+  await dashboard(page);
+  await openManage(page);
+  const kasSwitch = page.getByRole("switch", { name: "Show KAS", exact: true });
+  await expect(kasSwitch).toBeDisabled();
+  await expect(kasSwitch).toHaveAttribute("aria-checked", "true");
+  await kasSwitch.dispatchEvent("click");
+  await expect(kasSwitch).toHaveAttribute("aria-checked", "true");
+  await goBack(page);
+  await expect(page.getByTestId("kas-row")).toBeVisible();
 });
 
-// Asset rows (one ticker each) and the Manage / Done control, in document order.
-const listOrder = (page: Page) =>
-  page.evaluate(() =>
-    [...document.querySelectorAll('[data-part="ticker"], button')]
-      .map((n) =>
-        n.matches('[data-part="ticker"]')
-          ? n.closest('[data-testid="kas-row"]')
-            ? "kas"
-            : "token"
-          : /^(Manage|Done)$/.test(
-                (n.getAttribute("aria-label") ?? n.textContent ?? "").trim(),
-              )
-            ? "control"
-            : "",
-      )
-      .filter(Boolean),
-  );
-
-test("the Manage / Done control sits in a header row above every asset row", async ({
+test("the Manage Assets control sits at the right end of the tab row", async ({
   page,
 }) => {
-  await dashboard(page);
-  for (const mode of ["Manage", "Done"]) {
-    const order = await listOrder(page);
-    const control = order.indexOf("control");
-    expect(control, `${mode}: ${order}`).toBeGreaterThanOrEqual(0);
-    expect(control, `${mode}: ${order}`).toBeLessThan(order.indexOf("kas"));
-    // KAS, then the tokens, continuous: no control between them.
-    const between = order.slice(order.indexOf("kas"), order.indexOf("token"));
-    expect(between, mode).not.toContain("control");
-    if (mode === "Manage") await manage(page).click();
+  const errors = await dashboard(page);
+  const tab = (name: string) => page.getByText(name, { exact: true }).first();
+  const control = menuButton(page);
+  await expect(control).toBeVisible();
+  const c = (await control.boundingBox())!;
+  const row = (await control.evaluate((el) => {
+    // The tab row: the nearest ancestor that also holds the Text tab.
+    let n = el.parentElement;
+    while (n && !(n.textContent ?? "").includes("Text")) n = n.parentElement;
+    return n!.getBoundingClientRect().toJSON();
+  })) as { x: number; width: number };
+  // Same row as the tabs, right of the last one, flush with the row's end.
+  for (const name of ["Assets", "NFT", "Names", "Text"]) {
+    const t = (await tab(name).boundingBox())!;
+    expect(t.x + t.width, name).toBeLessThanOrEqual(c.x);
+    expect(Math.abs(t.y + t.height / 2 - (c.y + c.height / 2))).toBeLessThan(
+      c.height / 2,
+    );
   }
-  await expect(done(page)).toBeVisible();
+  expect(Math.round(c.x + c.width)).toBe(Math.round(row.x + row.width));
+  // Above every asset row.
+  const kas = (await page.getByTestId("kas-row").boundingBox())!;
+  expect(c.y + c.height).toBeLessThanOrEqual(kas.y);
+  // Assets tab only.
+  await tab("NFT").click();
+  await expect(control).toHaveCount(0);
+  await tab("Assets").click();
+  await expect(control).toBeVisible();
+  // A one-item menu; Esc closes it, choosing the item opens the page.
+  await control.click();
+  await expect(page.getByRole("menuitem")).toHaveCount(1);
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("menu")).toHaveCount(0);
+  await openManage(page);
+  await expect(tokenSwitches(page)).toHaveCount(ROWS);
+  expect(errors).toEqual([]);
 });
 
+// Search moved to its own screen (Home header icon); the list no longer filters.
 const search = (page: Page) =>
   page.getByRole("searchbox", { name: "Search assets" });
 const tickers = (page: Page) => page.locator('[data-part="ticker"]');
 
-test("typing a token's label narrows the list to it; clear restores it", async ({
+test("the list has no inline search: every row shows, with no Clear control", async ({
   page,
 }) => {
   const errors = await dashboard(page);
   const all = await tickers(page).count();
+  await expect(search(page)).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Clear search" })).toHaveCount(
     0,
   );
-  // Case-insensitive, on the displayed ticker.
-  await search(page).fill("nacho");
-  await expect(tickers(page)).toHaveText(["NACHO"]);
-  await expect(page.getByTestId("kas-row")).toHaveCount(0);
-  await page.getByRole("button", { name: "Clear search" }).click();
-  await expect(search(page)).toHaveValue("");
+  await expect(tickers(page).filter({ hasText: "NACHO" })).toHaveCount(1);
+  await expect(page.getByTestId("kas-row")).toBeVisible();
   await expect(tickers(page)).toHaveCount(all);
   await expect(page.getByText("NACHO")).toBeVisible();
   expect(errors).toEqual([]);
 });
 
-test("in manage mode the search still works, KAS has no switch, a token row does", async ({
+test("on the Manage Assets page every token row has a switch and KAS rows are locked", async ({
   page,
 }) => {
-  await dashboard(page);
-  await manage(page).click();
-  await expect(page.getByTestId("kas-row").getByRole("switch")).toHaveCount(0);
+  const errors = await dashboard(page);
+  await openManage(page);
+  await expect(search(page)).toHaveCount(0);
+  await expect(tokenSwitches(page)).toHaveCount(ROWS);
+  // Every row holds exactly one switch; token rows' are live.
+  const rows = page.getByRole("listitem");
+  const n = await rows.count();
+  expect(n).toBe(await switches(page).count());
+  for (const r of await rows.all())
+    await expect(r.getByRole("switch")).toHaveCount(1);
+  for (const t of ["KASPY", "NACHO"])
+    await expect(rows.filter({ hasText: t }).getByRole("switch")).toBeEnabled();
+  // Native KAS, on L1 and on every EVM network, is locked on and says why.
+  const locked = lockedSwitches(page);
+  expect(await locked.count()).toBeGreaterThanOrEqual(1);
   await expect(
-    page
-      .getByTestId("manage-row")
-      .filter({ hasText: "KASPY" })
-      .getByRole("switch"),
-  ).toHaveCount(1);
-  await search(page).fill("KASPY");
-  await expect(switches(page)).toHaveCount(1);
-  await expect(page.getByRole("switch", { name: "Show KASPY" })).toBeVisible();
-  await search(page).fill("kas");
-  await expect(page.getByTestId("kas-row")).toBeVisible();
-  await expect(page.getByTestId("kas-row").getByRole("switch")).toHaveCount(0);
-  await expect(done(page)).toBeVisible();
+    page.getByRole("switch", { name: "Show KAS", exact: true }),
+  ).toBeDisabled();
+  for (const s of await locked.all()) {
+    await expect(s).toHaveAttribute("aria-label", /^Show i?KAS( on .+)?$/);
+    await expect(s).toHaveAttribute("aria-checked", "true");
+    await expect(s.locator("..")).toHaveAttribute(
+      "aria-label",
+      "KAS always stays visible",
+    );
+  }
+  expect(errors).toEqual([]);
 });
 
-test("an unmatched query shows the empty state with the way back", async ({
+test("the list never shows a no-match state; the Manage Assets entry point stays reachable from the tab row", async ({
   page,
 }) => {
   await dashboard(page);
   const empty = page.getByTestId("assets-no-match");
   await expect(empty).toHaveCount(0);
-  await search(page).fill("zzzz-no-such-asset");
-  await expect(tickers(page)).toHaveCount(0);
-  await expect(empty).toBeVisible();
-  await expect(empty).toContainText("No assets match");
-  // Search and Manage stay reachable while the list is empty.
-  await expect(search(page)).toBeVisible();
-  await expect(manage(page)).toBeVisible();
-  await empty.getByRole("button", { name: "Show all assets" }).click();
-  await expect(search(page)).toHaveValue("");
+  await expect(search(page)).toHaveCount(0);
+  await expect(menuButton(page)).toBeVisible();
   await expect(page.getByTestId("kas-row")).toBeVisible();
-  // A matching query keeps the empty state hidden.
-  await search(page).fill("KTEST");
+  await expect(tickers(page).filter({ hasText: "KTEST" })).toHaveCount(2);
   await expect(empty).toBeHidden();
-  await expect(tickers(page)).toHaveCount(2);
+  // Still reachable, and still opens the page, once every token is hidden.
+  await hideAll(page);
+  await expect(page.getByTestId("tokens-all-hidden")).toBeVisible();
+  await expect(empty).toHaveCount(0);
+  await openManage(page);
+  await expect(tokenSwitches(page)).toHaveCount(ROWS);
 });
 
 test("a kascov-LISTED KCC-20 row reads like every other token row", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 500, height: 900 });
-  const errors = await dashboard(page, "&listed=1");
+  const errors = await assetsList(page, "&listed=1");
   // listed_decimals: 8 scales 200,000,000,000 base units to 2,000 LUKE.
   const luke = page.getByRole("button").filter({ hasText: "LUKE" });
   await expect(luke).toBeVisible();
@@ -443,8 +516,10 @@ test("a kascov-LISTED KCC-20 detail page shows the scaled balance", async ({
 }) => {
   await page.setViewportSize({ width: 500, height: 900 });
   const errors = await open(page, `/kcc20/${"ef".repeat(32)}`, "&listed=1");
-  // History amounts scale too (the stub's 100-unit receive).
-  await expect(page.getByText("+0.000001 LUKE")).toBeVisible();
+  // History amounts scale too: the stub's 100-unit receive at 8 decimals.
+  // The designed row prints the signed amount without the ticker.
+  await expect(page.getByText("+0.000001", { exact: true })).toBeVisible();
+  await expect(page.getByText("+0.000001 LUKE")).toHaveCount(0);
   await page.getByRole("tab", { name: "Token info" }).click();
   await expect(page.getByText("2,000 LUKE")).toBeVisible();
   await expect(page.getByText("8", { exact: true })).toBeVisible();
@@ -459,7 +534,7 @@ test("a ticker wider than the full balance still compacts the balance when that 
   // popup's width: the ticker (~153px) is wider than the full figure (~134px)
   // and overflows its ~119px by ~34px; compacting gives back ~90px.
   await page.setViewportSize({ width: 375, height: 900 });
-  const errors = await dashboard(
+  const errors = await assetsList(
     page,
     `&ktestSymbol=${"W".repeat(10)}&ktestAmount=123456789012`,
   );
@@ -481,28 +556,26 @@ const ownerKey = "storage.local:hiddenTokens:mainnet:kaspa:qowner";
 const storedIds = (page: Page) =>
   page.evaluate((k) => JSON.parse(localStorage.getItem(k) ?? "null"), ownerKey);
 
-test("an ERC-20 row carries the same switch in manage mode", async ({
+test("an ERC-20 row carries the same switch on the Manage Assets page", async ({
   page,
 }) => {
   const errors = await withErc20(page);
   await expect(page.getByText("WKAS")).toBeVisible();
   await expect(switches(page)).toHaveCount(0);
-  await manage(page).click();
-  await expect(switches(page)).toHaveCount(ROWS + 1);
-  const sw = page
-    .getByTestId("manage-row")
-    .filter({ hasText: "WKAS" })
-    .getByRole("switch", { name: "Show WKAS", exact: true });
-  await expect(sw).toHaveAttribute("aria-checked", "true");
-  // The switch flips the draft and never navigates away from the list.
-  await sw.click();
-  await expect(sw).toHaveAttribute("aria-checked", "false");
-  await expect(search(page)).toBeVisible();
-  // The row body itself does not navigate while managing either.
-  await page.getByTestId("manage-row").filter({ hasText: "WKAS" }).click();
-  await expect(search(page)).toBeVisible();
-  // Nothing is written until Done.
-  expect(await storedIds(page)).toBeNull();
+  await openManage(page);
+  await expect(tokenSwitches(page)).toHaveCount(ROWS + 1);
+  const row = page.getByRole("listitem").filter({ hasText: "WKAS" });
+  const wkas = row.getByRole("switch", { name: /^Show WKAS( on .+)?$/ });
+  await expect(wkas).toHaveAttribute("aria-checked", "true");
+  // The switch flips and never navigates away from the page.
+  await setShown(wkas, false);
+  await expect(back(page)).toBeVisible();
+  // The row body itself does not navigate either.
+  await row.click();
+  await expect(back(page)).toBeVisible();
+  await expect(wkas).toHaveAttribute("aria-checked", "false");
+  // No draft: the page writes the toggle straight to the store.
+  await expect.poll(() => storedIds(page)).toEqual([WKAS_ID]);
   expect(errors).toEqual([]);
 });
 
@@ -510,13 +583,11 @@ test("hiding an ERC-20 row stores erc20:<chain>:<addr> and showing it brings it 
   page,
 }) => {
   await withErc20(page);
-  await manage(page).click();
+  await openManage(page);
   // Fail on the missing switch itself, not on a timeout inside hide().
-  await expect(
-    page.getByRole("switch", { name: "Show WKAS", exact: true }),
-  ).toHaveCount(1);
-  await done(page).click();
-  await hide(page, /^Show WKAS$/);
+  await expect(sw(page, "WKAS")).toHaveCount(1);
+  await goBack(page);
+  await hide(page, "WKAS");
   await expect(switches(page)).toHaveCount(0);
   await expect(page.getByText("WKAS")).toHaveCount(0);
   await expect(page.getByText("KASPY")).toBeVisible();
@@ -525,37 +596,31 @@ test("hiding an ERC-20 row stores erc20:<chain>:<addr> and showing it brings it 
   await page.reload();
   await expect(page.getByText("KASPY")).toBeVisible();
   await expect(page.getByText("WKAS")).toHaveCount(0);
-  // Manage lists it switched off; on again brings the row back.
-  await manage(page).click();
-  const sw = page.getByRole("switch", { name: "Show WKAS", exact: true });
-  await expect(sw).toHaveAttribute("aria-checked", "false");
-  await sw.click();
-  await done(page).click();
+  // The page lists it switched off; on again brings the row back.
+  await openManage(page);
+  await expect(sw(page, "WKAS")).toHaveAttribute("aria-checked", "false");
+  await setShown(sw(page, "WKAS"), true);
+  await goBack(page);
   await expect(page.getByText("WKAS")).toBeVisible();
   expect(await storedIds(page)).toEqual([]);
 });
 
-test("the all-hidden state counts ERC-20 rows, and search does not break it", async ({
+test("the all-hidden state counts ERC-20 rows, with no inline search over it", async ({
   page,
 }) => {
   await withErc20(page);
   const empty = page.getByTestId("tokens-all-hidden");
   // Hide every row except WKAS: one visible ERC-20 row keeps the list.
-  await manage(page).click();
-  for (const sw of await switches(page).all())
-    if ((await sw.getAttribute("aria-label")) !== "Show WKAS") await sw.click();
-  await done(page).click();
+  await hideAll(page, "WKAS");
   await expect(page.getByText("WKAS")).toBeVisible();
   await expect(empty).toHaveCount(0);
   // Hide WKAS too: now every token is hidden.
-  await hide(page, /^Show WKAS$/);
+  await hide(page, "WKAS");
   await expect(empty).toContainText("All your tokens are hidden.");
-  // A search for the hidden row shows no match; clearing it restores the state.
-  await search(page).fill("WKAS");
-  await expect(empty).toHaveCount(0);
-  await expect(page.getByTestId("assets-no-match")).toBeVisible();
-  await page.getByRole("button", { name: "Clear search" }).click();
+  // No inline search or no-match state competes with the all-hidden state.
+  await expect(search(page)).toHaveCount(0);
+  await expect(page.getByTestId("assets-no-match")).toHaveCount(0);
   await expect(empty).toContainText("All your tokens are hidden.");
   await empty.getByRole("button", { name: "Show tokens" }).click();
-  await expect(switches(page)).toHaveCount(ROWS + 1);
+  await expect(tokenSwitches(page)).toHaveCount(ROWS + 1);
 });

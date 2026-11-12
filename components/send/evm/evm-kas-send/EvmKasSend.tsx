@@ -19,6 +19,8 @@ export const EvmKasSendFormSchema = z.object({
   userInput: z.string().optional(),
   address: z.string().optional(),
   domain: z.string().optional(),
+  resolvedFor: z.string().optional(),
+  resolvedAt: z.number().optional(),
   amount: z.string().optional(),
   amountFiat: z.string().optional(),
 });

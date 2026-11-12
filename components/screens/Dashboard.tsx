@@ -11,6 +11,7 @@ import {
   Gavel,
   Lock,
   Pencil,
+  Search,
   Settings,
 } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
@@ -30,6 +31,7 @@ import usePortfolioPerformance from "@/hooks/usePortfolioPerformance";
 import HoverTooltip from "../HoverTooltip";
 import KNSText from "@/components/dashboard/KNSText.tsx";
 import AddressesMenu from "../dashboard/AddressesMenu";
+import ManageAssetsMenu from "@/ui/popup/dashboard/ManageAssetsMenu";
 
 export default function Dashboard() {
   const { keyringLock } = useKeyring();
@@ -147,6 +149,14 @@ export default function Dashboard() {
           </div>
 
           <div className="flex">
+            <button
+              type="button"
+              aria-label="Search assets"
+              className="flex size-[46px] items-center justify-center text-white"
+              onClick={() => navigate("/asset-search")}
+            >
+              <Search size={20} />
+            </button>
             <button
               className="flex size-[46px] items-center justify-center text-white"
               onClick={() => navigate("/settings")}
@@ -381,6 +391,13 @@ export default function Dashboard() {
                   {tab}
                 </span>
               ))}
+              {/* Right end of the tab row: the dropdown anchors to this edge */}
+              <div className="ml-auto">
+                <ManageAssetsMenu
+                  isVisible={activeTab === "Assets"}
+                  onManageAssets={() => navigate("/manage-assets")}
+                />
+              </div>
             </div>
 
             {/* Tab Content */}

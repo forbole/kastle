@@ -5,7 +5,6 @@ import {
   symbolForCurrencyCode,
   textEllipsis,
 } from "@/lib/utils.ts";
-import React from "react";
 import { useNavigate } from "react-router-dom";
 import { applyDecimal } from "@/lib/krc20.ts";
 import { TokenItem } from "@/hooks/kasplex/useTokenListByAddress";
@@ -24,13 +23,6 @@ import {
 } from "@/ui/popup/kcc20/labels";
 import { useKcc20Price, useKrc20FilledToken } from "@/lib/kcc20/useKcc20Price";
 import TokenRow from "@/ui/popup/dashboard/TokenRow";
-import Switch from "@/ui/general/Switch";
-
-/** Manage mode: the row stops navigating and carries a shown/hidden switch. */
-export type ManageRow = {
-  shown: boolean;
-  onToggle: (shown: boolean) => void;
-};
 
 /** Dashboard search: an empty query matches; otherwise any label contains it, case-insensitively. */
 export const matchesQuery = (
@@ -44,36 +36,13 @@ export const matchesQuery = (
 export const ROW =
   "flex w-full items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3 text-left hover:border-white";
 
-export function ManagedRow({
-  manage,
-  label,
-  children,
-}: {
-  manage: ManageRow;
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className={ROW} data-testid="manage-row">
-      {children}
-      <Switch
-        checked={manage.shown}
-        onChange={manage.onToggle}
-        label={`Show ${label}`}
-      />
-    </div>
-  );
-}
-
 type TokenListItemProps = {
   token: TokenItem;
-  manage?: ManageRow;
   query?: string;
 };
 
 export default function TokenListItem({
   token,
-  manage,
   query = "",
 }: TokenListItemProps) {
   const navigate = useNavigate();
@@ -116,13 +85,6 @@ export default function TokenListItem({
     />
   );
 
-  if (manage)
-    return (
-      <ManagedRow manage={manage} label={tokenName || token.id}>
-        {body}
-      </ManagedRow>
-    );
-
   return (
     <div
       className={`${ROW} cursor-pointer`}
@@ -150,13 +112,7 @@ function compactKcc20Amount(amount: bigint, decimals?: number) {
   return short;
 }
 
-export function Kcc20TokenListItem({
-  token: scanned,
-  manage,
-}: {
-  token: Kcc20Token;
-  manage?: ManageRow;
-}) {
+export function Kcc20TokenListItem({ token: scanned }: { token: Kcc20Token }) {
   const navigate = useNavigate();
   const [settings] = useSettings();
   const { isKcc20Enabled } = useFeatureFlags();
@@ -216,16 +172,6 @@ export function Kcc20TokenListItem({
       fiat={fiat}
     />
   );
-
-  if (manage)
-    return (
-      <ManagedRow
-        manage={manage}
-        label={(meta?.symbol ?? token.tick) || textEllipsis(token.covenantId)}
-      >
-        {row}
-      </ManagedRow>
-    );
 
   return (
     <button

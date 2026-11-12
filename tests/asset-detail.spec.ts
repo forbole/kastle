@@ -551,8 +551,9 @@ test("KCC-20: the identity card shows on Token info, not on History", async ({
     name: "See activity history in explorer",
   });
   // History is the kascov list through the page's history slot.
+  // The designed row: title, "TX Hash" with its count, the bare signed amount.
   const row = page.getByRole("button", {
-    name: /Received.*From qsender.*\+1 KTEST/,
+    name: /^Received.*TX Hash\s*1\s*\+1\b/,
   });
   await expect(row).toBeVisible();
   await expect(explorer).toHaveCount(0);
@@ -581,7 +582,7 @@ test('KCC-20: an empty fallback page is not "No history yet", and paging continu
 }) => {
   const errors = await open(page, `/kcc20/${KCC20_ID}`, "&historyFallback=1");
   await expect(
-    page.getByRole("button", { name: /Received.*From qsender.*\+1 KTEST/ }),
+    page.getByRole("button", { name: /^Received.*TX Hash\s*1\s*\+1\b/ }),
   ).toBeVisible();
   await expect(page.getByText("Older history is not shown.")).toBeVisible();
   await expect(page.getByText("No history yet.")).toHaveCount(0);
@@ -677,17 +678,20 @@ test("KCC-20: Token info shows the identity block, then mobile's five rows", asy
   await expect(sendButton(page, "WHALE")).toBeVisible();
 });
 
-test("KCC-20: a movement row shows a signed amount and a counterparty, never the txid", async ({
+test("KCC-20: a movement row shows a title, TX Hash and a signed amount, never the txid", async ({
   page,
 }) => {
   await open(page, `/kcc20/${KCC20_ID}`);
   const row = page.getByRole("button", { name: /^Received/ });
   await expect(row).toBeVisible();
   const text = (await row.textContent())!;
-  expect(text).toMatch(/From qsender/);
-  expect(text).toMatch(/\+1 KTEST/);
-  // A date is exact: no "≈" beside the time.
-  expect(text).not.toMatch(/≈/);
+  expect(text).toMatch(/TX Hash\s*1/);
+  // The page names the token: the amount carries no symbol.
+  expect(text).toMatch(/\+1(?!\s*KTEST)/);
+  expect(text).not.toMatch(/KTEST/);
+  // No counterparty and no date on the designed row.
+  expect(text).not.toMatch(/From qsender/);
+  expect(text).not.toMatch(/\d{1,2}:\d{2}\s?[AP]M/);
   expect(text).not.toMatch(/[0-9a-f]{16}/);
   expect(text).not.toMatch(/Unknown|Unavailable|—/);
 });
