@@ -148,6 +148,9 @@ export default function useAnalytics() {
       captureWithSender("bridge_completed", properties),
     emitKassealTradeCompleted: (properties: KassealTradeCompletedProperties) =>
       captureWithSender("kasseal_trade_completed", properties),
+    // Same event and property as mobile's trackKcc20MigrationOpened.
+    emitKcc20MigrationOpened: (source: "bridge") =>
+      capture("kcc20_migration_opened", { source }),
     emitKasSignTx: (properties: {
       origin: string;
       status: "success" | "failed";

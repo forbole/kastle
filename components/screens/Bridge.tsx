@@ -38,6 +38,7 @@ import useFeeEstimateByGas from "@/hooks/evm/useFeeEstimateByGas";
 import { useKasFeeEstimate } from "@/hooks/useKasFeeEstimate";
 import useKaspaPrice from "@/hooks/useKaspaPrice";
 import useAnalytics from "@/hooks/useAnalytics";
+import { useKcc20Migration } from "@/hooks/useKcc20Migration";
 import useEvmHotWalletSigner from "@/hooks/wallet/useEvmHotWalletSigner";
 import useKaspaBalance from "@/hooks/wallet/useKaspaBalance";
 import useKaspaHotWalletSigner from "@/hooks/wallet/useKaspaHotWalletSigner";
@@ -134,7 +135,16 @@ export default function Bridge() {
   const evmSigner = useEvmHotWalletSigner();
   const kaspaSigner = useKaspaHotWalletSigner();
   const { kaspaPrice } = useKaspaPrice();
-  const { emitBridgeCompleted } = useAnalytics();
+  const { emitBridgeCompleted, emitKcc20MigrationOpened } = useAnalytics();
+  // The migrate row shows only for a wallet holding a payload-listed KRC-20.
+  const migration = useKcc20Migration({
+    address: account?.address,
+    isMainnet,
+  });
+  const migrationUrl =
+    migration.enabled && migration.migratableHeld.length > 0
+      ? migration.config?.url
+      : undefined;
 
   const evmChains = {
     kasplex: isMainnet ? kasplexMainnet : kasplexTestnet,
@@ -647,20 +657,21 @@ export default function Bridge() {
           )}
 
         {/* KRC-20 → KCC-20 migration runs on Kat Bridge, signed through window.kastle. */}
-        {isMainnet && (
+        {migrationUrl && (
           <button
             type="button"
             className="flex shrink-0 items-center justify-between gap-2 rounded-xl border border-daintree-700 bg-daintree-800 px-4 py-3 text-left text-sm"
-            onClick={() =>
-              chrome.tabs.create({ url: "https://katbridge.com/migrate" })
-            }
+            onClick={() => {
+              emitKcc20MigrationOpened("bridge");
+              chrome.tabs.create({ url: migrationUrl });
+            }}
           >
             <span className="flex min-w-0 flex-col">
               <span className="font-medium text-white">
                 Migrate KRC-20 to KCC-20
               </span>
               <span className="text-xs text-daintree-400">
-                Opens katbridge.com
+                Opens {new URL(migrationUrl).hostname}
               </span>
             </span>
             <i className="hn hn-angle-right text-xs text-white" />
