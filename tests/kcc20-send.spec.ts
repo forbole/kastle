@@ -760,6 +760,21 @@ test("KCC-20 Max shows a non-zero USD value on details and confirm", async ({
   expect(errors).toEqual([]);
 });
 
+// A typed fiat value derives the amount at the token's scale: 8 places on a
+// 6-decimal token fails decimalsError and Next stays disabled.
+test("a fiat value on a priced 6-decimal KCC-20 fills a sendable amount", async ({
+  page,
+}) => {
+  // 1,000,000 base units at 6 decimals = 1 NACHO, priced at $0.30.
+  const errors = await open(page, "&decimals=6&price=0.3");
+  await address(page).fill(RECIPIENT);
+  await page.locator('input[name="amountFiat"]').fill("0.1");
+  await expect(amount(page)).toHaveValue("0.333333");
+  await expect(page.getByText(/at most \d+ decimal places/)).toHaveCount(0);
+  await expect(next(page)).toBeEnabled();
+  expect(errors).toEqual([]);
+});
+
 test("an unpriced KCC-20 still sends with a zero USD value", async ({
   page,
 }) => {

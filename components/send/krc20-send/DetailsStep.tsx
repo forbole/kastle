@@ -489,9 +489,16 @@ export const TokenSendDetails = ({
                     );
 
                     if (!Number.isNaN(amountUsdNumber) && tokenCurrency !== 0) {
+                      // At the token's own scale: more fraction digits than
+                      // it has fail decimalsError and keep Next disabled.
+                      const fixed = (amountUsdNumber / tokenCurrency).toFixed(
+                        Math.min(Math.max(Math.trunc(asset.decimals), 0), 100),
+                      );
                       setValue(
                         "amount",
-                        (amountUsdNumber / tokenCurrency).toFixed(8),
+                        fixed.includes(".")
+                          ? fixed.replace(/\.?0+$/, "")
+                          : fixed,
                       );
 
                       await trigger("amount");
