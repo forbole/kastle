@@ -13,7 +13,7 @@ import { toHistoryRecord } from "@/lib/history/from-krc20";
 import useKrc20Logo from "@/hooks/kasplex/useKrc20Logo";
 import type { HistoryRecord } from "@/lib/history/types";
 import { HistoryList } from "@/ui/popup/history/HistoryList";
-import kasIcon from "@/assets/images/network-logos/kaspa.svg";
+import { CHAIN_BADGES } from "@/ui/popup/kcc20/AssetImage";
 
 // Validate the raw value: Number("") and Number(null) are 0 too, but a real
 // "0" is an integer token and keeps its ticker and fiat.
@@ -54,22 +54,27 @@ export function TokenHistory() {
     opList?.flatMap(
       (page) => page.result?.filter((op) => op.opAccept === "1") ?? [],
     ) ?? [];
-  const records = ops.map((op) => toHistoryRecord(op, ctx));
-  const opById = new Map<string, Op>(
-    records.map((record, i) => [record.id, ops[i]]),
-  );
+  // One walk builds each record and remembers its op, so the extras never
+  // depend on record ids being unique.
+  const opByRecord = new WeakMap<HistoryRecord, Op>();
+  const records = ops.map((op) => {
+    const record = toHistoryRecord(op, ctx);
+    opByRecord.set(record, op);
+    return record;
+  });
 
   // Commit and reveal are two transactions. Kasplex indexes an op from its
-  // reveal (hashRev), which spends the commit output, so an indexed reveal
-  // means a confirmed commit; txAccept says whether the reveal itself landed.
+  // reveal (hashRev), which spends the commit output, so a reveal hash proves
+  // a confirmed commit; txAccept says whether the reveal itself landed. With
+  // no hash nothing is on chain to count or prove, so the row claims neither.
   const getRowExtras = (record: HistoryRecord) => {
-    const op = opById.get(record.id);
+    const op = opByRecord.get(record);
     const isCommitted = !!op?.hashRev;
-    const isRevealed = op?.txAccept === "1";
+    const isRevealed = isCommitted && op?.txAccept === "1";
     return {
-      logo: logo ?? kasIcon,
-      chainBadge: kasIcon,
-      txCount: isCommitted && isRevealed ? 2 : 1,
+      logo,
+      chainBadge: CHAIN_BADGES.kcc20,
+      txCount: isCommitted ? (isRevealed ? 2 : 1) : undefined,
       isSymbolHidden: true,
       hashSteps: [
         { label: "Committed", isDone: isCommitted },

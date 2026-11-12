@@ -298,3 +298,22 @@ export function useEvmHistory({
     retry: noop,
   };
 }
+
+// Beside the EVM screens: their owner address, balances and token metadata.
+export function useEvmAddress() {
+  return EVM_OWNER;
+}
+export function useEvmKasBalance() {
+  return { data: { balance: "0" } };
+}
+export const EVM_TOKEN = "0x4444444444444444444444444444444444444444";
+export const EVM_TOKEN_LOGO = "data:image/gif;base64,R0lGODlhAQABAAAAACw=";
+export function useErc20Info() {
+  return { symbol: "TKN", image: EVM_TOKEN_LOGO };
+}
+export function useErc20Balance() {
+  return { data: { balance: "0" } };
+}
+export function useErc20Image() {
+  return { logoUrl: undefined };
+}

@@ -8,6 +8,8 @@ import { Kcc20History } from "@/components/kcc20-asset/Kcc20History";
 import { useEvmHistory } from "@/hooks/evm/useEvmHistory";
 import type { Kcc20Token } from "@/lib/kcc20";
 import { HistoryList } from "@/ui/popup/history/HistoryList";
+import EvmKasAsset from "@/components/screens/EvmKasAsset";
+import Erc20Asset from "@/components/screens/Erc20Asset";
 import { EVM_CHAIN, EVM_OWNER, OWNER } from "./stubs";
 
 const token: Kcc20Token = {
@@ -46,6 +48,9 @@ const router = createMemoryRouter(
     { path: "/krc20/:ticker", element: <TokenHistory /> },
     { path: "/kcc20", element: <Kcc20History address={OWNER} token={token} /> },
     { path: "/evm", element: <EvmHistory /> },
+    // The two real EVM screens, which pass the designed row's extras.
+    { path: "/evm-kas/:chainId", element: <EvmKasAsset /> },
+    { path: "/erc20/:chainId/:address", element: <Erc20Asset /> },
   ],
   { initialEntries: [params.get("route") ?? "/kas"] },
 );

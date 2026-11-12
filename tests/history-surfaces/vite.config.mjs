@@ -26,6 +26,10 @@ const modules = {
   "hooks/kasplex/useTokenInfo": "useTokenInfo",
   "hooks/useFeatureFlags": "useFeatureFlags",
   "hooks/useSettings": "useSettings",
+  "hooks/evm/useEvmAddress": "useEvmAddress",
+  "hooks/evm/useEvmKasBalance": "useEvmKasBalance",
+  "hooks/evm/useErc20Info": "useErc20Info",
+  "hooks/evm/useErc20Balance": "useErc20Balance",
   // Only its explorer link tables; the screen itself is not under test.
   "components/screens/Settings": "explorerTxLinks",
 };

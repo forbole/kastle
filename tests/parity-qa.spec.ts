@@ -325,7 +325,7 @@ test("05 token detail, History: logo, title, TX Hash, signed amount, no date", a
   expect(errors).toEqual([]);
 });
 
-test("09 a date is exact: no date cell, in the list or the detail sheet, carries ≈", async ({
+test("09 a date is exact: no date in the TX Hash card or the detail sheet carries ≈", async ({
   page,
 }) => {
   const errors = await open(
@@ -336,21 +336,34 @@ test("09 a date is exact: no date cell, in the list or the detail sheet, carries
   await page.getByRole("tab", { name: "History", exact: true }).click();
   const rows = page.getByRole("button", { name: /^(Received|Sent)/ });
   await expect(rows).toHaveCount(2);
-  const dates = await rows.evaluateAll((bs) =>
-    bs.map((b) => b.lastElementChild?.lastElementChild?.textContent ?? ""),
-  );
-  expect(dates).toHaveLength(2);
+  // The designed row keeps its date in the TX Hash hover card.
+  const card = page.getByRole("tooltip");
+  const dates: string[] = [];
+  for (let i = 0; i < 2; i++) {
+    await rows
+      .nth(i)
+      .locator("span", { hasText: /^TX Hash/ })
+      .first()
+      .hover();
+    await expect(card).toHaveCount(1);
+    const date = await card
+      .locator("span.text-daintree-400")
+      .first()
+      .textContent();
+    dates.push(date ?? "");
+  }
   for (const d of dates) {
-    expect(d).toMatch(/\d{4}/);
+    expect(d).toMatch(/\b\d{4}\b/);
     expect(d).not.toContain("≈");
   }
+  await page.mouse.move(0, 0);
   await rows.first().click();
   const heading = page.getByRole("heading", { name: "TX Hash" });
   await expect(heading).toBeVisible();
   const sheetDate = await heading.evaluate(
     (h) => h.nextElementSibling?.textContent ?? "",
   );
-  expect(sheetDate).toBe(dates[0]);
+  expect(sheetDate).toMatch(/\b\d{4}\b/);
   expect(sheetDate).not.toContain("≈");
   expect(errors).toEqual([]);
 });

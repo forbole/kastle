@@ -4,6 +4,7 @@ import http from "node:http";
 import { readFileSync, existsSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { EVM_CHAIN, EVM_TOKEN, EVM_TOKEN_LOGO } from "./history-surfaces/stubs";
 
 // Every per-asset history renders through the shared HistoryList/HistoryRow/
 // HistoryDetail. The harness in tests/history-surfaces mounts the four real
@@ -29,6 +30,10 @@ type Surface = {
   sheets: Sheet[];
   // The screen passes getRowExtras: logo, "TX Hash" + count, no symbol, no date.
   designed?: boolean;
+  // Designed rows with an amount carry a fiat value: the fiat line is required.
+  fiat?: boolean;
+  // The token logo the row must show, when the harness pins one.
+  logo?: string;
 };
 
 const row = (
@@ -40,11 +45,17 @@ const row = (
 
 // A designed row: under the title the "TX Hash" label and its count, the amount
 // without the page's symbol, and no date (it lives in the TX Hash card).
+// A null count is a row with nothing on chain: "TX Hash" with no badge.
 const designedRow = (
   title: string,
   amount: string | null,
-  txCount = 1,
-): Row => ({ title, line: `TX Hash${txCount}`, amount, time: false });
+  txCount: number | null = 1,
+): Row => ({
+  title,
+  line: `TX Hash${txCount ?? ""}`,
+  amount,
+  time: false,
+});
 
 // Fixture order per tests/history-surfaces/stubs.tsx: out, in, self, no
 // amount, no time, no counterparty. KAS cannot lack an amount and KCC-20
@@ -62,6 +73,7 @@ const SURFACES: Surface[] = [
       designedRow("Sent", "-30"),
     ],
     designed: true,
+    fiat: true,
     sheets: [
       { row: 0, status: "Finalized", value: true, txid: true, explorer: true },
     ],
@@ -76,8 +88,8 @@ const SURFACES: Surface[] = [
       designedRow("Self transfer", "1", 2),
       designedRow("Received", null, 2),
       designedRow("Received", "+1", 2),
-      // No reveal hash: the commit is not known to be confirmed, one step.
-      designedRow("Sent", "-1", 1),
+      // No reveal hash: nothing on chain to count.
+      designedRow("Sent", "-1", null),
     ],
     designed: true,
     sheets: [
@@ -105,6 +117,41 @@ const SURFACES: Surface[] = [
     designed: true,
     sheets: [
       { row: 0, status: null, value: false, txid: true, explorer: true },
+    ],
+  },
+  {
+    // The real EVM KAS screen: KAS logo on its L2 badge, one tx per row.
+    key: "evm-kas",
+    route: `/evm-kas/${EVM_CHAIN}`,
+    rows: [
+      designedRow("Sent", "-1.5"),
+      designedRow("Received", "+1.5"),
+      designedRow("Self transfer", "0.5"),
+      designedRow("Contract deploy", null),
+      designedRow("Received", "+1.5"),
+      designedRow("Received", "+1.5"),
+    ],
+    designed: true,
+    sheets: [
+      { row: 0, status: "Finalized", value: false, txid: true, explorer: true },
+    ],
+  },
+  {
+    // The real ERC-20 screen: the token's own image on its L2 badge.
+    key: "erc20",
+    route: `/erc20/${EVM_CHAIN}/${EVM_TOKEN}`,
+    rows: [
+      designedRow("Sent", "-1.5"),
+      designedRow("Received", "+1.5"),
+      designedRow("Self transfer", "0.5"),
+      designedRow("Contract deploy", null),
+      designedRow("Received", "+1.5"),
+      designedRow("Received", "+1.5"),
+    ],
+    designed: true,
+    logo: EVM_TOKEN_LOGO,
+    sheets: [
+      { row: 0, status: "Finalized", value: false, txid: true, explorer: true },
     ],
   },
   {
@@ -202,9 +249,13 @@ for (const [i, s] of SURFACES.entries()) {
     const read = await rows.evaluateAll((bs) =>
       bs.map((b) => {
         const [circle, left, right] = [...b.children] as HTMLElement[];
+        const imgs = [...circle.querySelectorAll("img")];
         return {
           circleSvg: !!circle.querySelector("svg"),
           imgs: b.querySelectorAll("img").length,
+          // AssetImage: the token circle's image, then the corner badge.
+          logoSrc: imgs.find((i) => !i.classList.contains("absolute"))?.src,
+          badgeSrc: imgs.find((i) => i.classList.contains("absolute"))?.src,
           left: [...left.children].map((c) => c.textContent ?? ""),
           leftGrow: left.classList.contains("flex-grow"),
           rightClass: right.className,
@@ -218,7 +269,10 @@ for (const [i, s] of SURFACES.entries()) {
       const at = `${s.key} row ${n}`;
       if (s.designed) {
         // Token logo with its chain badge in place of the direction circle.
-        expect(got.imgs, at).toBeGreaterThan(0);
+        expect(got.circleSvg, at).toBe(false);
+        expect(got.badgeSrc, at).toMatch(/^(data:image|http)/);
+        expect(got.logoSrc, at).toMatch(/^(data:image|http)/);
+        if (s.logo) expect(got.logoSrc, at).toBe(s.logo);
       } else {
         // The direction circle, never a logo or the family's old markup.
         expect(got.circleSvg, at).toBe(true);
@@ -230,10 +284,14 @@ for (const [i, s] of SURFACES.entries()) {
       );
       expect(got.rightClass, at).toContain("items-end");
       if (s.designed) {
-        // Amount over the fiat value; no date cell on the designed row.
-        const rest = want.amount === null ? got.right : got.right.slice(1);
+        // Amount over the fiat value; no date cell on the designed row. A
+        // record with a fiat value must show it; one without shows nothing.
+        const hasFiat = !!s.fiat && want.amount !== null;
+        expect(got.right.length, at).toBe(
+          (want.amount === null ? 0 : 1) + (hasFiat ? 1 : 0),
+        );
         if (want.amount !== null) expect(got.right[0], at).toBe(want.amount);
-        for (const t of rest) expect(t, at).toMatch(/^≈ \$[\d,.]+ USD$/);
+        if (hasFiat) expect(got.right[1], at).toMatch(/^≈ \$[\d,.]+ USD$/);
         continue;
       }
       // Amount over time, both in the right-hand column.
@@ -310,6 +368,53 @@ for (const [i, s] of SURFACES.entries()) {
 
 // React Router keeps a route element mounted across a param change, so the
 // list's paging state (empty-page streak, phase) must be reset by its key.
+test("krc20: the TX Hash card shows Committed and Revealed, done only when the op proves them", async ({
+  page,
+}) => {
+  const errors = await open(page, "/krc20/KASPY");
+  const rows = rowsOf(page);
+  await expect(rows).toHaveCount(6);
+  const card = page.getByRole("tooltip");
+  const readCard = async (n: number) => {
+    await rows
+      .nth(n)
+      .locator("span", { hasText: /^TX Hash/ })
+      .first()
+      .hover();
+    await expect(card).toHaveCount(1);
+    return card.locator("li").evaluateAll((lis) =>
+      lis.map((li) => ({
+        label: li.textContent ?? "",
+        isDone: /check/.test(
+          li.querySelector("svg")?.getAttribute("class") ?? "",
+        ),
+        href: li.querySelector("a")?.getAttribute("href") ?? null,
+      })),
+    );
+  };
+
+  // Revealed: both steps done, Revealed links to the reveal on the explorer.
+  const revealed = await readCard(0);
+  expect(revealed.map((l) => [l.label, l.isDone])).toEqual([
+    ["Committed", true],
+    ["Revealed", true],
+  ]);
+  expect(revealed[0].href).toBeNull();
+  expect(revealed[1].href).toMatch(/^https?:\/\/.+[0-9a-f]{16}/);
+  await expect(
+    card.getByRole("link", { name: "Revealed on explorer" }),
+  ).toHaveCount(1);
+
+  // No hash: nothing on chain, so neither step is done and nothing links.
+  await page.mouse.move(0, 0);
+  const unknown = await readCard(5);
+  expect(unknown.map((l) => [l.label, l.isDone, l.href])).toEqual([
+    ["Committed", false, null],
+    ["Revealed", false, null],
+  ]);
+  expect(errors).toEqual([]);
+});
+
 test("krc20: switching ticker remounts the list, a capped source never caps the next", async ({
   page,
 }) => {
