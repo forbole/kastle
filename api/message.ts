@@ -43,6 +43,7 @@ export enum RpcErrorCode {
   INVALID_PARAMS = -32602,
   TIMEOUT = -320603,
   BATCH_REQUIRED = 4300,
+  COVENANT_TX_UNDECODABLE = 4301,
 }
 
 export const RPC_ERRORS = {
@@ -75,15 +76,17 @@ export const RPC_ERRORS = {
     code: RpcErrorCode.INVALID_PARAMS,
     message: "Invalid params",
   }),
+  // The wallet's KCC-20 pieces could not be read, or the request could not be
+  // decoded against them: the confirm screen could not show what it moves.
+  COVENANT_TX_UNDECODABLE: RpcErrorSchema.parse({
+    code: RpcErrorCode.COVENANT_TX_UNDECODABLE,
+    message:
+      "Kastle cannot verify what this covenant transaction does with your KCC-20 tokens right now, so it will not sign it. Try again in a moment.",
+  }),
   // A fragmented UTXO set makes the Generator return a daisy-chained batch
   // (compounding transactions first, the payment last). sendKaspa and
   // compoundUtxos can sign exactly one transaction and return one id, so they
   // refuse the batch rather than broadcast only its first, non-paying element.
-  COVENANT_TX_UNSUPPORTED: RpcErrorSchema.parse({
-    code: RpcErrorCode.METHOD_NOT_SUPPORTED,
-    message:
-      "Kastle does not sign covenant (version 1+) transactions requested by dApps yet: they can move KCC-20 tokens, which the confirm screen cannot show.",
-  }),
   BATCH_REQUIRED: RpcErrorSchema.parse({
     code: RpcErrorCode.BATCH_REQUIRED,
     message:

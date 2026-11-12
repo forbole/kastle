@@ -13,6 +13,16 @@ import { signAndSubmitBatch } from "@/lib/wallet/transaction-batch";
 
 const TESTS_DIR = path.dirname(fileURLToPath(import.meta.url));
 
+// signAndSubmitBatch refuses inputs with an empty signature script: stub
+// signers stand in a placeholder for the signature they would produce.
+const withPlaceholderSignatures = (transaction: Transaction) => {
+  transaction.inputs = transaction.inputs.map((input) => {
+    input.signatureScript = "00";
+    return input;
+  });
+  return transaction;
+};
+
 test.beforeAll(async () => {
   await init({
     module_or_path: fs.readFileSync(
@@ -73,7 +83,7 @@ const stubLedger = (rejectOnCall?: number) => {
         if (!input.utxo) throw new Error("input has no UTXO entry");
       }
       signed.push(transaction.id);
-      return transaction;
+      return withPlaceholderSignatures(transaction);
     },
   };
 };

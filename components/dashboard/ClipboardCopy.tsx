@@ -6,11 +6,12 @@ import { captureException } from "@sentry/react";
 
 type ClipboardCopyProps = {
   textToCopy?: string;
-} & React.HTMLAttributes<HTMLDivElement>;
+} & React.ButtonHTMLAttributes<HTMLButtonElement>;
 
 export default function ClipboardCopy({
   textToCopy,
   className,
+  children,
 }: ClipboardCopyProps) {
   const [copied, setCopied] = useState(false);
   const [, copy] = useCopyToClipboard();
@@ -31,7 +32,13 @@ export default function ClipboardCopy({
   };
 
   return (
-    <div className={className} onClick={handleCopy}>
+    // a native button: focusable, answers Enter and Space
+    <button
+      type="button"
+      className={className}
+      onClick={handleCopy}
+      aria-label={children ? undefined : "Copy"}
+    >
       {/* NOTE: Tooltip does not support tailwind */}
       <Tooltip
         id="clipboard"
@@ -44,8 +51,9 @@ export default function ClipboardCopy({
         opacity={1}
         isOpen={copied}
         place="bottom"
+        wrapper="span"
       />
-      <a
+      <span
         data-tooltip-id="clipboard"
         data-tooltip-content="Copied"
         className={twMerge(
@@ -53,6 +61,7 @@ export default function ClipboardCopy({
           copied ? "hn-check" : "hn-copy",
         )}
       />
-    </div>
+      {children}
+    </button>
   );
 }

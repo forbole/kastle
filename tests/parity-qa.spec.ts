@@ -341,7 +341,7 @@ test("09 a date is exact: no date cell, in the list or the detail sheet, carries
     expect(d).not.toContain("≈");
   }
   await rows.first().click();
-  const heading = page.locator("#kcc20-activity-title");
+  const heading = page.getByRole("heading", { name: "TX Hash" });
   await expect(heading).toBeVisible();
   const sheetDate = await heading.evaluate(
     (h) => h.nextElementSibling?.textContent ?? "",

@@ -1,0 +1,244 @@
+import { expect, test, type Page } from "@playwright/test";
+import { build } from "vite";
+import http from "node:http";
+import { readFileSync, existsSync, statSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+
+// The real dApp sign confirm screen, built by tests/sign-confirm-covenant/
+// with the real WASM and decode; only the wallet, settings and the KCC-20
+// pieces fetch are stubbed. The v1 tx is the kaspa.com repro.
+
+let base: string;
+let server: http.Server;
+
+test.beforeAll(async () => {
+  const outDir = path.join(tmpdir(), `kastle-sign-confirm-${process.pid}`);
+  // vite.build sets NODE_ENV=production in the worker; restore it for the
+  // React specs that run after in the same worker.
+  const nodeEnv = process.env.NODE_ENV;
+  try {
+    await build({
+      configFile: path.resolve("tests/sign-confirm-covenant/vite.config.mjs"),
+      build: { outDir },
+    });
+  } finally {
+    if (nodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = nodeEnv;
+  }
+  server = http.createServer((req, res) => {
+    const p = path.resolve(
+      outDir,
+      "." + decodeURIComponent((req.url ?? "/").split("?")[0]),
+    );
+    if (!p.startsWith(outDir + path.sep) && p !== outDir) {
+      res.writeHead(403).end();
+      return;
+    }
+    const file =
+      existsSync(p) && statSync(p).isFile()
+        ? p
+        : path.join(outDir, "index.html");
+    res.writeHead(200, {
+      "content-type":
+        {
+          ".js": "text/javascript",
+          ".css": "text/css",
+          ".wasm": "application/wasm",
+        }[path.extname(file)] ?? "text/html",
+    });
+    res.end(readFileSync(file));
+  });
+  await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
+  base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
+});
+test.afterAll(() => server?.close());
+
+async function open(page: Page, query: string) {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.goto(`${base}/?${query}`);
+  await expect(page.getByText("Change to your balance")).toBeVisible();
+  return errors;
+}
+
+const confirm = (page: Page) => page.getByRole("button", { name: "Confirm" });
+const h = (page: Page) => page.evaluate(() => window.__signHarness);
+const CAVEAT =
+  "Kastle verifies the pieces leaving your wallet. It cannot show the token amounts inside the destination covenant.";
+
+test("v1 spending a wallet piece lists it, with the caveat, and confirms", async ({
+  page,
+}) => {
+  const errors = await open(page, "tx=v1&pieces=a");
+  await expect(
+    page.getByText("KCC-20 tokens leaving your wallet"),
+  ).toBeVisible();
+  await expect(page.getByText("AAA", { exact: true })).toBeVisible();
+  await expect(page.getByText("-1.25", { exact: true })).toBeVisible();
+  // Outputs 0 and 1 are bound to input 0; output 1 is input 0's own P2SH.
+  await expect(
+    page.getByText(/^To kaspates\.\.\.\w{5}, kaspates/),
+  ).toBeVisible();
+  await expect(page.getByText(CAVEAT)).toBeVisible();
+  await expect(confirm(page)).toBeEnabled();
+  expect(await confirm(page).getAttribute("class")).toBe(
+    "flex flex-auto items-center justify-center rounded-full bg-icy-blue-400 py-5 font-semibold hover:bg-icy-blue-600",
+  );
+  await confirm(page).click();
+  const harness = await h(page);
+  expect(harness.confirmed).toBe(1);
+  // The harness stubs the standard-family flag off; the guard scans anyway.
+  expect(harness.pieceCalls).toEqual([
+    [{ network: "testnet-10", standard: true }],
+  ]);
+  expect(errors).toEqual([]);
+});
+
+const MAINNET_NONE =
+  "Kastle does not see any KCC-20 token of yours in this request.";
+const OFF_MAINNET_NONE =
+  "No KCC-20 tokens that Kastle can check on this network move in this request. Standard KCC-20 tokens cannot be checked here.";
+const OFF_MAINNET_CAVEAT =
+  "Standard KCC-20 tokens cannot be checked on this network.";
+
+test("v1 spending no piece on mainnet says Kastle sees none of yours, without the off-mainnet caveat", async ({
+  page,
+}) => {
+  await open(page, "tx=v1&pieces=none&network=mainnet");
+  await expect(page.getByText(MAINNET_NONE, { exact: true })).toBeVisible();
+  await expect(page.getByText(OFF_MAINNET_NONE)).toHaveCount(0);
+  await expect(page.getByText(CAVEAT, { exact: true })).toBeVisible();
+  await expect(page.getByText(OFF_MAINNET_CAVEAT)).toHaveCount(0);
+  await expect(confirm(page)).toBeEnabled();
+});
+
+test("v1 spending no piece on testnet-10 says only checkable tokens, with the extra caveat", async ({
+  page,
+}) => {
+  await open(page, "tx=v1&pieces=none&network=testnet-10");
+  await expect(page.getByText(OFF_MAINNET_NONE, { exact: true })).toBeVisible();
+  await expect(page.getByText(MAINNET_NONE)).toHaveCount(0);
+  await expect(
+    page.getByText(`${CAVEAT} ${OFF_MAINNET_CAVEAT}`, { exact: true }),
+  ).toBeVisible();
+});
+
+test("an authorized output with no address shows as an unknown destination", async ({
+  page,
+}) => {
+  await open(page, "tx=v1unknown&pieces=a");
+  await expect(
+    page.getByText(/^To Unknown destination \(output 0\), kaspates/),
+  ).toBeVisible();
+  await expect(confirm(page)).toBeEnabled();
+});
+
+test("v1 spending no piece says so in one line and confirms", async ({
+  page,
+}) => {
+  await open(page, "tx=v1&pieces=none");
+  await expect(page.getByText(OFF_MAINNET_NONE)).toBeVisible();
+  await expect(page.getByText("KCC-20 tokens leaving your wallet")).toHaveCount(
+    0,
+  );
+  await expect(confirm(page)).toBeEnabled();
+});
+
+test("two tokens: two rows, unknown ticker shows the short id and base units", async ({
+  page,
+}) => {
+  await open(page, "tx=v1&pieces=ab");
+  await expect(page.getByText("AAA", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("2c4c9e0f...0dd36", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("-42 base units", { exact: true })).toBeVisible();
+});
+
+test("while the decode runs, confirm stays disabled", async ({ page }) => {
+  await open(page, "tx=v1&pieces=hang");
+  await expect(
+    page.getByRole("status").filter({ hasText: "Checking" }),
+  ).toBeVisible();
+  await expect(confirm(page)).toBeDisabled();
+  await confirm(page).click({ force: true });
+  expect((await h(page)).confirmed).toBe(0);
+  await expect(page.getByRole("button", { name: "Cancel" })).toBeEnabled();
+});
+
+test("a failed fetch shows the failure and keeps confirm disabled", async ({
+  page,
+}) => {
+  await open(page, "tx=v1&pieces=throw");
+  await expect(page.getByRole("alert")).toContainText(
+    "could not check which KCC-20 tokens",
+  );
+  await expect(confirm(page)).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Cancel" })).toBeEnabled();
+});
+
+test("v1 keeps the caller's warning and appends the caveat", async ({
+  page,
+}) => {
+  await open(page, "tx=v1&pieces=none&warning=Partial%20outputs");
+  await expect(page.getByText(`Partial outputs\n\n${CAVEAT}`)).toBeVisible();
+});
+
+test("Ledger: covenant confirm is blocked with one line, Cancel still works", async ({
+  page,
+}) => {
+  const errors = await open(page, "tx=v1&pieces=a&wallet=ledger");
+  await expect(
+    page.getByText("Covenant transactions cannot be signed on Ledger."),
+  ).toBeVisible();
+  await expect(confirm(page)).toBeDisabled();
+  // L1: the blocked classes are space-separated from the base list.
+  expect(await confirm(page).getAttribute("class")).toBe(
+    "flex flex-auto items-center justify-center rounded-full bg-icy-blue-400 py-5 font-semibold hover:bg-icy-blue-600 cursor-not-allowed opacity-50 hover:bg-icy-blue-400",
+  );
+  await confirm(page).click({ force: true });
+  expect((await h(page)).confirmed).toBe(0);
+  await page.getByRole("button", { name: "Cancel" }).click();
+  expect((await h(page)).cancelled).toBe(1);
+  expect(errors).toEqual([]);
+});
+
+const PARTIAL_SIGHASH =
+  "This request signs with a partial sighash, so the KCC-20 movement shown above could change after you approve.";
+
+for (const sign of ["AllAnyOneCanPay", "SingleAnyOneCanPay"]) {
+  test(`v1 signed with ${sign} blocks confirm with one line`, async ({
+    page,
+  }) => {
+    const errors = await open(page, `tx=v1&pieces=a&sign=${sign}`);
+    await expect(
+      page.getByText(PARTIAL_SIGHASH, { exact: true }),
+    ).toBeVisible();
+    await expect(confirm(page)).toBeDisabled();
+    await confirm(page).click({ force: true });
+    expect((await h(page)).confirmed).toBe(0);
+    await expect(page.getByRole("button", { name: "Cancel" })).toBeEnabled();
+    expect(errors).toEqual([]);
+  });
+}
+
+test("v1 signed with All confirms", async ({ page }) => {
+  await open(page, "tx=v1&pieces=a&sign=All");
+  await expect(page.getByText("AAA", { exact: true })).toBeVisible();
+  await expect(page.getByText(PARTIAL_SIGHASH)).toHaveCount(0);
+  await expect(confirm(page)).toBeEnabled();
+  await confirm(page).click();
+  expect((await h(page)).confirmed).toBe(1);
+});
+
+test("v0 renders no token section, no caveat and never fetches", async ({
+  page,
+}) => {
+  const errors = await open(page, "tx=v0&pieces=throw");
+  await expect(page.getByText(/KCC-20/)).toHaveCount(0);
+  await expect(page.getByText(CAVEAT)).toHaveCount(0);
+  await expect(confirm(page)).toBeEnabled();
+  expect((await h(page)).pieceCalls).toEqual([]);
+  expect(errors).toEqual([]);
+});

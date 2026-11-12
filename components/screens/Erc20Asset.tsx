@@ -9,8 +9,7 @@ import useWalletManager from "@/hooks/wallet/useWalletManager";
 import AssetSendButton from "@/components/AssetSendButton";
 import useEvmAddress from "@/hooks/evm/useEvmAddress";
 import { useEvmHistory } from "@/hooks/evm/useEvmHistory";
-import { getChainImage } from "@/lib/layer2";
-import { EvmHistoryList } from "@/ui/popup/evm-history/EvmHistoryList";
+import { HistoryList } from "@/ui/popup/history/HistoryList";
 
 export default function Erc20Asset() {
   const navigate = useNavigate();
@@ -54,13 +53,19 @@ export default function Erc20Asset() {
         <AssetTabs active={activeTab} onChange={setActiveTab} />
 
         {activeTab === "history" && (
-          <EvmHistoryList
-            {...history}
-            onRetry={history.retry}
-            logo={asset?.image}
-            symbol={asset?.symbol}
-            chainImage={getChainImage((chainId ?? "0x0") as `0x${string}`)}
-          />
+          <div className="mt-8 flex flex-col">
+            <HistoryList
+              key={`${chainId}:${address}:${evmAddress}`}
+              records={history.records}
+              isLoading={history.isLoading}
+              isLoadingMore={history.isFetchingMore}
+              error={history.error}
+              hasMore={history.hasMore}
+              onLoadMore={history.loadMore}
+              onRetry={history.retry}
+              unavailableMessage={history.unavailable?.reason}
+            />
+          </div>
         )}
 
         {activeTab === "info" && asset && <Erc20Info asset={asset} />}

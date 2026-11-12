@@ -375,7 +375,7 @@ const STANDARD_TOKEN_CAP = 20;
 const STANDARD_CONCURRENCY = 3;
 
 /** `fn` over `items`, at most `limit` in flight; results in input order. */
-async function mapLimit<T, R>(
+export async function mapLimit<T, R>(
   items: T[],
   limit: number,
   fn: (item: T) => Promise<R>,
@@ -421,7 +421,7 @@ export function claimedMeta(
  * The wallet's node-verified cells of `tokenId`, each beside the kascov cell it came from;
  * `truncated` when kascov held back cells under either owner tuple.
  */
-async function ownedStandardCells(
+export async function ownedStandardCells(
   tokenId: string,
   rpc: RpcClient,
   walletPubkey32: Uint8Array,
@@ -451,6 +451,8 @@ async function ownedStandardCells(
       )!,
     })),
     truncated: pages.some((p) => p.truncated),
+    // How many distinct cells kascov claimed, before node verification.
+    claimed: cells.size,
   };
 }
 

@@ -1,13 +1,28 @@
+import { registerHooks } from "node:module";
 import { expect, test } from "@playwright/test";
 import type { HistoryRecord } from "@/lib/history/types";
-import {
+// The shell's format module reaches network logos and package.json; stub
+// images as their path and load JSON as JSON (as history-kas-adapter does).
+registerHooks({
+  load(url, context, next) {
+    if (url.endsWith(".json"))
+      return next(url, { ...context, importAttributes: { type: "json" } });
+    if (!/\.(svg|png)$/.test(url)) return next(url, context);
+    return {
+      format: "commonjs",
+      source: `module.exports = ${JSON.stringify(url)};`,
+      shortCircuit: true,
+    };
+  },
+});
+
+const {
   formatRawAmount,
   historyAmountText,
-  historyStatusBadge,
-  historySubLine,
+  historyCounterpartyText,
   historyTimeText,
   historyTitle,
-} from "@/ui/popup/evm-history/format";
+} = await import("@/ui/popup/history/format");
 
 const NA = { value: null, quality: "unavailable" } as const;
 const T = Date.UTC(2026, 10, 10, 15, 4);
@@ -38,17 +53,21 @@ function rec(over: Partial<HistoryRecord> = {}): HistoryRecord {
 }
 
 test.describe("evm-history format", () => {
-  test("decimals 6 vs 18", () => {
+  test("decimals 6 vs 18, 3 places rounded", () => {
     expect(formatRawAmount("1500000", 6)).toBe("1.5");
     expect(formatRawAmount("1500000000000000000", 18)).toBe("1.5");
-    expect(formatRawAmount("1", 18)).toBe("<0.00000001");
+    expect(formatRawAmount("1", 18)).toBe("0.000000000000000001");
     expect(formatRawAmount("10000000", 8)).toBe("0.1");
-    expect(formatRawAmount("1234567891234567", 6)).toBe("1,234,567,891.234567");
+    expect(formatRawAmount("1234567891234567", 6)).toBe("1,234,567,891.235");
+    // NACHO, 8 decimals: rounded to 3 places, the kcc20-send display.
+    expect(formatRawAmount("210759267306", 8)).toBe("2,107.593");
+    expect(formatRawAmount("1999500", 6)).toBe("2");
+    expect(formatRawAmount("0", 8)).toBe("0");
     expect(formatRawAmount("123456789", 0)).toBe("123,456,789");
   });
 
   test("signed amount text by direction", () => {
-    expect(historyAmountText(rec())).toBe("−1.5 USDC");
+    expect(historyAmountText(rec())).toBe("-1.5 USDC");
     expect(historyAmountText(rec({ direction: "in" }))).toBe("+1.5 USDC");
     expect(historyAmountText(rec({ direction: "self" }))).toBe("1.5 USDC");
   });
@@ -57,7 +76,7 @@ test.describe("evm-history format", () => {
     expect(historyAmountText(rec({ amount: NA }))).toBeNull();
   });
 
-  test("an exact zero amount is not treated as missing", () => {
+  test("an exact zero amount is not treated as missing, and takes no sign", () => {
     const zero = rec({
       direction: "in",
       amount: {
@@ -65,7 +84,8 @@ test.describe("evm-history format", () => {
         quality: "exact",
       },
     });
-    expect(historyAmountText(zero)).toBe("+0 KAS");
+    expect(historyAmountText(zero)).toBe("0 KAS");
+    expect(historyAmountText({ ...zero, direction: "out" })).toBe("0 KAS");
   });
 
   test("title by kind", () => {
@@ -77,26 +97,38 @@ test.describe("evm-history format", () => {
     expect(historyTitle("buy")).toBe("Bought");
     expect(historyTitle("sell")).toBe("Sold");
     expect(historyTitle("unknown")).toBe("Transaction");
+    // The family argument leaves the EVM titles as they were.
+    expect(historyTitle("send", "erc20")).toBe("Sent");
+    expect(historyTitle("receive", "evm-native")).toBe("Received");
   });
 
-  test("sub-line: time then counterparty", () => {
-    const time = historyTimeText(rec().time)!;
-    expect(historySubLine(rec())).toBe(`${time} · 0xab…bc`);
-    expect(historySubLine(rec({ counterparty: NA }))).toBe(time);
-    expect(historySubLine(rec({ time: NA, counterparty: NA }))).toBe("");
-    expect(
-      historySubLine(rec({ time: { value: T, quality: "approximate" } })),
-    ).toBe(`≈ ${time} · 0xab…bc`);
+  test("time text takes raw ms and is never approximate", () => {
+    const time = historyTimeText(T)!;
+    expect(time).toBeTruthy();
+    expect(time.startsWith("≈")).toBe(false);
+    expect(historyTimeText(null)).toBeNull();
   });
 
-  test("status badge only for pending and failed", () => {
-    expect(historyStatusBadge("pending")).toBe("Pending");
-    expect(historyStatusBadge("failed")).toBe("Failed");
-    expect(historyStatusBadge("finalized")).toBeNull();
-    expect(historyStatusBadge("unknown")).toBeNull();
+  test("counterparty: To for out, From for in, none for self or unavailable", () => {
+    expect(historyCounterpartyText(rec())).toBe("To 0xab…bc");
+    expect(historyCounterpartyText(rec({ direction: "in" }))).toBe(
+      "From 0xab…bc",
+    );
+    expect(historyCounterpartyText(rec({ direction: "self" }))).toBeNull();
+    expect(historyCounterpartyText(rec({ counterparty: NA }))).toBeNull();
   });
 
-  test("a 1-wei receive is bounded, never 0; exact zero stays 0", () => {
+  test("counterparty prefers the label over the address", () => {
+    const labelled = rec({
+      counterparty: {
+        value: { address: "0x1234567890abcdef1234", label: "Treasury" },
+        quality: "exact",
+      },
+    });
+    expect(historyCounterpartyText(labelled)).toBe("To Treasury");
+  });
+
+  test("a 1-wei receive shows its exact value, never 0; exact zero stays 0", () => {
     const wei = (raw: string) =>
       rec({
         direction: "in",
@@ -105,9 +137,13 @@ test.describe("evm-history format", () => {
           quality: "exact",
         },
       });
-    expect(historyAmountText(wei("1"))).toBe("+<0.00000001 KAS");
-    expect(historyAmountText(wei("0"))).toBe("+0 KAS");
+    expect(historyAmountText(wei("1"))).toBe("+0.000000000000000001 KAS");
+    expect(historyAmountText(wei("0"))).toBe("0 KAS");
+    // Below 3 places the exact value shows, trailing zeros trimmed.
     expect(formatRawAmount("10000000000", 18)).toBe("0.00000001");
+    expect(formatRawAmount("400000000000000", 18)).toBe("0.0004");
+    // At or above the threshold the 3-place rounding applies.
+    expect(formatRawAmount("500000000000000", 18)).toBe("0.001");
   });
 
   test("a failed send carries no sign", () => {

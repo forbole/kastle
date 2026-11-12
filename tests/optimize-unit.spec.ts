@@ -6,13 +6,18 @@ import ts from "typescript";
 import { expect, test } from "@playwright/test";
 import type { PendingTransaction } from "@/wasm/core/kaspa";
 import type { IUtxoEntry } from "@/wasm/core/kaspa";
+import { ConnectStrategy } from "@/wasm/core/kaspa";
 import {
+  buildRoundReport,
   classifyConsolidation,
+  describeRound,
   loadLiveEntries,
   OPTIMIZE_FEE_THRESHOLD_SOMPI,
+  reportError,
   runConsolidation,
   shouldOfferOptimize,
 } from "@/lib/consolidate";
+import { describeTokenOperationError } from "@/lib/token-operation-error";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const nodeRequire = createRequire(import.meta.url);
@@ -143,7 +148,12 @@ test.describe("optimize run loop", () => {
     Array.from({ length: count }, (_, i) => ({
       transaction: {
         id: i,
-        inputs: [{ previousOutpoint: { transactionId: `tx${i}`, index: 0 } }],
+        inputs: [
+          {
+            previousOutpoint: { transactionId: `tx${i}`, index: 0 },
+            signatureScript: "00",
+          },
+        ],
       },
       feeAmount: 1_000n,
     })) as unknown as PendingTransaction[];
@@ -320,5 +330,295 @@ test.describe("optimize ledger connect step", () => {
 
   test("a connected ledger skips the connect step", () => {
     expect(render({ signTx: () => {} })).not.toContain("ledger-connect");
+  });
+});
+
+test.describe("optimize diagnostics", () => {
+  const planned = (count: number) =>
+    Array.from({ length: count }, (_, i) => ({
+      transaction: {
+        id: i,
+        inputs: [
+          {
+            previousOutpoint: { transactionId: `tx${i}`, index: 0 },
+            signatureScript: "00",
+          },
+        ],
+      },
+      feeAmount: 1_000n,
+    })) as unknown as PendingTransaction[];
+  const signer = { signTx: async (tx: any) => tx };
+
+  test("a first rejection carries the node's reason and stops the round", async () => {
+    let submits = 0;
+    const result = await runConsolidation(planned(144), signer, {
+      submitTransaction: async () => {
+        submits++;
+        throw new Error("transaction mass 101234 exceeds the standard limit");
+      },
+    } as any);
+    expect(submits).toBe(1);
+    expect(result.rejected).toBe(1);
+    expect(result.submitted).toBe(0);
+    expect(result.lastError).toContain("exceeds the standard limit");
+  });
+
+  test("a round that landed one transaction keeps going after a rejection", async () => {
+    let n = 0;
+    const result = await runConsolidation(planned(4), signer, {
+      submitTransaction: async () => {
+        if (n++ === 1) throw new Error("orphan");
+        return { transactionId: "id" };
+      },
+    } as any);
+    expect(n).toBe(4);
+    expect(result.submitted).toBe(3);
+    expect(result.rejected).toBe(1);
+    expect(result.lastError).toBe("Error: orphan");
+  });
+
+  test("a dropped socket is caught before the first submit", async () => {
+    let submits = 0;
+    let connects = 0;
+    await expect(
+      runConsolidation(planned(3), signer, {
+        isConnected: false,
+        connect: async () => {
+          connects++;
+          throw new Error("WebSocket closed");
+        },
+        submitTransaction: async () => (submits++, { transactionId: "id" }),
+      } as any),
+    ).rejects.toThrow(
+      expect.objectContaining({
+        message: "the node connection dropped; nothing further was sent",
+        cause: "Error: WebSocket closed",
+      }),
+    );
+    expect(connects).toBe(1);
+    expect(submits).toBe(0);
+  });
+
+  test("reconnect is one non-blocking attempt (Fallback, not Retry)", async () => {
+    const args: unknown[] = [];
+    const client = {
+      isConnected: false,
+      connect: async (arg: unknown) => {
+        args.push(arg);
+        client.isConnected = true;
+      },
+      submitTransaction: async () => ({ transactionId: "id" }),
+    };
+    const result = await runConsolidation(planned(2), signer, client as any);
+    expect(result.submitted).toBe(2);
+    expect(args).toEqual([{ strategy: ConnectStrategy.Fallback }]);
+  });
+
+  test("summary counts transactions, not UTXOs", () => {
+    expect(
+      describeRound({ submitted: 0, rejected: 1, total: 1, feePaid: "0" }),
+    ).toBe("0 of 1 transactions sent · all 1 rejected · nothing paid");
+    expect(
+      describeRound({ submitted: 0, rejected: 1, total: 144, feePaid: "0" }),
+    ).toBe(
+      "0 of 144 transactions sent · stopped after the first rejection · nothing paid",
+    );
+    expect(
+      describeRound({ submitted: 0, rejected: 0, total: 144, feePaid: "0" }),
+    ).toBe(
+      "0 of 144 transactions sent · stopped before sending · nothing paid",
+    );
+    expect(
+      describeRound({
+        submitted: 97,
+        rejected: 47,
+        total: 144,
+        feePaid: "8.73",
+      }),
+    ).toBe("97 of 144 transactions sent · 47 rejected · fee paid 8.73 KAS");
+  });
+
+  test("a txid straddling the 300-char cut is redacted, not half-kept", () => {
+    const txid = "b".repeat(64);
+    // cut-then-scrub would keep a 60-hex prefix the 64-hex redactor misses
+    const error = new Error(
+      `${"x".repeat(240 - "Error: ".length)}${txid} tail`,
+    );
+    expect(String(error).slice(0, 300)).toMatch(/b{60}$/);
+    const out = reportError(error);
+    expect(out.length).toBeLessThanOrEqual(300);
+    expect(out).not.toMatch(/[0-9a-f]{32,}/i);
+  });
+
+  test("copy control is a native button", () => {
+    const { default: ClipboardCopy } = loadModule(
+      "components/dashboard/ClipboardCopy.tsx",
+      {
+        react: React,
+        "react/jsx-runtime": nodeRequire("react/jsx-runtime"),
+        "tailwind-merge": nodeRequire("tailwind-merge"),
+        "usehooks-ts": { useCopyToClipboard: () => [null, async () => true] },
+        "react-tooltip": { Tooltip: () => null },
+      },
+    );
+    const icon = renderToStaticMarkup(
+      React.createElement(ClipboardCopy, { textToCopy: "x", className: "p-2" }),
+    );
+    expect(icon).toMatch(
+      /^<button type="button" class="p-2" aria-label="Copy">/,
+    );
+    expect(icon).not.toContain("<a");
+    const labelled = renderToStaticMarkup(
+      React.createElement(ClipboardCopy, { textToCopy: "x" }, "Copy report"),
+    );
+    expect(labelled).toMatch(/^<button type="button">.*Copy report<\/button>$/);
+  });
+
+  test("failure screen shows the reason and copies a scrubbed report", () => {
+    const txid = "a".repeat(64);
+    const address =
+      "kaspa:qpamkvhgh0kzx50gwvvp5xs8ktmqutcy3dfs9dc3w7lm9rq0zs76vf959mmrp";
+    const reason = `transaction ${txid} input ${txid}:0 of ${address} is already spent`;
+    const report = buildRoundReport({
+      extensionVersion: "2.62.1",
+      networkId: "mainnet",
+      rpcUrl: "wss://node.example/kaspa",
+      walletType: "hot",
+      total: 144,
+      submitted: 0,
+      rejected: 1,
+      feePaid: "0",
+      lastError: reason,
+    });
+    const copied: string[] = [];
+    const { TokenOperationFailed } = loadModule(
+      "components/screens/full-pages/TokenOperationFailed.tsx",
+      {
+        react: React,
+        "react/jsx-runtime": nodeRequire("react/jsx-runtime"),
+        "react-router-dom": { useNavigate: () => () => {} },
+        "react-router": {
+          useLocation: () => ({
+            state: {
+              op: "optimize",
+              submitted: 0,
+              rejected: 1,
+              total: 144,
+              feePaid: "0",
+              lastError: report.lastError,
+              report,
+            },
+          }),
+        },
+        "@/hooks/kasplex/useTokenInfo": { useTokenInfo: () => ({}) },
+        "@/lib/krc20.ts": { applyDecimal: () => ({ toFloat: Number }) },
+        "@/hooks/useExtensionUtils.ts": () => ({}),
+        "@/lib/token-operation-error": { describeTokenOperationError },
+        "@/lib/consolidate": { describeRound },
+        "@/components/dashboard/ClipboardCopy": ({
+          textToCopy,
+          children,
+        }: any) => {
+          copied.push(textToCopy);
+          return React.createElement("div", null, children);
+        },
+        "@/components/GeneralHeader": () => null,
+        "@/assets/images/fail.png": "fail.png",
+      },
+    );
+    const html = renderToStaticMarkup(
+      React.createElement(TokenOperationFailed),
+    ) as string;
+    expect(html).toContain(
+      "0 of 144 transactions sent · stopped after the first rejection · nothing paid",
+    );
+    expect(html).toContain("is already spent");
+    expect(html).toContain("Copy report");
+    expect(copied).toHaveLength(1);
+    expect(JSON.parse(copied[0]).rejected).toBe(1);
+    expect(copied[0]).toContain("is already spent");
+    expect(copied[0]).not.toMatch(/[0-9a-fA-F]{64}/);
+    expect(copied[0]).not.toContain("kaspa:q");
+    expect(html).not.toMatch(/[0-9a-fA-F]{64}/);
+  });
+});
+
+test.describe("optimize copy names why UTXOs were skipped", () => {
+  const { OptimizeFundsConfirm, describeNoPlan } = loadModule(
+    "components/screens/full-pages/OptimizeFunds.tsx",
+    {
+      react: React,
+      "react/jsx-runtime": nodeRequire("react/jsx-runtime"),
+      "@/wasm/core/kaspa": {
+        sompiToKaspaString: (sompi: bigint) => (Number(sompi) / 1e8).toString(),
+      },
+    },
+  );
+  const confirm = (extra: object) =>
+    renderToStaticMarkup(
+      React.createElement(OptimizeFundsConfirm, {
+        entriesBefore: 200,
+        entriesAfter: 3,
+        transactionCount: 3,
+        feeSompi: 30_000_000n,
+        isLedger: false,
+        canConfirm: true,
+        onConfirm: () => {},
+        ...extra,
+      }),
+    ) as string;
+
+  test("both drop reasons and maturityUnknown reach the confirm screen", () => {
+    const html = confirm({
+      skippedCovenant: 2,
+      skippedImmature: 1,
+      maturityUnknown: true,
+    });
+    expect(html).toContain(
+      "2 UTXOs carry token state or belong to another key and stay as they are.",
+    );
+    expect(html).toContain(
+      "1 UTXO is a coinbase payout that is not spendable yet and stays out of this round.",
+    );
+    expect(html).toContain("Coinbase maturity could not be checked");
+    expect(html).toContain("the node may refuse the round");
+  });
+
+  test("nothing dropped and maturity checked: no skip or maturity copy", () => {
+    const html = confirm({});
+    expect(html).not.toContain("token state");
+    expect(html).not.toContain("coinbase payout");
+    expect(html).not.toContain("Coinbase maturity");
+  });
+
+  test("no plan, nothing dropped: funds already fit", () => {
+    expect(
+      describeNoPlan({
+        spendable: 40,
+        skippedCovenant: 0,
+        skippedImmature: 0,
+        maturityUnknown: false,
+      }),
+    ).toBe("Your funds already fit in a single transaction.");
+  });
+
+  test("no plan, entries dropped: never claims the funds fit", () => {
+    const some = describeNoPlan({
+      spendable: 40,
+      skippedCovenant: 3,
+      skippedImmature: 2,
+      maturityUnknown: false,
+    });
+    expect(some).not.toContain("Your funds already fit");
+    expect(some).toContain("3 UTXOs carry token state");
+    expect(some).toContain("2 UTXOs are coinbase payouts");
+    const all = describeNoPlan({
+      spendable: 0,
+      skippedCovenant: 5,
+      skippedImmature: 0,
+      maturityUnknown: false,
+    });
+    expect(all).toContain("No UTXO can be optimized.");
+    expect(all).not.toContain("fit in a single transaction");
   });
 });

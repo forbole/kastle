@@ -1124,11 +1124,12 @@ test.describe("Single sighash without a same-index output (KST-002)", () => {
   });
 });
 
-// M2: dApp sign requests refuse covenant (version 1+) transactions, which can
-// move the user's KCC-20 pieces behind a raw-JSON confirm screen. The kaspa.com
-// fixture is exactly such a tx. Version-0 requests are untouched.
+// M2: covenant (version 1+) transactions can move the user's KCC-20 pieces, so
+// dApp sign requests for one open only once they decode against the wallet's
+// pieces (tests/dapp-covenant-guard-unit.spec.ts drives that path). The
+// kaspa.com fixture is exactly such a tx. Version-0 requests are untouched.
 test.describe("dApp covenant guard (M2)", () => {
-  test("refuses v1, malformed and version-less txJson; passes v0", () => {
+  test("classes v1, malformed and version-less txJson as covenant; v0 not", () => {
     expect(isCovenantTxJson(loadFixture().txJson)).toBe(true);
     expect(isCovenantTxJson(JSON.stringify({ version: 1 }))).toBe(true);
     expect(isCovenantTxJson(JSON.stringify({ version: "0" }))).toBe(true);
@@ -1149,21 +1150,6 @@ test.describe("dApp covenant guard (M2)", () => {
     expect(signatureScripts(signed).every((script) => script !== "")).toBe(
       true,
     );
-  });
-
-  test("both dApp sign handlers check the guard before opening the popup", () => {
-    for (const handler of ["signTx.ts", "signAndBroadcastTx.ts"]) {
-      const source = fs.readFileSync(
-        path.join(TESTS_DIR, "../api/background/handlers/kaspa", handler),
-        "utf8",
-      );
-      const guard = source.indexOf("isCovenantTxJson(result.data.txJson)");
-      expect(guard).toBeGreaterThan(-1);
-      expect(guard).toBeLessThan(
-        source.indexOf("openPopupAndListenForResponse"),
-      );
-      expect(source).toContain("RPC_ERRORS.COVENANT_TX_UNSUPPORTED");
-    }
   });
 });
 

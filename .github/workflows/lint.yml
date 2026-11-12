@@ -72,7 +72,7 @@ jobs:
         run: npm run build
 
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install chromium
 
       # ponytail: fixtures launch headed Chrome (MV3 extension), xvfb provides the display
       - name: Run e2e tests

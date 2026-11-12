@@ -2,15 +2,19 @@ import { useLocation, useNavigate } from "react-router-dom";
 import React, { useEffect, useRef, useState } from "react";
 import Header from "@/components/GeneralHeader.tsx";
 import carriageImage from "@/assets/images/carriage.png";
-import { IUtxoEntry, sompiToKaspaString } from "@/wasm/core/kaspa";
+import { IUtxoEntry, sompiToKaspaString, version } from "@/wasm/core/kaspa";
 import {
+  buildRoundReport,
   classifyConsolidation,
   ConsolidationPlan,
   ConsolidationProgress,
   ConsolidationResult,
+  EntryScreen,
   loadLiveEntries,
-  planConsolidation,
+  planConsolidationRound,
   runConsolidation,
+  reportError,
+  scrubReportText,
 } from "@/lib/consolidate";
 import { useUtxoEntries } from "@/hooks/useKasFeeEstimate";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
@@ -18,6 +22,48 @@ import useWalletManager from "@/hooks/wallet/useWalletManager";
 import useKaspaHotWalletSigner from "@/hooks/wallet/useKaspaHotWalletSigner";
 import useKaspaLedgerSigner from "@/hooks/wallet/useKaspaLedgerSigner";
 import LedgerConnectForSign from "@/components/screens/ledger-connect/LedgerConnectForSign";
+
+/** One sentence per reason entries stay out of the round. */
+export function describeSkipped({
+  skippedCovenant,
+  skippedImmature,
+}: {
+  skippedCovenant: number;
+  skippedImmature: number;
+}): string[] {
+  const lines: string[] = [];
+  if (skippedCovenant > 0) {
+    lines.push(
+      skippedCovenant === 1
+        ? "1 UTXO carries token state or belongs to another key and stays as it is."
+        : `${skippedCovenant.toLocaleString()} UTXOs carry token state or belong to another key and stay as they are.`,
+    );
+  }
+  if (skippedImmature > 0) {
+    lines.push(
+      skippedImmature === 1
+        ? "1 UTXO is a coinbase payout that is not spendable yet and stays out of this round."
+        : `${skippedImmature.toLocaleString()} UTXOs are coinbase payouts that are not spendable yet and stay out of this round.`,
+    );
+  }
+  return lines;
+}
+
+export const MATURITY_UNKNOWN_NOTE =
+  "Coinbase maturity could not be checked, so the node may refuse the round if it includes a payout that is not spendable yet.";
+
+/** Why there is no round to run, true whether or not entries were dropped. */
+export function describeNoPlan(screen: EntryScreen | undefined): string {
+  const skipped = screen ? describeSkipped(screen) : [];
+  if (!screen || skipped.length === 0) {
+    return "Your funds already fit in a single transaction.";
+  }
+  const head =
+    screen.spendable === 0
+      ? "No UTXO can be optimized."
+      : "The UTXOs this round can spend already fit in a single transaction.";
+  return [head, ...skipped].join(" ");
+}
 
 export function OptimizeFundsConfirm({
   entriesBefore,
@@ -27,7 +73,13 @@ export function OptimizeFundsConfirm({
   isLedger,
   canConfirm,
   onConfirm,
+  skippedCovenant = 0,
+  skippedImmature = 0,
+  maturityUnknown = false,
 }: {
+  skippedCovenant?: number;
+  skippedImmature?: number;
+  maturityUnknown?: boolean;
   entriesBefore: number;
   entriesAfter: number;
   transactionCount: number;
@@ -61,6 +113,14 @@ export function OptimizeFundsConfirm({
             {sompiToKaspaString(feeSompi)} KAS
           </span>
         </div>
+        {describeSkipped({ skippedCovenant, skippedImmature }).map((line) => (
+          <span key={line} className="text-daintree-400">
+            {line}
+          </span>
+        ))}
+        {maturityUnknown && (
+          <span className="text-daintree-400">{MATURITY_UNKNOWN_NOTE}</span>
+        )}
         {isLedger && (
           <span className="font-semibold text-[#14B8A6]">
             {`${transactionCount} transactions · ${transactionCount} approvals on your Ledger`}
@@ -99,6 +159,7 @@ export default function OptimizeFunds() {
   const [entries, setEntries] = useState<IUtxoEntry[]>();
   const [plan, setPlan] = useState<ConsolidationPlan | null>();
   const [planError, setPlanError] = useState<string>();
+  const [screened, setScreened] = useState<EntryScreen>();
   const [isRunning, setIsRunning] = useState(false);
   const [progress, setProgress] = useState<ConsolidationProgress>({
     submitted: 0,
@@ -127,11 +188,13 @@ export default function OptimizeFunds() {
     loadLiveEntries(() => revalidateEntries(), spentOutpoints)
       .then(async (live) => {
         setEntries(live);
-        const planned = await planConsolidation({
+        const { plan: planned, screen } = await planConsolidationRound({
           entries: live,
           changeAddress: account.address,
           networkId,
+          rpcClient,
         });
+        setScreened(screen);
         setPlan(planned ?? null);
       })
       .catch((error) => {
@@ -176,6 +239,32 @@ export default function OptimizeFunds() {
       setIsRunning(false);
       return setCancelledEarly(result);
     }
+    const report = buildRoundReport({
+      extensionVersion: browser.runtime.getManifest().version,
+      wasmVersion: version(),
+      networkId,
+      rpcUrl: rpcClient.url,
+      walletType: isLedger ? "ledger" : "hot",
+      total: plan.transactions.length,
+      submitted: result.submitted,
+      rejected: result.rejected,
+      feePaid: sompiToKaspaString(result.feePaid),
+      // only the entries the round could spend; skipped stay as they are
+      entriesBefore:
+        entries === undefined ? undefined : entries.length - plan.skipped,
+      skipped: plan.skipped,
+      // last rejection and the error that stopped the round: not the same
+      // when a later sign or reconnect failure ended it
+      lastError: result.lastError,
+      terminalError:
+        error === undefined
+          ? undefined
+          : reportError(
+              error instanceof Error && error.cause !== undefined
+                ? `${error}: ${error.cause}`
+                : error,
+            ),
+    });
     return navigate(
       { pathname: "/token-operation-failed" },
       {
@@ -187,6 +276,8 @@ export default function OptimizeFunds() {
           total: plan.transactions.length,
           feePaid: sompiToKaspaString(result.feePaid),
           spentOutpoints: [...(spentOutpoints ?? []), ...result.spentOutpoints],
+          lastError: result.lastError && scrubReportText(result.lastError),
+          report,
         },
       },
     );
@@ -234,18 +325,21 @@ export default function OptimizeFunds() {
               <span className="text-daintree-400">
                 Cancelled before the first transaction. Nothing was paid.
               </span>
-              {cancelledEarly.rejected > 0 && (
-                <span className="text-daintree-400">
-                  {`${cancelledEarly.rejected} skipped by the node`}
-                </span>
-              )}
             </div>
           )}
 
           {!isRunning && !cancelledEarly && plan && entries && (
             <OptimizeFundsConfirm
-              entriesBefore={entries.length}
-              entriesAfter={entries.length - plan.inputCount + plan.outputCount}
+              entriesBefore={entries.length - plan.skipped}
+              entriesAfter={
+                entries.length -
+                plan.skipped -
+                plan.inputCount +
+                plan.outputCount
+              }
+              skippedCovenant={plan.skippedCovenant}
+              skippedImmature={plan.skippedImmature}
+              maturityUnknown={plan.maturityUnknown}
               transactionCount={total}
               feeSompi={plan.fee}
               isLedger={isLedger}
@@ -256,7 +350,7 @@ export default function OptimizeFunds() {
 
           {!isRunning && !cancelledEarly && plan === null && (
             <span className="self-center text-daintree-400">
-              {planError ?? "Your funds already fit in a single transaction."}
+              {planError ?? describeNoPlan(screened)}
             </span>
           )}
 
@@ -305,7 +399,7 @@ export default function OptimizeFunds() {
                 </div>
                 {progress.rejected > 0 && (
                   <span className="text-daintree-400">
-                    {`${progress.rejected} skipped: rejected by the node`}
+                    {`${progress.submitted} of ${total} transactions sent · ${progress.rejected} rejected`}
                   </span>
                 )}
               </div>
