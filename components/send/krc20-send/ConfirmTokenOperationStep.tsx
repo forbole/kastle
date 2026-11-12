@@ -116,6 +116,7 @@ export const TokenConfirmView = ({
   feeFiat,
   feeTooltip,
   isConfirming = false,
+  chipLabel = "Kaspa",
   onNext,
   onBack,
 }: {
@@ -132,6 +133,8 @@ export const TokenConfirmView = ({
   feeTooltip?: string;
   // Spinner in place of "Confirm" while the caller signs.
   isConfirming?: boolean;
+  // The chip on both address rows: the network, or the token standard.
+  chipLabel?: string;
   onNext?: () => void;
   onBack?: () => void;
 }) => {
@@ -165,7 +168,7 @@ export const TokenConfirmView = ({
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Send from</span>
                 <span className="border-1 rounded-full border border-icy-blue-400 px-1 text-[0.625rem] font-medium text-icy-blue-400">
-                  Kaspa
+                  {chipLabel}
                 </span>
               </div>
               <span className="break-all text-xs text-daintree-400">
@@ -185,7 +188,7 @@ export const TokenConfirmView = ({
                   </a>
                 </span>
                 <span className="border-1 rounded-full border border-icy-blue-400 px-1 text-[0.625rem] font-medium text-icy-blue-400">
-                  Kaspa
+                  {chipLabel}
                 </span>
               </div>
               <span className="break-all text-xs text-daintree-400">
