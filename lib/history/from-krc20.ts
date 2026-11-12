@@ -22,16 +22,17 @@ export function toHistoryRecord(
     usdPrice?: number;
   },
 ): HistoryRecord {
-  const kind =
-    op.op === "transfer"
-      ? op.from === ctx.ownAddress && op.to === ctx.ownAddress
-        ? "self"
-        : op.to === ctx.ownAddress
-          ? "receive"
-          : "send"
-      : op.op === "deploy" || op.op === "mint"
-        ? op.op
-        : "unknown";
+  // A marketplace buy settles on chain as `op: "send"`: a transfer.
+  const isTransfer = op.op === "transfer" || op.op === "send";
+  const kind = isTransfer
+    ? op.from === ctx.ownAddress && op.to === ctx.ownAddress
+      ? "self"
+      : op.to === ctx.ownAddress
+        ? "receive"
+        : "send"
+    : op.op === "deploy" || op.op === "mint"
+      ? op.op
+      : "unknown";
   const direction =
     // A deploy credits its premint `pre` to the deployer: a receipt.
     kind === "receive" || kind === "mint" || kind === "deploy"
@@ -43,7 +44,7 @@ export function toHistoryRecord(
   const src =
     op.op === "deploy"
       ? op.pre
-      : op.op === "transfer" || op.op === "mint"
+      : isTransfer || op.op === "mint"
         ? op.amt
         : undefined;
   // Unparsable stays null — never a 0. A deploy without a premint has no
