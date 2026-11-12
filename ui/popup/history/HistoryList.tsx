@@ -2,7 +2,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useIntersectionObserver } from "usehooks-ts";
 import type { HistoryRecord } from "@/lib/history/types";
 import ActionSheet from "@/ui/general/ActionSheet";
-import { HistoryDetail } from "@/ui/popup/history/HistoryDetail";
+import {
+  HistoryDetail,
+  type HistoryDetailExtras,
+} from "@/ui/popup/history/HistoryDetail";
 import {
   HistoryRow,
   type HistoryRowExtras,
@@ -23,6 +26,8 @@ export interface HistoryListProps {
   truncatedMessage?: string;
   /** Per-row logo, chain badge, TX count and hover-card lines; none = plain rows. */
   getRowExtras?: (record: HistoryRecord) => HistoryRowExtras | undefined;
+  /** Per-record status and fiat for the detail sheet; none = the pre-redesign sheet. */
+  getDetailExtras?: (record: HistoryRecord) => HistoryDetailExtras | undefined;
 }
 
 function Spinner({ isSmall = false }: { isSmall?: boolean }) {
@@ -68,6 +73,7 @@ export function HistoryList({
   emptyMessage = "No history yet.",
   truncatedMessage,
   getRowExtras,
+  getDetailExtras,
 }: HistoryListProps): React.ReactElement {
   // The record captured at click time; the sheet shows its live version from
   // `records`, falling back to the capture only once it has left the list.
@@ -226,7 +232,13 @@ export function HistoryList({
       {/* A zero-height sentinel sits a subpixel past the scroll body's edge and never fires. */}
       <div ref={sentinel} className="h-1 shrink-0" />
       <ActionSheet isOpen={!!shown} onClose={close}>
-        {shown && <HistoryDetail record={shown} onClose={close} />}
+        {shown && (
+          <HistoryDetail
+            record={shown}
+            onClose={close}
+            {...getDetailExtras?.(shown)}
+          />
+        )}
       </ActionSheet>
     </div>
   );

@@ -9,6 +9,7 @@ import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import useEvmAddress from "@/hooks/evm/useEvmAddress";
 import { useEvmHistory } from "@/hooks/evm/useEvmHistory";
 import { HistoryList } from "@/ui/popup/history/HistoryList";
+import { historyDetailExtras } from "@/ui/popup/history/detailExtras";
 import useEvmKasBalance from "@/hooks/evm/useEvmKasBalance";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import AssetSendButton from "@/components/AssetSendButton";
@@ -70,6 +71,7 @@ export default function EvmKasAsset() {
               onRetry={history.retry}
               unavailableMessage={history.unavailable?.reason}
               getRowExtras={() => rowExtras}
+              getDetailExtras={historyDetailExtras}
             />
           </div>
         )}

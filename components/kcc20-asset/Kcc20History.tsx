@@ -11,6 +11,7 @@ import {
 } from "@/lib/kcc20/useKcc20History";
 import { textEllipsis } from "@/lib/utils";
 import { HistoryList } from "@/ui/popup/history/HistoryList";
+import { historyDetailExtras } from "@/ui/popup/history/detailExtras";
 import { CHAIN_BADGES } from "@/ui/popup/kcc20/AssetImage";
 
 const UNAVAILABLE: Record<Kcc20HistoryUnavailable, string> = {
@@ -83,6 +84,7 @@ export function Kcc20History({
       emptyMessage={truncated ?? "No history yet."}
       truncatedMessage={records.length > 0 ? truncated : undefined}
       getRowExtras={() => rowExtras}
+      getDetailExtras={historyDetailExtras}
     />
   );
 }

@@ -696,14 +696,19 @@ test("KCC-20: a movement row shows a title, TX Hash and a signed amount, never t
   expect(text).not.toMatch(/Unknown|Unavailable|—/);
 });
 
-test("KCC-20 activity sheet: Status shows only when the feed supplies it", async ({
+test("KCC-20 activity sheet: the Status row always shows, the Value row only with fiat", async ({
   page,
 }) => {
+  // The designed sheet always shows a status: "Unconfirmed" when the feed never said.
   await open(page, "/kcc20-activity");
   const sheet = page.getByRole("dialog", { name: "TX Hash" });
   await expect(sheet).toBeVisible();
   await expect(sheet).toContainText("TX ID");
-  await expect(sheet.getByText("Status", { exact: true })).toHaveCount(0);
+  await expect(sheet.getByText("Status", { exact: true })).toHaveCount(1);
+  await expect(sheet.getByText("Status", { exact: true })).toBeVisible();
+  await expect(sheet.getByText("Unconfirmed", { exact: true })).toBeVisible();
+  // The record carries no fiat, so there is no Value row.
+  await expect(sheet.getByText("Value", { exact: true })).toHaveCount(0);
   await expect(sheet).not.toContainText(/Unknown|Unavailable|—/);
   await expect(
     sheet.getByRole("button", { name: "View on Explorer" }),
@@ -711,6 +716,7 @@ test("KCC-20 activity sheet: Status shows only when the feed supplies it", async
 
   // The shared status vocabulary is closed: a feed answers one of HistoryStatus.
   await open(page, "/kcc20-activity", "&status=finalized");
+  await expect(sheet.getByText("Status", { exact: true })).toHaveCount(1);
   await expect(sheet.getByText("Status", { exact: true })).toBeVisible();
   await expect(sheet.getByText("Finalized", { exact: true })).toBeVisible();
 

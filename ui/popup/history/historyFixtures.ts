@@ -1,6 +1,7 @@
 // Shared sample data for the history stories (not a story file).
 import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import type { HistoryRecord } from "@/lib/history/types";
+import { historyFiatText } from "@/ui/popup/history/format";
 
 export const NOW = Date.UTC(2026, 10, 10, 11, 51);
 const ADDRESS =
@@ -138,4 +139,18 @@ export const KCC20_RECORDS: HistoryRecord[] = [
 export const designedRow = (r: HistoryRecord) => ({
   ...(r.family === "krc20" ? KRC20_EXTRAS : COMMON_EXTRAS),
   ...(r.fiat.value ? {} : { fiatText: "≈ $19.235 USD" }),
+});
+
+const DETAIL_STATUS = {
+  finalized: { label: "Finalized", tone: "success" },
+  pending: { label: "Pending", tone: "pending" },
+  failed: { label: "Failed", tone: "failed" },
+  unknown: { label: "Unconfirmed", tone: "neutral" },
+} as const;
+
+// Default for the detail sheet: status and fiat as Leo's data would supply
+// them. Rows without a fiat value get a sample so the Value row is visible.
+export const designedDetail = (r: HistoryRecord) => ({
+  status: DETAIL_STATUS[r.status],
+  fiatText: historyFiatText(r) ?? "≈ $19.235 USD",
 });

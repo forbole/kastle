@@ -5,7 +5,14 @@ import TokenDetailPage, {
   type TokenDetailTab,
 } from "@/ui/popup/kcc20/TokenDetailPage";
 import { HistoryList } from "@/ui/popup/history/HistoryList";
-import { KRC20_RECORDS, designedRow } from "@/ui/popup/history/historyFixtures";
+import { userEvent, within } from "storybook/test";
+import type { HistoryRecord } from "@/lib/history/types";
+import {
+  KCC20_RECORDS,
+  KRC20_RECORDS,
+  designedDetail,
+  designedRow,
+} from "@/ui/popup/history/historyFixtures";
 
 // The full popup page: the shared token header + tabs, HistoryList in the
 // history slot, and the pinned Send button.
@@ -44,9 +51,11 @@ const PAGE = {
 
 function Page({
   isLoadingMore = false,
+  records = KRC20_RECORDS,
   onSend,
 }: {
   isLoadingMore?: boolean;
+  records?: HistoryRecord[];
   onSend?: () => void;
 }) {
   const [activeTab, setActiveTab] = useState<TokenDetailTab>("history");
@@ -58,7 +67,7 @@ function Page({
       onSend={onSend ?? (() => {})}
       history={
         <HistoryList
-          records={KRC20_RECORDS}
+          records={records}
           isLoading={false}
           isLoadingMore={isLoadingMore}
           error={null}
@@ -66,6 +75,7 @@ function Page({
           onLoadMore={() => {}}
           onRetry={() => {}}
           getRowExtras={designedRow}
+          getDetailExtras={designedDetail}
         />
       }
     />
@@ -80,4 +90,19 @@ export const Default: Story = {
 export const LoadMore: Story = {
   args: Default.args,
   render: (args) => <Page isLoadingMore onSend={args.onSend} />,
+};
+
+// KCC-20 page with a row tapped: the TX Hash sheet as mobile draws it.
+export const DetailSheet: Story = {
+  args: {
+    ...PAGE,
+    network: "kcc20",
+    activeTab: "history",
+    onTabChange: () => {},
+  },
+  render: (args) => <Page records={KCC20_RECORDS} onSend={args.onSend} />,
+  play: async ({ canvasElement }) => {
+    const [row] = within(canvasElement).getAllByText("Received");
+    await userEvent.click(row);
+  },
 };

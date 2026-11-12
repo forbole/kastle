@@ -10,6 +10,7 @@ import AssetSendButton from "@/components/AssetSendButton";
 import useEvmAddress from "@/hooks/evm/useEvmAddress";
 import { useEvmHistory } from "@/hooks/evm/useEvmHistory";
 import { HistoryList } from "@/ui/popup/history/HistoryList";
+import { historyDetailExtras } from "@/ui/popup/history/detailExtras";
 import { useErc20Image } from "@/hooks/evm/useZealousSwapMetadata";
 import { getChainImage } from "@/lib/layer2";
 
@@ -78,6 +79,7 @@ export default function Erc20Asset() {
               onRetry={history.retry}
               unavailableMessage={history.unavailable?.reason}
               getRowExtras={() => rowExtras}
+              getDetailExtras={historyDetailExtras}
             />
           </div>
         )}
