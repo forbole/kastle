@@ -10,6 +10,8 @@ import AssetSendButton from "@/components/AssetSendButton";
 import useEvmAddress from "@/hooks/evm/useEvmAddress";
 import { useEvmHistory } from "@/hooks/evm/useEvmHistory";
 import { HistoryList } from "@/ui/popup/history/HistoryList";
+import { useErc20Image } from "@/hooks/evm/useZealousSwapMetadata";
+import { getChainImage } from "@/lib/layer2";
 
 export default function Erc20Asset() {
   const navigate = useNavigate();
@@ -30,6 +32,17 @@ export default function Erc20Asset() {
     source: { family: "erc20", token: address ?? "" },
   });
   const { data: balance } = useErc20Balance(address ?? "", chainId ?? "");
+  const { logoUrl } = useErc20Image(
+    chainId as `0x${string}`,
+    address as `0x${string}`,
+  );
+  // As Erc20Info shows it: the token's own image, then its chain's mark.
+  const rowExtras = {
+    logo: asset?.image ?? logoUrl,
+    chainBadge: getChainImage((chainId ?? "0x0") as `0x${string}`),
+    txCount: 1,
+    isSymbolHidden: true,
+  };
   // As in the send asset picker: Ledger cannot send ERC-20. A wallet that has
   // not loaded yet is not known to be non-Ledger.
   const canSend =
@@ -64,6 +77,7 @@ export default function Erc20Asset() {
               onLoadMore={history.loadMore}
               onRetry={history.retry}
               unavailableMessage={history.unavailable?.reason}
+              getRowExtras={() => rowExtras}
             />
           </div>
         )}

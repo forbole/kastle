@@ -22,7 +22,14 @@ type Sheet = {
   txid: boolean;
   explorer: boolean;
 };
-type Surface = { key: string; route: string; rows: Row[]; sheets: Sheet[] };
+type Surface = {
+  key: string;
+  route: string;
+  rows: Row[];
+  sheets: Sheet[];
+  // The screen passes getRowExtras: logo, "TX Hash" + count, no symbol, no date.
+  designed?: boolean;
+};
 
 const row = (
   title: string,
@@ -30,6 +37,14 @@ const row = (
   amount: string | null,
   time = true,
 ): Row => ({ title, line, amount, time });
+
+// A designed row: under the title the "TX Hash" label and its count, the amount
+// without the page's symbol, and no date (it lives in the TX Hash card).
+const designedRow = (
+  title: string,
+  amount: string | null,
+  txCount = 1,
+): Row => ({ title, line: `TX Hash${txCount}`, amount, time: false });
 
 // Fixture order per tests/history-surfaces/stubs.tsx: out, in, self, no
 // amount, no time, no counterparty. KAS cannot lack an amount and KCC-20
@@ -39,13 +54,14 @@ const SURFACES: Surface[] = [
     key: "kas",
     route: "/kas",
     rows: [
-      row("Sent", "To kaspa:qalice", "-250 KAS"),
-      row("Received", "From kaspa:qbob", "+100 KAS"),
+      designedRow("Sent", "-250"),
+      designedRow("Received", "+100"),
       // Self shows the own outputs that came back, never the fee-only net.
-      row("Self transfer", null, "100 KAS"),
-      row("Received", "From kaspa:qbob", "+5 KAS", false),
-      row("Sent", null, "-30 KAS"),
+      designedRow("Self transfer", "100"),
+      designedRow("Received", "+5"),
+      designedRow("Sent", "-30"),
     ],
+    designed: true,
     sheets: [
       { row: 0, status: "Finalized", value: true, txid: true, explorer: true },
     ],
@@ -54,13 +70,16 @@ const SURFACES: Surface[] = [
     key: "krc20",
     route: "/krc20/KASPY",
     rows: [
-      row("Sent", "To kaspa:qalice", "-1 KASPY"),
-      row("Received", "From kaspa:qbob", "+2.5 KASPY"),
-      row("Self transfer", null, "1 KASPY"),
-      row("Received", "From kaspa:qbob", null),
-      row("Received", "From kaspa:qbob", "+1 KASPY", false),
-      row("Sent", null, "-1 KASPY"),
+      // Commit and reveal both confirmed: two transactions per row.
+      designedRow("Sent", "-1", 2),
+      designedRow("Received", "+2.5", 2),
+      designedRow("Self transfer", "1", 2),
+      designedRow("Received", null, 2),
+      designedRow("Received", "+1", 2),
+      // No reveal hash: the commit is not known to be confirmed, one step.
+      designedRow("Sent", "-1", 1),
     ],
+    designed: true,
     sheets: [
       { row: 0, status: "Finalized", value: false, txid: true, explorer: true },
       // No hash: nothing to copy, nowhere to link.
@@ -77,12 +96,13 @@ const SURFACES: Surface[] = [
     key: "kcc20",
     route: "/kcc20",
     rows: [
-      row("Sent", "To qrecipient", "-2.5 KTEST"),
-      row("Received", "From qsender", "+1 KTEST"),
-      row("Self transfer", null, "0.5 KTEST"),
-      row("Sent", "To qnoamount", null),
-      row("Received", null, "+0.7 KTEST"),
+      designedRow("Sent", "-2.5"),
+      designedRow("Received", "+1"),
+      designedRow("Self transfer", "0.5"),
+      designedRow("Sent", null),
+      designedRow("Received", "+0.7"),
     ],
+    designed: true,
     sheets: [
       { row: 0, status: null, value: false, txid: true, explorer: true },
     ],
@@ -166,9 +186,10 @@ async function shoot(page: Page, name: string) {
   console.log(`PNG ${file}`);
 }
 
-// A history row: a button whose first child is the direction circle.
+// A history row: a button with the growing title column, which both the
+// legacy row (direction circle) and the designed row (logo) have.
 const rowsOf = (page: Page) =>
-  page.locator("#popup button:has(> span[aria-hidden='true'])");
+  page.locator("#popup button:has(> div.flex-grow)");
 
 for (const [i, s] of SURFACES.entries()) {
   test(`${s.key}: rows render the shared shape, sheet shows only what is known`, async ({
@@ -195,15 +216,27 @@ for (const [i, s] of SURFACES.entries()) {
     for (const [n, want] of s.rows.entries()) {
       const got = read[n];
       const at = `${s.key} row ${n}`;
-      // The direction circle, never a logo or the family's old markup.
-      expect(got.circleSvg, at).toBe(true);
-      expect(got.imgs, at).toBe(0);
+      if (s.designed) {
+        // Token logo with its chain badge in place of the direction circle.
+        expect(got.imgs, at).toBeGreaterThan(0);
+      } else {
+        // The direction circle, never a logo or the family's old markup.
+        expect(got.circleSvg, at).toBe(true);
+        expect(got.imgs, at).toBe(0);
+      }
       expect(got.leftGrow, at).toBe(true);
       expect(got.left, at).toEqual(
         want.line === null ? [want.title] : [want.title, want.line],
       );
-      // Amount over time, both in the right-hand column.
       expect(got.rightClass, at).toContain("items-end");
+      if (s.designed) {
+        // Amount over the fiat value; no date cell on the designed row.
+        const rest = want.amount === null ? got.right : got.right.slice(1);
+        if (want.amount !== null) expect(got.right[0], at).toBe(want.amount);
+        for (const t of rest) expect(t, at).toMatch(/^≈ \$[\d,.]+ USD$/);
+        continue;
+      }
+      // Amount over time, both in the right-hand column.
       const expected = [
         ...(want.amount === null ? [] : [want.amount]),
         ...(want.time ? ["time"] : []),
