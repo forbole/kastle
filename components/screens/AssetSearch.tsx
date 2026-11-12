@@ -25,11 +25,11 @@ import {
   useRecentSearches,
 } from "@/lib/asset-search/recent";
 
-type Krc20Label = { name?: string; logo?: string };
+export type Krc20Label = { name?: string; logo?: string };
 
 // The dashboard row resolves a KRC-20 label and logo per token; this does the
 // same off screen and reports up, so search matches what the row shows.
-function Krc20Probe({
+export function Krc20Probe({
   tick,
   onResolve,
 }: {

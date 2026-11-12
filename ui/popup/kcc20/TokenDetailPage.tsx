@@ -96,7 +96,6 @@ export default function TokenDetailPage({
   onClose,
 }: TokenDetailPageProps) {
   const isKcc20 = network === "kcc20";
-  const showVerified = isVerified && isKcc20;
   const optionalRows: [string, string | undefined][] = [
     [KCC20_LABELS.mintCount, mintCount],
     [KCC20_LABELS.holderCount, holderCount],
@@ -137,22 +136,20 @@ export default function TokenDetailPage({
           aria-labelledby={assetTabId(panel)}
           className="flex flex-col gap-2"
         >
-          {/* Header card: the Home asset row, Token info only. No family chip:
-              the Standard row below names the standard. */}
+          {/* Header card: the Home asset row, Token info only. KCC-20 gets a
+              small standard badge beside the name; other standards have none. */}
           {activeTab === "assetInfo" && (
             <div className="flex items-center gap-3 rounded-2xl border border-card-border bg-white/5 px-3 py-3">
               {tokenImage}
               <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-2">
                   <span className="truncate text-base font-semibold leading-4">
                     {name}
                   </span>
-                  {showVerified && (
-                    <BadgeCheck
-                      aria-label={KCC20_LABELS.verified}
-                      className="size-4 shrink-0 text-verified"
-                      strokeWidth={2}
-                    />
+                  {isKcc20 && (
+                    <span className="inline-flex shrink-0 items-center whitespace-nowrap rounded-full bg-icy-blue-700/30 px-[5.5px] py-px text-[10px] font-medium leading-4 tracking-[0.05px] text-icy-blue-400">
+                      {STANDARD_LABELS.kcc20}
+                    </span>
                   )}
                 </div>
                 {tokenName && tokenName !== name && (
