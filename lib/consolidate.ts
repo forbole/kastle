@@ -3,13 +3,18 @@ import {
   createTransactions,
   IGeneratorSettingsObject,
   IUtxoEntry,
+  payToAddressScript,
   PendingTransaction,
   RpcClient,
 } from "@/wasm/core/kaspa";
+import { covenantSelect } from "@kronsdk/kron-sdk";
 import { orderEntries } from "@/lib/sendFee";
 import { isFragmentationError } from "@/lib/kaspa";
 import { redactString } from "@/lib/sentry-scrub";
-import { signAndSubmitBatch } from "@/lib/wallet/transaction-batch";
+import {
+  signAndSubmitBatch,
+  UnsignedInputsError,
+} from "@/lib/wallet/transaction-batch";
 import type { IWalletWithGetAddress } from "@/lib/wallet/wallet-interface";
 
 // The Generator batches at 89 inputs of this shape; 80 leaves ~10% mass
@@ -19,13 +24,89 @@ const DEFAULT_INPUTS_PER_TRANSACTION = 80;
 // Ledger signs at most two outputs per transaction.
 const MAX_OUTPUTS = 2;
 
+// Kaspa coinbase outputs are spendable 100 DAA scores after their block.
+export const COINBASE_MATURITY = 100n;
+
 export type ConsolidationPlan = {
   transactions: PendingTransaction[];
   // summary.fees summed across every chunk
   fee: bigint;
   inputCount: number;
   outputCount: number;
+  // entries left out of the round: skippedCovenant + skippedImmature
+  skipped: number;
+  // covenant-bound (token state) or locked to another key's script
+  skippedCovenant: number;
+  // coinbase payouts not yet COINBASE_MATURITY DAA scores old
+  skippedImmature: number;
+  // the virtual DAA score was unavailable: coinbase maturity went unchecked
+  maturityUnknown: boolean;
 };
+
+/**
+ * Whether the round may spend `entry`: plain KAS, locked to `address` itself
+ * (the only script the wallet's key signs; any other input would go out with
+ * an empty signature script), and not an immature coinbase. Maturity is
+ * skipped when `virtualDaaScore` is unknown.
+ */
+export function isConsolidatableEntry(
+  entry: IUtxoEntry,
+  address: string,
+  virtualDaaScore?: bigint,
+): boolean {
+  return classifyEntry(entry, address, virtualDaaScore) === "spendable";
+}
+
+type EntryClass = "spendable" | "covenant" | "immature";
+
+function classifyEntry(
+  entry: IUtxoEntry,
+  address: string,
+  virtualDaaScore?: bigint,
+): EntryClass {
+  if (
+    covenantSelect.normalizedCovenantId(
+      (entry as { covenantId?: string }).covenantId,
+    )
+  ) {
+    return "covenant";
+  }
+  // hex case differs between sources (node JSON vs WASM): compare lowercased
+  if (
+    entry.scriptPublicKey?.script?.toLowerCase() !==
+    payToAddressScript(address).script.toLowerCase()
+  ) {
+    return "covenant";
+  }
+  if (
+    entry.isCoinbase &&
+    virtualDaaScore !== undefined &&
+    virtualDaaScore - BigInt(entry.blockDaaScore) < COINBASE_MATURITY
+  ) {
+    return "immature";
+  }
+  return "spendable";
+}
+
+/** How the entries split, reported even when no plan is needed. */
+export type EntryScreen = {
+  spendable: number;
+  skippedCovenant: number;
+  skippedImmature: number;
+  maturityUnknown: boolean;
+};
+
+async function readVirtualDaaScore(
+  rpcClient?: Pick<RpcClient, "getBlockDagInfo">,
+): Promise<bigint | undefined> {
+  if (!rpcClient) return undefined;
+  try {
+    return BigInt((await rpcClient.getBlockDagInfo()).virtualDaaScore);
+  } catch (error) {
+    console.warn("getBlockDagInfo failed; coinbase maturity unchecked", error);
+    return undefined;
+  }
+}
 
 export class ConsolidationError extends Error {
   constructor(
@@ -45,25 +126,61 @@ export class ConsolidationError extends Error {
  * priorityFee, 0n included, throws "Fees::SenderPays or Fees::ReceiverPays are
  * not allowed in sweep transactions".
  *
- * Returns undefined when the wallet already fits in a single transaction.
+ * Only entries `isConsolidatableEntry` accepts for `changeAddress` are
+ * planned; the rest are counted in `skipped`. Coinbase maturity reads the
+ * virtual DAA score from `rpcClient` once; without it the plan still builds,
+ * flagged `maturityUnknown`.
+ *
+ * Returns undefined when the spendable entries already fit in a single
+ * transaction.
  */
-export async function planConsolidation({
+export async function planConsolidation(
+  args: Parameters<typeof planConsolidationRound>[0],
+): Promise<ConsolidationPlan | undefined> {
+  return (await planConsolidationRound(args)).plan;
+}
+
+/**
+ * `planConsolidation`, plus how the entries split: the screen names the
+ * dropped entries even when `plan` is undefined.
+ */
+export async function planConsolidationRound({
   entries,
   changeAddress,
   networkId,
   inputsPerTransaction = DEFAULT_INPUTS_PER_TRANSACTION,
+  rpcClient,
 }: {
   entries: readonly IUtxoEntry[];
   changeAddress: string;
   networkId: string;
   inputsPerTransaction?: number;
-}): Promise<ConsolidationPlan | undefined> {
+  rpcClient?: Pick<RpcClient, "getBlockDagInfo">;
+}): Promise<{ plan: ConsolidationPlan | undefined; screen: EntryScreen }> {
   if (!entries.length) {
     throw new ConsolidationError("no-entries", "No UTXOs to consolidate");
   }
-  if (entries.length <= inputsPerTransaction) return undefined;
+  const virtualDaaScore = await readVirtualDaaScore(rpcClient);
+  const spendable: IUtxoEntry[] = [];
+  let skippedCovenant = 0;
+  let skippedImmature = 0;
+  for (const entry of entries) {
+    const kind = classifyEntry(entry, changeAddress, virtualDaaScore);
+    if (kind === "spendable") spendable.push(entry);
+    else if (kind === "covenant") skippedCovenant++;
+    else skippedImmature++;
+  }
+  const screen: EntryScreen = {
+    spendable: spendable.length,
+    skippedCovenant,
+    skippedImmature,
+    maturityUnknown: virtualDaaScore === undefined,
+  };
+  if (spendable.length <= inputsPerTransaction) {
+    return { plan: undefined, screen };
+  }
 
-  const ordered = orderEntries(entries);
+  const ordered = orderEntries(spendable);
   const transactions: PendingTransaction[] = [];
   let fee = 0n;
   let inputCount = 0;
@@ -99,10 +216,17 @@ export async function planConsolidation({
   }
 
   return {
-    transactions,
-    fee,
-    inputCount,
-    outputCount: transactions.length,
+    plan: {
+      transactions,
+      fee,
+      inputCount,
+      outputCount: transactions.length,
+      skipped: skippedCovenant + skippedImmature,
+      skippedCovenant,
+      skippedImmature,
+      maturityUnknown: screen.maturityUnknown,
+    },
+    screen,
   };
 }
 
@@ -252,7 +376,7 @@ export async function loadLiveEntries(
 /**
  * Signs and submits each planned transaction on its own, stopping early when
  * `isCanceled` turns true. A signing failure (locked keyring, Ledger
- * rejection) throws; a submit rejection increments `rejected` and continues,
+ * rejection, inputs the signer left unsigned) throws; a submit rejection increments `rejected` and continues,
  * since the chunks are disjoint and the next one does not depend on it —
  * unless nothing has landed yet: a first rejection stops the round, since a
  * transaction-wide refusal would only repeat on every remaining chunk.
@@ -314,7 +438,8 @@ export async function runConsolidation(
         ),
       ];
     } catch (error) {
-      if (!signed) throw error;
+      // unsigned inputs are a local signing failure, never a node rejection
+      if (!signed || error instanceof UnsignedInputsError) throw error;
       progress.rejected++;
       progress.lastError = reportError(error);
       if (progress.submitted === 0) {
