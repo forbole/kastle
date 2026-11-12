@@ -20,6 +20,16 @@ import { signAndSubmitBatch } from "@/lib/wallet/transaction-batch";
 
 const TESTS_DIR = path.dirname(fileURLToPath(import.meta.url));
 
+// signAndSubmitBatch refuses inputs with an empty signature script: stub
+// signers stand in a placeholder for the signature they would produce.
+const withPlaceholderSignatures = (transaction: Transaction) => {
+  transaction.inputs = transaction.inputs.map((input) => {
+    input.signatureScript = "00";
+    return input;
+  });
+  return transaction;
+};
+
 test.beforeAll(async () => {
   await init({
     module_or_path: fs.readFileSync(
@@ -228,7 +238,7 @@ test.describe("planTransfer with allowSplit: false (Ledger)", () => {
         signed.push(transaction.outputs.length);
         if (transaction.outputs.length > 2)
           throw new Error("device: 2 outputs");
-        return transaction;
+        return withPlaceholderSignatures(transaction);
       },
     };
     const rpc = {

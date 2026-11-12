@@ -148,7 +148,12 @@ test.describe("optimize run loop", () => {
     Array.from({ length: count }, (_, i) => ({
       transaction: {
         id: i,
-        inputs: [{ previousOutpoint: { transactionId: `tx${i}`, index: 0 } }],
+        inputs: [
+          {
+            previousOutpoint: { transactionId: `tx${i}`, index: 0 },
+            signatureScript: "00",
+          },
+        ],
       },
       feeAmount: 1_000n,
     })) as unknown as PendingTransaction[];
@@ -333,7 +338,12 @@ test.describe("optimize diagnostics", () => {
     Array.from({ length: count }, (_, i) => ({
       transaction: {
         id: i,
-        inputs: [{ previousOutpoint: { transactionId: `tx${i}`, index: 0 } }],
+        inputs: [
+          {
+            previousOutpoint: { transactionId: `tx${i}`, index: 0 },
+            signatureScript: "00",
+          },
+        ],
       },
       feeAmount: 1_000n,
     })) as unknown as PendingTransaction[];
@@ -530,5 +540,85 @@ test.describe("optimize diagnostics", () => {
     expect(copied[0]).not.toMatch(/[0-9a-fA-F]{64}/);
     expect(copied[0]).not.toContain("kaspa:q");
     expect(html).not.toMatch(/[0-9a-fA-F]{64}/);
+  });
+});
+
+test.describe("optimize copy names why UTXOs were skipped", () => {
+  const { OptimizeFundsConfirm, describeNoPlan } = loadModule(
+    "components/screens/full-pages/OptimizeFunds.tsx",
+    {
+      react: React,
+      "react/jsx-runtime": nodeRequire("react/jsx-runtime"),
+      "@/wasm/core/kaspa": {
+        sompiToKaspaString: (sompi: bigint) => (Number(sompi) / 1e8).toString(),
+      },
+    },
+  );
+  const confirm = (extra: object) =>
+    renderToStaticMarkup(
+      React.createElement(OptimizeFundsConfirm, {
+        entriesBefore: 200,
+        entriesAfter: 3,
+        transactionCount: 3,
+        feeSompi: 30_000_000n,
+        isLedger: false,
+        canConfirm: true,
+        onConfirm: () => {},
+        ...extra,
+      }),
+    ) as string;
+
+  test("both drop reasons and maturityUnknown reach the confirm screen", () => {
+    const html = confirm({
+      skippedCovenant: 2,
+      skippedImmature: 1,
+      maturityUnknown: true,
+    });
+    expect(html).toContain(
+      "2 UTXOs carry token state or belong to another key and stay as they are.",
+    );
+    expect(html).toContain(
+      "1 UTXO is a coinbase payout that is not spendable yet and stays out of this round.",
+    );
+    expect(html).toContain("Coinbase maturity could not be checked");
+    expect(html).toContain("the node may refuse the round");
+  });
+
+  test("nothing dropped and maturity checked: no skip or maturity copy", () => {
+    const html = confirm({});
+    expect(html).not.toContain("token state");
+    expect(html).not.toContain("coinbase payout");
+    expect(html).not.toContain("Coinbase maturity");
+  });
+
+  test("no plan, nothing dropped: funds already fit", () => {
+    expect(
+      describeNoPlan({
+        spendable: 40,
+        skippedCovenant: 0,
+        skippedImmature: 0,
+        maturityUnknown: false,
+      }),
+    ).toBe("Your funds already fit in a single transaction.");
+  });
+
+  test("no plan, entries dropped: never claims the funds fit", () => {
+    const some = describeNoPlan({
+      spendable: 40,
+      skippedCovenant: 3,
+      skippedImmature: 2,
+      maturityUnknown: false,
+    });
+    expect(some).not.toContain("Your funds already fit");
+    expect(some).toContain("3 UTXOs carry token state");
+    expect(some).toContain("2 UTXOs are coinbase payouts");
+    const all = describeNoPlan({
+      spendable: 0,
+      skippedCovenant: 5,
+      skippedImmature: 0,
+      maturityUnknown: false,
+    });
+    expect(all).toContain("No UTXO can be optimized.");
+    expect(all).not.toContain("fit in a single transaction");
   });
 });
