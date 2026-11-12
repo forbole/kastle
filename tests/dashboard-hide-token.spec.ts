@@ -485,10 +485,12 @@ test("an ERC-20 row carries the same switch in manage mode", async ({
   // The switch flips the draft and never navigates away from the list.
   await sw.click();
   await expect(sw).toHaveAttribute("aria-checked", "false");
-  await expect(search(page)).toBeVisible();
+  await expect(done(page)).toBeVisible();
   // The row body itself does not navigate while managing either.
   await page.getByTestId("manage-row").filter({ hasText: "WKAS" }).click();
-  await expect(search(page)).toBeVisible();
+  await expect(done(page)).toBeVisible();
+  await expect(sw).toBeVisible();
+  await expect(sw).toHaveAttribute("aria-checked", "false");
   // Nothing is written until Done.
   expect(await storedIds(page)).toBeNull();
   expect(errors).toEqual([]);

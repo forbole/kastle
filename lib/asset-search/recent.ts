@@ -4,7 +4,8 @@ import type { AssetSearchItem } from "@/ui/popup/asset-search/AssetSearchPage";
 
 /**
  * Assets the user picked on the search screen, per network and account
- * address (same key shape as lib/hidden-tokens.ts). Newest first, capped.
+ * address (the same key shape the hidden-tokens module uses). Newest first,
+ * capped.
  * Only the row's id/name/kind/logo/network are kept: no balances.
  */
 const PREFIX = "recentAssetSearches:";

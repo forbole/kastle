@@ -7,13 +7,12 @@ import AssetSearchPage, {
 } from "@/ui/popup/asset-search/AssetSearchPage";
 import type { NetworkType } from "@/ui/popup/kcc20/labels";
 import { matchesQuery } from "@/components/dashboard/TokenListItem.tsx";
-import { useTokenListByAddress } from "@/hooks/kasplex/useTokenListByAddress";
+import { useTokenListStateByAddress } from "@/hooks/kasplex/useTokenListByAddress";
 import { useTokenInfo } from "@/hooks/kasplex/useTokenInfo";
 import useKrc20Logo from "@/hooks/kasplex/useKrc20Logo";
 import useKcc20Tokens from "@/lib/kcc20/useKcc20Tokens";
 import useErc20Assets from "@/hooks/evm/useErc20Assets";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
-import useKaspaBalance from "@/hooks/wallet/useKaspaBalance";
 import { useFeatureFlags } from "@/hooks/useFeatureFlags.ts";
 import {
   TESTNET_SUPPORTED_EVM_L2_CHAINS,
@@ -76,12 +75,12 @@ export default function AssetSearch() {
   const [settings] = useSettings();
   const { account, wallet } = useWalletManager();
   const address = account?.address;
-  const balance = useKaspaBalance(address);
   const [query, setQuery] = useState("");
 
-  const krc20Tokens = useTokenListByAddress(address, 5000);
+  const { data: krc20Tokens, isLoading: krc20Loading } =
+    useTokenListStateByAddress(address, 5000);
   const { isKcc20Enabled } = useFeatureFlags();
-  const { data: kcc20Tokens } = useKcc20Tokens(
+  const { data: kcc20Tokens, isLoading: kcc20Loading } = useKcc20Tokens(
     isKcc20Enabled ? address : undefined,
   );
   // Same guard as the dashboard KCC-20 row: it does not open on Ledger.
@@ -200,16 +199,36 @@ export default function AssetSearch() {
     [candidates, query],
   );
 
-  // Sources still loading: skeletons follow whatever already matched.
+  // Only a source that is enabled and still fetching shows skeletons; a source
+  // with no account, switched off or failed has settled, so "No result" shows.
   const isLoading =
-    balance === undefined ||
-    krc20Tokens === undefined ||
-    (canOpenKcc20 && kcc20Tokens === undefined);
+    (krc20Loading && krc20Tokens === undefined) ||
+    (canOpenKcc20 && kcc20Loading && kcc20Tokens === undefined);
+
+  const itemsById = useMemo(
+    () => new Map(candidates.map(({ item }) => [item.id, item])),
+    [candidates],
+  );
+  // A KCC-20 id opens only while the current list holds it (kill switch, Ledger).
+  const isAvailable = (id: string) =>
+    !id.startsWith("kcc20:") || itemsById.has(id);
+
+  // Recents draw from the current list (live name/logo); the stored snapshot
+  // only stands in for an id the list does not hold.
+  const recentRows = useMemo(
+    () =>
+      recent.flatMap((stored) => {
+        const live = itemsById.get(stored.id);
+        if (live) return [live];
+        return stored.id.startsWith("kcc20:") ? [] : [stored];
+      }),
+    [recent, itemsById],
+  );
 
   const select = (item: AssetSearchItem) => {
     const route = routeFor(item.id);
-    if (!route) return;
-    void add(item);
+    if (!route || !isAvailable(item.id)) return;
+    void add(itemsById.get(item.id) ?? item);
     // Replace: back from the detail page lands on Home, not on search.
     navigate(route, { replace: true });
   };
@@ -223,7 +242,7 @@ export default function AssetSearch() {
         query={query}
         onQueryChange={setQuery}
         onBack={() => navigate(-1)}
-        recent={[...recent]}
+        recent={recentRows}
         results={results}
         isLoading={isLoading}
         onSelect={select}
