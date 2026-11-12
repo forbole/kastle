@@ -288,7 +288,7 @@ test("04 token detail, Token info: the five rows in order, KCC-20 badge only nex
     inCard: !!el.closest("div.rounded-2xl.border-card-border"),
     inRows: !!el.closest("section"),
   }));
-  expect(beside.name).not.toBe("");
+  expect(beside.name).toBe("KTEST");
   expect(beside.name).not.toMatch(FAMILY_CHIP);
   expect(beside.inCard).toBe(true);
   expect(beside.inRows).toBe(false);
@@ -299,7 +299,10 @@ test("04 token detail, Token info: the five rows in order, KCC-20 badge only nex
     hasText: /^Security/,
   });
   await expect(security).toHaveCount(1);
-  await expect(security).toContainText("Verified");
+  const securityText = ((await security.textContent()) ?? "")
+    .replace(/\s+/g, " ")
+    .trim();
+  expect(securityText).toBe("SecurityVerified");
   await expect(page.locator("body")).not.toContainText(GONE);
   await shot(page, "03-detail-info.png");
   expect(errors).toEqual([]);
