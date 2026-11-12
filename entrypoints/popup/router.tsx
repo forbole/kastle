@@ -45,6 +45,7 @@ import Krc20Transfer from "@/components/send/krc20-send/Krc20Transfer";
 import MintToken from "@/components/screens/full-pages/MintToken.tsx";
 import TokenAsset from "@/components/screens/KRC20Asset";
 import KasAsset from "@/components/screens/KasAsset.tsx";
+import AssetSearch from "@/components/screens/AssetSearch";
 import SignTxConfirm from "@/components/screens/browser-api/kaspa/SignTxConfirm";
 import ConfirmMint from "@/components/screens/full-pages/ConfirmMint.tsx";
 import MintingToken from "@/components/screens/full-pages/MintingToken.tsx";
@@ -351,6 +352,7 @@ export const router = createHashRouter([
                     element: <DevMode />,
                   },
                   { path: "dashboard", element: <Dashboard /> },
+                  { path: "asset-search", element: <AssetSearch /> },
                   { path: "add-wallet", element: <AddWallet /> },
                   {
                     path: "rename-account/:walletId/:accountIndex",

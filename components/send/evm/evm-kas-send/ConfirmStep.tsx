@@ -24,6 +24,7 @@ import {
 import { createPublicClient, http, hexToNumber } from "viem";
 import { formatToken } from "@/lib/utils.ts";
 import { sendEvmTransaction } from "@/lib/ethereum/transaction";
+import useInsRecipientCheck from "@/hooks/ins/useInsRecipientCheck";
 
 export const ConfirmStep = ({
   chainId,
@@ -48,7 +49,12 @@ export const ConfirmStep = ({
 
   const { wallet } = useWalletManager();
   const { watch } = useFormContext<EvmKasSendForm>();
-  const { address: toAddress, amount } = watch();
+  const form = watch();
+  const { address: toAddress, amount, domain } = form;
+  const { check: insCheck, verify: verifyRecipient } = useInsRecipientCheck(
+    chainId,
+    form,
+  );
 
   const payload =
     evmAddress && toAddress && amount
@@ -92,6 +98,9 @@ export const ConfirmStep = ({
 
     try {
       setIsSigning(true);
+
+      // The name may have been re-pointed since the Details step resolved it.
+      if (!(await verifyRecipient())) return;
 
       const fromAddress = await signer.getAddress();
       const gas = await ethClient.estimateGas({
@@ -170,8 +179,19 @@ export const ConfirmStep = ({
             </span>
           </div>
           <span className="break-all text-xs text-daintree-400">
-            {toAddress}
+            {domain ? `${domain} → ${toAddress}` : toAddress}
           </span>
+          {insCheck && (
+            <span
+              className={twMerge(
+                "text-xs text-daintree-400",
+                insCheck.status === "verified" && "text-teal-500",
+                insCheck.status === "blocked" && "text-red-500",
+              )}
+            >
+              {insCheck.message}
+            </span>
+          )}
         </div>
 
         <ul className="flex flex-col rounded-lg bg-daintree-800">

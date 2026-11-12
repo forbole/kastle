@@ -11,6 +11,7 @@ import {
   Gavel,
   Lock,
   Pencil,
+  Search,
   Settings,
 } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
@@ -147,6 +148,14 @@ export default function Dashboard() {
           </div>
 
           <div className="flex">
+            <button
+              type="button"
+              aria-label="Search assets"
+              className="flex size-[46px] items-center justify-center text-white"
+              onClick={() => navigate("/asset-search")}
+            >
+              <Search size={20} />
+            </button>
             <button
               className="flex size-[46px] items-center justify-center text-white"
               onClick={() => navigate("/settings")}
