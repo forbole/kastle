@@ -8,11 +8,22 @@ import init, {
   Transaction,
   createTransactions,
   payToAddressScript,
+  signTransaction,
 } from "@/wasm/core/kaspa";
 import { IWalletWithGetAddress } from "@/lib/wallet/wallet-interface";
 import { signAndSubmitBatch } from "@/lib/wallet/transaction-batch";
 
 const TESTS_DIR = path.dirname(fileURLToPath(import.meta.url));
+
+// signAndSubmitBatch refuses inputs with an empty signature script: stub
+// signers stand in a placeholder for the signature they would produce.
+const withPlaceholderSignatures = (transaction: Transaction) => {
+  transaction.inputs = transaction.inputs.map((input) => {
+    input.signatureScript = "00";
+    return input;
+  });
+  return transaction;
+};
 
 test.beforeAll(async () => {
   await init({
@@ -67,7 +78,7 @@ test.describe("KAS send over a fragmented UTXO set (B2)", () => {
   const mkBroadcaster = () => {
     const broadcast: Transaction[] = [];
     const signer: Pick<IWalletWithGetAddress, "signTx"> = {
-      signTx: async (tx) => tx,
+      signTx: async (tx) => withPlaceholderSignatures(tx),
     };
     const rpcClient: Pick<RpcClient, "submitTransaction"> = {
       submitTransaction: async (request) => {
@@ -188,4 +199,47 @@ test.describe("KAS send over a fragmented UTXO set (B2)", () => {
       /No transaction was generated/,
     );
   });
+});
+
+// The hot signer leaves inputs it has no key for with an empty script and no
+// error; the batch must stop before the node sees them.
+test("signAndSubmitBatch refuses a transaction with an unsigned input", async () => {
+  const key = new PrivateKey(
+    "b7e151628aed2a6abf7158809cf4f3c762e7160f38b4da56a784d9045190cfef",
+  );
+  const sender = key.toPublicKey().toAddress("mainnet");
+  const { transactions } = await createTransactions({
+    entries: Array.from({ length: 2 }, (_unused, i) => ({
+      address: sender,
+      outpoint: { transactionId: i.toString(16).padStart(64, "0"), index: 0 },
+      amount: 1_000_000_000n,
+      scriptPublicKey: payToAddressScript(sender),
+      blockDaaScore: 1_000n,
+      isCoinbase: false,
+    })),
+    changeAddress: sender.toString(),
+    networkId: "mainnet",
+  } as never);
+  let submits = 0;
+  const signer: Pick<IWalletWithGetAddress, "signTx"> = {
+    signTx: async (tx) => {
+      const signed = signTransaction(tx, [key], false);
+      signed.inputs = signed.inputs.map((input, i) => {
+        if (i === 1) input.signatureScript = "";
+        return input;
+      });
+      return signed;
+    },
+  };
+  await expect(
+    signAndSubmitBatch(transactions, signer, {
+      submitTransaction: async () => {
+        submits++;
+        return { transactionId: "id" };
+      },
+    }),
+  ).rejects.toThrow(
+    "1 of 2 inputs are unsigned; this transaction was not submitted.",
+  );
+  expect(submits).toBe(0);
 });
