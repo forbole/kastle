@@ -185,3 +185,93 @@ test("decimals undefined: still base units, no fiat", () => {
   expect(r.amount.value?.symbol).toBe("base units");
   expect(r.fiat).toEqual({ value: null, quality: "unavailable" });
 });
+
+// Marketplace buys (board #4 / #4b) land on chain as `op: "send"`. Shapes
+// below are the real Kasplex oplist rows for txs 650fb3e6…1115 and
+// a1046d0c…f287; NACHO has 8 decimals.
+const { historyAmountText, historyTitle } = await import(
+  "@/ui/popup/history/format"
+);
+const SELLER =
+  "kaspa:qr5pfrs3ja2t4m8e5yq7tl08r6c5d9l69z42a0dyar86qxa7apfec7l68hpah";
+const BUYER_4 =
+  "kaspa:qpl7evxs00fycp9v7tjcjsgcj5jttkqe7t7vdfxfradj8283gk7cu9tr7vur7";
+const BUYER_4B = "kaspa:qpmpzq4789t045mch";
+const nacho = { ...ctx, tick: "NACHO", decimals: 8 };
+const marketRow = (amt: string, to: string, hash: string): Op =>
+  op({
+    p: "KRC-20",
+    op: "send",
+    tick: "NACHO",
+    amt,
+    from: SELLER,
+    to,
+    price: "1100006156",
+    opScore: "4246868590000",
+    feeRev: "20792",
+    hashRev: hash,
+    mtsAdd: "1777888347411",
+    mtsMod: "1777888347411",
+  });
+const MARKET_ROWS = [
+  {
+    board: "#4",
+    row: marketRow(
+      "500000000000",
+      BUYER_4,
+      "650fb3e6".padEnd(60, "0") + "1115",
+    ),
+    buyer: BUYER_4,
+    shown: "5,000 NACHO",
+  },
+  {
+    board: "#4b",
+    row: marketRow(
+      "330000000000",
+      BUYER_4B,
+      "a1046d0c".padEnd(60, "0") + "f287",
+    ),
+    buyer: BUYER_4B,
+    shown: "3,300 NACHO",
+  },
+];
+
+for (const { board, row, buyer, shown } of MARKET_ROWS) {
+  test(`marketplace buy ${board}: buyer sees a receive of ${shown}`, () => {
+    const r = toHistoryRecord(row, { ...nacho, ownAddress: buyer });
+    expect(r.kind).toBe("receive");
+    expect(r.direction).toBe("in");
+    expect(r.counterparty).toEqual({
+      value: { address: SELLER },
+      quality: "exact",
+    });
+    expect(r.amount.value?.symbol).toBe("NACHO");
+    expect(historyAmountText(r)).toBe(`+${shown}`);
+    expect(historyTitle(r.kind, r.family)).toBe("Received");
+    expect(historyTitle(r.kind, r.family)).not.toBe("Transaction");
+  });
+
+  test(`marketplace buy ${board}: seller sees a send of ${shown}`, () => {
+    const r = toHistoryRecord(row, { ...nacho, ownAddress: SELLER });
+    expect(r.kind).toBe("send");
+    expect(r.direction).toBe("out");
+    expect(r.counterparty).toEqual({
+      value: { address: buyer },
+      quality: "exact",
+    });
+    expect(historyAmountText(r)).toBe(`-${shown}`);
+    expect(historyTitle(r.kind, r.family)).toBe("Sent");
+    expect(r.kind).not.toBe("unknown");
+  });
+}
+
+test("a genuinely unknown op still maps to unknown / Transaction", () => {
+  const r = toHistoryRecord(
+    { ...MARKET_ROWS[0].row, op: "issue" },
+    { ...nacho, ownAddress: BUYER_4 },
+  );
+  expect(r.kind).toBe("unknown");
+  expect(r.amount.quality).toBe("unavailable");
+  expect(historyAmountText(r)).toBeNull();
+  expect(historyTitle(r.kind, r.family)).toBe("Transaction");
+});
