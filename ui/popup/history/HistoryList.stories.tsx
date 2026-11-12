@@ -6,6 +6,10 @@ import {
   KCC20_RECORDS,
   KRC20_EXTRAS,
   KRC20_RECORDS,
+  LONG_AMOUNT_RECORDS,
+  NO_COUNTERPARTY_RECORDS,
+  NO_PRICE_RECORDS,
+  OTHER_YEAR_RECORDS,
   RECORDS,
   designedDetail,
   designedRow,
@@ -56,12 +60,26 @@ export const Truncated: Story = {
   args: { truncatedMessage: "Older history is not shown." },
 };
 
-// Pointer over "TX Hash" opens the card: date, Committed, Revealed (KRC-20 only).
+// No price: no fiat line, the amount stays level with the title.
+export const NoPrice: Story = { args: { records: NO_PRICE_RECORDS } };
+
+// A very long amount stays on one line and ends in an ellipsis.
+export const LongAmount: Story = { args: { records: LONG_AMOUNT_RECORDS } };
+
+// No counterparty: "Sent" alone; a mint never names an address.
+export const NoCounterparty: Story = {
+  args: { records: NO_COUNTERPARTY_RECORDS },
+};
+
+// Another year shows the year in the date.
+export const OtherYear: Story = { args: { records: OTHER_YEAR_RECORDS } };
+
+// Pointer over the date opens the card: date, Committed, Revealed (KRC-20 only).
 export const Hover: Story = {
   args: { records: KRC20_RECORDS, getRowExtras: () => KRC20_EXTRAS },
   play: async ({ canvasElement }) => {
-    const [hash] = within(canvasElement).getAllByText("TX Hash");
-    await userEvent.hover(hash);
+    const [date] = within(canvasElement).getAllByText(/｜/);
+    await userEvent.hover(date);
   },
 };
 

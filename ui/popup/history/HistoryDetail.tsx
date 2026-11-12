@@ -13,7 +13,10 @@ import type { HistoryRecord } from "@/lib/history/types";
 import useCurrencyValue from "@/hooks/useCurrencyValue";
 import { formatCurrency, textEllipsis } from "@/lib/utils";
 import {
+  historyAmountText,
+  historyDesignedCounterparty,
   historyFiatUsd,
+  historyNamesCounterparty,
   historyStatusLabel,
   historyTimeText,
 } from "@/ui/popup/history/format";
@@ -268,6 +271,10 @@ function DesignedDetail({
   const time = historyTimeText(record.time.value);
   const explorer = record.explorer;
   const shownStatus = status ?? historyDetailStatus(record.status);
+  const amount = historyAmountText(record);
+  const who = historyNamesCounterparty(record)
+    ? historyDesignedCounterparty(record)
+    : null;
 
   return (
     <div
@@ -294,10 +301,31 @@ function DesignedDetail({
             <StatusValue {...shownStatus} />
           </div>
         </div>
+        {amount && (
+          <div className="flex items-center justify-between gap-4 text-sm">
+            <span className="shrink-0 text-daintree-400">Amount</span>
+            <span className="min-w-0 break-all text-right text-white">
+              {amount}
+            </span>
+          </div>
+        )}
         {fiatText && (
           <div className="flex items-center justify-between gap-4 text-sm">
             <span className="shrink-0 text-daintree-400">Value</span>
             <span className="text-white">{fiatText}</span>
+          </div>
+        )}
+        {who && (
+          <div className="flex items-center justify-between gap-4 text-sm">
+            <span className="shrink-0 text-daintree-400">
+              {record.direction === "in" ? "From" : "To"}
+            </span>
+            <span
+              className="min-w-0 truncate text-white"
+              title={record.counterparty.value?.address ?? who}
+            >
+              {who}
+            </span>
           </div>
         )}
         {record.txid && (

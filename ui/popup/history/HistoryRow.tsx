@@ -11,12 +11,13 @@ import {
 import { twMerge } from "tailwind-merge";
 import type { HistoryDirection, HistoryRecord } from "@/lib/history/types";
 import AssetImage from "@/ui/popup/kcc20/AssetImage";
-import { KCC20_LABELS } from "@/ui/popup/kcc20/labels";
 import {
   historyAmountText,
   historyCounterpartyText,
   historyFiatText,
   historyHoverDateText,
+  historyRowDateText,
+  historyRowTitle,
   historyStatusLabel,
   historyTimeText,
   historyTitle,
@@ -30,6 +31,9 @@ const DIRECTION_ICON: Record<HistoryDirection, typeof ArrowUpRight> = {
 
 const ROW_CLASS =
   "flex w-full shrink-0 items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3 text-left hover:border-white";
+
+// Designed row: logo sits closer to its text than the legacy row's gap-3.
+const DESIGNED_ROW_CLASS = twMerge(ROW_CLASS, "gap-2");
 
 // Movement colour: in and out only; self and unattributed stay neutral.
 function movementTone(record: HistoryRecord) {
@@ -55,11 +59,11 @@ export interface HistoryRowExtras {
   logo?: string;
   /** Small chain mark on the logo's corner. */
   chainBadge?: string;
-  /** Number on the badge after "TX Hash". */
+  /** No longer drawn on the row; kept so existing callers still compile. */
   txCount?: number;
   /** Replaces the derived "≈ $19.235 USD". */
   fiatText?: string;
-  /** Token pages already say which token: drop the symbol after the amount. */
+  /** No-op: the row always shows the symbol. Kept so existing callers still compile. */
   isSymbolHidden?: boolean;
   /**
    * Status lines in the hover card (KRC-20: Committed, Revealed). Left empty,
@@ -85,22 +89,20 @@ function StatusBadge({ status }: { status: HistoryRecord["status"] }) {
 }
 
 // KRC-20 mints and deploys read "Minted TTTT": the symbol is the subject.
+// A plain send / receive names the other side: "Sent to kaspa:qp...mrp".
 function RowTitle({ record }: { record: HistoryRecord }) {
   const symbol = record.amount.value?.symbol;
+  const className = "min-w-0 truncate text-sm font-medium text-white";
   if (record.family === "krc20" && symbol) {
     if (record.kind === "mint" || record.kind === "deploy")
       return (
-        <span className="truncate text-sm font-medium text-white">
+        <span className={className}>
           {record.kind === "mint" ? "Minted " : "Deployed "}
           <span className="font-bold">{symbol}</span>
         </span>
       );
   }
-  return (
-    <span className="truncate text-sm font-medium text-white">
-      {historyTitle(record.kind, record.family)}
-    </span>
-  );
+  return <span className={className}>{historyRowTitle(record)}</span>;
 }
 
 function HashLink({
@@ -283,32 +285,21 @@ export function HistoryRow(
   );
 }
 
-// Logo (or direction icon), what happened, "TX Hash"; amount and fiat on the right.
+// Logo (or direction icon); a two-line grid: title + amount, then date + fiat.
 function DesignedRow({
   record,
   onClick,
   logo,
   chainBadge,
-  txCount,
   fiatText,
-  isSymbolHidden = false,
   hashSteps = [],
 }: {
   record: HistoryRecord;
   onClick?: () => void;
 } & HistoryRowExtras) {
-  const symbol = record.amount.value?.symbol;
-  let amount = historyAmountText(record);
-  // "base units" is not a ticker: it says the number is unscaled, so it stays.
-  if (
-    amount &&
-    isSymbolHidden &&
-    symbol &&
-    symbol !== KCC20_LABELS.baseUnits &&
-    amount.endsWith(` ${symbol}`)
-  )
-    amount = amount.slice(0, -(symbol.length + 1));
+  const amount = historyAmountText(record);
   const fiat = fiatText ?? historyFiatText(record);
+  const date = historyRowDateText(record.time.value);
   const tone = movementTone(record);
   const Icon =
     record.kind === "unknown" ? HelpCircle : DIRECTION_ICON[record.direction];
@@ -323,52 +314,58 @@ function DesignedRow({
   const content = (
     <>
       {logo || chainBadge ? (
-        <AssetImage variant="chain" tokenImage={logo} chainImage={chainBadge} />
+        <AssetImage
+          variant="chain"
+          tokenImage={logo}
+          chainImage={chainBadge}
+          tokenImageSize={32}
+          chainImageSize={14}
+        />
       ) : (
         <span
           aria-hidden="true"
           className={twMerge(
-            "flex size-10 shrink-0 items-center justify-center rounded-full bg-white/5",
+            "flex size-8 shrink-0 items-center justify-center rounded-full bg-white/5",
             tone,
           )}
         >
-          <Icon className="size-5" />
+          <Icon className="size-4" />
         </span>
       )}
-      <div className="flex min-w-0 flex-grow flex-col gap-1">
-        <div className="flex min-w-0 items-center gap-2">
+      {/* The amount takes what it needs (full ticker) and the title gives way;
+          the 60% cap only stops an absurd amount from squeezing the title out. */}
+      <div className="grid min-w-0 flex-grow grid-cols-[minmax(0,1fr)_fit-content(60%)] gap-x-2 gap-y-1">
+        <div className="col-start-1 row-start-1 flex min-w-0 items-center gap-2 leading-5">
           <RowTitle record={record} />
           <StatusBadge status={record.status} />
         </div>
-        <span
-          ref={triggerRef}
-          onMouseEnter={() => setIsHashOpen(true)}
-          onMouseLeave={(e) => {
-            if (leaves(e.relatedTarget, cardRef.current)) setIsHashOpen(false);
-          }}
-          className="flex w-fit items-center gap-2 text-xs text-daintree-400"
-        >
-          TX Hash
-          {txCount !== undefined && (
-            <span className="rounded-full bg-white/10 px-[5.5px] py-px text-[10px] font-medium leading-4 text-white">
-              {txCount}
-            </span>
-          )}
-        </span>
-      </div>
-      <div className="flex shrink-0 flex-col items-end justify-between gap-1 self-stretch">
         {amount && (
           <span
+            title={amount}
             className={twMerge(
-              "font-medium",
-              amount.length > 18 ? "text-xs leading-4" : "text-sm",
+              "col-start-2 row-start-1 min-w-0 truncate whitespace-nowrap text-right text-sm font-medium leading-5",
               tone,
             )}
           >
             {amount}
           </span>
         )}
-        {fiat && <span className="text-xs text-daintree-400">{fiat}</span>}
+        {/* No date: "TX Hash" stays as the hover trigger for the card. */}
+        <span
+          ref={triggerRef}
+          onMouseEnter={() => setIsHashOpen(true)}
+          onMouseLeave={(e) => {
+            if (leaves(e.relatedTarget, cardRef.current)) setIsHashOpen(false);
+          }}
+          className="col-start-1 row-start-2 w-fit text-xs text-daintree-400"
+        >
+          {date ?? "TX Hash"}
+        </span>
+        {fiat && (
+          <span className="col-start-2 row-start-2 min-w-0 truncate text-right text-xs text-daintree-400">
+            {fiat}
+          </span>
+        )}
       </div>
     </>
   );
@@ -376,11 +373,11 @@ function DesignedRow({
   return (
     <div className="relative">
       {onClick ? (
-        <button type="button" onClick={onClick} className={ROW_CLASS}>
+        <button type="button" onClick={onClick} className={DESIGNED_ROW_CLASS}>
           {content}
         </button>
       ) : (
-        <div className={ROW_CLASS}>{content}</div>
+        <div className={DESIGNED_ROW_CLASS}>{content}</div>
       )}
       {isHashOpen && (
         <HashCard

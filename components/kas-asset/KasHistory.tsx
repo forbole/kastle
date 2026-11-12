@@ -34,7 +34,7 @@ export default function KasHistory() {
 
   // The shell has no top margin of its own; KasAsset renders this bare in the tab.
   return (
-    <div className="mt-8 flex flex-col items-stretch gap-2">
+    <div className="mt-4 flex flex-col items-stretch gap-2">
       <HistoryList
         key={address}
         records={
