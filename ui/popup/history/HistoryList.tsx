@@ -3,7 +3,10 @@ import { useIntersectionObserver } from "usehooks-ts";
 import type { HistoryRecord } from "@/lib/history/types";
 import ActionSheet from "@/ui/general/ActionSheet";
 import { HistoryDetail } from "@/ui/popup/history/HistoryDetail";
-import { HistoryRow } from "@/ui/popup/history/HistoryRow";
+import {
+  HistoryRow,
+  type HistoryRowExtras,
+} from "@/ui/popup/history/HistoryRow";
 
 export interface HistoryListProps {
   records: HistoryRecord[];
@@ -18,21 +21,28 @@ export interface HistoryListProps {
   unavailableMessage?: string;
   emptyMessage?: string;
   truncatedMessage?: string;
+  /** Per-row logo, chain badge, TX count and hover-card lines; none = plain rows. */
+  getRowExtras?: (record: HistoryRecord) => HistoryRowExtras | undefined;
 }
 
-function Spinner() {
+function Spinner({ isSmall = false }: { isSmall?: boolean }) {
   return (
     <div
-      className="inline-block size-6 animate-spin self-center rounded-full border-[3px] border-current border-t-icy-blue-400 text-icy-blue-600"
+      className={
+        isSmall
+          ? "inline-block size-5 animate-spin self-center rounded-full border-2 border-current border-t-icy-blue-400 text-icy-blue-600"
+          : "inline-block size-6 animate-spin self-center rounded-full border-[3px] border-current border-t-icy-blue-400 text-icy-blue-600"
+      }
       role="status"
       aria-label="loading"
     />
   );
 }
 
+// Unavailable, empty and load-error sit on the page background, not in a card.
 function Notice({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-daintree-700 bg-daintree-800 p-4 text-center text-sm text-daintree-400">
+    <div className="px-4 py-8 text-center text-sm text-daintree-400">
       {children}
     </div>
   );
@@ -57,6 +67,7 @@ export function HistoryList({
   unavailableMessage,
   emptyMessage = "No history yet.",
   truncatedMessage,
+  getRowExtras,
 }: HistoryListProps): React.ReactElement {
   // The record captured at click time; the sheet shows its live version from
   // `records`, falling back to the capture only once it has left the list.
@@ -175,6 +186,7 @@ export function HistoryList({
           key={record.id}
           record={record}
           onClick={() => setSelected(record)}
+          {...getRowExtras?.(record)}
         />
       ))}
       {error ? (
@@ -199,7 +211,12 @@ export function HistoryList({
       ) : (
         // records.length === 0 here means hasMore: state 5, a spinner, with the
         // sentinel kept mounted so the next page still loads.
-        (isLoadingMore || records.length === 0) && <Spinner />
+        (isLoadingMore || records.length === 0) && (
+          // Under rows it is the small, padded one (Figma "load more").
+          <div className="flex justify-center py-3">
+            <Spinner isSmall={records.length > 0} />
+          </div>
+        )
       )}
       {truncatedMessage && records.length > 0 && (
         <p className="text-center text-sm text-daintree-400">

@@ -8,7 +8,10 @@ import { Kcc20History } from "@/components/kcc20-asset/Kcc20History";
 import { useEvmHistory } from "@/hooks/evm/useEvmHistory";
 import type { Kcc20Token } from "@/lib/kcc20";
 import { HistoryList } from "@/ui/popup/history/HistoryList";
-import { EVM_CHAIN, EVM_OWNER, OWNER } from "./stubs";
+import EvmKasAsset from "@/components/screens/EvmKasAsset";
+import Erc20Asset from "@/components/screens/Erc20Asset";
+import { getChainImage } from "@/lib/layer2";
+import { EVM_CHAIN, EVM_OWNER, OWNER } from "./constants";
 
 const token: Kcc20Token = {
   covenantId: "ab".repeat(32),
@@ -46,9 +49,17 @@ const router = createMemoryRouter(
     { path: "/krc20/:ticker", element: <TokenHistory /> },
     { path: "/kcc20", element: <Kcc20History address={OWNER} token={token} /> },
     { path: "/evm", element: <EvmHistory /> },
+    // The two real EVM screens, which pass the designed row's extras.
+    { path: "/evm-kas/:chainId", element: <EvmKasAsset /> },
+    { path: "/erc20/:chainId/:address", element: <Erc20Asset /> },
   ],
   { initialEntries: [params.get("route") ?? "/kas"] },
 );
+
+// The chain badge the EVM rows must carry, from the same helper the EVM
+// screens call (getChainImage), so the pin cannot drift from the screen.
+(window as unknown as { __kasplexBadge: string }).__kasplexBadge =
+  getChainImage(EVM_CHAIN);
 
 // Drives in-app navigation (a route param change) from the spec.
 (window as unknown as { __harnessNavigate: unknown }).__harnessNavigate =

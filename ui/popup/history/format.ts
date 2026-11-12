@@ -97,3 +97,51 @@ export function historyFiatUsd(record: HistoryRecord): number | null {
     ? null
     : (record.fiat.value?.usd ?? null);
 }
+
+const FIAT_FORMAT = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  minimumFractionDigits: 3,
+  maximumFractionDigits: 3,
+});
+
+/** "≈ $19.235 USD" for the row's right column; null when the source has no fiat. */
+export function historyFiatText(record: HistoryRecord): string | null {
+  const usd = historyFiatUsd(record);
+  return usd === null ? null : `≈ ${FIAT_FORMAT.format(usd)} USD`;
+}
+
+const HOVER_DATE = new Intl.DateTimeFormat("en-US", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+});
+const HOVER_TIME = new Intl.DateTimeFormat("en-US", {
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+
+/** "1 AUG, 2023 ・ 12:05" for the TX Hash hover card; null without a time. */
+export function historyHoverDateText(ms: number | null): string | null {
+  if (ms === null) return null;
+  const d = new Date(ms);
+  const parts = HOVER_DATE.formatToParts(d);
+  const pick = (type: string) => parts.find((p) => p.type === type)?.value;
+  const date = `${pick("day")} ${pick("month")?.toUpperCase()}, ${pick("year")}`;
+  return `${date} ・ ${HOVER_TIME.format(d)}`;
+}
+
+const STATUS_LABEL: Record<HistoryRecord["status"], string | null> = {
+  finalized: "Finalized",
+  pending: "Pending",
+  failed: "Failed",
+  unknown: null,
+};
+
+/** Display word for a record's status; null when the source cannot say. */
+export function historyStatusLabel(
+  status: HistoryRecord["status"],
+): string | null {
+  return STATUS_LABEL[status];
+}

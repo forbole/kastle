@@ -11,6 +11,7 @@ import {
 } from "@/lib/kcc20/useKcc20History";
 import { textEllipsis } from "@/lib/utils";
 import { HistoryList } from "@/ui/popup/history/HistoryList";
+import { CHAIN_BADGES } from "@/ui/popup/kcc20/AssetImage";
 
 const UNAVAILABLE: Record<Kcc20HistoryUnavailable, string> = {
   network: "History is shown on mainnet only.",
@@ -55,6 +56,13 @@ export function Kcc20History({
   const records = entries.map((e) =>
     toHistoryRecord(toHistoryRow(e), view, explorerBase),
   );
+  // Same logo and corner mark the token page header shows; one tx per row.
+  const rowExtras = {
+    logo: token?.meta?.logoURI,
+    chainBadge: CHAIN_BADGES.kcc20,
+    txCount: 1,
+    isSymbolHidden: true,
+  };
   const truncated = truncatedReason ? TRUNCATED[truncatedReason] : undefined;
 
   return (
@@ -74,6 +82,7 @@ export function Kcc20History({
       // An empty-but-truncated list says so instead of "No history yet."
       emptyMessage={truncated ?? "No history yet."}
       truncatedMessage={records.length > 0 ? truncated : undefined}
+      getRowExtras={() => rowExtras}
     />
   );
 }

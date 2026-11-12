@@ -4,7 +4,8 @@ import React, { useState } from "react";
 import AssetTabs, { AssetTab } from "@/components/AssetTabs";
 import EvmKasInfo from "@/components//evm-kas-asset/EvmKasInfo";
 import { useParams } from "react-router-dom";
-import { getChainTokenSymbol } from "@/lib/layer2";
+import { getChainImage, getChainTokenSymbol } from "@/lib/layer2";
+import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import useEvmAddress from "@/hooks/evm/useEvmAddress";
 import { useEvmHistory } from "@/hooks/evm/useEvmHistory";
 import { HistoryList } from "@/ui/popup/history/HistoryList";
@@ -35,6 +36,13 @@ export default function EvmKasAsset() {
     wallet.type !== "ledger" &&
     (balance?.balance ?? "0") !== "0";
   const toDashboard = () => navigate("/dashboard");
+  // As EvmKasInfo shows it: the KAS mark on its L2's badge.
+  const rowExtras = {
+    logo: kasIcon,
+    chainBadge: getChainImage(chainId ?? "0x0"),
+    txCount: 1,
+    isSymbolHidden: true,
+  };
 
   return (
     <div className="flex h-full flex-col px-4 pb-4 pt-6">
@@ -61,6 +69,7 @@ export default function EvmKasAsset() {
               onLoadMore={history.loadMore}
               onRetry={history.retry}
               unavailableMessage={history.unavailable?.reason}
+              getRowExtras={() => rowExtras}
             />
           </div>
         )}

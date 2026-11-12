@@ -283,7 +283,7 @@ test("04 token detail, Token info: the five rows in order, no family chip", asyn
   expect(errors).toEqual([]);
 });
 
-test("05 token detail, History: direction, title, counterparty, signed amount, date", async ({
+test("05 token detail, History: logo, title, TX Hash, signed amount, no date", async ({
   page,
 }) => {
   const errors = await open(
@@ -295,25 +295,29 @@ test("05 token detail, History: direction, title, counterparty, signed amount, d
   const row = page.getByRole("button", { name: /^Received/ });
   await expect(row).toBeVisible();
   const parts = await row.evaluate((el) => {
-    const [icon, left, right] = [...el.children] as HTMLElement[];
+    const [logo, left, right] = [...el.children] as HTMLElement[];
     return {
-      icon: !!icon.querySelector("svg"),
+      logo: !!logo.querySelector("img"),
       left: [...left.children].map((c) => c.textContent),
       right: [...right.children].map((c) => c.textContent),
       rightAligned: getComputedStyle(right).alignItems,
     };
   });
-  expect(parts.icon).toBe(true);
-  expect(parts.left).toEqual(["Received", "From qsender"]);
-  expect(parts.right[0]).toBe("+1 KTEST");
-  expect(parts.right[1]).toMatch(
-    /^[A-Z][a-z]{2} \d{1,2}, \d{4}, \d{1,2}:\d{2}\s?[AP]M$/,
+  expect(parts.logo).toBe(true);
+  expect(parts.left).toEqual(["Received", "TX Hash1"]);
+  // The page names the token, so the amount drops the symbol.
+  expect(parts.right[0]).toBe("+1");
+  // The time moved into the TX Hash card: no date cell on the row.
+  expect(parts.right.join(" ")).not.toMatch(
+    /[A-Z][a-z]{2} \d{1,2}, \d{4}, \d{1,2}:\d{2}\s?[AP]M/,
   );
   expect(parts.rightAligned).toBe("flex-end");
-  // A send signs negative and names its recipient; no txid on either row.
+  // A send signs negative, with no recipient line; no txid on either row.
   const sent = page.getByRole("button", { name: /^Sent/ });
-  await expect(sent).toContainText("To qrecipient");
-  await expect(sent).toContainText("-2.5 KTEST");
+  await expect(sent).toContainText(/TX Hash\s*1/);
+  await expect(sent).not.toContainText("qrecipient");
+  await expect(sent).toContainText("-2.5");
+  await expect(sent).not.toContainText("KTEST");
   for (const r of [row, sent])
     expect(await r.textContent()).not.toMatch(/kcc20(tx|send)|[0-9a-f]{16}/);
   await expect(page.locator("body")).not.toContainText(GONE);
@@ -321,7 +325,7 @@ test("05 token detail, History: direction, title, counterparty, signed amount, d
   expect(errors).toEqual([]);
 });
 
-test("09 a date is exact: no date cell, in the list or the detail sheet, carries ≈", async ({
+test("09 a date is exact: no date in the TX Hash card or the detail sheet carries ≈", async ({
   page,
 }) => {
   const errors = await open(
@@ -332,21 +336,37 @@ test("09 a date is exact: no date cell, in the list or the detail sheet, carries
   await page.getByRole("tab", { name: "History", exact: true }).click();
   const rows = page.getByRole("button", { name: /^(Received|Sent)/ });
   await expect(rows).toHaveCount(2);
-  const dates = await rows.evaluateAll((bs) =>
-    bs.map((b) => b.lastElementChild?.lastElementChild?.textContent ?? ""),
-  );
-  expect(dates).toHaveLength(2);
+  // The designed row keeps its date in the TX Hash hover card.
+  const card = page.getByRole("tooltip");
+  const dates: string[] = [];
+  for (let i = 0; i < 2; i++) {
+    // Close the previous row's card first, so the read below is this row's.
+    await page.mouse.move(0, 0);
+    await expect(card).toHaveCount(0);
+    await rows
+      .nth(i)
+      .locator("span", { hasText: /^TX Hash/ })
+      .first()
+      .hover();
+    await expect(card).toHaveCount(1);
+    const date = await card
+      .locator("span.text-daintree-400")
+      .first()
+      .textContent();
+    dates.push(date ?? "");
+  }
   for (const d of dates) {
-    expect(d).toMatch(/\d{4}/);
+    expect(d).toMatch(/\b\d{4}\b/);
     expect(d).not.toContain("≈");
   }
+  await page.mouse.move(0, 0);
   await rows.first().click();
   const heading = page.getByRole("heading", { name: "TX Hash" });
   await expect(heading).toBeVisible();
   const sheetDate = await heading.evaluate(
     (h) => h.nextElementSibling?.textContent ?? "",
   );
-  expect(sheetDate).toBe(dates[0]);
+  expect(sheetDate).toMatch(/\b\d{4}\b/);
   expect(sheetDate).not.toContain("≈");
   expect(errors).toEqual([]);
 });
