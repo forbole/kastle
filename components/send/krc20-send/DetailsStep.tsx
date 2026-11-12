@@ -183,6 +183,41 @@ function useKrc20SendAsset(): TokenSendAsset {
   };
 }
 
+/** A finite number's shortest decimal form, exact: 0.1 → 1/10, 1.5e-7 → 15/10^8. */
+function exactDecimal(value: number): { units: bigint; scale: number } {
+  const [mantissa, exponent = "0"] = String(Math.abs(value)).split("e");
+  const [whole, fraction = ""] = mantissa.split(".");
+  const scale = fraction.length - Number(exponent);
+  const digits = whole + fraction + "0".repeat(Math.max(-scale, 0));
+  const units = BigInt(digits);
+  return { units: value < 0 ? -units : units, scale: Math.max(scale, 0) };
+}
+
+/**
+ * `usd / price` tokens at `decimals` places, truncated, in integer math so no
+ * floating-point residue reaches the amount: $0.10 at $1 is "0.1", never
+ * "0.100000000000000006". Trailing zeros are trimmed. `price` must be non-zero.
+ */
+function fiatToTokenAmount(
+  usd: number,
+  price: number,
+  decimals: number,
+): string {
+  const u = exactDecimal(usd);
+  const p = exactDecimal(price);
+  // usd * 10^decimals / price, both sides brought to integers.
+  const base =
+    (u.units * 10n ** BigInt(decimals + p.scale)) /
+    (p.units * 10n ** BigInt(u.scale));
+  const sign = base < 0n ? "-" : "";
+  const digits = (base < 0n ? -base : base)
+    .toString()
+    .padStart(decimals + 1, "0");
+  if (decimals === 0) return sign + digits;
+  const fraction = digits.slice(-decimals).replace(/0+$/, "");
+  return sign + digits.slice(0, -decimals) + (fraction ? `.${fraction}` : "");
+}
+
 export const DetailsStep = () => (
   <TokenSendDetails asset={useKrc20SendAsset()} />
 );
@@ -488,17 +523,23 @@ export const TokenSendDetails = ({
                       event.target.value ?? "0",
                     );
 
-                    if (!Number.isNaN(amountUsdNumber) && tokenCurrency !== 0) {
+                    if (
+                      Number.isFinite(amountUsdNumber) &&
+                      Number.isFinite(tokenCurrency) &&
+                      tokenCurrency !== 0
+                    ) {
                       // At the token's own scale: more fraction digits than
                       // it has fail decimalsError and keep Next disabled.
-                      const fixed = (amountUsdNumber / tokenCurrency).toFixed(
-                        Math.min(Math.max(Math.trunc(asset.decimals), 0), 100),
-                      );
                       setValue(
                         "amount",
-                        fixed.includes(".")
-                          ? fixed.replace(/\.?0+$/, "")
-                          : fixed,
+                        fiatToTokenAmount(
+                          amountUsdNumber,
+                          tokenCurrency,
+                          Math.min(
+                            Math.max(Math.trunc(asset.decimals) || 0, 0),
+                            100,
+                          ),
+                        ),
                       );
 
                       await trigger("amount");

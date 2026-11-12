@@ -775,6 +775,24 @@ test("a fiat value on a priced 6-decimal KCC-20 fills a sendable amount", async 
   expect(errors).toEqual([]);
 });
 
+// The fiat → token conversion is integer math: $0.10 at $1 on an 18-decimal
+// token is exactly 0.1, not 0.100000000000000006, so a wallet holding exactly
+// 0.1 can send it.
+test("a fiat value spending an exact 18-decimal balance keeps Next enabled", async ({
+  page,
+}) => {
+  // 10^17 base units at 18 decimals = exactly 0.1 NACHO, priced at $1.00.
+  const errors = await open(page, "&token=100000000000000000&price=1");
+  await address(page).fill(RECIPIENT);
+  await page.locator('input[name="amountFiat"]').fill("0.10");
+  await expect(amount(page)).toHaveValue("0.1");
+  await expect(page.getByText("Oh, you don’t have enough funds")).toHaveCount(
+    0,
+  );
+  await expect(next(page)).toBeEnabled();
+  expect(errors).toEqual([]);
+});
+
 test("an unpriced KCC-20 still sends with a zero USD value", async ({
   page,
 }) => {
