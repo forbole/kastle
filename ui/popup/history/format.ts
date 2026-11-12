@@ -77,8 +77,8 @@ export function historyTimeText(ms: number | null): string | null {
   return ms === null ? null : DATE_FORMAT.format(new Date(ms));
 }
 
-/** "To …" / "From …" the other side; a self row has none. */
-export function historyCounterpartyText(record: HistoryRecord): string | null {
+/** The other side's label or shortened address; null for a self row or none. */
+export function historyCounterpartyName(record: HistoryRecord): string | null {
   const { counterparty, direction } = record;
   if (
     direction === "self" ||
@@ -86,9 +86,87 @@ export function historyCounterpartyText(record: HistoryRecord): string | null {
     !counterparty.value
   )
     return null;
-  const who =
-    counterparty.value.label ?? textEllipsis(counterparty.value.address);
-  return `${direction === "in" ? "From" : "To"} ${who}`;
+  return counterparty.value.label ?? textEllipsis(counterparty.value.address);
+}
+
+const KEY_PREFIX = /^(presence|p2pkh):/;
+const ADDRESS_PREFIX = /^(0x|kaspa:|kaspatest:|kaspadev:|kaspasim:)/i;
+
+/**
+ * "0x1f51…9497" / "kaspa:qr3x…k7x2": a known prefix kept, then the first
+ * 4 and last 4 characters. Anything else is first 4 + "…" + last 4. An
+ * address too short to lose anything is returned whole.
+ */
+export function shortAddress(address: string): string {
+  // KCC-20 owners carry a "presence:" / "p2pkh:" tag; the key is what shows.
+  const bare = address.replace(KEY_PREFIX, "");
+  const prefix = ADDRESS_PREFIX.exec(bare)?.[0] ?? "";
+  const body = bare.slice(prefix.length);
+  if (body.length <= 4 + 4 + 3) return bare;
+  return `${prefix}${body.slice(0, 4)}…${body.slice(-4)}`;
+}
+
+/**
+ * The counterparty as the designed row title and sheet show it. A real label
+ * ("KRON market", "#42 · …") stays; a missing label, or the old 8…5 ellipsis
+ * the data layer fills in, is re-cut from the address by `shortAddress`.
+ */
+export function historyDesignedCounterparty(
+  record: HistoryRecord,
+): string | null {
+  if (historyCounterpartyName(record) === null) return null;
+  const value = record.counterparty.value!;
+  const isDerived =
+    value.label === textEllipsis(value.address) ||
+    value.label === textEllipsis(value.address.replace(KEY_PREFIX, ""));
+  if (!value.label || isDerived) return shortAddress(value.address);
+  return value.label;
+}
+
+/** "To …" / "From …" the other side; a self row has none. */
+export function historyCounterpartyText(record: HistoryRecord): string | null {
+  const who = historyCounterpartyName(record);
+  return who === null
+    ? null
+    : `${record.direction === "in" ? "From" : "To"} ${who}`;
+}
+
+/** A plain send / receive that names its counterparty; row title and sheet share it. */
+export function historyNamesCounterparty(record: HistoryRecord): boolean {
+  return (
+    (record.kind === "send" || record.kind === "receive") &&
+    historyCounterpartyName(record) !== null
+  );
+}
+
+/**
+ * Row title: "Sent to …" / "Received from …" for a plain send or receive with
+ * a known counterparty; every other row keeps its own title.
+ */
+export function historyRowTitle(record: HistoryRecord): string {
+  if (historyNamesCounterparty(record))
+    return `${record.kind === "send" ? "Sent to" : "Received from"} ${historyDesignedCounterparty(record)}`;
+  return historyTitle(record.kind, record.family);
+}
+
+/**
+ * "12 Nov｜11:04" for the row's second line, the year only outside the current
+ * one; null without a time. Same format as formatDateTime in
+ * lib/activity/adapters.ts; keep in step.
+ */
+export function historyRowDateText(ms: number | null): string | null {
+  if (ms === null) return null;
+  const d = new Date(ms);
+  const date = d.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: d.getFullYear() !== new Date().getFullYear() ? "numeric" : undefined,
+  });
+  const time = d.toLocaleTimeString("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  return `${date}｜${time}`;
 }
 
 /** USD figure for the detail sheet's Value row; null when the source has none. */
@@ -109,27 +187,6 @@ const FIAT_FORMAT = new Intl.NumberFormat("en-US", {
 export function historyFiatText(record: HistoryRecord): string | null {
   const usd = historyFiatUsd(record);
   return usd === null ? null : `≈ ${FIAT_FORMAT.format(usd)} USD`;
-}
-
-const HOVER_DATE = new Intl.DateTimeFormat("en-US", {
-  day: "numeric",
-  month: "short",
-  year: "numeric",
-});
-const HOVER_TIME = new Intl.DateTimeFormat("en-US", {
-  hour: "2-digit",
-  minute: "2-digit",
-  hourCycle: "h23",
-});
-
-/** "1 AUG, 2023 ・ 12:05" for the TX Hash hover card; null without a time. */
-export function historyHoverDateText(ms: number | null): string | null {
-  if (ms === null) return null;
-  const d = new Date(ms);
-  const parts = HOVER_DATE.formatToParts(d);
-  const pick = (type: string) => parts.find((p) => p.type === type)?.value;
-  const date = `${pick("day")} ${pick("month")?.toUpperCase()}, ${pick("year")}`;
-  return `${date} ・ ${HOVER_TIME.format(d)}`;
 }
 
 const STATUS_LABEL: Record<HistoryRecord["status"], string | null> = {

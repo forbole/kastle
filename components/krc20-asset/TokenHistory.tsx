@@ -90,7 +90,7 @@ export function TokenHistory() {
   const finished = !!opList && opList[opList.length - 1]?.next === undefined;
 
   return (
-    <div className="mt-8">
+    <div className="mt-4">
       <HistoryList
         key={`${ownAddress}:${ticker}`}
         records={records}

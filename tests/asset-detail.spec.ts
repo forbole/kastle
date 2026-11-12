@@ -551,9 +551,9 @@ test("KCC-20: the identity card shows on Token info, not on History", async ({
     name: "See activity history in explorer",
   });
   // History is the kascov list through the page's history slot.
-  // The designed row: title, "TX Hash" with its count, the bare signed amount.
+  // The designed row: title, the signed amount with its symbol, the date.
   const row = page.getByRole("button", {
-    name: /^Received.*TX Hash\s*1\s*\+1\b/,
+    name: /^Received.*\+1 KTEST\b.*｜\d{2}:\d{2}/,
   });
   await expect(row).toBeVisible();
   await expect(explorer).toHaveCount(0);
@@ -582,7 +582,9 @@ test('KCC-20: an empty fallback page is not "No history yet", and paging continu
 }) => {
   const errors = await open(page, `/kcc20/${KCC20_ID}`, "&historyFallback=1");
   await expect(
-    page.getByRole("button", { name: /^Received.*TX Hash\s*1\s*\+1\b/ }),
+    page.getByRole("button", {
+      name: /^Received.*\+1 KTEST\b.*｜\d{2}:\d{2}/,
+    }),
   ).toBeVisible();
   await expect(page.getByText("Older history is not shown.")).toBeVisible();
   await expect(page.getByText("No history yet.")).toHaveCount(0);
@@ -678,19 +680,18 @@ test("KCC-20: Token info shows the identity block, then mobile's five rows", asy
   await expect(sendButton(page, "WHALE")).toBeVisible();
 });
 
-test("KCC-20: a movement row shows a title, TX Hash and a signed amount, never the txid", async ({
+test("KCC-20: a movement row shows a title, a signed amount and the date, never the txid", async ({
   page,
 }) => {
   await open(page, `/kcc20/${KCC20_ID}`);
   const row = page.getByRole("button", { name: /^Received/ });
   await expect(row).toBeVisible();
   const text = (await row.textContent())!;
-  expect(text).toMatch(/TX Hash\s*1/);
-  // The page names the token: the amount carries no symbol.
-  expect(text).toMatch(/\+1(?!\s*KTEST)/);
-  expect(text).not.toMatch(/KTEST/);
-  // No counterparty and no date on the designed row.
-  expect(text).not.toMatch(/From qsender/);
+  expect(text).toMatch(/｜\d{2}:\d{2}/);
+  // The amount always carries its symbol.
+  expect(text).toMatch(/\+1 KTEST/);
+  // The counterparty is in the title; the date is 24-hour, no AM / PM.
+  expect(text).toMatch(/Received from \S*qsender/);
   expect(text).not.toMatch(/\d{1,2}:\d{2}\s?[AP]M/);
   expect(text).not.toMatch(/[0-9a-f]{16}/);
   expect(text).not.toMatch(/Unknown|Unavailable|—/);
@@ -764,13 +765,29 @@ test("KCC-20 activity sheet: focus stays inside and Escape closes it", async ({
   const sheet = page.getByRole("dialog", { name: "TX Hash" });
   const copy = sheet.getByRole("button", { name: "Copy TX ID" });
   const explorer = sheet.getByRole("button", { name: "View on Explorer" });
+  // The designed sheet's tab stops, in DOM order: the To address (its
+  // full-address tooltip trigger), Copy TX ID, View on Explorer.
+  const party = sheet.locator('span[tabindex="0"]');
+  await expect(party).toHaveCount(1);
+  await expect(party).toHaveText("f34f0243...e9cad");
+  const tooltip = sheet.getByRole("tooltip");
+  // Opening focuses Copy: the address is skipped so its tooltip stays shut.
   await expect(copy).toBeFocused();
+  await expect(tooltip).toHaveCount(0);
   await page.keyboard.press("Tab");
   await expect(explorer).toBeFocused();
+  // Tab past the last stop wraps to the first, the address.
+  await page.keyboard.press("Tab");
+  await expect(party).toBeFocused();
+  await expect(tooltip).toHaveText("kaspa:qf34f0243");
   await page.keyboard.press("Tab");
   await expect(copy).toBeFocused();
   await page.keyboard.press("Shift+Tab");
+  await expect(party).toBeFocused();
+  // Shift+Tab before the first stop wraps to the last.
+  await page.keyboard.press("Shift+Tab");
   await expect(explorer).toBeFocused();
+  await expect(tooltip).toHaveCount(0);
   await page.keyboard.press("Escape");
   await expect(page.getByTestId("closed")).toBeVisible();
 });
@@ -1030,10 +1047,10 @@ test("EVM KAS: a revalidation shows a new transfer on top, and the old row never
   ).toBe(false);
 });
 
-// The History list starts the asset pages' section gap (mt-8 = 32 px)
-// below the tab bar, as the real Info tabs do. The harness stubs the
-// Info tabs and KasHistory, so the gap is checked as a number.
-const SECTION_GAP = 32;
+// The History list starts the asset pages' section gap (mt-4 = 16 px)
+// below the tab bar; the real Info tabs use the same mt-4. The harness stubs
+// the Info tabs and KasHistory, so the gap is checked as a number.
+const SECTION_GAP = 16;
 const gapBelowTabs = (page: Page) =>
   page.evaluate(() => {
     let tabs = document.querySelector('[role="tablist"]') as HTMLElement;

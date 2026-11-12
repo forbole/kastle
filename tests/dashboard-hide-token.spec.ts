@@ -517,9 +517,14 @@ test("a kascov-LISTED KCC-20 detail page shows the scaled balance", async ({
   await page.setViewportSize({ width: 500, height: 900 });
   const errors = await open(page, `/kcc20/${"ef".repeat(32)}`, "&listed=1");
   // History amounts scale too: the stub's 100-unit receive at 8 decimals.
-  // The designed row prints the signed amount without the ticker.
-  await expect(page.getByText("+0.000001", { exact: true })).toBeVisible();
-  await expect(page.getByText("+0.000001 LUKE")).toHaveCount(0);
+  // The designed row prints the signed amount with its unit.
+  const history = page.getByRole("tabpanel", { name: "History" });
+  await expect(
+    history.getByText("+0.000001 LUKE", { exact: true }),
+  ).toBeVisible();
+  // Never the unscaled base units, never a bare amount without its unit.
+  await expect(history.getByText(/\+100\b/)).toHaveCount(0);
+  await expect(history.getByText("+0.000001", { exact: true })).toHaveCount(0);
   await page.getByRole("tab", { name: "Token info" }).click();
   await expect(page.getByText("2,000 LUKE")).toBeVisible();
   await expect(page.getByText("8", { exact: true })).toBeVisible();
