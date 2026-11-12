@@ -84,8 +84,10 @@ export function useKrc20Prices() {
 export function useCurrencyValue(amount: number) {
   return { amount, code: "USD" };
 }
+// RAW: Kasplex returns no usable dec, so the adapter labels amounts base units.
 export function useTokenInfo(tick?: string) {
-  return { data: tick ? { result: [{ tick, dec: "8" }] } : undefined };
+  const dec = tick === "RAW" ? "" : "8";
+  return { data: tick ? { result: [{ tick, dec }] } : undefined };
 }
 
 // KAS: the adapter nets own inputs against own outputs, so every tx carries an

@@ -384,6 +384,19 @@ for (const [i, s] of SURFACES.entries()) {
   });
 }
 
+// The token page hides the ticker, but "base units" is not a ticker: without
+// it an unscaled 100,000,000 reads as 100 million whole tokens.
+test("krc20: unknown decimals keep the base-units label on the token page", async ({
+  page,
+}) => {
+  const errors = await open(page, "/krc20/RAW");
+  const rows = rowsOf(page);
+  await expect(rows).toHaveCount(6);
+  // Row 5: in from BOB, default amt "100000000".
+  await expect(rows.nth(4)).toContainText("+100,000,000 base units");
+  expect(errors).toEqual([]);
+});
+
 // React Router keeps a route element mounted across a param change, so the
 // list's paging state (empty-page streak, phase) must be reset by its key.
 test("krc20: the TX Hash card shows Committed and Revealed, done only when the op proves them", async ({
