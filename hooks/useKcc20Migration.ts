@@ -18,7 +18,8 @@ const MIGRATION_FLAG_KEY = "kcc20_migration";
  *
  * `migratableHeld` is the wallet's payload-listed KRC-20 holdings, mainnet
  * only, so every entry point (Bridge row today, more later) agrees on it. No
- * tokenlist request is made while the migration is inactive.
+ * tokenlist request is made while the migration is inactive or there is no
+ * address, and the list is always the one fetched for the current address.
  */
 export function useKcc20Migration({
   address,
@@ -53,8 +54,15 @@ export function useKcc20Migration({
   );
 
   const enabled = config !== undefined;
-  const active = enabled && kcc20MigrationRoute && isMainnet;
-  const tokenList = useTokenListByAddress(active ? address : undefined);
+  // No account, no eligibility: an undefined address never shows the row.
+  const active = enabled && kcc20MigrationRoute && isMainnet && !!address;
+  // Never the previous address's list: after an account switch SWR would
+  // otherwise hand back the old holdings until the new fetch lands (or fails).
+  const tokenList = useTokenListByAddress(
+    active ? address : undefined,
+    undefined,
+    { keepPreviousData: false },
+  );
 
   const held = useMemo(
     () => (active ? migratableHeld(config, tokenList ?? []) : []),

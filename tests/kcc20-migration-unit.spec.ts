@@ -58,13 +58,16 @@ function renderMigration({
   payload,
   held = [],
   isMainnet = true,
+  noAddress = false,
 }: {
   flags: Flags;
   payload?: unknown;
   held?: { id: string; balance: string; dec: string }[];
   isMainnet?: boolean;
+  noAddress?: boolean;
 }) {
   const requested: (string | undefined)[] = [];
+  const requestOptions: unknown[] = [];
   const slots: unknown[] = [];
   let slot = 0;
   const postHog = {
@@ -96,8 +99,13 @@ function renderMigration({
     "@/contexts/PostHogWrapperProvider.tsx": { PostHogWrapperContext: {} },
     "@/hooks/useFeatureFlags": featureFlags,
     "@/hooks/kasplex/useTokenListByAddress": {
-      useTokenListByAddress: (address?: string) => {
+      useTokenListByAddress: (
+        address?: string,
+        _refreshInterval?: number,
+        options?: unknown,
+      ) => {
         requested.push(address);
+        requestOptions.push(options);
         return address ? held : undefined;
       },
     },
@@ -105,12 +113,13 @@ function renderMigration({
   }).useKcc20Migration;
   const render = () => {
     slot = 0;
-    return run({ address: ADDRESS, isMainnet });
+    return run({ address: noAddress ? undefined : ADDRESS, isMainnet });
   };
   render(); // effects fill state
   requested.length = 0;
+  requestOptions.length = 0;
   const result = render();
-  return { ...result, requested };
+  return { ...result, requested, requestOptions };
 }
 
 // The predicate Bridge.tsx renders the row with, not a copy of it.
@@ -160,6 +169,33 @@ test.describe("Bridge migrate row (useKcc20Migration)", () => {
       expect(shown(r)).toBeFalsy();
       expect(r.requested).toEqual([undefined]);
     }
+  });
+
+  test("requests the current address's list with previous-key data off", () => {
+    const r = renderMigration({
+      flags: ON,
+      payload: PAYLOAD,
+      held: [{ id: "NACHO", balance: "1", dec: "8" }],
+    });
+    expect(r.requested).toEqual([ADDRESS]);
+    // keepPreviousData would hand back the last account's holdings after a
+    // switch; eligibility must come from this address's list only.
+    expect(r.requestOptions).toEqual([{ keepPreviousData: false }]);
+  });
+
+  test("no address: hidden and no tokenlist request", () => {
+    const r = renderMigration({
+      flags: ON,
+      payload: PAYLOAD,
+      held: [{ id: "NACHO", balance: "1", dec: "8" }],
+      noAddress: true,
+    });
+    // Eligibility itself clears, not just the list: under real SWR a null key
+    // with keepPreviousData would still return the last account's holdings.
+    expect(r.enabled).toBe(false);
+    expect(shown(r)).toBeFalsy();
+    expect(r.migratableHeld).toEqual([]);
+    expect(r.requested).toEqual([undefined]);
   });
 
   test("testnet: hidden and no tokenlist request", () => {

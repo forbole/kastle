@@ -55,11 +55,21 @@ async function fetchAllTokensForAddress(
   }));
 }
 
+export type TokenListOptions = {
+  /**
+   * Keep the previous address's list while the new one loads (SWR's
+   * keepPreviousData). Default true; pass false where the list must belong to
+   * `address`, e.g. an eligibility decision.
+   */
+  keepPreviousData?: boolean;
+};
+
 export function useTokenListByAddress(
   address?: string,
   refreshInterval?: number,
+  options?: TokenListOptions,
 ) {
-  return useTokenListStateByAddress(address, refreshInterval).data;
+  return useTokenListStateByAddress(address, refreshInterval, options).data;
 }
 
 // Same list plus whether the fetch is still in flight, so a caller can tell
@@ -67,6 +77,7 @@ export function useTokenListByAddress(
 export function useTokenListStateByAddress(
   address?: string,
   refreshInterval?: number,
+  { keepPreviousData = true }: TokenListOptions = {},
 ) {
   const [settings] = useSettings();
   const [cacheReady, setCacheReady] = useState(false);
@@ -86,7 +97,7 @@ export function useTokenListStateByAddress(
     () => fetchAllTokensForAddress(kasplexUrl!, address!),
     {
       fallbackData: cacheReady && cached != null ? cached : undefined,
-      keepPreviousData: true,
+      keepPreviousData,
       refreshInterval,
       onSuccess: (tokens) => {
         if (address) krc20BalanceCache.write(address, tokens);
