@@ -14,18 +14,8 @@ import {
   useErc20Price,
 } from "@/hooks/evm/useZealousSwapMetadata";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
-import {
-  ManagedRow,
-  type ManageRow,
-} from "@/components/dashboard/TokenListItem.tsx";
 
-export default function Erc20Asset({
-  asset,
-  manage,
-}: {
-  asset: Erc20Asset;
-  manage?: ManageRow;
-}) {
+export default function Erc20Asset({ asset }: { asset: Erc20Asset }) {
   const navigate = useNavigate();
   const [settings] = useSettings();
   const { data } = useErc20Balance(asset.address, asset.chainId);
@@ -68,14 +58,6 @@ export default function Erc20Asset({
       </div>
     </>
   );
-
-  // Manage mode: the shared switch row, no navigation.
-  if (manage)
-    return (
-      <ManagedRow manage={manage} label={asset.symbol}>
-        {body}
-      </ManagedRow>
-    );
 
   return (
     <div

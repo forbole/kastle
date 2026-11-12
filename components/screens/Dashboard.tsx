@@ -31,6 +31,7 @@ import usePortfolioPerformance from "@/hooks/usePortfolioPerformance";
 import HoverTooltip from "../HoverTooltip";
 import KNSText from "@/components/dashboard/KNSText.tsx";
 import AddressesMenu from "../dashboard/AddressesMenu";
+import ManageAssetsMenu from "@/ui/popup/dashboard/ManageAssetsMenu";
 
 export default function Dashboard() {
   const { keyringLock } = useKeyring();
@@ -390,6 +391,13 @@ export default function Dashboard() {
                   {tab}
                 </span>
               ))}
+              {/* Right end of the tab row: the dropdown anchors to this edge */}
+              <div className="ml-auto">
+                <ManageAssetsMenu
+                  isVisible={activeTab === "Assets"}
+                  onManageAssets={() => navigate("/manage-assets")}
+                />
+              </div>
             </div>
 
             {/* Tab Content */}

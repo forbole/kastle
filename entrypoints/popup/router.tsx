@@ -46,6 +46,7 @@ import MintToken from "@/components/screens/full-pages/MintToken.tsx";
 import TokenAsset from "@/components/screens/KRC20Asset";
 import KasAsset from "@/components/screens/KasAsset.tsx";
 import AssetSearch from "@/components/screens/AssetSearch";
+import ManageAssets from "@/components/screens/ManageAssets";
 import SignTxConfirm from "@/components/screens/browser-api/kaspa/SignTxConfirm";
 import ConfirmMint from "@/components/screens/full-pages/ConfirmMint.tsx";
 import MintingToken from "@/components/screens/full-pages/MintingToken.tsx";
@@ -353,6 +354,7 @@ export const router = createHashRouter([
                   },
                   { path: "dashboard", element: <Dashboard /> },
                   { path: "asset-search", element: <AssetSearch /> },
+                  { path: "manage-assets", element: <ManageAssets /> },
                   { path: "add-wallet", element: <AddWallet /> },
                   {
                     path: "rename-account/:walletId/:accountIndex",

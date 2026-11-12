@@ -17,6 +17,8 @@ import EvmKasAsset from "@/components/screens/EvmKasAsset";
 import DotkAsset from "@/components/screens/DotkAsset";
 import Kcc20Asset, { Kcc20AssetPending } from "@/components/screens/Kcc20Asset";
 import Assets from "@/components/dashboard/Assets";
+import Dashboard from "@/components/screens/Dashboard";
+import ManageAssets from "@/components/screens/ManageAssets";
 import AssetSelect from "@/components/screens/asset-selector/AssetSelect";
 import TokenDetailPage, {
   TokenDetailTab,
@@ -176,6 +178,9 @@ const router = createMemoryRouter(
             </div>
           ),
         },
+        // The real Dashboard (tab row + Manage Assets menu) and the page it opens.
+        { path: "/dashboard-home", element: <Dashboard /> },
+        { path: "/manage-assets", element: <ManageAssets /> },
         { path: "/asset-select", element: <AssetSelect /> },
         { path: "*", element: <Landed /> },
       ],
