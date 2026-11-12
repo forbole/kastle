@@ -19,6 +19,15 @@ import {
   blockscoutTxToHistoryRecord,
   type BlockscoutTx,
 } from "@/lib/history/blockscout";
+import {
+  EVM_CHAIN,
+  EVM_OWNER,
+  EVM_TOKEN,
+  EVM_TOKEN_LOGO,
+  OWNER,
+} from "./constants";
+
+export { EVM_CHAIN, EVM_OWNER, EVM_TOKEN, EVM_TOKEN_LOGO, OWNER };
 
 const state = new URLSearchParams(location.search).get("state");
 const empty = state === "empty" || state === "more";
@@ -26,7 +35,6 @@ const loading = state === "loading";
 const more = state === "more";
 const noop = () => {};
 
-export const OWNER = "kaspa:qowner";
 const ALICE = "kaspa:qalice";
 const BOB = "kaspa:qbob";
 const T = Date.UTC(2026, 0, 2, 3, 4);
@@ -250,9 +258,7 @@ export function useKcc20History() {
 }
 
 // EVM: Blockscout txs on Kasplex L2, run through the real mapper.
-export const EVM_OWNER = "0x1111111111111111111111111111111111111111";
 const EVM_OTHER = "0x2222222222222222222222222222222222222222";
-export const EVM_CHAIN = "0x3173b";
 const tx = (n: number, o: Partial<BlockscoutTx>): BlockscoutTx =>
   ({
     hash: `0x${hash(300 + n)}`,
@@ -306,8 +312,6 @@ export function useEvmAddress() {
 export function useEvmKasBalance() {
   return { data: { balance: "0" } };
 }
-export const EVM_TOKEN = "0x4444444444444444444444444444444444444444";
-export const EVM_TOKEN_LOGO = "data:image/gif;base64,R0lGODlhAQABAAAAACw=";
 export function useErc20Info() {
   return { symbol: "TKN", image: EVM_TOKEN_LOGO };
 }
@@ -316,4 +320,8 @@ export function useErc20Balance() {
 }
 export function useErc20Image() {
   return { logoUrl: undefined };
+}
+// The same shim also feeds Erc20Info (the Info tab) its price.
+export function useErc20Price() {
+  return { price: 0 };
 }

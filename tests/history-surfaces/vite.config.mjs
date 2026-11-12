@@ -30,6 +30,9 @@ const modules = {
   "hooks/evm/useEvmKasBalance": "useEvmKasBalance",
   "hooks/evm/useErc20Info": "useErc20Info",
   "hooks/evm/useErc20Balance": "useErc20Balance",
+  // Erc20Asset imports useErc20Image from this re-export shim; unstubbed, the
+  // real hook would fetch token metadata from the harness.
+  "hooks/evm/useZealousSwapMetadata": "useErc20Image",
   // Only its explorer link tables; the screen itself is not under test.
   "components/screens/Settings": "explorerTxLinks",
 };

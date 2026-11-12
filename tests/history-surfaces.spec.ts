@@ -4,7 +4,13 @@ import http from "node:http";
 import { readFileSync, existsSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { EVM_CHAIN, EVM_TOKEN, EVM_TOKEN_LOGO } from "./history-surfaces/stubs";
+// Never ./history-surfaces/stubs: it pulls repo modules (and their SVGs)
+// that this Node loader cannot parse.
+import {
+  EVM_CHAIN,
+  EVM_TOKEN,
+  EVM_TOKEN_LOGO,
+} from "./history-surfaces/constants";
 
 // Every per-asset history renders through the shared HistoryList/HistoryRow/
 // HistoryDetail. The harness in tests/history-surfaces mounts the four real
@@ -34,6 +40,7 @@ type Surface = {
   fiat?: boolean;
   // The token logo the row must show, when the harness pins one.
   logo?: string;
+  kasplexBadge?: boolean;
 };
 
 const row = (
@@ -122,6 +129,7 @@ const SURFACES: Surface[] = [
   {
     // The real EVM KAS screen: KAS logo on its L2 badge, one tx per row.
     key: "evm-kas",
+    kasplexBadge: true,
     route: `/evm-kas/${EVM_CHAIN}`,
     rows: [
       designedRow("Sent", "-1.5"),
@@ -139,6 +147,7 @@ const SURFACES: Surface[] = [
   {
     // The real ERC-20 screen: the token's own image on its L2 badge.
     key: "erc20",
+    kasplexBadge: true,
     route: `/erc20/${EVM_CHAIN}/${EVM_TOKEN}`,
     rows: [
       designedRow("Sent", "-1.5"),
@@ -264,6 +273,13 @@ for (const [i, s] of SURFACES.entries()) {
       }),
     );
 
+    const badge = await page.evaluate(
+      () =>
+        new URL(
+          (window as unknown as { __kasplexBadge: string }).__kasplexBadge,
+          location.href,
+        ).href,
+    );
     for (const [n, want] of s.rows.entries()) {
       const got = read[n];
       const at = `${s.key} row ${n}`;
@@ -271,6 +287,8 @@ for (const [i, s] of SURFACES.entries()) {
         // Token logo with its chain badge in place of the direction circle.
         expect(got.circleSvg, at).toBe(false);
         expect(got.badgeSrc, at).toMatch(/^(data:image|http)/);
+        // On the EVM screens: the Kasplex mark the harness entry resolved.
+        if (s.kasplexBadge) expect(got.badgeSrc, at).toBe(badge);
         expect(got.logoSrc, at).toMatch(/^(data:image|http)/);
         if (s.logo) expect(got.logoSrc, at).toBe(s.logo);
       } else {
@@ -376,6 +394,9 @@ test("krc20: the TX Hash card shows Committed and Revealed, done only when the o
   await expect(rows).toHaveCount(6);
   const card = page.getByRole("tooltip");
   const readCard = async (n: number) => {
+    // Close the previous row's card first, so the read below is this row's.
+    await page.mouse.move(0, 0);
+    await expect(card).toHaveCount(0);
     await rows
       .nth(n)
       .locator("span", { hasText: /^TX Hash/ })

@@ -340,6 +340,9 @@ test("09 a date is exact: no date in the TX Hash card or the detail sheet carrie
   const card = page.getByRole("tooltip");
   const dates: string[] = [];
   for (let i = 0; i < 2; i++) {
+    // Close the previous row's card first, so the read below is this row's.
+    await page.mouse.move(0, 0);
+    await expect(card).toHaveCount(0);
     await rows
       .nth(i)
       .locator("span", { hasText: /^TX Hash/ })
