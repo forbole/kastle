@@ -59,6 +59,15 @@ export function useTokenListByAddress(
   address?: string,
   refreshInterval?: number,
 ) {
+  return useTokenListStateByAddress(address, refreshInterval).data;
+}
+
+// Same list plus whether the fetch is still in flight, so a caller can tell
+// a source that is loading from one that failed or has no account.
+export function useTokenListStateByAddress(
+  address?: string,
+  refreshInterval?: number,
+) {
   const [settings] = useSettings();
   const [cacheReady, setCacheReady] = useState(false);
 
@@ -72,7 +81,7 @@ export function useTokenListByAddress(
 
   const cached = address ? krc20BalanceCache.read(address) : null;
 
-  const { data } = useSWR<TokenItem[], Error>(
+  const { data, isLoading } = useSWR<TokenItem[], Error>(
     kasplexUrl && address ? `krc20Tokens:${address}` : null,
     () => fetchAllTokensForAddress(kasplexUrl!, address!),
     {
@@ -85,5 +94,5 @@ export function useTokenListByAddress(
     },
   );
 
-  return data;
+  return { data, isLoading };
 }
