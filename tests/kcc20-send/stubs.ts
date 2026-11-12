@@ -1,6 +1,6 @@
 // Stubs for the hooks, the KCC-20 builder and the WASM the send screens reach
 // into. Scenario knobs come from the page's query string (see main.tsx).
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Kcc20Token } from "@/lib/kcc20";
 
 export const OWNER = "kaspa:qowner";
@@ -242,8 +242,19 @@ export function useKcc20Price(token?: Pick<Kcc20Token, "family">) {
 // The real module also exports the KRC-20 display fill, so it is stubbed whole
 // (a named-only stub shims the fill to undefined and every KCC-20 row throws).
 // ponytail: identity, the fill itself is covered by kcc20-history-attribution-unit.
+// krc20logo=1 fills the KCC-20 row's missing logo the way the KRC-20 namesake
+// would, so a screen reading the unfilled row shows no artwork.
+export const KRC20_FILL_LOGO =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Ccircle cx='20' cy='20' r='20' fill='%23ff9900'/%3E%3C/svg%3E";
 export function useKrc20FilledToken<T>(token: T): T {
-  return token;
+  const t = token as Kcc20Token | undefined;
+  return useMemo(
+    () =>
+      query.has("krc20logo") && t?.meta && !t.meta.logoURI
+        ? ({ ...t, meta: { ...t.meta, logoURI: KRC20_FILL_LOGO } } as T)
+        : token,
+    [token],
+  );
 }
 // kcc20Unsettled=<ms>: SWR's in-between state (no data, isLoading false) for
 // that long; the settle time lands in window.__kcc20SettledAt.

@@ -17,6 +17,9 @@ const DOTK_FLAG_KEY = "dotk_enabled_extension";
 // like the KCC-20 standard rows. No UI reads it yet: the launchpad screens were
 // removed, and Kasseal assets will come into the Swap UI later.
 const KASSEAL_FLAG_KEY = "kasseal_enabled_extension";
+// Shared with mobile (same key on every platform). Opt-in, no dev override:
+// the Bridge migrate row only shows on an explicit true.
+const KCC20_MIGRATION_ROUTE_FLAG_KEY = "kcc20_migration_route";
 // PostHog can fail to init (context stays undefined) or never deliver flags;
 // neither is distinguishable from "still loading", so the wait is bounded.
 const FLAGS_TIMEOUT_MS = 5_000;
@@ -66,6 +69,8 @@ export function useFeatureFlags() {
         [KASSEAL_FLAG_KEY]:
           postHog.getFeatureFlags()?.[KASSEAL_FLAG_KEY] ??
           (postHog.getFeatureFlags() ? false : undefined),
+        [KCC20_MIGRATION_ROUTE_FLAG_KEY]:
+          postHog.getFeatureFlags()?.[KCC20_MIGRATION_ROUTE_FLAG_KEY],
       });
 
     updateFlags();
@@ -99,5 +104,7 @@ export function useFeatureFlags() {
     // Same bounded wait as KCC-20.
     isKassealLoading:
       isProduction && flags[KASSEAL_FLAG_KEY] === undefined && !flagsTimedOut,
+    // Opt-in in every build: missing, not loaded or non-true means hidden.
+    kcc20MigrationRoute: flags[KCC20_MIGRATION_ROUTE_FLAG_KEY] === true,
   };
 }

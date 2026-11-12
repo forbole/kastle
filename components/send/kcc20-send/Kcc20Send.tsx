@@ -13,6 +13,7 @@ import { SuccessStatus } from "@/components/send/SuccessStatus.tsx";
 import { FailStatus } from "@/components/send/FailStatus.tsx";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import useKcc20Tokens from "@/lib/kcc20/useKcc20Tokens";
+import { useKcc20Price, useKrc20FilledToken } from "@/lib/kcc20/useKcc20Price";
 import {
   formatMaxAmount,
   parseTokenAmount,
@@ -60,6 +61,17 @@ export default function Kcc20Send() {
   // lands. Only a settled list without this row (or without its decimals)
   // means the token cannot be sent. A rejected lookup is settled too: it
   // never resolves into data, so waiting on it would spin forever.
+  // Display reads the KRC-20-filled row (logo); decimals and spendable stay the row's own.
+  const filled = useKrc20FilledToken(token);
+  // Before the row loads there is nothing to price.
+  const { priceUsd } = useKcc20Price(
+    filled ??
+      token ?? {
+        covenantId: covenantId ?? "",
+        family: "kron-legacy",
+        meta: undefined,
+      },
+  );
   const lookupSettled =
     !!account?.address &&
     !isLoading &&
@@ -106,8 +118,11 @@ export default function Kcc20Send() {
     token?.meta?.symbol || (token ? textEllipsis(token.covenantId) : "");
 
   const feeKas = built ? Number(formatUnits(built.fee, KAS_DECIMALS)) : 0;
-  const { amount: amountCurrency, code: amountCurrencyCode } =
-    useCurrencyValue(0);
+  const sentAmount =
+    built && sent ? Number(formatUnits(built.amount, sent.decimals)) : 0;
+  const { amount: amountCurrency, code: amountCurrencyCode } = useCurrencyValue(
+    sentAmount * (priceUsd ?? 0),
+  );
   const { amount: feesCurrency, code: feesCurrencyCode } = useCurrencyValue(
     feeKas * kaspaPrice,
   );
@@ -117,11 +132,11 @@ export default function Kcc20Send() {
 
   const asset: TokenSendAsset = {
     name: symbol,
-    logo: token?.meta?.logoURI,
+    logo: filled?.meta?.logoURI,
     // Only ADDRESS-owned pieces are sendable; the dashboard balance may be higher.
     balance: token ? Number(formatUnits(token.spendable, decimals)) : 0,
     balanceText: token ? formatBalance(token.spendable, decimals) : "0",
-    price: 0,
+    price: priceUsd ?? 0,
     decimals,
     maxAmount: formatMaxAmount(token?.spendable, decimals),
     validateAmount: (value) =>
@@ -212,6 +227,7 @@ export default function Kcc20Send() {
             domain={sent.domain}
             tokenName={sent.symbol}
             tokenId={covenantId}
+            chipLabel="KCC20"
             amount={formatUnits(built.amount, sent.decimals)}
             amountFiat={formatUsdAmount(amountCurrency, amountCurrencyCode)}
             fee={`${formatUnits(built.fee, KAS_DECIMALS)} KAS`}

@@ -713,3 +713,119 @@ test("a standard KCC-20 row with a ticker and no decimals shows grouped base uni
   await expect(page.getByText(FAMILY)).toHaveCount(0);
   expect(errors).toEqual([]);
 });
+
+// Mirrors KRC20_FILL_LOGO in tests/kcc20-send/stubs.ts (krc20logo=1).
+const KRC20_FILL_LOGO =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Ccircle cx='20' cy='20' r='20' fill='%23ff9900'/%3E%3C/svg%3E";
+
+// The chip on one address row of the confirm step.
+const chip = (page: Page, row: "Send from" | "Send to") =>
+  page
+    .locator("div.rounded-lg")
+    .filter({ hasText: row })
+    .locator("span.rounded-full");
+
+// UAT2 #12: the asset button shows the token's own (KRC-20-filled) artwork.
+test("KCC-20 send shows the token's filled logo, not the Kaspa mark", async ({
+  page,
+}) => {
+  const errors = await open(page, "&krc20logo=1");
+  const logo = page.locator('img[alt="Token"]').first();
+  await expect(logo).toBeVisible();
+  await expect.poll(() => logo.getAttribute("src")).toBe(KRC20_FILL_LOGO);
+  // Without a fill the row has no artwork and the Kaspa mark stands in.
+  await open(page);
+  const plain = page.locator('img[alt="Token"]').first();
+  await expect.poll(() => plain.getAttribute("src")).not.toBe(KRC20_FILL_LOGO);
+  expect(errors).toEqual([]);
+});
+
+// UAT2 #14: Max at a market price fills a non-zero fiat value, and confirm
+// prices the sent amount.
+test("KCC-20 Max shows a non-zero USD value on details and confirm", async ({
+  page,
+}) => {
+  const errors = await open(page, "&price=0.25");
+  await address(page).fill(RECIPIENT);
+  await page.getByRole("button", { name: "Max" }).click();
+  await expect(amount(page)).toHaveValue("10000");
+  const fiat = page.locator('input[name="amountFiat"]');
+  await expect
+    .poll(async () => Number((await fiat.inputValue()).replace(/,/g, "")))
+    .toBe(2500);
+
+  await next(page).click();
+  await expect(page.getByText("Sending amount")).toBeVisible();
+  await expect(page.getByText("$2,500.00", { exact: true })).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+// A typed fiat value derives the amount at the token's scale: 8 places on a
+// 6-decimal token fails decimalsError and Next stays disabled.
+test("a fiat value on a priced 6-decimal KCC-20 fills a sendable amount", async ({
+  page,
+}) => {
+  // 1,000,000 base units at 6 decimals = 1 NACHO, priced at $0.30.
+  const errors = await open(page, "&decimals=6&price=0.3");
+  await address(page).fill(RECIPIENT);
+  await page.locator('input[name="amountFiat"]').fill("0.1");
+  await expect(amount(page)).toHaveValue("0.333333");
+  await expect(page.getByText(/at most \d+ decimal places/)).toHaveCount(0);
+  await expect(next(page)).toBeEnabled();
+  expect(errors).toEqual([]);
+});
+
+// The fiat → token conversion is integer math: $0.10 at $1 on an 18-decimal
+// token is exactly 0.1, not 0.100000000000000006, so a wallet holding exactly
+// 0.1 can send it.
+test("a fiat value spending an exact 18-decimal balance keeps Next enabled", async ({
+  page,
+}) => {
+  // 10^17 base units at 18 decimals = exactly 0.1 NACHO, priced at $1.00.
+  const errors = await open(page, "&token=100000000000000000&price=1");
+  await address(page).fill(RECIPIENT);
+  await page.locator('input[name="amountFiat"]').fill("0.10");
+  await expect(amount(page)).toHaveValue("0.1");
+  await expect(page.getByText("Oh, you don’t have enough funds")).toHaveCount(
+    0,
+  );
+  await expect(next(page)).toBeEnabled();
+  expect(errors).toEqual([]);
+});
+
+test("an unpriced KCC-20 still sends with a zero USD value", async ({
+  page,
+}) => {
+  await open(page);
+  await page.getByRole("button", { name: "Max" }).click();
+  await expect(amount(page)).toHaveValue("10000");
+  const fiat = page.locator('input[name="amountFiat"]');
+  await expect.poll(() => fiat.inputValue()).toBe("0");
+});
+
+// UAT2 #16: both address rows carry the token standard on a KCC-20 confirm.
+test("KCC-20 confirm shows KCC20 on both address rows", async ({ page }) => {
+  await open(page);
+  await fill(page, RECIPIENT, "12.5");
+  await next(page).click();
+  await expect(page.getByText("Sending amount")).toBeVisible();
+  for (const row of ["Send from", "Send to"] as const) {
+    await expect(chip(page, row)).toHaveCount(1);
+    await expect(chip(page, row)).toHaveText("KCC20");
+  }
+  await expect(page.getByText("Kaspa", { exact: true })).toHaveCount(0);
+});
+
+test("KRC-20 confirm still shows Kaspa on both address rows", async ({
+  page,
+}) => {
+  await page.goto(`${base}/?route=/krc20/send/KASPY`);
+  await fill(page, RECIPIENT, "2");
+  await next(page).click();
+  await expect(page.getByText("Sending amount")).toBeVisible();
+  for (const row of ["Send from", "Send to"] as const) {
+    await expect(chip(page, row)).toHaveCount(1);
+    await expect(chip(page, row)).toHaveText("Kaspa");
+  }
+  await expect(page.getByText("KCC20", { exact: true })).toHaveCount(0);
+});
