@@ -22,6 +22,7 @@ type Row = {
   amount: string | null;
   time: boolean;
 };
+// The designed sheet always shows the status: "Unconfirmed" when the source never said.
 type Sheet = {
   row: number;
   status: string | null;
@@ -123,7 +124,13 @@ const SURFACES: Surface[] = [
     ],
     designed: true,
     sheets: [
-      { row: 0, status: null, value: false, txid: true, explorer: true },
+      {
+        row: 0,
+        status: "Unconfirmed",
+        value: false,
+        txid: true,
+        explorer: true,
+      },
     ],
   },
   {
@@ -345,7 +352,7 @@ for (const [i, s] of SURFACES.entries()) {
         .locator("div.justify-between > span:first-child")
         .allTextContents();
       expect(labels, `${s.key} sheet ${sh.row}`).toEqual([
-        ...(sh.status ? ["Status"] : []),
+        "Status",
         ...(sh.value ? ["Value"] : []),
         ...(sh.txid ? ["TX ID"] : []),
       ]);

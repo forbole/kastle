@@ -23,9 +23,10 @@ import AssetSelect from "@/components/screens/asset-selector/AssetSelect";
 import TokenDetailPage, {
   TokenDetailTab,
 } from "@/ui/popup/kcc20/TokenDetailPage";
-import type { HistoryStatus } from "@/lib/history/types";
+import type { HistoryRecord, HistoryStatus } from "@/lib/history/types";
 import { HistoryDetail } from "@/ui/popup/history/HistoryDetail";
 import { HistoryList } from "@/ui/popup/history/HistoryList";
+import { historyDetailExtras } from "@/ui/popup/history/detailExtras";
 
 const TXID = "0123456789abcdef".repeat(4);
 
@@ -49,36 +50,39 @@ function TokenInfoHarness() {
   );
 }
 
-// The activity sheet alone; status=<HistoryStatus> stands in for a feed that answers it.
+// The activity sheet as the wired screens render it (historyDetailExtras);
+// status=<HistoryStatus> stands in for a feed that answers it.
 function ActivityHarness() {
   const [open, setOpen] = React.useState(true);
   const status = (params.get("status") ?? "unknown") as HistoryStatus;
+  const record: HistoryRecord = {
+    id: "r1",
+    family: "kcc20",
+    txid: TXID,
+    kind: "send",
+    direction: "out",
+    amount: {
+      value: { raw: "5", decimals: 0, symbol: "WHALE" },
+      quality: "exact",
+    },
+    kasLeg: { value: null, quality: "unavailable" },
+    fiat: { value: null, quality: "unavailable" },
+    time: { value: Date.UTC(2026, 9, 1, 12), quality: "approximate" },
+    counterparty: {
+      value: { address: "kaspa:qf34f0243", label: "f34f0243...e9cad" },
+      quality: "exact",
+    },
+    fee: { value: null, quality: "unavailable" },
+    status,
+    explorer: { url: `https://kascov.io/#/mainnet/tx/${TXID}` },
+  };
   return open ? (
     <div id="popup">
       <button type="button">opener</button>
       <HistoryDetail
-        record={{
-          id: "r1",
-          family: "kcc20",
-          txid: TXID,
-          kind: "send",
-          direction: "out",
-          amount: {
-            value: { raw: "5", decimals: 0, symbol: "WHALE" },
-            quality: "exact",
-          },
-          kasLeg: { value: null, quality: "unavailable" },
-          fiat: { value: null, quality: "unavailable" },
-          time: { value: Date.UTC(2026, 9, 1, 12), quality: "approximate" },
-          counterparty: {
-            value: { address: "kaspa:qf34f0243", label: "f34f0243...e9cad" },
-            quality: "exact",
-          },
-          fee: { value: null, quality: "unavailable" },
-          status,
-          explorer: { url: `https://kascov.io/#/mainnet/tx/${TXID}` },
-        }}
+        record={record}
         onClose={() => setOpen(false)}
+        {...historyDetailExtras(record)}
       />
     </div>
   ) : (
