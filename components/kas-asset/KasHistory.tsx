@@ -5,6 +5,7 @@ import useKaspaPrice from "@/hooks/useKaspaPrice";
 import { NetworkType } from "@/contexts/SettingsContext";
 import { toHistoryRecord } from "@/lib/history/from-kas";
 import { HistoryList } from "@/ui/popup/history/HistoryList";
+import { historyDetailExtras } from "@/ui/popup/history/detailExtras";
 import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 
 // Native KAS: the Kaspa mark is both the token and its chain; one tx per row.
@@ -50,6 +51,7 @@ export default function KasHistory() {
         onLoadMore={loadMore}
         onRetry={() => mutate()}
         getRowExtras={() => KAS_ROW_EXTRAS}
+        getDetailExtras={historyDetailExtras}
       />
     </div>
   );

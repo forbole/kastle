@@ -13,6 +13,7 @@ import { toHistoryRecord } from "@/lib/history/from-krc20";
 import useKrc20Logo from "@/hooks/kasplex/useKrc20Logo";
 import type { HistoryRecord } from "@/lib/history/types";
 import { HistoryList } from "@/ui/popup/history/HistoryList";
+import { historyDetailExtras } from "@/ui/popup/history/detailExtras";
 import { CHAIN_BADGES } from "@/ui/popup/kcc20/AssetImage";
 
 // Validate the raw value: Number("") and Number(null) are 0 too, but a real
@@ -100,6 +101,7 @@ export function TokenHistory() {
         onLoadMore={() => setSize((prev) => prev + 1)}
         onRetry={() => mutate()}
         getRowExtras={getRowExtras}
+        getDetailExtras={historyDetailExtras}
       />
     </div>
   );

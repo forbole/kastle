@@ -217,7 +217,7 @@ const PILL: Record<
 
 // The record's own status, in mobile's words: "Unconfirmed" when the source
 // never said either way, shown neutral rather than as pending.
-function derivedStatus(status: HistoryRecord["status"]) {
+export function historyDetailStatus(status: HistoryRecord["status"]) {
   const tone: HistoryDetailStatusTone =
     status === "finalized"
       ? "success"
@@ -267,7 +267,7 @@ function DesignedDetail({
   const root = useDetailDialog(onClose);
   const time = historyTimeText(record.time.value);
   const explorer = record.explorer;
-  const shownStatus = status ?? derivedStatus(record.status);
+  const shownStatus = status ?? historyDetailStatus(record.status);
 
   return (
     <div
