@@ -332,30 +332,28 @@ test("the Manage / Done control sits in a header row above every asset row", asy
   await expect(done(page)).toBeVisible();
 });
 
+// Search moved to its own screen (Home header icon); the list no longer filters.
 const search = (page: Page) =>
   page.getByRole("searchbox", { name: "Search assets" });
 const tickers = (page: Page) => page.locator('[data-part="ticker"]');
 
-test("typing a token's label narrows the list to it; clear restores it", async ({
+test("the list has no inline search: every row shows, with no Clear control", async ({
   page,
 }) => {
   const errors = await dashboard(page);
   const all = await tickers(page).count();
+  await expect(search(page)).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Clear search" })).toHaveCount(
     0,
   );
-  // Case-insensitive, on the displayed ticker.
-  await search(page).fill("nacho");
-  await expect(tickers(page)).toHaveText(["NACHO"]);
-  await expect(page.getByTestId("kas-row")).toHaveCount(0);
-  await page.getByRole("button", { name: "Clear search" }).click();
-  await expect(search(page)).toHaveValue("");
+  await expect(tickers(page).filter({ hasText: "NACHO" })).toHaveCount(1);
+  await expect(page.getByTestId("kas-row")).toBeVisible();
   await expect(tickers(page)).toHaveCount(all);
   await expect(page.getByText("NACHO")).toBeVisible();
   expect(errors).toEqual([]);
 });
 
-test("in manage mode the search still works, KAS has no switch, a token row does", async ({
+test("in manage mode every token row has a switch and KAS has none", async ({
   page,
 }) => {
   await dashboard(page);
@@ -367,35 +365,25 @@ test("in manage mode the search still works, KAS has no switch, a token row does
       .filter({ hasText: "KASPY" })
       .getByRole("switch"),
   ).toHaveCount(1);
-  await search(page).fill("KASPY");
-  await expect(switches(page)).toHaveCount(1);
+  await expect(search(page)).toHaveCount(0);
+  await expect(switches(page)).toHaveCount(ROWS);
   await expect(page.getByRole("switch", { name: "Show KASPY" })).toBeVisible();
-  await search(page).fill("kas");
   await expect(page.getByTestId("kas-row")).toBeVisible();
   await expect(page.getByTestId("kas-row").getByRole("switch")).toHaveCount(0);
   await expect(done(page)).toBeVisible();
 });
 
-test("an unmatched query shows the empty state with the way back", async ({
+test("the list never shows a no-match state; Manage stays reachable", async ({
   page,
 }) => {
   await dashboard(page);
   const empty = page.getByTestId("assets-no-match");
   await expect(empty).toHaveCount(0);
-  await search(page).fill("zzzz-no-such-asset");
-  await expect(tickers(page)).toHaveCount(0);
-  await expect(empty).toBeVisible();
-  await expect(empty).toContainText("No assets match");
-  // Search and Manage stay reachable while the list is empty.
-  await expect(search(page)).toBeVisible();
+  await expect(search(page)).toHaveCount(0);
   await expect(manage(page)).toBeVisible();
-  await empty.getByRole("button", { name: "Show all assets" }).click();
-  await expect(search(page)).toHaveValue("");
   await expect(page.getByTestId("kas-row")).toBeVisible();
-  // A matching query keeps the empty state hidden.
-  await search(page).fill("KTEST");
+  await expect(tickers(page).filter({ hasText: "KTEST" })).toHaveCount(2);
   await expect(empty).toBeHidden();
-  await expect(tickers(page)).toHaveCount(2);
 });
 
 test("a kascov-LISTED KCC-20 row reads like every other token row", async ({
@@ -497,10 +485,12 @@ test("an ERC-20 row carries the same switch in manage mode", async ({
   // The switch flips the draft and never navigates away from the list.
   await sw.click();
   await expect(sw).toHaveAttribute("aria-checked", "false");
-  await expect(search(page)).toBeVisible();
+  await expect(done(page)).toBeVisible();
   // The row body itself does not navigate while managing either.
   await page.getByTestId("manage-row").filter({ hasText: "WKAS" }).click();
-  await expect(search(page)).toBeVisible();
+  await expect(done(page)).toBeVisible();
+  await expect(sw).toBeVisible();
+  await expect(sw).toHaveAttribute("aria-checked", "false");
   // Nothing is written until Done.
   expect(await storedIds(page)).toBeNull();
   expect(errors).toEqual([]);
@@ -535,7 +525,7 @@ test("hiding an ERC-20 row stores erc20:<chain>:<addr> and showing it brings it 
   expect(await storedIds(page)).toEqual([]);
 });
 
-test("the all-hidden state counts ERC-20 rows, and search does not break it", async ({
+test("the all-hidden state counts ERC-20 rows, with no inline search over it", async ({
   page,
 }) => {
   await withErc20(page);
@@ -550,11 +540,9 @@ test("the all-hidden state counts ERC-20 rows, and search does not break it", as
   // Hide WKAS too: now every token is hidden.
   await hide(page, /^Show WKAS$/);
   await expect(empty).toContainText("All your tokens are hidden.");
-  // A search for the hidden row shows no match; clearing it restores the state.
-  await search(page).fill("WKAS");
-  await expect(empty).toHaveCount(0);
-  await expect(page.getByTestId("assets-no-match")).toBeVisible();
-  await page.getByRole("button", { name: "Clear search" }).click();
+  // No inline search or no-match state competes with the all-hidden state.
+  await expect(search(page)).toHaveCount(0);
+  await expect(page.getByTestId("assets-no-match")).toHaveCount(0);
   await expect(empty).toContainText("All your tokens are hidden.");
   await empty.getByRole("button", { name: "Show tokens" }).click();
   await expect(switches(page)).toHaveCount(ROWS + 1);

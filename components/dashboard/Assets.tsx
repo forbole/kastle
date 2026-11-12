@@ -8,7 +8,6 @@ import {
 } from "@/lib/utils.ts";
 import TokenListItem, {
   Kcc20TokenListItem,
-  matchesQuery,
   ROW,
 } from "@/components/dashboard/TokenListItem.tsx";
 import TokenRow from "@/ui/popup/dashboard/TokenRow";
@@ -22,7 +21,6 @@ import EvmKasAsset from "./EvmKasAsset";
 import {
   TESTNET_SUPPORTED_EVM_L2_CHAINS,
   MAINNET_SUPPORTED_EVM_L2_CHAINS,
-  getChainTokenSymbol,
 } from "@/lib/layer2";
 import { numberToHex } from "viem";
 import useKaspaPrice from "@/hooks/useKaspaPrice";
@@ -121,10 +119,6 @@ export default function Assets() {
     !shownKcc20?.length &&
     !shownErc20.length;
 
-  // Search filters in place on the label each row renders; ids only add matches.
-  const [query, setQuery] = useState("");
-  const searching = query.trim() !== "";
-
   const isAssetListLoading = balance === undefined || !hiddenLoaded;
 
   const supportEvmL2s =
@@ -139,33 +133,8 @@ export default function Assets() {
     </div>
   ) : (
     <div className="mb-4 flex flex-col items-stretch gap-2">
-      {/*Header row above every asset row: search, then the Manage control at its right edge*/}
+      {/*Header row above every asset row: the Manage control at its right edge*/}
       <div data-testid="assets-header" className="flex items-stretch gap-2">
-        <div className="relative flex flex-1 items-center">
-          <i
-            className="hn hn-search pointer-events-none absolute start-0 ps-4 text-base text-daintree-400"
-            aria-hidden
-          />
-          <input
-            type="search"
-            aria-label="Search assets"
-            placeholder="Search assets"
-            autoComplete="off"
-            className="block h-11 w-full rounded-lg border-daintree-700 bg-daintree-800 pe-10 ps-10 text-sm text-white placeholder-daintree-400 focus:border-daintree-700 focus:ring-daintree-700 [&::-webkit-search-cancel-button]:hidden"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-          {query && (
-            <button
-              type="button"
-              aria-label="Clear search"
-              className="absolute end-0 flex h-full items-center pe-4 ps-2 text-daintree-400 hover:text-white focus:outline-none focus-visible:text-white"
-              onClick={() => setQuery("")}
-            >
-              <i className="hn hn-times-circle text-base" aria-hidden />
-            </button>
-          )}
-        </div>
         {tokenCount > 0 && (
           <button
             type="button"
@@ -182,43 +151,35 @@ export default function Assets() {
         )}
       </div>
 
-      {/*Rows; the empty state shows only when it is the sole child (no row matched)*/}
+      {/*Rows*/}
       <div className="flex flex-col items-stretch gap-2">
         {/*KAS: no toggle, it cannot be hidden*/}
-        {matchesQuery(query, "KAS") && (
-          <div
-            data-testid="kas-row"
-            className={`${ROW} cursor-pointer`}
-            onClick={() => navigate("/kas-asset")}
-          >
-            <TokenRow
-              logo={kasIcon}
-              ticker="KAS"
-              price={formatTokenPrice(
-                kaspaPriceCurrency,
-                kaspaPriceCurrencyCode,
-              )}
-              balance={showBalance ? formatToken(balance ?? 0) : "*****"}
-              fiat={`≈ ${
-                showBalance
-                  ? formatCurrency(totalBalanceCurrency, currencyCode)
-                  : `${symbolForCurrencyCode(currencyCode)}*****`
-              }`}
-            />
-          </div>
-        )}
+        <div
+          data-testid="kas-row"
+          className={`${ROW} cursor-pointer`}
+          onClick={() => navigate("/kas-asset")}
+        >
+          <TokenRow
+            logo={kasIcon}
+            ticker="KAS"
+            price={formatTokenPrice(kaspaPriceCurrency, kaspaPriceCurrencyCode)}
+            balance={showBalance ? formatToken(balance ?? 0) : "*****"}
+            fiat={`≈ ${
+              showBalance
+                ? formatCurrency(totalBalanceCurrency, currencyCode)
+                : `${symbolForCurrencyCode(currencyCode)}*****`
+            }`}
+          />
+        </div>
 
         {/*EVM KAS*/}
         {supportEvmL2s
           .map((chain) => numberToHex(chain.id))
-          .filter((chainId) =>
-            matchesQuery(query, getChainTokenSymbol(chainId)),
-          )
           .map((chainId) => (
             <EvmKasAsset key={chainId} chainId={chainId} />
           ))}
 
-        {allHidden && !searching && (
+        {allHidden && (
           <div
             data-testid="tokens-all-hidden"
             className="flex flex-col items-center gap-2 rounded-xl border border-daintree-700 bg-daintree-800 p-4 text-center text-sm text-daintree-400"
@@ -240,54 +201,26 @@ export default function Assets() {
             key={token.id}
             token={token}
             manage={manageFor(krc20HideId(token.id))}
-            query={query}
           />
         ))}
 
         {/*KCC20 tokens*/}
-        {shownKcc20
-          ?.filter((t) =>
-            matchesQuery(
-              query,
-              t.meta?.symbol ?? t.tick,
-              t.meta?.name,
-              t.covenantId,
-            ),
-          )
-          .map((token) => (
-            <Kcc20TokenListItem
-              key={kcc20Id(token)}
-              token={token}
-              manage={manageFor(kcc20Id(token))}
-            />
-          ))}
+        {shownKcc20?.map((token) => (
+          <Kcc20TokenListItem
+            key={kcc20Id(token)}
+            token={token}
+            manage={manageFor(kcc20Id(token))}
+          />
+        ))}
 
         {/* ERC20 tokens */}
-        {shownErc20
-          .filter((asset) => matchesQuery(query, asset.symbol))
-          .map((asset) => (
-            <Erc20Asset
-              key={`${asset.chainId}-${asset.address}`}
-              asset={asset}
-              manage={manageFor(erc20Id(asset))}
-            />
-          ))}
-
-        {searching && (
-          <div
-            data-testid="assets-no-match"
-            className="hidden flex-col items-center gap-2 rounded-xl border border-daintree-700 bg-daintree-800 p-4 text-center text-sm text-daintree-400 only:flex"
-          >
-            <span>No assets match “{query.trim()}”.</span>
-            <button
-              type="button"
-              className="font-semibold text-icy-blue-400 hover:text-icy-blue-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-icy-blue-400"
-              onClick={() => setQuery("")}
-            >
-              Show all assets
-            </button>
-          </div>
-        )}
+        {shownErc20.map((asset) => (
+          <Erc20Asset
+            key={`${asset.chainId}-${asset.address}`}
+            asset={asset}
+            manage={manageFor(erc20Id(asset))}
+          />
+        ))}
       </div>
     </div>
   );

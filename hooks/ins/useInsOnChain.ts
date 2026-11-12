@@ -1,5 +1,7 @@
 import useSWR from "swr";
+import { numberToHex } from "viem";
 import { getInsTarget, lookupInsNameOnChain } from "@/lib/ins/insRegistry";
+import { igraMainnet } from "@/lib/layer2";
 
 export interface InsOnChainRecord {
   registry: `0x${string}`;
@@ -28,7 +30,11 @@ export default function useInsOnChain(name: string | undefined) {
   const { data, isLoading, mutate } = useSWR(
     name ? `ins-onchain:${name}` : null,
     async (): Promise<{ record?: InsOnChainRecord; reason?: string }> => {
-      const result = await lookupInsNameOnChain(name!);
+      // The name screens act on Igra mainnet only, like insRpcClient.
+      const result = await lookupInsNameOnChain(
+        name!,
+        numberToHex(igraMainnet.id),
+      );
       if (!result.ok) return { reason: result.reason };
 
       return {
