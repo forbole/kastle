@@ -25,9 +25,12 @@ export default function ManageAssetsMenu({
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const itemRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!isOpen) return;
+    // Menu-button pattern: focus moves to the first item when the menu opens.
+    itemRef.current?.focus();
     const onPointerDown = (e: MouseEvent) => {
       if (!rootRef.current?.contains(e.target as Node)) setIsOpen(false);
     };
@@ -65,6 +68,7 @@ export default function ManageAssetsMenu({
           className="absolute right-0 top-full z-10 mt-1 w-[148px] rounded-xl border border-daintree-700 bg-daintree-800 p-2 shadow-[0px_10px_8px_0px_rgba(0,0,0,0.04),0px_4px_3px_0px_rgba(0,0,0,0.1)]"
         >
           <button
+            ref={itemRef}
             type="button"
             role="menuitem"
             onClick={() => {

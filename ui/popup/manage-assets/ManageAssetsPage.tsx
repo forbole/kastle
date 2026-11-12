@@ -79,7 +79,10 @@ function TokenToggleRow({
   onToggle: ManageAssetsPageProps["onToggle"];
 }) {
   const { id, name, logo, chainBadge, chainLabel, balance, visible } = token;
-  const lockedTip = token.locked ? token.lockedReason : undefined;
+  // Every locked row explains itself: fall back to the native-KAS wording.
+  const lockedTip = token.locked
+    ? token.lockedReason || MANAGE_ASSETS_LABELS.nativeLocked
+    : undefined;
 
   return (
     <li className="flex items-center justify-between rounded-lg px-3 py-2">
