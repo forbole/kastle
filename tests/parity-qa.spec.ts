@@ -292,6 +292,14 @@ test("04 token detail, Token info: the five rows in order, KCC-20 badge only nex
   expect(beside.name).not.toMatch(FAMILY_CHIP);
   expect(beside.inCard).toBe(true);
   expect(beside.inRows).toBe(false);
+  // The header tick is gone (Nicole): verified status lives in the Security row.
+  const card = panel.locator(":scope > div.rounded-2xl");
+  await expect(card.getByLabel("Verified")).toHaveCount(0);
+  const security = panel.locator("section > div > div", {
+    hasText: /^Security/,
+  });
+  await expect(security).toHaveCount(1);
+  await expect(security).toContainText("Verified");
   await expect(page.locator("body")).not.toContainText(GONE);
   await shot(page, "03-detail-info.png");
   expect(errors).toEqual([]);
