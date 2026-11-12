@@ -6,6 +6,7 @@ import { test, expect } from "@playwright/test";
 
 type MigrationModule = typeof import("../lib/kcc20/migration");
 type HookModule = typeof import("../hooks/useKcc20Migration");
+type FeatureFlagsModule = typeof import("../hooks/useFeatureFlags");
 type Flags = Record<string, unknown> | undefined;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -45,10 +46,12 @@ const ON = {
 const ADDRESS = "kaspa:qtest";
 
 /**
- * Runs useKcc20Migration once against a PostHog stub carrying `flags` and
- * `payload`. The hook's own useFeatureFlags read is stubbed with the same
- * opt-in rule (only an explicit true), and the tokenlist stub records the
- * address it was asked for, so "no request while inactive" is observable.
+ * Renders useKcc20Migration twice (the first pass's effects fill state)
+ * against a PostHog stub carrying `flags` and `payload`. The hook's
+ * useFeatureFlags is the real source, sharing the same
+ * React stub and PostHog context, so the `kcc20_migration_route` gate under
+ * test is the shipped one. The tokenlist stub records the address it was
+ * asked for, so "no request while inactive" is observable.
  */
 function renderMigration({
   flags,
@@ -62,31 +65,36 @@ function renderMigration({
   isMainnet?: boolean;
 }) {
   const requested: (string | undefined)[] = [];
-  let state: unknown;
+  const slots: unknown[] = [];
+  let slot = 0;
+  const postHog = {
+    getFeatureFlags: () => flags,
+    getFeatureFlagPayload: (key: string) =>
+      key === "kcc20_migration" ? payload : undefined,
+    onFeatureFlags: () => () => {},
+  };
   const react = {
-    useContext: () => ({
-      postHog: {
-        getFeatureFlags: () => flags,
-        getFeatureFlagPayload: (key: string) =>
-          key === "kcc20_migration" ? payload : undefined,
-        onFeatureFlags: () => () => {},
-      },
-    }),
+    useContext: () => ({ postHog }),
     useState: (initial: unknown) => {
-      if (state === undefined) state = initial;
-      return [state, (next: unknown) => (state = next)];
+      const i = slot++;
+      if (!(i in slots)) slots[i] = initial;
+      return [slots[i], (next: unknown) => (slots[i] = next)];
     },
     useEffect: (effect: () => void) => effect(),
     useMemo: (fn: () => unknown) => fn(),
   };
+  const featureFlags = load<FeatureFlagsModule>("hooks/useFeatureFlags.ts", {
+    react,
+    "@/contexts/PostHogWrapperProvider.tsx": { PostHogWrapperContext: {} },
+    // The route gate has no dev override; a dev build skips the 5 s timer.
+    "@/lib/utils.ts": { isProduction: false },
+    "@/lib/kcc20/local-opt-in": { standardLocalOptIn: () => false },
+    "@/lib/kasseal/local-opt-in": { kassealLocalOptIn: () => false },
+  });
   const run = load<HookModule>("hooks/useKcc20Migration.ts", {
     react,
     "@/contexts/PostHogWrapperProvider.tsx": { PostHogWrapperContext: {} },
-    "@/hooks/useFeatureFlags": {
-      useFeatureFlags: () => ({
-        kcc20MigrationRoute: flags?.kcc20_migration_route === true,
-      }),
-    },
+    "@/hooks/useFeatureFlags": featureFlags,
     "@/hooks/kasplex/useTokenListByAddress": {
       useTokenListByAddress: (address?: string) => {
         requested.push(address);
@@ -95,14 +103,19 @@ function renderMigration({
     },
     "@/lib/kcc20/migration": migration,
   }).useKcc20Migration;
-  run({ address: ADDRESS, isMainnet }); // effect fills state
+  const render = () => {
+    slot = 0;
+    return run({ address: ADDRESS, isMainnet });
+  };
+  render(); // effects fill state
   requested.length = 0;
-  const result = run({ address: ADDRESS, isMainnet });
+  const result = render();
   return { ...result, requested };
 }
 
+// The predicate Bridge.tsx renders the row with, not a copy of it.
 const shown = (r: ReturnType<typeof renderMigration>) =>
-  r.enabled && r.migratableHeld.length > 0 && r.config?.url;
+  migration.migrationRowUrl(r);
 
 test.describe("Bridge migrate row (useKcc20Migration)", () => {
   test("no migratable token held: hidden", () => {
@@ -136,6 +149,7 @@ test.describe("Bridge migrate row (useKcc20Migration)", () => {
     const held = [{ id: "NACHO", balance: "1", dec: "8" }];
     for (const flags of [
       { kcc20_migration: true, kcc20_migration_route: false },
+      { kcc20_migration: true, kcc20_migration_route: "true" },
       { kcc20_migration: false, kcc20_migration_route: true },
       { kcc20_migration: "true", kcc20_migration_route: true },
       { kcc20_migration: true },
@@ -165,6 +179,7 @@ test.describe("Bridge migrate row (useKcc20Migration)", () => {
       "http://katbridge.com/migrate",
       "https://katbridge.com.evil.io/migrate",
       "javascript:alert(1)",
+      "https://user:pass@katbridge.com/migrate",
       undefined,
     ]) {
       const r = renderMigration({
@@ -205,6 +220,18 @@ test.describe("parseMigrationPayload", () => {
       url: "https://app.katbridge.com/m",
       tokens: [{ tick: "NACHO", covenantId: NACHO_COV }],
     });
+  });
+
+  test("returns the parsed href, not the raw payload string", () => {
+    expect(migration.webUrl("https://KatBridge.com/migrate")).toBe(
+      "https://katbridge.com/migrate",
+    );
+    expect(migration.webUrl("https://katbridge.com")).toBe(
+      "https://katbridge.com/",
+    );
+    expect(migration.webUrl("https://katbridge.com/a b")).toBe(
+      "https://katbridge.com/a%20b",
+    );
   });
 
   test("caps the token list and keeps valid erc20 entries only", () => {

@@ -29,16 +29,21 @@ const isRecord = (v: unknown): v is Record<string, unknown> =>
 
 const optString = (v: unknown) => (typeof v === "string" ? v : undefined);
 
-/** The url when it is https: on katbridge.com or a subdomain of it. */
+/**
+ * The parsed href when the url is https: on katbridge.com or a subdomain of
+ * it, without credentials. The normalized href, never the raw payload string,
+ * is what reaches the browser.
+ */
 export function webUrl(v: unknown) {
   const s = optString(v);
   if (!s) return undefined;
   try {
-    const { protocol, hostname } = new URL(s);
-    if (protocol !== "https:") return undefined;
-    const host = hostname.toLowerCase();
+    const url = new URL(s);
+    if (url.protocol !== "https:") return undefined;
+    if (url.username || url.password) return undefined;
+    const host = url.hostname.toLowerCase();
     return HOST_ALLOWLIST.some((h) => host === h || host.endsWith(`.${h}`))
-      ? s
+      ? url.href
       : undefined;
   } catch {
     return undefined;
@@ -125,4 +130,18 @@ export function migratableHeld<T extends { id: string; balance: string }>(
   return held.filter(
     (t) => isMigratableTick(config, t.id) && positive(t.balance),
   );
+}
+
+/**
+ * The url the Bridge migrate row opens, or undefined when the row is hidden:
+ * the migration is active and the wallet holds a payload-listed KRC-20.
+ */
+export function migrationRowUrl(migration: {
+  enabled: boolean;
+  config?: Kcc20MigrationConfig;
+  migratableHeld: unknown[];
+}) {
+  return migration.enabled && migration.migratableHeld.length > 0
+    ? migration.config?.url
+    : undefined;
 }

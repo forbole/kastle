@@ -39,6 +39,7 @@ import { useKasFeeEstimate } from "@/hooks/useKasFeeEstimate";
 import useKaspaPrice from "@/hooks/useKaspaPrice";
 import useAnalytics from "@/hooks/useAnalytics";
 import { useKcc20Migration } from "@/hooks/useKcc20Migration";
+import { migrationRowUrl } from "@/lib/kcc20/migration";
 import useEvmHotWalletSigner from "@/hooks/wallet/useEvmHotWalletSigner";
 import useKaspaBalance from "@/hooks/wallet/useKaspaBalance";
 import useKaspaHotWalletSigner from "@/hooks/wallet/useKaspaHotWalletSigner";
@@ -141,10 +142,7 @@ export default function Bridge() {
     address: account?.address,
     isMainnet,
   });
-  const migrationUrl =
-    migration.enabled && migration.migratableHeld.length > 0
-      ? migration.config?.url
-      : undefined;
+  const migrationUrl = migrationRowUrl(migration);
 
   const evmChains = {
     kasplex: isMainnet ? kasplexMainnet : kasplexTestnet,
