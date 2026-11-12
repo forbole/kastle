@@ -29,6 +29,11 @@ type Row = {
 type Sheet = {
   row: number;
   status: string | null;
+  // KRC-20 only: the Status row lists the tx steps in place of the status
+  // pill, each with its done / pending word, in order.
+  steps?: string[];
+  // How many steps link to the explorer (only Revealed carries a href).
+  stepLinks?: number;
   value: boolean;
   txid: boolean;
   explorer: boolean;
@@ -97,11 +102,21 @@ const SURFACES: Surface[] = [
     ],
     designed: true,
     sheets: [
-      { row: 0, status: "Finalized", value: false, txid: true, explorer: true },
-      // No hash: nothing to copy, nowhere to link.
+      {
+        row: 0,
+        status: null,
+        steps: ["Committed, done", "Revealed, done"],
+        stepLinks: 1,
+        value: false,
+        txid: true,
+        explorer: true,
+      },
+      // No hash: nothing to copy, nowhere to link, no step proven.
       {
         row: 5,
-        status: "Finalized",
+        status: null,
+        steps: ["Committed, pending", "Revealed, pending"],
+        stepLinks: 0,
         value: false,
         txid: false,
         explorer: false,
@@ -384,6 +399,19 @@ for (const [i, s] of SURFACES.entries()) {
         ...(sh.txid ? ["TX ID"] : []),
       ]);
       if (sh.status) await expect(dialog).toContainText(sh.status);
+      const steps = dialog.getByRole("listitem");
+      if (sh.steps) {
+        await expect(steps).toHaveText(sh.steps);
+        // The steps replace the pill: no record status word beside them.
+        await expect(dialog).not.toContainText(
+          /Finalized|Pending|Failed|Unconfirmed/,
+        );
+        await expect(
+          dialog.getByRole("link", { name: /on explorer$/ }),
+        ).toHaveCount(sh.stepLinks ?? 0);
+      } else {
+        await expect(steps).toHaveCount(0);
+      }
       if (sh.value) await expect(dialog).toContainText("≈ $");
       await expect(
         dialog.getByRole("button", { name: "View on Explorer" }),

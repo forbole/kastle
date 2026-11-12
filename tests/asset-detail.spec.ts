@@ -765,13 +765,29 @@ test("KCC-20 activity sheet: focus stays inside and Escape closes it", async ({
   const sheet = page.getByRole("dialog", { name: "TX Hash" });
   const copy = sheet.getByRole("button", { name: "Copy TX ID" });
   const explorer = sheet.getByRole("button", { name: "View on Explorer" });
+  // The designed sheet's tab stops, in DOM order: the To address (its
+  // full-address tooltip trigger), Copy TX ID, View on Explorer.
+  const party = sheet.locator('span[tabindex="0"]');
+  await expect(party).toHaveCount(1);
+  await expect(party).toHaveText("f34f0243...e9cad");
+  const tooltip = sheet.getByRole("tooltip");
+  // Opening focuses Copy: the address is skipped so its tooltip stays shut.
   await expect(copy).toBeFocused();
+  await expect(tooltip).toHaveCount(0);
   await page.keyboard.press("Tab");
   await expect(explorer).toBeFocused();
+  // Tab past the last stop wraps to the first, the address.
+  await page.keyboard.press("Tab");
+  await expect(party).toBeFocused();
+  await expect(tooltip).toHaveText("kaspa:qf34f0243");
   await page.keyboard.press("Tab");
   await expect(copy).toBeFocused();
   await page.keyboard.press("Shift+Tab");
+  await expect(party).toBeFocused();
+  // Shift+Tab before the first stop wraps to the last.
+  await page.keyboard.press("Shift+Tab");
   await expect(explorer).toBeFocused();
+  await expect(tooltip).toHaveCount(0);
   await page.keyboard.press("Escape");
   await expect(page.getByTestId("closed")).toBeVisible();
 });
