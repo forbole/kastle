@@ -542,7 +542,7 @@ test("KCC-20: the identity card shows on Token info, not on History", async ({
   page,
 }) => {
   await open(page, `/kcc20/${KCC20_ID}`);
-  // The card is the logo, the ticker and the name; it carries no family chip.
+  // The card is the logo, the ticker and the name; its only chip is the KCC-20 badge beside the name.
   const card = page.locator("div.rounded-2xl", {
     has: page.getByText("Kastle test", { exact: true }),
   });
