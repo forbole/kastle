@@ -3,14 +3,11 @@ import { Check, Copy, ExternalLink } from "lucide-react";
 import type { HistoryRecord } from "@/lib/history/types";
 import useCurrencyValue from "@/hooks/useCurrencyValue";
 import { formatCurrency, textEllipsis } from "@/lib/utils";
-import { historyFiatUsd, historyTimeText } from "@/ui/popup/history/format";
-
-const STATUS_LABEL: Record<HistoryRecord["status"], string | null> = {
-  finalized: "Finalized",
-  pending: "Pending",
-  failed: "Failed",
-  unknown: null,
-};
+import {
+  historyFiatUsd,
+  historyStatusLabel,
+  historyTimeText,
+} from "@/ui/popup/history/format";
 
 const FOCUSABLE =
   'button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])';
@@ -73,7 +70,7 @@ export function HistoryDetail({
 }) {
   const root = useRef<HTMLDivElement>(null);
   const time = historyTimeText(record.time.value);
-  const status = STATUS_LABEL[record.status];
+  const status = historyStatusLabel(record.status);
   const explorer = record.explorer;
   const usd = historyFiatUsd(record);
   const fiat = useCurrencyValue(usd ?? 0);
