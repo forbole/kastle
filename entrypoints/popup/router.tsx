@@ -189,12 +189,13 @@ const SwapRoute = () => {
   );
 };
 
-const BridgeRoute = () => {
+// Also gates the migration guide, which is only reachable from Bridge.
+const BridgeRoute = ({ children = <Bridge /> }: { children?: ReactNode }) => {
   const { isBridgeEnabled } = useFeatureFlags();
   const { wallet, isWalletSettingsLoading } = useWalletManager();
   if (isWalletSettingsLoading) return null;
   return isBridgeEnabled && wallet?.type !== "ledger" ? (
-    <Bridge />
+    children
   ) : (
     <Navigate to="/dashboard" replace />
   );
@@ -289,7 +290,14 @@ export const router = createHashRouter([
                   { path: "asset-select", element: <AssetSelect /> },
                   { path: "swap", element: <SwapRoute /> },
                   { path: "bridge", element: <BridgeRoute /> },
-                  { path: "migration-guide", element: <MigrationGuide /> },
+                  {
+                    path: "migration-guide",
+                    element: (
+                      <BridgeRoute>
+                        <MigrationGuide />
+                      </BridgeRoute>
+                    ),
+                  },
                   { path: "activity", element: <ActivityRoute /> },
                   { path: "token-transfer", element: <Krc20Transfer /> },
                   { path: "kas/send", element: <KasSend /> },

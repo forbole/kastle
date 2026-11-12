@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { forwardRef, useEffect, useRef, useState } from "react";
 import { ChevronRight, ExternalLink, Info, Shield } from "lucide-react";
 import { twMerge } from "tailwind-merge";
 import PageHeader from "@/ui/general/PageHeader";
@@ -148,54 +148,60 @@ function IntroStep() {
   );
 }
 
-function BridgeSteps() {
-  return (
-    <div className="flex flex-col gap-3 px-4">
-      <div className="flex flex-col gap-2">
-        <h2 className="text-base font-medium leading-6 tracking-[0.08px] text-white">
-          Follow these steps on KAT Bridge
-        </h2>
-        <p className="text-sm leading-5 tracking-[0.07px] text-daintree-300">
-          It opens in a new tab.
-        </p>
-      </div>
-      <ol className="flex flex-col gap-2 rounded-2xl border border-daintree-700 bg-daintree-800 px-3 py-3">
-        {BRIDGE_STEPS.map((s, i) => (
-          <li key={i} className="flex flex-col gap-2">
-            {i > 0 && (
-              <div aria-hidden="true" className="h-px bg-daintree-700" />
-            )}
-            <div
-              className={twMerge(
-                "flex gap-2",
-                s.centered ? "items-center" : "items-start",
+const BridgeSteps = forwardRef<HTMLHeadingElement>(
+  function BridgeSteps(_props, headingRef) {
+    return (
+      <div className="flex flex-col gap-3 px-4">
+        <div className="flex flex-col gap-2">
+          <h2
+            ref={headingRef}
+            tabIndex={-1}
+            className="text-base font-medium leading-6 tracking-[0.08px] text-white outline-none"
+          >
+            Follow these steps on KAT Bridge
+          </h2>
+          <p className="text-sm leading-5 tracking-[0.07px] text-daintree-300">
+            It opens in a new tab.
+          </p>
+        </div>
+        <ol className="flex flex-col gap-2 rounded-2xl border border-daintree-700 bg-daintree-800 px-3 py-3">
+          {BRIDGE_STEPS.map((s, i) => (
+            <li key={i} className="flex flex-col gap-2">
+              {i > 0 && (
+                <div aria-hidden="true" className="h-px bg-daintree-700" />
               )}
-            >
-              <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs font-medium leading-4 text-white">
-                {i + 1}
-              </span>
-              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <p
-                  className={twMerge(
-                    "text-sm leading-5 tracking-[0.07px] text-white",
-                    s.regular ? "font-normal" : "font-medium",
-                  )}
-                >
-                  {s.title}
-                </p>
-                {s.note && (
-                  <p className="text-xs leading-4 tracking-[0.06px] text-daintree-400">
-                    {s.note}
-                  </p>
+              <div
+                className={twMerge(
+                  "flex gap-2",
+                  s.centered ? "items-center" : "items-start",
                 )}
+              >
+                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs font-medium leading-4 text-white">
+                  {i + 1}
+                </span>
+                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <p
+                    className={twMerge(
+                      "text-sm leading-5 tracking-[0.07px] text-white",
+                      s.regular ? "font-normal" : "font-medium",
+                    )}
+                  >
+                    {s.title}
+                  </p>
+                  {s.note && (
+                    <p className="text-xs leading-4 tracking-[0.06px] text-daintree-400">
+                      {s.note}
+                    </p>
+                  )}
+                </div>
               </div>
-            </div>
-          </li>
-        ))}
-      </ol>
-    </div>
-  );
-}
+            </li>
+          ))}
+        </ol>
+      </div>
+    );
+  },
+);
 
 export default function MigrationGuidePage({
   onBack,
@@ -203,6 +209,14 @@ export default function MigrationGuidePage({
   onOpenKatBridge,
 }: MigrationGuidePageProps) {
   const [step, setStep] = useState<Step>(1);
+  const stepTwoHeading = useRef<HTMLHeadingElement>(null);
+
+  // Next and Open KAT Bridge are different nodes (keys below), so focus must
+  // be placed explicitly: on the step 2 heading, never on the new CTA, so a
+  // second Enter cannot open KAT Bridge without reading step 2.
+  useEffect(() => {
+    if (step === 2) stepTwoHeading.current?.focus();
+  }, [step]);
 
   return (
     <div className="flex h-full flex-col bg-icy-blue-950 font-sans text-white">
@@ -214,7 +228,7 @@ export default function MigrationGuidePage({
         onClose={onClose}
       />
       <div key={step} className="no-scrollbar min-h-0 flex-1 overflow-y-auto">
-        {step === 1 ? <IntroStep /> : <BridgeSteps />}
+        {step === 1 ? <IntroStep /> : <BridgeSteps ref={stepTwoHeading} />}
       </div>
       <div className="flex flex-col gap-3 px-4 pb-4 pt-2">
         {step === 2 && (
@@ -230,9 +244,11 @@ export default function MigrationGuidePage({
           </div>
         )}
         {step === 1 ? (
-          <Button onClick={() => setStep(2)}>Next</Button>
+          <Button key="next" onClick={() => setStep(2)}>
+            Next
+          </Button>
         ) : (
-          <Button onClick={onOpenKatBridge}>
+          <Button key="open-kat-bridge" onClick={onOpenKatBridge}>
             Open KAT Bridge
             <ExternalLink
               aria-hidden="true"
@@ -242,6 +258,9 @@ export default function MigrationGuidePage({
           </Button>
         )}
         <StepDots step={step} />
+        <p aria-live="polite" className="sr-only">
+          Step {step} of 2
+        </p>
       </div>
     </div>
   );

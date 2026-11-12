@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { fn } from "storybook/test";
+import { expect, fn, userEvent, within } from "storybook/test";
 import MigrationGuidePage from "@/ui/popup/bridge/MigrationGuidePage";
 
 const meta = {
@@ -13,10 +13,10 @@ const meta = {
       </div>
     ),
   ],
-  argTypes: {
-    onBack: { action: "back" },
-    onClose: { action: "close" },
-    onOpenKatBridge: { action: "open KAT Bridge" },
+  args: {
+    onBack: fn(),
+    onClose: fn(),
+    onOpenKatBridge: fn(),
   },
 } satisfies Meta<typeof MigrationGuidePage>;
 
@@ -24,11 +24,19 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-// Step 1; Next goes to step 2 (what to do on KAT Bridge).
-export const Default: Story = {
-  args: {
-    onBack: fn(),
-    onClose: fn(),
-    onOpenKatBridge: fn(),
+// Step 1: what is changing; Next is the only way into step 2.
+export const Default: Story = {};
+
+// Step 2: the KAT Bridge steps, the seed-phrase notice and the Open CTA.
+export const BridgeSteps: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole("button", { name: "Next" }));
+    await expect(
+      canvas.getByRole("heading", { name: "Follow these steps on KAT Bridge" }),
+    ).toHaveFocus();
+    await expect(
+      canvas.getByRole("button", { name: "Open KAT Bridge" }),
+    ).toBeVisible();
   },
 };

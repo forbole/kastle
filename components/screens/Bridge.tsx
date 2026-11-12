@@ -661,9 +661,7 @@ export default function Bridge() {
           <button
             type="button"
             className="flex shrink-0 items-center justify-between gap-2 rounded-xl border border-daintree-700 bg-daintree-800 px-4 py-3 text-left text-sm"
-            onClick={() =>
-              navigate("/migration-guide", { state: { url: migrationUrl } })
-            }
+            onClick={() => navigate("/migration-guide")}
           >
             <span className="flex min-w-0 flex-col">
               <span className="font-medium text-white">
