@@ -48,7 +48,7 @@ export default function TokenInfo() {
   const tokenAddress = tokenInfo?.ca;
 
   return (
-    <div className="mt-8 flex flex-col items-stretch gap-2">
+    <div className="mt-4 flex flex-col items-stretch gap-2">
       {/* Header card */}
       <div className="flex w-full items-center gap-3 rounded-xl border border-daintree-700 bg-daintree-800 p-3">
         <img

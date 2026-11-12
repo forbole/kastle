@@ -1,6 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import {
   Check,
+  CheckCircle2,
+  Circle,
   CircleCheck,
   CircleX,
   ClockFading,
@@ -10,10 +12,14 @@ import {
 import { twMerge } from "tailwind-merge";
 import Button from "@/ui/general/Button";
 import type { HistoryRecord } from "@/lib/history/types";
+import type { HistoryHashStep } from "@/ui/popup/history/HistoryRow";
 import useCurrencyValue from "@/hooks/useCurrencyValue";
 import { formatCurrency, textEllipsis } from "@/lib/utils";
 import {
+  historyAmountText,
+  historyDesignedCounterparty,
   historyFiatUsd,
+  historyNamesCounterparty,
   historyStatusLabel,
   historyTimeText,
 } from "@/ui/popup/history/format";
@@ -79,7 +85,9 @@ function useDetailDialog(onClose: () => void) {
     const opener = document.activeElement as HTMLElement | null;
     // No txid and no explorer leaves no control: the root takes focus instead.
     (
-      root.current?.querySelector<HTMLElement>(FOCUSABLE) ?? root.current
+      root.current?.querySelector<HTMLElement>(
+        `:is(${FOCUSABLE}):not([data-no-autofocus])`,
+      ) ?? root.current
     )?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -204,6 +212,11 @@ export interface HistoryDetailExtras {
   status?: { label: string; tone: HistoryDetailStatusTone };
   /** The Value row text, e.g. "≈ $19.235 USD"; without it there is no Value row. */
   fiatText?: string;
+  /**
+   * Status lines (KRC-20: Committed, Revealed). When set they replace the
+   * status pill; the list passes them through from the row's extras.
+   */
+  hashSteps?: HistoryHashStep[];
 }
 
 const PILL: Record<
@@ -254,12 +267,95 @@ function StatusValue({
   );
 }
 
+/** The Status row's list for families with steps: a check circle each, a link when the step has one. */
+function StatusSteps({ steps }: { steps: HistoryHashStep[] }) {
+  return (
+    <ul className="flex flex-col items-end gap-2">
+      {steps.map((step) => {
+        const Icon = step.isDone ? CheckCircle2 : Circle;
+        return (
+          <li key={step.label} className="flex items-center gap-1">
+            <span className="flex items-center gap-2 whitespace-nowrap">
+              <Icon
+                aria-hidden="true"
+                className={twMerge(
+                  "size-4",
+                  step.isDone ? "text-teal-500" : "text-daintree-400",
+                )}
+              />
+              {step.label}
+              <span className="sr-only">
+                {step.isDone ? ", done" : ", pending"}
+              </span>
+            </span>
+            {step.href && (
+              <a
+                href={step.href}
+                target="_blank"
+                rel="noreferrer"
+                aria-label={`${step.label} on explorer`}
+                className="text-daintree-400 hover:text-white"
+              >
+                <ExternalLink aria-hidden="true" className="size-3" />
+              </a>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/** The To / From value with its full address in a tooltip, on hover and on keyboard focus. */
+function AddressValue({ text, full }: { text: string; full: string }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const id = useId();
+  return (
+    <span className="relative min-w-0">
+      {/* Focusable but kept out of the sheet's first-focus pick, so opening the sheet never opens this. */}
+      <span
+        tabIndex={0}
+        data-no-autofocus=""
+        aria-describedby={isOpen ? id : undefined}
+        onMouseEnter={() => setIsOpen(true)}
+        onMouseLeave={() => setIsOpen(false)}
+        onKeyDown={(e) => {
+          // First Escape closes only the tooltip; the sheet's own listener
+          // (on document) never sees it. A second Escape closes the sheet.
+          if (e.key !== "Escape" || !isOpen) return;
+          e.stopPropagation();
+          setIsOpen(false);
+        }}
+        onFocus={() => setIsOpen(true)}
+        onBlur={() => setIsOpen(false)}
+        className="block truncate rounded text-white outline-none focus-visible:ring-1 focus-visible:ring-white"
+      >
+        {text}
+      </span>
+      {isOpen && (
+        <span
+          id={id}
+          role="tooltip"
+          className="absolute bottom-full right-0 z-20 mb-2 block w-max max-w-[16rem] break-all rounded bg-daintree-700 px-2.5 py-2 text-left text-xs text-white"
+        >
+          {full}
+          <span
+            aria-hidden="true"
+            className="absolute -bottom-1 right-4 size-2 rotate-45 bg-daintree-700"
+          />
+        </span>
+      )}
+    </span>
+  );
+}
+
 /** Mobile's TX sheet: left-aligned title and time, divider, Status first, outlined explorer button. */
 function DesignedDetail({
   record,
   onClose,
   status,
   fiatText,
+  hashSteps = [],
 }: {
   record: HistoryRecord;
   onClose: () => void;
@@ -268,6 +364,10 @@ function DesignedDetail({
   const time = historyTimeText(record.time.value);
   const explorer = record.explorer;
   const shownStatus = status ?? historyDetailStatus(record.status);
+  const amount = historyAmountText(record);
+  const who = historyNamesCounterparty(record)
+    ? historyDesignedCounterparty(record)
+    : null;
 
   return (
     <div
@@ -288,16 +388,44 @@ function DesignedDetail({
         {time && <span className="text-sm text-daintree-400">{time}</span>}
       </div>
       <div className="flex flex-col gap-4">
-        <div className="flex items-center justify-between gap-4 text-sm">
+        <div
+          className={twMerge(
+            "flex justify-between gap-4 text-sm",
+            hashSteps.length ? "items-start" : "items-center",
+          )}
+        >
           <span className="shrink-0 text-daintree-400">Status</span>
           <div className="flex min-w-0 items-center justify-end text-white">
-            <StatusValue {...shownStatus} />
+            {hashSteps.length ? (
+              <StatusSteps steps={hashSteps} />
+            ) : (
+              <StatusValue {...shownStatus} />
+            )}
           </div>
         </div>
+        {amount && (
+          <div className="flex items-center justify-between gap-4 text-sm">
+            <span className="shrink-0 text-daintree-400">Amount</span>
+            <span className="min-w-0 break-all text-right text-white">
+              {amount}
+            </span>
+          </div>
+        )}
         {fiatText && (
           <div className="flex items-center justify-between gap-4 text-sm">
             <span className="shrink-0 text-daintree-400">Value</span>
             <span className="text-white">{fiatText}</span>
+          </div>
+        )}
+        {who && (
+          <div className="flex items-center justify-between gap-4 text-sm">
+            <span className="shrink-0 text-daintree-400">
+              {record.direction === "in" ? "From" : "To"}
+            </span>
+            <AddressValue
+              text={who}
+              full={record.counterparty.value?.address ?? who}
+            />
           </div>
         )}
         {record.txid && (
@@ -341,7 +469,10 @@ export function HistoryDetail({
   record: HistoryRecord;
   onClose: () => void;
 } & HistoryDetailExtras) {
-  const isDesigned = Object.values(extras).some((v) => v !== undefined);
+  // Steps alone never switch to the designed sheet: only status / fiat do.
+  const isDesigned = Object.entries(extras).some(
+    ([key, v]) => key !== "hashSteps" && v !== undefined,
+  );
   return isDesigned ? (
     <DesignedDetail record={record} onClose={onClose} {...extras} />
   ) : (

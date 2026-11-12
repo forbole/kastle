@@ -21,11 +21,19 @@ type Row = {
   line: string | null;
   amount: string | null;
   time: boolean;
+  // Designed rows: a plain send / receive with a counterparty reads
+  // "Sent to …" / "Received from …"; without one it keeps the bare title.
+  party?: boolean;
 };
 // The designed sheet always shows the status: "Unconfirmed" when the source never said.
 type Sheet = {
   row: number;
   status: string | null;
+  // KRC-20 only: the Status row lists the tx steps in place of the status
+  // pill, each with its done / pending word, in order.
+  steps?: string[];
+  // How many steps link to the explorer (only Revealed carries a href).
+  stepLinks?: number;
   value: boolean;
   txid: boolean;
   explorer: boolean;
@@ -35,7 +43,7 @@ type Surface = {
   route: string;
   rows: Row[];
   sheets: Sheet[];
-  // The screen passes getRowExtras: logo, "TX Hash" + count, no symbol, no date.
+  // The screen passes getRowExtras: logo, title, date, amount with its symbol.
   designed?: boolean;
   // Designed rows with an amount carry a fiat value: the fiat line is required.
   fiat?: boolean;
@@ -51,19 +59,14 @@ const row = (
   time = true,
 ): Row => ({ title, line, amount, time });
 
-// A designed row: under the title the "TX Hash" label and its count, the amount
-// without the page's symbol, and no date (it lives in the TX Hash card).
-// A null count is a row with nothing on chain: "TX Hash" with no badge.
+// A designed row: line 1 the title and the amount with its symbol, line 2 the
+// date ("12 Nov｜11:04") and the fiat value. `party`: the record has a
+// counterparty, so a send / receive title names it. `time` false: no date line.
 const designedRow = (
   title: string,
   amount: string | null,
-  txCount: number | null = 1,
-): Row => ({
-  title,
-  line: `TX Hash${txCount ?? ""}`,
-  amount,
-  time: false,
-});
+  { party = false, time = true }: { party?: boolean; time?: boolean } = {},
+): Row => ({ title, line: null, amount, time, party });
 
 // Fixture order per tests/history-surfaces/stubs.tsx: out, in, self, no
 // amount, no time, no counterparty. KAS cannot lack an amount and KCC-20
@@ -73,11 +76,11 @@ const SURFACES: Surface[] = [
     key: "kas",
     route: "/kas",
     rows: [
-      designedRow("Sent", "-250"),
-      designedRow("Received", "+100"),
+      designedRow("Sent", "-250", { party: true }),
+      designedRow("Received", "+100", { party: true }),
       // Self shows the own outputs that came back, never the fee-only net.
       designedRow("Self transfer", "100"),
-      designedRow("Received", "+5"),
+      designedRow("Received", "+5", { party: true, time: false }),
       designedRow("Sent", "-30"),
     ],
     designed: true,
@@ -90,22 +93,30 @@ const SURFACES: Surface[] = [
     key: "krc20",
     route: "/krc20/KASPY",
     rows: [
-      // Commit and reveal both confirmed: two transactions per row.
-      designedRow("Sent", "-1", 2),
-      designedRow("Received", "+2.5", 2),
-      designedRow("Self transfer", "1", 2),
-      designedRow("Received", null, 2),
-      designedRow("Received", "+1", 2),
-      // No reveal hash: nothing on chain to count.
-      designedRow("Sent", "-1", null),
+      designedRow("Sent", "-1", { party: true }),
+      designedRow("Received", "+2.5", { party: true }),
+      designedRow("Self transfer", "1"),
+      designedRow("Received", null, { party: true }),
+      designedRow("Received", "+1", { party: true, time: false }),
+      designedRow("Sent", "-1"),
     ],
     designed: true,
     sheets: [
-      { row: 0, status: "Finalized", value: false, txid: true, explorer: true },
-      // No hash: nothing to copy, nowhere to link.
+      {
+        row: 0,
+        status: null,
+        steps: ["Committed, done", "Revealed, done"],
+        stepLinks: 1,
+        value: false,
+        txid: true,
+        explorer: true,
+      },
+      // No hash: nothing to copy, nowhere to link, no step proven.
       {
         row: 5,
-        status: "Finalized",
+        status: null,
+        steps: ["Committed, pending", "Revealed, pending"],
+        stepLinks: 0,
         value: false,
         txid: false,
         explorer: false,
@@ -116,10 +127,10 @@ const SURFACES: Surface[] = [
     key: "kcc20",
     route: "/kcc20",
     rows: [
-      designedRow("Sent", "-2.5"),
-      designedRow("Received", "+1"),
+      designedRow("Sent", "-2.5", { party: true }),
+      designedRow("Received", "+1", { party: true }),
       designedRow("Self transfer", "0.5"),
-      designedRow("Sent", null),
+      designedRow("Sent", null, { party: true }),
       designedRow("Received", "+0.7"),
     ],
     designed: true,
@@ -139,11 +150,11 @@ const SURFACES: Surface[] = [
     kasplexBadge: true,
     route: `/evm-kas/${EVM_CHAIN}`,
     rows: [
-      designedRow("Sent", "-1.5"),
-      designedRow("Received", "+1.5"),
+      designedRow("Sent", "-1.5", { party: true }),
+      designedRow("Received", "+1.5", { party: true }),
       designedRow("Self transfer", "0.5"),
       designedRow("Contract deploy", null),
-      designedRow("Received", "+1.5"),
+      designedRow("Received", "+1.5", { party: true, time: false }),
       designedRow("Received", "+1.5"),
     ],
     designed: true,
@@ -157,11 +168,11 @@ const SURFACES: Surface[] = [
     kasplexBadge: true,
     route: `/erc20/${EVM_CHAIN}/${EVM_TOKEN}`,
     rows: [
-      designedRow("Sent", "-1.5"),
-      designedRow("Received", "+1.5"),
+      designedRow("Sent", "-1.5", { party: true }),
+      designedRow("Received", "+1.5", { party: true }),
       designedRow("Self transfer", "0.5"),
       designedRow("Contract deploy", null),
-      designedRow("Received", "+1.5"),
+      designedRow("Received", "+1.5", { party: true, time: false }),
       designedRow("Received", "+1.5"),
     ],
     designed: true,
@@ -274,8 +285,15 @@ for (const [i, s] of SURFACES.entries()) {
           badgeSrc: imgs.find((i) => i.classList.contains("absolute"))?.src,
           left: [...left.children].map((c) => c.textContent ?? ""),
           leftGrow: left.classList.contains("flex-grow"),
-          rightClass: right.className,
-          right: [...right.children].map((c) => c.textContent ?? ""),
+          rightClass: right?.className ?? "",
+          right: [...(right?.children ?? [])].map((c) => c.textContent ?? ""),
+          // Designed row: a two-line grid. Cells by position, null when absent.
+          cells: {
+            title: left.querySelector(".col-start-1.row-start-1")?.textContent,
+            amount: left.querySelector(".col-start-2.row-start-1")?.textContent,
+            date: left.querySelector(".col-start-1.row-start-2")?.textContent,
+            fiat: left.querySelector(".col-start-2.row-start-2")?.textContent,
+          },
         };
       }),
     );
@@ -304,21 +322,34 @@ for (const [i, s] of SURFACES.entries()) {
         expect(got.imgs, at).toBe(0);
       }
       expect(got.leftGrow, at).toBe(true);
+      if (s.designed) {
+        // Line 1: the title (naming the counterparty on a send / receive that
+        // has one) and the amount with its symbol. Line 2: the date and fiat.
+        const verb = want.title === "Sent" ? "to" : "from";
+        if (want.party)
+          expect(got.cells.title, at).toMatch(
+            new RegExp(`^${want.title} ${verb} \\S`),
+          );
+        else expect(got.cells.title, at).toBe(want.title);
+        if (want.amount !== null) {
+          const esc = want.amount.replace(/[+.]/g, "\\$&");
+          expect(got.cells.amount, at).toMatch(new RegExp(`^${esc} \\S`));
+        } else expect(got.cells.amount ?? null, at).toBeNull();
+        if (want.time)
+          expect(got.cells.date, at).toMatch(
+            /^\d{1,2} [A-Z][a-z]{2,3}( \d{4})?｜\d{2}:\d{2}$/,
+          );
+        else expect(got.cells.date ?? null, at).toBeNull();
+        // A record with a fiat value must show it; one without shows nothing.
+        const hasFiat = !!s.fiat && want.amount !== null;
+        if (hasFiat) expect(got.cells.fiat, at).toMatch(/^≈ \$[\d,.]+ USD$/);
+        else expect(got.cells.fiat ?? null, at).toBeNull();
+        continue;
+      }
       expect(got.left, at).toEqual(
         want.line === null ? [want.title] : [want.title, want.line],
       );
       expect(got.rightClass, at).toContain("items-end");
-      if (s.designed) {
-        // Amount over the fiat value; no date cell on the designed row. A
-        // record with a fiat value must show it; one without shows nothing.
-        const hasFiat = !!s.fiat && want.amount !== null;
-        expect(got.right.length, at).toBe(
-          (want.amount === null ? 0 : 1) + (hasFiat ? 1 : 0),
-        );
-        if (want.amount !== null) expect(got.right[0], at).toBe(want.amount);
-        if (hasFiat) expect(got.right[1], at).toMatch(/^≈ \$[\d,.]+ USD$/);
-        continue;
-      }
       // Amount over time, both in the right-hand column.
       const expected = [
         ...(want.amount === null ? [] : [want.amount]),
@@ -351,12 +382,36 @@ for (const [i, s] of SURFACES.entries()) {
       const labels = await dialog
         .locator("div.justify-between > span:first-child")
         .allTextContents();
+      // Designed sheet order: Status, Amount, Value, To / From, TX ID; each
+      // row only when the record has it.
+      const want = s.rows[sh.row];
+      const partyLabel =
+        s.designed && want.party
+          ? want.title === "Received"
+            ? "From"
+            : "To"
+          : null;
       expect(labels, `${s.key} sheet ${sh.row}`).toEqual([
         "Status",
+        ...(s.designed && want.amount !== null ? ["Amount"] : []),
         ...(sh.value ? ["Value"] : []),
+        ...(partyLabel ? [partyLabel] : []),
         ...(sh.txid ? ["TX ID"] : []),
       ]);
       if (sh.status) await expect(dialog).toContainText(sh.status);
+      const steps = dialog.getByRole("listitem");
+      if (sh.steps) {
+        await expect(steps).toHaveText(sh.steps);
+        // The steps replace the pill: no record status word beside them.
+        await expect(dialog).not.toContainText(
+          /Finalized|Pending|Failed|Unconfirmed/,
+        );
+        await expect(
+          dialog.getByRole("link", { name: /on explorer$/ }),
+        ).toHaveCount(sh.stepLinks ?? 0);
+      } else {
+        await expect(steps).toHaveCount(0);
+      }
       if (sh.value) await expect(dialog).toContainText("≈ $");
       await expect(
         dialog.getByRole("button", { name: "View on Explorer" }),
@@ -406,24 +461,17 @@ test("krc20: unknown decimals keep the base-units label on the token page", asyn
 
 // React Router keeps a route element mounted across a param change, so the
 // list's paging state (empty-page streak, phase) must be reset by its key.
-test("krc20: the TX Hash card shows Committed and Revealed, done only when the op proves them", async ({
+test("krc20: the sheet's Status row shows Committed and Revealed, done only when the op proves them", async ({
   page,
 }) => {
   const errors = await open(page, "/krc20/KASPY");
   const rows = rowsOf(page);
   await expect(rows).toHaveCount(6);
-  const card = page.getByRole("tooltip");
-  const readCard = async (n: number) => {
-    // Close the previous row's card first, so the read below is this row's.
-    await page.mouse.move(0, 0);
-    await expect(card).toHaveCount(0);
-    await rows
-      .nth(n)
-      .locator("span", { hasText: /^TX Hash/ })
-      .first()
-      .hover();
-    await expect(card).toHaveCount(1);
-    return card.locator("li").evaluateAll((lis) =>
+  const dialog = page.getByRole("dialog");
+  const readSteps = async (n: number) => {
+    await rows.nth(n).click();
+    await expect(dialog).toBeVisible();
+    const steps = await dialog.locator("li").evaluateAll((lis) =>
       lis.map((li) => ({
         label: li.textContent ?? "",
         isDone: /check/.test(
@@ -432,26 +480,25 @@ test("krc20: the TX Hash card shows Committed and Revealed, done only when the o
         href: li.querySelector("a")?.getAttribute("href") ?? null,
       })),
     );
+    await page.keyboard.press("Escape");
+    await expect(dialog).toHaveCount(0);
+    return steps;
   };
 
   // Revealed: both steps done, Revealed links to the reveal on the explorer.
-  const revealed = await readCard(0);
+  const revealed = await readSteps(0);
   expect(revealed.map((l) => [l.label, l.isDone])).toEqual([
-    ["Committed", true],
-    ["Revealed", true],
+    ["Committed, done", true],
+    ["Revealed, done", true],
   ]);
   expect(revealed[0].href).toBeNull();
   expect(revealed[1].href).toMatch(/^https?:\/\/.+[0-9a-f]{16}/);
-  await expect(
-    card.getByRole("link", { name: "Revealed on explorer" }),
-  ).toHaveCount(1);
 
   // No hash: nothing on chain, so neither step is done and nothing links.
-  await page.mouse.move(0, 0);
-  const unknown = await readCard(5);
+  const unknown = await readSteps(5);
   expect(unknown.map((l) => [l.label, l.isDone, l.href])).toEqual([
-    ["Committed", false, null],
-    ["Revealed", false, null],
+    ["Committed, pending", false, null],
+    ["Revealed, pending", false, null],
   ]);
   expect(errors).toEqual([]);
 });

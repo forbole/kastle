@@ -539,13 +539,14 @@ test("a standard KCC-20 row and its history read like mobile", async ({
 
   await row.click();
   await expect(page.getByRole("heading", { name: "NACHO" })).toBeVisible();
-  // The designed row: title, "TX Hash" with its count, the amount without the
-  // page's symbol; no counterparty and no txid on the row.
+  // The designed row: "Received from <sender>", the date, the amount with
+  // its symbol; no txid on the row.
   const received = page.getByRole("button", { name: /^Received/ });
-  await expect(received).toContainText(/TX Hash\s*1/);
-  await expect(received.getByText("+2,107.593", { exact: true })).toBeVisible();
-  await expect(received).not.toContainText("NACHO");
-  await expect(page.getByText("From qsender0...00000")).toHaveCount(0);
+  await expect(received).toContainText(/｜\d{2}:\d{2}/);
+  await expect(
+    received.getByText("+2,107.593 NACHO", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("Received from qsen…0000")).toBeVisible();
   await expect(page.getByText("Unattributed movement")).toBeVisible();
   await expect(page.getByText(/kcc20amb|kcc20rx/)).toHaveCount(0);
 

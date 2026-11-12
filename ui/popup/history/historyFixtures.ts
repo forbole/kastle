@@ -134,12 +134,73 @@ export const KCC20_RECORDS: HistoryRecord[] = [
   },
 ];
 
-// Default for every story: the designed row. Only KRC-20 has hash steps; rows
-// without a fiat value get a sample so the right column is visible too.
-export const designedRow = (r: HistoryRecord) => ({
-  ...(r.family === "krc20" ? KRC20_EXTRAS : COMMON_EXTRAS),
-  ...(r.fiat.value ? {} : { fiatText: "≈ $19.235 USD" }),
-});
+// Default for every story: the designed row. Only KRC-20 has hash steps; a
+// row shows a fiat line only when its record carries one.
+export const designedRow = (r: HistoryRecord) =>
+  r.family === "krc20" ? KRC20_EXTRAS : COMMON_EXTRAS;
+
+// iKAS-like EVM rows: no price, so no fiat line and the amount sits on line 1.
+export const NO_PRICE_RECORDS: HistoryRecord[] = [
+  record({
+    id: "p-send",
+    family: "erc20",
+    kind: "send",
+    direction: "out",
+    amount: {
+      value: { raw: "100000000", decimals: 8, symbol: "iKAS" },
+      quality: "exact",
+    },
+  }),
+  record({
+    id: "p-recv",
+    family: "erc20",
+    amount: {
+      value: { raw: "250000000", decimals: 8, symbol: "iKAS" },
+      quality: "exact",
+    },
+  }),
+];
+
+// A 14-digit amount: one line, ellipsis when the column hits 40% of the row.
+export const LONG_AMOUNT_RECORDS: HistoryRecord[] = [
+  record({
+    id: "l-recv",
+    amount: {
+      value: { raw: "3211503356412300000000", decimals: 8, symbol: "NACHO" },
+      quality: "exact",
+    },
+    fiat: { value: { usd: 2024000.235 }, quality: "approximate" },
+  }),
+  record({
+    id: "l-send",
+    kind: "send",
+    direction: "out",
+    amount: {
+      value: { raw: "3211503356412300000000", decimals: 8, symbol: "NACHO" },
+      quality: "exact",
+    },
+  }),
+];
+
+// A send with no counterparty keeps "Sent"; a mint never names one.
+export const NO_COUNTERPARTY_RECORDS: HistoryRecord[] = [
+  record({
+    id: "n-send",
+    kind: "send",
+    direction: "out",
+    counterparty: { value: null, quality: "unavailable" },
+  }),
+  token("n-mint", "krc20", "mint", "1200000012345678", 19.235),
+];
+
+// A date in another year carries the year; this year's does not.
+export const OTHER_YEAR_RECORDS: HistoryRecord[] = [
+  record({
+    id: "y-old",
+    time: { value: Date.UTC(2025, 9, 5, 22, 21), quality: "exact" },
+  }),
+  record({ id: "y-now", time: { value: Date.now(), quality: "exact" } }),
+];
 
 const DETAIL_STATUS = {
   finalized: { label: "Finalized", tone: "success" },
@@ -149,8 +210,8 @@ const DETAIL_STATUS = {
 } as const;
 
 // Default for the detail sheet: status and fiat as Leo's data would supply
-// them. Rows without a fiat value get a sample so the Value row is visible.
+// them. Without a fiat value there is no Value row.
 export const designedDetail = (r: HistoryRecord) => ({
   status: DETAIL_STATUS[r.status],
-  fiatText: historyFiatText(r) ?? "≈ $19.235 USD",
+  fiatText: historyFiatText(r) ?? undefined,
 });
