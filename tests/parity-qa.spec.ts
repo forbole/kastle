@@ -249,7 +249,7 @@ test("03 send picker: KCC-20 row has no family chip and no status copy", async (
 });
 
 // 4: token detail
-test("04 token detail, Token info: the five rows in order, no family chip", async ({
+test("04 token detail, Token info: the five rows in order, KCC-20 badge only next to the name", async ({
   page,
 }) => {
   // h=760: the whole info card in one frame (the popup itself is 600 tall and scrolls).
@@ -273,11 +273,25 @@ test("04 token detail, Token info: the five rows in order, no family chip", asyn
   await expect(
     panel.locator("section > div > div", { hasText: /^Balance/ }),
   ).toHaveText("Balance10,000 KTEST");
-  // The Standard row names the standard; nothing outside the rows is a chip.
+  // The Standard row names the standard. Outside the rows the only chip is the
+  // "KCC-20" badge in the header card, right after the token name (Leo, 2026-11-12).
   await expect(panel.locator("section")).toContainText("KCC-20");
-  expect(await familyChips(page, page.locator("#popup"), "section")).toEqual(
-    [],
-  );
+  const chips = await familyChips(page, page.locator("#popup"), "section");
+  expect(chips).toHaveLength(1);
+  expect(chips[0]).toContain(">KCC-20<");
+  const badge = panel
+    .locator(":scope > div.rounded-2xl")
+    .getByText("KCC-20", { exact: true });
+  await expect(badge).toHaveCount(1);
+  const beside = await badge.evaluate((el) => ({
+    name: el.previousElementSibling?.textContent?.trim() ?? "",
+    inCard: !!el.closest("div.rounded-2xl.border-card-border"),
+    inRows: !!el.closest("section"),
+  }));
+  expect(beside.name).not.toBe("");
+  expect(beside.name).not.toMatch(FAMILY_CHIP);
+  expect(beside.inCard).toBe(true);
+  expect(beside.inRows).toBe(false);
   await expect(page.locator("body")).not.toContainText(GONE);
   await shot(page, "03-detail-info.png");
   expect(errors).toEqual([]);
