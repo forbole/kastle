@@ -55,6 +55,14 @@ const client = createPublicClient({
 
 export { client as insRpcClient };
 
+// Registries and RPC per chain id. A chain missing here has no INS deployment,
+// and a lookup on it fails closed instead of reading the mainnet registry.
+const INS_DEPLOYMENTS: Partial<
+  Record<number, { v2: `0x${string}`; v1: `0x${string}`; rpc: typeof client }>
+> = {
+  [igraMainnet.id]: { v2: INS_V2_REGISTRY, v1: INS_V1_REGISTRY, rpc: client },
+};
+
 /**
  * Contract calls key off the bare label -- tokenIdOf("satoshi") returns 39
  * while tokenIdOf("satoshi.igra") returns 0. The REST API accepts either.
@@ -88,13 +96,14 @@ export type InsOnChainResult =
   | { ok: false; reason: string };
 
 async function lookupIn(
+  rpc: typeof client,
   registry: `0x${string}`,
   version: InsRegistryVersion,
   label: string,
 ): Promise<InsOnChainResult | null> {
   const abi = version === "v2" ? V2_ABI : V1_ABI;
 
-  const tokenId = await client.readContract({
+  const tokenId = await rpc.readContract({
     address: registry,
     abi,
     functionName: "tokenIdOf",
@@ -104,7 +113,7 @@ async function lookupIn(
   // 0 means "not in this registry" -- caller falls through to the next one.
   if (tokenId === 0n) return null;
 
-  const address = await client.readContract({
+  const address = await rpc.readContract({
     address: registry,
     abi,
     functionName: "ownerOf",
@@ -121,13 +130,13 @@ async function lookupIn(
   let inGrace = false;
   if (version === "v2") {
     const [expired, grace] = [
-      await client.readContract({
+      await rpc.readContract({
         address: registry,
         abi: V2_ABI,
         functionName: "isExpired",
         args: [tokenId],
       }),
-      await client.readContract({
+      await rpc.readContract({
         address: registry,
         abi: V2_ABI,
         functionName: "isInGrace",
@@ -157,14 +166,24 @@ async function lookupIn(
  * that transferFrom never updates, so after a transfer they keep returning the
  * previous owner. ownerOf is the ground truth.
  *
- * Fails closed -- any RPC error, timeout, missing name or lapsed name returns
- * ok:false and the caller must block the send.
+ * Fails closed -- any RPC error, timeout, missing name, lapsed name or chain
+ * without an INS deployment returns ok:false and the caller must block the
+ * send.
  */
 export async function lookupInsNameOnChain(
   name: string,
+  chainId: `0x${string}`,
 ): Promise<InsOnChainResult> {
   const label = toInsLabel(name);
   if (!label) return { ok: false, reason: "Enter a name." };
+
+  const deployment = INS_DEPLOYMENTS[Number(chainId)];
+  if (!deployment) {
+    return {
+      ok: false,
+      reason: "INS names are not available on this network.",
+    };
+  }
 
   const deadline = new Promise<InsOnChainResult>((resolve) =>
     setTimeout(
@@ -175,10 +194,11 @@ export async function lookupInsNameOnChain(
 
   const lookup = (async (): Promise<InsOnChainResult> => {
     try {
-      const v2 = await lookupIn(INS_V2_REGISTRY, "v2", label);
+      const { rpc, v2: v2Registry, v1: v1Registry } = deployment;
+      const v2 = await lookupIn(rpc, v2Registry, "v2", label);
       if (v2) return v2;
 
-      const v1 = await lookupIn(INS_V1_REGISTRY, "v1", label);
+      const v1 = await lookupIn(rpc, v1Registry, "v1", label);
       if (v1) return v1;
 
       return { ok: false, reason: `${label}.igra is not registered.` };
