@@ -358,6 +358,37 @@ export const ERC20_ASSET = {
 export function useErc20Assets() {
   return { assets: erc20 ? [ERC20_ASSET] : [] };
 }
+// The Manage Assets page reads every balance at once.
+export function useErc20Balances() {
+  return {
+    data: erc20
+      ? [
+          {
+            chainId: ERC20_ASSET.chainId,
+            tokenAddress: ERC20_ASSET.address,
+            balance: 1000,
+          },
+        ]
+      : [],
+  };
+}
+export function useEvmKasBalances() {
+  return { data: {} };
+}
+// The real Dashboard around the asset list (/dashboard-home).
+export const SideMenu = Tab;
+export function useKeyring() {
+  return { keyringLock: async () => {} };
+}
+export function useBackupWarning() {
+  return { showWarning: false };
+}
+export function useTotalBalance() {
+  return 0;
+}
+export function usePortfolioPerformance() {
+  return { performance: 0, performanceInPercent: 0 };
+}
 export function useErc20Image() {
   return { logoUrl: undefined };
 }
