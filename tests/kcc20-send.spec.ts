@@ -549,14 +549,18 @@ test("a standard KCC-20 row and its history read like mobile", async ({
   await expect(page.getByText("Unattributed movement")).toBeVisible();
   await expect(page.getByText(/kcc20amb|kcc20rx/)).toHaveCount(0);
 
-  // The unattributed row: no amount, no counterparty, no status to claim.
+  // The unattributed record has no amount and no counterparty, so neither
+  // row is drawn; its status is unknown, so the designed sheet says
+  // "Unconfirmed".
   await page.getByText("Unattributed movement").click();
   const sheet = page.getByRole("heading", { name: "TX Hash" });
   await expect(sheet).toBeVisible();
   await expect(page.getByText("kcc20amb", { exact: true })).toBeVisible();
   await expect(page.getByText(/Unavailable|Unknown/)).toHaveCount(0);
-  for (const label of ["Amount", "From", "To", "Status"])
+  for (const label of ["Amount", "From", "To"])
     await expect(page.getByText(label, { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Status", { exact: true })).toHaveCount(1);
+  await expect(page.getByText("Unconfirmed", { exact: true })).toBeVisible();
   expect(errors).toEqual([]);
 });
 
