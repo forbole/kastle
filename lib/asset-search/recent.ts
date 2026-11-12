@@ -19,7 +19,8 @@ type Entry = { loaded: boolean; items: readonly AssetSearchItem[] };
 
 const EMPTY: Entry = { loaded: false, items: [] };
 const cache = new Map<string, Entry>();
-const pending = new Set<string>();
+// The in-flight first read per key; it never rejects.
+const pending = new Map<string, Promise<void>>();
 const listeners = new Set<() => void>();
 
 const emit = () => listeners.forEach((l) => l());
@@ -41,21 +42,27 @@ const isItem = (v: unknown): v is AssetSearchItem => {
 };
 
 // Read once per key per popup session; later reads come from the cache.
-async function load(key: string) {
-  if (cache.has(key) || pending.has(key)) return;
-  pending.add(key);
-  let items: AssetSearchItem[] = [];
-  try {
-    const stored = (await browser.storage.local.get(key))[key];
-    if (Array.isArray(stored))
-      items = stored.filter(isItem).slice(0, RECENT_SEARCH_LIMIT);
-  } catch {
-    // Unreadable storage: no recents, never an error.
-  }
-  pending.delete(key);
-  // A save that landed while reading wins over the stale read.
-  if (!cache.has(key)) cache.set(key, { loaded: true, items });
-  emit();
+// Resolves once the key is in the cache; a failed read resolves to no recents.
+function load(key: string): Promise<void> {
+  if (cache.has(key)) return Promise.resolve();
+  const inFlight = pending.get(key);
+  if (inFlight) return inFlight;
+  const read = (async () => {
+    let items: AssetSearchItem[] = [];
+    try {
+      const stored = (await browser.storage.local.get(key))[key];
+      if (Array.isArray(stored))
+        items = stored.filter(isItem).slice(0, RECENT_SEARCH_LIMIT);
+    } catch {
+      // Unreadable storage: no recents, never an error.
+    }
+    pending.delete(key);
+    // A save that landed while reading wins over the stale read.
+    if (!cache.has(key)) cache.set(key, { loaded: true, items });
+    emit();
+  })();
+  pending.set(key, read);
+  return read;
 }
 
 async function save(key: string, items: AssetSearchItem[]) {
@@ -70,7 +77,9 @@ async function save(key: string, items: AssetSearchItem[]) {
 
 const current = (key: string) => cache.get(key)?.items ?? [];
 
-export function addRecentSearch(key: string, item: AssetSearchItem) {
+export async function addRecentSearch(key: string, item: AssetSearchItem) {
+  // Merge onto the stored list, not the empty one a pending first read shows.
+  await load(key);
   const { id, name, kind, logo, network } = item;
   const next = [
     { id, name, kind, logo, network },

@@ -85,7 +85,7 @@ export default function AssetSearch() {
   );
   // Same guard as the dashboard KCC-20 row: it does not open on Ledger.
   const canOpenKcc20 = isKcc20Enabled && wallet?.type !== "ledger";
-  const { assets: erc20Assets } = useErc20Assets();
+  const { assets: erc20Assets, isLoading: erc20Loading } = useErc20Assets();
 
   const evmChains =
     settings?.networkId === "mainnet"
@@ -203,7 +203,8 @@ export default function AssetSearch() {
   // with no account, switched off or failed has settled, so "No result" shows.
   const isLoading =
     (krc20Loading && krc20Tokens === undefined) ||
-    (canOpenKcc20 && kcc20Loading && kcc20Tokens === undefined);
+    (canOpenKcc20 && kcc20Loading && kcc20Tokens === undefined) ||
+    (!!address && erc20Loading);
 
   const itemsById = useMemo(
     () => new Map(candidates.map(({ item }) => [item.id, item])),
