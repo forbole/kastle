@@ -7,6 +7,7 @@ import {
   KRC20_EXTRAS,
   KRC20_RECORDS,
   RECORDS,
+  designedDetail,
   designedRow,
 } from "@/ui/popup/history/historyFixtures";
 
@@ -22,6 +23,7 @@ const meta = {
   ],
   args: {
     getRowExtras: designedRow,
+    getDetailExtras: designedDetail,
     records: RECORDS,
     isLoading: false,
     isLoadingMore: false,
