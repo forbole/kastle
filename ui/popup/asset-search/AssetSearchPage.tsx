@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { ChevronLeft, Search, X } from "lucide-react";
 import { twMerge } from "tailwind-merge";
 import AssetImage from "@/ui/popup/kcc20/AssetImage";
-import type { NetworkType } from "@/ui/popup/kcc20/labels";
+import { NETWORK_TYPE_LABELS, type NetworkType } from "@/ui/popup/kcc20/labels";
 
 export interface AssetSearchItem {
   id: string;
@@ -37,7 +37,17 @@ const ASSET_SEARCH_LABELS = {
   asset: "Asset",
   nft: "NFT",
   remove: "Remove from recent",
+  searching: "Searching",
+  found: (count: number) =>
+    `${count} ${count === 1 ? "result" : "results"} found`,
 };
+
+/** Name plus network, so same-named assets on different networks stay distinct to assistive tech. */
+function accessibleName(item: AssetSearchItem) {
+  return item.network
+    ? `${item.name}, ${NETWORK_TYPE_LABELS[item.network]}`
+    : item.name;
+}
 
 const SKELETON_ROWS = 6;
 
@@ -82,6 +92,11 @@ function ItemRow({
         <span className="flex min-w-0 flex-col gap-1">
           <span className="truncate text-sm font-semibold leading-5 text-white">
             {item.name}
+            {item.network && (
+              <span className="sr-only">
+                , {NETWORK_TYPE_LABELS[item.network]}
+              </span>
+            )}
           </span>
           <span className="text-xs leading-4 text-daintree-400">
             {item.kind === "nft"
@@ -93,7 +108,8 @@ function ItemRow({
       {onRemove && (
         <button
           type="button"
-          aria-label={`${ASSET_SEARCH_LABELS.remove}: ${item.name}`}
+          aria-label={`${ASSET_SEARCH_LABELS.remove}: ${accessibleName(item)}`}
+          data-recent-remove={item.id}
           onClick={() => onRemove(item)}
           className="mr-2 flex size-8 shrink-0 items-center justify-center rounded-lg text-daintree-300 hover:bg-daintree-700 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-icy-blue-400"
         >
@@ -130,6 +146,9 @@ export default function AssetSearchPage({
   onRemoveRecent,
 }: AssetSearchPageProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const recentListRef = useRef<HTMLDivElement>(null);
+  // Where focus goes once a removed recent row unmounts: a surviving row's id, or "" for the input.
+  const pendingFocusRef = useRef<string | null>(null);
   const hasQuery = query.length > 0;
 
   // Focused on open, so typing starts straight away.
@@ -137,14 +156,47 @@ export default function AssetSearchPage({
     inputRef.current?.focus();
   }, []);
 
+  // The removed row took the focused button with it; keep focus inside the search controls.
+  useEffect(() => {
+    const target = pendingFocusRef.current;
+    if (target === null) return;
+    pendingFocusRef.current = null;
+    const next = target
+      ? recentListRef.current?.querySelector<HTMLButtonElement>(
+          `[data-recent-remove="${CSS.escape(target)}"]`,
+        )
+      : null;
+    (next ?? inputRef.current)?.focus();
+  }, [recent]);
+
+  const removeRecent = (item: AssetSearchItem) => {
+    const index = recent.findIndex((r) => r.id === item.id);
+    const next = recent[index + 1] ?? recent[index - 1];
+    pendingFocusRef.current = next ? next.id : "";
+    onRemoveRecent(item);
+  };
+
   const showRecent = !hasQuery && recent.length > 0;
   const showEmpty = hasQuery && !isLoading && results.length === 0;
+  const status = !hasQuery
+    ? ""
+    : isLoading
+      ? ASSET_SEARCH_LABELS.searching
+      : results.length === 0
+        ? ASSET_SEARCH_LABELS.noResult
+        : ASSET_SEARCH_LABELS.found(results.length);
 
   return (
     <div
       className="flex h-full flex-col bg-icy-blue-950 font-sans text-white"
       onKeyDown={(e) => {
-        if (e.key === "Escape") onBack();
+        // keyCode 229: IME composition on browsers that don't set isComposing.
+        if (
+          e.key === "Escape" &&
+          !e.nativeEvent.isComposing &&
+          e.keyCode !== 229
+        )
+          onBack();
       }}
     >
       <div className="flex items-start gap-2 px-4 pb-4 pt-5">
@@ -201,13 +253,13 @@ export default function AssetSearchPage({
             <h2 className="border-t border-card-border px-3 pt-3 text-base font-semibold leading-6 tracking-[0.08px] text-white drop-shadow-[0_-3px_5px_rgba(38,38,38,0.2)]">
               {ASSET_SEARCH_LABELS.recent}
             </h2>
-            <div className="flex flex-col gap-2 pb-4">
+            <div ref={recentListRef} className="flex flex-col gap-2 pb-4">
               {recent.map((item) => (
                 <ItemRow
                   key={item.id}
                   item={item}
                   onSelect={onSelect}
-                  onRemove={onRemoveRecent}
+                  onRemove={removeRecent}
                 />
               ))}
             </div>
@@ -232,13 +284,18 @@ export default function AssetSearchPage({
 
         {showEmpty && (
           <p
-            role="status"
+            aria-hidden="true"
             className="pt-8 text-center text-base font-medium leading-6 text-daintree-400"
           >
             {ASSET_SEARCH_LABELS.noResult}
           </p>
         )}
       </div>
+
+      {/* Mounted for the screen's lifetime so a text change is announced. */}
+      <p role="status" aria-live="polite" className="sr-only">
+        {status}
+      </p>
     </div>
   );
 }

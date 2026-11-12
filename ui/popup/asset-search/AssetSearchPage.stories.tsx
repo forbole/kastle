@@ -51,23 +51,32 @@ const recentItems = [nachoKcc20, nachoKasplex, nft3857, nft4795];
 function Template({
   initialQuery = "",
   initialRecent = [],
-  results = [],
+  results,
+  catalog = [],
   isLoading,
 }: {
   initialQuery?: string;
   initialRecent?: AssetSearchItem[];
+  /** Fixed results; otherwise derived from the current query over `catalog`. */
   results?: AssetSearchItem[];
+  catalog?: AssetSearchItem[];
   isLoading?: boolean;
 }) {
   const [query, setQuery] = useState(initialQuery);
   const [recent, setRecent] = useState(initialRecent);
+  const needle = query.trim().toLowerCase();
+  const shown =
+    results ??
+    (needle
+      ? catalog.filter((item) => item.name.toLowerCase().includes(needle))
+      : []);
   return (
     <AssetSearchPage
       query={query}
       onQueryChange={setQuery}
       onBack={() => {}}
       recent={recent}
-      results={results}
+      results={shown}
       isLoading={isLoading}
       onSelect={() => {}}
       onRemoveRecent={(item) =>
@@ -78,10 +87,12 @@ function Template({
 }
 
 /** First visit: nothing searched yet. */
-export const Default: Story = { render: () => <Template /> };
+export const Default: Story = {
+  render: () => <Template catalog={recentItems} />,
+};
 
 export const Recent: Story = {
-  render: () => <Template initialRecent={recentItems} />,
+  render: () => <Template initialRecent={recentItems} catalog={recentItems} />,
 };
 
 /** Two results in, more still loading. */
@@ -92,14 +103,9 @@ export const Loading: Story = {
 };
 
 export const Filled: Story = {
-  render: () => (
-    <Template
-      initialQuery="NACHO"
-      results={[nachoKcc20, nachoKasplex, nft3857, nft4795]}
-    />
-  ),
+  render: () => <Template initialQuery="NACHO" catalog={recentItems} />,
 };
 
 export const Empty: Story = {
-  render: () => <Template initialQuery="ORANGE" />,
+  render: () => <Template initialQuery="ORANGE" catalog={recentItems} />,
 };
