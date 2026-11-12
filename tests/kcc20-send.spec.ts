@@ -546,7 +546,7 @@ test("a standard KCC-20 row and its history read like mobile", async ({
   await expect(
     received.getByText("+2,107.593 NACHO", { exact: true }),
   ).toBeVisible();
-  await expect(page.getByText("Received from qsen...0000")).toBeVisible();
+  await expect(page.getByText("Received from qsen…0000")).toBeVisible();
   await expect(page.getByText("Unattributed movement")).toBeVisible();
   await expect(page.getByText(/kcc20amb|kcc20rx/)).toHaveCount(0);
 

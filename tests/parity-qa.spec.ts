@@ -347,7 +347,7 @@ test("05 token detail, History: logo, title, date, signed amount with symbol", a
   expect(errors).toEqual([]);
 });
 
-test("09 a date is exact: no date in the hover card or the detail sheet carries ≈", async ({
+test("09 a date is exact: no date in the row or the detail sheet carries ≈", async ({
   page,
 }) => {
   const errors = await open(
@@ -358,30 +358,15 @@ test("09 a date is exact: no date in the hover card or the detail sheet carries 
   await page.getByRole("tab", { name: "History", exact: true }).click();
   const rows = page.getByRole("button", { name: /^(Received|Sent)/ });
   await expect(rows).toHaveCount(2);
-  // The date on line 2 opens the hover card (with the full date and year).
-  const card = page.getByRole("tooltip");
-  const dates: string[] = [];
+  // Line 2 is the plain date, never "≈".
   for (let i = 0; i < 2; i++) {
-    // Close the previous row's card first, so the read below is this row's.
-    await page.mouse.move(0, 0);
-    await expect(card).toHaveCount(0);
-    await rows
+    const date = await rows
       .nth(i)
       .locator("span", { hasText: /｜\d{2}:\d{2}$/ })
       .first()
-      .hover();
-    await expect(card).toHaveCount(1);
-    const date = await card
-      .locator("span.text-daintree-400")
-      .first()
       .textContent();
-    dates.push(date ?? "");
+    expect(date).not.toContain("≈");
   }
-  for (const d of dates) {
-    expect(d).toMatch(/\b\d{4}\b/);
-    expect(d).not.toContain("≈");
-  }
-  await page.mouse.move(0, 0);
   await rows.first().click();
   const heading = page.getByRole("heading", { name: "TX Hash" });
   await expect(heading).toBeVisible();

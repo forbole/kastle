@@ -324,7 +324,7 @@ for (const [i, s] of SURFACES.entries()) {
           expect(got.cells.date, at).toMatch(
             /^\d{1,2} [A-Z][a-z]{2,3}( \d{4})?｜\d{2}:\d{2}$/,
           );
-        else expect(got.cells.date, at).toBe("TX Hash");
+        else expect(got.cells.date ?? null, at).toBeNull();
         // A record with a fiat value must show it; one without shows nothing.
         const hasFiat = !!s.fiat && want.amount !== null;
         if (hasFiat) expect(got.cells.fiat, at).toMatch(/^≈ \$[\d,.]+ USD$/);
@@ -433,24 +433,17 @@ test("krc20: unknown decimals keep the base-units label on the token page", asyn
 
 // React Router keeps a route element mounted across a param change, so the
 // list's paging state (empty-page streak, phase) must be reset by its key.
-test("krc20: the date's hover card shows Committed and Revealed, done only when the op proves them", async ({
+test("krc20: the sheet's Status row shows Committed and Revealed, done only when the op proves them", async ({
   page,
 }) => {
   const errors = await open(page, "/krc20/KASPY");
   const rows = rowsOf(page);
   await expect(rows).toHaveCount(6);
-  const card = page.getByRole("tooltip");
-  const readCard = async (n: number) => {
-    // Close the previous row's card first, so the read below is this row's.
-    await page.mouse.move(0, 0);
-    await expect(card).toHaveCount(0);
-    await rows
-      .nth(n)
-      .locator("span", { hasText: /^\d{1,2} [A-Z][a-z]{2,3}.*｜\d{2}:\d{2}$/ })
-      .first()
-      .hover();
-    await expect(card).toHaveCount(1);
-    return card.locator("li").evaluateAll((lis) =>
+  const dialog = page.getByRole("dialog");
+  const readSteps = async (n: number) => {
+    await rows.nth(n).click();
+    await expect(dialog).toBeVisible();
+    const steps = await dialog.locator("li").evaluateAll((lis) =>
       lis.map((li) => ({
         label: li.textContent ?? "",
         isDone: /check/.test(
@@ -459,26 +452,25 @@ test("krc20: the date's hover card shows Committed and Revealed, done only when 
         href: li.querySelector("a")?.getAttribute("href") ?? null,
       })),
     );
+    await page.keyboard.press("Escape");
+    await expect(dialog).toHaveCount(0);
+    return steps;
   };
 
   // Revealed: both steps done, Revealed links to the reveal on the explorer.
-  const revealed = await readCard(0);
+  const revealed = await readSteps(0);
   expect(revealed.map((l) => [l.label, l.isDone])).toEqual([
-    ["Committed", true],
-    ["Revealed", true],
+    ["Committed, done", true],
+    ["Revealed, done", true],
   ]);
   expect(revealed[0].href).toBeNull();
   expect(revealed[1].href).toMatch(/^https?:\/\/.+[0-9a-f]{16}/);
-  await expect(
-    card.getByRole("link", { name: "Revealed on explorer" }),
-  ).toHaveCount(1);
 
   // No hash: nothing on chain, so neither step is done and nothing links.
-  await page.mouse.move(0, 0);
-  const unknown = await readCard(5);
+  const unknown = await readSteps(5);
   expect(unknown.map((l) => [l.label, l.isDone, l.href])).toEqual([
-    ["Committed", false, null],
-    ["Revealed", false, null],
+    ["Committed, pending", false, null],
+    ["Revealed, pending", false, null],
   ]);
   expect(errors).toEqual([]);
 });

@@ -129,11 +129,11 @@ test.describe("evm-history format", () => {
         kind: "send",
         counterparty: { value: { address: addr, label }, quality: "exact" },
       });
-    expect(shortAddress(addr)).toBe("0x1f51...9497");
-    expect(historyRowTitle(party())).toBe("Sent to 0x1f51...9497");
+    expect(shortAddress(addr)).toBe("0x1f51…9497");
+    expect(historyRowTitle(party())).toBe("Sent to 0x1f51…9497");
     // The data layer's own 8…5 ellipsis is not a real label.
     expect(historyRowTitle(party(textEllipsis(addr)))).toBe(
-      "Sent to 0x1f51...9497",
+      "Sent to 0x1f51…9497",
     );
     // KCC-20: the lib strips presence: / p2pkh: before its ellipsis.
     const key = "p2pkh:abcd1234567890abcdef1234567890wxyz";
@@ -144,7 +144,15 @@ test.describe("evm-history format", () => {
         quality: "exact",
       },
     });
-    expect(historyRowTitle(owned)).toBe("Sent to abcd...wxyz");
+    expect(historyRowTitle(owned)).toBe("Sent to abcd…wxyz");
+    const kas = `kaspa:${"q".repeat(10)}${"z".repeat(40)}k7x2`;
+    const onKaspa = rec({
+      kind: "receive",
+      direction: "in",
+      counterparty: { value: { address: kas }, quality: "exact" },
+    });
+    expect(historyRowTitle(onKaspa)).toBe("Received from kaspa:qqqq…k7x2");
+    expect(historyCounterpartyText(onKaspa)).toBe(`From ${textEllipsis(kas)}`);
     expect(historyRowTitle(party("KRON market"))).toBe("Sent to KRON market");
     expect(historyRowTitle(party("#42 · 0x1f51aaaa...a9497"))).toBe(
       "Sent to #42 · 0x1f51aaaa...a9497",
@@ -154,12 +162,12 @@ test.describe("evm-history format", () => {
   test("shortAddress keeps known prefixes, else first 4 + last 4", () => {
     const kas =
       "kaspa:qr3xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaak7x2";
-    expect(shortAddress(kas)).toBe("kaspa:qr3x...k7x2");
+    expect(shortAddress(kas)).toBe("kaspa:qr3x…k7x2");
     expect(shortAddress(kas.replace("kaspa:", "kaspatest:"))).toBe(
-      "kaspatest:qr3x...k7x2",
+      "kaspatest:qr3x…k7x2",
     );
-    expect(shortAddress("p2pkh:abcd1234567890wxyz")).toBe("abcd...wxyz");
-    expect(shortAddress("presence:abcd1234567890wxyz")).toBe("abcd...wxyz");
+    expect(shortAddress("p2pkh:abcd1234567890wxyz")).toBe("abcd…wxyz");
+    expect(shortAddress("presence:abcd1234567890wxyz")).toBe("abcd…wxyz");
     expect(shortAddress("0xabc")).toBe("0xabc");
   });
 

@@ -24,7 +24,7 @@ export interface HistoryListProps {
   unavailableMessage?: string;
   emptyMessage?: string;
   truncatedMessage?: string;
-  /** Per-row logo, chain badge, TX count and hover-card lines; none = plain rows. */
+  /** Per-row logo, chain badge, fiat text and status steps (shown in the sheet); none = plain rows. */
   getRowExtras?: (record: HistoryRecord) => HistoryRowExtras | undefined;
   /** Per-record status and fiat for the detail sheet; none = the pre-redesign sheet. */
   getDetailExtras?: (record: HistoryRecord) => HistoryDetailExtras | undefined;
@@ -185,6 +185,12 @@ export function HistoryList({
   if (records.length === 0 && !hasMore && !isLoadingMore)
     return <Notice>{emptyMessage}</Notice>;
 
+  // KRC-20's Committed / Revealed ride on the row extras; the sheet shows them.
+  const stepsOf = (record: HistoryRecord) => {
+    const hashSteps = getRowExtras?.(record)?.hashSteps;
+    return hashSteps?.length ? { hashSteps } : {};
+  };
+
   return (
     <div className="flex flex-col items-stretch gap-2">
       {records.map((record) => (
@@ -237,6 +243,7 @@ export function HistoryList({
             record={shown}
             onClose={close}
             {...getDetailExtras?.(shown)}
+            {...stepsOf(shown)}
           />
         )}
       </ActionSheet>

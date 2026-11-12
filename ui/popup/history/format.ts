@@ -93,8 +93,8 @@ const KEY_PREFIX = /^(presence|p2pkh):/;
 const ADDRESS_PREFIX = /^(0x|kaspa:|kaspatest:|kaspadev:|kaspasim:)/i;
 
 /**
- * "0x1f51...9497" / "kaspa:qr3x...k7x2": a known prefix kept, then the first
- * 4 and last 4 characters. Anything else is first 4 + "..." + last 4. An
+ * "0x1f51…9497" / "kaspa:qr3x…k7x2": a known prefix kept, then the first
+ * 4 and last 4 characters. Anything else is first 4 + "…" + last 4. An
  * address too short to lose anything is returned whole.
  */
 export function shortAddress(address: string): string {
@@ -103,7 +103,7 @@ export function shortAddress(address: string): string {
   const prefix = ADDRESS_PREFIX.exec(bare)?.[0] ?? "";
   const body = bare.slice(prefix.length);
   if (body.length <= 4 + 4 + 3) return bare;
-  return `${prefix}${body.slice(0, 4)}...${body.slice(-4)}`;
+  return `${prefix}${body.slice(0, 4)}…${body.slice(-4)}`;
 }
 
 /**
@@ -187,27 +187,6 @@ const FIAT_FORMAT = new Intl.NumberFormat("en-US", {
 export function historyFiatText(record: HistoryRecord): string | null {
   const usd = historyFiatUsd(record);
   return usd === null ? null : `≈ ${FIAT_FORMAT.format(usd)} USD`;
-}
-
-const HOVER_DATE = new Intl.DateTimeFormat("en-US", {
-  day: "numeric",
-  month: "short",
-  year: "numeric",
-});
-const HOVER_TIME = new Intl.DateTimeFormat("en-US", {
-  hour: "2-digit",
-  minute: "2-digit",
-  hourCycle: "h23",
-});
-
-/** "1 AUG, 2023 ・ 12:05" for the TX Hash hover card; null without a time. */
-export function historyHoverDateText(ms: number | null): string | null {
-  if (ms === null) return null;
-  const d = new Date(ms);
-  const parts = HOVER_DATE.formatToParts(d);
-  const pick = (type: string) => parts.find((p) => p.type === type)?.value;
-  const date = `${pick("day")} ${pick("month")?.toUpperCase()}, ${pick("year")}`;
-  return `${date} ・ ${HOVER_TIME.format(d)}`;
 }
 
 const STATUS_LABEL: Record<HistoryRecord["status"], string | null> = {

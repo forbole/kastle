@@ -1,11 +1,7 @@
-import { useRef, useState } from "react";
 import {
   ArrowDownLeft,
   ArrowLeftRight,
   ArrowUpRight,
-  CheckCircle2,
-  Circle,
-  ExternalLink,
   HelpCircle,
 } from "lucide-react";
 import { twMerge } from "tailwind-merge";
@@ -15,10 +11,8 @@ import {
   historyAmountText,
   historyCounterpartyText,
   historyFiatText,
-  historyHoverDateText,
   historyRowDateText,
   historyRowTitle,
-  historyStatusLabel,
   historyTimeText,
   historyTitle,
 } from "@/ui/popup/history/format";
@@ -42,7 +36,7 @@ function movementTone(record: HistoryRecord) {
   return record.direction === "out" ? "text-red-500" : "text-teal-500";
 }
 
-/** One line of the TX Hash hover card, e.g. KRC-20's "Committed" / "Revealed". */
+/** One line of the detail sheet's status list, e.g. KRC-20's "Committed" / "Revealed". */
 export interface HistoryHashStep {
   label: string;
   isDone: boolean;
@@ -66,8 +60,8 @@ export interface HistoryRowExtras {
   /** No-op: the row always shows the symbol. Kept so existing callers still compile. */
   isSymbolHidden?: boolean;
   /**
-   * Status lines in the hover card (KRC-20: Committed, Revealed). Left empty,
-   * the card shows the date and a single explorer link.
+   * Status lines (KRC-20: Committed, Revealed). Not drawn on the row: the list
+   * hands them to the detail sheet. Left empty, the sheet keeps its status pill.
    */
   hashSteps?: HistoryHashStep[];
 }
@@ -103,115 +97,6 @@ function RowTitle({ record }: { record: HistoryRecord }) {
       );
   }
   return <span className={className}>{historyRowTitle(record)}</span>;
-}
-
-function HashLink({
-  href,
-  children,
-}: {
-  href: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noreferrer"
-      className="flex items-center gap-1 hover:text-white"
-    >
-      {children}
-      <ExternalLink aria-hidden="true" className="size-3" />
-    </a>
-  );
-}
-
-function HashCard({
-  record,
-  steps,
-  cardRef,
-  onLeave,
-}: {
-  record: HistoryRecord;
-  steps: HistoryHashStep[];
-  cardRef: React.RefObject<HTMLDivElement>;
-  onLeave: (e: React.MouseEvent) => void;
-}) {
-  const date = historyHoverDateText(record.time.value);
-  const explorer = record.explorer?.url;
-  // Families without Committed / Revealed (KAS, KCC-20, ERC-20, EVM KAS): one
-  // line, the record's own status, linking to the explorer.
-  const label = historyStatusLabel(record.status);
-  const lines: HistoryHashStep[] = steps.length
-    ? steps
-    : label
-      ? [{ label, isDone: record.status === "finalized", href: explorer }]
-      : [];
-  return (
-    // pt-4 is an invisible bridge so the pointer can travel from the label.
-    <div
-      ref={cardRef}
-      role="tooltip"
-      onMouseLeave={onLeave}
-      className="absolute left-[43px] top-[52px] z-20 pt-4"
-    >
-      <div className="relative flex flex-col gap-2 rounded bg-daintree-700 px-2.5 py-2 text-xs font-semibold text-gray-200">
-        <span
-          aria-hidden="true"
-          className="absolute -top-1 left-1/2 size-2 -translate-x-1/2 rotate-45 bg-daintree-700"
-        />
-        <span className="whitespace-nowrap text-sm font-medium text-white">
-          TX Hash
-        </span>
-        {date && (
-          <span className="whitespace-nowrap text-daintree-400">{date}</span>
-        )}
-        {lines.length > 0 ? (
-          <ul className="relative flex flex-col gap-2">
-            {lines.length > 1 && (
-              <span
-                aria-hidden="true"
-                className="absolute left-2 top-[15px] h-2.5 w-px bg-white/10"
-              />
-            )}
-            {lines.map((step) => {
-              const Icon = step.isDone ? CheckCircle2 : Circle;
-              return (
-                <li key={step.label} className="flex items-center gap-1">
-                  <span className="flex items-center gap-2 whitespace-nowrap">
-                    <Icon
-                      aria-hidden="true"
-                      className={twMerge(
-                        "size-4",
-                        step.isDone ? "text-teal-500" : "text-daintree-400",
-                      )}
-                    />
-                    {step.label}
-                  </span>
-                  {step.href && (
-                    <a
-                      href={step.href}
-                      target="_blank"
-                      rel="noreferrer"
-                      aria-label={`${step.label} on explorer`}
-                      className="text-daintree-400 hover:text-white"
-                    >
-                      <ExternalLink aria-hidden="true" className="size-3" />
-                    </a>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        ) : (
-          explorer && (
-            <HashLink href={explorer}>
-              <span className="whitespace-nowrap">View on explorer</span>
-            </HashLink>
-          )
-        )}
-      </div>
-    </div>
-  );
 }
 
 // The row as it was before the redesign: direction icon, "To/From …", date.
@@ -292,7 +177,6 @@ function DesignedRow({
   logo,
   chainBadge,
   fiatText,
-  hashSteps = [],
 }: {
   record: HistoryRecord;
   onClick?: () => void;
@@ -303,13 +187,6 @@ function DesignedRow({
   const tone = movementTone(record);
   const Icon =
     record.kind === "unknown" ? HelpCircle : DIRECTION_ICON[record.direction];
-
-  // The card sits beside the row, not inside it: a link cannot live in a button.
-  const [isHashOpen, setIsHashOpen] = useState(false);
-  const cardRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLSpanElement>(null);
-  const leaves = (to: EventTarget | null, other: Element | null) =>
-    !(to instanceof Node && other?.contains(to));
 
   const content = (
     <>
@@ -334,7 +211,7 @@ function DesignedRow({
       )}
       {/* The amount takes what it needs (full ticker) and the title gives way;
           the 60% cap only stops an absurd amount from squeezing the title out. */}
-      <div className="grid min-w-0 flex-grow grid-cols-[minmax(0,1fr)_fit-content(60%)] gap-x-2 gap-y-1">
+      <div className="grid min-w-0 flex-grow grid-cols-[minmax(0,1fr)_fit-content(60%)] grid-rows-[auto_minmax(1rem,auto)] gap-x-2 gap-y-1">
         <div className="col-start-1 row-start-1 flex min-w-0 items-center gap-2 leading-5">
           <RowTitle record={record} />
           <StatusBadge status={record.status} />
@@ -350,17 +227,11 @@ function DesignedRow({
             {amount}
           </span>
         )}
-        {/* No date: "TX Hash" stays as the hover trigger for the card. */}
-        <span
-          ref={triggerRef}
-          onMouseEnter={() => setIsHashOpen(true)}
-          onMouseLeave={(e) => {
-            if (leaves(e.relatedTarget, cardRef.current)) setIsHashOpen(false);
-          }}
-          className="col-start-1 row-start-2 w-fit text-xs text-daintree-400"
-        >
-          {date ?? "TX Hash"}
-        </span>
+        {date && (
+          <span className="col-start-1 row-start-2 w-fit text-xs text-daintree-400">
+            {date}
+          </span>
+        )}
         {fiat && (
           <span className="col-start-2 row-start-2 min-w-0 truncate text-right text-xs text-daintree-400">
             {fiat}
@@ -370,26 +241,11 @@ function DesignedRow({
     </>
   );
 
-  return (
-    <div className="relative">
-      {onClick ? (
-        <button type="button" onClick={onClick} className={DESIGNED_ROW_CLASS}>
-          {content}
-        </button>
-      ) : (
-        <div className={DESIGNED_ROW_CLASS}>{content}</div>
-      )}
-      {isHashOpen && (
-        <HashCard
-          record={record}
-          steps={hashSteps}
-          cardRef={cardRef}
-          onLeave={(e) => {
-            if (leaves(e.relatedTarget, triggerRef.current))
-              setIsHashOpen(false);
-          }}
-        />
-      )}
-    </div>
+  return onClick ? (
+    <button type="button" onClick={onClick} className={DESIGNED_ROW_CLASS}>
+      {content}
+    </button>
+  ) : (
+    <div className={DESIGNED_ROW_CLASS}>{content}</div>
   );
 }

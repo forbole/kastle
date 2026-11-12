@@ -2,8 +2,6 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { userEvent, within } from "storybook/test";
 import { HistoryList } from "@/ui/popup/history/HistoryList";
 import {
-  COMMON_EXTRAS,
-  KCC20_RECORDS,
   KRC20_EXTRAS,
   KRC20_RECORDS,
   LONG_AMOUNT_RECORDS,
@@ -74,19 +72,28 @@ export const NoCounterparty: Story = {
 // Another year shows the year in the date.
 export const OtherYear: Story = { args: { records: OTHER_YEAR_RECORDS } };
 
-// Pointer over the date opens the card: date, Committed, Revealed (KRC-20 only).
-export const Hover: Story = {
+// KRC-20 row tapped: the sheet's Status row lists Committed and Revealed.
+export const SheetSteps: Story = {
   args: { records: KRC20_RECORDS, getRowExtras: () => KRC20_EXTRAS },
   play: async ({ canvasElement }) => {
-    const [date] = within(canvasElement).getAllByText(/｜/);
-    await userEvent.hover(date);
+    const [row] = within(canvasElement).getAllByText(/^Sent to/);
+    await userEvent.click(row);
   },
 };
 
-// Any other family: date, then the record's status with the explorer link.
-export const HoverOtherFamily: Story = {
-  args: { records: KCC20_RECORDS, getRowExtras: () => COMMON_EXTRAS },
-  play: Hover.play,
+// Sheet open, pointer over the To value: the full address in a tooltip.
+export const SheetAddressTooltip: Story = {
+  args: { records: KRC20_RECORDS, getRowExtras: () => KRC20_EXTRAS },
+  play: async ({ canvasElement }) => {
+    const [row] = within(canvasElement).getAllByText(/^Sent to/);
+    await userEvent.click(row);
+    const body = within(canvasElement.ownerDocument.body);
+    await userEvent.hover(
+      await body
+        .findByRole("dialog")
+        .then((dialog) => within(dialog).getByText(/^kaspa:/)),
+    );
+  },
 };
 
 // Next page in flight: the small spinner under the last row.
