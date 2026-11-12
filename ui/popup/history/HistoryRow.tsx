@@ -11,6 +11,7 @@ import {
 import { twMerge } from "tailwind-merge";
 import type { HistoryDirection, HistoryRecord } from "@/lib/history/types";
 import AssetImage from "@/ui/popup/kcc20/AssetImage";
+import { KCC20_LABELS } from "@/ui/popup/kcc20/labels";
 import {
   historyAmountText,
   historyCounterpartyText,
@@ -298,7 +299,14 @@ function DesignedRow({
 } & HistoryRowExtras) {
   const symbol = record.amount.value?.symbol;
   let amount = historyAmountText(record);
-  if (amount && isSymbolHidden && symbol && amount.endsWith(` ${symbol}`))
+  // "base units" is not a ticker: it says the number is unscaled, so it stays.
+  if (
+    amount &&
+    isSymbolHidden &&
+    symbol &&
+    symbol !== KCC20_LABELS.baseUnits &&
+    amount.endsWith(` ${symbol}`)
+  )
     amount = amount.slice(0, -(symbol.length + 1));
   const fiat = fiatText ?? historyFiatText(record);
   const tone = movementTone(record);
