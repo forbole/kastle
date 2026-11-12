@@ -10,7 +10,7 @@ import type { Kcc20Token } from "@/lib/kcc20";
 import { HistoryList } from "@/ui/popup/history/HistoryList";
 import EvmKasAsset from "@/components/screens/EvmKasAsset";
 import Erc20Asset from "@/components/screens/Erc20Asset";
-import kasplexBadge from "@/assets/images/network-logos/kasplex.svg";
+import { getChainImage } from "@/lib/layer2";
 import { EVM_CHAIN, EVM_OWNER, OWNER } from "./constants";
 
 const token: Kcc20Token = {
@@ -56,9 +56,10 @@ const router = createMemoryRouter(
   { initialEntries: [params.get("route") ?? "/kas"] },
 );
 
-// The chain badge the EVM rows must carry (EVM_CHAIN is Kasplex mainnet),
-// resolved by vite exactly as lib/layer2 resolves it.
-(window as unknown as { __kasplexBadge: string }).__kasplexBadge = kasplexBadge;
+// The chain badge the EVM rows must carry, from the same helper the EVM
+// screens call (getChainImage), so the pin cannot drift from the screen.
+(window as unknown as { __kasplexBadge: string }).__kasplexBadge =
+  getChainImage(EVM_CHAIN);
 
 // Drives in-app navigation (a route param change) from the spec.
 (window as unknown as { __harnessNavigate: unknown }).__harnessNavigate =
