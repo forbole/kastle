@@ -16,10 +16,8 @@ type Step = 1 | 2;
 interface BridgeStep {
   title: React.ReactNode;
   note?: string;
-  /** Single-line title with no note: number badge centres on the row (Figma step 2). */
+  /** Single-line title with no note: number badge centres on the row. */
   centered?: boolean;
-  /** Regular weight title. Figma sets steps 1 and 2 Regular and 3 to 6 Medium. */
-  regular?: boolean;
 }
 
 const accent = "text-icy-blue-400";
@@ -34,7 +32,6 @@ const BRIDGE_STEPS: BridgeStep[] = [
       </>
     ),
     note: "Max works once your wallet is connected.",
-    regular: true,
   },
   {
     title: (
@@ -43,9 +40,8 @@ const BRIDGE_STEPS: BridgeStep[] = [
       </>
     ),
     note: "KRC-20 on Kaspa, or ERC-20 on Igra or Kasplex.",
-    regular: true,
   },
-  { title: "Enter the amount to move", centered: true, regular: true },
+  { title: "Enter the amount to move", centered: true },
   {
     title: "Choose how much to burn",
     note: "Burning reduces the supply and is permanent. At 0% you keep the full amount. Do your research before you choose.",
@@ -189,12 +185,7 @@ const BridgeSteps = forwardRef<HTMLHeadingElement>(
                   {i + 1}
                 </span>
                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <p
-                    className={twMerge(
-                      "text-sm leading-5 tracking-[0.07px] text-white",
-                      s.regular ? "font-normal" : "font-medium",
-                    )}
-                  >
+                  <p className="text-sm font-medium leading-5 tracking-[0.07px] text-white">
                     {s.title}
                   </p>
                   {s.note && (
