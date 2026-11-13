@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 import { MemoryRouter } from "react-router-dom";
+import { fn } from "storybook/test";
 import TokenDetailPage, {
   TokenDetailPageProps,
   TokenDetailTab,
@@ -28,6 +29,7 @@ const meta: Meta<typeof TokenDetailPage> = {
     onTokenIdPress: { action: "copy token id" },
     onOpenExplorer: { action: "open explorer" },
     onSend: { action: "send" },
+    onMigrate: { action: "migrate" },
   },
 };
 
@@ -52,7 +54,9 @@ function Template({
 
 const base: TemplateProps = {
   name: "NACHO",
-  priceLabel: "$0.00041",
+  balance: "2,000 NACHO",
+  priceLabel: "$0.00000799",
+  valueLabel: "$0.016",
   network: "kcc20",
   networkName: "Kaspa",
   tokenId: "84b93d7f...48dj6",
@@ -87,6 +91,92 @@ export const Krc20: Story = {
   render: (args) => <Template {...base} {...args} network="krc20" isVerified />,
 };
 
+/** KRC-20 badge beside the name, "Migrate to KCC-20" above Send. */
+export const Krc20CanMigrate: Story = {
+  args: { onMigrate: fn() },
+  render: (args) => (
+    <Template
+      {...base}
+      {...args}
+      network="krc20"
+      tokenName="Nacho the Kat"
+      canMigrate
+      onSend={args.onSend ?? (() => {})}
+    />
+  ),
+};
+
+/** Same token, not migratable: no migrate button. */
+export const Krc20CannotMigrate: Story = {
+  render: (args) => (
+    <Template
+      {...base}
+      {...args}
+      network="krc20"
+      tokenName="Nacho the Kat"
+      canMigrate={false}
+      onSend={args.onSend ?? (() => {})}
+    />
+  ),
+};
+
+/** Migratable but no handler passed: no migrate button. */
+export const Krc20CanMigrateNoHandler: Story = {
+  render: (args) => (
+    <Template
+      {...base}
+      {...args}
+      network="krc20"
+      tokenName="Nacho the Kat"
+      canMigrate
+      onMigrate={undefined}
+      onSend={args.onSend ?? (() => {})}
+    />
+  ),
+};
+
+/** Long ticker truncates; the KRC-20 badge stays whole. */
+export const Krc20LongName: Story = {
+  args: { onMigrate: fn() },
+  render: (args) => (
+    <Template
+      {...base}
+      {...args}
+      name="SUPERLONGTOKENTICKERNAME"
+      tokenName="Super Long Token Name That Keeps Going"
+      network="krc20"
+      canMigrate
+      onSend={args.onSend ?? (() => {})}
+    />
+  ),
+};
+
+/** Every legacy KRC-20 row: Mode, Max Supply, Total Minted, counts, Price and Value. */
+export const Krc20FullParity: Story = {
+  render: (args) => (
+    <Template
+      {...base}
+      {...args}
+      network="krc20"
+      tokenName="Nacho the Kat"
+      networkName="Kaspa Mainnet"
+      tokenId={undefined}
+      modeLabel="Mint"
+      maxSupplyLabel="287,000,000,000"
+      totalMintedLabel="100.0% (287,000,000,000/287,000,000,000)"
+      priceLabel="$0.000052"
+      valueLabel="$0.104"
+      holderCount="31,425"
+      mintCount="2,870,000"
+      transferCount="1,204,388"
+      preallocationAmount="0"
+      defaultMintAmount="100,000"
+      decimal="8"
+      onSend={args.onSend ?? (() => {})}
+    />
+  ),
+};
+
 export const FullInfo: Story = {
   render: (args) => (
     <Template
@@ -94,6 +184,7 @@ export const FullInfo: Story = {
       {...args}
       name="TTTT"
       priceLabel="$0.052"
+      valueLabel="$104"
       isVerified
       totalMintedPercent="10%"
       totalMintedFraction="(2.5B / 25B)"
