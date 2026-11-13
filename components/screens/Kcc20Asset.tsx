@@ -44,6 +44,20 @@ export default function Kcc20Asset() {
     token && priceUsd !== undefined
       ? formatTokenPrice(fiatPrice, currencyCode)
       : undefined;
+  // Value = the shown holding (same amount and decimals as the Balance row)
+  // times its USD price, converted like the Price row. No price or no
+  // decimals: no row.
+  const valueUsd =
+    shown && priceUsd !== undefined && meta?.decimals !== undefined
+      ? (Number(shown.amount) / 10 ** meta.decimals) * priceUsd
+      : undefined;
+  const { amount: fiatValue } = useCurrencyValue(valueUsd ?? 0);
+  const valueLabel =
+    valueUsd === undefined
+      ? undefined
+      : settings?.hideBalances
+        ? "*****"
+        : formatTokenPrice(fiatValue, currencyCode);
   // The route guard rules out Ledger; only verified, owned pieces are sendable.
   const canSend = token?.meta?.decimals !== undefined && token.spendable > 0n;
   // As mobile: the holding with its ticker, masked with balances hidden.
@@ -94,6 +108,7 @@ export default function Kcc20Asset() {
       isVerified={!!meta && !meta.unverified}
       decimal={meta?.decimals === undefined ? undefined : String(meta.decimals)}
       priceLabel={priceLabel}
+      valueLabel={valueLabel}
       activeTab={activeTab}
       onTabChange={setActiveTab}
       history={<Kcc20History address={account?.address} token={shown} />}

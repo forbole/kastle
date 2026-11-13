@@ -120,6 +120,21 @@ export const Krc20CannotMigrate: Story = {
   ),
 };
 
+/** Migratable but no handler passed: no migrate button. */
+export const Krc20CanMigrateNoHandler: Story = {
+  render: (args) => (
+    <Template
+      {...base}
+      {...args}
+      network="krc20"
+      tokenName="Nacho the Kat"
+      canMigrate
+      onMigrate={undefined}
+      onSend={args.onSend ?? (() => {})}
+    />
+  ),
+};
+
 /** Long ticker truncates; the KRC-20 badge stays whole. */
 export const Krc20LongName: Story = {
   args: { onMigrate: fn() },
@@ -131,6 +146,32 @@ export const Krc20LongName: Story = {
       tokenName="Super Long Token Name That Keeps Going"
       network="krc20"
       canMigrate
+      onSend={args.onSend ?? (() => {})}
+    />
+  ),
+};
+
+/** Every legacy KRC-20 row: Mode, Max Supply, Total Minted, counts, Price and Value. */
+export const Krc20FullParity: Story = {
+  render: (args) => (
+    <Template
+      {...base}
+      {...args}
+      network="krc20"
+      tokenName="Nacho the Kat"
+      networkName="Kaspa Mainnet"
+      tokenId={undefined}
+      modeLabel="Mint"
+      maxSupplyLabel="287,000,000,000"
+      totalMintedLabel="100.0% (287,000,000,000/287,000,000,000)"
+      priceLabel="$0.000052"
+      valueLabel="$0.104"
+      holderCount="31,425"
+      mintCount="2,870,000"
+      transferCount="1,204,388"
+      preallocationAmount="0"
+      defaultMintAmount="100,000"
+      decimal="8"
       onSend={args.onSend ?? (() => {})}
     />
   ),

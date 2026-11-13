@@ -36,6 +36,8 @@ export const KCC20_LABELS = {
   network: "Network",
   covenantId: "Covenant ID",
   contractAddress: "Contract Address",
+  mode: "Mode",
+  maxSupply: "Max Supply",
   totalMinted: "Total Minted",
   mintCount: "Mint Count",
   holderCount: "Holder Count",
