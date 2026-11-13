@@ -54,7 +54,9 @@ async function open(page: Page, eligible: boolean) {
 
 const h = (page: Page) => page.evaluate(() => window.__migrationGuide);
 const intro = (page: Page) =>
-  page.getByRole("heading", { name: "What's changing for KRC-20 tokens" });
+  page.getByRole("heading", {
+    name: "What's changing for KRC-20 and ERC-20 tokens",
+  });
 const steps = (page: Page) =>
   page.getByRole("heading", { name: "Follow these steps on KAT Bridge" });
 const nextBtn = (page: Page) => page.getByRole("button", { name: "Next" });
