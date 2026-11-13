@@ -48,7 +48,7 @@ export interface TokenDetailPageProps {
   onOpenExplorer?: () => void;
   /** KRC-20 only: shows "Migrate to KCC-20" above Send. Wire to the can-migrate check; hidden, never disabled. */
   canMigrate?: boolean;
-  /** Opens the migration guide (MigrationGuidePage). */
+  /** Opens the migration guide (MigrationGuidePage). The button renders only when `canMigrate` and `onMigrate` are both set. */
   onMigrate?: () => void;
   /** Shows the pinned "Send {name}" action; omit it when the token cannot be sent. */
   onSend?: () => void;
@@ -284,7 +284,7 @@ export default function TokenDetailPage({
         </div>
       </div>
 
-      {canMigrate && (
+      {canMigrate && onMigrate && (
         <div className="shrink-0 pt-2">
           <Button variant="secondary" onClick={onMigrate}>
             {KCC20_LABELS.migrate}

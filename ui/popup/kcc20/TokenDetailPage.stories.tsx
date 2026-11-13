@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 import { MemoryRouter } from "react-router-dom";
+import { fn } from "storybook/test";
 import TokenDetailPage, {
   TokenDetailPageProps,
   TokenDetailTab,
@@ -92,6 +93,7 @@ export const Krc20: Story = {
 
 /** KRC-20 badge beside the name, "Migrate to KCC-20" above Send. */
 export const Krc20CanMigrate: Story = {
+  args: { onMigrate: fn() },
   render: (args) => (
     <Template
       {...base}
@@ -120,6 +122,7 @@ export const Krc20CannotMigrate: Story = {
 
 /** Long ticker truncates; the KRC-20 badge stays whole. */
 export const Krc20LongName: Story = {
+  args: { onMigrate: fn() },
   render: (args) => (
     <Template
       {...base}
