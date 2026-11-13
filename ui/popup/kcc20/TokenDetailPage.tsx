@@ -16,21 +16,27 @@ export interface TokenDetailPageProps {
   tokenName?: string;
   /** Display-ready balance with its unit, e.g. "128,001 WHALE". */
   balance?: string;
-  /** KCC-20 Price row, display-ready, e.g. "$0.00000799". Row hidden when unset. */
+  /** Price row, display-ready, e.g. "$0.00000799". Row hidden when unset. */
   priceLabel?: string;
-  /** KCC-20 Value row (balance × price), display-ready, e.g. "$0.016"; pass "*****" while the balance is hidden. */
+  /** Value row (balance × price), display-ready, e.g. "$0.016"; pass "*****" while the balance is hidden. */
   valueLabel?: string;
   logo?: string;
   fallback?: string;
   network: NetworkType;
   /** Value of the Network row, e.g. "Kaspa". */
   networkName: string;
-  /** Covenant id (KCC-20) or contract address (KRC-20 / ERC-20), display-ready. */
-  tokenId: string;
+  /** Covenant id (KCC-20) or contract address (KRC-20 / ERC-20), display-ready. Row hidden when unset (a KRC-20 mint token has no address). */
+  tokenId?: string;
   onTokenIdPress?: () => void;
   /** Only ever shown for KCC-20: the registry entry verified against its genesis tx. */
   isVerified?: boolean;
   // Full variant: each row renders only when its value is passed.
+  /** KRC-20 Mode row: "Mint" or "Issue". */
+  modeLabel?: string;
+  /** KRC-20 Max Supply row, display-ready. */
+  maxSupplyLabel?: string;
+  /** KRC-20 Total Minted row as one display-ready string, e.g. "10.0% (2,500/25,000)". */
+  totalMintedLabel?: string;
   totalMintedPercent?: string;
   totalMintedFraction?: string;
   mintCount?: string;
@@ -86,6 +92,9 @@ export default function TokenDetailPage({
   tokenId,
   onTokenIdPress,
   isVerified = false,
+  modeLabel,
+  maxSupplyLabel,
+  totalMintedLabel,
   totalMintedPercent,
   totalMintedFraction,
   mintCount,
@@ -181,6 +190,11 @@ export default function TokenDetailPage({
                 <InfoRow label={KCC20_LABELS.network}>
                   <span className="truncate">{networkName}</span>
                 </InfoRow>
+                {modeLabel && (
+                  <InfoRow label={KCC20_LABELS.mode}>
+                    <span className="truncate">{modeLabel}</span>
+                  </InfoRow>
+                )}
                 {standard && (
                   <InfoRow label={KCC20_LABELS.standard}>
                     <span className="truncate">{standard}</span>
@@ -196,31 +210,44 @@ export default function TokenDetailPage({
                     <span className="truncate">{decimal}</span>
                   </InfoRow>
                 )}
-                <InfoRow
-                  label={
-                    isKcc20
-                      ? KCC20_LABELS.covenantId
-                      : KCC20_LABELS.contractAddress
-                  }
-                >
-                  {onTokenIdPress ? (
-                    <button
-                      type="button"
-                      onClick={onTokenIdPress}
-                      className="truncate font-mono hover:text-icy-blue-400"
-                    >
-                      {tokenId}
-                    </button>
-                  ) : (
-                    <span className="truncate font-mono">{tokenId}</span>
-                  )}
-                </InfoRow>
-                {isKcc20 && priceLabel && (
+                {tokenId && (
+                  <InfoRow
+                    label={
+                      isKcc20
+                        ? KCC20_LABELS.covenantId
+                        : KCC20_LABELS.contractAddress
+                    }
+                  >
+                    {onTokenIdPress ? (
+                      <button
+                        type="button"
+                        onClick={onTokenIdPress}
+                        className="truncate font-mono hover:text-icy-blue-400"
+                      >
+                        {tokenId}
+                      </button>
+                    ) : (
+                      <span className="truncate font-mono">{tokenId}</span>
+                    )}
+                  </InfoRow>
+                )}
+                {maxSupplyLabel && (
+                  <InfoRow label={KCC20_LABELS.maxSupply}>
+                    <span className="truncate">{maxSupplyLabel}</span>
+                  </InfoRow>
+                )}
+                {/* Plain text: the legacy red/teal tint at max supply is not carried over. */}
+                {totalMintedLabel && (
+                  <InfoRow label={KCC20_LABELS.totalMinted}>
+                    <span className="truncate">{totalMintedLabel}</span>
+                  </InfoRow>
+                )}
+                {priceLabel && (
                   <InfoRow label={KCC20_LABELS.price}>
                     <span className="truncate">{priceLabel}</span>
                   </InfoRow>
                 )}
-                {isKcc20 && valueLabel && (
+                {valueLabel && (
                   <InfoRow label={KCC20_LABELS.value}>
                     <span className="truncate">{valueLabel}</span>
                   </InfoRow>

@@ -1,16 +1,18 @@
 import { useNavigate, useParams } from "react-router-dom";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useCopyToClipboard } from "usehooks-ts";
 import TokenDetailPage, {
   TokenDetailTab,
 } from "@/ui/popup/kcc20/TokenDetailPage";
 import TokenHistory from "@/components/krc20-asset/TokenHistory";
-import { setPopupPath } from "@/lib/utils.ts";
+import { formatTokenPrice, setPopupPath } from "@/lib/utils.ts";
 import { applyDecimal } from "@/lib/krc20.ts";
 import { isMigratableTick } from "@/lib/kcc20/migration";
 import { useTokenInfo } from "@/hooks/kasplex/useTokenInfo";
 import { useTokenBalance } from "@/hooks/kasplex/useTokenBalance";
 import useKrc20Logo from "@/hooks/kasplex/useKrc20Logo";
+import { useKrc20Prices } from "@/hooks/kasplex/useKrc20Prices";
+import useCurrencyValue from "@/hooks/useCurrencyValue";
 import { useKcc20Migration } from "@/hooks/useKcc20Migration";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import { NetworkType } from "@/contexts/SettingsContext";
@@ -59,7 +61,9 @@ export default function TokenAsset() {
     address: account?.address,
     isMainnet,
   });
+  // An unresolved network is not mainnet.
   const canMigrate =
+    settings?.networkId === "mainnet" &&
     migration.enabled &&
     isMigratableTick(migration.config, ticker) &&
     holdsPositive;
@@ -69,13 +73,53 @@ export default function TokenAsset() {
     : settings?.hideBalances
       ? "*****"
       : `${toFloat(balance).toLocaleString()}${tokenName ? ` ${tokenName}` : ""}`;
+  // Same values and formatting as the legacy TokenInfo rows.
+  const networkName =
+    settings?.networkId === "mainnet" ? "Kaspa Mainnet" : "Kaspa Testnet";
+  const tokenAddress = tokenInfo?.ca || undefined;
+  const max = tokenInfo ? parseInt(tokenInfo.max, 10) : 0;
+  const minted = tokenInfo ? parseInt(tokenInfo.minted, 10) : 0;
+  const mintedPercentage = (minted / max) * 100;
+  const countLabel = (value?: string) =>
+    (value ? parseInt(value, 10) : 0).toLocaleString();
+  const amountLabel = (value?: string) =>
+    (value ? toFloat(parseInt(value, 10)) : 0).toLocaleString();
+  const infoRows = tokenInfo && {
+    modeLabel: tokenInfo.mod === "mint" ? "Mint" : "Issue",
+    maxSupplyLabel: toFloat(max).toLocaleString(),
+    totalMintedLabel: `${mintedPercentage < 0.1 ? "<0.1" : mintedPercentage.toFixed(1)}% (${toFloat(minted).toLocaleString()}/${toFloat(max).toLocaleString()})`,
+    holderCount: countLabel(tokenInfo.holderTotal),
+    mintCount: countLabel(tokenInfo.mintTotal),
+    transferCount: countLabel(tokenInfo.transferTotal),
+    preallocationAmount: amountLabel(tokenInfo.pre),
+    defaultMintAmount: amountLabel(tokenInfo.lim),
+    decimal: countLabel(tokenInfo.dec),
+  };
+
+  // USD price, converted like the KCC-20 page; no price, no Price/Value row.
+  const { price } = useKrc20Prices(ticker);
+  const { amount: fiatPrice, code: currencyCode } = useCurrencyValue(
+    price ?? 0,
+  );
+  const priceLabel =
+    price !== undefined ? formatTokenPrice(fiatPrice, currencyCode) : undefined;
+  const valueUsd =
+    price !== undefined && balanceResponse && tokenInfo
+      ? toFloat(balance) * price
+      : undefined;
+  const { amount: fiatValue } = useCurrencyValue(valueUsd ?? 0);
+  const valueLabel =
+    valueUsd === undefined
+      ? undefined
+      : settings?.hideBalances
+        ? "*****"
+        : formatTokenPrice(fiatValue, currencyCode);
   const toDashboard = () => navigate("/dashboard");
 
   useEffect(() => {
     setPopupPath();
   }, []);
 
-  // KRC-20 has no price feed here: no Price or Value row.
   return (
     <TokenDetailPage
       name={tokenName ?? ""}
@@ -83,10 +127,12 @@ export default function TokenAsset() {
       balance={balanceLabel}
       logo={logo}
       network="krc20"
-      networkName="Kaspa"
-      tokenId={ticker ?? ""}
-      onTokenIdPress={ticker ? () => copy(ticker) : undefined}
-      decimal={tokenInfo?.dec}
+      networkName={networkName}
+      tokenId={tokenAddress}
+      onTokenIdPress={tokenAddress ? () => copy(tokenAddress) : undefined}
+      priceLabel={priceLabel}
+      valueLabel={valueLabel}
+      {...infoRows}
       activeTab={activeTab}
       onTabChange={setActiveTab}
       history={<TokenHistory />}

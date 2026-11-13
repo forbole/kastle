@@ -151,6 +151,32 @@ export const Krc20LongName: Story = {
   ),
 };
 
+/** Every legacy KRC-20 row: Mode, Max Supply, Total Minted, counts, Price and Value. */
+export const Krc20FullParity: Story = {
+  render: (args) => (
+    <Template
+      {...base}
+      {...args}
+      network="krc20"
+      tokenName="Nacho the Kat"
+      networkName="Kaspa Mainnet"
+      tokenId={undefined}
+      modeLabel="Mint"
+      maxSupplyLabel="287,000,000,000"
+      totalMintedLabel="100.0% (287,000,000,000/287,000,000,000)"
+      priceLabel="$0.000052"
+      valueLabel="$0.104"
+      holderCount="31,425"
+      mintCount="2,870,000"
+      transferCount="1,204,388"
+      preallocationAmount="0"
+      defaultMintAmount="100,000"
+      decimal="8"
+      onSend={args.onSend ?? (() => {})}
+    />
+  ),
+};
+
 export const FullInfo: Story = {
   render: (args) => (
     <Template
