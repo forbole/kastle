@@ -46,11 +46,14 @@ export const KCC20_LABELS = {
   decimals: "Decimals",
   standard: "Standard",
   balance: "Balance",
+  price: "Price",
+  value: "Value",
   minter: "Minter",
   security: "Security",
   verified: "Verified",
   unverified: "Unverified",
   baseUnits: "base units",
+  migrate: "Migrate to KCC-20",
   loadFailed: "Token details could not be loaded",
 
   // Send: select token

@@ -3,6 +3,7 @@ import { BadgeCheck, ExternalLink } from "lucide-react";
 import Header from "@/components/GeneralHeader";
 import AssetSendButton from "@/components/AssetSendButton";
 import AssetTabs, { assetPanelId, assetTabId } from "@/components/AssetTabs";
+import Button from "@/ui/general/Button";
 import AssetImage from "./AssetImage";
 import { KCC20_LABELS, NetworkType, STANDARD_LABELS } from "./labels";
 
@@ -15,8 +16,10 @@ export interface TokenDetailPageProps {
   tokenName?: string;
   /** Display-ready balance with its unit, e.g. "128,001 WHALE". */
   balance?: string;
-  /** Display-ready, e.g. "$0.00041". */
+  /** KCC-20 Price row, display-ready, e.g. "$0.00000799". Row hidden when unset. */
   priceLabel?: string;
+  /** KCC-20 Value row (balance × price), display-ready, e.g. "$0.016"; pass "*****" while the balance is hidden. */
+  valueLabel?: string;
   logo?: string;
   fallback?: string;
   network: NetworkType;
@@ -43,6 +46,10 @@ export interface TokenDetailPageProps {
   history?: React.ReactNode;
   /** History tab fallback when no `history` is passed: a single link out to the explorer. */
   onOpenExplorer?: () => void;
+  /** KRC-20 only: shows "Migrate to KCC-20" above Send. Wire to the can-migrate check; hidden, never disabled. */
+  canMigrate?: boolean;
+  /** Opens the migration guide (MigrationGuidePage). */
+  onMigrate?: () => void;
   /** Shows the pinned "Send {name}" action; omit it when the token cannot be sent. */
   onSend?: () => void;
   onBack?: () => void;
@@ -71,6 +78,7 @@ export default function TokenDetailPage({
   tokenName,
   balance,
   priceLabel,
+  valueLabel,
   logo,
   fallback,
   network,
@@ -91,11 +99,14 @@ export default function TokenDetailPage({
   onTabChange,
   history,
   onOpenExplorer,
+  canMigrate = false,
+  onMigrate,
   onSend,
   onBack,
   onClose,
 }: TokenDetailPageProps) {
   const isKcc20 = network === "kcc20";
+  const showStandardBadge = isKcc20 || network === "krc20";
   const optionalRows: [string, string | undefined][] = [
     [KCC20_LABELS.mintCount, mintCount],
     [KCC20_LABELS.holderCount, holderCount],
@@ -137,7 +148,7 @@ export default function TokenDetailPage({
           className="flex flex-col gap-2"
         >
           {/* Header card: the Home asset row, Token info only. KCC-20 gets a
-              small standard badge beside the name; other standards have none. */}
+              small standard badge beside the name, as does KRC-20; ERC-20 has none. */}
           {activeTab === "assetInfo" && (
             <div className="flex items-center gap-3 rounded-2xl border border-card-border bg-white/5 px-3 py-3">
               {tokenImage}
@@ -146,20 +157,15 @@ export default function TokenDetailPage({
                   <span className="truncate text-base font-semibold leading-4">
                     {name}
                   </span>
-                  {isKcc20 && (
+                  {showStandardBadge && (
                     <span className="inline-flex shrink-0 items-center whitespace-nowrap rounded-full bg-icy-blue-700/30 px-[5.5px] py-px text-[10px] font-medium leading-4 tracking-[0.05px] text-icy-blue-400">
-                      {STANDARD_LABELS.kcc20}
+                      {STANDARD_LABELS[network]}
                     </span>
                   )}
                 </div>
                 {tokenName && tokenName !== name && (
                   <span className="truncate text-sm leading-[21px] text-daintree-300">
                     {tokenName}
-                  </span>
-                )}
-                {priceLabel && (
-                  <span className="truncate text-sm leading-[21px] text-daintree-300">
-                    {priceLabel}
                   </span>
                 )}
               </div>
@@ -209,6 +215,16 @@ export default function TokenDetailPage({
                     <span className="truncate font-mono">{tokenId}</span>
                   )}
                 </InfoRow>
+                {isKcc20 && priceLabel && (
+                  <InfoRow label={KCC20_LABELS.price}>
+                    <span className="truncate">{priceLabel}</span>
+                  </InfoRow>
+                )}
+                {isKcc20 && valueLabel && (
+                  <InfoRow label={KCC20_LABELS.value}>
+                    <span className="truncate">{valueLabel}</span>
+                  </InfoRow>
+                )}
                 {totalMintedPercent && (
                   <InfoRow label={KCC20_LABELS.totalMinted}>
                     <div className="flex flex-col items-end">
@@ -268,6 +284,13 @@ export default function TokenDetailPage({
         </div>
       </div>
 
+      {canMigrate && (
+        <div className="shrink-0 pt-2">
+          <Button variant="secondary" onClick={onMigrate}>
+            {KCC20_LABELS.migrate}
+          </Button>
+        </div>
+      )}
       {onSend && <AssetSendButton ticker={name} onClick={onSend} />}
     </div>
   );
