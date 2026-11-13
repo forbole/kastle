@@ -120,6 +120,21 @@ export const Krc20CannotMigrate: Story = {
   ),
 };
 
+/** Migratable but no handler passed: no migrate button. */
+export const Krc20CanMigrateNoHandler: Story = {
+  render: (args) => (
+    <Template
+      {...base}
+      {...args}
+      network="krc20"
+      tokenName="Nacho the Kat"
+      canMigrate
+      onMigrate={undefined}
+      onSend={args.onSend ?? (() => {})}
+    />
+  ),
+};
+
 /** Long ticker truncates; the KRC-20 badge stays whole. */
 export const Krc20LongName: Story = {
   args: { onMigrate: fn() },

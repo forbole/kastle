@@ -284,7 +284,7 @@ export default function TokenDetailPage({
         </div>
       </div>
 
-      {canMigrate && onMigrate && (
+      {network === "krc20" && canMigrate && onMigrate && (
         <div className="shrink-0 pt-2">
           <Button variant="secondary" onClick={onMigrate}>
             {KCC20_LABELS.migrate}
