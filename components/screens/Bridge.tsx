@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import useSWR from "swr";
+import { useNavigate } from "react-router-dom";
 import {
   Hex,
   PublicClient,
@@ -136,7 +137,8 @@ export default function Bridge() {
   const evmSigner = useEvmHotWalletSigner();
   const kaspaSigner = useKaspaHotWalletSigner();
   const { kaspaPrice } = useKaspaPrice();
-  const { emitBridgeCompleted, emitKcc20MigrationOpened } = useAnalytics();
+  const { emitBridgeCompleted } = useAnalytics();
+  const navigate = useNavigate();
   // The migrate row shows only for a wallet holding a payload-listed KRC-20.
   const migration = useKcc20Migration({
     address: account?.address,
@@ -659,17 +661,14 @@ export default function Bridge() {
           <button
             type="button"
             className="flex shrink-0 items-center justify-between gap-2 rounded-xl border border-daintree-700 bg-daintree-800 px-4 py-3 text-left text-sm"
-            onClick={() => {
-              emitKcc20MigrationOpened("bridge");
-              chrome.tabs.create({ url: migrationUrl });
-            }}
+            onClick={() => navigate("/migration-guide")}
           >
             <span className="flex min-w-0 flex-col">
               <span className="font-medium text-white">
                 Migrate KRC-20 to KCC-20
               </span>
               <span className="text-xs text-daintree-400">
-                Opens {new URL(migrationUrl).hostname}
+                How to move on KAT Bridge
               </span>
             </span>
             <i className="hn hn-angle-right text-xs text-white" />
