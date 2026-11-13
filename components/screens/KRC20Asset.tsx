@@ -1,12 +1,14 @@
 import { useNavigate, useParams } from "react-router-dom";
 import React, { useEffect, useState } from "react";
 import { useCopyToClipboard } from "usehooks-ts";
+import { formatUnits } from "viem";
 import TokenDetailPage, {
   TokenDetailTab,
 } from "@/ui/popup/kcc20/TokenDetailPage";
 import TokenHistory from "@/components/krc20-asset/TokenHistory";
 import { formatTokenPrice, setPopupPath } from "@/lib/utils.ts";
 import { applyDecimal } from "@/lib/krc20.ts";
+import { krc20Decimals } from "@/lib/decimalAmount";
 import { isMigratableTick } from "@/lib/kcc20/migration";
 import { useTokenInfo } from "@/hooks/kasplex/useTokenInfo";
 import { useTokenBalance } from "@/hooks/kasplex/useTokenBalance";
@@ -42,12 +44,13 @@ export default function TokenAsset() {
   const rawBalance = balanceResponse?.result?.[0]?.balance ?? "0";
   const balance = parseFloat(rawBalance);
   // Base units, as the migration's own holdings check reads them.
-  let holdsPositive = false;
+  let baseUnits: bigint | undefined;
   try {
-    holdsPositive = BigInt(rawBalance) > 0n;
+    baseUnits = BigInt(rawBalance);
   } catch {
-    holdsPositive = false;
+    baseUnits = undefined;
   }
+  const holdsPositive = baseUnits !== undefined && baseUnits > 0n;
   // As in the send asset picker: Ledger cannot send KRC-20. A wallet that has
   // not loaded yet is not known to be non-Ledger.
   const canSend =
@@ -68,11 +71,23 @@ export default function TokenAsset() {
     isMigratableTick(migration.config, ticker) &&
     holdsPositive;
   const { toFloat } = applyDecimal(tokenInfo?.dec);
-  const balanceLabel = !balanceResponse
-    ? undefined
-    : settings?.hideBalances
-      ? "*****"
-      : `${toFloat(balance).toLocaleString()}${tokenName ? ` ${tokenName}` : ""}`;
+  // Exact holding from the base-unit string at the token's own decimals:
+  // formatUnits never rounds, so 1.9996 stays 1.9996 and dust is not "0".
+  const exactBalance = (() => {
+    if (baseUnits === undefined) return undefined;
+    const [whole, fraction] = formatUnits(
+      baseUnits,
+      krc20Decimals(tokenInfo?.dec),
+    ).split(".");
+    const grouped = BigInt(whole).toLocaleString();
+    return fraction ? `${grouped}.${fraction}` : grouped;
+  })();
+  const balanceLabel =
+    !balanceResponse || exactBalance === undefined
+      ? undefined
+      : settings?.hideBalances
+        ? "*****"
+        : `${exactBalance}${tokenName ? ` ${tokenName}` : ""}`;
   // Same values and formatting as the legacy TokenInfo rows.
   const networkName =
     settings?.networkId === "mainnet" ? "Kaspa Mainnet" : "Kaspa Testnet";
@@ -96,15 +111,19 @@ export default function TokenAsset() {
     decimal: countLabel(tokenInfo.dec),
   };
 
-  // USD price, converted like the KCC-20 page; no price, no Price/Value row.
+  // USD price, converted like the KCC-20 page. The hook returns 0 until a KAS
+  // price exists, so only a positive price is a real one: otherwise no
+  // Price/Value row.
   const { price } = useKrc20Prices(ticker);
+  const hasPrice = price !== undefined && price > 0;
   const { amount: fiatPrice, code: currencyCode } = useCurrencyValue(
     price ?? 0,
   );
-  const priceLabel =
-    price !== undefined ? formatTokenPrice(fiatPrice, currencyCode) : undefined;
+  const priceLabel = hasPrice
+    ? formatTokenPrice(fiatPrice, currencyCode)
+    : undefined;
   const valueUsd =
-    price !== undefined && balanceResponse && tokenInfo
+    hasPrice && balanceResponse && tokenInfo
       ? toFloat(balance) * price
       : undefined;
   const { amount: fiatValue } = useCurrencyValue(valueUsd ?? 0);
