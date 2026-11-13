@@ -79,8 +79,15 @@ export default function TokenAsset() {
       baseUnits,
       krc20Decimals(tokenInfo?.dec),
     ).split(".");
-    const grouped = BigInt(whole).toLocaleString();
-    return fraction ? `${grouped}.${fraction}` : grouped;
+    // One formatter, one locale: grouping and the decimal separator agree.
+    // A BigInt is grouped without a float; the fraction is kept verbatim.
+    const locale = new Intl.NumberFormat();
+    const grouped = locale.format(BigInt(whole));
+    if (!fraction) return grouped;
+    const separator =
+      locale.formatToParts(0.5).find((part) => part.type === "decimal")
+        ?.value ?? ".";
+    return `${grouped}${separator}${fraction}`;
   })();
   const balanceLabel =
     !balanceResponse || exactBalance === undefined
