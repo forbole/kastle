@@ -133,15 +133,14 @@ export function migratableHeld<T extends { id: string; balance: string }>(
 }
 
 /**
- * The url the Bridge migrate row opens, or undefined when the row is hidden:
- * the migration is active and the wallet holds a payload-listed KRC-20.
+ * The url the Bridge migrate row and the migration guide route open, or
+ * undefined when both are hidden. They depend only on the migration being
+ * enabled, not on holdings: the guide is informational and must reach
+ * ERC-20-only holders too. Holdings still gate the migrate button.
  */
 export function migrationRowUrl(migration: {
   enabled: boolean;
   config?: Kcc20MigrationConfig;
-  migratableHeld: unknown[];
 }) {
-  return migration.enabled && migration.migratableHeld.length > 0
-    ? migration.config?.url
-    : undefined;
+  return migration.enabled ? migration.config?.url : undefined;
 }

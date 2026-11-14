@@ -30,7 +30,11 @@ window.__migrationGuide = {
   },
 };
 
-const eligible = new URLSearchParams(location.search).get("eligible") === "1";
+const params = new URLSearchParams(location.search);
+const eligible = params.get("eligible") === "1";
+// `&holding=0`: migration enabled, but no payload-listed KRC-20 held (an
+// ERC-20-only wallet).
+const holding = params.get("holding") !== "0";
 
 export function useAnalytics() {
   return {
@@ -62,6 +66,6 @@ export function useKcc20Migration({
   return {
     enabled,
     config: { url: URL_FROM_HOOK, tokens: [] },
-    migratableHeld: enabled ? [{ tick: "NACHO" }] : [],
+    migratableHeld: enabled && holding ? [{ tick: "NACHO" }] : [],
   };
 }

@@ -16,10 +16,8 @@ type Step = 1 | 2;
 interface BridgeStep {
   title: React.ReactNode;
   note?: string;
-  /** Single-line title with no note: number badge centres on the row (Figma step 2). */
+  /** Single-line title with no note: number badge centres on the row. */
   centered?: boolean;
-  /** Regular weight title. Figma sets steps 1 and 2 Regular and 3 to 6 Medium. */
-  regular?: boolean;
 }
 
 const accent = "text-icy-blue-400";
@@ -34,9 +32,16 @@ const BRIDGE_STEPS: BridgeStep[] = [
       </>
     ),
     note: "Max works once your wallet is connected.",
-    regular: true,
   },
-  { title: "Enter the amount to move", centered: true, regular: true },
+  {
+    title: (
+      <>
+        Choose your token and its <span className={accent}>Source</span>
+      </>
+    ),
+    note: "KRC-20 on Kaspa, or ERC-20 on Igra or Kasplex.",
+  },
+  { title: "Enter the amount to move", centered: true },
   {
     title: "Choose how much to burn",
     note: "Burning reduces the supply and is permanent. At 0% you keep the full amount. Do your research before you choose.",
@@ -53,8 +58,8 @@ const BRIDGE_STEPS: BridgeStep[] = [
     ),
   },
   {
-    title: "Approve 2 transactions in Kastle",
-    note: "Check the token and amount each time.",
+    title: "Approve the transactions in Kastle",
+    note: "2 for KRC-20, 1 for ERC-20. Check the token and amount each time.",
   },
 ];
 
@@ -104,13 +109,13 @@ function IntroStep() {
     <div className="flex flex-col gap-4 px-4 pb-4 pt-2">
       <div className="flex flex-col gap-2">
         <h2 className="text-base font-medium leading-6 tracking-[0.08px] text-white">
-          What&apos;s changing for KRC-20 tokens
+          What&apos;s changing for KRC-20 and ERC-20 tokens
         </h2>
         <div className="flex flex-col text-sm leading-5 tracking-[0.07px] text-daintree-300">
           <p>
             KCC-20 is the new token standard on Kaspa L1, and projects are
-            moving their KRC-20 tokens to it. The move happens on KAT Bridge, a
-            separate website. It&apos;s one‑way and final.
+            moving their KRC-20 and ERC-20 tokens to it. The move happens on KAT
+            Bridge, a separate website. It&apos;s one‑way and final.
           </p>
           <p>
             Moving is your choice. Some tokens have a deadline, so check your
@@ -121,7 +126,7 @@ function IntroStep() {
       <div className="flex items-center gap-2 rounded-2xl border border-daintree-700 bg-daintree-800 px-4 py-6">
         <div className="flex flex-1 flex-col items-center gap-1.5">
           <span className="text-xs leading-4 text-daintree-400">From</span>
-          <StandardBadge label="KRC-20" />
+          <StandardBadge label="KRC-20 / ERC-20" />
         </div>
         <ChevronRight
           aria-hidden="true"
@@ -180,12 +185,7 @@ const BridgeSteps = forwardRef<HTMLHeadingElement>(
                   {i + 1}
                 </span>
                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <p
-                    className={twMerge(
-                      "text-sm leading-5 tracking-[0.07px] text-white",
-                      s.regular ? "font-normal" : "font-medium",
-                    )}
-                  >
+                  <p className="text-sm font-medium leading-5 tracking-[0.07px] text-white">
                     {s.title}
                   </p>
                   {s.note && (

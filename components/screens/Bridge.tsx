@@ -665,7 +665,7 @@ export default function Bridge() {
           >
             <span className="flex min-w-0 flex-col">
               <span className="font-medium text-white">
-                Migrate KRC-20 to KCC-20
+                Migrate tokens to KCC-20
               </span>
               <span className="text-xs text-daintree-400">
                 How to move on KAT Bridge
