@@ -65,16 +65,14 @@ export function formatCurrency(number: number, code: string = "USD") {
   return formatter.format(number);
 }
 
-// USD-style value of a holding, price or fee. formatCurrency rounds to 2
-// decimals, so a real $0.0000042 would read "$0.00". Rule:
-//   0, non-finite, or |n| >= 0.01 -> formatCurrency (2 decimals, grouped)
-//   1e-8 <= |n| < 0.01            -> 2 to 8 fractional digits, never "$0.00"
-//   0 < |n| < 1e-8                -> "<$0.00000001" (">-$0.00000001" if negative)
 export const USD_AMOUNT_FLOOR = 1e-8;
 const USD_CENT = 0.01;
-export function formatUsdAmount(number: number, code: string = "USD") {
+
+// Below `cutoff`: 2 to 8 fractional digits, floored to "<$0.00000001"
+// (">-$0.00000001" if negative). At or above it, 0, or non-finite: formatCurrency.
+function formatFiatBelow(cutoff: number, number: number, code: string) {
   const abs = Math.abs(number);
-  if (abs === 0 || abs >= USD_CENT || !Number.isFinite(number)) {
+  if (abs === 0 || abs >= cutoff || !Number.isFinite(number)) {
     return formatCurrency(number, code);
   }
   if (abs < USD_AMOUNT_FLOOR) {
@@ -92,6 +90,19 @@ export function formatUsdAmount(number: number, code: string = "USD") {
     minimumFractionDigits: 2,
     maximumFractionDigits: 8,
   }).format(number);
+}
+
+// Fees, prices and the callers that used it on main. formatCurrency rounds to
+// 2 decimals, so a real $0.00123 reads "$0.00": sub-dollar amounts keep up to
+// 8 decimals, floored to "<$0.00000001".
+export function formatUsdAmount(number: number, code: string = "USD") {
+  return formatFiatBelow(1, number, code);
+}
+
+// Holding values only. Cents stay cents ("$0.30", "$1.50"); only a non-zero
+// value below a cent gains digits ("$0.004", "$0.0000042") instead of "$0.00".
+export function formatHoldingUsd(number: number, code: string = "USD") {
+  return formatFiatBelow(USD_CENT, number, code);
 }
 
 export function symbolForCurrencyCode(currencyCode: string): string {

@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import {
-  formatUsdAmount,
+  formatHoldingUsd,
   formatTokenAmount,
   formatTokenPrice,
   symbolForCurrencyCode,
@@ -119,7 +119,7 @@ export default function Assets() {
             balance={showBalance ? formatTokenAmount(balance ?? 0) : "*****"}
             fiat={`≈ ${
               showBalance
-                ? formatUsdAmount(totalBalanceCurrency, currencyCode)
+                ? formatHoldingUsd(totalBalanceCurrency, currencyCode)
                 : `${symbolForCurrencyCode(currencyCode)}*****`
             }`}
           />

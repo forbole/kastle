@@ -17,43 +17,54 @@ registerHooks({
   },
 });
 
-const { formatUsdAmount, formatTokenAmount, formatFeeInKas } = await import(
-  "@/lib/utils"
-);
+const { formatUsdAmount, formatHoldingUsd, formatTokenAmount, formatFeeInKas } =
+  await import("@/lib/utils");
 const { historyFiatText } = await import("@/ui/popup/history/format");
 const { formatKcc20Balance } = await import("@/ui/popup/kcc20/labels");
 
-test.describe("holding value: 8-decimal USD rule", () => {
-  test("below a cent shows up to 8 decimals, never $0.00", () => {
-    expect(formatUsdAmount(0.0000042)).toBe("$0.0000042");
-    expect(formatUsdAmount(0.0000042)).not.toBe("$0.00");
-    expect(formatUsdAmount(0.004)).toBe("$0.004");
-    expect(formatUsdAmount(0.00999999)).toBe("$0.00999999");
+test.describe("formatUsdAmount: fees and main's callers keep sub-dollar digits", () => {
+  test("below $1 keeps up to 8 decimals", () => {
+    expect(formatUsdAmount(0.29696232)).toBe("$0.29696232");
+    expect(formatUsdAmount(0.5)).toBe("$0.50");
+    expect(formatUsdAmount(0.00123)).toBe("$0.00123");
     expect(formatUsdAmount(0.00000001)).toBe("$0.00000001");
   });
 
-  test("below 1e-8 floors to the < form", () => {
-    expect(formatUsdAmount(0.000000004)).toBe("<$0.00000001");
-    expect(formatUsdAmount(-0.000000004)).toBe(">-$0.00000001");
-    expect(formatUsdAmount(9.9e-9)).toBe("<$0.00000001");
-  });
-
-  test("exact 0 shows $0.00", () => {
+  test("$1 or more keeps 2 decimals and grouping; 0 is $0.00", () => {
+    expect(formatUsdAmount(1)).toBe("$1.00");
+    expect(formatUsdAmount(1.23456789)).toBe("$1.23");
+    expect(formatUsdAmount(1234567.891)).toBe("$1,234,567.89");
     expect(formatUsdAmount(0)).toBe("$0.00");
   });
 
-  test("$1 or more keeps 2 decimals and grouping", () => {
-    expect(formatUsdAmount(1)).toBe("$1.00");
-    expect(formatUsdAmount(1.5)).toBe("$1.50");
-    expect(formatUsdAmount(1.23456789)).toBe("$1.23");
-    expect(formatUsdAmount(1234567.891)).toBe("$1,234,567.89");
+  test("below 1e-8 floors to the < form", () => {
+    expect(formatUsdAmount(9.9e-9)).toBe("<$0.00000001");
+    expect(formatUsdAmount(-0.000000004)).toBe(">-$0.00000001");
+  });
+});
+
+test.describe("formatHoldingUsd: holding values", () => {
+  test("a cent or more stays at 2 decimals", () => {
+    expect(formatHoldingUsd(0.29696232)).toBe("$0.30");
+    expect(formatHoldingUsd(1.5)).toBe("$1.50");
+    expect(formatHoldingUsd(0.01)).toBe("$0.01");
+    expect(formatHoldingUsd(1234567.891)).toBe("$1,234,567.89");
   });
 
-  test("a cent up to $1 stays at 2 decimals", () => {
-    expect(formatUsdAmount(0.5)).toBe("$0.50");
-    expect(formatUsdAmount(0.29696232)).toBe("$0.30");
-    expect(formatUsdAmount(0.12345678)).toBe("$0.12");
-    expect(formatUsdAmount(0.01)).toBe("$0.01");
+  test("below a cent shows up to 8 decimals, never $0.00", () => {
+    expect(formatHoldingUsd(0.004)).toBe("$0.004");
+    expect(formatHoldingUsd(0.0000042)).toBe("$0.0000042");
+    expect(formatHoldingUsd(0.00999999)).toBe("$0.00999999");
+    expect(formatHoldingUsd(0.00000001)).toBe("$0.00000001");
+  });
+
+  test("exact 0 shows $0.00", () => {
+    expect(formatHoldingUsd(0)).toBe("$0.00");
+  });
+
+  test("below 1e-8 floors to the < form", () => {
+    expect(formatHoldingUsd(9.9e-9)).toBe("<$0.00000001");
+    expect(formatHoldingUsd(-0.000000004)).toBe(">-$0.00000001");
   });
 
   test("history row fiat: 3 places unless they collapse a non-zero value", () => {

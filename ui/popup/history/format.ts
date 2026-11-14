@@ -5,7 +5,7 @@ import type {
   HistoryKind,
   HistoryRecord,
 } from "@/lib/history/types";
-import { formatUsdAmount, textEllipsis } from "@/lib/utils";
+import { formatHoldingUsd, textEllipsis } from "@/lib/utils";
 
 const TITLES: Record<HistoryKind, string> = {
   send: "Sent",
@@ -190,7 +190,7 @@ export function historyFiatText(record: HistoryRecord): string | null {
   const shown = FIAT_FORMAT.format(usd);
   // Below 3 places a non-zero value must not read "$0.000": 8-dp rule instead.
   const text =
-    usd !== 0 && Math.abs(usd) < 0.001 ? formatUsdAmount(usd) : shown;
+    usd !== 0 && Math.abs(usd) < 0.001 ? formatHoldingUsd(usd) : shown;
   return `≈ ${text} USD`;
 }
 

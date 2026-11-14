@@ -1,5 +1,5 @@
 import React from "react";
-import { formatUsdAmount } from "@/lib/utils.ts";
+import { formatHoldingUsd } from "@/lib/utils.ts";
 import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 
@@ -22,7 +22,7 @@ export default function KasInfo() {
             <span className="capitalize">KAS</span>
           </div>
           <div className="flex items-center justify-start text-sm text-daintree-400">
-            <span>≈ {formatUsdAmount(kaspaCurrency, kaspaCurrencyCode)} </span>
+            <span>≈ {formatHoldingUsd(kaspaCurrency, kaspaCurrencyCode)} </span>
           </div>
         </div>
         <div className="rounded-full border border-icy-blue-400 px-1 text-[0.625rem] text-icy-blue-400">

@@ -12,7 +12,7 @@ import useCurrencyValue from "@/hooks/useCurrencyValue";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import {
   formatTokenPrice,
-  formatUsdAmount,
+  formatHoldingUsd,
   setPopupPath,
   textEllipsis,
 } from "@/lib/utils";
@@ -62,7 +62,7 @@ export default function Kcc20Asset() {
       ? undefined
       : settings?.hideBalances
         ? "*****"
-        : formatUsdAmount(fiatValue, currencyCode);
+        : formatHoldingUsd(fiatValue, currencyCode);
   // The route guard rules out Ledger; only verified, owned pieces are sendable.
   const canSend = token?.meta?.decimals !== undefined && token.spendable > 0n;
   // As mobile: the holding with its ticker, masked with balances hidden.

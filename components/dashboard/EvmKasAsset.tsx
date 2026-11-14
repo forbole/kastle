@@ -2,7 +2,7 @@ import Layer2AssetImage from "../Layer2AssetImage";
 import { getChainImage, getChainTokenSymbol } from "@/lib/layer2";
 import { useNavigate } from "react-router-dom";
 import {
-  formatUsdAmount,
+  formatHoldingUsd,
   formatTokenPrice,
   symbolForCurrencyCode,
   formatTokenAmount,
@@ -52,7 +52,7 @@ export default function EvmKasAsset({ chainId }: { chainId: `0x${string}` }) {
           <span>
             ≈{" "}
             {showBalance
-              ? formatUsdAmount(totalBalanceCurrency, currencyCode)
+              ? formatHoldingUsd(totalBalanceCurrency, currencyCode)
               : `${symbolForCurrencyCode(currencyCode)}*****`}
           </span>
         </div>
