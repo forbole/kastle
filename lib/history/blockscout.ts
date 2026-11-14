@@ -13,6 +13,7 @@ import type {
   HistoryStatus,
   Q,
 } from "@/lib/history/types";
+import { approxFiat } from "@/lib/history/fiat";
 
 const UNAVAILABLE = { value: null, quality: "unavailable" } as const;
 
@@ -213,6 +214,7 @@ export function blockscoutTxToHistoryRecord(
   tx: BlockscoutTx,
   owner: string,
   chainId: string,
+  opts: { usdPrice?: number } = {},
 ): HistoryRecord {
   const from = tx.from?.hash;
   const to = tx.to?.hash;
@@ -220,6 +222,7 @@ export function blockscoutTxToHistoryRecord(
   // No `to` is a contract creation: there is no counterparty to show.
   const deploy = !to && same(from, owner);
   const direction = deploy ? "out" : directionOf(from, to, owner);
+  const moved = BigInt(tx.value || "0") !== 0n;
 
   return {
     id: tx.hash,
@@ -227,12 +230,11 @@ export function blockscoutTxToHistoryRecord(
     txid: tx.hash,
     kind: deploy ? "deploy" : kindOf(direction),
     direction,
-    amount:
-      BigInt(tx.value || "0") === 0n
-        ? UNAVAILABLE
-        : exact({ raw: tx.value, decimals: 18, symbol }),
+    amount: moved
+      ? exact({ raw: tx.value, decimals: 18, symbol })
+      : UNAVAILABLE,
     kasLeg: UNAVAILABLE,
-    fiat: UNAVAILABLE,
+    fiat: moved ? approxFiat(tx.value, 18, opts.usdPrice) : UNAVAILABLE,
     time: timeOf(tx.timestamp),
     counterparty: deploy
       ? UNAVAILABLE
@@ -253,6 +255,7 @@ export function blockscoutTransferToHistoryRecord(
   transfer: BlockscoutTokenTransfer,
   owner: string,
   chainId: string,
+  opts: { usdPrice?: number } = {},
 ): HistoryRecord {
   const family: HistoryFamily =
     transfer.token.type === "ERC-721" ? "erc721" : "erc20";
@@ -264,6 +267,8 @@ export function blockscoutTransferToHistoryRecord(
   const total = transfer.total;
 
   let amount: HistoryRecord["amount"] = UNAVAILABLE;
+  // ERC-721 has no price: its fiat stays unavailable.
+  let fiat: HistoryRecord["fiat"] = UNAVAILABLE;
   let label: string | undefined;
   if (family === "erc721") {
     const tokenId = total && "token_id" in total ? total.token_id : null;
@@ -276,6 +281,7 @@ export function blockscoutTransferToHistoryRecord(
     const decimals = total.decimals ?? transfer.token.decimals;
     if (decimals !== null && decimals !== undefined) {
       amount = exact({ raw: total.value, decimals: Number(decimals), symbol });
+      fiat = approxFiat(total.value, decimals, opts.usdPrice);
     }
   }
 
@@ -287,7 +293,7 @@ export function blockscoutTransferToHistoryRecord(
     direction,
     amount,
     kasLeg: UNAVAILABLE,
-    fiat: UNAVAILABLE,
+    fiat,
     time: timeOf(transfer.timestamp),
     counterparty: counterpartyOf(direction, from, to, owner, label),
     // The transfer row carries no fee; the tx it sits in is not fetched.

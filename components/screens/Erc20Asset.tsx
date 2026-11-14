@@ -9,6 +9,7 @@ import useWalletManager from "@/hooks/wallet/useWalletManager";
 import AssetSendButton from "@/components/AssetSendButton";
 import useEvmAddress from "@/hooks/evm/useEvmAddress";
 import { useEvmHistory } from "@/hooks/evm/useEvmHistory";
+import { useErc20Price } from "@/hooks/evm/useErc20Prices";
 import { HistoryList } from "@/ui/popup/history/HistoryList";
 import { historyDetailExtras } from "@/ui/popup/history/detailExtras";
 import { useErc20Image } from "@/hooks/evm/useZealousSwapMetadata";
@@ -26,11 +27,17 @@ export default function Erc20Asset() {
   const { wallet, isWalletSettingsLoading } = useWalletManager();
   // `address` is the token contract (route); the owner is the wallet's 0x address.
   const evmAddress = useEvmAddress();
+  // 0 until (or unless) the token is priced: no fiat line, never $0.00.
+  const { price } = useErc20Price(
+    chainId as `0x${string}`,
+    address as `0x${string}`,
+  );
   const history = useEvmHistory({
     chainId,
     address: evmAddress,
     addressPending: isWalletSettingsLoading,
     source: { family: "erc20", token: address ?? "" },
+    usdPrice: price,
   });
   const { data: balance } = useErc20Balance(address ?? "", chainId ?? "");
   const { logoUrl } = useErc20Image(

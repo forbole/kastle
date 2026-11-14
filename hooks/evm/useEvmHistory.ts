@@ -28,6 +28,8 @@ export function useEvmHistory(opts: {
   source: BlockscoutSource;
   /** The wallet is still loading: the address is not known missing yet. */
   addressPending?: boolean;
+  /** Current USD price of one whole coin/token; 0 or absent means no price. */
+  usdPrice?: number;
 }): {
   records: HistoryRecord[];
   isLoading: boolean;
@@ -39,7 +41,7 @@ export function useEvmHistory(opts: {
   loadMore: () => void;
   retry: () => void;
 } {
-  const { chainId, address, source, addressPending = false } = opts;
+  const { chainId, address, source, addressPending = false, usdPrice } = opts;
 
   const { unavailable, waiting } = evmHistoryGate(
     chainId,
@@ -67,15 +69,19 @@ export function useEvmHistory(opts: {
       if (source.family === "evm-native") {
         return (items as BlockscoutTx[])
           .filter(isNativeTransfer)
-          .map((tx) => blockscoutTxToHistoryRecord(tx, address, chainId));
+          .map((tx) =>
+            blockscoutTxToHistoryRecord(tx, address, chainId, { usdPrice }),
+          );
       }
       return (items as BlockscoutTokenTransfer[])
         .filter(isValueMove)
-        .map((t) => blockscoutTransferToHistoryRecord(t, address, chainId));
+        .map((t) =>
+          blockscoutTransferToHistoryRecord(t, address, chainId, { usdPrice }),
+        );
     });
     // `source` is a fresh object each render; key on its contents (a token
     // change also changes the SWR key, so `data` moves with it).
-  }, [data, address, chainId, source.family, token]);
+  }, [data, address, chainId, source.family, token, usdPrice]);
 
   const hasMore = !!data?.[data.length - 1]?.next_page_params;
   const isLoading = waiting || (!unavailable && !data && !error);
