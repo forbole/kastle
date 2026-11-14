@@ -1,5 +1,27 @@
 # Changelog
 
+## [2.63.0](https://github.com/forbole/kastle/compare/v2.62.2...v2.63.0) (2026-11-14)
+
+
+### Features
+
+* KRC-20 to KCC-20 migration guide before KAT Bridge ([#459](https://github.com/forbole/kastle/issues/459)) ([2755e09](https://github.com/forbole/kastle/commit/2755e096cfe00ef234b6650d19c907bc02e04f69))
+
+
+### Bug Fixes
+
+* asset search screen per design ([#450](https://github.com/forbole/kastle/issues/450)) ([b644ada](https://github.com/forbole/kastle/commit/b644ada6f6d4f208319f1ae60a71de946faae0a5))
+* **extension:** UAT v2 board items 4, 4b, 5, 12, 14, 16 (item 9 excluded) ([#457](https://github.com/forbole/kastle/issues/457)) ([2996577](https://github.com/forbole/kastle/commit/2996577d5ed875fb63ad74eae18e55da40528860))
+* history detail sheet per mobile design ([#456](https://github.com/forbole/kastle/issues/456)) ([1aca1b2](https://github.com/forbole/kastle/commit/1aca1b23fe72a8970642cf2fa6ff94b491d4a8ce))
+* **ins:** re-verify a resolved name before an EVM send signs ([#443](https://github.com/forbole/kastle/issues/443)) ([012e911](https://github.com/forbole/kastle/commit/012e9110f57fc17816daee1473343e9bb0e897ba))
+* KCC-20 badge next to token name, verified tick in Security row only ([#455](https://github.com/forbole/kastle/issues/455)) ([a82b506](https://github.com/forbole/kastle/commit/a82b506988c4d83384a1d674c2eec3bf2c90d13f))
+* KRC-20 badge, Migrate to KCC-20 button, KCC-20 Price and Value rows ([#460](https://github.com/forbole/kastle/issues/460)) ([e291ee7](https://github.com/forbole/kastle/commit/e291ee7915056552329623a2d4fbf22964581233))
+* manage assets menu and page per design ([#451](https://github.com/forbole/kastle/issues/451)) ([c6d5afa](https://github.com/forbole/kastle/commit/c6d5afa7582dca81162dc3f7ff26a719c6fa75b7))
+* migration guide copy covers ERC-20 ([#462](https://github.com/forbole/kastle/issues/462)) ([fe813ad](https://github.com/forbole/kastle/commit/fe813ad2d323d018ffdfe0cfaf4600eaec74a4a6))
+* **optimize:** only sweep UTXOs the wallet can sign, and never submit an unsigned batch ([#453](https://github.com/forbole/kastle/issues/453)) ([ce9ce15](https://github.com/forbole/kastle/commit/ce9ce1581e5f5a67cf3e86eaf7836d292e7eed6f))
+* show counterparty, date and unit on the token history row ([#458](https://github.com/forbole/kastle/issues/458)) ([1cac291](https://github.com/forbole/kastle/commit/1cac2912b0f6aac7bd7e21a446c3e5fe6d11e7e2))
+* token history row per design ([#452](https://github.com/forbole/kastle/issues/452)) ([3df6c52](https://github.com/forbole/kastle/commit/3df6c5260802099ff0784f9c455515bbf21105d1))
+
 ## [2.62.2](https://github.com/forbole/kastle/compare/v2.62.1...v2.62.2) (2026-11-11)
 
 
