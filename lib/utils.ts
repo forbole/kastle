@@ -65,16 +65,23 @@ export function formatCurrency(number: number, code: string = "USD") {
   return formatter.format(number);
 }
 
-// formatCurrency rounds to 2 decimals, so a real $0.00123 reads "$0.00".
-// Sub-dollar amounts keep up to 8 decimals, floored to "<$0.00001".
+// USD-style value of a holding, price or fee. formatCurrency rounds to 2
+// decimals, so a real $0.0000042 would read "$0.00". Rule:
+//   0, non-finite, or |n| >= 1 -> formatCurrency (2 decimals, grouped)
+//   1e-8 <= |n| < 1            -> 2 to 8 fractional digits, never "$0.00"
+//   0 < |n| < 1e-8             -> "<$0.00000001" (">-$0.00000001" if negative)
+export const USD_AMOUNT_FLOOR = 1e-8;
 export function formatUsdAmount(number: number, code: string = "USD") {
   const abs = Math.abs(number);
   if (abs === 0 || abs >= 1 || !Number.isFinite(number)) {
     return formatCurrency(number, code);
   }
-  if (abs < 0.00001) {
+  if (abs < USD_AMOUNT_FLOOR) {
     const negative = number < 0;
-    const threshold = formatTokenPrice(negative ? -0.00001 : 0.00001, code);
+    const threshold = formatTokenPrice(
+      negative ? -USD_AMOUNT_FLOOR : USD_AMOUNT_FLOOR,
+      code,
+    );
     return `${negative ? ">" : "<"}${threshold}`;
   }
   return new Intl.NumberFormat("en-US", {
@@ -100,17 +107,25 @@ export function formatToken(number: number, maximumFractionDigits: number = 8) {
   return formatter.format(number);
 }
 
-// Rounding to maximumFractionDigits alone turns a nonzero fee below that
-// resolution into "0", which reads as free. Floor it to "<0.00001" instead.
+// Rounding to maximumFractionDigits alone turns a nonzero amount below that
+// resolution into "0", which reads as empty (or, for a fee, free). Floor it to
+// "<0.00000001" instead.
+export function formatTokenAmount(
+  amount: number,
+  maximumFractionDigits: number = 8,
+) {
+  const floor = 1 / 10 ** maximumFractionDigits;
+  if (amount > 0 && amount < floor) {
+    return `<${floor.toFixed(maximumFractionDigits)}`;
+  }
+  return formatToken(amount, maximumFractionDigits);
+}
+
 export function formatFeeInKas(
   amount: number,
   maximumFractionDigits: number = 5,
 ) {
-  const floor = 1 / 10 ** maximumFractionDigits;
-  if (amount > 0 && amount < floor) {
-    return `<${floor}`;
-  }
-  return formatToken(amount, maximumFractionDigits);
+  return formatTokenAmount(amount, maximumFractionDigits);
 }
 
 export function truncToDecimals(number: number, decimals: number) {

@@ -1,6 +1,6 @@
 import useEvmKasBalanceByAddress from "@/hooks/evm/useEvmKasBalanceByAddress";
 import { getChainImage } from "@/lib/layer2";
-import { formatCurrency, formatToken, textEllipsis } from "@/lib/utils";
+import { formatUsdAmount, formatToken, textEllipsis } from "@/lib/utils";
 import HoverShowAllCopy from "@/components/HoverShowAllCopy";
 import useKaspaPrice from "@/hooks/useKaspaPrice";
 import useCurrencyValue from "@/hooks/useCurrencyValue";
@@ -42,7 +42,7 @@ export default function EvmAddressItem({
           <div className="flex flex-grow flex-col items-end">
             <span className="font-semibold">{formatToken(balance)}</span>
             <span className="text-xs text-daintree-400">
-              {formatCurrency(totalBalanceCurrency, currencyCode)}
+              {formatUsdAmount(totalBalanceCurrency, currencyCode)}
             </span>
           </div>
         ) : (

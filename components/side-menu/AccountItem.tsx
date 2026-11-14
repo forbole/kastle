@@ -1,5 +1,5 @@
 import { twMerge } from "tailwind-merge";
-import { formatCurrency, textEllipsis } from "@/lib/utils.ts";
+import { formatUsdAmount, textEllipsis } from "@/lib/utils.ts";
 import { Link } from "react-router-dom";
 import React from "react";
 import { Account } from "@/contexts/WalletManagerContext.tsx";
@@ -63,7 +63,7 @@ export default function AccountItem({
                 {settings?.hideBalances
                   ? "*****"
                   : kasBalance !== undefined &&
-                    formatCurrency(totalBalanceCurrency, currencyCode)}
+                    formatUsdAmount(totalBalanceCurrency, currencyCode)}
               </span>
             </div>
             <span className="text-left text-xs text-daintree-400">

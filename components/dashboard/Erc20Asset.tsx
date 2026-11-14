@@ -4,10 +4,10 @@ import Layer2AssetImage from "../Layer2AssetImage";
 import { getChainImage } from "@/lib/layer2";
 import { useNavigate } from "react-router-dom";
 import {
-  formatCurrency,
+  formatUsdAmount,
   formatTokenPrice,
   symbolForCurrencyCode,
-  formatToken,
+  formatTokenAmount,
 } from "@/lib/utils.ts";
 import {
   useErc20Image,
@@ -29,7 +29,7 @@ export default function Erc20Asset({ asset }: { asset: Erc20Asset }) {
   );
 
   const showBalance = !settings?.hideBalances;
-  const balance = formatToken(data?.balance ?? 0);
+  const balance = formatTokenAmount(data?.balance ?? 0);
 
   const body = (
     <>
@@ -51,7 +51,7 @@ export default function Erc20Asset({ asset }: { asset: Erc20Asset }) {
           <span>
             ≈{" "}
             {showBalance
-              ? formatCurrency(totalBalanceCurrency, currencyCode)
+              ? formatUsdAmount(totalBalanceCurrency, currencyCode)
               : `${symbolForCurrencyCode(currencyCode)}*****`}
           </span>
         </div>

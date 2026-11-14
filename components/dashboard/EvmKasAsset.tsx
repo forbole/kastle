@@ -2,10 +2,10 @@ import Layer2AssetImage from "../Layer2AssetImage";
 import { getChainImage, getChainTokenSymbol } from "@/lib/layer2";
 import { useNavigate } from "react-router-dom";
 import {
-  formatCurrency,
+  formatUsdAmount,
   formatTokenPrice,
   symbolForCurrencyCode,
-  formatToken,
+  formatTokenAmount,
 } from "@/lib/utils.ts";
 import { useSettings } from "@/hooks/useSettings";
 import kasIcon from "@/assets/images/network-logos/kaspa.svg";
@@ -43,7 +43,7 @@ export default function EvmKasAsset({ chainId }: { chainId: `0x${string}` }) {
           <div className="flex flex-col gap-1">
             <span>{tokenSymbol}</span>
           </div>
-          <span>{showBalance ? formatToken(balance) : "*****"}</span>
+          <span>{showBalance ? formatTokenAmount(balance) : "*****"}</span>
         </div>
         <div className="flex items-center justify-between text-sm text-daintree-400">
           <span>
@@ -52,7 +52,7 @@ export default function EvmKasAsset({ chainId }: { chainId: `0x${string}` }) {
           <span>
             ≈{" "}
             {showBalance
-              ? formatCurrency(totalBalanceCurrency, currencyCode)
+              ? formatUsdAmount(totalBalanceCurrency, currencyCode)
               : `${symbolForCurrencyCode(currencyCode)}*****`}
           </span>
         </div>

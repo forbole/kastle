@@ -1,8 +1,8 @@
 import { useNavigate } from "react-router-dom";
 import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import {
-  formatCurrency,
-  formatToken,
+  formatUsdAmount,
+  formatTokenAmount,
   formatTokenPrice,
   symbolForCurrencyCode,
 } from "@/lib/utils.ts";
@@ -116,10 +116,10 @@ export default function Assets() {
             logo={kasIcon}
             ticker="KAS"
             price={formatTokenPrice(kaspaPriceCurrency, kaspaPriceCurrencyCode)}
-            balance={showBalance ? formatToken(balance ?? 0) : "*****"}
+            balance={showBalance ? formatTokenAmount(balance ?? 0) : "*****"}
             fiat={`≈ ${
               showBalance
-                ? formatCurrency(totalBalanceCurrency, currencyCode)
+                ? formatUsdAmount(totalBalanceCurrency, currencyCode)
                 : `${symbolForCurrencyCode(currencyCode)}*****`
             }`}
           />
