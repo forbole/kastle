@@ -17,7 +17,7 @@ import {
 import BottomNav from "@/components/BottomNav";
 import {
   formatCurrency,
-  formatUsdAmount,
+  formatHoldingUsd,
   symbolForCurrencyCode,
 } from "@/lib/utils.ts";
 import { twMerge } from "tailwind-merge";
@@ -61,7 +61,7 @@ export default function Dashboard() {
       : segments[0]?.segment;
 
   const showBalance = !settings?.hideBalances;
-  const totalBalanceFormatted = formatUsdAmount(
+  const totalBalanceFormatted = formatHoldingUsd(
     totalBalanceCurrency,
     currencyCode,
   );
