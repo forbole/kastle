@@ -67,13 +67,14 @@ export function formatCurrency(number: number, code: string = "USD") {
 
 // USD-style value of a holding, price or fee. formatCurrency rounds to 2
 // decimals, so a real $0.0000042 would read "$0.00". Rule:
-//   0, non-finite, or |n| >= 1 -> formatCurrency (2 decimals, grouped)
-//   1e-8 <= |n| < 1            -> 2 to 8 fractional digits, never "$0.00"
-//   0 < |n| < 1e-8             -> "<$0.00000001" (">-$0.00000001" if negative)
+//   0, non-finite, or |n| >= 0.01 -> formatCurrency (2 decimals, grouped)
+//   1e-8 <= |n| < 0.01            -> 2 to 8 fractional digits, never "$0.00"
+//   0 < |n| < 1e-8                -> "<$0.00000001" (">-$0.00000001" if negative)
 export const USD_AMOUNT_FLOOR = 1e-8;
+const USD_CENT = 0.01;
 export function formatUsdAmount(number: number, code: string = "USD") {
   const abs = Math.abs(number);
-  if (abs === 0 || abs >= 1 || !Number.isFinite(number)) {
+  if (abs === 0 || abs >= USD_CENT || !Number.isFinite(number)) {
     return formatCurrency(number, code);
   }
   if (abs < USD_AMOUNT_FLOOR) {

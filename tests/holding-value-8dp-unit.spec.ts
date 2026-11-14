@@ -24,16 +24,18 @@ const { historyFiatText } = await import("@/ui/popup/history/format");
 const { formatKcc20Balance } = await import("@/ui/popup/kcc20/labels");
 
 test.describe("holding value: 8-decimal USD rule", () => {
-  test("0.0000042 shows its 8 decimals, never $0.00", () => {
+  test("below a cent shows up to 8 decimals, never $0.00", () => {
     expect(formatUsdAmount(0.0000042)).toBe("$0.0000042");
     expect(formatUsdAmount(0.0000042)).not.toBe("$0.00");
-    expect(formatUsdAmount(0.12345678)).toBe("$0.12345678");
+    expect(formatUsdAmount(0.004)).toBe("$0.004");
+    expect(formatUsdAmount(0.00999999)).toBe("$0.00999999");
     expect(formatUsdAmount(0.00000001)).toBe("$0.00000001");
   });
 
   test("below 1e-8 floors to the < form", () => {
     expect(formatUsdAmount(0.000000004)).toBe("<$0.00000001");
     expect(formatUsdAmount(-0.000000004)).toBe(">-$0.00000001");
+    expect(formatUsdAmount(9.9e-9)).toBe("<$0.00000001");
   });
 
   test("exact 0 shows $0.00", () => {
@@ -42,12 +44,16 @@ test.describe("holding value: 8-decimal USD rule", () => {
 
   test("$1 or more keeps 2 decimals and grouping", () => {
     expect(formatUsdAmount(1)).toBe("$1.00");
+    expect(formatUsdAmount(1.5)).toBe("$1.50");
     expect(formatUsdAmount(1.23456789)).toBe("$1.23");
     expect(formatUsdAmount(1234567.891)).toBe("$1,234,567.89");
   });
 
-  test("sub-dollar keeps at least 2 decimals", () => {
+  test("a cent up to $1 stays at 2 decimals", () => {
     expect(formatUsdAmount(0.5)).toBe("$0.50");
+    expect(formatUsdAmount(0.29696232)).toBe("$0.30");
+    expect(formatUsdAmount(0.12345678)).toBe("$0.12");
+    expect(formatUsdAmount(0.01)).toBe("$0.01");
   });
 
   test("history row fiat: 3 places unless they collapse a non-zero value", () => {

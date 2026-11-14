@@ -597,8 +597,7 @@ test("a KRON row and a standard row share one shape, and a 12-digit base-unit ba
   await expect(kron.getByText("WHALE", { exact: true })).toBeVisible();
   await expect(kron.getByText("$0.00000232", { exact: true })).toBeVisible();
   await expect(kron.getByText("128,001", { exact: true })).toBeVisible();
-  // Sub-dollar holding value keeps up to 8 decimals (formatUsdAmount).
-  await expect(kron.getByText("≈ $0.29696232", { exact: true })).toBeVisible();
+  await expect(kron.getByText("≈ $0.30", { exact: true })).toBeVisible();
   // Standard, unknown scale and no market: ticker and grouped base units only.
   // At the popup's width the full figure would truncate NACHO, so it compacts
   // and keeps the exact value as its tooltip.
