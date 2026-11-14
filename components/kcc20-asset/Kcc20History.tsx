@@ -35,6 +35,7 @@ export function Kcc20History({
 }) {
   const {
     entries,
+    priceUsd,
     setSize,
     hasMore,
     isLoading,
@@ -55,7 +56,9 @@ export function Kcc20History({
     decimals: token?.meta?.decimals,
   };
   const records = entries.map((e) =>
-    toHistoryRecord(toHistoryRow(e), view, explorerBase),
+    toHistoryRecord(toHistoryRow(e), view, explorerBase, {
+      usdPrice: priceUsd,
+    }),
   );
   // Same logo and corner mark the token page header shows; one tx per row.
   const rowExtras = {

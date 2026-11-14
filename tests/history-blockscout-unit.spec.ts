@@ -358,3 +358,120 @@ test.describe("pending fee and wallet-load gate", () => {
     });
   });
 });
+
+test.describe("fiat at the current price", () => {
+  const NONE = { value: null, quality: "unavailable" };
+  const erc20 = (decimals: string, value: string) =>
+    transfer({
+      token: { address_hash: TOKEN, symbol: "TKN", decimals, type: "ERC-20" },
+      total: { decimals, value },
+    });
+
+  test("ERC-20 with 6 decimals: whole tokens × price, approximate", () => {
+    // 2.5 USDC at $1 → $2.5
+    const r = blockscoutTransferToHistoryRecord(transfer(), OWNER, KASPLEX, {
+      usdPrice: 1,
+    });
+    expect(r.fiat).toEqual({ value: { usd: 2.5 }, quality: "approximate" });
+  });
+
+  test("ERC-20 with 8 decimals scales by its own decimals", () => {
+    // 1.5 tokens at $0.2 → $0.3
+    const r = blockscoutTransferToHistoryRecord(
+      erc20("8", "150000000"),
+      OWNER,
+      KASPLEX,
+      { usdPrice: 0.2 },
+    );
+    expect(r.fiat.quality).toBe("approximate");
+    expect(r.fiat.value?.usd).toBeCloseTo(1.5 * 0.2, 12);
+  });
+
+  test("ERC-20 6-decimal value equals amount × price", () => {
+    const r = blockscoutTransferToHistoryRecord(
+      erc20("6", "123456789"),
+      OWNER,
+      KASPLEX,
+      { usdPrice: 3 },
+    );
+    expect(r.fiat.value?.usd).toBeCloseTo(123.456789 * 3, 9);
+  });
+
+  test("ERC-20 without a price, or at 0: no fiat, never $0", () => {
+    const t = erc20("8", "150000000");
+    expect(blockscoutTransferToHistoryRecord(t, OWNER, KASPLEX).fiat).toEqual(
+      NONE,
+    );
+    expect(
+      blockscoutTransferToHistoryRecord(t, OWNER, KASPLEX, { usdPrice: 0 })
+        .fiat,
+    ).toEqual(NONE);
+    expect(
+      blockscoutTransferToHistoryRecord(t, OWNER, KASPLEX, {
+        usdPrice: undefined,
+      }).fiat,
+    ).toEqual(NONE);
+  });
+
+  test("ERC-20 with unknown decimals has no fiat even with a price", () => {
+    const r = blockscoutTransferToHistoryRecord(
+      transfer({
+        token: {
+          address_hash: TOKEN,
+          symbol: "TKN",
+          decimals: null,
+          type: "ERC-20",
+        },
+        total: { decimals: null, value: "150000000" },
+      }),
+      OWNER,
+      KASPLEX,
+      { usdPrice: 2 },
+    );
+    expect(r.fiat).toEqual(NONE);
+  });
+
+  test("ERC-721 stays unavailable even with a price", () => {
+    const r = blockscoutTransferToHistoryRecord(
+      transfer({
+        token: {
+          address_hash: TOKEN,
+          symbol: "PUNK",
+          decimals: null,
+          type: "ERC-721",
+        },
+        total: { token_id: "7" },
+      }),
+      OWNER,
+      KASPLEX,
+      { usdPrice: 5 },
+    );
+    expect(r.fiat).toEqual(NONE);
+  });
+
+  test("native coin: 18 decimals × KAS price; none without one", () => {
+    // 1.5 KAS at $0.1 → $0.15
+    const r = blockscoutTxToHistoryRecord(tx(), OWNER, KASPLEX, {
+      usdPrice: 0.1,
+    });
+    expect(r.fiat.quality).toBe("approximate");
+    expect(r.fiat.value?.usd).toBeCloseTo(0.15, 12);
+    expect(blockscoutTxToHistoryRecord(tx(), OWNER, KASPLEX).fiat).toEqual(
+      NONE,
+    );
+    expect(
+      blockscoutTxToHistoryRecord(tx(), OWNER, KASPLEX, { usdPrice: 0 }).fiat,
+    ).toEqual(NONE);
+    // A deploy moves no coin: no value to price.
+    expect(
+      blockscoutTxToHistoryRecord(
+        tx({ to: null, value: "0" }),
+        OWNER,
+        KASPLEX,
+        {
+          usdPrice: 0.1,
+        },
+      ).fiat,
+    ).toEqual(NONE);
+  });
+});
