@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useTokenInfo } from "@/hooks/kasplex/useTokenInfo";
-import { formatCurrency } from "@/lib/utils.ts";
+import { formatHoldingUsd } from "@/lib/utils.ts";
 import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import { twMerge } from "tailwind-merge";
 import LabelLoading from "@/components/LabelLoading.tsx";
@@ -62,7 +62,9 @@ export default function TokenInfo() {
             <span className="capitalize">{tokenName}</span>
           </div>
           <div className="flex items-center justify-start text-sm text-daintree-400">
-            <span>≈ {formatCurrency(amountCurrency, amountCurrencyCode)}</span>
+            <span>
+              ≈ {formatHoldingUsd(amountCurrency, amountCurrencyCode)}
+            </span>
           </div>
         </div>
         <div className="rounded-full border border-icy-blue-400 px-1 text-[0.625rem] text-icy-blue-400">

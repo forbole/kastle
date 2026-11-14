@@ -5,7 +5,7 @@ import type {
   HistoryKind,
   HistoryRecord,
 } from "@/lib/history/types";
-import { textEllipsis } from "@/lib/utils";
+import { formatHoldingUsd, textEllipsis } from "@/lib/utils";
 
 const TITLES: Record<HistoryKind, string> = {
   send: "Sent",
@@ -186,7 +186,13 @@ const FIAT_FORMAT = new Intl.NumberFormat("en-US", {
 /** "≈ $19.235 USD" for the row's right column; null when the source has no fiat. */
 export function historyFiatText(record: HistoryRecord): string | null {
   const usd = historyFiatUsd(record);
-  return usd === null ? null : `≈ ${FIAT_FORMAT.format(usd)} USD`;
+  if (usd === null) return null;
+  const shown = FIAT_FORMAT.format(usd);
+  // Only a non-zero value that 3 places collapse to "$0.000" takes the 8-dp
+  // holding rule; anything 3 places already show (e.g. "$0.001") is unchanged.
+  const text =
+    usd !== 0 && !/[1-9]/.test(shown) ? formatHoldingUsd(usd) : shown;
+  return `≈ ${text} USD`;
 }
 
 const STATUS_LABEL: Record<HistoryRecord["status"], string | null> = {

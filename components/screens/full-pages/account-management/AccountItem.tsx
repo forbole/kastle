@@ -1,7 +1,7 @@
 import { useFormContext } from "react-hook-form";
 import { AccountsFormValues } from "@/components/screens/full-pages/account-management/ManageAccounts";
 import React, { useState } from "react";
-import { formatCurrency, formatToken, textEllipsis } from "@/lib/utils.ts";
+import { formatHoldingUsd, formatToken, textEllipsis } from "@/lib/utils.ts";
 import { Address, PublicKey } from "@/wasm/core/kaspa";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
@@ -152,7 +152,7 @@ export function AccountItem({
                 {formatToken(accountBalance)}
               </span>
               <span className="text-xs text-daintree-400">
-                {formatCurrency(totalBalanceCurrency, currencyCode)}
+                {formatHoldingUsd(totalBalanceCurrency, currencyCode)}
               </span>
             </div>
           ) : (
