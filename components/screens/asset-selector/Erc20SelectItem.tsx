@@ -6,7 +6,7 @@ import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { twMerge } from "tailwind-merge";
 import useErc20Balance from "@/hooks/evm/useErc20Balance";
 import { Erc20Asset } from "@/contexts/EvmAssets";
-import { formatToken, textEllipsis } from "@/lib/utils.ts";
+import { formatTokenAmount, textEllipsis } from "@/lib/utils.ts";
 import HoverTooltip from "@/components/HoverTooltip";
 import { useErc20Image } from "@/hooks/evm/useZealousSwapMetadata";
 import useAnalytics from "@/hooks/useAnalytics";
@@ -60,7 +60,7 @@ export default function Erc20SelectItem({ asset }: { asset: Erc20Asset }) {
               </span>
             </div>
           </div>
-          {!isLedger && <span>{formatToken(balance)}</span>}
+          {!isLedger && <span>{formatTokenAmount(Number(balance))}</span>}
           {isLedger && (
             <span className="rounded-full bg-[#1C333C] p-2 px-4 text-xs text-white">
               Not supported with Ledger

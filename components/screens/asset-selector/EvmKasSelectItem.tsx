@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { getChainImage, getChainName, getChainTokenSymbol } from "@/lib/layer2";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { twMerge } from "tailwind-merge";
-import { formatToken } from "@/lib/utils.ts";
+import { formatTokenAmount } from "@/lib/utils.ts";
 import HoverTooltip from "@/components/HoverTooltip";
 import useAnalytics from "@/hooks/useAnalytics";
 import { hexToNumber } from "viem";
@@ -56,7 +56,9 @@ export default function EvmKasSelectItem({
             </HoverTooltip>
             <span>{getChainTokenSymbol(chainId)}</span>
           </div>
-          {!isLedger && <span>{formatToken(parseFloat(kasBalance))}</span>}
+          {!isLedger && (
+            <span>{formatTokenAmount(parseFloat(kasBalance))}</span>
+          )}
           {isLedger && (
             <span className="rounded-full bg-[#1C333C] p-2 px-4 text-xs text-white">
               Not supported with Ledger

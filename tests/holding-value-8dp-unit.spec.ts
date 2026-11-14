@@ -69,6 +69,19 @@ test.describe("holding amount: a non-zero amount never prints 0", () => {
     expect(formatTokenAmount(1234.5)).toBe("1,234.5");
   });
 
+  test("dust below 1e-8 renders the floor form, not 0", () => {
+    // 1 wei of an 18-decimal ERC-20 / EVM KAS, as the balance hooks parse it.
+    const oneWei = parseFloat("0.000000000000000001");
+    expect(formatTokenAmount(oneWei)).toBe("<0.00000001");
+    expect(formatTokenAmount(oneWei)).not.toBe("0");
+    expect(formatTokenAmount(0.0000000099)).toBe("<0.00000001");
+    // Exactly at the floor shows the value itself, not the < form.
+    expect(formatTokenAmount(0.00000001)).toBe("0.00000001");
+    // A layout cap on digits keeps the non-zero floor at that cap.
+    expect(formatTokenAmount(oneWei, 4)).toBe("<0.0001");
+    expect(formatTokenAmount(0.00004, 4)).toBe("<0.0001");
+  });
+
   test("fee floor unchanged", () => {
     expect(formatFeeInKas(0.000001)).toBe("<0.00001");
     expect(formatFeeInKas(0.2)).toBe("0.2");

@@ -10,7 +10,7 @@ import { isAddress, formatEther, parseEther } from "viem";
 import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import useEvmKasBalance from "@/hooks/evm/useEvmKasBalance";
 import useFeeEstimate from "@/hooks/evm/useFeeEstimate";
-import { formatToken } from "@/lib/utils";
+import { formatToken, formatTokenAmount } from "@/lib/utils";
 import {
   NOT_A_DECIMAL,
   formatMaxAmount,
@@ -299,7 +299,7 @@ export default function DetailsStep({
           <div className="flex items-center gap-3 text-sm">
             <span className="font-semibold">Balance</span>
             <span className="flex-grow">
-              {formatToken(parseFloat(balance ?? "0"))} {tokenSymbol}
+              {formatTokenAmount(parseFloat(balance ?? "0"))} {tokenSymbol}
             </span>
             <button
               className="inline-flex items-center gap-x-2 rounded border border-transparent bg-icy-blue-400 px-3 py-2 text-sm text-white disabled:pointer-events-none disabled:opacity-50"
