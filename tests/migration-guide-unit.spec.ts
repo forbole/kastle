@@ -65,18 +65,22 @@ const openBtn = (page: Page) =>
 // PageHeader's icon buttons: back first, close last.
 const headerBack = (page: Page) => page.locator("button").first();
 
-test("(a)+(d) no eligible migration → bridge stub once, guide never rendered", async ({
+test("(a)+(d) enabled migration, no migratable holding → guide renders, never bounced", async ({
   page,
 }) => {
-  const errors = await open(page, false);
-  await expect(page.getByText("Bridge stub")).toBeVisible();
-  // Give a loop time to show itself.
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.goto(`${base}/?eligible=1&holding=0`);
+  await expect(intro(page)).toBeVisible();
+  // Give a bounce time to show itself.
   await page.waitForTimeout(300);
-  expect((await h(page)).bridgeMounts).toBe(1);
-  await expect(openBtn(page)).toHaveCount(0);
-  await expect(nextBtn(page)).toHaveCount(0);
-  await expect(intro(page)).toHaveCount(0);
-  expect((await h(page)).tabs).toEqual([]);
+  expect((await h(page)).bridgeMounts).toBe(0);
+  await expect(page.getByText("Bridge stub")).toHaveCount(0);
+  await nextBtn(page).click();
+  await openBtn(page).click();
+  await expect
+    .poll(async () => (await h(page)).tabs)
+    .toEqual([{ url: URL_FROM_HOOK }]);
   expect(errors).toEqual([]);
 });
 

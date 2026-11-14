@@ -127,7 +127,7 @@ const shown = (r: ReturnType<typeof renderMigration>) =>
   migration.migrationRowUrl(r);
 
 test.describe("Bridge migrate row (useKcc20Migration)", () => {
-  test("no migratable token held: hidden", () => {
+  test("no migratable token held: still shown (the guide needs no holding)", () => {
     const r = renderMigration({
       flags: ON,
       payload: PAYLOAD,
@@ -136,9 +136,19 @@ test.describe("Bridge migrate row (useKcc20Migration)", () => {
         { id: "NACHO", balance: "0", dec: "8" },
       ],
     });
-    expect(shown(r)).toBeFalsy();
+    expect(shown(r)).toBe("https://katbridge.com/migrate");
     expect(r.migratableHeld).toEqual([]);
     expect(r.requested).toEqual([ADDRESS]);
+  });
+
+  test("enabled without config, or disabled: hidden", () => {
+    expect(migration.migrationRowUrl({ enabled: true })).toBeUndefined();
+    expect(
+      migration.migrationRowUrl({
+        enabled: false,
+        config: { url: "https://katbridge.com/migrate", tokens: [] },
+      }),
+    ).toBeUndefined();
   });
 
   test("NACHO held: shown, opening the payload url", () => {
@@ -228,7 +238,7 @@ test.describe("Bridge migrate row (useKcc20Migration)", () => {
     }
   });
 
-  test("bad payload (non-hex covenant): token dropped, row hidden", () => {
+  test("bad payload (non-hex covenant): token dropped, nothing migratable, row still shown", () => {
     const r = renderMigration({
       flags: ON,
       payload: {
@@ -242,7 +252,8 @@ test.describe("Bridge migrate row (useKcc20Migration)", () => {
       held: [{ id: "NACHO", balance: "1", dec: "8" }],
     });
     expect(r.config?.tokens).toEqual([]);
-    expect(shown(r)).toBeFalsy();
+    expect(r.migratableHeld).toEqual([]);
+    expect(shown(r)).toBe("https://katbridge.com/migrate");
   });
 });
 
