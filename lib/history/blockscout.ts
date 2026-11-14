@@ -281,7 +281,7 @@ export function blockscoutTransferToHistoryRecord(
     const decimals = total.decimals ?? transfer.token.decimals;
     if (decimals !== null && decimals !== undefined) {
       amount = exact({ raw: total.value, decimals: Number(decimals), symbol });
-      fiat = approxFiat(total.value, Number(decimals), opts.usdPrice);
+      fiat = approxFiat(total.value, decimals, opts.usdPrice);
     }
   }
 

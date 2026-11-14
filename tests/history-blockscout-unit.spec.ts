@@ -431,6 +431,25 @@ test.describe("fiat at the current price", () => {
     expect(r.fiat).toEqual(NONE);
   });
 
+  test('ERC-20 with "" decimals has no fiat; "0" decimals still priced', () => {
+    // Number("") is 0: base units would be priced as whole tokens.
+    const empty = blockscoutTransferToHistoryRecord(
+      erc20("", "1500000000000000000"),
+      OWNER,
+      KASPLEX,
+      { usdPrice: 2 },
+    );
+    expect(empty.fiat).toEqual(NONE);
+    // An integer-decimal token: 3 tokens at $2 → $6.
+    const whole = blockscoutTransferToHistoryRecord(
+      erc20("0", "3"),
+      OWNER,
+      KASPLEX,
+      { usdPrice: 2 },
+    );
+    expect(whole.fiat).toEqual({ value: { usd: 6 }, quality: "approximate" });
+  });
+
   test("ERC-721 stays unavailable even with a price", () => {
     const r = blockscoutTransferToHistoryRecord(
       transfer({

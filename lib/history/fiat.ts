@@ -3,6 +3,24 @@ import type { HistoryRecord } from "@/lib/history/types";
 const NONE = { value: null, quality: "unavailable" } as const;
 
 /**
+ * Token scale as a non-negative integer, or undefined when it is not one. A
+ * string must be all digits ("0" passes: an integer-decimal token), so an empty,
+ * fractional or negative value is no scale rather than `Number("")` = 0, which
+ * would price raw base units as whole tokens.
+ */
+function scaleOf(decimals: number | string | null | undefined) {
+  const n =
+    typeof decimals === "string"
+      ? /^\d+$/.test(decimals)
+        ? Number(decimals)
+        : NaN
+      : decimals;
+  return typeof n === "number" && Number.isSafeInteger(n) && n >= 0
+    ? n
+    : undefined;
+}
+
+/**
  * USD value of an exact base-unit amount at the current price, hence
  * approximate. Scaled by the token's own decimals from the integer, never base
  * units read as whole tokens. A missing or non-positive price is no price
@@ -10,17 +28,16 @@ const NONE = { value: null, quality: "unavailable" } as const;
  */
 export function approxFiat(
   raw: bigint | string | undefined,
-  decimals: number | undefined,
+  decimalsIn: number | string | null | undefined,
   usdPrice: number | undefined,
 ): HistoryRecord["fiat"] {
+  const decimals = scaleOf(decimalsIn);
   if (
     raw === undefined ||
     usdPrice === undefined ||
     !Number.isFinite(usdPrice) ||
     usdPrice <= 0 ||
-    decimals === undefined ||
-    !Number.isInteger(decimals) ||
-    decimals < 0
+    decimals === undefined
   )
     return NONE;
   let big: bigint;
