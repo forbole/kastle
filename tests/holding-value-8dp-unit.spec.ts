@@ -67,6 +67,20 @@ test.describe("formatHoldingUsd: holding values", () => {
     expect(formatHoldingUsd(-0.000000004)).toBe(">-$0.00000001");
   });
 
+  test("decimal-less currency: cutoff is one whole unit, never prints 0", () => {
+    // JPY/KRW have no minor unit (Intl reports 0 fraction digits).
+    expect(formatHoldingUsd(0.4, "JPY")).toBe("¥0.4");
+    expect(formatHoldingUsd(0.0000042, "JPY")).toBe("¥0.0000042");
+    expect(formatHoldingUsd(0.4, "KRW")).toBe("₩0.4");
+    // At or above ¥1 the currency keeps its own 0 digits.
+    expect(formatHoldingUsd(1, "JPY")).toBe("¥1");
+    expect(formatHoldingUsd(1234.4, "JPY")).toBe("¥1,234");
+    expect(formatHoldingUsd(0, "JPY")).toBe("¥0");
+    // Two-digit currencies keep the cent cutoff.
+    expect(formatHoldingUsd(0.4, "EUR")).toBe("€0.40");
+    expect(formatHoldingUsd(0.004, "EUR")).toBe("€0.004");
+  });
+
   test("history row fiat: 3 places unless they collapse a non-zero value", () => {
     const rec = (usd: number) =>
       ({
@@ -75,6 +89,19 @@ test.describe("formatHoldingUsd: holding values", () => {
     expect(historyFiatText(rec(19.2354))).toBe("≈ $19.235 USD");
     expect(historyFiatText(rec(0))).toBe("≈ $0.000 USD");
     expect(historyFiatText(rec(0.0000042))).toBe("≈ $0.0000042 USD");
+    expect(historyFiatText(rec(0.0004))).toBe("≈ $0.0004 USD");
+    expect(historyFiatText(rec(-0.0004))).toBe("≈ -$0.0004 USD");
+  });
+
+  test("history row fiat: values 3 places already show keep main's text", () => {
+    const rec = (usd: number) =>
+      ({
+        fiat: { value: { usd }, quality: "approximate" },
+      }) as unknown as HistoryRecord;
+    expect(historyFiatText(rec(0.001))).toBe("≈ $0.001 USD");
+    // 0.0007 rounds to $0.001 at 3 places, as on main: not rerouted.
+    expect(historyFiatText(rec(0.0007))).toBe("≈ $0.001 USD");
+    expect(historyFiatText(rec(0.0005))).toBe("≈ $0.001 USD");
   });
 });
 

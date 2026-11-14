@@ -188,9 +188,10 @@ export function historyFiatText(record: HistoryRecord): string | null {
   const usd = historyFiatUsd(record);
   if (usd === null) return null;
   const shown = FIAT_FORMAT.format(usd);
-  // Below 3 places a non-zero value must not read "$0.000": 8-dp rule instead.
+  // Only a non-zero value that 3 places collapse to "$0.000" takes the 8-dp
+  // holding rule; anything 3 places already show (e.g. "$0.001") is unchanged.
   const text =
-    usd !== 0 && Math.abs(usd) < 0.001 ? formatHoldingUsd(usd) : shown;
+    usd !== 0 && !/[1-9]/.test(shown) ? formatHoldingUsd(usd) : shown;
   return `≈ ${text} USD`;
 }
 

@@ -66,11 +66,31 @@ export function formatCurrency(number: number, code: string = "USD") {
 }
 
 export const USD_AMOUNT_FLOOR = 1e-8;
-const USD_CENT = 0.01;
+const MINOR_DIGITS = new Map<string, number>();
 
-// Below `cutoff`: 2 to 8 fractional digits, floored to "<$0.00000001"
+// The currency's minor-unit digits as Intl reports them: 2 for USD/EUR, 0 for
+// JPY/KRW and any other currency without a minor unit.
+function currencyMinorDigits(code: string): number {
+  let digits = MINOR_DIGITS.get(code);
+  if (digits === undefined) {
+    digits =
+      new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: code,
+      }).resolvedOptions().maximumFractionDigits ?? 2;
+    MINOR_DIGITS.set(code, digits);
+  }
+  return digits;
+}
+
+// Below `cutoff`: minFractionDigits (default 2) to 8 fractional digits, floored to "<$0.00000001"
 // (">-$0.00000001" if negative). At or above it, 0, or non-finite: formatCurrency.
-function formatFiatBelow(cutoff: number, number: number, code: string) {
+function formatFiatBelow(
+  cutoff: number,
+  number: number,
+  code: string,
+  minFractionDigits = 2,
+) {
   const abs = Math.abs(number);
   if (abs === 0 || abs >= cutoff || !Number.isFinite(number)) {
     return formatCurrency(number, code);
@@ -87,7 +107,7 @@ function formatFiatBelow(cutoff: number, number: number, code: string) {
     style: "currency",
     currency: code,
     currencyDisplay: CURRENCY_SYMBOL_MAPPING[code] ?? "symbol",
-    minimumFractionDigits: 2,
+    minimumFractionDigits: minFractionDigits,
     maximumFractionDigits: 8,
   }).format(number);
 }
@@ -99,10 +119,13 @@ export function formatUsdAmount(number: number, code: string = "USD") {
   return formatFiatBelow(1, number, code);
 }
 
-// Holding values only. Cents stay cents ("$0.30", "$1.50"); only a non-zero
-// value below a cent gains digits ("$0.004", "$0.0000042") instead of "$0.00".
+// Holding values only. At or above the currency's smallest unit (a cent for
+// USD, ¥1 for JPY/KRW) the value keeps the currency's own digits ("$0.30",
+// "¥5"); a non-zero value below it gains up to 8 digits ("$0.004", "¥0.4")
+// instead of collapsing to "$0.00" / "¥0".
 export function formatHoldingUsd(number: number, code: string = "USD") {
-  return formatFiatBelow(USD_CENT, number, code);
+  const minor = currencyMinorDigits(code);
+  return formatFiatBelow(10 ** -minor, number, code, minor);
 }
 
 export function symbolForCurrencyCode(currencyCode: string): string {
