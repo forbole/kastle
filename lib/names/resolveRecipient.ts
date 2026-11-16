@@ -38,7 +38,7 @@ export async function resolveRecipient(
   // Address.validate is network-agnostic; a foreign prefix only fails later,
   // inside createTransactions at Confirm (KASTLE-T). An id outside PREFIX is
   // not refused here: the WASM still decides, as before this guard.
-  const prefix = PREFIX[id];
+  const prefix = Object.hasOwn(PREFIX, id) ? PREFIX[id] : undefined;
   const onNetwork = (addr: string) => !prefix || addr.startsWith(prefix);
   const wrongNetwork = { fault: "This address belongs to a different network" };
 
@@ -48,7 +48,9 @@ export async function resolveRecipient(
     return onNetwork(owner) ? { address: owner, domain: input } : wrongNetwork;
   }
 
-  if (dotk && isDotkName(input)) {
+  // The SDK's registries are the same two networks (new Dotk throws on any
+  // other id, "" included), so without a known id a `.k` name falls through.
+  if (dotk && prefix && isDotkName(input)) {
     const recipient = await getDotk(id).recipientFor(input);
     if (
       recipient.kind === "address" ||

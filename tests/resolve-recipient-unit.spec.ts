@@ -176,3 +176,26 @@ test("an id outside the table never refuses a valid address", async () => {
     });
   }
 });
+
+test("inherited keys are not table entries", async () => {
+  const { fetchDomainInfo } = setup();
+  for (const networkId of ["constructor", "__proto__", "toString"]) {
+    const opts = { fetchDomainInfo, networkId, dotk: false };
+    expect(await resolveRecipient(ADDRESS, opts)).toEqual({ address: ADDRESS });
+  }
+});
+
+test("dotk on with no network id neither throws nor refuses", async () => {
+  const dotkCalls = stubDotk({ kind: "name", address: ADDRESS });
+  const { fetchDomainInfo } = setup();
+  for (const networkId of [undefined, "", "devnet"]) {
+    const opts = { fetchDomainInfo, networkId, dotk: true };
+    expect(await resolveRecipient(ADDRESS, opts)).toEqual({ address: ADDRESS });
+    expect(await resolveRecipient(TESTNET_ADDRESS, opts)).toEqual({
+      address: TESTNET_ADDRESS,
+    });
+    // getDotk("") would throw in the SDK constructor; the name falls through.
+    expect(await resolveRecipient("alice.k", opts)).toEqual({});
+  }
+  expect(dotkCalls).toEqual([]);
+});
