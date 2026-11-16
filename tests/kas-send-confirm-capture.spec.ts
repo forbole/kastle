@@ -19,10 +19,20 @@ let server: http.Server;
 
 test.beforeAll(async () => {
   const outDir = path.join(tmpdir(), `kastle-kas-confirm-${process.pid}`);
-  await build({
-    configFile: path.resolve("tests/kas-send-confirm-capture/vite.config.mjs"),
-    build: { outDir },
-  });
+  // vite.build sets NODE_ENV=production in the worker; restore it so a later
+  // React spec in the same worker does not load production React.
+  const nodeEnv = process.env.NODE_ENV;
+  try {
+    await build({
+      configFile: path.resolve(
+        "tests/kas-send-confirm-capture/vite.config.mjs",
+      ),
+      build: { outDir },
+    });
+  } finally {
+    if (nodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = nodeEnv;
+  }
   server = http.createServer((req, res) => {
     const p = path.resolve(
       outDir,
