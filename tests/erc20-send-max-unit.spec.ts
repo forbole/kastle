@@ -1,9 +1,18 @@
 import { expect, test } from "@playwright/test";
-import { decodeFunctionData, erc20Abi, formatUnits } from "viem";
+import {
+  ContractFunctionRevertedError,
+  EstimateGasExecutionError,
+  ExecutionRevertedError,
+  decodeFunctionData,
+  erc20Abi,
+  formatUnits,
+} from "viem";
 import {
   erc20AmountFormatError,
+  erc20ExceedsBalance,
   erc20MaxAmount,
   erc20TransferData,
+  isErc20ExceedsBalanceRevert,
 } from "@/components/send/evm/erc20-send/transfer";
 import { NOT_A_DECIMAL } from "@/lib/decimalAmount";
 
@@ -60,4 +69,55 @@ test("valid amounts keep the existing calldata", () => {
   );
   // Empty amount estimates against the whole raw balance, as before.
   expect(sentValue(erc20TransferData(RECIPIENT, "", DECIMALS, 7n))).toBe("7");
+});
+
+// KASTLE-4J: an amount a few wei above the raw balance passed the float
+// compare at Details and reverted with "Transfer amount exceeds balance" at
+// Confirm, where it was reported to Sentry.
+test("an amount one base unit over the raw balance exceeds it; the exact balance does not", () => {
+  const raw = 1234567890123456789n; // 1.234567890123456789 at 18 decimals
+  const float = parseFloat(formatUnits(raw, 18));
+  // The old float compare let it through.
+  expect(parseFloat("1.23456789012345679") > float).toBe(false);
+  expect(erc20ExceedsBalance("1.23456789012345679", 18, raw, float)).toBe(true);
+  expect(erc20ExceedsBalance(formatUnits(raw, 18), 18, raw, float)).toBe(false);
+  expect(erc20ExceedsBalance("0.00000003", DECIMALS, RAW, BALANCE)).toBe(true);
+  expect(erc20ExceedsBalance("0.00000002", DECIMALS, RAW, BALANCE)).toBe(false);
+});
+
+test("with rawBalance not loaded (0n) the float balance decides", () => {
+  expect(erc20ExceedsBalance("1.5", 18, 0n, 1.5)).toBe(false);
+  expect(erc20ExceedsBalance("1.6", 18, 0n, 1.5)).toBe(true);
+});
+
+const revertWith = (message: string) =>
+  new EstimateGasExecutionError(new ExecutionRevertedError({ message }), {});
+
+test("only the exceeds-balance revert is recognised as the user condition", () => {
+  expect(
+    isErc20ExceedsBalanceRevert(
+      revertWith("execution reverted: Transfer amount exceeds balance"),
+    ),
+  ).toBe(true);
+  expect(
+    isErc20ExceedsBalanceRevert(
+      new ContractFunctionRevertedError({
+        abi: erc20Abi,
+        functionName: "transfer",
+        message: "Transfer amount exceeds balance",
+      }),
+    ),
+  ).toBe(true);
+  expect(
+    isErc20ExceedsBalanceRevert(
+      revertWith("execution reverted: Transfer amount exceeds allowance"),
+    ),
+  ).toBe(false);
+  expect(isErc20ExceedsBalanceRevert(revertWith("execution reverted"))).toBe(
+    false,
+  );
+  expect(
+    isErc20ExceedsBalanceRevert(new Error("Transfer amount exceeds balance")),
+  ).toBe(false);
+  expect(isErc20ExceedsBalanceRevert(undefined)).toBe(false);
 });

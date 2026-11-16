@@ -49,6 +49,7 @@ export default function Erc20Send() {
     tokenId: `0x${string}`;
   }>();
   const [outTxs, setOutTxs] = useState<string[]>();
+  const [failReason, setFailReason] = useState<string>();
 
   const asset = useErc20Info(
     chainId as `0x${string}`,
@@ -95,7 +96,8 @@ export default function Erc20Send() {
             onNext={() => setStep("broadcast")}
             onBack={onBack}
             setOutTxs={setOutTxs}
-            onFail={() => {
+            onFail={(reason) => {
+              setFailReason(reason);
               if (asset)
                 emitSendCompleted({
                   type: "ERC20",
@@ -145,6 +147,7 @@ export default function Erc20Send() {
             chainId={asset.chainId}
             transactionIds={outTxs}
             tokenName={asset.symbol}
+            description={failReason}
           />
         )}
       </FormProvider>
