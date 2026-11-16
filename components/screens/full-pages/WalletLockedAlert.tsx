@@ -1,8 +1,11 @@
 import { useNavigate, useSearchParams } from "react-router-dom";
 import useKeyring from "@/hooks/useKeyring";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { KEYRING_CHANGE_TIME } from "@/lib/keyring-manager.ts";
 import useStorageState from "@/hooks/useStorageState.ts";
+
+// A hung openPopup() must not leave the button disabled for good.
+const OPEN_POPUP_TIMEOUT_MS = 10_000;
 
 export default function WalletLockedAlert() {
   const navigate = useNavigate();
@@ -13,8 +16,30 @@ export default function WalletLockedAlert() {
     Date.now(),
   );
 
-  const onClick = () => {
-    browser.action.openPopup();
+  const [openFailed, setOpenFailed] = useState(false);
+  const [opening, setOpening] = useState(false);
+
+  const onClick = async () => {
+    if (opening) return;
+    setOpening(true);
+    // A retry that succeeds must not leave the previous failure on screen.
+    setOpenFailed(false);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      await Promise.race([
+        browser.action.openPopup(),
+        new Promise((_, reject) => {
+          timer = setTimeout(reject, OPEN_POPUP_TIMEOUT_MS);
+        }),
+      ]);
+    } catch {
+      // Not every browser can open the popup from a page (desktop Android),
+      // and a call that never settles is treated the same.
+      setOpenFailed(true);
+    } finally {
+      clearTimeout(timer);
+      setOpening(false);
+    }
   };
 
   useEffect(() => {
@@ -42,11 +67,27 @@ export default function WalletLockedAlert() {
         </span>
       </div>
       <button
-        className="rounded-full bg-[#00b1d0] p-5 text-base font-semibold"
+        className="rounded-full bg-[#00b1d0] p-5 text-base font-semibold disabled:cursor-wait disabled:opacity-50"
         onClick={onClick}
+        disabled={opening}
       >
         Unlock Wallet now
       </button>
+      {/* Always mounted so screen readers announce the hint when it appears;
+          sr-only while empty keeps it out of the flex gap. */}
+      <span
+        role="status"
+        className={
+          openFailed ? "text-center text-base text-gray-400" : "sr-only"
+        }
+      >
+        {openFailed && (
+          <>
+            Kastle couldn&apos;t be opened from this page. Open it from your
+            browser to unlock.
+          </>
+        )}
+      </span>
     </div>
   );
 }
