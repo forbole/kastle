@@ -1,6 +1,13 @@
 import { Address } from "@/wasm/core/kaspa";
 import { getDotk, isDotkName } from "@/lib/dotk/client";
 
+// NetworkType (contexts/SettingsContext.tsx) -> the WASM address prefix.
+// ponytail: only the enum's members; any other id skips the local check.
+const PREFIX: Record<string, string> = {
+  mainnet: "kaspa:",
+  "testnet-10": "kaspatest:",
+};
+
 type FetchDomainInfo = (
   domain: string,
 ) => Promise<{ data?: { owner?: string } } | undefined>;
@@ -24,18 +31,27 @@ export async function resolveRecipient(
     fetchDomainInfo,
     networkId,
     dotk,
-  }: { fetchDomainInfo: FetchDomainInfo; networkId: string; dotk: boolean },
+  }: { fetchDomainInfo: FetchDomainInfo; networkId?: string; dotk: boolean },
 ): Promise<ResolvedRecipient> {
   input = input.trim();
+  const id = (networkId ?? "").trim().toLowerCase();
+  // Address.validate is network-agnostic; a foreign prefix only fails later,
+  // inside createTransactions at Confirm (KASTLE-T). An id outside PREFIX is
+  // not refused here: the WASM still decides, as before this guard.
+  const prefix = Object.hasOwn(PREFIX, id) ? PREFIX[id] : undefined;
+  const onNetwork = (addr: string) => !prefix || addr.startsWith(prefix);
+  const wrongNetwork = { fault: "This address belongs to a different network" };
+
   if (input.endsWith(".kas")) {
     const owner = (await fetchDomainInfo(input))?.data?.owner;
-    return owner && Address.validate(owner)
-      ? { address: owner, domain: input }
-      : {};
+    if (!owner || !Address.validate(owner)) return {};
+    return onNetwork(owner) ? { address: owner, domain: input } : wrongNetwork;
   }
 
-  if (dotk && isDotkName(input)) {
-    const recipient = await getDotk(networkId).recipientFor(input);
+  // The SDK's registries are the same two networks (new Dotk throws on any
+  // other id, "" included), so without a known id a `.k` name falls through.
+  if (dotk && prefix && isDotkName(input)) {
+    const recipient = await getDotk(id).recipientFor(input);
     if (
       recipient.kind === "address" ||
       recipient.kind === "neither" ||
@@ -51,8 +67,10 @@ export async function resolveRecipient(
             : undefined;
       return { fault };
     }
+    if (!onNetwork(recipient.address)) return wrongNetwork;
     return { address: recipient.address, domain: input };
   }
 
-  return Address.validate(input) ? { address: input } : {};
+  if (!Address.validate(input)) return {};
+  return onNetwork(input) ? { address: input } : wrongNetwork;
 }

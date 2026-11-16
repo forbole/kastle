@@ -11,7 +11,9 @@ import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import useFeeEstimate from "@/hooks/evm/useFeeEstimate";
 import { formatToken, formatTokenAmount } from "@/lib/utils";
 import {
+  ERC20_EXCEEDS_BALANCE,
   erc20AmountFormatError,
+  erc20ExceedsBalance,
   erc20MaxAmount,
   erc20TransferData,
 } from "./transfer";
@@ -171,12 +173,19 @@ export default function DetailsStep({
 
     const amountNumber = parseFloat(value ?? "0");
 
-    if (amountNumber < 0 || amountNumber > currentBalance) {
+    if (amountNumber < 0) {
       return "Oh, you don’t have enough funds";
     }
 
-    if (amountNumber > currentBalance) {
-      return "Oh, you don't have enough funds to cover the estimated fees";
+    if (
+      erc20ExceedsBalance(
+        value ?? "",
+        asset.decimals,
+        balanceInfo?.rawBalance ?? 0n,
+        currentBalance,
+      )
+    ) {
+      return ERC20_EXCEEDS_BALANCE;
     }
 
     const kasBalance = kasBalanceInfo?.rawBalance ?? 0n;

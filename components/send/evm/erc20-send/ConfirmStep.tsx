@@ -22,7 +22,11 @@ import {
 } from "@/lib/layer2";
 import useKaspaPrice from "@/hooks/useKaspaPrice";
 import { createPublicClient, http, hexToNumber } from "viem";
-import { erc20TransferData } from "./transfer";
+import {
+  ERC20_EXCEEDS_BALANCE,
+  erc20TransferData,
+  isErc20ExceedsBalanceRevert,
+} from "./transfer";
 import { Erc20Asset } from "@/contexts/EvmAssets";
 import { formatToken } from "@/lib/utils.ts";
 import { useErc20Price } from "@/hooks/evm/useZealousSwapMetadata";
@@ -40,7 +44,7 @@ export const ConfirmStep = ({
   asset: Erc20Asset;
   onNext: () => void;
   onBack: () => void;
-  onFail: () => void;
+  onFail: (reason?: string) => void;
   setOutTxs: (value: string[] | undefined) => void;
   walletSigner?: IWalletWithGetAddress;
 }) => {
@@ -138,8 +142,13 @@ export const ConfirmStep = ({
 
       onNext();
     } catch (e) {
-      captureException(e);
       console.error(e);
+      // The user asked for more than they hold: show it, don't report it.
+      if (isErc20ExceedsBalanceRevert(e)) {
+        onFail(ERC20_EXCEEDS_BALANCE);
+        return;
+      }
+      captureException(e);
       onFail();
     } finally {
       setIsSigning(false);
