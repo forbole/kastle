@@ -67,3 +67,74 @@ test('no-decimals token: base units, labelled "base units", amount kept', () => 
     quality: "exact",
   });
 });
+
+test.describe("fiat at the current price", () => {
+  const recv = (amount: bigint) =>
+    row({ kind: "receive", direction: "in", amount });
+
+  test("8-decimal token: whole tokens × price, approximate", () => {
+    // 1.5 tokens at $2 → $3
+    const r = toHistoryRecord(
+      recv(150_000_000n),
+      { symbol: "WHALE", decimals: 8 },
+      BASE,
+      { usdPrice: 2 },
+    );
+    expect(r.fiat).toEqual({ value: { usd: 3 }, quality: "approximate" });
+  });
+
+  test("6-decimal token scales by its own decimals, never base units", () => {
+    // 2.5 tokens at $0.4 → $1
+    const r = toHistoryRecord(
+      recv(2_500_000n),
+      { symbol: "SIX", decimals: 6 },
+      BASE,
+      { usdPrice: 0.4 },
+    );
+    expect(r.fiat.quality).toBe("approximate");
+    expect(r.fiat.value?.usd).toBeCloseTo(2.5 * 0.4, 12);
+  });
+
+  test("a send carries the same positive value", () => {
+    const r = toHistoryRecord(
+      row({ amount: 100_000_000n }),
+      { symbol: "WHALE", decimals: 8 },
+      BASE,
+      { usdPrice: 0.25 },
+    );
+    expect(r.fiat).toEqual({ value: { usd: 0.25 }, quality: "approximate" });
+  });
+
+  test("no price, price 0, or a negative price: no fiat, never $0", () => {
+    const none = { value: null, quality: "unavailable" };
+    const view = { symbol: "WHALE", decimals: 8 };
+    expect(toHistoryRecord(recv(1n), view, BASE).fiat).toEqual(none);
+    expect(toHistoryRecord(recv(1n), view, BASE, {}).fiat).toEqual(none);
+    expect(toHistoryRecord(recv(1n), view, BASE, { usdPrice: 0 }).fiat).toEqual(
+      none,
+    );
+    expect(
+      toHistoryRecord(recv(1n), view, BASE, { usdPrice: -1 }).fiat,
+    ).toEqual(none);
+    expect(
+      toHistoryRecord(recv(1n), view, BASE, { usdPrice: NaN }).fiat,
+    ).toEqual(none);
+  });
+
+  test("no decimals or no amount: no fiat even with a price", () => {
+    const none = { value: null, quality: "unavailable" };
+    expect(
+      toHistoryRecord(recv(150_000_000n), { symbol: "WHALE" }, BASE, {
+        usdPrice: 2,
+      }).fiat,
+    ).toEqual(none);
+    expect(
+      toHistoryRecord(
+        row({ kind: "unknown", direction: "in" }),
+        { symbol: "WHALE", decimals: 8 },
+        BASE,
+        { usdPrice: 2 },
+      ).fiat,
+    ).toEqual(none);
+  });
+});

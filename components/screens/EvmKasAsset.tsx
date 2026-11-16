@@ -8,6 +8,7 @@ import { getChainImage, getChainTokenSymbol } from "@/lib/layer2";
 import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import useEvmAddress from "@/hooks/evm/useEvmAddress";
 import { useEvmHistory } from "@/hooks/evm/useEvmHistory";
+import useKaspaPrice from "@/hooks/useKaspaPrice";
 import { HistoryList } from "@/ui/popup/history/HistoryList";
 import { historyDetailExtras } from "@/ui/popup/history/detailExtras";
 import useEvmKasBalance from "@/hooks/evm/useEvmKasBalance";
@@ -22,11 +23,14 @@ export default function EvmKasAsset() {
   const { wallet, isWalletSettingsLoading } = useWalletManager();
   const { data: balance } = useEvmKasBalance(chainId);
   const evmAddress = useEvmAddress();
+  // The L2 coin is bridged KAS: priced as EvmKasInfo prices it.
+  const { kaspaPrice } = useKaspaPrice();
   const history = useEvmHistory({
     chainId,
     address: evmAddress,
     addressPending: isWalletSettingsLoading,
     source: { family: "evm-native" },
+    usdPrice: kaspaPrice,
   });
   // As in the send asset picker: Ledger cannot send EVM KAS. A wallet that has
   // not loaded yet is not known to be non-Ledger.

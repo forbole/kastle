@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import { storage } from "wxt/storage";
 import useKaspaPrice from "@/hooks/useKaspaPrice.ts";
+import { useFeatureFlags } from "@/hooks/useFeatureFlags";
 import { useSettings } from "@/hooks/useSettings.ts";
 import { NetworkType } from "@/contexts/SettingsContext";
 import type { Kcc20Token } from "@/lib/kcc20";
@@ -140,6 +141,7 @@ export function useKcc20Price(
   const networkId = settings?.networkId;
   const isMainnet = networkId === NetworkType.Mainnet;
   const isStandard = token.family === "kcc20-standard";
+  const { isKcc20StandardEnabled } = useFeatureFlags();
   // Same key as the swap screen, so both share one download.
   const { data: markets } = useSWR(
     isMainnet && !isStandard ? "kronMarkets" : null,
@@ -148,8 +150,12 @@ export function useKcc20Price(
   );
   // KRON lists no standard token: kascov's own market prices it, mainnet only.
   // Without verified decimals there is no scale to price a whole token at.
+  // The standard flag is kascov's kill switch: off, it is never asked.
   const { data: spot } = useSWR(
-    isMainnet && isStandard && meta?.decimals !== undefined
+    isMainnet &&
+      isStandard &&
+      isKcc20StandardEnabled &&
+      meta?.decimals !== undefined
       ? ["kascovMarket", covenantId, meta.decimals]
       : null,
     ([, id, decimals]) => fetchStandardMarketPrice(id, decimals),
