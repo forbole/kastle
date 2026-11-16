@@ -14,13 +14,20 @@ export default function WalletLockedAlert() {
   );
 
   const [openFailed, setOpenFailed] = useState(false);
+  const [opening, setOpening] = useState(false);
 
   const onClick = async () => {
+    if (opening) return;
+    setOpening(true);
+    // A retry that succeeds must not leave the previous failure on screen.
+    setOpenFailed(false);
     try {
       await browser.action.openPopup();
     } catch {
       // Not every browser can open the popup from a page (desktop Android).
       setOpenFailed(true);
+    } finally {
+      setOpening(false);
     }
   };
 
@@ -51,15 +58,25 @@ export default function WalletLockedAlert() {
       <button
         className="rounded-full bg-[#00b1d0] p-5 text-base font-semibold"
         onClick={onClick}
+        disabled={opening}
       >
         Unlock Wallet now
       </button>
-      {openFailed && (
-        <span className="text-center text-base text-gray-400">
-          Kastle couldn&apos;t be opened from this page. Open it from your
-          browser to unlock.
-        </span>
-      )}
+      {/* Always mounted so screen readers announce the hint when it appears;
+          sr-only while empty keeps it out of the flex gap. */}
+      <span
+        role="status"
+        className={
+          openFailed ? "text-center text-base text-gray-400" : "sr-only"
+        }
+      >
+        {openFailed && (
+          <>
+            Kastle couldn&apos;t be opened from this page. Open it from your
+            browser to unlock.
+          </>
+        )}
+      </span>
     </div>
   );
 }

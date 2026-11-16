@@ -56,8 +56,49 @@ test("openPopup rejection shows the hint, no unhandled rejection", async ({
   await expect(page.getByText(HINT)).toHaveCount(0);
   await page.getByRole("button", { name: "Unlock Wallet now" }).click();
   await expect(page.getByText(HINT)).toBeVisible();
+  await expect(page.getByRole("status")).toHaveText(HINT);
   expect(await page.evaluate(() => window.__walletLocked.rejections)).toEqual(
     [],
   );
   expect(errors).toEqual([]);
+});
+
+test("openPopup resolving leaves the hint absent", async ({ page }) => {
+  await page.goto(base);
+  await page.evaluate(() => window.__walletLocked.openPopup.push("resolve"));
+  await page.getByRole("button", { name: "Unlock Wallet now" }).click();
+  await expect
+    .poll(() => page.evaluate(() => window.__walletLocked.openPopupCalls))
+    .toBe(1);
+  await expect(
+    page.getByRole("button", { name: "Unlock Wallet now" }),
+  ).toBeEnabled();
+  await expect(page.getByText(HINT)).toHaveCount(0);
+});
+
+test("a successful retry clears the hint", async ({ page }) => {
+  await page.goto(base);
+  await page.evaluate(() =>
+    window.__walletLocked.openPopup.push("reject", "resolve"),
+  );
+  const button = page.getByRole("button", { name: "Unlock Wallet now" });
+  await button.click();
+  await expect(page.getByRole("status")).toHaveText(HINT);
+  await button.click();
+  await expect
+    .poll(() => page.evaluate(() => window.__walletLocked.openPopupCalls))
+    .toBe(2);
+  await expect(button).toBeEnabled();
+  await expect(page.getByText(HINT)).toHaveCount(0);
+  await expect(page.getByRole("status")).toHaveText("");
+});
+
+test("a double click fires one openPopup at a time", async ({ page }) => {
+  await page.goto(base);
+  await page.evaluate(() => (window.__walletLocked.openPopupDelayMs = 300));
+  await page.getByRole("button", { name: "Unlock Wallet now" }).dblclick();
+  await expect(page.getByText(HINT)).toBeVisible();
+  expect(await page.evaluate(() => window.__walletLocked.openPopupCalls)).toBe(
+    1,
+  );
 });
