@@ -86,7 +86,11 @@ export default function Erc20Send() {
         {step === "details" && asset && (
           <DetailsStep
             asset={asset}
-            onNext={() => setStep("confirm")}
+            onNext={() => {
+              // A new attempt never shows the previous attempt's reason.
+              setFailReason(undefined);
+              setStep("confirm");
+            }}
             onBack={onBack}
           />
         )}
