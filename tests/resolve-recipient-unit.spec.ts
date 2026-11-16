@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
-import init from "@/wasm/core/kaspa";
+import init, { Address } from "@/wasm/core/kaspa";
 import { getDotk } from "@/lib/dotk/client";
 import { resolveRecipient } from "@/lib/names/resolveRecipient";
 
@@ -10,6 +10,9 @@ const TESTS_DIR = path.dirname(fileURLToPath(import.meta.url));
 const NETWORK = "mainnet";
 const ADDRESS =
   "kaspa:qp6r0d88yj4fazlj057wc35245jfgs87n9jn6nahfg223996dfukvgpgq6pcp";
+const TESTNET_ADDRESS =
+  "kaspatest:qqz6pwtwxa5dds2qssxpuc28lnrnnvx48ymdcqyzju0n58dcg5p9cme645x4v";
+const WRONG_NETWORK = "This address belongs to a different network";
 
 test.beforeAll(async () => {
   await init({
@@ -105,4 +108,38 @@ test("dotK null address or fault is refused, fault surfaced", async () => {
   // A fault wins even when an address came back with it.
   stubDotk({ kind: "name", address: ADDRESS, fault: "disputed" });
   expect(await resolveRecipient("a.k", opts)).toEqual({ fault: "disputed" });
+});
+
+test("a valid address on the other network is refused (KASTLE-T)", async () => {
+  const { fetchDomainInfo } = setup();
+  // The WASM validator alone accepts it: it is network-agnostic.
+  expect(Address.validate(TESTNET_ADDRESS)).toBe(true);
+  const out = await resolveRecipient(TESTNET_ADDRESS, {
+    fetchDomainInfo,
+    networkId: NETWORK,
+    dotk: true,
+  });
+  expect(out).toEqual({ fault: WRONG_NETWORK });
+  expect(out.address).toBeUndefined();
+});
+
+test("a KNS owner on the other network is refused", async () => {
+  const { fetchDomainInfo } = setup(TESTNET_ADDRESS);
+  const out = await resolveRecipient("alice.kas", {
+    fetchDomainInfo,
+    networkId: NETWORK,
+    dotk: true,
+  });
+  expect(out).toEqual({ fault: WRONG_NETWORK });
+});
+
+test("a dotK address on the other network is refused", async () => {
+  stubDotk({ kind: "name", address: TESTNET_ADDRESS });
+  const { fetchDomainInfo } = setup();
+  const out = await resolveRecipient("alice.k", {
+    fetchDomainInfo,
+    networkId: NETWORK,
+    dotk: true,
+  });
+  expect(out).toEqual({ fault: WRONG_NETWORK });
 });

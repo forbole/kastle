@@ -27,11 +27,16 @@ export async function resolveRecipient(
   }: { fetchDomainInfo: FetchDomainInfo; networkId: string; dotk: boolean },
 ): Promise<ResolvedRecipient> {
   input = input.trim();
+  // Address.validate is network-agnostic; a foreign prefix only fails later,
+  // inside createTransactions at Confirm (KASTLE-T).
+  const onNetwork = (addr: string) =>
+    addr.startsWith(networkId === "mainnet" ? "kaspa:" : "kaspatest:");
+  const wrongNetwork = { fault: "This address belongs to a different network" };
+
   if (input.endsWith(".kas")) {
     const owner = (await fetchDomainInfo(input))?.data?.owner;
-    return owner && Address.validate(owner)
-      ? { address: owner, domain: input }
-      : {};
+    if (!owner || !Address.validate(owner)) return {};
+    return onNetwork(owner) ? { address: owner, domain: input } : wrongNetwork;
   }
 
   if (dotk && isDotkName(input)) {
@@ -51,8 +56,10 @@ export async function resolveRecipient(
             : undefined;
       return { fault };
     }
+    if (!onNetwork(recipient.address)) return wrongNetwork;
     return { address: recipient.address, domain: input };
   }
 
-  return Address.validate(input) ? { address: input } : {};
+  if (!Address.validate(input)) return {};
+  return onNetwork(input) ? { address: input } : wrongNetwork;
 }
