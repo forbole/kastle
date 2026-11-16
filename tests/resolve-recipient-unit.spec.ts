@@ -143,3 +143,36 @@ test("a dotK address on the other network is refused", async () => {
   });
   expect(out).toEqual({ fault: WRONG_NETWORK });
 });
+
+test("a testnet id accepts testnet and refuses mainnet addresses", async () => {
+  const { fetchDomainInfo } = setup();
+  const opts = { fetchDomainInfo, networkId: "testnet-10", dotk: false };
+  expect(await resolveRecipient(TESTNET_ADDRESS, opts)).toEqual({
+    address: TESTNET_ADDRESS,
+  });
+  expect(await resolveRecipient(ADDRESS, opts)).toEqual({
+    fault: WRONG_NETWORK,
+  });
+});
+
+test("the network id is normalised before the prefix check", async () => {
+  const { fetchDomainInfo } = setup();
+  for (const networkId of ["Mainnet", " mainnet "]) {
+    const opts = { fetchDomainInfo, networkId, dotk: false };
+    expect(await resolveRecipient(ADDRESS, opts)).toEqual({ address: ADDRESS });
+    expect(await resolveRecipient(TESTNET_ADDRESS, opts)).toEqual({
+      fault: WRONG_NETWORK,
+    });
+  }
+});
+
+test("an id outside the table never refuses a valid address", async () => {
+  const { fetchDomainInfo } = setup();
+  for (const networkId of [undefined, "devnet", "simnet", "testnet-11"]) {
+    const opts = { fetchDomainInfo, networkId, dotk: false };
+    expect(await resolveRecipient(ADDRESS, opts)).toEqual({ address: ADDRESS });
+    expect(await resolveRecipient(TESTNET_ADDRESS, opts)).toEqual({
+      address: TESTNET_ADDRESS,
+    });
+  }
+});
