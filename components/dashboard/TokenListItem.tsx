@@ -1,6 +1,6 @@
 import {
-  formatCurrency,
-  formatToken,
+  formatHoldingUsd,
+  formatTokenAmount,
   formatTokenPrice,
   symbolForCurrencyCode,
   textEllipsis,
@@ -76,10 +76,10 @@ export default function TokenListItem({
       logo={logo}
       ticker={tokenName}
       price={formatTokenPrice(tokenPriceCurrency, tokenPriceCurrencyCode)}
-      balance={showBalance ? formatToken(balanceNumber) : "*****"}
+      balance={showBalance ? formatTokenAmount(balanceNumber) : "*****"}
       fiat={`≈ ${
         showBalance
-          ? formatCurrency(totalBalanceCurrency, currencyCode)
+          ? formatHoldingUsd(totalBalanceCurrency, currencyCode)
           : `${symbolForCurrencyCode(currencyCode)}*****`
       }`}
     />
@@ -149,7 +149,7 @@ export function Kcc20TokenListItem({ token: scanned }: { token: Kcc20Token }) {
       ? undefined
       : `≈ ${
           showBalance
-            ? formatCurrency(fiatValue, currencyCode)
+            ? formatHoldingUsd(fiatValue, currencyCode)
             : `${symbolForCurrencyCode(currencyCode)}*****`
         }`;
 

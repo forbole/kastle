@@ -65,25 +65,67 @@ export function formatCurrency(number: number, code: string = "USD") {
   return formatter.format(number);
 }
 
-// formatCurrency rounds to 2 decimals, so a real $0.00123 reads "$0.00".
-// Sub-dollar amounts keep up to 8 decimals, floored to "<$0.00001".
-export function formatUsdAmount(number: number, code: string = "USD") {
+export const USD_AMOUNT_FLOOR = 1e-8;
+const MINOR_DIGITS = new Map<string, number>();
+
+// The currency's minor-unit digits as Intl reports them: 2 for USD/EUR, 0 for
+// JPY/KRW and any other currency without a minor unit.
+function currencyMinorDigits(code: string): number {
+  let digits = MINOR_DIGITS.get(code);
+  if (digits === undefined) {
+    digits =
+      new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: code,
+      }).resolvedOptions().maximumFractionDigits ?? 2;
+    MINOR_DIGITS.set(code, digits);
+  }
+  return digits;
+}
+
+// Below `cutoff`: minFractionDigits (default 2) to 8 fractional digits, floored to "<$0.00000001"
+// (">-$0.00000001" if negative). At or above it, 0, or non-finite: formatCurrency.
+function formatFiatBelow(
+  cutoff: number,
+  number: number,
+  code: string,
+  minFractionDigits = 2,
+) {
   const abs = Math.abs(number);
-  if (abs === 0 || abs >= 1 || !Number.isFinite(number)) {
+  if (abs === 0 || abs >= cutoff || !Number.isFinite(number)) {
     return formatCurrency(number, code);
   }
-  if (abs < 0.00001) {
+  if (abs < USD_AMOUNT_FLOOR) {
     const negative = number < 0;
-    const threshold = formatTokenPrice(negative ? -0.00001 : 0.00001, code);
+    const threshold = formatTokenPrice(
+      negative ? -USD_AMOUNT_FLOOR : USD_AMOUNT_FLOOR,
+      code,
+    );
     return `${negative ? ">" : "<"}${threshold}`;
   }
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: code,
     currencyDisplay: CURRENCY_SYMBOL_MAPPING[code] ?? "symbol",
-    minimumFractionDigits: 2,
+    minimumFractionDigits: minFractionDigits,
     maximumFractionDigits: 8,
   }).format(number);
+}
+
+// Fees, prices and the callers that used it on main. formatCurrency rounds to
+// 2 decimals, so a real $0.00123 reads "$0.00": sub-dollar amounts keep up to
+// 8 decimals, floored to "<$0.00000001".
+export function formatUsdAmount(number: number, code: string = "USD") {
+  return formatFiatBelow(1, number, code);
+}
+
+// Holding values only. At or above the currency's smallest unit (a cent for
+// USD, ¥1 for JPY/KRW) the value keeps the currency's own digits ("$0.30",
+// "¥5"); a non-zero value below it gains up to 8 digits ("$0.004", "¥0.4")
+// instead of collapsing to "$0.00" / "¥0".
+export function formatHoldingUsd(number: number, code: string = "USD") {
+  const minor = currencyMinorDigits(code);
+  return formatFiatBelow(10 ** -minor, number, code, minor);
 }
 
 export function symbolForCurrencyCode(currencyCode: string): string {
@@ -100,17 +142,25 @@ export function formatToken(number: number, maximumFractionDigits: number = 8) {
   return formatter.format(number);
 }
 
-// Rounding to maximumFractionDigits alone turns a nonzero fee below that
-// resolution into "0", which reads as free. Floor it to "<0.00001" instead.
+// Rounding to maximumFractionDigits alone turns a nonzero amount below that
+// resolution into "0", which reads as empty (or, for a fee, free). Floor it to
+// "<0.00000001" instead.
+export function formatTokenAmount(
+  amount: number,
+  maximumFractionDigits: number = 8,
+) {
+  const floor = 1 / 10 ** maximumFractionDigits;
+  if (amount > 0 && amount < floor) {
+    return `<${floor.toFixed(maximumFractionDigits)}`;
+  }
+  return formatToken(amount, maximumFractionDigits);
+}
+
 export function formatFeeInKas(
   amount: number,
   maximumFractionDigits: number = 5,
 ) {
-  const floor = 1 / 10 ** maximumFractionDigits;
-  if (amount > 0 && amount < floor) {
-    return `<${floor}`;
-  }
-  return formatToken(amount, maximumFractionDigits);
+  return formatTokenAmount(amount, maximumFractionDigits);
 }
 
 export function truncToDecimals(number: number, decimals: number) {

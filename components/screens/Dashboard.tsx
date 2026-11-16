@@ -15,7 +15,11 @@ import {
   Settings,
 } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
-import { formatCurrency, symbolForCurrencyCode } from "@/lib/utils.ts";
+import {
+  formatCurrency,
+  formatHoldingUsd,
+  symbolForCurrencyCode,
+} from "@/lib/utils.ts";
 import { twMerge } from "tailwind-merge";
 import useBackupWarning from "@/hooks/useBackupWarning.ts";
 import useKeyring from "@/hooks/useKeyring.ts";
@@ -57,7 +61,7 @@ export default function Dashboard() {
       : segments[0]?.segment;
 
   const showBalance = !settings?.hideBalances;
-  const totalBalanceFormatted = formatCurrency(
+  const totalBalanceFormatted = formatHoldingUsd(
     totalBalanceCurrency,
     currencyCode,
   );

@@ -9,7 +9,7 @@ import spinner from "@/assets/images/spinner.svg";
 import { isAddress, formatEther } from "viem";
 import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import useFeeEstimate from "@/hooks/evm/useFeeEstimate";
-import { formatToken } from "@/lib/utils";
+import { formatToken, formatTokenAmount } from "@/lib/utils";
 import {
   erc20AmountFormatError,
   erc20MaxAmount,
@@ -300,7 +300,7 @@ export default function DetailsStep({
           <div className="flex items-center gap-3 text-sm">
             <span className="font-semibold">Balance</span>
             <span className="flex-grow">
-              {formatToken(balance ?? 0)} {asset.symbol}
+              {formatTokenAmount(balance ?? 0)} {asset.symbol}
             </span>
             <button
               className="inline-flex items-center gap-x-2 rounded border border-transparent bg-icy-blue-400 px-3 py-2 text-sm text-white disabled:pointer-events-none disabled:opacity-50"

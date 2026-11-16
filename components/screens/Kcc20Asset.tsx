@@ -10,7 +10,12 @@ import useKcc20Tokens from "@/lib/kcc20/useKcc20Tokens";
 import { useKcc20Price, useKrc20FilledToken } from "@/lib/kcc20/useKcc20Price";
 import useCurrencyValue from "@/hooks/useCurrencyValue";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
-import { formatTokenPrice, setPopupPath, textEllipsis } from "@/lib/utils";
+import {
+  formatTokenPrice,
+  formatHoldingUsd,
+  setPopupPath,
+  textEllipsis,
+} from "@/lib/utils";
 import { formatKcc20Balance, KCC20_LABELS } from "@/ui/popup/kcc20/labels";
 
 export default function Kcc20Asset() {
@@ -57,7 +62,7 @@ export default function Kcc20Asset() {
       ? undefined
       : settings?.hideBalances
         ? "*****"
-        : formatTokenPrice(fiatValue, currencyCode);
+        : formatHoldingUsd(fiatValue, currencyCode);
   // The route guard rules out Ledger; only verified, owned pieces are sendable.
   const canSend = token?.meta?.decimals !== undefined && token.spendable > 0n;
   // As mobile: the holding with its ticker, masked with balances hidden.

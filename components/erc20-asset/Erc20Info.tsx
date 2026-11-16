@@ -1,4 +1,4 @@
-import { formatCurrency } from "@/lib/utils.ts";
+import { formatHoldingUsd } from "@/lib/utils.ts";
 import { textEllipsis } from "@/lib/utils.ts";
 import HoverShowAllCopy from "@/components/HoverShowAllCopy";
 import { Erc20Asset } from "@/contexts/EvmAssets";
@@ -29,7 +29,9 @@ export default function Erc20Info({ asset }: { asset: Erc20Asset }) {
             <span className="capitalize">{asset.symbol}</span>
           </div>
           <div className="flex items-center justify-start text-sm text-daintree-400">
-            <span>≈ {formatCurrency(amountCurrency, amountCurrencyCode)}</span>
+            <span>
+              ≈ {formatHoldingUsd(amountCurrency, amountCurrencyCode)}
+            </span>
           </div>
         </div>
         <div className="rounded-full border border-icy-blue-400 px-1 text-[0.625rem] text-icy-blue-400">

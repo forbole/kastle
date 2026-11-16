@@ -14,7 +14,7 @@ import Button from "@/ui/general/Button";
 import type { HistoryRecord } from "@/lib/history/types";
 import type { HistoryHashStep } from "@/ui/popup/history/HistoryRow";
 import useCurrencyValue from "@/hooks/useCurrencyValue";
-import { formatCurrency, textEllipsis } from "@/lib/utils";
+import { formatHoldingUsd, textEllipsis } from "@/lib/utils";
 import {
   historyAmountText,
   historyDesignedCounterparty,
@@ -171,7 +171,7 @@ function LegacyDetail({
         )}
         {usd !== null && (
           <DetailRow label="Value">
-            <span>≈ {formatCurrency(fiat.amount, fiat.code)}</span>
+            <span>≈ {formatHoldingUsd(fiat.amount, fiat.code)}</span>
           </DetailRow>
         )}
         {record.txid && (

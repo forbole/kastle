@@ -26,7 +26,7 @@ import {
   getChainTokenSymbol,
 } from "@/lib/layer2";
 import { applyDecimal } from "@/lib/krc20.ts";
-import { formatToken, textEllipsis } from "@/lib/utils.ts";
+import { formatTokenAmount, textEllipsis } from "@/lib/utils.ts";
 import { formatKcc20Balance } from "@/ui/popup/kcc20/labels";
 import {
   erc20HideId,
@@ -139,7 +139,7 @@ export default function ManageAssets() {
       id: KAS_L1_ID,
       name: "KAS",
       logo: kasIcon,
-      balance: shown(formatToken(kasBalance ?? 0), "KAS"),
+      balance: shown(formatTokenAmount(kasBalance ?? 0), "KAS"),
       ...nativeLock,
     });
 
@@ -153,7 +153,7 @@ export default function ManageAssets() {
         logo: kasIcon,
         chainBadge: getChainImage(chainId),
         chainLabel: l2Label(chain.name),
-        balance: shown(formatToken(balance), symbol),
+        balance: shown(formatTokenAmount(balance), symbol),
         ...nativeLock,
       });
     }
@@ -175,7 +175,7 @@ export default function ManageAssets() {
         name,
         logo: labels[id]?.logo,
         ...L1,
-        balance: shown(formatToken(amount), name),
+        balance: shown(formatTokenAmount(amount), name),
         visible: !hidden.has(id),
       });
     }
@@ -214,7 +214,7 @@ export default function ManageAssets() {
         logo: asset.image ?? labels[id]?.logo,
         chainBadge: getChainImage(asset.chainId as Hex),
         chainLabel: chain ? l2Label(chain.name) : undefined,
-        balance: shown(formatToken(amount), asset.symbol),
+        balance: shown(formatTokenAmount(amount), asset.symbol),
         visible: !hidden.has(id),
       });
     }

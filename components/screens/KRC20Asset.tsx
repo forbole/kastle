@@ -6,7 +6,11 @@ import TokenDetailPage, {
   TokenDetailTab,
 } from "@/ui/popup/kcc20/TokenDetailPage";
 import TokenHistory from "@/components/krc20-asset/TokenHistory";
-import { formatTokenPrice, setPopupPath } from "@/lib/utils.ts";
+import {
+  formatHoldingUsd,
+  formatTokenPrice,
+  setPopupPath,
+} from "@/lib/utils.ts";
 import { applyDecimal } from "@/lib/krc20.ts";
 import { krc20Decimals } from "@/lib/decimalAmount";
 import { isMigratableTick } from "@/lib/kcc20/migration";
@@ -139,7 +143,7 @@ export default function TokenAsset() {
       ? undefined
       : settings?.hideBalances
         ? "*****"
-        : formatTokenPrice(fiatValue, currencyCode);
+        : formatHoldingUsd(fiatValue, currencyCode);
   const toDashboard = () => navigate("/dashboard");
 
   useEffect(() => {
