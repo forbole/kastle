@@ -16,7 +16,7 @@ import { formatUsdAmount } from "@/lib/utils.ts";
 import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import { signAndSubmitBatch } from "@/lib/wallet/transaction-batch";
-import { sendFailReason } from "@/lib/kaspa.ts";
+import { isFragmentationError, sendFailReason } from "@/lib/kaspa.ts";
 import { useKasFeeEstimate } from "@/hooks/useKasFeeEstimate";
 import { isShortfall, planTransfer } from "@/lib/sendFee";
 import useKaspaBalance from "@/hooks/wallet/useKaspaBalance";
@@ -84,6 +84,9 @@ export const ConfirmStep = ({
     }
 
     let spendableSompi: bigint | undefined;
+    // Build-phase fragmentation/shortfall errors are handled (onFail shows
+    // the reason); broadcast-phase errors are still reported.
+    let building = true;
     try {
       setIsSigning(true);
 
@@ -108,6 +111,7 @@ export const ConfirmStep = ({
       });
       if (isShortfall(plan)) throw new Error("Insufficient funds");
       const { transactions } = plan;
+      building = false;
 
       // A fragmented UTXO set makes the Generator return a batch: consolidating
       // transactions first, the payment last. All of them must go out, in order.
@@ -131,7 +135,7 @@ export const ConfirmStep = ({
 
       onNext();
     } catch (e) {
-      captureException(e);
+      if (!(building && isFragmentationError(e))) captureException(e);
       console.error(e);
       onFail(
         sendFailReason(e, {
