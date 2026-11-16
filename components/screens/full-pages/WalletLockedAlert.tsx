@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import { KEYRING_CHANGE_TIME } from "@/lib/keyring-manager.ts";
 import useStorageState from "@/hooks/useStorageState.ts";
 
+// A hung openPopup() must not leave the button disabled for good.
+const OPEN_POPUP_TIMEOUT_MS = 10_000;
+
 export default function WalletLockedAlert() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -21,12 +24,20 @@ export default function WalletLockedAlert() {
     setOpening(true);
     // A retry that succeeds must not leave the previous failure on screen.
     setOpenFailed(false);
+    let timer: ReturnType<typeof setTimeout> | undefined;
     try {
-      await browser.action.openPopup();
+      await Promise.race([
+        browser.action.openPopup(),
+        new Promise((_, reject) => {
+          timer = setTimeout(reject, OPEN_POPUP_TIMEOUT_MS);
+        }),
+      ]);
     } catch {
-      // Not every browser can open the popup from a page (desktop Android).
+      // Not every browser can open the popup from a page (desktop Android),
+      // and a call that never settles is treated the same.
       setOpenFailed(true);
     } finally {
+      clearTimeout(timer);
       setOpening(false);
     }
   };
@@ -56,7 +67,7 @@ export default function WalletLockedAlert() {
         </span>
       </div>
       <button
-        className="rounded-full bg-[#00b1d0] p-5 text-base font-semibold"
+        className="rounded-full bg-[#00b1d0] p-5 text-base font-semibold disabled:cursor-wait disabled:opacity-50"
         onClick={onClick}
         disabled={opening}
       >

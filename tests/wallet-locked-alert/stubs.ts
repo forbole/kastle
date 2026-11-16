@@ -6,8 +6,8 @@ declare global {
     __walletLocked: {
       rejections: string[];
       // Outcome of each upcoming openPopup() call, consumed in order;
-      // "reject" once the queue is empty.
-      openPopup: ("resolve" | "reject")[];
+      // "reject" once the queue is empty; "hang" never settles.
+      openPopup: ("resolve" | "reject" | "hang")[];
       openPopupCalls: number;
       // How long openPopup() takes to settle, to hold a call in flight.
       openPopupDelayMs: number;
@@ -21,7 +21,9 @@ export const browser = {
     openPopup: () => {
       const w = window.__walletLocked;
       w.openPopupCalls++;
-      const ok = w.openPopup.shift() === "resolve";
+      const outcome = w.openPopup.shift();
+      if (outcome === "hang") return new Promise<void>(() => {});
+      const ok = outcome === "resolve";
       return new Promise<void>((resolve, reject) =>
         setTimeout(
           () =>

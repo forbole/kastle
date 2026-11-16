@@ -102,3 +102,17 @@ test("a double click fires one openPopup at a time", async ({ page }) => {
     1,
   );
 });
+
+test("a hung openPopup re-enables the button and shows the hint", async ({
+  page,
+}) => {
+  await page.clock.install();
+  await page.goto(base);
+  await page.evaluate(() => window.__walletLocked.openPopup.push("hang"));
+  const button = page.getByRole("button", { name: "Unlock Wallet now" });
+  await button.click();
+  await expect(button).toBeDisabled();
+  await page.clock.runFor(10_000); // OPEN_POPUP_TIMEOUT_MS
+  await expect(button).toBeEnabled();
+  await expect(page.getByRole("status")).toHaveText(HINT);
+});
