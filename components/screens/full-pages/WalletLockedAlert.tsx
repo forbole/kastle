@@ -1,6 +1,6 @@
 import { useNavigate, useSearchParams } from "react-router-dom";
 import useKeyring from "@/hooks/useKeyring";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { KEYRING_CHANGE_TIME } from "@/lib/keyring-manager.ts";
 import useStorageState from "@/hooks/useStorageState.ts";
 
@@ -13,8 +13,15 @@ export default function WalletLockedAlert() {
     Date.now(),
   );
 
-  const onClick = () => {
-    browser.action.openPopup();
+  const [openFailed, setOpenFailed] = useState(false);
+
+  const onClick = async () => {
+    try {
+      await browser.action.openPopup();
+    } catch {
+      // Not every browser can open the popup from a page (desktop Android).
+      setOpenFailed(true);
+    }
   };
 
   useEffect(() => {
@@ -47,6 +54,12 @@ export default function WalletLockedAlert() {
       >
         Unlock Wallet now
       </button>
+      {openFailed && (
+        <span className="text-center text-base text-gray-400">
+          Kastle couldn&apos;t be opened from this page. Open it from your
+          browser to unlock.
+        </span>
+      )}
     </div>
   );
 }
