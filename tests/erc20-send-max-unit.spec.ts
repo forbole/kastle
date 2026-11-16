@@ -1,9 +1,18 @@
 import { expect, test } from "@playwright/test";
-import { decodeFunctionData, erc20Abi, formatUnits } from "viem";
+import {
+  ContractFunctionRevertedError,
+  EstimateGasExecutionError,
+  ExecutionRevertedError,
+  decodeFunctionData,
+  erc20Abi,
+  formatUnits,
+} from "viem";
 import {
   erc20AmountFormatError,
+  erc20ExceedsBalance,
   erc20MaxAmount,
   erc20TransferData,
+  isErc20ExceedsBalanceRevert,
 } from "@/components/send/evm/erc20-send/transfer";
 import { NOT_A_DECIMAL } from "@/lib/decimalAmount";
 
@@ -60,4 +69,87 @@ test("valid amounts keep the existing calldata", () => {
   );
   // Empty amount estimates against the whole raw balance, as before.
   expect(sentValue(erc20TransferData(RECIPIENT, "", DECIMALS, 7n))).toBe("7");
+});
+
+// KASTLE-4J: an amount a few wei above the raw balance passed the float
+// compare at Details and reverted with "Transfer amount exceeds balance" at
+// Confirm, where it was reported to Sentry.
+test("an amount one base unit over the raw balance exceeds it; the exact balance does not", () => {
+  const raw = 1234567890123456789n; // 1.234567890123456789 at 18 decimals
+  const float = parseFloat(formatUnits(raw, 18));
+  // The old float compare let it through. This line pins JavaScript float
+  // behaviour, not project code; only the raw-bigint assertions below
+  // discriminate the fix.
+  expect(parseFloat("1.23456789012345679") > float).toBe(false);
+  expect(erc20ExceedsBalance("1.23456789012345679", 18, raw, float)).toBe(true);
+  expect(erc20ExceedsBalance(formatUnits(raw, 18), 18, raw, float)).toBe(false);
+  expect(erc20ExceedsBalance("0.00000003", DECIMALS, RAW, BALANCE)).toBe(true);
+  expect(erc20ExceedsBalance("0.00000002", DECIMALS, RAW, BALANCE)).toBe(false);
+});
+
+test("with rawBalance not loaded (0n) the float balance decides", () => {
+  expect(erc20ExceedsBalance("1.5", 18, 0n, 1.5)).toBe(false);
+  expect(erc20ExceedsBalance("1.6", 18, 0n, 1.5)).toBe(true);
+});
+
+// Fable M1: with the raw balance loaded, an amount parseDecimalUnits rejects
+// returned false and so skipped the over-balance check the float guard did.
+test("an unparseable over-balance amount still exceeds a loaded raw balance", () => {
+  expect(erc20ExceedsBalance("3e-8", DECIMALS, RAW, BALANCE)).toBe(true);
+  expect(erc20ExceedsBalance("1e-8", DECIMALS, RAW, BALANCE)).toBe(false);
+});
+
+const revertWith = (message: string) =>
+  new EstimateGasExecutionError(new ExecutionRevertedError({ message }), {});
+
+test("only the exceeds-balance revert is recognised as the user condition", () => {
+  expect(
+    isErc20ExceedsBalanceRevert(
+      revertWith("execution reverted: Transfer amount exceeds balance"),
+    ),
+  ).toBe(true);
+  expect(
+    isErc20ExceedsBalanceRevert(
+      new ContractFunctionRevertedError({
+        abi: erc20Abi,
+        functionName: "transfer",
+        message: "Transfer amount exceeds balance",
+      }),
+    ),
+  ).toBe(true);
+  expect(
+    isErc20ExceedsBalanceRevert(
+      revertWith("execution reverted: Transfer amount exceeds allowance"),
+    ),
+  ).toBe(false);
+  expect(isErc20ExceedsBalanceRevert(revertWith("execution reverted"))).toBe(
+    false,
+  );
+  // Exact match only: an includes() or case-insensitive filter passes these.
+  for (const reason of [
+    "ERC20: transfer amount exceeds balance", // OpenZeppelin v4
+    "Transfer amount exceeds balance of sender",
+    "transfer amount exceeds balance",
+  ])
+    expect(
+      isErc20ExceedsBalanceRevert(revertWith(`execution reverted: ${reason}`)),
+    ).toBe(false);
+  // The outermost revert decides, not a matching one nested inside it.
+  expect(
+    isErc20ExceedsBalanceRevert(
+      new EstimateGasExecutionError(
+        new ExecutionRevertedError({
+          message: "execution reverted: Pausable: paused",
+          cause: new ExecutionRevertedError({
+            message: "execution reverted: Transfer amount exceeds balance",
+          }),
+        }),
+        {},
+      ),
+    ),
+  ).toBe(false);
+  expect(
+    isErc20ExceedsBalanceRevert(new Error("Transfer amount exceeds balance")),
+  ).toBe(false);
+  expect(isErc20ExceedsBalanceRevert(undefined)).toBe(false);
 });
