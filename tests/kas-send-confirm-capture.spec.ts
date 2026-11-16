@@ -68,6 +68,20 @@ test("build-phase mass error: fail reason shown, not captured", async ({
   expect(h.captured).toEqual([]);
 });
 
+test("build-phase mass Error object (KASTLE-13 shape): not captured", async ({
+  page,
+}) => {
+  const h = await confirm(page, "mass-error");
+  expect(h.failed).toEqual([FRAGMENTATION]);
+  expect(h.captured).toEqual([]);
+});
+
+test("build-phase planner bug is still captured", async ({ page }) => {
+  const h = await confirm(page, "bug");
+  expect(h.failed).not.toEqual([FRAGMENTATION]);
+  expect(h.captured).toEqual(["TypeError: Cannot read properties of null"]);
+});
+
 test("Confirm-time shortfall: fail reason shown, not captured", async ({
   page,
 }) => {

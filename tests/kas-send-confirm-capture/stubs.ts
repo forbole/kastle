@@ -9,7 +9,8 @@ declare global {
     __kasConfirm: {
       // mass: the WASM build throws the mass error; short: the UTXOs fetched
       // at Confirm cover less than the amount; broadcast: the build succeeds
-      // and signAndSubmitBatch throws the mass error.
+      // and signAndSubmitBatch throws the mass error; mass-error: the WASM
+      // build rejects with an Error object; bug: the build throws a TypeError.
       scenario: string;
       captured: string[];
       failed: (string | undefined)[];
@@ -53,6 +54,11 @@ export async function signAndSubmitBatch() {
 // WASM
 export async function createTransactions() {
   if (h().scenario === "mass") throw MASS; // the WASM throws bare strings
+  // KASTLE-13 is titled "Error: Storage mass exceeds maximum": an Error object.
+  if (h().scenario === "mass-error") throw new Error(MASS);
+  // A genuine planner bug, not one of the three fragmentation texts.
+  if (h().scenario === "bug")
+    throw new TypeError("Cannot read properties of null");
   return {
     transactions: [{ feeAmount: 2000n }],
     summary: { fees: 2000n },
