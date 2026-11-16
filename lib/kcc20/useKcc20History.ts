@@ -20,6 +20,7 @@ import {
   fetchStandardHoldingsWithTip,
   fetchTokenEvents,
 } from "@/lib/kcc20/providers/kascov";
+import { useKcc20Price } from "@/lib/kcc20/useKcc20Price";
 
 // The events log has no owner filter: 43 events for one token, 8173 for another.
 // Two pages is what the fallback may spend; past that, history stops.
@@ -119,6 +120,12 @@ const HISTORY_FAMILIES: ReadonlySet<string> = new Set<Kcc20Family>([
   "kron-legacy",
 ]);
 
+// Before the token loads: no covenant, no decimals, so nothing is priced.
+const NO_TOKEN: Pick<Kcc20Token, "covenantId" | "family" | "meta"> = {
+  covenantId: "",
+  family: "kcc20-standard",
+};
+
 /** Why a token has no history; the component words each one. */
 export type Kcc20HistoryUnavailable =
   // kascov indexes mainnet only, so nothing else is ever sent to it.
@@ -141,12 +148,14 @@ export type Kcc20HistoryTruncated =
  */
 export function useKcc20History(
   address?: string,
-  token?: Pick<Kcc20Token, "covenantId" | "family">,
+  token?: Pick<Kcc20Token, "covenantId" | "family" | "meta">,
 ) {
   // One source for the network: the RPC client the rest of the page reads.
   const { networkId } = useRpcClientStateful();
   const { isKcc20StandardEnabled } = useFeatureFlags();
   const covenantId = token?.covenantId;
+  // The dashboard row's price source; undefined (never 0) while unknown.
+  const { priceUsd } = useKcc20Price(token ?? NO_TOKEN);
 
   const owners = useMemo(() => {
     const key = address ? standardOwnerKey(address) : undefined;
@@ -247,6 +256,7 @@ export function useKcc20History(
 
   return {
     entries,
+    priceUsd,
     size,
     setSize,
     hasMore,
