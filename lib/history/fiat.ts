@@ -41,13 +41,15 @@ export function approxFiat(
   )
     return NONE;
   let big: bigint;
+  let scale: bigint;
   try {
     big = typeof raw === "bigint" ? raw : BigInt(raw);
+    // A scale past the BigInt limit throws RangeError: drop this row's value only.
+    scale = 10n ** BigInt(decimals);
   } catch {
     return NONE;
   }
   if (big < 0n) big = -big;
-  const scale = 10n ** BigInt(decimals);
   const whole = Number(big / scale) + Number(big % scale) / 10 ** decimals;
   return { value: { usd: whole * usdPrice }, quality: "approximate" };
 }

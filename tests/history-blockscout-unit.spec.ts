@@ -450,6 +450,19 @@ test.describe("fiat at the current price", () => {
     expect(whole.fiat).toEqual({ value: { usd: 6 }, quality: "approximate" });
   });
 
+  test("ERC-20 whose scale overflows BigInt has no fiat; the row still maps", () => {
+    // A safe integer passes the decimals guard, but 10n ** 2^53-1 throws RangeError.
+    const huge = String(Number.MAX_SAFE_INTEGER);
+    expect(() => 10n ** BigInt(huge)).toThrow(RangeError);
+    const r = blockscoutTransferToHistoryRecord(
+      erc20(huge, "150000000"),
+      OWNER,
+      KASPLEX,
+      { usdPrice: 2 },
+    );
+    expect(r.fiat).toEqual(NONE);
+  });
+
   test("ERC-721 stays unavailable even with a price", () => {
     const r = blockscoutTransferToHistoryRecord(
       transfer({
