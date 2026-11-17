@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.63.1](https://github.com/forbole/kastle/compare/v2.63.0...v2.63.1) (2026-11-17)
+
+
+### Bug Fixes
+
+* **erc20-send:** exact balance check, stop reporting the exceeds-balance revert (KASTLE-4J) ([#467](https://github.com/forbole/kastle/issues/467)) ([94eca74](https://github.com/forbole/kastle/commit/94eca744aeaaffc63d9ccb05d079b6853134270a))
+* **optimize:** prove the signer owns the planned address before a sweep ([#471](https://github.com/forbole/kastle/issues/471)) ([ef6f260](https://github.com/forbole/kastle/commit/ef6f2608f56461a72a91109eac5ba30e43f54710))
+* **send:** refuse a recipient address from the wrong network (KASTLE-T) ([#465](https://github.com/forbole/kastle/issues/465)) ([2bf65bc](https://github.com/forbole/kastle/commit/2bf65bce0127d61a168f243cdfe79c88b4f8fbbf))
+* **send:** stop reporting build-phase fragmentation and shortfall to Sentry (KASTLE-13, KASTLE-E) ([#466](https://github.com/forbole/kastle/issues/466)) ([4bfd1fa](https://github.com/forbole/kastle/commit/4bfd1fae9e118c9288c9fb6d7df416dc444eb225))
+* **ui:** handle the openPopup rejection on the wallet-locked page (KASTLE-4T) ([#468](https://github.com/forbole/kastle/issues/468)) ([67dbac6](https://github.com/forbole/kastle/commit/67dbac648de58770579f368917d06f05a9361dca))
+
 ## [2.63.0](https://github.com/forbole/kastle/compare/v2.62.2...v2.63.0) (2026-11-16)
 
 
