@@ -162,6 +162,8 @@ export default function OptimizeFunds() {
   const [entries, setEntries] = useState<IUtxoEntry[]>();
   const [plan, setPlan] = useState<ConsolidationPlan | null>();
   const [planError, setPlanError] = useState<string>();
+  // bumped by Retry after a failed plan: re-runs the planning effect
+  const [planAttempt, setPlanAttempt] = useState(0);
   const [screened, setScreened] = useState<EntryScreen>();
   const [isRunning, setIsRunningState] = useState(false);
   // read by the address-reset effect, which must not wipe a running round
@@ -219,6 +221,9 @@ export default function OptimizeFunds() {
     const address = account.address;
     const fail = (error: unknown) => {
       if (run !== planRun.current) return;
+      // unlatch so Retry can plan again; the guard above keeps a late
+      // failure from an older address from unlatching a newer run
+      isPlanning.current = false;
       const isSignerError =
         error instanceof SignerMismatchError ||
         error instanceof SignerUnavailableError;
@@ -259,6 +264,7 @@ export default function OptimizeFunds() {
     networkId,
     isLedger,
     hasSigner,
+    planAttempt,
   ]);
 
   const start = async () => {
@@ -418,12 +424,24 @@ export default function OptimizeFunds() {
           )}
 
           {!isRunning && !cancelledEarly && plan === null && planError && (
-            <span
-              role="alert"
-              className="self-center rounded-lg border border-red-500/40 bg-red-500/10 p-4 text-center text-red-500"
-            >
-              {planError}
-            </span>
+            <div className="flex flex-col items-center gap-2">
+              <span
+                role="alert"
+                className="self-center rounded-lg border border-red-500/40 bg-red-500/10 p-4 text-center text-red-500"
+              >
+                {planError}
+              </span>
+              <button
+                onClick={() => {
+                  setPlanError(undefined);
+                  setPlan(undefined);
+                  setPlanAttempt((n) => n + 1);
+                }}
+                className="min-h-[44px] rounded-full border border-daintree-400 px-4 text-base font-medium text-white transition-colors hover:bg-icy-blue-600"
+              >
+                Retry
+              </button>
+            </div>
           )}
 
           {!isRunning && !cancelledEarly && plan === null && !planError && (

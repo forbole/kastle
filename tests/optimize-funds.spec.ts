@@ -132,6 +132,23 @@ test("getAddress failure: error shown, never 'already fit'", async ({
   expect(errors).toEqual([]);
 });
 
+test("getAddress failure: Retry plans again once the signer recovers", async ({
+  page,
+}) => {
+  const errors = await open(page, "account=A&signer=fail");
+  await expect(page.getByRole("alert")).toContainText(
+    "Could not read the signing key's address",
+  );
+  await expect(optimizeBtn(page)).toHaveCount(0);
+  // the harness keeps one signer object: nothing but Retry can re-plan
+  await page.evaluate(() => window.__optimize.update({ signerFails: false }));
+  await page.getByRole("button", { name: "Retry" }).click();
+  await expect(optimizeBtn(page)).toBeEnabled();
+  await expect(page.getByText("Entries before")).toBeVisible();
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
 test("legacy toggle after planning: Optimize signs nothing and reports the mismatch", async ({
   page,
 }) => {
