@@ -405,7 +405,10 @@ test.describe("runConsolidation signer ownership", () => {
   const planFor = async (address: string) => {
     const entries = Array.from({ length: 4 }, (_, i) => ({
       address,
-      outpoint: { transactionId: (i + 1).toString(16).padStart(64, "0"), index: 0 },
+      outpoint: {
+        transactionId: (i + 1).toString(16).padStart(64, "0"),
+        index: 0,
+      },
       amount: 206_040_000n,
       scriptPublicKey: payToAddressScript(address),
       blockDaaScore: 1_000n,

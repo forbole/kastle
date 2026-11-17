@@ -252,7 +252,14 @@ export default function OptimizeFunds() {
         setPlan(planned ?? null);
       })
       .catch(fail);
-  }, [isConnected, rpcClient, account?.address, networkId, isLedger, hasSigner]);
+  }, [
+    isConnected,
+    rpcClient,
+    account?.address,
+    networkId,
+    isLedger,
+    hasSigner,
+  ]);
 
   const start = async () => {
     if (!plan || !rpcClient || !walletSigner) return;

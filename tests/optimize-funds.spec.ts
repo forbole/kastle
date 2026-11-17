@@ -64,7 +64,9 @@ const failed = (page: Page) =>
 const optimizeBtn = (page: Page) =>
   page.getByRole("button", { name: "Optimize", exact: true });
 
-test("signer owns the account: the confirm panel is shown", async ({ page }) => {
+test("signer owns the account: the confirm panel is shown", async ({
+  page,
+}) => {
   const errors = await open(page, "account=A&signer=A");
   await expect(optimizeBtn(page)).toBeEnabled();
   await expect(page.getByText("Entries before")).toBeVisible();
@@ -77,7 +79,9 @@ test("signer owns the account: Optimize signs and submits every planned transact
   page,
 }) => {
   const errors = await open(page, "account=A&signer=A");
-  const txRow = page.locator("span", { hasText: /^Transactions$/ }).locator("..");
+  const txRow = page
+    .locator("span", { hasText: /^Transactions$/ })
+    .locator("..");
   // A's 200 entries plan 3 transactions
   await expect(txRow).toContainText("3");
   await optimizeBtn(page).click();
@@ -113,7 +117,9 @@ test("signer key differs from the account: error shown, never 'already fit'", as
   expect(errors).toEqual([]);
 });
 
-test("getAddress failure: error shown, never 'already fit'", async ({ page }) => {
+test("getAddress failure: error shown, never 'already fit'", async ({
+  page,
+}) => {
   const errors = await open(page, "account=A&signer=fail");
   const alert = page.getByRole("alert");
   await expect(alert).toContainText("Could not read the signing key's address");
@@ -175,7 +181,9 @@ test("account switch with the signer following: the page re-plans for the new ad
 }) => {
   const errors = await open(page, "account=A&signer=A");
   await expect(page.getByText("Transactions")).toBeVisible();
-  const txRow = page.locator("span", { hasText: /^Transactions$/ }).locator("..");
+  const txRow = page
+    .locator("span", { hasText: /^Transactions$/ })
+    .locator("..");
   await expect(txRow).toContainText("3");
   await page.evaluate(() => {
     const { addresses, update } = window.__optimize;
@@ -192,9 +200,7 @@ test("Ledger not connected: plans without the early check, shows the connect ste
 }) => {
   const errors = await open(page, "account=A&signer=none&ledger=1");
   await expect(page.getByTestId("ledger-connect")).toBeVisible();
-  await expect
-    .poll(async () => (await calls(page)).revalidate)
-    .toBe(1);
+  await expect.poll(async () => (await calls(page)).revalidate).toBe(1);
   // connecting a device whose key is not A's: the round is refused before signing
   await page.evaluate(() => {
     const { addresses, update } = window.__optimize;
