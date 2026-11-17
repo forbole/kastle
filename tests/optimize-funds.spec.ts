@@ -73,6 +73,27 @@ test("signer owns the account: the confirm panel is shown", async ({ page }) => 
   expect(errors).toEqual([]);
 });
 
+test("signer owns the account: Optimize signs and submits every planned transaction", async ({
+  page,
+}) => {
+  const errors = await open(page, "account=A&signer=A");
+  const txRow = page.locator("span", { hasText: /^Transactions$/ }).locator("..");
+  // A's 200 entries plan 3 transactions
+  await expect(txRow).toContainText("3");
+  await optimizeBtn(page).click();
+  await expect(page.getByText("Optimize succeeded stub")).toBeVisible();
+  const c = await calls(page);
+  // once while planning, once by runConsolidation on the signing object
+  expect(c.getAddress).toBe(2);
+  expect(c.signTx).toBe(3);
+  expect(c.submit).toBe(3);
+  expect(await page.evaluate(() => window.__optimize.state().succeeded)).toBe(
+    true,
+  );
+  expect(await failed(page)).toBeUndefined();
+  expect(errors).toEqual([]);
+});
+
 test("signer key differs from the account: error shown, never 'already fit'", async ({
   page,
 }) => {

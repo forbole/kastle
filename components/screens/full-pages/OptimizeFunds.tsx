@@ -163,7 +163,13 @@ export default function OptimizeFunds() {
   const [plan, setPlan] = useState<ConsolidationPlan | null>();
   const [planError, setPlanError] = useState<string>();
   const [screened, setScreened] = useState<EntryScreen>();
-  const [isRunning, setIsRunning] = useState(false);
+  const [isRunning, setIsRunningState] = useState(false);
+  // read by the address-reset effect, which must not wipe a running round
+  const isRunningRef = useRef(false);
+  const setIsRunning = (running: boolean) => {
+    isRunningRef.current = running;
+    setIsRunningState(running);
+  };
   const [progress, setProgress] = useState<ConsolidationProgress>({
     submitted: 0,
     rejected: 0,
@@ -183,7 +189,11 @@ export default function OptimizeFunds() {
   // A plan is bound to the address it was planned for: an account switch
   // drops it and plans again for the new address. Declared before the
   // planning effect so both run, in this order, in the same commit.
+  // A running round is left alone: wiping it would read "/0" and re-planning
+  // would send a Ledger getPublicKey mid-signing. runConsolidation already
+  // checked the signer against the plan's address before signing.
   useEffect(() => {
+    if (isRunningRef.current) return;
     if (plannedAddress.current === account?.address) return;
     plannedAddress.current = account?.address;
     planRun.current++;
@@ -209,13 +219,15 @@ export default function OptimizeFunds() {
     const address = account.address;
     const fail = (error: unknown) => {
       if (run !== planRun.current) return;
-      console.error(error);
+      const isSignerError =
+        error instanceof SignerMismatchError ||
+        error instanceof SignerUnavailableError;
+      // a WASM or node error can carry an address; console breadcrumbs reach
+      // Sentry, so both copies are scrubbed the way the report is
+      console.error(isSignerError ? error : scrubReportText(String(error)));
       // planError first: a null plan without it reads "already fit"
       setPlanError(
-        error instanceof SignerMismatchError ||
-          error instanceof SignerUnavailableError
-          ? error.message
-          : String(error),
+        isSignerError ? error.message : scrubReportText(String(error)),
       );
       setPlan(null);
     };
@@ -285,11 +297,14 @@ export default function OptimizeFunds() {
       rpcUrl: rpcClient.url,
       walletType: isLedger ? "ledger" : "hot",
       // runConsolidation checks ownership first: any other error came after
-      // the signer was found to own the planned address
-      signerMatchesPlan: !(
-        error instanceof SignerMismatchError ||
-        error instanceof SignerUnavailableError
-      ),
+      // the signer was found to own the planned address. Unavailable means
+      // the check could not run, so the answer is unknown, not "no".
+      signerMatchesPlan:
+        error instanceof SignerMismatchError
+          ? false
+          : error instanceof SignerUnavailableError
+            ? undefined
+            : true,
       accountIndex: account?.index,
       isLegacy: wallet?.isLegacyWalletEnabled ?? false,
       total: plan.transactions.length,

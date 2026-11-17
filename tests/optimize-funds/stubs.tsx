@@ -2,7 +2,11 @@
 // test can switch the account or the signer's key mid-page, the way an account
 // switch or a legacy-mode toggle does in the popup.
 import { useSyncExternalStore } from "react";
-import { payToAddressScript, type IUtxoEntry } from "@/wasm/core/kaspa";
+import {
+  payToAddressScript,
+  type IUtxoEntry,
+  type Transaction,
+} from "@/wasm/core/kaspa";
 
 export type HarnessState = {
   accountAddress: string;
@@ -99,8 +103,14 @@ function useSigner() {
       if (state.signerFails) throw new Error("Keyring is locked");
       return address;
     },
-    signTx: async (tx: unknown) => {
+    // signAndSubmitBatch refuses inputs with an empty signature script: put
+    // a placeholder where the real signature would go, on every input
+    signTx: async (tx: Transaction) => {
       state.calls.signTx++;
+      tx.inputs = tx.inputs.map((input) => {
+        input.signatureScript = "00";
+        return input;
+      });
       return tx;
     },
   };
