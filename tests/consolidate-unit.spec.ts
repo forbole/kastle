@@ -2,8 +2,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
-import init, { PrivateKey, payToAddressScript } from "@/wasm/core/kaspa";
-import type { IUtxoEntry } from "@/wasm/core/kaspa";
+import init, {
+  Mnemonic,
+  PrivateKey,
+  payToAddressScript,
+} from "@/wasm/core/kaspa";
+import type { IUtxoEntry, Transaction } from "@/wasm/core/kaspa";
 import {
   ConsolidationError,
   ConsolidationPlan,
@@ -11,7 +15,14 @@ import {
   planConsolidation,
   planConsolidationRound,
   runConsolidation,
+  SignerMismatchError,
+  SignerUnavailableError,
 } from "@/lib/consolidate";
+import {
+  HotWalletAccount,
+  LegacyHotWalletAccount,
+} from "@/lib/wallet/account/hot-wallet-account";
+import { HotWalletPrivateKey } from "@/lib/wallet/account/hot-wallet-private-key";
 import { UnsignedInputsError } from "@/lib/wallet/transaction-batch";
 import { isShortfall, planTransfer } from "@/lib/sendFee";
 
@@ -351,11 +362,183 @@ test.describe("planConsolidation spends only entries the wallet can sign", () =>
         return { transactionId: "00".repeat(32) } as never;
       },
     };
-    const run = runConsolidation([pending, pending], signer, rpc);
+    const run = runConsolidation(
+      [pending, pending],
+      { ...signer, getAddress: () => senderAddress().toString() },
+      rpc,
+      { ownerAddress: senderAddress().toString() },
+    );
     await expect(run).rejects.toBeInstanceOf(UnsignedInputsError);
     await expect(run).rejects.toThrow(
       "1 of 2 inputs are unsigned; this transaction was not submitted.",
     );
     expect(submits).toBe(0);
+  });
+});
+
+// The signer must own the address the round was planned for. Real keys: the
+// account classes the background derives from (legacy: m/44'/111111'/i'/0/0,
+// standard: m/44'/111111'/0'/0/i).
+test.describe("runConsolidation signer ownership", () => {
+  const MNEMONIC =
+    "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+  let seed: string;
+
+  type Account = {
+    getPublicKey(): { toAddress(network: string): { toString(): string } };
+    signTx(tx: Transaction): Promise<Transaction>;
+  };
+  const addressOf = (account: Account) =>
+    account.getPublicKey().toAddress("mainnet").toString();
+
+  test.beforeAll(async () => {
+    await init({
+      module_or_path: fs.readFileSync(
+        path.join(TESTS_DIR, "../assets/kaspa_bg.wasm"),
+      ),
+    });
+    seed = new Mnemonic(MNEMONIC).toSeed();
+  });
+
+  // Four plain entries on `address`, planned two per transaction: two
+  // transactions, every input locked to `address`.
+  const planFor = async (address: string) => {
+    const entries = Array.from({ length: 4 }, (_, i) => ({
+      address,
+      outpoint: {
+        transactionId: (i + 1).toString(16).padStart(64, "0"),
+        index: 0,
+      },
+      amount: 206_040_000n,
+      scriptPublicKey: payToAddressScript(address),
+      blockDaaScore: 1_000n,
+      isCoinbase: false,
+    })) as unknown as IUtxoEntry[];
+    const { plan } = await planConsolidationRound({
+      entries,
+      changeAddress: address,
+      networkId: "mainnet",
+      inputsPerTransaction: 2,
+    });
+    expect(plan?.transactions).toHaveLength(2);
+    expect(plan?.ownerAddress).toBe(address);
+    return plan as ConsolidationPlan;
+  };
+
+  // The account as the popup's signer hook exposes it: getAddress from the
+  // account's public key, signTx the account's own, both counted.
+  const counted = (account: Account) => {
+    const calls = { getAddress: 0, signTx: 0, submit: 0 };
+    const signer = {
+      getAddress: async () => (calls.getAddress++, addressOf(account)),
+      signTx: async (tx: Transaction) => (calls.signTx++, account.signTx(tx)),
+    };
+    const rpc = {
+      submitTransaction: async () => (
+        calls.submit++, { transactionId: "00".repeat(32) } as never
+      ),
+    };
+    return { calls, signer, rpc };
+  };
+
+  test("account 0: legacy and standard derive the same key, so the round signs", async () => {
+    const legacy = new LegacyHotWalletAccount(seed, 0);
+    const standard = new HotWalletAccount(seed, 0);
+    expect(addressOf(standard)).toBe(addressOf(legacy));
+    // planned in legacy mode, signed after a toggle to standard
+    const plan = await planFor(addressOf(legacy));
+    const { calls, signer, rpc } = counted(standard);
+    const result = await runConsolidation(plan.transactions, signer, rpc, {
+      ownerAddress: plan.ownerAddress,
+    });
+    expect(result.submitted).toBe(2);
+    expect(calls.signTx).toBe(2);
+    expect(calls.submit).toBe(2);
+  });
+
+  test("account 1: a legacy plan with a standard signer is refused before signing", async () => {
+    const legacy = new LegacyHotWalletAccount(seed, 1);
+    const standard = new HotWalletAccount(seed, 1);
+    expect(addressOf(standard)).not.toBe(addressOf(legacy));
+    const plan = await planFor(addressOf(legacy));
+    const { calls, signer, rpc } = counted(standard);
+    await expect(
+      runConsolidation(plan.transactions, signer, rpc, {
+        ownerAddress: plan.ownerAddress,
+      }),
+    ).rejects.toBeInstanceOf(SignerMismatchError);
+    expect(calls.getAddress).toBe(1);
+    expect(calls.signTx).toBe(0);
+    expect(calls.submit).toBe(0);
+  });
+
+  test("account 1: a standard plan with a legacy signer is refused before signing", async () => {
+    const legacy = new LegacyHotWalletAccount(seed, 1);
+    const standard = new HotWalletAccount(seed, 1);
+    const plan = await planFor(addressOf(standard));
+    const { calls, signer, rpc } = counted(legacy);
+    await expect(
+      runConsolidation(plan.transactions, signer, rpc, {
+        ownerAddress: plan.ownerAddress,
+      }),
+    ).rejects.toThrow(SignerMismatchError);
+    expect(calls.signTx).toBe(0);
+    expect(calls.submit).toBe(0);
+  });
+
+  test("key A's plan with key B's signer is refused before signing", async () => {
+    const a = new HotWalletPrivateKey(new PrivateKey(KEY_A));
+    const b = new HotWalletPrivateKey(new PrivateKey(KEY_B));
+    const plan = await planFor(addressOf(a));
+    const { calls, signer, rpc } = counted(b);
+    const run = runConsolidation(plan.transactions, signer, rpc, {
+      ownerAddress: plan.ownerAddress,
+    });
+    await expect(run).rejects.toBeInstanceOf(SignerMismatchError);
+    await expect(run).rejects.toThrow("does not match");
+    expect(calls.signTx).toBe(0);
+    expect(calls.submit).toBe(0);
+  });
+
+  test("key A's plan with key A's signer runs", async () => {
+    const a = new HotWalletPrivateKey(new PrivateKey(KEY_A));
+    const plan = await planFor(addressOf(a));
+    const { calls, signer, rpc } = counted(a);
+    const result = await runConsolidation(plan.transactions, signer, rpc, {
+      ownerAddress: plan.ownerAddress,
+    });
+    expect(result.submitted).toBe(2);
+    expect(calls.signTx).toBe(2);
+  });
+
+  test("a getAddress rejection is its own error, never a pass", async () => {
+    const a = new HotWalletPrivateKey(new PrivateKey(KEY_A));
+    const plan = await planFor(addressOf(a));
+    const { calls, signer, rpc } = counted(a);
+    const run = runConsolidation(
+      plan.transactions,
+      {
+        ...signer,
+        getAddress: async () => Promise.reject(new Error("keyring locked")),
+      },
+      rpc,
+      { ownerAddress: plan.ownerAddress },
+    );
+    await expect(run).rejects.toBeInstanceOf(SignerUnavailableError);
+    await expect(run).rejects.not.toBeInstanceOf(SignerMismatchError);
+    await expect(run).rejects.not.toBeInstanceOf(ConsolidationError);
+    expect(calls.signTx).toBe(0);
+    expect(calls.submit).toBe(0);
+  });
+
+  test("the error classes are distinct and named", () => {
+    const mismatch = new SignerMismatchError();
+    const unavailable = new SignerUnavailableError(new Error("x"));
+    expect(mismatch.name).toBe("SignerMismatchError");
+    expect(unavailable.name).toBe("SignerUnavailableError");
+    expect(mismatch).not.toBeInstanceOf(ConsolidationError);
+    expect(unavailable).not.toBeInstanceOf(ConsolidationError);
+    expect(mismatch).not.toBeInstanceOf(SignerUnavailableError);
+    expect(mismatch.message).not.toMatch(/kaspa:/);
   });
 });
