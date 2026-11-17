@@ -254,6 +254,7 @@ export default function OptimizeFunds() {
         if (run !== planRun.current) return;
         setEntries(live);
         setScreened(screen);
+        setPlanError(undefined);
         setPlan(planned ?? null);
       })
       .catch(fail);
@@ -433,6 +434,7 @@ export default function OptimizeFunds() {
               </span>
               <button
                 onClick={() => {
+                  isPlanning.current = false;
                   setPlanError(undefined);
                   setPlan(undefined);
                   setPlanAttempt((n) => n + 1);
