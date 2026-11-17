@@ -16,10 +16,18 @@ let server: http.Server;
 
 test.beforeAll(async () => {
   const outDir = path.join(tmpdir(), `kastle-kcc20-send-${process.pid}`);
-  await build({
-    configFile: path.resolve("tests/kcc20-send/vite.config.mjs"),
-    build: { outDir },
-  });
+  // vite.build sets NODE_ENV=production in the worker; restore it for the
+  // React specs that run after in the same worker.
+  const nodeEnv = process.env.NODE_ENV;
+  try {
+    await build({
+      configFile: path.resolve("tests/kcc20-send/vite.config.mjs"),
+      build: { outDir },
+    });
+  } finally {
+    if (nodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = nodeEnv;
+  }
   server = http.createServer((req, res) => {
     const p = path.resolve(
       outDir,
