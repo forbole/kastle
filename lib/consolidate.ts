@@ -6,6 +6,7 @@ import {
   payToAddressScript,
   PendingTransaction,
   RpcClient,
+  type ScriptPublicKey,
 } from "@/wasm/core/kaspa";
 import { covenantSelect } from "@kronsdk/kron-sdk";
 import { orderEntries } from "@/lib/sendFee";
@@ -41,6 +42,9 @@ export type ConsolidationPlan = {
   skippedImmature: number;
   // the virtual DAA score was unavailable: coinbase maturity went unchecked
   maturityUnknown: boolean;
+  // the changeAddress the round was planned for: every planned input pays it,
+  // so only the key behind this address can sign the round
+  ownerAddress: string;
 };
 
 /**
@@ -115,6 +119,59 @@ export class ConsolidationError extends Error {
   ) {
     super(message);
   }
+}
+
+/**
+ * The signer's key does not own the address the round was planned for. It
+ * would leave every input with an empty signature script (hot wallet) or a
+ * wrong signature (Ledger), so nothing is signed or sent.
+ */
+export class SignerMismatchError extends Error {
+  constructor() {
+    super(
+      "This account's signing key does not match the address its funds are held at, so Optimize funds cannot sign them. Nothing was signed or sent.",
+    );
+    this.name = "SignerMismatchError";
+  }
+}
+
+/** The signer could not report its address (locked keyring, Ledger gone). */
+export class SignerUnavailableError extends Error {
+  constructor(cause: unknown) {
+    super(
+      "Could not read the signing key's address, so ownership of the funds could not be checked. Nothing was signed or sent.",
+      { cause: scrubReportText(String(cause)) },
+    );
+    this.name = "SignerUnavailableError";
+  }
+}
+
+const sameScript = (a: ScriptPublicKey, b: ScriptPublicKey) =>
+  a.version === b.version && a.script.toLowerCase() === b.script.toLowerCase();
+
+/**
+ * Throws unless `signer` signs for `ownerAddress`: the address the signer
+ * derives from its own key must lock to the same script. A `getAddress`
+ * rejection throws SignerUnavailableError, never a pass.
+ */
+export async function assertSignerOwnsAddress(
+  signer: Pick<IWalletWithGetAddress, "getAddress">,
+  ownerAddress: string,
+): Promise<void> {
+  let signerAddress: string;
+  try {
+    signerAddress = await signer.getAddress();
+  } catch (cause) {
+    throw new SignerUnavailableError(cause);
+  }
+  const owner = payToAddressScript(ownerAddress);
+  let signerScript: ScriptPublicKey;
+  try {
+    signerScript = payToAddressScript(signerAddress);
+  } catch {
+    throw new SignerMismatchError();
+  }
+  if (!sameScript(signerScript, owner)) throw new SignerMismatchError();
 }
 
 /**
@@ -225,6 +282,7 @@ export async function planConsolidationRound({
       skippedCovenant,
       skippedImmature,
       maturityUnknown: screen.maturityUnknown,
+      ownerAddress: changeAddress,
     },
     screen,
   };
@@ -341,7 +399,7 @@ export const reportError = (error: unknown) =>
  * field is scrubbed.
  */
 export function buildRoundReport<
-  T extends Record<string, string | number | undefined>,
+  T extends Record<string, string | number | boolean | undefined>,
 >(fields: T): T & { timestamp: string } {
   return {
     ...Object.fromEntries(
@@ -380,20 +438,28 @@ export async function loadLiveEntries(
  * since the chunks are disjoint and the next one does not depend on it —
  * unless nothing has landed yet: a first rejection stops the round, since a
  * transaction-wide refusal would only repeat on every remaining chunk.
+ *
+ * Before anything is signed, `signer` must own `ownerAddress` (the plan's
+ * `ownerAddress`): otherwise SignerMismatchError, or SignerUnavailableError
+ * when it cannot report its address. The check runs on the same signer object
+ * that signs, so an account switch or legacy toggle since planning is caught.
  */
 export async function runConsolidation(
   transactions: readonly PendingTransaction[],
-  signer: Pick<IWalletWithGetAddress, "signTx">,
+  signer: Pick<IWalletWithGetAddress, "signTx" | "getAddress">,
   rpcClient: Pick<RpcClient, "submitTransaction"> &
     Partial<Pick<RpcClient, "isConnected" | "connect">>,
   {
+    ownerAddress,
     isCanceled = () => false,
     onTransaction,
   }: {
+    ownerAddress: string;
     isCanceled?: () => boolean;
     onTransaction?: (progress: ConsolidationProgress) => void;
-  } = {},
+  },
 ): Promise<ConsolidationResult> {
+  await assertSignerOwnsAddress(signer, ownerAddress);
   const progress: ConsolidationProgress = {
     submitted: 0,
     rejected: 0,

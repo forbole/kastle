@@ -6,7 +6,7 @@ import ts from "typescript";
 import { expect, test } from "@playwright/test";
 import type { PendingTransaction } from "@/wasm/core/kaspa";
 import type { IUtxoEntry } from "@/wasm/core/kaspa";
-import { ConnectStrategy } from "@/wasm/core/kaspa";
+import init, { ConnectStrategy, PrivateKey } from "@/wasm/core/kaspa";
 import {
   buildRoundReport,
   classifyConsolidation,
@@ -45,6 +45,25 @@ function loadModule(file: string, stubs: Record<string, unknown>) {
 }
 
 const MASS_ERROR = new Error("Storage mass exceeds maximum");
+
+// The address every stub round is planned for, and the one each stub signer
+// reports: the ownership check passes, so these tests test what they did.
+let OWNER = "";
+const owned = { getAddress: () => OWNER };
+const ownerOpts = () => ({ ownerAddress: OWNER });
+test.beforeAll(async () => {
+  await init({
+    module_or_path: fs.readFileSync(
+      path.join(__dirname, "../assets/kaspa_bg.wasm"),
+    ),
+  });
+  OWNER = new PrivateKey(
+    "b7e151628aed2a6abf7158809cf4f3c762e7160f38b4da56a784d9045190cfef",
+  )
+    .toPublicKey()
+    .toAddress("mainnet")
+    .toString();
+});
 
 test.describe("optimize prompt visibility", () => {
   test("threshold is 0.1 KAS", () => {
@@ -157,16 +176,16 @@ test.describe("optimize run loop", () => {
       },
       feeAmount: 1_000n,
     })) as unknown as PendingTransaction[];
-  const signer = { signTx: async (tx: any) => tx };
+  const signer = { ...owned, signTx: async (tx: any) => tx };
 
   test("calls back once per planned transaction", async () => {
     const calls: number[] = [];
     let signed = 0;
     const result = await runConsolidation(
       planned(5),
-      { signTx: async (tx: any) => (signed++, tx) },
+      { ...owned, signTx: async (tx: any) => (signed++, tx) },
       { submitTransaction: async () => ({ transactionId: "id" }) } as any,
-      { onTransaction: (p) => calls.push(p.submitted) },
+      { ...ownerOpts(), onTransaction: (p) => calls.push(p.submitted) },
     );
     expect(calls).toEqual([1, 2, 3, 4, 5]);
     expect(signed).toBe(5);
@@ -176,13 +195,18 @@ test.describe("optimize run loop", () => {
 
   test("a rejected submit increments rejected and continues", async () => {
     let n = 0;
-    const result = await runConsolidation(planned(3), signer, {
-      submitTransaction: async () => {
-        if (n++ === 1)
-          throw new Error("already spent by transaction in the mempool");
-        return { transactionId: "id" };
-      },
-    } as any);
+    const result = await runConsolidation(
+      planned(3),
+      signer,
+      {
+        submitTransaction: async () => {
+          if (n++ === 1)
+            throw new Error("already spent by transaction in the mempool");
+          return { transactionId: "id" };
+        },
+      } as any,
+      ownerOpts(),
+    );
     expect(result.submitted).toBe(2);
     expect(result.rejected).toBe(1);
     expect(String(result.feePaid)).toBe("2000");
@@ -195,8 +219,12 @@ test.describe("optimize run loop", () => {
     await expect(
       runConsolidation(
         planned(3),
-        { signTx: async () => Promise.reject(new Error("rejected on device")) },
+        {
+          ...owned,
+          signTx: async () => Promise.reject(new Error("rejected on device")),
+        },
         { submitTransaction: async () => ({ transactionId: "id" }) } as any,
+        ownerOpts(),
       ),
     ).rejects.toThrow("rejected on device");
   });
@@ -207,7 +235,11 @@ test.describe("optimize run loop", () => {
       planned(4),
       signer,
       { submitTransaction: async () => ({ transactionId: "id" }) } as any,
-      { isCanceled: () => calls >= 2, onTransaction: () => calls++ },
+      {
+        ...ownerOpts(),
+        isCanceled: () => calls >= 2,
+        onTransaction: () => calls++,
+      },
     );
     expect(result.submitted).toBe(2);
     expect(result.cancelled).toBe(true);
@@ -219,7 +251,11 @@ test.describe("optimize run loop", () => {
       planned(2),
       signer,
       { submitTransaction: async () => ({ transactionId: "id" }) } as any,
-      { isCanceled: () => calls >= 2, onTransaction: () => calls++ },
+      {
+        ...ownerOpts(),
+        isCanceled: () => calls >= 2,
+        onTransaction: () => calls++,
+      },
     );
     expect(result.submitted).toBe(2);
     expect(result.cancelled).toBe(false);
@@ -311,7 +347,10 @@ test.describe("optimize ledger connect step", () => {
           wallet: { type: "ledger" },
           account: { address: "kaspa:qtest" },
         }),
-        "@/hooks/wallet/useKaspaHotWalletSigner": () => ({ signTx: () => {} }),
+        "@/hooks/wallet/useKaspaHotWalletSigner": () => ({
+          signTx: () => {},
+          getAddress: async () => "kaspa:qtest",
+        }),
         "@/hooks/wallet/useKaspaLedgerSigner": () => ledgerSigner,
         "@/components/screens/ledger-connect/LedgerConnectForSign": () =>
           React.createElement("div", { "data-testid": "ledger-connect" }),
@@ -329,7 +368,9 @@ test.describe("optimize ledger connect step", () => {
   });
 
   test("a connected ledger skips the connect step", () => {
-    expect(render({ signTx: () => {} })).not.toContain("ledger-connect");
+    expect(
+      render({ signTx: () => {}, getAddress: async () => "kaspa:qtest" }),
+    ).not.toContain("ledger-connect");
   });
 });
 
@@ -347,16 +388,21 @@ test.describe("optimize diagnostics", () => {
       },
       feeAmount: 1_000n,
     })) as unknown as PendingTransaction[];
-  const signer = { signTx: async (tx: any) => tx };
+  const signer = { ...owned, signTx: async (tx: any) => tx };
 
   test("a first rejection carries the node's reason and stops the round", async () => {
     let submits = 0;
-    const result = await runConsolidation(planned(144), signer, {
-      submitTransaction: async () => {
-        submits++;
-        throw new Error("transaction mass 101234 exceeds the standard limit");
-      },
-    } as any);
+    const result = await runConsolidation(
+      planned(144),
+      signer,
+      {
+        submitTransaction: async () => {
+          submits++;
+          throw new Error("transaction mass 101234 exceeds the standard limit");
+        },
+      } as any,
+      ownerOpts(),
+    );
     expect(submits).toBe(1);
     expect(result.rejected).toBe(1);
     expect(result.submitted).toBe(0);
@@ -365,12 +411,17 @@ test.describe("optimize diagnostics", () => {
 
   test("a round that landed one transaction keeps going after a rejection", async () => {
     let n = 0;
-    const result = await runConsolidation(planned(4), signer, {
-      submitTransaction: async () => {
-        if (n++ === 1) throw new Error("orphan");
-        return { transactionId: "id" };
-      },
-    } as any);
+    const result = await runConsolidation(
+      planned(4),
+      signer,
+      {
+        submitTransaction: async () => {
+          if (n++ === 1) throw new Error("orphan");
+          return { transactionId: "id" };
+        },
+      } as any,
+      ownerOpts(),
+    );
     expect(n).toBe(4);
     expect(result.submitted).toBe(3);
     expect(result.rejected).toBe(1);
@@ -381,14 +432,19 @@ test.describe("optimize diagnostics", () => {
     let submits = 0;
     let connects = 0;
     await expect(
-      runConsolidation(planned(3), signer, {
-        isConnected: false,
-        connect: async () => {
-          connects++;
-          throw new Error("WebSocket closed");
-        },
-        submitTransaction: async () => (submits++, { transactionId: "id" }),
-      } as any),
+      runConsolidation(
+        planned(3),
+        signer,
+        {
+          isConnected: false,
+          connect: async () => {
+            connects++;
+            throw new Error("WebSocket closed");
+          },
+          submitTransaction: async () => (submits++, { transactionId: "id" }),
+        } as any,
+        ownerOpts(),
+      ),
     ).rejects.toThrow(
       expect.objectContaining({
         message: "the node connection dropped; nothing further was sent",
@@ -409,7 +465,12 @@ test.describe("optimize diagnostics", () => {
       },
       submitTransaction: async () => ({ transactionId: "id" }),
     };
-    const result = await runConsolidation(planned(2), signer, client as any);
+    const result = await runConsolidation(
+      planned(2),
+      signer,
+      client as any,
+      ownerOpts(),
+    );
     expect(result.submitted).toBe(2);
     expect(args).toEqual([{ strategy: ConnectStrategy.Fallback }]);
   });
