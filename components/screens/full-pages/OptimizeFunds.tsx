@@ -4,6 +4,7 @@ import Header from "@/components/GeneralHeader.tsx";
 import carriageImage from "@/assets/images/carriage.png";
 import { IUtxoEntry, sompiToKaspaString, version } from "@/wasm/core/kaspa";
 import {
+  assertSignerOwnsAddress,
   buildRoundReport,
   classifyConsolidation,
   ConsolidationPlan,
@@ -15,6 +16,8 @@ import {
   runConsolidation,
   reportError,
   scrubReportText,
+  SignerMismatchError,
+  SignerUnavailableError,
 } from "@/lib/consolidate";
 import { useUtxoEntries } from "@/hooks/useKasFeeEstimate";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
@@ -159,8 +162,16 @@ export default function OptimizeFunds() {
   const [entries, setEntries] = useState<IUtxoEntry[]>();
   const [plan, setPlan] = useState<ConsolidationPlan | null>();
   const [planError, setPlanError] = useState<string>();
+  // bumped by Retry after a failed plan: re-runs the planning effect
+  const [planAttempt, setPlanAttempt] = useState(0);
   const [screened, setScreened] = useState<EntryScreen>();
-  const [isRunning, setIsRunning] = useState(false);
+  const [isRunning, setIsRunningState] = useState(false);
+  // read by the address-reset effect, which must not wipe a running round
+  const isRunningRef = useRef(false);
+  const setIsRunning = (running: boolean) => {
+    isRunningRef.current = running;
+    setIsRunningState(running);
+  };
   const [progress, setProgress] = useState<ConsolidationProgress>({
     submitted: 0,
     rejected: 0,
@@ -171,38 +182,94 @@ export default function OptimizeFunds() {
   const [isCanceledUi, setIsCanceledUi] = useState(false);
   const isCanceled = useRef(false);
   const isPlanning = useRef(false);
+  // bumped on every account switch: a planning run from an older address
+  // finishing late must not overwrite the new one
+  const planRun = useRef(0);
+  const plannedAddress = useRef(account?.address);
+  const hasSigner = !!walletSigner;
 
-  // Planned once, from a revalidation: SWR's cached set predates any earlier
-  // round, and the round must spend the entries the confirm step showed, not
-  // whatever 5 s revalidation brings back.
+  // A plan is bound to the address it was planned for: an account switch
+  // drops it and plans again for the new address. Declared before the
+  // planning effect so both run, in this order, in the same commit.
+  // A running round is left alone: wiping it would read "/0" and re-planning
+  // would send a Ledger getPublicKey mid-signing. runConsolidation already
+  // checked the signer against the plan's address before signing.
   useEffect(() => {
-    if (
-      !isConnected ||
-      !rpcClient ||
-      !account?.address ||
-      !networkId ||
-      isPlanning.current
-    )
-      return;
+    if (isRunningRef.current) return;
+    if (plannedAddress.current === account?.address) return;
+    plannedAddress.current = account?.address;
+    planRun.current++;
+    isPlanning.current = false;
+    setPlan(undefined);
+    setPlanError(undefined);
+    setScreened(undefined);
+    setEntries(undefined);
+    setCancelledEarly(undefined);
+    isCanceled.current = false;
+    setIsCanceledUi(false);
+  }, [account?.address]);
+
+  // Planned once per address, from a revalidation: SWR's cached set predates
+  // any earlier round, and the round must spend the entries the confirm step
+  // showed, not whatever 5 s revalidation brings back.
+  useEffect(() => {
+    if (!isConnected || !rpcClient || !account?.address || !networkId) return;
+    // the hot signer exists once the wallet loads: wait for it rather than
+    // plan unchecked. A Ledger signer needs the device, so plan without it;
+    // runConsolidation checks ownership before anything is signed.
+    if (!isLedger && !walletSigner) return;
+    if (isPlanning.current) return;
     isPlanning.current = true;
-    loadLiveEntries(() => revalidateEntries(), spentOutpoints)
-      .then(async (live) => {
-        setEntries(live);
+    const run = planRun.current;
+    const address = account.address;
+    const fail = (error: unknown) => {
+      if (run !== planRun.current) return;
+      // unlatch so Retry can plan again; the guard above keeps a late
+      // failure from an older address from unlatching a newer run
+      isPlanning.current = false;
+      const isSignerError =
+        error instanceof SignerMismatchError ||
+        error instanceof SignerUnavailableError;
+      // a WASM or node error can carry an address; console breadcrumbs reach
+      // Sentry, so both copies are scrubbed the way the report is
+      console.error(isSignerError ? error : scrubReportText(String(error)));
+      // planError first: a null plan without it reads "already fit"
+      setPlanError(
+        isSignerError ? error.message : scrubReportText(String(error)),
+      );
+      setPlan(null);
+    };
+    (walletSigner
+      ? assertSignerOwnsAddress(walletSigner, address)
+      : Promise.resolve()
+    )
+      .then(async () => {
+        const live = await loadLiveEntries(
+          () => revalidateEntries(),
+          spentOutpoints,
+        );
         const { plan: planned, screen } = await planConsolidationRound({
           entries: live,
-          changeAddress: account.address,
+          changeAddress: address,
           networkId,
           rpcClient,
         });
+        if (run !== planRun.current) return;
+        setEntries(live);
         setScreened(screen);
+        setPlanError(undefined);
         setPlan(planned ?? null);
       })
-      .catch((error) => {
-        console.error(error);
-        setPlanError(String(error));
-        setPlan(null);
-      });
-  }, [isConnected, rpcClient, account?.address, networkId]);
+      .catch(fail);
+  }, [
+    isConnected,
+    rpcClient,
+    account?.address,
+    networkId,
+    isLedger,
+    hasSigner,
+    planAttempt,
+  ]);
 
   const start = async () => {
     if (!plan || !rpcClient || !walletSigner) return;
@@ -215,6 +282,7 @@ export default function OptimizeFunds() {
         walletSigner,
         rpcClient,
         {
+          ownerAddress: plan.ownerAddress,
           isCanceled: () => isCanceled.current,
           onTransaction: (next) => {
             result = { ...next, cancelled: false };
@@ -245,6 +313,17 @@ export default function OptimizeFunds() {
       networkId,
       rpcUrl: rpcClient.url,
       walletType: isLedger ? "ledger" : "hot",
+      // runConsolidation checks ownership first: any other error came after
+      // the signer was found to own the planned address. Unavailable means
+      // the check could not run, so the answer is unknown, not "no".
+      signerMatchesPlan:
+        error instanceof SignerMismatchError
+          ? false
+          : error instanceof SignerUnavailableError
+            ? undefined
+            : true,
+      accountIndex: account?.index,
+      isLegacy: wallet?.isLegacyWalletEnabled ?? false,
       total: plan.transactions.length,
       submitted: result.submitted,
       rejected: result.rejected,
@@ -348,9 +427,31 @@ export default function OptimizeFunds() {
             />
           )}
 
-          {!isRunning && !cancelledEarly && plan === null && (
+          {!isRunning && !cancelledEarly && plan === null && planError && (
+            <div className="flex flex-col items-center gap-2">
+              <span
+                role="alert"
+                className="self-center rounded-lg border border-red-500/40 bg-red-500/10 p-4 text-center text-red-500"
+              >
+                {planError}
+              </span>
+              <button
+                onClick={() => {
+                  isPlanning.current = false;
+                  setPlanError(undefined);
+                  setPlan(undefined);
+                  setPlanAttempt((n) => n + 1);
+                }}
+                className="min-h-[44px] rounded-full border border-daintree-400 px-4 text-base font-medium text-white transition-colors hover:bg-icy-blue-600"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
+          {!isRunning && !cancelledEarly && plan === null && !planError && (
             <span className="self-center text-daintree-400">
-              {planError ?? describeNoPlan(screened)}
+              {describeNoPlan(screened)}
             </span>
           )}
 
