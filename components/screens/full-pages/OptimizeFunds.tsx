@@ -204,6 +204,9 @@ export default function OptimizeFunds() {
     setPlanError(undefined);
     setScreened(undefined);
     setEntries(undefined);
+    setCancelledEarly(undefined);
+    isCanceled.current = false;
+    setIsCanceledUi(false);
   }, [account?.address]);
 
   // Planned once per address, from a revalidation: SWR's cached set predates
