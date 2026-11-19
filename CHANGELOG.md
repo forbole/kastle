@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.63.2](https://github.com/forbole/kastle/compare/v2.63.1...v2.63.2) (2026-11-19)
+
+
+### Bug Fixes
+
+* **signer:** sign with the derivation that owns the account address ([#472](https://github.com/forbole/kastle/issues/472)) ([7836cc0](https://github.com/forbole/kastle/commit/7836cc074754ae99cee89e64c6ff52b59bfc8f07))
+
 ## [2.63.1](https://github.com/forbole/kastle/compare/v2.63.0...v2.63.1) (2026-11-17)
 
 
