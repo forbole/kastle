@@ -99,7 +99,7 @@ test.beforeAll(async () => {
 });
 
 test.describe("resolveIsLegacy", () => {
-  test("legacy record at index 1, flag unset: selects legacy, and the round signs and submits", async () => {
+  test("legacy record at index 1, flag unset: the flag's key leaves 80 of 80 inputs unsigned; legacy is selected, and the round signs and submits", async () => {
     const recordAddress = await addressOf(accountFor(true, 1));
     expect(await addressOf(accountFor(false, 1))).not.toBe(recordAddress);
     const { firstPublicKey } = keysAt(1);
@@ -118,6 +118,15 @@ test.describe("resolveIsLegacy", () => {
       networkId: "mainnet",
     });
     expect(plan?.transactions).toHaveLength(1);
+    // The flag's key (the pre-fix selection, with no ownership guard, as in
+    // 2.63.0) leaves every input of the 80-input chunk unsigned.
+    const byFlag = await accountFor(false, 1).signTx(
+      plan!.transactions[0].transaction,
+    );
+    const unsignedInputs = byFlag.inputs.filter(
+      (input) => !input.signatureScript?.length,
+    ).length;
+    expect(unsignedInputs).toBe(80);
     const { calls, signed, signer, rpc } = counted(accountFor(isLegacy, 1));
     const result = await runConsolidation(plan!.transactions, signer, rpc, {
       ownerAddress: plan!.ownerAddress,
@@ -205,32 +214,6 @@ test.describe("resolveIsLegacy", () => {
 });
 
 test.describe("resolveAccountIsLegacy", () => {
-  test("Ledger: 144 signatures need one key exchange for the resolution, none between signatures", async () => {
-    const recordAddress = await addressOf(accountFor(true, 1));
-    const exchanges: string[] = [];
-    const device = async (isLegacy: boolean) => {
-      exchanges.push("getPublicKey");
-      return (await accountFor(isLegacy, 1).getPublicKeys())[0];
-    };
-    for (let i = 0; i < 144; i++) {
-      // what each signTx of the Ledger hook does before it signs
-      expect(
-        await resolveAccountIsLegacy(
-          "ledger-144",
-          1,
-          recordAddress,
-          true,
-          "mainnet",
-          device,
-        ),
-      ).toBe(true);
-      exchanges.push("sign");
-    }
-    expect(exchanges[0]).toBe("getPublicKey");
-    expect(exchanges.filter((e) => e === "getPublicKey")).toHaveLength(1);
-    expect(exchanges.slice(1)).toEqual(Array(144).fill("sign"));
-  });
-
   test("a rejection is not cached: the next call derives again", async () => {
     const recordAddress = await addressOf(accountFor(true, 1));
     let attempts = 0;

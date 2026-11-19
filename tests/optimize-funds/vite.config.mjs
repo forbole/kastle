@@ -1,7 +1,9 @@
 // Builds the real OptimizeFunds page (real lib/consolidate, real WASM) with
 // its wallet, RPC, signer and UTXO hooks swapped for ./stubs.tsx, inside a
 // memory router with stub success / failure routes. Mode "real-signer" keeps
-// the real useKaspaHotWalletSigner and swaps only its background signer.
+// the real useKaspaHotWalletSigner and useKaspaLedgerSigner and swaps only the
+// background signer, the Ledger transport and the Ledger device. Every mode
+// records lib/consolidate and resolve-derivation through the ./*-spy.ts files.
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import Unimport from "unimport/unplugin";
@@ -18,16 +20,26 @@ const hooks = {
   "hooks/wallet/useKaspaHotWalletSigner": "useKaspaHotWalletSigner",
   "hooks/wallet/useKaspaLedgerSigner": "useKaspaLedgerSigner",
   "hooks/useKasFeeEstimate": "useKasFeeEstimate",
+  // imported only by the real useKaspaLedgerSigner
+  "hooks/useLedgerTransport": "useLedgerTransport",
+  "lib/wallet/account-factory": "AccountFactory",
   "components/screens/ledger-connect/LedgerConnectForSign":
     "LedgerConnectForSign",
   "components/GeneralHeader": "GeneralHeader",
 };
 const ext = "(\\.tsx?)?$";
+const signerHooks = [
+  "hooks/wallet/useKaspaHotWalletSigner",
+  "hooks/wallet/useKaspaLedgerSigner",
+];
+const spies = {
+  "lib/consolidate": "consolidate-spy.ts",
+  "lib/wallet/resolve-derivation": "resolve-derivation-spy.ts",
+};
 
 export default defineConfig(({ mode }) => {
   const swapped = Object.entries(hooks).filter(
-    ([from]) =>
-      mode !== "real-signer" || from !== "hooks/wallet/useKaspaHotWalletSigner",
+    ([from]) => mode !== "real-signer" || !signerHooks.includes(from),
   );
   return {
     root: here,
@@ -50,10 +62,19 @@ export default defineConfig(({ mode }) => {
           find: new RegExp(`^@/${from}${ext}`),
           replacement: `stub:${name}`,
         })),
+        ...Object.entries(spies).map(([from, file]) => ({
+          find: new RegExp(`^@/${from}${ext}`),
+          replacement: path.join(here, file),
+        })),
         // imported relatively, and only by the real useKaspaHotWalletSigner
         {
           find: new RegExp(`^\\./useKaspaBackgroundSigner${ext}`),
           replacement: "stub:useKaspaBackgroundSigner",
+        },
+        // imported relatively by the real useKaspaLedgerSigner
+        {
+          find: new RegExp(`^\\./useWalletManager${ext}`),
+          replacement: "stub:useWalletManager",
         },
         { find: /^@\/(.*)$/, replacement: `${repo}/$1` },
       ],

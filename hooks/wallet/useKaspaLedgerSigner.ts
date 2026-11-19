@@ -28,9 +28,9 @@ export default function useKaspaLedgerSigner() {
   // The derivation whose key holds this account's funds; the flag alone can
   // name the other one (see resolveIsLegacy). Cached: no device exchange
   // between the signatures of a batch.
-  const ledgerAccount = async () => {
-    const isLegacy = account
-      ? await resolveAccountIsLegacy(
+  const resolveLegacy = async () =>
+    account
+      ? resolveAccountIsLegacy(
           walletInfo.id,
           accountIndex,
           account.address,
@@ -44,8 +44,8 @@ export default function useKaspaLedgerSigner() {
             )[0],
         )
       : flag;
-    return factoryFor(isLegacy).createFromLedger(transport, accountIndex);
-  };
+  const ledgerAccount = async () =>
+    factoryFor(await resolveLegacy()).createFromLedger(transport, accountIndex);
 
   const getAddress = async () => {
     const publicKey = await (await ledgerAccount()).getPublicKey();
@@ -54,6 +54,8 @@ export default function useKaspaLedgerSigner() {
   };
 
   return {
+    // the derivation the methods below sign with
+    resolveIsLegacy: resolveLegacy,
     getAddress,
     signTx: async (...args: Parameters<IWallet["signTx"]>) =>
       (await ledgerAccount()).signTx(...args),

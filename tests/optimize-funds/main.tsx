@@ -4,13 +4,16 @@ import {
   RouterProvider,
   useLocation,
 } from "react-router-dom";
-import init, { PrivateKey } from "@/wasm/core/kaspa";
+import init, { PrivateKey, PublicKey } from "@/wasm/core/kaspa";
 import wasmUrl from "@/assets/kaspa_bg.wasm?url";
 import OptimizeFunds from "@/components/screens/full-pages/OptimizeFunds";
+import useKaspaHotWalletSigner from "@/hooks/wallet/useKaspaHotWalletSigner";
 import {
   getState,
   harnessAccount,
   initStore,
+  MNEMONIC,
+  OTHER_MNEMONIC,
   update,
   type HarnessState,
 } from "./stubs";
@@ -18,7 +21,9 @@ import {
 declare global {
   interface Window {
     __optimize: {
-      addresses: Record<"A" | "B" | "L", string>;
+      addresses: Record<"A" | "B" | "L" | "S", string>;
+      // the hot signer hook of the latest render
+      hotSigner: () => ReturnType<typeof useKaspaHotWalletSigner>;
       state: () => HarnessState;
       update: (patch: Partial<HarnessState>) => void;
     };
@@ -39,6 +44,12 @@ function Failed() {
   return <h2>Optimize failed stub</h2>;
 }
 
+let hotSigner: ReturnType<typeof useKaspaHotWalletSigner>;
+function HotSignerProbe() {
+  hotSigner = useKaspaHotWalletSigner();
+  return null;
+}
+
 function Succeeded() {
   getState().succeeded = true;
   return <h2>Optimize succeeded stub</h2>;
@@ -54,6 +65,9 @@ function Succeeded() {
     B: new PrivateKey(KEYS.B).toPublicKey().toAddress("mainnet").toString(),
     // the legacy key of account 1 of the harness recovery phrase
     L: harnessAccount(true, 1).getPublicKey().toAddress("mainnet").toString(),
+    S: new PublicKey(harnessAccount(true, 1).getPublicKeys()[1])
+      .toAddress("mainnet")
+      .toString(),
   };
   const q = new URLSearchParams(location.search);
   const pick = (name: string) => {
@@ -76,8 +90,24 @@ function Succeeded() {
     entryCounts: { [addresses.A]: 200, [addresses.B]: 250, [addresses.L]: 81 },
     calls: { getAddress: 0, signTx: 0, submit: 0, revalidate: 0 },
     signedIsLegacy: [],
+    isLegacyBy: {},
+    seedPhrase: q.get("seed") === "other" ? OTHER_MNEMONIC : MNEMONIC,
+    submitFails: q.get("submit") === "fail",
+    preFix: q.get("prefix") === "1",
+    wallet: q.get("wallet") === "fragmented" ? "fragmented" : "default",
+    siblingAddress: addresses.S,
+    ledgerLog: [],
+    guards: [],
+    plans: [],
+    rounds: [],
+    submitted: [],
   });
-  window.__optimize = { addresses, state: getState, update };
+  window.__optimize = {
+    addresses,
+    state: getState,
+    update,
+    hotSigner: () => hotSigner,
+  };
 
   const router = createMemoryRouter(
     [
@@ -88,6 +118,9 @@ function Succeeded() {
     { initialEntries: ["/optimize-funds"] },
   );
   createRoot(document.getElementById("root")!).render(
-    <RouterProvider router={router} />,
+    <>
+      <HotSignerProbe />
+      <RouterProvider router={router} />
+    </>,
   );
 })();

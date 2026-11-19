@@ -126,6 +126,8 @@ export default function useKaspaHotWalletSigner() {
   };
 
   return {
+    // the derivation the methods below sign with
+    resolveIsLegacy: resolveLegacy,
     getPublicKeys,
     getPublicKey,
     signTx,
