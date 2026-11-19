@@ -3,10 +3,17 @@
 // switch or a legacy-mode toggle does in the popup.
 import { useSyncExternalStore } from "react";
 import {
+  Mnemonic,
   payToAddressScript,
+  Transaction,
   type IUtxoEntry,
-  type Transaction,
 } from "@/wasm/core/kaspa";
+import {
+  HotWalletAccount,
+  LegacyHotWalletAccount,
+} from "@/lib/wallet/account/hot-wallet-account";
+import type { KaspaGetPublicKeysRequest } from "@/lib/service/handlers/kaspa/kaspa-get-public-keys";
+import type { KaspaSignTransactionRequest } from "@/lib/service/handlers/kaspa/kaspa-sign-transaction";
 
 export type HarnessState = {
   accountAddress: string;
@@ -25,6 +32,8 @@ export type HarnessState = {
     submit: number;
     revalidate: number;
   };
+  // isLegacy of every signTransaction the background stub received
+  signedIsLegacy: boolean[];
   failed?: { errorName?: string; report?: Record<string, unknown> };
   succeeded?: boolean;
 };
@@ -112,6 +121,42 @@ function useSigner() {
         return input;
       });
       return tx;
+    },
+  };
+}
+
+// The keyring of the "real-signer" build: one recovery phrase, both
+// derivations, as the background builds them (lib/service/handlers/kaspa/utils.ts).
+const MNEMONIC =
+  "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+export function harnessAccount(isLegacy: boolean, index: number) {
+  const seed = new Mnemonic(MNEMONIC).toSeed();
+  return isLegacy
+    ? new LegacyHotWalletAccount(seed, index)
+    : new HotWalletAccount(seed, index);
+}
+
+export function useKaspaBackgroundSigner() {
+  return {
+    getPublicKeys: async ({
+      accountIndex,
+      isLegacy,
+    }: KaspaGetPublicKeysRequest) => ({
+      publicKeys: harnessAccount(isLegacy, accountIndex).getPublicKeys(),
+    }),
+    signTransaction: async ({
+      transactionJSON,
+      scripts,
+      accountIndex,
+      isLegacy,
+    }: KaspaSignTransactionRequest) => {
+      state.calls.signTx++;
+      state.signedIsLegacy.push(isLegacy);
+      const signed = await harnessAccount(isLegacy, accountIndex).signTx(
+        Transaction.deserializeFromSafeJSON(transactionJSON),
+        scripts,
+      );
+      return { signedTransactionJSON: signed.serializeToSafeJSON() };
     },
   };
 }

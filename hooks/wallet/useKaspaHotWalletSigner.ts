@@ -5,6 +5,7 @@ import { Transaction, PublicKey } from "@/wasm/core/kaspa";
 import type { ScriptOption } from "@/lib/wallet/wallet-interface";
 import { hexToBytes } from "@noble/hashes/utils";
 import { BraidSignRefusal, type BraidDeposit } from "@/lib/braid/signer";
+import { resolveAccountIsLegacy } from "@/lib/wallet/resolve-derivation";
 
 export default function useKaspaHotWalletSigner() {
   const { wallet: walletInfo, account } = useWalletManager();
@@ -15,18 +16,28 @@ export default function useKaspaHotWalletSigner() {
     return undefined;
   }
 
-  const isKastleLegacy = walletInfo.isLegacyWalletEnabled ?? false;
-
-  const getPublicKeys = async () => {
-    const walletId = walletInfo.id;
-    const accountIndex = account.index;
+  const keysFor = async (isLegacy: boolean) => {
     const { publicKeys } = await signer.getPublicKeys({
-      walletId,
-      accountIndex,
-      isLegacy: isKastleLegacy,
+      walletId: walletInfo.id,
+      accountIndex: account.index,
+      isLegacy,
     });
     return publicKeys;
   };
+
+  // The derivation whose key holds this account's funds; the flag alone can
+  // name the other one (see resolveIsLegacy).
+  const resolveLegacy = () =>
+    resolveAccountIsLegacy(
+      walletInfo.id,
+      account.index,
+      account.address,
+      walletInfo.isLegacyWalletEnabled ?? false,
+      networkId,
+      async (isLegacy) => (await keysFor(isLegacy))[0],
+    );
+
+  const getPublicKeys = async () => keysFor(await resolveLegacy());
 
   const getPublicKey = async () => {
     const publicKeys = await getPublicKeys();
@@ -46,7 +57,7 @@ export default function useKaspaHotWalletSigner() {
       walletId,
       accountIndex,
       networkId,
-      isLegacy: isKastleLegacy,
+      isLegacy: await resolveLegacy(),
     });
 
     const { signedTransactionJSON } = signedTransaction ?? {};
@@ -72,7 +83,7 @@ export default function useKaspaHotWalletSigner() {
       walletId,
       accountIndex,
       networkId,
-      isLegacy: isKastleLegacy,
+      isLegacy: await resolveLegacy(),
     });
 
     return hexToBytes(signatureHex);
@@ -84,7 +95,7 @@ export default function useKaspaHotWalletSigner() {
     const response = await signer.signBraidDeposit({
       walletId: walletInfo.id,
       accountIndex: account.index,
-      isLegacy: isKastleLegacy,
+      isLegacy: await resolveLegacy(),
       deposit: {
         ref: deposit.ref,
         network: deposit.network,
@@ -109,7 +120,7 @@ export default function useKaspaHotWalletSigner() {
       walletId,
       accountIndex,
       networkId,
-      isLegacy: isKastleLegacy,
+      isLegacy: await resolveLegacy(),
     });
     return signedMessage;
   };
