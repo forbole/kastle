@@ -323,7 +323,11 @@ export default function OptimizeFunds() {
             ? undefined
             : true,
       accountIndex: account?.index,
-      isLegacy: wallet?.isLegacyWalletEnabled ?? false,
+      // the derivation the signer used (undefined: its key could not be
+      // read). Up to and including 2.63.1 this field held the wallet flag,
+      // which can name the other derivation; the flag is now its own field.
+      isLegacy: await walletSigner.resolveIsLegacy().catch(() => undefined),
+      isLegacyWalletEnabled: wallet?.isLegacyWalletEnabled ?? false,
       total: plan.transactions.length,
       submitted: result.submitted,
       rejected: result.rejected,

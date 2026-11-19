@@ -146,7 +146,7 @@ export class SignerUnavailableError extends Error {
   }
 }
 
-const sameScript = (a: ScriptPublicKey, b: ScriptPublicKey) =>
+export const sameScript = (a: ScriptPublicKey, b: ScriptPublicKey) =>
   a.version === b.version && a.script.toLowerCase() === b.script.toLowerCase();
 
 /**
