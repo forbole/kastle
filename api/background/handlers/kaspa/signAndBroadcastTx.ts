@@ -1,8 +1,8 @@
 import { Handler } from "@/api/background/utils";
-import { ApiRequestWithHost, RPC_ERRORS } from "@/api/message";
+import { ApiRequestWithHost } from "@/api/message";
 import { ApiUtils } from "@/api/background/utils";
 import { SignTxPayloadSchema, isCovenantTxJson } from "./utils";
-import { canDecodeCovenantRequest } from "./covenant-guard";
+import { covenantRequestRefusal } from "./covenant-guard";
 
 /** signAndBroadcastTx handler to serve BrowserMessageType.SIGN_AND_BROADCAST_TX message */
 export const signAndBroadcastTxHandler: Handler = async (
@@ -45,18 +45,13 @@ export const signAndBroadcastTxHandler: Handler = async (
     return;
   }
 
-  // Version 0 never fetches; a covenant request opens only once it decodes.
-  if (
+  // Version 0 never fetches; a covenant request opens only once every input
+  // it signs is checked.
+  const refusal =
     isCovenantTxJson(result.data.txJson) &&
-    !(await canDecodeCovenantRequest(result.data.txJson))
-  ) {
-    sendResponse(
-      ApiUtils.createApiResponse(
-        message.id,
-        null,
-        RPC_ERRORS.COVENANT_TX_UNDECODABLE,
-      ),
-    );
+    (await covenantRequestRefusal(result.data.txJson, result.data.scripts));
+  if (refusal) {
+    sendResponse(ApiUtils.createApiResponse(message.id, null, refusal));
     return;
   }
 

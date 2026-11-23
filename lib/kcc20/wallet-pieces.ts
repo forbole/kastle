@@ -11,7 +11,7 @@ import {
   ownedStandardCells,
 } from "./index";
 import { fetchOwnerCells, fetchStandardHoldings } from "./providers/kascov";
-import type { WalletKcc20Piece } from "./dapp-request";
+import { canReadStandardKcc20, type WalletKcc20Piece } from "./dapp-request";
 
 // A sign guard, not a display list: past this many tokens the scan is refused, never cut.
 const PIECES_TOKEN_CAP = 50;
@@ -114,6 +114,7 @@ export async function walletKcc20Pieces(
         covenantId: covid,
         family: "kron-legacy",
         amount: p.state.amount,
+        value: p.value,
         ...meta,
       });
     for (const p of std)
@@ -123,6 +124,7 @@ export async function walletKcc20Pieces(
         family: "kcc20-standard",
         extensionCommitment: bytesToHex(p.state.extensionCommitment).slice(2),
         amount: p.state.amount,
+        value: p.value,
         ...meta,
       });
   }
@@ -131,7 +133,7 @@ export async function walletKcc20Pieces(
   const pk = /^20([0-9a-f]{64})ac$/.exec(
     payToAddressScript(address).script,
   )?.[1];
-  if (standard && net === "mainnet") {
+  if (standard && canReadStandardKcc20(net)) {
     if (!pk)
       throw new Error(
         "standard KCC-20 pieces can only be scanned for a Schnorr P2PK address",
@@ -168,6 +170,7 @@ export async function walletKcc20Pieces(
             piece.state.extensionCommitment,
           ).slice(2),
           amount: piece.state.amount,
+          value: piece.value,
           symbol: meta?.symbol ?? "",
           decimals: displayDecimals(meta?.decimals),
         });

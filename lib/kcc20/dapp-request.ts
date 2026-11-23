@@ -1,5 +1,12 @@
-import { addressFromScriptPublicKey, Transaction } from "@/wasm/core/kaspa";
+import {
+  addressFromScriptPublicKey,
+  payToAddressScript,
+  Transaction,
+} from "@/wasm/core/kaspa";
 import type { Kcc20Family } from "./index";
+
+/** Where the standard family can be read (kascov serves mainnet only). */
+export const canReadStandardKcc20 = (network: string) => network === "mainnet";
 
 /** A KCC-20 piece the wallet holds, as the dApp sign guard matches it against a request's inputs. */
 export type WalletKcc20Piece = {
@@ -8,6 +15,8 @@ export type WalletKcc20Piece = {
   family: Kcc20Family;
   extensionCommitment?: string;
   amount: bigint;
+  // sompi the node holds on the outpoint, never the request's claim
+  value: bigint;
   // "" when unknown; display only.
   symbol: string;
   decimals?: number;
@@ -82,5 +91,41 @@ export function decodeCovenantRequest(
     return { ok: true, movements };
   } catch (e) {
     return { ok: false, reason: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/**
+ * Why the wallet must not sign: an input it is asked to sign with a script
+ * (`scripted`) that is neither its own plain P2PK coin nor a verified piece.
+ * Unscripted inputs are signed only when the key owns them (the P2PK
+ * fallback), so they are the wallet's plain coins by construction.
+ * Undefined: every signed input is checked. Pure.
+ */
+export function uncheckedSignedInput(
+  tx: Transaction,
+  pieces: WalletKcc20Piece[],
+  scripted: number[],
+  walletAddress: string,
+  network: string,
+): string | undefined {
+  const held = new Set(
+    pieces.map((p) => `${p.outpoint.transactionId}:${p.outpoint.index}`),
+  );
+  const walletScript = payToAddressScript(walletAddress).script;
+  const inputs = tx.inputs;
+  for (const i of scripted) {
+    const input = inputs[i];
+    if (!input) return `input ${i} does not exist`;
+    const { transactionId, index } = input.previousOutpoint;
+    if (held.has(`${transactionId}:${index}`)) continue;
+    const utxo = input.utxo;
+    // A lied-about entry only breaks the signature: the sighash commits to it.
+    if (utxo?.scriptPublicKey.script === walletScript) continue;
+    const covenantId = utxo?.entry.covenantId?.toString();
+    if (!covenantId)
+      return `input ${i} is not your own coin or a KCC-20 token Kastle verified`;
+    return canReadStandardKcc20(network)
+      ? `input ${i} spends a token state (${covenantId}) that is not one Kastle verified as yours`
+      : `input ${i} spends a token state (${covenantId}) and Kastle cannot check standard KCC-20 tokens on ${network}`;
   }
 }

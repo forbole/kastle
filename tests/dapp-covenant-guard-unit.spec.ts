@@ -127,6 +127,7 @@ const HANDLERS = [
 const call = (
   handler: (typeof HANDLERS)[number][1],
   txJson: string,
+  scripts?: unknown[],
 ): Promise<{ id: string; response: unknown; error?: unknown }> =>
   new Promise((resolve) =>
     handler(
@@ -134,11 +135,26 @@ const call = (
       {
         id: "req-1",
         host: "https://kron.example",
-        payload: { networkId: NETWORK, txJson },
+        payload: { networkId: NETWORK, txJson, scripts },
       } as any,
       resolve,
     ),
   );
+
+// The repro's piece A (input 0); input 1 is piece B, input 2 the wallet's coin.
+const PIECE_A = {
+  outpoint: {
+    transactionId:
+      "c95be92b71d2858ec179cd7f021c09022d226dc63ebf882eafaa07422e096990",
+    index: 0,
+  },
+  covenantId:
+    "ae3a6563b6374dc14c2b1bcd399c38a157f97c5a215ec26d0c33dfeaff91e5b8",
+  family: "kron-legacy",
+  amount: 1n,
+  value: 100_000_000n,
+  symbol: "",
+};
 
 for (const [name, handler] of HANDLERS) {
   test.describe(`${name} covenant guard`, () => {
@@ -163,20 +179,7 @@ for (const [name, handler] of HANDLERS) {
     });
 
     test("version 1 that decodes opens the popup with the request only", async () => {
-      guard.pieces = async () => [
-        {
-          outpoint: {
-            transactionId:
-              "c95be92b71d2858ec179cd7f021c09022d226dc63ebf882eafaa07422e096990",
-            index: 0,
-          },
-          covenantId:
-            "ae3a6563b6374dc14c2b1bcd399c38a157f97c5a215ec26d0c33dfeaff91e5b8",
-          family: "kron-legacy",
-          amount: 1n,
-          symbol: "",
-        },
-      ];
+      guard.pieces = async () => [PIECE_A];
       const res = await call(handler, V1_TX_JSON);
       expect(guard.pieceCalls).toHaveLength(1);
       // Standard pieces always scanned: the flag gates display, not the guard.
@@ -192,6 +195,37 @@ for (const [name, handler] of HANDLERS) {
         "requestId",
       ]);
       expect(res.response).toBe("popup-answer");
+    });
+
+    test("version 1 that scripts a token state the wallet cannot check is refused", async () => {
+      guard.pieces = async () => [PIECE_A];
+      const res = await call(handler, V1_TX_JSON, [
+        { inputIndex: 1, signType: "All" },
+      ]);
+      expect(guard.popups).toHaveLength(0);
+      expect(res.response).toBeNull();
+      const error = res.error as { code: number; message: string };
+      expect(error.code).toBe(RPC_ERRORS.COVENANT_TX_UNDECODABLE.code);
+      expect(error.message).toContain("input 1 spends a token state");
+      expect(error.message).toContain(
+        "Kastle cannot check standard KCC-20 tokens on testnet-10",
+      );
+    });
+
+    test("version 1 that scripts only the wallet's own coin opens the popup", async () => {
+      guard.pieces = async () => [PIECE_A];
+      const res = await call(handler, V1_TX_JSON, [
+        { inputIndex: 2, signType: "All" },
+      ]);
+      expect(guard.popups).toHaveLength(1);
+      expect(res.response).toBe("popup-answer");
+    });
+
+    test("a malformed sign option is refused, no popup", async () => {
+      guard.pieces = async () => [PIECE_A];
+      const res = await call(handler, V1_TX_JSON, [{ inputIndex: -1 }]);
+      expect(guard.popups).toHaveLength(0);
+      expect(res.error).toEqual(RPC_ERRORS.COVENANT_TX_UNDECODABLE);
     });
   });
 }

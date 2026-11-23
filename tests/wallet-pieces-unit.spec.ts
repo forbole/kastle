@@ -109,7 +109,8 @@ const node = (held: Held[]) =>
       entries: held.map((h) => ({
         outpoint: outpoint(h.n),
         address: p2shOf(h.redeem),
-        entry: { covenantId: h.covid, amount: "1000" },
+        // distinct per outpoint so a value read off the wrong entry shows
+        entry: { covenantId: h.covid, amount: String(1000 + h.n) },
       })),
     }),
   }) as unknown as RpcClient;
@@ -193,6 +194,8 @@ test("1. a legacy piece comes back with its outpoint key and amount", async () =
   expect(pieces).toHaveLength(1);
   expect(key(pieces[0])).toBe(`${outpoint(1).transactionId}:0`);
   expect(String(pieces[0].amount)).toBe("88936");
+  // KAS the node holds on the outpoint, not a constant.
+  expect(String(pieces[0].value)).toBe("1001");
   expect(pieces[0].family).toBe("kron-legacy");
   expect(pieces[0].covenantId).toBe(LEGACY_COVID);
 });
@@ -258,9 +261,11 @@ test("5. a kascov standard piece merges with a legacy piece, distinct outpoints"
     },
     node(held),
   );
-  expect(pieces.map((p) => [key(p), p.family, String(p.amount)])).toEqual([
-    [key({ outpoint: outpoint(1) }), "kron-legacy", "7"],
-    [key({ outpoint: outpoint(2) }), "kcc20-standard", "500"],
+  expect(
+    pieces.map((p) => [key(p), p.family, String(p.amount), String(p.value)]),
+  ).toEqual([
+    [key({ outpoint: outpoint(1) }), "kron-legacy", "7", "1001"],
+    [key({ outpoint: outpoint(2) }), "kcc20-standard", "500", "1002"],
   ]);
   expect(pieces[1]).toMatchObject({
     covenantId: STD_COVID,

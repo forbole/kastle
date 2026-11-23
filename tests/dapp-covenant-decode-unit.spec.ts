@@ -6,6 +6,7 @@ import init from "@/wasm/core/kaspa";
 import { deserializeTransaction } from "@/lib/kaspa-compat";
 import {
   decodeCovenantRequest,
+  uncheckedSignedInput,
   type WalletKcc20Piece,
 } from "@/lib/kcc20/dapp-request";
 
@@ -39,6 +40,7 @@ const pieceA: WalletKcc20Piece = {
   covenantId: COVID_A,
   family: "kron-legacy",
   amount: 1_000_000n,
+  value: 100_000_000n,
   symbol: "AAA",
   decimals: 8,
 };
@@ -51,6 +53,7 @@ const pieceB: WalletKcc20Piece = {
   covenantId: COVID_B,
   family: "kron-legacy",
   amount: 7n,
+  value: 100_000_000n,
   symbol: "",
 };
 const unrelated: WalletKcc20Piece = {
@@ -141,5 +144,65 @@ test.describe("decodeCovenantRequest", () => {
     expect(result.movements[0].decimals).toBeUndefined();
     expect("decimals" in result.movements[0]).toBe(false);
     expect(String(result.movements[0].amount)).toBe("7");
+  });
+});
+
+// The repro's scripts name input 1 (piece B); input 2 is the wallet's P2PK.
+const unchecked = (
+  pieces: WalletKcc20Piece[],
+  scripted: number[],
+  network = NETWORK,
+) =>
+  uncheckedSignedInput(
+    deserializeTransaction(TX_JSON),
+    pieces,
+    scripted,
+    WALLET,
+    network,
+  );
+
+test.describe("uncheckedSignedInput", () => {
+  test("a scripted covenant input that is no verified piece refuses", () => {
+    // Before: decode skipped input 1 and the wallet signed it blind.
+    expect(decode([pieceA]).ok).toBe(true);
+    const reason = unchecked([pieceA], [1]);
+    expect(reason).toContain("input 1 spends a token state");
+    expect(reason).toContain(COVID_B);
+    // Off mainnet the refusal says the standard family cannot be read here.
+    expect(reason).toContain(
+      `Kastle cannot check standard KCC-20 tokens on ${NETWORK}`,
+    );
+  });
+
+  test("on mainnet the same refusal names an unverified token, not the network", () => {
+    const reason = unchecked([pieceA], [1], "mainnet");
+    expect(reason).toContain("not one Kastle verified as yours");
+    expect(reason).not.toContain("cannot check standard");
+  });
+
+  test("a scripted verified piece and the wallet's own coin pass", () => {
+    expect(unchecked([pieceA, pieceB], [1])).toBeUndefined();
+    expect(unchecked([], [2])).toBeUndefined();
+    // Nothing scripted: the signer only signs inputs its key owns.
+    expect(unchecked([], [])).toBeUndefined();
+  });
+
+  test("a scripted input that is neither coin nor token refuses", () => {
+    const tx = JSON.parse(TX_JSON);
+    tx.inputs[1].utxo.covenantId = null;
+    const reason = uncheckedSignedInput(
+      deserializeTransaction(JSON.stringify(tx)),
+      [],
+      [1],
+      WALLET,
+      NETWORK,
+    );
+    expect(reason).toBe(
+      "input 1 is not your own coin or a KCC-20 token Kastle verified",
+    );
+  });
+
+  test("a scripted index past the inputs refuses", () => {
+    expect(unchecked([], [9])).toBe("input 9 does not exist");
   });
 });
