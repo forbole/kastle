@@ -284,9 +284,14 @@ test("v1 fee, sending amount and balance change are exact sompi", async ({
     row(page, "Change to your balance").locator("span").first(),
   ).toHaveText("-0.20009 KAS");
   // Exactly once: outputs 0-2 leave the wallet's script, 2 KAS in all.
-  // Piece A's row carries its 1 KAS (out of outputs 0 and 1); Sending shows the rest.
-  await expect(page.getByText("-1 KAS", { exact: true })).toBeVisible();
-  await expect(page.getByText("-1 KAS", { exact: true })).toHaveCount(1);
+  // Piece A's 1 KAS (out of outputs 0 and 1) is its gross-input row, never a
+  // movement; Sending shows the rest.
+  await expect(
+    page.getByText(
+      "Gross input KAS in the AAA pieces, incl. any change and fee",
+    ),
+  ).toBeVisible();
+  await expect(page.getByText("-1 KAS", { exact: true })).toHaveCount(0);
   // Input 1 is neither scripted nor the wallet's: its amount is the page's word.
   await expect(row(page, "Fee")).toContainText(SITE_STATED);
 });
@@ -318,9 +323,14 @@ test("each token shows the KAS its pieces carry as its own row, and says the amo
     .locator("li")
     .filter({ has: page.getByText("KAS", { exact: true }) });
   await expect(kasRows).toHaveCount(2);
-  await expect(kasRows.nth(0)).toContainText("Moves with AAA");
-  await expect(kasRows.nth(0)).toContainText("-1 KAS");
-  await expect(kasRows.nth(1)).toContainText("-1 KAS");
+  // Gross input KAS, never printed as a movement (no minus sign).
+  await expect(kasRows.nth(0)).toContainText(
+    "Gross input KAS in the AAA pieces, incl. any change and fee",
+  );
+  await expect(kasRows.nth(0)).not.toContainText("Moves with");
+  await expect(kasRows.nth(0)).not.toContainText("-1 KAS");
+  await expect(kasRows.nth(0)).toContainText("1 KAS");
+  await expect(kasRows.nth(1)).not.toContainText("-1 KAS");
   // the token row itself stays the token amount alone
   await expect(page.getByText("-1.25", { exact: true })).toBeVisible();
   await expect(

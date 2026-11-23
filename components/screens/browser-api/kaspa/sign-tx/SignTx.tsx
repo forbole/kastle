@@ -1,10 +1,14 @@
-import { SignTxPayload } from "@/api/background/handlers/kaspa/utils";
+import {
+  SignTxPayload,
+  admissionRefusal,
+} from "@/api/background/handlers/kaspa/utils";
 import { ApiExtensionUtils } from "@/api/extension";
 import { IWallet } from "@/lib/wallet/wallet-interface.ts";
 import useRpcClientStateful from "@/hooks/useRpcClientStateful";
 import SignConfirm from "@/components/screens/browser-api/kaspa/sign/SignConfirm";
 import { ApiUtils } from "@/api/background/utils";
 import useAnalytics from "@/hooks/useAnalytics";
+import useWalletManager from "@/hooks/wallet/useWalletManager";
 import { deserializeTransaction } from "@/lib/kaspa-compat";
 import {
   hasPartialOutputCommitment,
@@ -29,9 +33,25 @@ export default function SignTx({
 }: SignTxProps) {
   const { rpcClient } = useRpcClientStateful();
   const { emitKasSignTx } = useAnalytics();
+  const { account, wallet: selectedWallet } = useWalletManager();
 
   const handleConfirm = async () => {
     if (!rpcClient || !wallet) {
+      return;
+    }
+
+    // Bound to the account the guard checked: another one never signs it.
+    const refusal = admissionRefusal(
+      payload,
+      selectedWallet?.id,
+      account?.index,
+    );
+    if (refusal) {
+      await ApiExtensionUtils.sendMessage(
+        requestId,
+        ApiUtils.createApiResponse(requestId, null, refusal),
+      );
+      window.close();
       return;
     }
 

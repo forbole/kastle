@@ -224,7 +224,7 @@ test("3. a truncated kascov cell list is refused", async () => {
   );
   await expect(
     scan({ indexer: indexer([]), standard: true, kascov: fetchers }),
-  ).rejects.toThrow(`kascov truncated ${STD_COVID}`);
+  ).rejects.toThrow(`The token indexer held back pieces of ${STD_COVID}`);
 });
 
 test("4. one token failing to load rejects the whole scan, no partial list", async () => {
@@ -418,7 +418,9 @@ test("a kascov-claimed cell the node does not verify is refused", async () => {
       { indexer: indexer([]), standard: true, kascov: fetchers },
       node([{ n: 2, redeem: std, covid: STD_COVID }]),
     ),
-  ).rejects.toThrow(`kascov claims 2 cells of ${STD_COVID} but 1 verified`);
+  ).rejects.toThrow(
+    `The token indexer reports 2 pieces of ${STD_COVID} but the node confirms 1`,
+  );
 });
 
 // Through the real wiring: reverting the filter in wallet-pieces or in
@@ -453,4 +455,42 @@ test("pin: the pinned id is no impostor and keeps its configured ticker", () => 
   expect(
     claimedMeta({ tokenId: pinned, claimedTicker: "FAKE" }, "mainnet")?.symbol,
   ).toBe("kUSDT");
+});
+
+test("pin: a KRON-indexed piece on a foreign id claiming kUSDT is never named kUSDT", async () => {
+  const redeem = legacyRedeem(12_345n);
+  const held = [{ n: 1, redeem, covid: LEGACY_COVID }];
+  const run = async (symbol: string) =>
+    (
+      await scan(
+        {
+          indexer: indexer(
+            [{ tick: "LEG", covenantId: LEGACY_COVID, symbol, dec: 3 }],
+            { LEG: held },
+          ),
+        },
+        node(held),
+      )
+    ).map((p) => p.symbol);
+  expect(await run("ROW")).toEqual(["ROW"]);
+  expect(await run("kusdt")).toEqual([""]);
+});
+
+test("cap, truncation and claimed-vs-verified are scan refusals, not outages", async () => {
+  const { CovenantScanRefusal } = await import("@/lib/kcc20/dapp-request");
+  const rows = Array.from({ length: 51 }, (_, i) => ({
+    tick: `T${i}`,
+    covenantId: i.toString(16).padStart(64, "0"),
+  }));
+  await expect(scan({ indexer: indexer(rows) })).rejects.toBeInstanceOf(
+    CovenantScanRefusal,
+  );
+  const { fetchers } = kascov(
+    [{ tokenId: STD_COVID }],
+    { [STD_COVID]: [] },
+    true,
+  );
+  await expect(
+    scan({ indexer: indexer([]), standard: true, kascov: fetchers }),
+  ).rejects.toBeInstanceOf(CovenantScanRefusal);
 });

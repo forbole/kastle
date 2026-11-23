@@ -9,6 +9,17 @@ import type { Kcc20Family } from "./index";
 export const canReadStandardKcc20 = (network: string) => network === "mainnet";
 
 /** A KCC-20 piece the wallet holds, as the dApp sign guard matches it against a request's inputs. */
+/**
+ * A scan that finished but must not be signed against: a token cap, a held-back
+ * cell list, a claimed-versus-verified mismatch. Its message is the refusal the
+ * dApp sees; retrying will not change it, unlike a failed read.
+ */
+export class CovenantScanRefusal extends Error {}
+
+/** Refusal text when a Ledger account is asked to sign a covenant request with a foreign input. */
+export const LEDGER_FOREIGN_INPUT =
+  "this request needs a signer that can verify the pieces, and a Ledger signs every input of the transaction";
+
 export type WalletKcc20Piece = {
   outpoint: { transactionId: string; index: number };
   covenantId: string;
@@ -108,6 +119,9 @@ export function decodeCovenantRequest(
  * Unscripted inputs are signed only when the key owns them (the P2PK
  * fallback), so they are the wallet's plain coins by construction.
  * Undefined: every signed input is checked. Pure.
+ * `ledger`: the Ledger signer signs EVERY input (ledger-account.ts), so the
+ * fallback assumption does not hold: any input that is not the wallet's own
+ * script, scripted or not, refuses.
  */
 export function uncheckedSignedInput(
   tx: Transaction,
@@ -115,6 +129,7 @@ export function uncheckedSignedInput(
   scripted: number[],
   walletAddress: string,
   network: string,
+  ledger = false,
 ): string | undefined {
   const held = new Set(
     pieces.map((p) => `${p.outpoint.transactionId}:${p.outpoint.index}`),
@@ -126,6 +141,8 @@ export function uncheckedSignedInput(
   // Every input visited: the P2PK fallback signs a wallet-script input unscripted.
   for (let i = 0; i < inputs.length; i++) {
     const input = inputs[i];
+    if (ledger && input.utxo?.scriptPublicKey.script !== walletScript)
+      return `${LEDGER_FOREIGN_INPUT} (input ${i} is not your own coin)`;
     const { transactionId, index } = input.previousOutpoint;
     if (held.has(`${transactionId}:${index}`)) continue;
     const utxo = input.utxo;

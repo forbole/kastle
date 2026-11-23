@@ -100,12 +100,13 @@ export function CovenantTokenMovements({
                     network="kcc20"
                   />
                 </li>
-                {/* Its own row: this KAS is neither the fee nor the sending amount. */}
+                {/* Gross input KAS, not a movement: part of it can come back as
+                    change or pay the fee, which the Sending and Fee rows show. */}
                 <li className={`${ROW} py-0`}>
                   <TokenItem
                     name="KAS"
-                    subtitle={`Moves with ${name}`}
-                    amount={`-${formatBalance(value, KAS_DECIMALS)} KAS`}
+                    subtitle={`Gross input KAS in the ${name} pieces, incl. any change and fee`}
+                    amount={`${formatBalance(value, KAS_DECIMALS)} KAS`}
                     logo={kasIcon}
                     network="kaspa"
                   />

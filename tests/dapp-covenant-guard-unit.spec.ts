@@ -7,11 +7,13 @@ import { fileURLToPath } from "node:url";
 // The real handlers, real covenant guard and real decode; only the background
 // ApiUtils (storage, popup window, RPC) and the pieces fetcher are stubbed.
 type Guard = {
+  wallet: { id: string; type: string };
   popups: string[];
   pieceCalls: unknown[][];
   pieces: (...args: unknown[]) => Promise<unknown[]>;
 };
 const guard: Guard = {
+  wallet: { id: "w1", type: "mnemonic" },
   popups: [],
   pieceCalls: [],
   pieces: async () => [],
@@ -40,7 +42,9 @@ const STUBS: Record<string, string> = {
         g().popups.push(url);
         return { id, response: "popup-answer" };
       },
+      getCurrentWallet: async () => g().wallet,
       getCurrentAccount: async () => ({
+        index: 0,
         address: "kaspatest:qqvy0kf7yf2dzz0cmsaaf7gdt9nn6dh7ykvztdn9cev5wm0jp6dgv26v7c7mv",
       }),
       getSettings: async () => ({ networkId: "testnet-10" }),
@@ -78,6 +82,12 @@ registerHooks({
 
 const { default: init, Transaction } = await import("@/wasm/core/kaspa");
 const { RPC_ERRORS } = await import("@/api/message");
+const { admissionRefusal } = await import(
+  "@/api/background/handlers/kaspa/utils"
+);
+const { CovenantScanRefusal, LEDGER_FOREIGN_INPUT } = await import(
+  "@/lib/kcc20/dapp-request"
+);
 const { signTxHandler } = await import(
   "@/api/background/handlers/kaspa/signTx"
 );
@@ -101,6 +111,7 @@ test.beforeAll(async () => {
 });
 
 test.beforeEach(() => {
+  guard.wallet = { id: "w1", type: "mnemonic" };
   guard.popups = [];
   guard.pieceCalls = [];
   guard.pieces = async () => [];
@@ -128,6 +139,7 @@ const call = (
   handler: (typeof HANDLERS)[number][1],
   txJson: string,
   scripts?: unknown[],
+  extra: Record<string, unknown> = {},
 ): Promise<{ id: string; response: unknown; error?: unknown }> =>
   new Promise((resolve) =>
     handler(
@@ -135,7 +147,7 @@ const call = (
       {
         id: "req-1",
         host: "https://kron.example",
-        payload: { networkId: NETWORK, txJson, scripts },
+        payload: { networkId: NETWORK, txJson, scripts, ...extra },
       } as any,
       resolve,
     ),
@@ -223,6 +235,61 @@ for (const [name, handler] of HANDLERS) {
       ]);
       expect(guard.popups).toHaveLength(1);
       expect(res.response).toBe("popup-answer");
+    });
+
+    test("an admission is bound to the account it ran for; another account refuses at confirm", async () => {
+      guard.pieces = async () => [PIECE_A];
+      // A dApp cannot plant a binding: overwritten for v1, dropped for v0.
+      await call(handler, V1_TX_JSON, undefined, { admittedFor: "w9:9" });
+      await call(handler, v0TxJson(), undefined, { admittedFor: "w9:9" });
+      const [v1, v0] = guard.popups.map((u) =>
+        JSON.parse(new URL(u).searchParams.get("payload")!),
+      );
+      expect(v1.admittedFor).toBe("w1:0");
+      expect(v0.admittedFor).toBeUndefined();
+      // The popup's check before wallet.signTx.
+      expect(admissionRefusal(v1, "w1", 0)).toBeUndefined();
+      expect(admissionRefusal(v1, "w2", 0)).toEqual(
+        RPC_ERRORS.COVENANT_ACCOUNT_CHANGED,
+      );
+      expect(admissionRefusal(v1, "w1", 1)).toEqual(
+        RPC_ERRORS.COVENANT_ACCOUNT_CHANGED,
+      );
+      expect(admissionRefusal(v1, undefined, undefined)).toEqual(
+        RPC_ERRORS.COVENANT_ACCOUNT_CHANGED,
+      );
+      expect(admissionRefusal(v0, "w2", 3)).toBeUndefined();
+      expect(RPC_ERRORS.COVENANT_ACCOUNT_CHANGED.code).not.toBe(
+        RPC_ERRORS.COVENANT_TX_UNDECODABLE.code,
+      );
+    });
+
+    test("a foreign input refuses on a Ledger account and opens for a hot wallet", async () => {
+      // Input 1 (piece B) is not held and not scripted: skipped for a hot wallet.
+      guard.pieces = async () => [PIECE_A];
+      const hot = await call(handler, V1_TX_JSON);
+      expect(hot.response).toBe("popup-answer");
+      guard.wallet = { id: "w1", type: "ledger" };
+      for (const scripts of [undefined, [{ inputIndex: 1, signType: "All" }]]) {
+        const res = await call(handler, V1_TX_JSON, scripts);
+        expect(res.response).toBeNull();
+        const error = res.error as { code: number; message: string };
+        expect(error.code).toBe(RPC_ERRORS.COVENANT_TX_UNDECODABLE.code);
+        expect(error.message).toContain(LEDGER_FOREIGN_INPUT);
+      }
+      expect(guard.popups).toHaveLength(1);
+    });
+
+    test("a scan refusal keeps its own message, never the retry one", async () => {
+      guard.pieces = async () => {
+        throw new CovenantScanRefusal("You hold more than 50 KCC-20 tokens");
+      };
+      const res = await call(handler, V1_TX_JSON);
+      expect(guard.popups).toHaveLength(0);
+      expect(res.error).toEqual({
+        code: RPC_ERRORS.COVENANT_TX_UNDECODABLE.code,
+        message: "You hold more than 50 KCC-20 tokens.",
+      });
     });
 
     test("a malformed sign option is refused, no popup", async () => {

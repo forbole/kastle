@@ -44,6 +44,7 @@ export enum RpcErrorCode {
   TIMEOUT = -320603,
   BATCH_REQUIRED = 4300,
   COVENANT_TX_UNDECODABLE = 4301,
+  COVENANT_ACCOUNT_CHANGED = 4302,
 }
 
 export const RPC_ERRORS = {
@@ -82,6 +83,13 @@ export const RPC_ERRORS = {
     code: RpcErrorCode.COVENANT_TX_UNDECODABLE,
     message:
       "Kastle cannot verify what this covenant transaction does with your KCC-20 tokens right now, so it will not sign it. Try again in a moment.",
+  }),
+  // The covenant guard admitted the request for one account; another is
+  // selected now. Never signed and never silently re-checked: the dApp asks again.
+  COVENANT_ACCOUNT_CHANGED: RpcErrorSchema.parse({
+    code: RpcErrorCode.COVENANT_ACCOUNT_CHANGED,
+    message:
+      "Kastle checked this covenant transaction for a different account than the one now selected, so it will not sign it. Send the request again to approve it for this account.",
   }),
   // A fragmented UTXO set makes the Generator return a daisy-chained batch
   // (compounding transactions first, the payment last). sendKaspa and

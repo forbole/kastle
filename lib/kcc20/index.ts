@@ -646,14 +646,16 @@ async function fetchLegacyTokens(
             t.network === hosts.registryNetwork &&
             covenantSelect.normalizedCovenantId(t.covenantId) === covid,
         );
-        return {
-          covenantId: covid,
-          family,
-          tick,
-          amount,
-          spendable,
-          meta: await verifiedMeta(entry, restApi),
-        };
+        const meta = await verifiedMeta(entry, restApi);
+        // Same policy as the standard listing: a pinned ticker on another id is dropped.
+        if (
+          pinnedImpostor(
+            { claimedTicker: meta?.symbol, tokenId: covid },
+            network,
+          )
+        )
+          return undefined;
+        return { covenantId: covid, family, tick, amount, spendable, meta };
       } catch {
         // One token's lookup failing drops that row; it must not blank the rest.
         return undefined;

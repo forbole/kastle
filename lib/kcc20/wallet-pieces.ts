@@ -12,7 +12,12 @@ import {
   pinnedImpostor,
 } from "./index";
 import { fetchOwnerCells, fetchStandardHoldings } from "./providers/kascov";
-import { canReadStandardKcc20, type WalletKcc20Piece } from "./dapp-request";
+import {
+  canReadStandardKcc20,
+  CovenantScanRefusal,
+  type WalletKcc20Piece,
+} from "./dapp-request";
+import { PINNED_TOKENS } from "./pinned-tokens";
 
 // A sign guard, not a display list: past this many tokens the scan is refused, never cut.
 const PIECES_TOKEN_CAP = 50;
@@ -82,7 +87,9 @@ export async function walletKcc20Pieces(
     if (!rowByCovid.has(covid)) rowByCovid.set(covid, row);
   }
   if (rowByCovid.size > PIECES_TOKEN_CAP)
-    throw new Error(`more than ${PIECES_TOKEN_CAP} KCC-20 tokens`);
+    throw new CovenantScanRefusal(
+      `You hold more than ${PIECES_TOKEN_CAP} KCC-20 tokens, more than Kastle checks before signing, so it will not sign this covenant transaction`,
+    );
 
   const pieces = new Map<string, WalletKcc20Piece>();
   const add = (p: WalletKcc20Piece) => pieces.set(outpointKey(p), p);
@@ -148,22 +155,25 @@ export async function walletKcc20Pieces(
       ).values(),
     ];
     if (holdings.length > PIECES_TOKEN_CAP)
-      throw new Error(`more than ${PIECES_TOKEN_CAP} KCC-20 standard tokens`);
+      throw new CovenantScanRefusal(
+        `You hold more than ${PIECES_TOKEN_CAP} KCC-20 standard tokens, more than Kastle checks before signing, so it will not sign this covenant transaction`,
+      );
     const walletPubkey32 = hexToBytes(`0x${pk}`);
     const scans = await mapLimit(holdings, KASCOV_CONCURRENCY, async (h) => ({
       h,
       ...(await ownedStandardCells(h.tokenId, rpc, walletPubkey32, kascov)),
     }));
     for (const { h, owned, truncated, claimed } of scans) {
-      if (truncated) throw new Error(`kascov truncated ${h.tokenId}`);
+      if (truncated)
+        throw new CovenantScanRefusal(
+          `The token indexer held back pieces of ${h.tokenId}, so Kastle cannot check every token this transaction could spend and will not sign it`,
+        );
       // A claimed cell the node does not confirm may be a piece we cannot see.
       if (owned.length < claimed)
-        throw new Error(
-          `kascov claims ${claimed} cells of ${h.tokenId} but ${owned.length} verified`,
+        throw new CovenantScanRefusal(
+          `The token indexer reports ${claimed} pieces of ${h.tokenId} but the node confirms ${owned.length}, so Kastle will not sign this covenant transaction`,
         );
       const meta = claimedMeta(h, net);
-      // The window must never print a pinned ticker on an unpinned id: short id instead.
-      const symbol = pinnedImpostor(h, net) ? "" : (meta?.symbol ?? "");
       for (const { piece } of owned)
         add({
           outpoint: piece.outpoint,
@@ -174,7 +184,7 @@ export async function walletKcc20Pieces(
           ).slice(2),
           amount: piece.state.amount,
           value: piece.value,
-          symbol,
+          symbol: meta?.symbol ?? "",
           decimals: displayDecimals(meta?.decimals),
         });
     }
@@ -191,5 +201,16 @@ export async function walletKcc20Pieces(
     )
       throw new Error(`${row.tick} reports ${n} utxos but none decoded`);
   }
-  return [...pieces.values()];
+  // Every piece, whatever source named it: a pinned id shows its configured
+  // fields; a pinned ticker on any other id shows the short id instead.
+  return [...pieces.values()].map((p) => {
+    const pin = PINNED_TOKENS[net]?.find((t) => t.covenantId === p.covenantId);
+    if (pin) return { ...p, symbol: pin.symbol, decimals: pin.decimals };
+    return pinnedImpostor(
+      { claimedTicker: p.symbol, tokenId: p.covenantId },
+      net,
+    )
+      ? { ...p, symbol: "" }
+      : p;
+  });
 }

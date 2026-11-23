@@ -2,7 +2,7 @@ import { Handler } from "@/api/background/utils";
 import { ApiRequestWithHost } from "@/api/message";
 import { ApiUtils } from "@/api/background/utils";
 import { SignTxPayloadSchema, isCovenantTxJson } from "./utils";
-import { covenantRequestRefusal } from "./covenant-guard";
+import { covenantAdmission } from "./covenant-guard";
 
 /** signTxHandler to serve BrowserMessageType.SIGN_TX message */
 export const signTxHandler: Handler = async (
@@ -40,18 +40,23 @@ export const signTxHandler: Handler = async (
 
   // Version 0 never fetches; a covenant request opens only once every input
   // it signs is checked.
-  const refusal =
-    isCovenantTxJson(result.data.txJson) &&
-    (await covenantRequestRefusal(result.data.txJson, result.data.scripts));
-  if (refusal) {
-    sendResponse(ApiUtils.createApiResponse(message.id, null, refusal));
+  // The admission is bound to the account it ran for (admittedFor); any value
+  // the dApp sent is overwritten, and dropped for version 0.
+  const admission = isCovenantTxJson(result.data.txJson)
+    ? await covenantAdmission(result.data.txJson, result.data.scripts)
+    : undefined;
+  if (admission && "refusal" in admission) {
+    sendResponse(
+      ApiUtils.createApiResponse(message.id, null, admission.refusal),
+    );
     return;
   }
+  const payload = { ...result.data, admittedFor: admission?.admittedFor };
 
   const url = new URL(browser.runtime.getURL("/popup.html"));
   url.hash = "/sign-tx";
   url.searchParams.set("requestId", message.id);
-  url.searchParams.set("payload", JSON.stringify(result.data));
+  url.searchParams.set("payload", JSON.stringify(payload));
   if (message.host) {
     url.searchParams.set("origin", message.host);
   }
