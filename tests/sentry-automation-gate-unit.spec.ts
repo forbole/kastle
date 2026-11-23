@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { build, type Plugin } from "esbuild";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -35,25 +35,38 @@ const stubs: Plugin = {
 type Nav = Pick<Navigator, "webdriver" | "userAgent">;
 type Mod = { isAutomatedBrowser: (nav: Nav) => boolean };
 
+let dir: string;
 let file: string;
 let runs = 0;
 
 // Each load is a fresh module evaluation under the given navigator, returning
 // the module and the `enabled` value it handed to Sentry.init.
+// The globals it sets are restored before it returns, so a reused worker
+// never sees them in a later spec file.
 async function load(nav: Nav): Promise<{ mod: Mod; enabled: unknown }> {
-  Object.defineProperty(globalThis, "navigator", {
-    value: nav,
-    configurable: true,
-  });
-  (globalThis as { browser?: unknown }).browser = {
-    runtime: { getManifest: () => ({ version: "2.63.2" }) },
-  };
-  const mod = (await import(
-    `${pathToFileURL(file).href}?run=${runs++}`
-  )) as Mod;
-  const init = (globalThis as { __sentryInit?: { enabled: unknown } })
-    .__sentryInit;
-  return { mod, enabled: init?.enabled };
+  const keys = ["navigator", "browser", "__sentryInit"] as const;
+  const saved = keys.map((k) => Object.getOwnPropertyDescriptor(globalThis, k));
+  try {
+    Object.defineProperty(globalThis, "navigator", {
+      value: nav,
+      configurable: true,
+    });
+    (globalThis as { browser?: unknown }).browser = {
+      runtime: { getManifest: () => ({ version: "2.63.2" }) },
+    };
+    const mod = (await import(
+      `${pathToFileURL(file).href}?run=${runs++}`
+    )) as Mod;
+    const init = (globalThis as { __sentryInit?: { enabled: unknown } })
+      .__sentryInit;
+    return { mod, enabled: init?.enabled };
+  } finally {
+    keys.forEach((k, i) => {
+      const d = saved[i];
+      if (d) Object.defineProperty(globalThis, k, d);
+      else delete (globalThis as Record<string, unknown>)[k];
+    });
+  }
 }
 
 const REAL_USER: Nav = {
@@ -70,8 +83,17 @@ test.beforeAll(async () => {
     platform: "neutral",
     plugins: [stubs],
   });
-  file = path.join(mkdtempSync(path.join(tmpdir(), "instrument-")), "i.mjs");
+  dir = mkdtempSync(path.join(tmpdir(), "instrument-"));
+  file = path.join(dir, "i.mjs");
   writeFileSync(file, out.outputFiles[0].text);
+});
+
+test.afterAll(() => {
+  try {
+    rmSync(dir, { recursive: true, force: true });
+  } catch {
+    // best-effort cleanup
+  }
 });
 
 test("webdriver flag marks the browser as automated", async () => {
