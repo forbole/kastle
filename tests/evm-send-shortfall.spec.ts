@@ -94,6 +94,8 @@ async function open(
   page: Page,
   answers: Record<string, Answer>,
   tx: Record<string, string> = {},
+  // eth_getBalance answers only once this resolves; `wait` = the bound in ms.
+  { hold, wait }: { hold?: Promise<void>; wait?: number } = {},
 ) {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
@@ -107,6 +109,7 @@ async function open(
       return route.fulfill({ status: 204, headers: cors });
     const { id, method } = route.request().postDataJSON();
     methods.push(method);
+    if (method === "eth_getBalance") await hold;
     const answer = answers[method] ?? {
       error: { code: -32601, message: `unmocked ${method}` },
     };
@@ -125,7 +128,10 @@ async function open(
       ...tx,
     }),
   );
-  await page.goto(`${base}/?requestId=r1&origin=page&payload=${payload}`);
+  await page.goto(
+    `${base}/?requestId=r1&origin=page&payload=${payload}` +
+      (wait ? `&wait=${wait}` : ""),
+  );
   return { errors, methods };
 }
 
@@ -212,5 +218,94 @@ test("balance unreadable: says so and still lets the user confirm", async ({
     ),
   ).toBeVisible();
   await expect(confirm(page)).toBeEnabled();
+  expect(errors).toEqual([]);
+});
+
+// Confirm clicked while the balance check is still in flight.
+function gate() {
+  let open!: () => void;
+  const hold = new Promise<void>((r) => (open = r));
+  return { hold, open };
+}
+const COULDNT_CHECK =
+  "Couldn't check that your KAS balance covers this transaction's fee. You can still confirm.";
+
+test("Confirm while the check is pending: signs once, only after the balance answers", async ({
+  page,
+}) => {
+  const balance = gate();
+  const { errors } = await open(
+    page,
+    rpc({ eth_getBalance: { result: numberToHex(parseEther("0.536")) } }),
+    {},
+    { hold: balance.hold },
+  );
+  await expect(confirm(page)).toBeEnabled();
+  // A handle: while signing the button shows a spinner, not "Confirm".
+  const button = await confirm(page).elementHandle();
+  await button!.click();
+  await button!.click({ force: true });
+  await page.waitForTimeout(500);
+  expect(await page.evaluate(() => window.__evmSend)).toEqual({
+    responses: [],
+    signed: 0,
+  });
+  balance.open();
+  await expect
+    .poll(() => page.evaluate(() => window.__evmSend.responses))
+    .toEqual([{ id: "r1", response: TX_HASH }]);
+  expect(await page.evaluate(() => window.__evmSend.signed)).toBe(1);
+  expect(errors).toEqual([]);
+});
+
+test("Confirm while the check is pending, balance answers short: no signature, shortfall shown", async ({
+  page,
+}) => {
+  const balance = gate();
+  const { errors, methods } = await open(
+    page,
+    rpc(),
+    {},
+    { hold: balance.hold },
+  );
+  await confirm(page).click();
+  balance.open();
+  await expect(
+    page.getByText(
+      "Not enough KAS to pay for this transaction: it needs 0.0806736 KAS (gas + value), your balance is 0.0293 KAS.",
+      { exact: true },
+    ),
+  ).toBeVisible();
+  await expect(confirm(page)).toBeDisabled();
+  await page.waitForTimeout(300);
+  expect(await page.evaluate(() => window.__evmSend)).toEqual({
+    responses: [],
+    signed: 0,
+  });
+  expect(methods).not.toContain("eth_sendRawTransaction");
+  expect(errors).toEqual([]);
+});
+
+test("check does not answer inside the bound: signs once under the couldn't-check line", async ({
+  page,
+}) => {
+  const balance = gate();
+  const { errors } = await open(
+    page,
+    rpc(),
+    {},
+    { hold: balance.hold, wait: 300 },
+  );
+  // A handle: while signing the button shows a spinner, not "Confirm".
+  const button = await confirm(page).elementHandle();
+  await button!.click();
+  await button!.click({ force: true });
+  await expect
+    .poll(() => page.evaluate(() => window.__evmSend.responses))
+    .toEqual([{ id: "r1", response: TX_HASH }]);
+  expect(await page.evaluate(() => window.__evmSend.signed)).toBe(1);
+  await expect(page.getByText(COULDNT_CHECK, { exact: true })).toBeVisible();
+  await expect(page.getByText("Not enough KAS")).toHaveCount(0);
+  balance.open();
   expect(errors).toEqual([]);
 });

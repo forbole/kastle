@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { IWalletWithGetAddress } from "@/lib/ethereum/wallet/wallet-interface";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import ledgerSignImage from "@/assets/images/ledger-on-sign.svg";
@@ -25,6 +25,7 @@ import {
 } from "@/lib/layer2";
 type SignTransactionProps = {
   walletSigner: IWalletWithGetAddress;
+  balanceWaitMs?: number;
 };
 import { handleViemError, nodeFundsReason } from "@/lib/errors";
 import {
@@ -34,8 +35,24 @@ import {
 import { useSettings } from "@/hooks/useSettings";
 import useAnalytics from "@/hooks/useAnalytics";
 
+type Funds =
+  | { balance: bigint; need?: bigint; reason?: string }
+  | { unknown: true };
+
+const isShortOf = (funds?: Funds) =>
+  !!funds &&
+  "balance" in funds &&
+  (!!funds.reason || (funds.need ?? 0n) > funds.balance);
+
+// How long Confirm waits for a balance check still in flight before signing
+// anyway. A healthy node answers in well under a second; around 3 s is where a
+// wait stops reading as "the button is working" and people re-click or leave.
+// Past it, a slow node must not hold the user's send hostage.
+export const BALANCE_CHECK_WAIT_MS = 3_000;
+
 export default function SendTransaction({
   walletSigner,
+  balanceWaitMs = BALANCE_CHECK_WAIT_MS,
 }: SignTransactionProps) {
   const [settings] = useSettings();
   const { wallet } = useWalletManager();
@@ -85,42 +102,40 @@ export default function SendTransaction({
   // Before the signature: can the balance pay gas x maxFeePerGas + value, read
   // from the same gas and fee sources the signer uses? An unreadable balance
   // is reported, not refused.
-  const [funds, setFunds] = useState<
-    | { balance: bigint; need?: bigint; reason?: string }
-    | { unknown: true }
-    | undefined
-  >();
+  const [funds, setFunds] = useState<Funds>();
+  // The check in flight, so a Confirm clicked before it answers can wait on it.
+  const fundsCheck = useRef<Promise<Funds>>();
   useEffect(() => {
     if (!settings || !network) return;
     let live = true;
     const ethClient = createPublicClient({ chain: network, transport: http() });
-    Promise.allSettled([
+    const check = Promise.allSettled([
       ethClient.getBalance({ address: parsedRequest.from as `0x${string}` }),
       getGas(ethClient),
       getEvmFeesPerGas(ethClient),
-    ]).then(([balance, gas, fees]) => {
-      if (!live) return;
-      if (balance.status === "rejected") return setFunds({ unknown: true });
-      if (gas.status === "rejected") {
-        const reason = nodeFundsReason(gas.reason);
-        return setFunds(
-          reason ? { balance: balance.value, reason } : { unknown: true },
-        );
-      }
-      if (fees.status === "rejected") return setFunds({ unknown: true });
-      const need = gas.value * fees.value.maxFeePerGas + (valueInWei ?? 0n);
-      setFunds({ balance: balance.value, need });
-    });
+    ])
+      .then(([balance, gas, fees]): Funds => {
+        if (balance.status === "rejected") return { unknown: true };
+        if (gas.status === "rejected") {
+          const reason = nodeFundsReason(gas.reason);
+          return reason
+            ? { balance: balance.value, reason }
+            : { unknown: true };
+        }
+        if (fees.status === "rejected") return { unknown: true };
+        const need = gas.value * fees.value.maxFeePerGas + (valueInWei ?? 0n);
+        return { balance: balance.value, need };
+      })
+      .catch((): Funds => ({ unknown: true }));
+    fundsCheck.current = check;
+    check.then((result) => live && setFunds(result));
     return () => {
       live = false;
     };
   }, [settings?.networkId, network?.id]);
 
   const symbol = network?.nativeCurrency.symbol ?? "KAS";
-  const isShort =
-    !!funds &&
-    "balance" in funds &&
-    (!!funds.reason || (funds.need ?? 0n) > funds.balance);
+  const isShort = isShortOf(funds);
 
   const onConfirm = async () => {
     if (isSigning || !settings || isShort) {
@@ -150,6 +165,23 @@ export default function SendTransaction({
     }
 
     toggleIsSigning();
+
+    // Clicked before the balance check answered: wait for it, bounded. No
+    // answer in time signs anyway, under the "couldn't check" line.
+    let checked = funds;
+    if (!checked) {
+      checked =
+        (await Promise.race([
+          fundsCheck.current,
+          new Promise<undefined>((r) => setTimeout(r, balanceWaitMs)),
+        ])) ?? ({ unknown: true } as const);
+      setFunds(checked);
+    }
+    if (isShortOf(checked)) {
+      toggleIsSigning();
+      return;
+    }
+
     try {
       const ethClient = createPublicClient({
         chain: network,
