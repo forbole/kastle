@@ -1,12 +1,7 @@
 import { SignTxPayload } from "@/api/background/handlers/kaspa/utils";
 import { NetworkType } from "@/contexts/SettingsContext.tsx";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
-import {
-  Address,
-  payToAddressScript,
-  sompiToKaspaString,
-  Transaction,
-} from "@/wasm/core/kaspa";
+import { Address, payToAddressScript } from "@/wasm/core/kaspa";
 import { useState } from "react";
 import Header from "@/components/GeneralHeader";
 import signImage from "@/assets/images/sign.png";
@@ -25,6 +20,13 @@ import {
 } from "@/lib/wallet/sign-script.ts";
 import { useDappCovenantDecode } from "@/lib/kcc20/useDappCovenantDecode";
 import { CovenantTokenMovements } from "@/ui/popup/browser-api/CovenantTokenMovements";
+import { formatBalance } from "@/components/send/kcc20-send/formatBalance";
+
+// Exact sompi -> KAS text; never rounded, so a 2,000-sompi fee is not "0.000".
+const KAS_DECIMALS = 8;
+const formatKas = (sompi: bigint) =>
+  `${formatBalance(sompi, KAS_DECIMALS)} KAS`;
+const sompiToFloat = (sompi: bigint) => Number(sompi) / 10 ** KAS_DECIMALS;
 
 const ZERO_OUTPUT_COMMITMENT_ERROR =
   "This request cannot be signed. It uses a Single sighash on an input that has no matching output, so your signature would commit to no outputs at all. Every output, including where your funds go, could be rewritten after you approve.";
@@ -93,6 +95,16 @@ export default function SignConfirm({
         .join("\n\n")
     : warning;
 
+  // Inputs the request sent without a UTXO entry: their amount is not known,
+  // so neither is the fee nor the balance change. Never counted as 0.
+  const unknownInputs = transaction.inputs.flatMap((input, i) =>
+    input.utxo === undefined ? [i] : [],
+  );
+  const unknownAmountReason =
+    unknownInputs.length > 0
+      ? `Kastle does not have the amount of input${unknownInputs.length > 1 ? "s" : ""} ${unknownInputs.join(", ")}`
+      : undefined;
+
   const inputsAmount = transaction.inputs.reduce(
     (acc, input) => acc + (input.utxo?.amount ?? 0n),
     0n,
@@ -115,14 +127,12 @@ export default function SignConfirm({
     })
     .reduce((acc, output) => acc + output.value, 0n);
 
-  const sendingAmountInKas = sompiToKaspaString(sendingAmount);
-
-  // Calculate fees
-  let feesInKas = "0";
-  // If inputsAmount is greater than outputsAmount, then we don't need to calculate fees because it would be a incomplete transaction
-  if (inputsAmount > outputsAmount) {
-    feesInKas = sompiToKaspaString(inputsAmount - outputsAmount);
-  }
+  // undefined when not computable: an input without an amount, or outputs
+  // exceeding inputs (an incomplete transaction).
+  const fee =
+    unknownAmountReason === undefined && inputsAmount >= outputsAmount
+      ? inputsAmount - outputsAmount
+      : undefined;
 
   // Calculate user sending amount for current user
   const userSending = transaction.inputs
@@ -150,17 +160,13 @@ export default function SignConfirm({
     })
     .reduce((acc, output) => acc + output.value, 0n);
 
-  // Calculate difference, note that sompToKaspaString only works with positive numbers
-  const abs = (n: bigint) => (n < 0n ? -n : n);
-  const difference = userReceiving - userSending;
-  let differenceInKas = parseFloat(sompiToKaspaString(abs(difference)));
-  if (difference < 0n) {
-    differenceInKas = -differenceInKas;
-  }
+  // An input with no entry could be any wallet's coin: the change is not known.
+  const difference =
+    unknownAmountReason === undefined ? userReceiving - userSending : undefined;
 
-  const fiatDifference = differenceInKas * kaspaPrice.kaspaPrice;
-  const fiatAmount = parseFloat(sendingAmountInKas) * kaspaPrice.kaspaPrice;
-  const fiatFees = parseFloat(feesInKas) * kaspaPrice.kaspaPrice;
+  const fiatDifference = sompiToFloat(difference ?? 0n) * kaspaPrice.kaspaPrice;
+  const fiatAmount = sompiToFloat(sendingAmount) * kaspaPrice.kaspaPrice;
+  const fiatFees = sompiToFloat(fee ?? 0n) * kaspaPrice.kaspaPrice;
 
   const { amount: differenceCurrency, code: differenceCurrencyCode } =
     useCurrencyValue(fiatDifference);
@@ -299,23 +305,27 @@ export default function SignConfirm({
               <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
                 <div className="flex w-full items-start justify-between">
                   <span className="font-medium">Change to your balance</span>
-                  <div
-                    className={twMerge(
-                      "flex flex-col text-right",
-                      differenceInKas >= 0 ? "text-teal-500" : "text-red-500",
-                    )}
-                  >
-                    <span className="font-medium">
-                      {differenceInKas >= 0 && "+"}
-                      {differenceInKas.toFixed(3)} KAS
-                    </span>
-                    <span className="text-xs text-daintree-400">
-                      {formatUsdAmount(
-                        differenceCurrency,
-                        differenceCurrencyCode,
+                  {difference === undefined ? (
+                    <UnknownAmount reason={unknownAmountReason} />
+                  ) : (
+                    <div
+                      className={twMerge(
+                        "flex flex-col text-right",
+                        difference >= 0n ? "text-teal-500" : "text-red-500",
                       )}
-                    </span>
-                  </div>
+                    >
+                      <span className="font-medium">
+                        {difference >= 0n && "+"}
+                        {formatKas(difference)}
+                      </span>
+                      <span className="text-xs text-daintree-400">
+                        {formatUsdAmount(
+                          differenceCurrency,
+                          differenceCurrencyCode,
+                        )}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </li>
             </ul>
@@ -326,7 +336,7 @@ export default function SignConfirm({
                   <span className="font-medium">Sending amount</span>
                   <div className="flex flex-col text-right">
                     <span className="font-medium">
-                      {parseFloat(sendingAmountInKas).toFixed(3)} KAS
+                      {formatKas(sendingAmount)}
                     </span>
                     <span className="text-xs text-daintree-400">
                       {formatUsdAmount(amountCurrency, amountCurrencyCode)}
@@ -337,14 +347,21 @@ export default function SignConfirm({
               <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
                 <div className="flex w-full items-start justify-between">
                   <span className="font-medium">Fee</span>
-                  <div className="flex flex-col text-right">
-                    <span className="font-medium">
-                      {parseFloat(feesInKas).toFixed(3)} KAS
-                    </span>
-                    <span className="text-xs text-daintree-400">
-                      {formatUsdAmount(feesCurrency, feesCurrencyCode)}
-                    </span>
-                  </div>
+                  {fee === undefined ? (
+                    <UnknownAmount
+                      reason={
+                        unknownAmountReason ??
+                        "The outputs exceed the inputs, so this transaction is incomplete"
+                      }
+                    />
+                  ) : (
+                    <div className="flex flex-col text-right">
+                      <span className="font-medium">{formatKas(fee)}</span>
+                      <span className="text-xs text-daintree-400">
+                        {formatUsdAmount(feesCurrency, feesCurrencyCode)}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </li>
             </ul>
@@ -414,6 +431,16 @@ export default function SignConfirm({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+/** A figure the wallet cannot compute: labelled with why, never shown as 0. */
+function UnknownAmount({ reason }: { reason?: string }) {
+  return (
+    <div className="flex flex-col text-right">
+      <span className="font-medium">Not known</span>
+      <span className="text-xs text-daintree-400">{reason}</span>
     </div>
   );
 }

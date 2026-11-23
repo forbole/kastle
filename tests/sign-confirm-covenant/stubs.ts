@@ -1,3 +1,6 @@
+// Relative, past the alias that points @/lib/kaspa-compat here.
+import { deserializeTransaction as realDeserialize } from "../../lib/kaspa-compat";
+
 // Stand-ins for the wallet, settings and the KCC-20 pieces fetch; the confirm
 // screen, the decode and the WASM are real. ?pieces= picks the fetch outcome.
 const query = new URLSearchParams(location.search);
@@ -25,6 +28,8 @@ const pieceA = {
     "ae3a6563b6374dc14c2b1bcd399c38a157f97c5a215ec26d0c33dfeaff91e5b8",
   family: "kron-legacy",
   amount: 125_000_000n,
+  // the repro's input 0 UTXO: 1 KAS
+  value: 100_000_000n,
   symbol: "AAA",
   decimals: 8,
 };
@@ -38,6 +43,7 @@ const pieceB = {
     "2c4c9e0f46a412391b26499b2f23a14c3d3a965624deafc11d72c5200340dd36",
   family: "kron-legacy",
   amount: 42n,
+  value: 100_000_000n,
   symbol: "",
 };
 
@@ -92,3 +98,20 @@ export const storage = {
   defineItem: () => ({ getValue: async () => null, watch: () => () => {} }),
 };
 export const browser = {};
+
+// ?tx=v1nofee: input 1 without a UTXO entry. The SafeJSON deserializer refuses
+// that shape, so it is built here; the screen's type still admits it.
+export function deserializeTransaction(txJson: string) {
+  const tx = realDeserialize(txJson);
+  if (query.get("tx") === "v1nofee") {
+    tx.inputs = tx.inputs.map((input, i) => {
+      if (i !== 1) return input;
+      const { utxo: _utxo, ...rest } = input.toJSON() as Record<
+        string,
+        unknown
+      >;
+      return rest as unknown as typeof input;
+    });
+  }
+  return tx;
+}

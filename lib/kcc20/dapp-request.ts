@@ -33,8 +33,10 @@ export type DappTokenMovement = {
   symbol: string;
   // undefined -> the UI shows base units and says so
   decimals?: number;
-  // base units, from the piece state
+  // base units, from the piece state: the WHOLE piece leaving, not the net
   amount: bigint;
+  // sompi the piece's UTXO holds (node-checked), moving with the token
+  value: bigint;
   // address null: the output is authorized but its script spells no address.
   destinations: { address: string | null; outputIndex: number }[];
 };
@@ -85,6 +87,7 @@ export function decodeCovenantRequest(
         symbol: piece.symbol,
         ...(piece.decimals !== undefined && { decimals: piece.decimals }),
         amount: piece.amount,
+        value: piece.value,
         destinations,
       });
     });

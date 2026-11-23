@@ -82,6 +82,8 @@ test.describe("decodeCovenantRequest", () => {
     expect(m.inputIndex).toBe(0);
     expect(m.covenantId).toBe(COVID_A);
     expect(String(m.amount)).toBe("1000000");
+    // the piece's node-checked KAS reaches the window's movement
+    expect(String(m.value)).toBe("100000000");
     expect(m.symbol).toBe("AAA");
     expect(m.decimals).toBe(8);
     expect(m.destinations.map((d) => d.outputIndex)).toEqual([0, 1]);

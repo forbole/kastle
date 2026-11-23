@@ -242,3 +242,88 @@ test("v0 renders no token section, no caveat and never fetches", async ({
   expect((await h(page)).pieceCalls).toEqual([]);
   expect(errors).toEqual([]);
 });
+
+// The row's value column, by its label: assert the rendered text, not a prop.
+const row = (page: Page, label: string) =>
+  page
+    .locator("li")
+    .filter({ has: page.getByText(label, { exact: true }) })
+    .locator(".text-right");
+
+test("a 2,000-sompi fee renders exactly, not 0.000 KAS", async ({ page }) => {
+  const errors = await open(page, "tx=fee2000");
+  await expect(row(page, "Fee").locator("span").first()).toHaveText(
+    "0.00002 KAS",
+  );
+  await expect(row(page, "Sending amount").locator("span").first()).toHaveText(
+    "0 KAS",
+  );
+  await expect(
+    row(page, "Change to your balance").locator("span").first(),
+  ).toHaveText("-0.00002 KAS");
+  await expect(page.getByText(/0\.000 KAS/)).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test("v1 fee, sending amount and balance change are exact sompi", async ({
+  page,
+}) => {
+  await open(page, "tx=v1&pieces=a");
+  // inputs 2,407,397,297,988 - outputs 2,407,377,288,988 = 20,009,000 sompi
+  await expect(row(page, "Fee").locator("span").first()).toHaveText(
+    "0.20009 KAS",
+  );
+  await expect(row(page, "Sending amount").locator("span").first()).toHaveText(
+    "2 KAS",
+  );
+  await expect(
+    row(page, "Change to your balance").locator("span").first(),
+  ).toHaveText("-0.20009 KAS");
+});
+
+test("an input with no UTXO amount makes the fee not known, never 0", async ({
+  page,
+}, testInfo) => {
+  const errors = await open(page, "tx=v1nofee&pieces=a");
+  const why = "Kastle does not have the amount of input 1";
+  await expect(row(page, "Fee")).toHaveText(`Not known${why}`);
+  await expect(row(page, "Change to your balance")).toHaveText(
+    `Not known${why}`,
+  );
+  await expect(row(page, "Fee")).not.toContainText("0");
+  await page.screenshot({
+    path: testInfo.outputPath("sign-window-fee-not-known.png"),
+    fullPage: true,
+  });
+  expect(errors).toEqual([]);
+});
+
+test("each token shows the KAS its pieces carry as its own row, and says the amount is gross", async ({
+  page,
+}, testInfo) => {
+  const errors = await open(page, "tx=v1&pieces=ab");
+  const kasRows = page
+    .locator("li")
+    .filter({ has: page.getByText("KAS", { exact: true }) });
+  await expect(kasRows).toHaveCount(2);
+  await expect(kasRows.nth(0)).toContainText("Moves with AAA");
+  await expect(kasRows.nth(0)).toContainText("-1 KAS");
+  await expect(kasRows.nth(1)).toContainText("-1 KAS");
+  // the token row itself stays the token amount alone
+  await expect(page.getByText("-1.25", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText(
+      "Each token amount is the whole piece leaving your wallet. How much of it comes back to you as change cannot be computed from this request.",
+      { exact: true },
+    ),
+  ).toBeVisible();
+  // the carried KAS is not folded into the fee
+  await expect(row(page, "Fee").locator("span").first()).toHaveText(
+    "0.20009 KAS",
+  );
+  await page.screenshot({
+    path: testInfo.outputPath("sign-window-covenant.png"),
+    fullPage: true,
+  });
+  expect(errors).toEqual([]);
+});
