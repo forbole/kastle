@@ -105,10 +105,14 @@ export default function SendTransaction({
   const [funds, setFunds] = useState<Funds>();
   // The check in flight, so a Confirm clicked before it answers can wait on it.
   const fundsCheck = useRef<Promise<Funds>>();
-  useEffect(() => {
-    if (!settings || !network) return;
-    let live = true;
-    const ethClient = createPublicClient({ chain: network, transport: http() });
+  // Bumped by every new check, every network change and Confirm's timeout: an
+  // answer publishes only while the number it started under is still current.
+  const checkSeq = useRef(0);
+  const [rechecking, setRechecking] = useState(false);
+
+  const startCheck = (chain: NonNullable<typeof network>) => {
+    const seq = ++checkSeq.current;
+    const ethClient = createPublicClient({ chain, transport: http() });
     const check = Promise.allSettled([
       ethClient.getBalance({ address: parsedRequest.from as `0x${string}` }),
       getGas(ethClient),
@@ -128,11 +132,29 @@ export default function SendTransaction({
       })
       .catch((): Funds => ({ unknown: true }));
     fundsCheck.current = check;
-    check.then((result) => live && setFunds(result));
-    return () => {
-      live = false;
-    };
+    check.then((result) => {
+      if (checkSeq.current === seq) setFunds(result);
+    });
+    return check;
+  };
+
+  useEffect(() => {
+    // The previous network's answer, or its check still in flight, must not
+    // decide this one.
+    checkSeq.current++;
+    setFunds(undefined);
+    fundsCheck.current = undefined;
+    if (!settings || !network) return;
+    startCheck(network);
   }, [settings?.networkId, network?.id]);
+
+  // After a shortfall: the old answer keeps Confirm disabled until the new one
+  // replaces it.
+  const recheck = () => {
+    if (!network || rechecking) return;
+    setRechecking(true);
+    startCheck(network).finally(() => setRechecking(false));
+  };
 
   const symbol = network?.nativeCurrency.symbol ?? "KAS";
   const isShort = isShortOf(funds);
@@ -170,11 +192,21 @@ export default function SendTransaction({
     // answer in time signs anyway, under the "couldn't check" line.
     let checked = funds;
     if (!checked) {
-      checked =
-        (await Promise.race([
-          fundsCheck.current,
-          new Promise<undefined>((r) => setTimeout(r, balanceWaitMs)),
-        ])) ?? ({ unknown: true } as const);
+      const seq = checkSeq.current;
+      const answer = await Promise.race([
+        fundsCheck.current,
+        new Promise<undefined>((r) => setTimeout(r, balanceWaitMs)),
+      ]);
+      // The network changed while waiting: this answer is about a chain no
+      // longer on screen. Publish nothing, sign nothing.
+      if (checkSeq.current !== seq) {
+        toggleIsSigning();
+        return;
+      }
+      // Timed out: the send goes ahead under "couldn't check", so an answer
+      // arriving later must not replace that line with a shortfall.
+      if (!answer) checkSeq.current++;
+      checked = answer ?? { unknown: true };
       setFunds(checked);
     }
     if (isShortOf(checked)) {
@@ -182,13 +214,26 @@ export default function SendTransaction({
       return;
     }
 
+    let refused = false;
     try {
       const ethClient = createPublicClient({
         chain: network,
         transport: http(),
       });
 
+      // The gas and fees signed below, held against the balance read above: a
+      // fee that rose since the check must not sign what the balance can't pay.
       const gas = await getGas(ethClient);
+      const fees = await getEvmFeesPerGas(ethClient);
+      if ("balance" in checked) {
+        const need = gas * fees.maxFeePerGas + (valueInWei ?? 0n);
+        if (need > checked.balance) {
+          refused = true;
+          setFunds({ balance: checked.balance, need });
+          toggleIsSigning();
+          return;
+        }
+      }
 
       const txHash = await sendEvmTransaction({
         ethClient,
@@ -197,6 +242,7 @@ export default function SendTransaction({
         to: parsedRequest.to as `0x${string}`,
         valueInWei,
         gas,
+        fees,
         chainId: txChainId,
         data: parsedRequest.data as `0x${string}` | undefined,
       });
@@ -214,7 +260,7 @@ export default function SendTransaction({
         ApiUtils.createApiResponse(requestId, null, handleViemError(err)),
       );
     } finally {
-      window.close();
+      if (!refused) window.close();
     }
   };
 
@@ -271,9 +317,18 @@ export default function SendTransaction({
 
       {funds && "balance" in funds && isShort && (
         <div className="mt-4 text-center text-sm text-red-500">
-          {funds.need !== undefined
-            ? `Not enough ${symbol} to pay for this transaction: it needs ${formatEther(funds.need)} ${symbol} (gas + value), your balance is ${formatEther(funds.balance)} ${symbol}.`
-            : `Not enough ${symbol} to pay for gas: your balance is ${formatEther(funds.balance)} ${symbol}. The network says: ${funds.reason}`}
+          <span>
+            {funds.need !== undefined
+              ? `Not enough ${symbol} to pay for this transaction: it needs ${formatEther(funds.need)} ${symbol} (gas + value), your balance is ${formatEther(funds.balance)} ${symbol}.`
+              : `Not enough ${symbol} to pay for gas: your balance is ${formatEther(funds.balance)} ${symbol}. The network says: ${funds.reason}`}
+          </span>{" "}
+          <button
+            className="underline disabled:no-underline"
+            onClick={recheck}
+            disabled={rechecking}
+          >
+            {rechecking ? "Checking…" : "Check again"}
+          </button>
         </div>
       )}
       {funds && "unknown" in funds && (

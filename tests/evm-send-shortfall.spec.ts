@@ -90,21 +90,20 @@ function rpc(over: Record<string, Answer> = {}): Record<string, Answer> {
   };
 }
 
-async function open(
+const cors = {
+  "access-control-allow-origin": "*",
+  "access-control-allow-headers": "*",
+};
+
+// Answers one chain's JSON-RPC; eth_getBalance only once `hold` resolves.
+async function serve(
   page: Page,
+  url: string,
   answers: Record<string, Answer>,
-  tx: Record<string, string> = {},
-  // eth_getBalance answers only once this resolves; `wait` = the bound in ms.
-  { hold, wait }: { hold?: Promise<void>; wait?: number } = {},
+  hold?: Promise<void>,
 ) {
-  const errors: string[] = [];
-  page.on("pageerror", (e) => errors.push(e.message));
-  const cors = {
-    "access-control-allow-origin": "*",
-    "access-control-allow-headers": "*",
-  };
   const methods: string[] = [];
-  await page.route(RPC, async (route) => {
+  await page.route(url, async (route) => {
     if (route.request().method() === "OPTIONS")
       return route.fulfill({ status: 204, headers: cors });
     const { id, method } = route.request().postDataJSON();
@@ -119,6 +118,19 @@ async function open(
       body: JSON.stringify({ jsonrpc: "2.0", id, ...answer }),
     });
   });
+  return methods;
+}
+
+async function open(
+  page: Page,
+  answers: Record<string, Answer>,
+  tx: Record<string, string | undefined> = {},
+  // eth_getBalance answers only once this resolves; `wait` = the bound in ms.
+  { hold, wait }: { hold?: Promise<void>; wait?: number } = {},
+) {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  const methods = await serve(page, RPC, answers, hold);
   const payload = encodeURIComponent(
     JSON.stringify({
       from: FROM,
@@ -188,7 +200,7 @@ test("node refuses the estimate for lack of funds: its reason and the balance, C
 test("enough balance: no notice, Confirm enabled, signs and returns the hash as today", async ({
   page,
 }) => {
-  const { errors } = await open(
+  const { errors, methods } = await open(
     page,
     rpc({ eth_getBalance: { result: numberToHex(parseEther("0.536")) } }),
   );
@@ -202,6 +214,9 @@ test("enough balance: no notice, Confirm enabled, signs and returns the hash as 
     .poll(() => page.evaluate(() => window.__evmSend.responses))
     .toEqual([{ id: "r1", response: TX_HASH }]);
   expect(await page.evaluate(() => window.__evmSend.signed)).toBe(1);
+  // The check's quote and the one the signature is held against and signs
+  // with: sendEvmTransaction does not quote a third time.
+  expect(methods.filter((m) => m === "eth_gasPrice")).toHaveLength(2);
   expect(errors).toEqual([]);
 });
 
@@ -306,6 +321,142 @@ test("check does not answer inside the bound: signs once under the couldn't-chec
   expect(await page.evaluate(() => window.__evmSend.signed)).toBe(1);
   await expect(page.getByText(COULDNT_CHECK, { exact: true })).toBeVisible();
   await expect(page.getByText("Not enough KAS")).toHaveCount(0);
+  // The short answer arriving after the bound must not replace the line the
+  // send went ahead under.
   balance.open();
+  await page.waitForTimeout(500);
+  await expect(page.getByText(COULDNT_CHECK, { exact: true })).toBeVisible();
+  await expect(page.getByText("Not enough KAS")).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+const FUNDED = { result: numberToHex(parseEther("0.536")) };
+// igraMainnet.rpcUrls.default: the other mainnet L2 the selector offers.
+const IGRA_RPC = "https://rpc.igralabs.com:8545/";
+const IGRA = { eth_chainId: { result: numberToHex(38_833) } };
+
+test("network change: the previous chain's answer does not skip the new chain's check", async ({
+  page,
+}) => {
+  const igraBalance = gate();
+  const igra = await serve(page, IGRA_RPC, rpc(IGRA), igraBalance.hold);
+  const { errors } = await open(page, rpc({ eth_getBalance: FUNDED }), {
+    chainId: undefined,
+  });
+  await page.waitForLoadState("networkidle");
+  await expect(confirm(page)).toBeEnabled();
+  await page.evaluate(() => window.__evmSetChain(38_833));
+  await expect.poll(() => igra.includes("eth_getBalance")).toBe(true);
+  await confirm(page).click();
+  await page.waitForTimeout(300);
+  // Kasplex said "enough"; Igra has not answered: nothing signed yet.
+  expect(await page.evaluate(() => window.__evmSend.signed)).toBe(0);
+  igraBalance.open();
+  await expect(
+    page.getByText(/^Not enough .* your balance is 0\.0293 /),
+  ).toBeVisible();
+  await expect(confirm(page)).toBeDisabled();
+  expect(await page.evaluate(() => window.__evmSend)).toEqual({
+    responses: [],
+    signed: 0,
+  });
+  expect(igra).not.toContain("eth_sendRawTransaction");
+  expect(errors).toEqual([]);
+});
+
+test("network change while Confirm waits: the old chain's answer neither shows nor signs", async ({
+  page,
+}) => {
+  const kasplexBalance = gate();
+  const igra = await serve(
+    page,
+    IGRA_RPC,
+    rpc({ ...IGRA, eth_getBalance: FUNDED }),
+  );
+  const { errors, methods } = await open(
+    page,
+    rpc(),
+    { chainId: undefined },
+    { hold: kasplexBalance.hold },
+  );
+  await confirm(page).click();
+  await page.evaluate(() => window.__evmSetChain(38_833));
+  await expect.poll(() => igra.includes("eth_getBalance")).toBe(true);
+  await page.waitForTimeout(300);
+  // Kasplex (0.0293, short) answers after the switch to Igra (funded).
+  kasplexBalance.open();
+  await page.waitForTimeout(500);
+  await expect(page.getByText(/^Not enough/)).toHaveCount(0);
+  await expect(confirm(page)).toBeEnabled();
+  expect(await page.evaluate(() => window.__evmSend)).toEqual({
+    responses: [],
+    signed: 0,
+  });
+  expect([...methods, ...igra]).not.toContain("eth_sendRawTransaction");
+  expect(errors).toEqual([]);
+});
+
+test("shortfall, then funded: Check again re-checks, Confirm stays blocked until it answers", async ({
+  page,
+}) => {
+  const { errors } = await open(page, rpc());
+  const short = page.getByText(/^Not enough KAS/);
+  await expect(short).toBeVisible();
+  await expect(confirm(page)).toBeDisabled();
+  // The account is funded; the re-check's balance answers when released.
+  const funded = gate();
+  await page.route(RPC, async (route) => {
+    const req = route.request();
+    if (
+      req.method() !== "POST" ||
+      req.postDataJSON().method !== "eth_getBalance"
+    )
+      return route.fallback();
+    await funded.hold;
+    await route.fulfill({
+      status: 200,
+      headers: { ...cors, "content-type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: req.postDataJSON().id,
+        ...FUNDED,
+      }),
+    });
+  });
+  await page.getByRole("button", { name: "Check again" }).click();
+  await page.waitForTimeout(300);
+  await expect(confirm(page)).toBeDisabled();
+  funded.open();
+  await expect(confirm(page)).toBeEnabled();
+  await expect(short).toHaveCount(0);
+  await confirm(page).click();
+  await expect
+    .poll(() => page.evaluate(() => window.__evmSend.responses))
+    .toEqual([{ id: "r1", response: TX_HASH }]);
+  expect(errors).toEqual([]);
+});
+
+test("fee rises between the check and Confirm: refused on the new fee, nothing signed", async ({
+  page,
+}) => {
+  const answers = rpc({ eth_getBalance: FUNDED });
+  const { errors, methods } = await open(page, answers);
+  await page.waitForLoadState("networkidle");
+  await expect(confirm(page)).toBeEnabled();
+  answers.eth_gasPrice = { result: numberToHex(parseGwei("20000")) };
+  await confirm(page).click();
+  // 33,600 x 20,000 gwei.
+  await expect(
+    page.getByText(
+      "Not enough KAS to pay for this transaction: it needs 0.672 KAS (gas + value), your balance is 0.536 KAS.",
+      { exact: true },
+    ),
+  ).toBeVisible();
+  await expect(confirm(page)).toBeDisabled();
+  expect(await page.evaluate(() => window.__evmSend)).toEqual({
+    responses: [],
+    signed: 0,
+  });
+  expect(methods).not.toContain("eth_sendRawTransaction");
   expect(errors).toEqual([]);
 });

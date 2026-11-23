@@ -1,4 +1,5 @@
 import {
+  BaseError,
   EstimateGasExecutionError,
   ExecutionRevertedError,
   ContractFunctionRevertedError,
@@ -9,11 +10,16 @@ import { RpcErrorSchema, RPC_ERRORS } from "@/api/message";
 
 const FUNDS_REASON = /insufficient funds|gas required exceeds allowance/i;
 
-// The node's own sentence when it refused for lack of funds: estimateGas wraps
-// it in EstimateGasExecutionError, sendRawTransaction throws it bare. viem keeps
-// the RPC URL and request body in metaMessages, never in `details`.
+// The node's own sentence when it refused for lack of funds. sendRawTransaction
+// throws the RPC error bare; estimateGas wraps it in EstimateGasExecutionError,
+// with viem's InsufficientFundsError in between for "insufficient funds", so
+// walk the cause chain. viem keeps the RPC URL and request body in
+// metaMessages, never in `details`.
 export function nodeFundsReason(error: unknown): string | undefined {
-  const rpc = error instanceof EstimateGasExecutionError ? error.cause : error;
+  const rpc =
+    error instanceof BaseError
+      ? error.walk((e) => e instanceof InvalidInputRpcError)
+      : null;
   if (!(rpc instanceof InvalidInputRpcError)) return undefined;
   const reason = rpc.details?.split("\n")[0].trim().slice(0, 200);
   return reason && FUNDS_REASON.test(reason) ? reason : undefined;

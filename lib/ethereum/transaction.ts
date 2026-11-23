@@ -11,6 +11,9 @@ interface SendEvmTransactionParams {
   gas: bigint;
   chainId: Hex | number;
   data?: Hex;
+  // Fees already quoted by getEvmFeesPerGas (e.g. the ones a balance check
+  // approved), so the signature uses them instead of a second quote.
+  fees?: { maxFeePerGas: bigint; maxPriorityFeePerGas: bigint };
 }
 
 // The fees sendEvmTransaction signs with. Exported so a pre-signature balance
@@ -45,9 +48,10 @@ export async function sendEvmTransaction({
   gas,
   chainId,
   data,
+  fees,
 }: SendEvmTransactionParams): Promise<Hex> {
   const { maxFeePerGas, maxPriorityFeePerGas } =
-    await getEvmFeesPerGas(ethClient);
+    fees ?? (await getEvmFeesPerGas(ethClient));
   // 'pending' counts the sender's unmined transactions too. On 'latest' (viem's
   // default) a retry issued while an earlier transaction is still pending
   // reuses that nonce: the retry is rejected as a replacement and the original

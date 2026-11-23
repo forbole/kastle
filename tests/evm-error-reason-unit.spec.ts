@@ -6,7 +6,7 @@ import {
   http as httpTransport,
   RpcRequestError,
 } from "viem";
-import { handleViemError } from "@/lib/errors";
+import { handleViemError, nodeFundsReason } from "@/lib/errors";
 
 // handleViemError on the errors viem actually throws: a local JSON-RPC node
 // answers every call with the error under test, through viem's http transport.
@@ -72,6 +72,21 @@ test("gas required exceeds allowance: reason, not Internal error (both call site
     expect(out.message).not.toContain("Internal error");
     expect(out.message).not.toContain("127.0.0.1");
   }
+});
+
+test("estimateGas insufficient funds (wrapped in InsufficientFundsError): the node's reason", async () => {
+  const sentence =
+    "insufficient funds for gas * price + value: have 29300000000000000 want 80673600000000000";
+  const err = await thrownBy("estimateGas", {
+    code: -32000,
+    message: sentence,
+  });
+  // viem's getNodeError layer sits between the estimate and the RPC error.
+  expect((err as { cause?: { name?: string } }).cause?.name).toBe(
+    "InsufficientFundsError",
+  );
+  expect(nodeFundsReason(err)).toBe(sentence);
+  expect(handleViemError(err)).toEqual({ code: -32000, message: sentence });
 });
 
 test("every other error maps exactly as before", async () => {

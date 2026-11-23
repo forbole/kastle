@@ -1,8 +1,11 @@
+import { useSyncExternalStore } from "react";
 import type { IWalletWithGetAddress } from "@/lib/ethereum/wallet/wallet-interface";
 
 declare global {
   interface Window {
     __evmSend: { responses: unknown[]; signed: number };
+    // Switches the selected mainnet L2 chain, as the network selector would.
+    __evmSetChain: (id: number) => void;
   }
 }
 window.__evmSend = { responses: [], signed: 0 };
@@ -15,8 +18,18 @@ export const walletSigner = {
   },
 } as unknown as IWalletWithGetAddress;
 
+let settings = { networkId: "mainnet", evmL2ChainId: { mainnet: 202_555 } };
+const listeners = new Set<() => void>();
+window.__evmSetChain = (id) => {
+  settings = { ...settings, evmL2ChainId: { mainnet: id } };
+  listeners.forEach((l) => l());
+};
+const subscribe = (l: () => void) => {
+  listeners.add(l);
+  return () => listeners.delete(l);
+};
 export const useSettings = () => [
-  { networkId: "mainnet", evmL2ChainId: { mainnet: 202_555 } },
+  useSyncExternalStore(subscribe, () => settings),
 ];
 export const useWalletManager = () => ({ wallet: { type: "hot" } });
 export const useAnalytics = () => ({ emitEthSendTransaction: () => {} });
