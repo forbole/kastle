@@ -25,6 +25,7 @@ const movement = {
   symbol: "KRON",
   decimals: 8,
   amount: 12_500_000_000n,
+  value: 100_000_000n,
   destinations: [
     {
       address:

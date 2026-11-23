@@ -22,6 +22,7 @@ const whole = [
   "hooks/useSettings",
   "hooks/useFeatureFlags",
   "lib/service/extension-service",
+  "lib/kaspa-compat",
 ];
 const ext = "(\\.tsx?)?$";
 

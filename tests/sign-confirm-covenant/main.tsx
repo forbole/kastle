@@ -33,12 +33,30 @@ const v1UnknownTxJson = JSON.stringify({
   ),
 });
 
+// ?tx=fee2000: the v0 spend paying a 2,000-sompi fee (0.00002 KAS).
+const fee2000TxJson = JSON.stringify({
+  ...v1,
+  version: 0,
+  inputs: [v1.inputs[2]],
+  outputs: [
+    {
+      ...v1.outputs[3],
+      value: String(BigInt(v1.inputs[2].utxo.amount) - 2000n),
+    },
+  ],
+});
+
 const payload = {
   // ?network= overrides both the request and the settings network (stubs.ts).
   networkId: params.get("network") ?? networkId,
   txJson:
-    { v0: v0TxJson, v1unknown: v1UnknownTxJson }[params.get("tx") ?? ""] ??
-    v1TxJson,
+    {
+      v0: v0TxJson,
+      v1unknown: v1UnknownTxJson,
+      fee2000: fee2000TxJson,
+      // ?tx=v1nofee: v1 with input 1's UTXO entry dropped (stubs.ts).
+      v1nofee: v1TxJson,
+    }[params.get("tx") ?? ""] ?? v1TxJson,
   // ?sign=<SignType>: one script option on the wallet input (index 2).
   scripts: params.get("sign")
     ? [{ inputIndex: 2, signType: params.get("sign") as "All" }]

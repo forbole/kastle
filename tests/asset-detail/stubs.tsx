@@ -99,6 +99,7 @@ export const kcc20Token: Kcc20Token = {
         name: "Kastle test",
         decimals: 2,
       },
+  ...(query.has("truncated") && { truncated: true as const }),
 };
 // A live-shaped kascov listed row (as YELLO / WHALE / LUKE), parsed for real.
 export const LISTED_COVID = "ef".repeat(32);

@@ -30,6 +30,10 @@ export const NETWORK_FILTER_LABELS: Record<NetworkFilter, string> = {
 };
 
 export const KCC20_LABELS = {
+  // kascov held cells back (`truncated`): the balance may be short.
+  notAllChecked: "Not all checked",
+  notAllCheckedDetail:
+    "Some of this token could not be checked, so the balance may be higher.",
   // Token detail
   viewInExplorer: "See activity history in explorer",
   tokenInfo: "Token Info",

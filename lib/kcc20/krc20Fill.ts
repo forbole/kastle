@@ -19,6 +19,9 @@ export function fillFromKrc20(
   krc20: readonly Krc20Entry[] | undefined,
 ): Kcc20Token {
   const { meta } = token;
+  // A verified standard row is pinned: a namesake list must not relabel it unverified.
+  if (token.family === "kcc20-standard" && meta && !meta.unverified)
+    return token;
   const key = (meta?.symbol || token.tick || meta?.name)?.toUpperCase();
   const hits = key
     ? (krc20 ?? []).filter((e) => e.symbol.toUpperCase() === key)

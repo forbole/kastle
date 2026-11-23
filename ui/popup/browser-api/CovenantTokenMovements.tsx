@@ -1,4 +1,6 @@
+import { Fragment } from "react";
 import TokenItem from "@/ui/popup/kcc20/TokenItem";
+import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import { formatBalance } from "@/components/send/kcc20-send/formatBalance";
 import { textEllipsis } from "@/lib/utils";
 import type { DappTokenMovement } from "@/lib/kcc20/dapp-request";
@@ -10,6 +12,13 @@ export type CovenantTokenMovementsProps = {
   network: string;
 };
 
+// The successor states' amounts sit behind P2SH hashes the request does not
+// open, so the net is not computable here; say so rather than guess one.
+export const GROSS_NOTE =
+  "Each token amount is the whole piece leaving your wallet. How much of it comes back to you as change cannot be computed from this request.";
+
+const KAS_DECIMALS = 8;
+
 const ROW =
   "-mt-px border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg";
 
@@ -17,12 +26,18 @@ const ROW =
 function byToken(movements: DappTokenMovement[]) {
   const rows = new Map<
     string,
-    { m: DappTokenMovement; amount: bigint; to: Set<string> }
+    { m: DappTokenMovement; amount: bigint; value: bigint; to: Set<string> }
   >();
   for (const m of movements) {
     const key = `${m.covenantId}:${m.extensionCommitment ?? ""}`;
-    const row = rows.get(key) ?? { m, amount: 0n, to: new Set<string>() };
+    const row = rows.get(key) ?? {
+      m,
+      amount: 0n,
+      value: 0n,
+      to: new Set<string>(),
+    };
     row.amount += m.amount;
+    row.value += m.value;
     m.destinations.forEach((d) =>
       row.to.add(
         d.address === null
@@ -66,23 +81,40 @@ export function CovenantTokenMovements({
           <li className={`${ROW} font-medium`}>
             KCC-20 tokens leaving your wallet
           </li>
-          {byToken(movements).map(({ m, amount, to }) => (
-            <li
-              key={`${m.covenantId}:${m.extensionCommitment ?? ""}`}
-              className={`${ROW} py-0`}
-            >
-              <TokenItem
-                name={m.symbol || textEllipsis(m.covenantId)}
-                subtitle={to.size > 0 ? `To ${[...to].join(", ")}` : undefined}
-                amount={
-                  m.decimals === undefined
-                    ? `-${amount} base units`
-                    : `-${formatBalance(amount, m.decimals)}`
-                }
-                network="kcc20"
-              />
-            </li>
-          ))}
+          {byToken(movements).map(({ m, amount, value, to }) => {
+            const key = `${m.covenantId}:${m.extensionCommitment ?? ""}`;
+            const name = m.symbol || textEllipsis(m.covenantId);
+            return (
+              <Fragment key={key}>
+                <li className={`${ROW} py-0`}>
+                  <TokenItem
+                    name={name}
+                    subtitle={
+                      to.size > 0 ? `To ${[...to].join(", ")}` : undefined
+                    }
+                    amount={
+                      m.decimals === undefined
+                        ? `-${amount} base units`
+                        : `-${formatBalance(amount, m.decimals)}`
+                    }
+                    network="kcc20"
+                  />
+                </li>
+                {/* Gross input KAS, not a movement: part of it can come back as
+                    change or pay the fee, which the Sending and Fee rows show. */}
+                <li className={`${ROW} py-0`}>
+                  <TokenItem
+                    name="KAS"
+                    subtitle={`Gross input KAS in the ${name} pieces, incl. any change and fee`}
+                    amount={`${formatBalance(value, KAS_DECIMALS)} KAS`}
+                    logo={kasIcon}
+                    network="kaspa"
+                  />
+                </li>
+              </Fragment>
+            );
+          })}
+          <li className={`${ROW} text-xs text-daintree-400`}>{GROSS_NOTE}</li>
         </>
       )}
     </ul>

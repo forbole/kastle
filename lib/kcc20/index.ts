@@ -18,6 +18,7 @@ import type { KCC20State } from "./standard/state";
 import { supportsStandardTransfer } from "./standard/templates";
 import { StandardPiece, verifyStandardCells } from "./standard/verify";
 import type { NetworkType } from "@/contexts/SettingsContext.tsx";
+import { PINNED_TOKENS } from "./pinned-tokens";
 
 // NetworkType's values, type-only: SettingsContext's runtime imports do not
 // load under the node unit tests that import this module.
@@ -403,8 +404,15 @@ export function claimedMeta(
   holding: Pick<
     KascovHolding,
     "claimedTicker" | "claimedName" | "displayDecimals"
-  >,
+  > & { tokenId: string },
+  network: KronNetwork = "mainnet",
 ): Kcc20Token["meta"] {
+  // A pinned id is a known token: its configured fields, never kascov's claims.
+  const pin = PINNED_TOKENS[network]?.find(
+    (p) => p.covenantId === holding.tokenId,
+  );
+  if (pin)
+    return { symbol: pin.symbol, name: pin.name, decimals: pin.decimals };
   const { claimedTicker, claimedName, displayDecimals } = holding;
   if (!claimedTicker && displayDecimals === undefined) return undefined;
   // claimed_image is left out: an airdropped token's creator would see every
@@ -543,8 +551,33 @@ async function standardRowsFor(
     .filter((t) => t.amount > 0n);
 }
 
+/** The NACHO precedent generalised: a pinned ticker claimed on another covenant id. */
+export const pinnedImpostor = (
+  h: Pick<KascovHolding, "claimedTicker" | "tokenId">,
+  network: KronNetwork,
+) =>
+  (PINNED_TOKENS[network] ?? []).some(
+    (p) =>
+      p.symbol.toUpperCase() === h.claimedTicker?.toUpperCase() &&
+      p.covenantId !== h.tokenId,
+  );
+
+/** kascov's holdings as the dashboard lists them: one per id, impostors dropped, capped. */
+export function listedHoldings(
+  holdings: KascovHolding[],
+  network: KronNetwork,
+): KascovHolding[] {
+  return [
+    ...new Map(
+      holdings
+        .filter((h) => !pinnedImpostor(h, network))
+        .map((h) => [h.tokenId, h]),
+    ).values(),
+  ].slice(0, STANDARD_TOKEN_CAP);
+}
+
 /** The wallet's KCC-20 standard rows. Never throws: any failure yields fewer rows. */
-async function fetchStandardTokens(
+export async function fetchStandardTokens(
   address: string,
   rpc: RpcClient,
   kascov: KascovFetchers = LIVE_KASCOV,
@@ -556,11 +589,8 @@ async function fetchStandardTokens(
     )?.[1];
     if (!pk) return [];
     const walletPubkey32 = hexToBytes(`0x${pk}`);
-    const holdings = [
-      ...new Map(
-        (await kascov.holdings(address)).map((h) => [h.tokenId, h]),
-      ).values(),
-    ].slice(0, STANDARD_TOKEN_CAP);
+    // kascov serves mainnet only (fetchKcc20Tokens gates the rest).
+    const holdings = listedHoldings(await kascov.holdings(address), "mainnet");
     const rows = await mapLimit(holdings, STANDARD_CONCURRENCY, (h) =>
       standardRowsFor(h, rpc, walletPubkey32, kascov).catch(() => []),
     );
@@ -616,14 +646,16 @@ async function fetchLegacyTokens(
             t.network === hosts.registryNetwork &&
             covenantSelect.normalizedCovenantId(t.covenantId) === covid,
         );
-        return {
-          covenantId: covid,
-          family,
-          tick,
-          amount,
-          spendable,
-          meta: await verifiedMeta(entry, restApi),
-        };
+        const meta = await verifiedMeta(entry, restApi);
+        // Same policy as the standard listing: a pinned ticker on another id is dropped.
+        if (
+          pinnedImpostor(
+            { claimedTicker: meta?.symbol, tokenId: covid },
+            network,
+          )
+        )
+          return undefined;
+        return { covenantId: covid, family, tick, amount, spendable, meta };
       } catch {
         // One token's lookup failing drops that row; it must not blank the rest.
         return undefined;

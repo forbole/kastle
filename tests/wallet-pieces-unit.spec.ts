@@ -10,7 +10,13 @@ import init, {
   PrivateKey,
   RpcClient,
 } from "@/wasm/core/kaspa";
-import { KascovFetchers } from "@/lib/kcc20";
+import {
+  claimedMeta,
+  fetchStandardTokens,
+  KascovFetchers,
+  pinnedImpostor,
+} from "@/lib/kcc20";
+import { PINNED_TOKENS } from "@/lib/kcc20/pinned-tokens";
 import { KascovCell, KascovHolding } from "@/lib/kcc20/providers/kascov";
 import { parseArtifact } from "@/lib/kcc20/standard/artifact";
 import { encodeState, KCC20State } from "@/lib/kcc20/standard/state";
@@ -109,7 +115,8 @@ const node = (held: Held[]) =>
       entries: held.map((h) => ({
         outpoint: outpoint(h.n),
         address: p2shOf(h.redeem),
-        entry: { covenantId: h.covid, amount: "1000" },
+        // distinct per outpoint so a value read off the wrong entry shows
+        entry: { covenantId: h.covid, amount: String(1000 + h.n) },
       })),
     }),
   }) as unknown as RpcClient;
@@ -193,6 +200,8 @@ test("1. a legacy piece comes back with its outpoint key and amount", async () =
   expect(pieces).toHaveLength(1);
   expect(key(pieces[0])).toBe(`${outpoint(1).transactionId}:0`);
   expect(String(pieces[0].amount)).toBe("88936");
+  // KAS the node holds on the outpoint, not a constant.
+  expect(String(pieces[0].value)).toBe("1001");
   expect(pieces[0].family).toBe("kron-legacy");
   expect(pieces[0].covenantId).toBe(LEGACY_COVID);
 });
@@ -215,7 +224,7 @@ test("3. a truncated kascov cell list is refused", async () => {
   );
   await expect(
     scan({ indexer: indexer([]), standard: true, kascov: fetchers }),
-  ).rejects.toThrow(`kascov truncated ${STD_COVID}`);
+  ).rejects.toThrow(`The token indexer held back pieces of ${STD_COVID}`);
 });
 
 test("4. one token failing to load rejects the whole scan, no partial list", async () => {
@@ -258,9 +267,11 @@ test("5. a kascov standard piece merges with a legacy piece, distinct outpoints"
     },
     node(held),
   );
-  expect(pieces.map((p) => [key(p), p.family, String(p.amount)])).toEqual([
-    [key({ outpoint: outpoint(1) }), "kron-legacy", "7"],
-    [key({ outpoint: outpoint(2) }), "kcc20-standard", "500"],
+  expect(
+    pieces.map((p) => [key(p), p.family, String(p.amount), String(p.value)]),
+  ).toEqual([
+    [key({ outpoint: outpoint(1) }), "kron-legacy", "7", "1001"],
+    [key({ outpoint: outpoint(2) }), "kcc20-standard", "500", "1002"],
   ]);
   expect(pieces[1]).toMatchObject({
     covenantId: STD_COVID,
@@ -407,5 +418,79 @@ test("a kascov-claimed cell the node does not verify is refused", async () => {
       { indexer: indexer([]), standard: true, kascov: fetchers },
       node([{ n: 2, redeem: std, covid: STD_COVID }]),
     ),
-  ).rejects.toThrow(`kascov claims 2 cells of ${STD_COVID} but 1 verified`);
+  ).rejects.toThrow(
+    `The token indexer reports 2 pieces of ${STD_COVID} but the node confirms 1`,
+  );
+});
+
+// Through the real wiring: reverting the filter in wallet-pieces or in
+// fetchStandardTokens turns the impostor half red; the control proves the cell is good.
+test("pin: a foreign id claiming kUSDT is never named kUSDT, in the window or on the dashboard", async () => {
+  const std = standardRedeem(500n);
+  const held = [{ n: 2, redeem: std, covid: STD_COVID }];
+  const run = async (claimedTicker: string) => {
+    const { fetchers } = kascov(
+      [{ tokenId: STD_COVID, claimedTicker, displayDecimals: 2 }],
+      { [STD_COVID]: [cell(2, std, 500n)] },
+    );
+    const pieces = await scan(
+      { indexer: indexer([], {}), standard: true, kascov: fetchers },
+      node(held),
+    );
+    const rows = await fetchStandardTokens(address, node(held), fetchers);
+    return {
+      symbols: pieces.map((p) => p.symbol),
+      rows: rows.map((r) => r.covenantId),
+    };
+  };
+  expect(await run("STD")).toEqual({ symbols: ["STD"], rows: [STD_COVID] });
+  expect(await run("kUSDT")).toEqual({ symbols: [""], rows: [] });
+});
+
+test("pin: the pinned id is no impostor and keeps its configured ticker", () => {
+  const pinned = PINNED_TOKENS.mainnet![0].covenantId;
+  expect(
+    pinnedImpostor({ tokenId: pinned, claimedTicker: "kUSDT" }, "mainnet"),
+  ).toBe(false);
+  expect(
+    claimedMeta({ tokenId: pinned, claimedTicker: "FAKE" }, "mainnet")?.symbol,
+  ).toBe("kUSDT");
+});
+
+test("pin: a KRON-indexed piece on a foreign id claiming kUSDT is never named kUSDT", async () => {
+  const redeem = legacyRedeem(12_345n);
+  const held = [{ n: 1, redeem, covid: LEGACY_COVID }];
+  const run = async (symbol: string) =>
+    (
+      await scan(
+        {
+          indexer: indexer(
+            [{ tick: "LEG", covenantId: LEGACY_COVID, symbol, dec: 3 }],
+            { LEG: held },
+          ),
+        },
+        node(held),
+      )
+    ).map((p) => p.symbol);
+  expect(await run("ROW")).toEqual(["ROW"]);
+  expect(await run("kusdt")).toEqual([""]);
+});
+
+test("cap, truncation and claimed-vs-verified are scan refusals, not outages", async () => {
+  const { CovenantScanRefusal } = await import("@/lib/kcc20/dapp-request");
+  const rows = Array.from({ length: 51 }, (_, i) => ({
+    tick: `T${i}`,
+    covenantId: i.toString(16).padStart(64, "0"),
+  }));
+  await expect(scan({ indexer: indexer(rows) })).rejects.toBeInstanceOf(
+    CovenantScanRefusal,
+  );
+  const { fetchers } = kascov(
+    [{ tokenId: STD_COVID }],
+    { [STD_COVID]: [] },
+    true,
+  );
+  await expect(
+    scan({ indexer: indexer([]), standard: true, kascov: fetchers }),
+  ).rejects.toBeInstanceOf(CovenantScanRefusal);
 });

@@ -13,6 +13,7 @@ import init, {
 } from "@/wasm/core/kaspa";
 import {
   claimedMeta,
+  listedHoldings,
   decimalsError,
   fetchKcc20Tokens,
   isOwnedBy,
@@ -186,13 +187,13 @@ test("the mainnet registry filter ignores a testnet-10 entry", async () => {
 });
 
 test("claimed standard metadata keeps whichever half kascov claimed", () => {
-  expect(claimedMeta({ displayDecimals: 8 })).toEqual({
+  expect(claimedMeta({ tokenId: "", displayDecimals: 8 })).toEqual({
     symbol: "",
     name: "",
     decimals: 8,
     unverified: true,
   });
-  const tickerOnly = claimedMeta({ claimedTicker: "NACHO" });
+  const tickerOnly = claimedMeta({ tokenId: "", claimedTicker: "NACHO" });
   expect(tickerOnly).toEqual({
     symbol: "NACHO",
     name: "NACHO",
@@ -201,16 +202,21 @@ test("claimed standard metadata keeps whichever half kascov claimed", () => {
   expect(tickerOnly && "decimals" in tickerOnly).toBe(false);
   expect(
     claimedMeta({
+      tokenId: "",
       claimedTicker: "NACHO",
       claimedName: "Nacho",
       displayDecimals: 0,
     }),
   ).toEqual({ symbol: "NACHO", name: "Nacho", decimals: 0, unverified: true });
-  expect(claimedMeta({})).toBeUndefined();
+  expect(claimedMeta({ tokenId: "" })).toBeUndefined();
 });
 
 test("a claimed standard row has no logo; only one KRC-20 namesake fills it", () => {
-  const meta = claimedMeta({ claimedTicker: "NACHO", displayDecimals: 8 });
+  const meta = claimedMeta({
+    tokenId: "",
+    claimedTicker: "NACHO",
+    displayDecimals: 8,
+  });
   expect(meta && "logoURI" in meta).toBe(false);
   const row: Kcc20Token = {
     covenantId: "41".repeat(32),
@@ -229,4 +235,40 @@ test("a claimed standard row has no logo; only one KRC-20 namesake fills it", ()
   expect(row.meta && "logoURI" in row.meta).toBe(false);
   expect(fillFromKrc20(row, [entry, entry])).toBe(row);
   expect(fillFromKrc20(row, undefined)).toBe(row);
+});
+
+const KUSDT =
+  "50b3477e7368d0c5bfbd64483b4607350ec411377972f33e40b2d4b6d1513fd3";
+
+test("a pinned covenant id resolves to the pinned fields, not unverified; an unpinned one keeps its claims", () => {
+  const claims = {
+    claimedTicker: "kUSDT",
+    claimedName: "Tether",
+    displayDecimals: 8,
+  };
+  expect(claimedMeta({ ...claims, tokenId: KUSDT })).toEqual({
+    symbol: "kUSDT",
+    name: "kUSDT",
+    decimals: 6,
+  });
+  expect(claimedMeta({ ...claims, tokenId: "ab".repeat(32) })).toEqual({
+    symbol: "kUSDT",
+    name: "Tether",
+    decimals: 8,
+    unverified: true,
+  });
+});
+
+test("a pinned ticker on another covenant id is dropped from the list; the pinned one is kept", () => {
+  const holding = (tokenId: string, claimedTicker: string) =>
+    ({ tokenId, claimedTicker }) as Parameters<typeof listedHoldings>[0][0];
+  const listed = listedHoldings(
+    [
+      holding("ab".repeat(32), "KUSDT"),
+      holding(KUSDT, "kUSDT"),
+      holding("cd".repeat(32), "NACHO"),
+    ],
+    "mainnet",
+  );
+  expect(listed.map((h) => h.tokenId)).toEqual([KUSDT, "cd".repeat(32)]);
 });

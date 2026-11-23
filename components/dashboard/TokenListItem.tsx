@@ -135,14 +135,11 @@ export function Kcc20TokenListItem({ token: scanned }: { token: Kcc20Token }) {
   const { amount: fiatValue } = useCurrencyValue(valueUsd ?? 0);
 
   // Without decimals the scale is unknown: grouped base units, never a guess.
-  // kascov held cells back when truncated: the balance may be short.
-  const more = token.truncated ? "+" : "";
   const balance = showBalance ? formatKcc20Balance(token) : "*****";
   const compact = showBalance
     ? compactKcc20Amount(token.amount, meta?.decimals)
     : undefined;
-  const compactBalance =
-    compact === undefined ? undefined : `${compact}${more}`;
+  const compactBalance = compact;
   // An unpriced token shows no fiat at all: no placeholder, never $0.
   const fiat =
     valueUsd === undefined
@@ -169,7 +166,12 @@ export function Kcc20TokenListItem({ token: scanned }: { token: Kcc20Token }) {
       }
       balance={balance}
       compactBalance={compactBalance}
-      fiat={fiat}
+      // kascov held cells back when truncated: the balance may be short.
+      fiat={
+        token.truncated
+          ? [fiat, KCC20_LABELS.notAllChecked].filter(Boolean).join(" · ")
+          : fiat
+      }
     />
   );
 

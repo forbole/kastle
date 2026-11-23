@@ -1093,3 +1093,25 @@ for (const s of [
     expect(cs).toEqual(["flex", "column"]);
   });
 }
+
+test("KCC-20 screen: a truncated row says some of it could not be checked", async ({
+  page,
+}) => {
+  await open(page, `/kcc20/${KCC20_ID}`, "&truncated=1");
+  await page.getByRole("tab", { name: "Token info", exact: true }).click();
+  await expect(
+    page.getByText(
+      "Some of this token could not be checked, so the balance may be higher.",
+      { exact: true },
+    ),
+  ).toBeVisible();
+});
+
+test("KCC-20 screen: a fully read row has no not-checked line", async ({
+  page,
+}) => {
+  await open(page, `/kcc20/${KCC20_ID}`);
+  await page.getByRole("tab", { name: "Token info", exact: true }).click();
+  await expect(page.getByText("Balance", { exact: true })).toBeVisible();
+  await expect(page.getByText(/could not be checked/)).toHaveCount(0);
+});

@@ -1,4 +1,7 @@
-import { SignTxPayload } from "@/api/background/handlers/kaspa/utils";
+import {
+  SignTxPayload,
+  admissionRefusal,
+} from "@/api/background/handlers/kaspa/utils";
 import { ApiExtensionUtils } from "@/api/extension";
 import { IWallet } from "@/lib/wallet/wallet-interface.ts";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
@@ -28,7 +31,7 @@ export default function SignAndBroadcast({
   origin,
 }: SignAndBroadcastProps) {
   const { rpcClient } = useRpcClientStateful();
-  const { account } = useWalletManager();
+  const { account, wallet: selectedWallet } = useWalletManager();
   const { emitKasSignAndBroadcastTx } = useAnalytics();
 
   const { transaction, displayPayload, feeAdjusted } = useMemo(() => {
@@ -45,6 +48,21 @@ export default function SignAndBroadcast({
 
   const handleConfirm = async () => {
     if (!rpcClient || !wallet || !account) {
+      return;
+    }
+
+    // Bound to the account the guard checked: another one never signs it.
+    const refusal = admissionRefusal(
+      payload,
+      selectedWallet?.id,
+      account.index,
+    );
+    if (refusal) {
+      await ApiExtensionUtils.sendMessage(
+        requestId,
+        ApiUtils.createApiResponse(requestId, null, refusal),
+      );
+      window.close();
       return;
     }
 
