@@ -9,6 +9,7 @@ import {
   KronNetwork,
   mapLimit,
   ownedStandardCells,
+  pinnedImpostor,
 } from "./index";
 import { fetchOwnerCells, fetchStandardHoldings } from "./providers/kascov";
 import { canReadStandardKcc20, type WalletKcc20Piece } from "./dapp-request";
@@ -161,6 +162,8 @@ export async function walletKcc20Pieces(
           `kascov claims ${claimed} cells of ${h.tokenId} but ${owned.length} verified`,
         );
       const meta = claimedMeta(h, net);
+      // The window must never print a pinned ticker on an unpinned id: short id instead.
+      const symbol = pinnedImpostor(h, net) ? "" : (meta?.symbol ?? "");
       for (const { piece } of owned)
         add({
           outpoint: piece.outpoint,
@@ -171,7 +174,7 @@ export async function walletKcc20Pieces(
           ).slice(2),
           amount: piece.state.amount,
           value: piece.value,
-          symbol: meta?.symbol ?? "",
+          symbol,
           decimals: displayDecimals(meta?.decimals),
         });
     }

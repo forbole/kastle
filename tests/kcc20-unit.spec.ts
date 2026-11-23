@@ -187,13 +187,13 @@ test("the mainnet registry filter ignores a testnet-10 entry", async () => {
 });
 
 test("claimed standard metadata keeps whichever half kascov claimed", () => {
-  expect(claimedMeta({ displayDecimals: 8 })).toEqual({
+  expect(claimedMeta({ tokenId: "", displayDecimals: 8 })).toEqual({
     symbol: "",
     name: "",
     decimals: 8,
     unverified: true,
   });
-  const tickerOnly = claimedMeta({ claimedTicker: "NACHO" });
+  const tickerOnly = claimedMeta({ tokenId: "", claimedTicker: "NACHO" });
   expect(tickerOnly).toEqual({
     symbol: "NACHO",
     name: "NACHO",
@@ -202,16 +202,21 @@ test("claimed standard metadata keeps whichever half kascov claimed", () => {
   expect(tickerOnly && "decimals" in tickerOnly).toBe(false);
   expect(
     claimedMeta({
+      tokenId: "",
       claimedTicker: "NACHO",
       claimedName: "Nacho",
       displayDecimals: 0,
     }),
   ).toEqual({ symbol: "NACHO", name: "Nacho", decimals: 0, unverified: true });
-  expect(claimedMeta({})).toBeUndefined();
+  expect(claimedMeta({ tokenId: "" })).toBeUndefined();
 });
 
 test("a claimed standard row has no logo; only one KRC-20 namesake fills it", () => {
-  const meta = claimedMeta({ claimedTicker: "NACHO", displayDecimals: 8 });
+  const meta = claimedMeta({
+    tokenId: "",
+    claimedTicker: "NACHO",
+    displayDecimals: 8,
+  });
   expect(meta && "logoURI" in meta).toBe(false);
   const row: Kcc20Token = {
     covenantId: "41".repeat(32),

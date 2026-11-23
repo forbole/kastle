@@ -26,6 +26,9 @@ import { formatBalance } from "@/components/send/kcc20-send/formatBalance";
 const KAS_DECIMALS = 8;
 const formatKas = (sompi: bigint) =>
   `${formatBalance(sompi, KAS_DECIMALS)} KAS`;
+// Mobile's wording (schemas.ts), "site" for this window.
+const SITE_STATED_FEE =
+  "As stated by the site: an input this wallet doesn't sign carries the site's own amount";
 const sompiToFloat = (sompi: bigint) => Number(sompi) / 10 ** KAS_DECIMALS;
 
 const ZERO_OUTPUT_COMMITMENT_ERROR =
@@ -114,8 +117,35 @@ export default function SignConfirm({
     0n,
   );
 
+  const accountScript = account
+    ? payToAddressScript(new Address(account.address)).toString()
+    : undefined;
+  // KAS a moved piece carried out to others is already its token row's figure:
+  // per piece, the lesser of its value and its non-wallet authorized outputs.
+  const carriedOut = covenant.movements.reduce((acc, m) => {
+    const out = m.destinations.reduce((sum, d) => {
+      const o = transaction.outputs[d.outputIndex];
+      return o && o.scriptPublicKey.toString() !== accountScript
+        ? sum + o.value
+        : sum;
+    }, 0n);
+    return acc + (m.value < out ? m.value : out);
+  }, 0n);
+  // Inputs this wallet does not sign: their amounts are the page's word alone.
+  const signedByScript = new Set(
+    hasScriptOptions(payload.scripts)
+      ? payload.scripts!.flatMap((o) => (o == null ? [] : [o.inputIndex]))
+      : [],
+  );
+  const siteStatedFee = transaction.inputs.some(
+    (input, i) =>
+      input.utxo !== undefined &&
+      !signedByScript.has(i) &&
+      input.utxo.scriptPublicKey.toString() !== accountScript,
+  );
+
   // Calculate sending amount in output
-  const sendingAmount = transaction.outputs
+  const grossSending = transaction.outputs
     .filter((output) => {
       if (!account) return false;
 
@@ -126,6 +156,7 @@ export default function SignConfirm({
       return accountScript !== output.scriptPublicKey.toString();
     })
     .reduce((acc, output) => acc + output.value, 0n);
+  const sendingAmount = grossSending - carriedOut;
 
   // undefined when not computable: an input without an amount, or outputs
   // exceeding inputs (an incomplete transaction).
@@ -360,6 +391,11 @@ export default function SignConfirm({
                       <span className="text-xs text-daintree-400">
                         {formatUsdAmount(feesCurrency, feesCurrencyCode)}
                       </span>
+                      {siteStatedFee && (
+                        <span className="text-xs text-yellow-400">
+                          {SITE_STATED_FEE}
+                        </span>
+                      )}
                     </div>
                   )}
                 </div>

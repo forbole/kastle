@@ -66,6 +66,11 @@ export function decodeCovenantRequest(
       const { transactionId, index } = input.previousOutpoint;
       const piece = held.get(`${transactionId}:${index}`);
       if (!piece) return;
+      // The page's entry and the verified piece must agree, or the fee is the page's alone.
+      if (input.utxo?.amount !== piece.value)
+        throw new Error(
+          `input ${inputIndex} states ${input.utxo?.amount ?? "no"} sompi; the verified piece holds ${piece.value}`,
+        );
       const destinations: DappTokenMovement["destinations"] = [];
       outputs.forEach((output, outputIndex) => {
         if (output.covenant?.authorizingInput !== inputIndex) return;
@@ -116,15 +121,21 @@ export function uncheckedSignedInput(
   );
   const walletScript = payToAddressScript(walletAddress).script;
   const inputs = tx.inputs;
-  for (const i of scripted) {
+  for (const i of scripted) if (!inputs[i]) return `input ${i} does not exist`;
+  const signed = new Set(scripted);
+  // Every input visited: the P2PK fallback signs a wallet-script input unscripted.
+  for (let i = 0; i < inputs.length; i++) {
     const input = inputs[i];
-    if (!input) return `input ${i} does not exist`;
     const { transactionId, index } = input.previousOutpoint;
     if (held.has(`${transactionId}:${index}`)) continue;
     const utxo = input.utxo;
     // A lied-about entry only breaks the signature: the sighash commits to it.
-    if (utxo?.scriptPublicKey.script === walletScript) continue;
     const covenantId = utxo?.entry.covenantId?.toString();
+    const mine = utxo?.scriptPublicKey.script === walletScript;
+    // Wallet script plus a covenant id is token state, not a plain coin.
+    if (mine && !covenantId) continue;
+    // Neither scripted nor ours: another party's input, never signed here.
+    if (!mine && !signed.has(i)) continue;
     if (!covenantId)
       return `input ${i} is not your own coin or a KCC-20 token Kastle verified`;
     return canReadStandardKcc20(network)

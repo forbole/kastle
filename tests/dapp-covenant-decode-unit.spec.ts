@@ -73,6 +73,13 @@ test.beforeAll(async () => {
 });
 
 test.describe("decodeCovenantRequest", () => {
+  test("a held piece whose stated amount differs from the verified value refuses", () => {
+    const result = decode([{ ...pieceA, value: pieceA.value + 1n }]);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toContain("input 0 states 100000000 sompi");
+  });
+
   test("a spent wallet piece is one movement with its covenant outputs", () => {
     const result = decode([pieceA]);
     expect(result.ok).toBe(true);
@@ -202,6 +209,21 @@ test.describe("uncheckedSignedInput", () => {
     expect(reason).toBe(
       "input 1 is not your own coin or a KCC-20 token Kastle verified",
     );
+  });
+
+  test("a wallet-script input carrying a covenant id refuses even unscripted; a plain one passes", () => {
+    const tx = JSON.parse(TX_JSON);
+    tx.inputs[2].utxo.covenantId = COVID_B;
+    const reason = uncheckedSignedInput(
+      deserializeTransaction(JSON.stringify(tx)),
+      [pieceA],
+      [],
+      WALLET,
+      "mainnet",
+    );
+    expect(reason).toContain("input 2 spends");
+    expect(reason).toContain(COVID_B);
+    expect(unchecked([pieceA], [])).toBeUndefined();
   });
 
   test("a scripted index past the inputs refuses", () => {

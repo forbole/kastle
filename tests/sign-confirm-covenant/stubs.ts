@@ -103,6 +103,8 @@ export const browser = {};
 // that shape, so it is built here; the screen's type still admits it.
 export function deserializeTransaction(txJson: string) {
   const tx = realDeserialize(txJson);
+  // Defensive only: the product cannot produce this tx (the real
+  // deserializer requires every entry); it exists to pin the "Not known" branch.
   if (query.get("tx") === "v1nofee") {
     tx.inputs = tx.inputs.map((input, i) => {
       if (i !== 1) return input;

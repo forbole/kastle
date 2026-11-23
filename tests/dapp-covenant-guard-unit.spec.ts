@@ -175,7 +175,11 @@ for (const [name, handler] of HANDLERS) {
       expect(guard.pieceCalls).toHaveLength(1);
       expect(guard.popups).toHaveLength(0);
       expect(res.response).toBeNull();
-      expect(res.error).toEqual(RPC_ERRORS.COVENANT_TX_UNDECODABLE);
+      // An outage reads as one, not as a bad request.
+      expect(res.error).toEqual({
+        code: RPC_ERRORS.COVENANT_TX_UNDECODABLE.code,
+        message: "Kastle could not read your tokens — try again",
+      });
     });
 
     test("version 1 that decodes opens the popup with the request only", async () => {

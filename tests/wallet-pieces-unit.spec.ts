@@ -10,7 +10,13 @@ import init, {
   PrivateKey,
   RpcClient,
 } from "@/wasm/core/kaspa";
-import { KascovFetchers } from "@/lib/kcc20";
+import {
+  claimedMeta,
+  fetchStandardTokens,
+  KascovFetchers,
+  pinnedImpostor,
+} from "@/lib/kcc20";
+import { PINNED_TOKENS } from "@/lib/kcc20/pinned-tokens";
 import { KascovCell, KascovHolding } from "@/lib/kcc20/providers/kascov";
 import { parseArtifact } from "@/lib/kcc20/standard/artifact";
 import { encodeState, KCC20State } from "@/lib/kcc20/standard/state";
@@ -413,4 +419,38 @@ test("a kascov-claimed cell the node does not verify is refused", async () => {
       node([{ n: 2, redeem: std, covid: STD_COVID }]),
     ),
   ).rejects.toThrow(`kascov claims 2 cells of ${STD_COVID} but 1 verified`);
+});
+
+// Through the real wiring: reverting the filter in wallet-pieces or in
+// fetchStandardTokens turns the impostor half red; the control proves the cell is good.
+test("pin: a foreign id claiming kUSDT is never named kUSDT, in the window or on the dashboard", async () => {
+  const std = standardRedeem(500n);
+  const held = [{ n: 2, redeem: std, covid: STD_COVID }];
+  const run = async (claimedTicker: string) => {
+    const { fetchers } = kascov(
+      [{ tokenId: STD_COVID, claimedTicker, displayDecimals: 2 }],
+      { [STD_COVID]: [cell(2, std, 500n)] },
+    );
+    const pieces = await scan(
+      { indexer: indexer([], {}), standard: true, kascov: fetchers },
+      node(held),
+    );
+    const rows = await fetchStandardTokens(address, node(held), fetchers);
+    return {
+      symbols: pieces.map((p) => p.symbol),
+      rows: rows.map((r) => r.covenantId),
+    };
+  };
+  expect(await run("STD")).toEqual({ symbols: ["STD"], rows: [STD_COVID] });
+  expect(await run("kUSDT")).toEqual({ symbols: [""], rows: [] });
+});
+
+test("pin: the pinned id is no impostor and keeps its configured ticker", () => {
+  const pinned = PINNED_TOKENS.mainnet![0].covenantId;
+  expect(
+    pinnedImpostor({ tokenId: pinned, claimedTicker: "kUSDT" }, "mainnet"),
+  ).toBe(false);
+  expect(
+    claimedMeta({ tokenId: pinned, claimedTicker: "FAKE" }, "mainnet")?.symbol,
+  ).toBe("kUSDT");
 });

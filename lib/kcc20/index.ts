@@ -404,7 +404,7 @@ export function claimedMeta(
   holding: Pick<
     KascovHolding,
     "claimedTicker" | "claimedName" | "displayDecimals"
-  > & { tokenId?: string },
+  > & { tokenId: string },
   network: KronNetwork = "mainnet",
 ): Kcc20Token["meta"] {
   // A pinned id is a known token: its configured fields, never kascov's claims.
@@ -551,28 +551,33 @@ async function standardRowsFor(
     .filter((t) => t.amount > 0n);
 }
 
+/** The NACHO precedent generalised: a pinned ticker claimed on another covenant id. */
+export const pinnedImpostor = (
+  h: Pick<KascovHolding, "claimedTicker" | "tokenId">,
+  network: KronNetwork,
+) =>
+  (PINNED_TOKENS[network] ?? []).some(
+    (p) =>
+      p.symbol.toUpperCase() === h.claimedTicker?.toUpperCase() &&
+      p.covenantId !== h.tokenId,
+  );
+
 /** kascov's holdings as the dashboard lists them: one per id, impostors dropped, capped. */
 export function listedHoldings(
   holdings: KascovHolding[],
   network: KronNetwork,
 ): KascovHolding[] {
-  const pins = PINNED_TOKENS[network] ?? [];
-  // The NACHO precedent generalised: a pinned ticker on another covenant id is an impostor.
-  const impostor = (h: KascovHolding) =>
-    pins.some(
-      (p) =>
-        p.symbol.toUpperCase() === h.claimedTicker?.toUpperCase() &&
-        p.covenantId !== h.tokenId,
-    );
   return [
     ...new Map(
-      holdings.filter((h) => !impostor(h)).map((h) => [h.tokenId, h]),
+      holdings
+        .filter((h) => !pinnedImpostor(h, network))
+        .map((h) => [h.tokenId, h]),
     ).values(),
   ].slice(0, STANDARD_TOKEN_CAP);
 }
 
 /** The wallet's KCC-20 standard rows. Never throws: any failure yields fewer rows. */
-async function fetchStandardTokens(
+export async function fetchStandardTokens(
   address: string,
   rpc: RpcClient,
   kascov: KascovFetchers = LIVE_KASCOV,

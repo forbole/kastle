@@ -64,6 +64,8 @@ async function open(page: Page, query: string) {
 
 const confirm = (page: Page) => page.getByRole("button", { name: "Confirm" });
 const h = (page: Page) => page.evaluate(() => window.__signHarness);
+const SITE_STATED =
+  "As stated by the site: an input this wallet doesn't sign carries the site's own amount";
 const CAVEAT =
   "Kastle verifies the pieces leaving your wallet. It cannot show the token amounts inside the destination covenant.";
 
@@ -262,6 +264,8 @@ test("a 2,000-sompi fee renders exactly, not 0.000 KAS", async ({ page }) => {
     row(page, "Change to your balance").locator("span").first(),
   ).toHaveText("-0.00002 KAS");
   await expect(page.getByText(/0\.000 KAS/)).toHaveCount(0);
+  // The wallet signs its one input: no site-stated label.
+  await expect(row(page, "Fee")).not.toContainText(SITE_STATED);
   expect(errors).toEqual([]);
 });
 
@@ -274,16 +278,24 @@ test("v1 fee, sending amount and balance change are exact sompi", async ({
     "0.20009 KAS",
   );
   await expect(row(page, "Sending amount").locator("span").first()).toHaveText(
-    "2 KAS",
+    "1 KAS",
   );
   await expect(
     row(page, "Change to your balance").locator("span").first(),
   ).toHaveText("-0.20009 KAS");
+  // Exactly once: outputs 0-2 leave the wallet's script, 2 KAS in all.
+  // Piece A's row carries its 1 KAS (out of outputs 0 and 1); Sending shows the rest.
+  await expect(page.getByText("-1 KAS", { exact: true })).toBeVisible();
+  await expect(page.getByText("-1 KAS", { exact: true })).toHaveCount(1);
+  // Input 1 is neither scripted nor the wallet's: its amount is the page's word.
+  await expect(row(page, "Fee")).toContainText(SITE_STATED);
 });
 
 test("an input with no UTXO amount makes the fee not known, never 0", async ({
   page,
 }, testInfo) => {
+  // Defensive: the real deserializer rejects an entry-less input, so the product
+  // cannot reach this state; the harness builds it (stubs.ts ?tx=v1nofee) to pin the branch.
   const errors = await open(page, "tx=v1nofee&pieces=a");
   const why = "Kastle does not have the amount of input 1";
   await expect(row(page, "Fee")).toHaveText(`Not known${why}`);

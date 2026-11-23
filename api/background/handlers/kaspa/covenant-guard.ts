@@ -18,6 +18,11 @@ import { normalizeScriptOptions } from "@/lib/wallet/sign-script";
  * Standard pieces are always scanned (kascov, mainnet only): the
  * standard-family flag gates display, not this guard.
  */
+export const COVENANT_TOKENS_UNREADABLE: RpcError = {
+  code: RPC_ERRORS.COVENANT_TX_UNDECODABLE.code,
+  message: "Kastle could not read your tokens — try again",
+};
+
 export async function covenantRequestRefusal(
   txJson: string,
   scripts: ScriptOption[],
@@ -28,10 +33,12 @@ export async function covenantRequestRefusal(
     const { networkId } = await ApiUtils.getSettings();
     const rpc = await ApiUtils.connectKaspaRpcClient();
     try {
+      // An outage is not a bad request: say so, distinctly.
       const pieces = await walletKcc20Pieces(account.address, rpc, {
         network: networkId,
         standard: true,
-      });
+      }).catch(() => undefined);
+      if (!pieces) return COVENANT_TOKENS_UNREADABLE;
       const tx = deserializeTransaction(txJson);
       if (!decodeCovenantRequest(tx, pieces, networkId).ok)
         return RPC_ERRORS.COVENANT_TX_UNDECODABLE;
