@@ -11,28 +11,15 @@ interface SendEvmTransactionParams {
   gas: bigint;
   chainId: Hex | number;
   data?: Hex;
+  // Fees already quoted by getEvmFeesPerGas (e.g. the ones a balance check
+  // approved), so the signature uses them instead of a second quote.
+  fees?: { maxFeePerGas: bigint; maxPriorityFeePerGas: bigint };
 }
 
-export async function sendEvmTransaction({
-  ethClient,
-  signer,
-  sender,
-  to,
-  valueInWei,
-  gas,
-  chainId,
-  data,
-}: SendEvmTransactionParams): Promise<Hex> {
+// The fees sendEvmTransaction signs with. Exported so a pre-signature balance
+// check reads the same numbers the signer will.
+export async function getEvmFeesPerGas(ethClient: PublicClient) {
   const estimatedGas = await ethClient.estimateFeesPerGas();
-  // 'pending' counts the sender's unmined transactions too. On 'latest' (viem's
-  // default) a retry issued while an earlier transaction is still pending
-  // reuses that nonce: the retry is rejected as a replacement and the original
-  // mines anyway, so the user retries a transaction that then lands twice over.
-  const nonce = await ethClient.getTransactionCount({
-    address: sender,
-    blockTag: "pending",
-  });
-
   // Get the minimum gas price from the network
   const gasPrice = await ethClient.getGasPrice();
 
@@ -48,6 +35,31 @@ export async function sendEvmTransaction({
       ? estimatedGas.maxPriorityFeePerGas
       : gasPrice
     : gasPrice;
+
+  return { maxFeePerGas, maxPriorityFeePerGas };
+}
+
+export async function sendEvmTransaction({
+  ethClient,
+  signer,
+  sender,
+  to,
+  valueInWei,
+  gas,
+  chainId,
+  data,
+  fees,
+}: SendEvmTransactionParams): Promise<Hex> {
+  const { maxFeePerGas, maxPriorityFeePerGas } =
+    fees ?? (await getEvmFeesPerGas(ethClient));
+  // 'pending' counts the sender's unmined transactions too. On 'latest' (viem's
+  // default) a retry issued while an earlier transaction is still pending
+  // reuses that nonce: the retry is rejected as a replacement and the original
+  // mines anyway, so the user retries a transaction that then lands twice over.
+  const nonce = await ethClient.getTransactionCount({
+    address: sender,
+    blockTag: "pending",
+  });
 
   const transaction: TransactionSerializable = {
     to,
