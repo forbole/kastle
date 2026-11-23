@@ -105,6 +105,9 @@ export default function Kcc20Asset() {
       // Same values as the dashboard row; a nameless token gets no name line.
       tokenName={meta?.name || undefined}
       balance={balance}
+      balanceNote={
+        token?.truncated ? KCC20_LABELS.notAllCheckedDetail : undefined
+      }
       logo={meta?.logoURI}
       network="kcc20"
       networkName="Kaspa"

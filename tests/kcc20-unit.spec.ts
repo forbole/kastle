@@ -13,6 +13,7 @@ import init, {
 } from "@/wasm/core/kaspa";
 import {
   claimedMeta,
+  listedHoldings,
   decimalsError,
   fetchKcc20Tokens,
   isOwnedBy,
@@ -229,4 +230,40 @@ test("a claimed standard row has no logo; only one KRC-20 namesake fills it", ()
   expect(row.meta && "logoURI" in row.meta).toBe(false);
   expect(fillFromKrc20(row, [entry, entry])).toBe(row);
   expect(fillFromKrc20(row, undefined)).toBe(row);
+});
+
+const KUSDT =
+  "50b3477e7368d0c5bfbd64483b4607350ec411377972f33e40b2d4b6d1513fd3";
+
+test("a pinned covenant id resolves to the pinned fields, not unverified; an unpinned one keeps its claims", () => {
+  const claims = {
+    claimedTicker: "kUSDT",
+    claimedName: "Tether",
+    displayDecimals: 8,
+  };
+  expect(claimedMeta({ ...claims, tokenId: KUSDT })).toEqual({
+    symbol: "kUSDT",
+    name: "kUSDT",
+    decimals: 6,
+  });
+  expect(claimedMeta({ ...claims, tokenId: "ab".repeat(32) })).toEqual({
+    symbol: "kUSDT",
+    name: "Tether",
+    decimals: 8,
+    unverified: true,
+  });
+});
+
+test("a pinned ticker on another covenant id is dropped from the list; the pinned one is kept", () => {
+  const holding = (tokenId: string, claimedTicker: string) =>
+    ({ tokenId, claimedTicker }) as Parameters<typeof listedHoldings>[0][0];
+  const listed = listedHoldings(
+    [
+      holding("ab".repeat(32), "KUSDT"),
+      holding(KUSDT, "kUSDT"),
+      holding("cd".repeat(32), "NACHO"),
+    ],
+    "mainnet",
+  );
+  expect(listed.map((h) => h.tokenId)).toEqual([KUSDT, "cd".repeat(32)]);
 });

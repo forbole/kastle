@@ -160,7 +160,7 @@ export async function walletKcc20Pieces(
         throw new Error(
           `kascov claims ${claimed} cells of ${h.tokenId} but ${owned.length} verified`,
         );
-      const meta = claimedMeta(h);
+      const meta = claimedMeta(h, net);
       for (const { piece } of owned)
         add({
           outpoint: piece.outpoint,

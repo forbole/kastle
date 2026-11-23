@@ -16,6 +16,8 @@ export interface TokenDetailPageProps {
   tokenName?: string;
   /** Display-ready balance with its unit, e.g. "128,001 WHALE". */
   balance?: string;
+  /** One line under the Balance row, e.g. why the balance may be short. */
+  balanceNote?: string;
   /** Price row, display-ready, e.g. "$0.00000799". Row hidden when unset. */
   priceLabel?: string;
   /** Value row (balance × price), display-ready, e.g. "$0.016"; pass "*****" while the balance is hidden. */
@@ -83,6 +85,7 @@ export default function TokenDetailPage({
   name,
   tokenName,
   balance,
+  balanceNote,
   priceLabel,
   valueLabel,
   logo,
@@ -204,6 +207,11 @@ export default function TokenDetailPage({
                   <InfoRow label={KCC20_LABELS.balance}>
                     <span className="truncate">{balance}</span>
                   </InfoRow>
+                )}
+                {balanceNote && (
+                  <p className="pb-3 text-sm text-daintree-400">
+                    {balanceNote}
+                  </p>
                 )}
                 {decimal && (
                   <InfoRow label={KCC20_LABELS.decimals}>
