@@ -53,22 +53,17 @@ function loadModule(file: string, stubs: Record<string, unknown>) {
   return module.exports;
 }
 
-// The URLs as contexts/SettingsContext.tsx declares them, read off the source.
-const settingsSource = read("contexts/SettingsContext.tsx");
-const urlOf = (member: string) =>
-  settingsSource.match(
-    new RegExp(
-      `KASSEAL_API_URLS[\\s\\S]*?\\[NetworkType\\.${member}\\]: "([^"]+)"`,
-    ),
-  )![1];
+// The URLs as lib/kasseal/urls.ts declares them, read off the source.
+const urlsSource = read("lib/kasseal/urls.ts");
+const urlOf = (key: string) =>
+  urlsSource.match(new RegExp(`"?${key}"?: "([^"]+)"`))![1];
 const KASSEAL_API_URLS = {
-  mainnet: urlOf("Mainnet"),
-  "testnet-10": urlOf("TestnetT10"),
+  mainnet: urlOf("mainnet"),
+  "testnet-10": urlOf("testnet-10"),
 };
-const NetworkType = { Mainnet: "mainnet", TestnetT10: "testnet-10" };
 
 const api = loadModule("lib/kasseal/api.ts", {
-  "@/contexts/SettingsContext.tsx": { KASSEAL_API_URLS, NetworkType },
+  "./urls": { KASSEAL_API_URLS },
 });
 const errorCopy = loadModule("lib/kasseal/errorCopy.ts", {
   "@kassealhq/sdk": { errorCode: () => undefined },

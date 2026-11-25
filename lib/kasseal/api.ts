@@ -1,15 +1,14 @@
 import type { KassealNetwork, SubmitState } from "@kassealhq/sdk";
-import { KASSEAL_API_URLS, NetworkType } from "@/contexts/SettingsContext.tsx";
+import { KASSEAL_API_URLS } from "./urls";
 
 export function kassealBaseUrl(network: KassealNetwork): string {
-  return KASSEAL_API_URLS[network as NetworkType];
+  return KASSEAL_API_URLS[network];
 }
 
 export function kassealNetworkOf(
   networkId: string | undefined,
 ): KassealNetwork | undefined {
-  return networkId === NetworkType.Mainnet ||
-    networkId === NetworkType.TestnetT10
+  return networkId === "mainnet" || networkId === "testnet-10"
     ? networkId
     : undefined;
 }

@@ -69,14 +69,11 @@ test.describe("Kasseal QuoteSummary bound label", () => {
   });
 });
 
-const SettingsContext = {
-  NetworkType: { Mainnet: "mainnet", TestnetT10: "testnet-10" },
-  KASSEAL_API_URLS: { mainnet: "https://k" },
-};
+const urls = { KASSEAL_API_URLS: { mainnet: "https://k" } };
 
 test.describe("Kasseal token response", () => {
   const api = loadModule("lib/kasseal/api.ts", {
-    "@/contexts/SettingsContext.tsx": SettingsContext,
+    "./urls": urls,
   });
   const respond = (covenantId: string) =>
     (async () =>

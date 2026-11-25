@@ -54,11 +54,7 @@ export const KASPLEX_API_URLS = {
   [NetworkType.Mainnet]: "https://api.kasplex.org/v1",
   [NetworkType.TestnetT10]: "https://tn10api.kasplex.org/v1",
 };
-// Kasseal's API CORS is locked to its own sites; see host_permissions in wxt.config.ts.
-export const KASSEAL_API_URLS: Record<NetworkType, string> = {
-  [NetworkType.Mainnet]: "https://app.kasseal.com/v1",
-  [NetworkType.TestnetT10]: "https://testnet.kasseal.com/v1",
-};
+export { KASSEAL_API_URLS } from "@/lib/kasseal/urls";
 
 export const KNS_API_URLS = {
   [NetworkType.Mainnet]: "https://api.knsdomains.org/mainnet",
