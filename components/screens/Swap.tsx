@@ -1008,13 +1008,13 @@ export default function Swap() {
       toast.error("Swap failed. Please try again.");
       trackSwap("failed");
       setReport(
-        buildDiagnosticReport("swap", e, {
+        buildDiagnosticReport("swap", e, () => ({
           code: rpcErrorCode(e),
           chainId: chain.id,
           provider: provider?.name ?? "wrap",
           extensionVersion: browser.runtime.getManifest().version,
           walletType: wallet?.type,
-        }),
+        })),
       );
     } finally {
       setSubmitting(false);

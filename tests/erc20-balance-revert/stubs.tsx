@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useFormContext } from "react-hook-form";
+import { BaseError } from "viem";
 import { kasplexTestnet } from "@/lib/layer2";
 
 declare global {
@@ -53,8 +54,14 @@ export function DetailsStep({ onNext }: { onNext: () => void }) {
 // error whose `.cause` getter throws, so its report cannot be built.
 export const sendEvmTransaction = async () => {
   window.__erc20.sent++;
-  if (new URLSearchParams(location.search).get("send") === "hostile") {
-    const error = new Error("node went away");
+  const mode = new URLSearchParams(location.search).get("send");
+  // hostile-viem: the same, as a viem BaseError, so walking it for the RPC
+  // code reads the throwing `.cause` before the report is built.
+  if (mode === "hostile" || mode === "hostile-viem") {
+    const error =
+      mode === "hostile"
+        ? new Error("node went away")
+        : new BaseError("node went away");
     Object.defineProperty(error, "cause", {
       get() {
         throw new Error("hostile cause");

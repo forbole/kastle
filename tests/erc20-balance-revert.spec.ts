@@ -256,3 +256,16 @@ test("EVM KAS broadcast error whose .cause getter throws: fail screen, no Copy l
   expect(await page.evaluate(() => window.__erc20.sent)).toBe(1);
   await expect(page.getByRole("button", { name: "Copy logs" })).toHaveCount(0);
 });
+
+for (const flow of ["", "flow=kas&"]) {
+  test(`${flow ? "EVM KAS" : "ERC-20"} broadcast viem error whose .cause getter throws: fail screen, no Copy logs`, async ({
+    page,
+  }) => {
+    // failWith asserts the fail screen shows and no error escapes the page
+    await failWith(page, `${flow}send=hostile-viem`, { result: "0x5208" });
+    expect(await page.evaluate(() => window.__erc20.sent)).toBe(1);
+    await expect(page.getByRole("button", { name: "Copy logs" })).toHaveCount(
+      0,
+    );
+  });
+}

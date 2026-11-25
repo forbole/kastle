@@ -70,14 +70,20 @@ export function erc20ExceedsBalance(
 }
 
 // The token's own "Transfer amount exceeds balance" revert: a user condition,
-// not a wallet fault. Every other revert and error returns false.
+// not a wallet fault. Every other revert and error returns false, including
+// one whose `.cause` chain throws when walked: the fail screen still shows.
 export function isErc20ExceedsBalanceRevert(error: unknown): boolean {
   if (!(error instanceof BaseError)) return false;
-  const revert = error.walk(
-    (e) =>
-      e instanceof ContractFunctionRevertedError ||
-      e instanceof ExecutionRevertedError,
-  );
+  let revert: unknown;
+  try {
+    revert = error.walk(
+      (e) =>
+        e instanceof ContractFunctionRevertedError ||
+        e instanceof ExecutionRevertedError,
+    );
+  } catch {
+    return false;
+  }
   if (revert instanceof ContractFunctionRevertedError)
     return revert.reason === "Transfer amount exceeds balance";
   if (revert instanceof ExecutionRevertedError)

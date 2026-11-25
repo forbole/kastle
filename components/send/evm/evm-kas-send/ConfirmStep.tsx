@@ -133,7 +133,7 @@ export const ConfirmStep = ({
       captureException(e);
       console.error(e);
       onFail(
-        buildDiagnosticReport("evm-kas-send", e, {
+        buildDiagnosticReport("evm-kas-send", e, () => ({
           // the node's JSON-RPC code, wherever viem wrapped it
           code:
             e instanceof BaseError
@@ -146,7 +146,7 @@ export const ConfirmStep = ({
           extensionVersion: browser.runtime.getManifest().version,
           chainId,
           walletType: wallet?.type,
-        }),
+        })),
       );
     } finally {
       setIsSigning(false);

@@ -144,7 +144,7 @@ export const ConfirmStep = ({
       onNext();
     } catch (e) {
       console.error(e);
-      const report = buildDiagnosticReport("erc20-send", e, {
+      const report = buildDiagnosticReport("erc20-send", e, () => ({
         // the node's JSON-RPC code, wherever viem wrapped it
         code:
           e instanceof BaseError
@@ -158,7 +158,7 @@ export const ConfirmStep = ({
         chainId: asset.chainId,
         token: asset.symbol,
         walletType: wallet?.type,
-      });
+      }));
       // The user asked for more than they hold: show it, don't report it.
       if (isErc20ExceedsBalanceRevert(e)) {
         onFail(ERC20_EXCEEDS_BALANCE, report);

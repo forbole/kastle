@@ -298,6 +298,32 @@ for (const leg of [
   });
 }
 
+test("Swap Braid failure, then another pair: the old report is dropped", async ({
+  page,
+}) => {
+  const errors = await openSwap(page, "node");
+  await pickL1(page, "BRD");
+  await submit(page, "1", "Unable to prepare the swap. Please try again.");
+  await expect(page.getByRole("button", { name: "Copy logs" })).toHaveCount(1);
+  // BRD -> KRN -> BRD: the pair changed twice, no new attempt on either
+  for (const symbol of ["KRN", "BRD"]) {
+    await page
+      .getByRole("button", { name: /^(BRD|KRN)$/ })
+      .first()
+      .click();
+    await sheet(page)
+      .getByRole("button", { name: new RegExp(symbol) })
+      .click();
+    await page.keyboard.press("Escape");
+    await expect(sheet(page)).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: "Copy logs" }),
+      `on ${symbol}`,
+    ).toHaveCount(0);
+  }
+  expect(errors).toEqual([]);
+});
+
 test("Swap EVM leg (iKAS -> WiKAS wrap) fails: Copy logs carries the node's JSON-RPC code", async ({
   page,
 }) => {

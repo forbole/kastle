@@ -131,6 +131,61 @@ test.describe("buildDiagnosticReport", () => {
     expect(buildDiagnosticReport("send", badCause)).toBe(null);
   });
 
+  test("a secret-named caller field is redacted whatever its value", () => {
+    const report = buildDiagnosticReport("send", new Error("x"), {
+      password: "hunter2",
+      private_key: "hunter3",
+      networkId: "mainnet",
+    });
+    expect(report).not.toBeNull();
+    const copied = JSON.stringify(report);
+    expect(copied).not.toContain("hunter2");
+    expect(copied).not.toContain("hunter3");
+    expect(report!.password).toBe("[REDACTED]");
+    expect(report!.private_key).toBe("[REDACTED]");
+    expect(report!.networkId).toBe("mainnet");
+  });
+
+  test("an EVM address is redacted like a kaspa one, the words kept", () => {
+    const sender = "0x" + "12".repeat(20);
+    const recipient = "0x" + "AbCd".repeat(10);
+    const report = buildDiagnosticReport(
+      "evm-kas-send",
+      new Error(`sender ${sender} recipient ${recipient} reverted`),
+      { note: `to ${recipient}` },
+    );
+    expect(report!.error).toBe(
+      "Error: sender [ADDRESS] recipient [ADDRESS] reverted",
+    );
+    expect(report!.note).toBe("to [ADDRESS]");
+    expect(diagnostics.scrubReportText(`at ${ADDRESS}`)).toBe("at [ADDRESS]");
+    // still the 64-hex path for a txid / key, 0x or not
+    expect(diagnostics.scrubReportText(`tx 0x${TXID} ${TXID}`)).not.toMatch(
+      /c{40}/,
+    );
+    // cut after the scrub: an address straddling the cut is never half-kept
+    expect(diagnostics.reportError("y".repeat(290) + sender)).not.toMatch(
+      /1212/,
+    );
+  });
+
+  test("lazy caller fields: a getter that throws yields no report", () => {
+    const hostile = Object.defineProperty(new Error("x"), "cause", {
+      get() {
+        throw new Error("hostile");
+      },
+    });
+    expect(
+      buildDiagnosticReport("send", new Error("y"), () => ({
+        code: (hostile.cause as { code?: number }).code,
+      })),
+    ).toBe(null);
+    expect(
+      buildDiagnosticReport("send", new Error("y"), () => ({ code: -32000 }))!
+        .code,
+    ).toBe(-32000);
+  });
+
   test("consolidate re-exports the moved helpers unchanged", () => {
     expect(consolidate.buildRoundReport).toBe(diagnostics.buildRoundReport);
     expect(consolidate.reportError).toBe(diagnostics.reportError);

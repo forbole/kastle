@@ -382,6 +382,9 @@ export function useBraidSwap({
       : undefined;
   const pairRef = useRef(pairKey);
   pairRef.current = pairKey;
+  // A report belongs to the pair it failed on: another account or token (both
+  // are in pairKey) must not copy the previous attempt's error and ref.
+  useEffect(() => setReport(undefined), [pairKey]);
 
   const quoteKey =
     enabled && isMainnet && covenantId && family && userPublicKey && rawIn > 0n

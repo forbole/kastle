@@ -526,12 +526,12 @@ export default function Bridge() {
       );
       emitBridgeCompleted({ ...tracked, status: "failed" });
       setReport(
-        buildDiagnosticReport("bridge", e, {
+        buildDiagnosticReport("bridge", e, () => ({
           direction,
           code: rpcErrorCode(e),
           extensionVersion: browser.runtime.getManifest().version,
           walletType: wallet?.type,
-        }),
+        })),
       );
     } finally {
       setSubmitting(false);
