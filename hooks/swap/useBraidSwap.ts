@@ -25,6 +25,7 @@ import {
   type DiagnosticReport,
 } from "@/lib/diagnostics";
 import { LINEAGE_FAMILY, useBraidTokens } from "./braidListing";
+import type { FeeLine, L1SwapHandlers } from "./l1Types";
 
 const KAS_DECIMALS = 8;
 
@@ -294,15 +295,7 @@ export function braidSettleToast(
 // settle toast to one deposit.
 const followed = new Set<string>();
 
-export type FeeLine = {
-  name: "Network" | "Kastle" | "Braid";
-  symbol: "KAS";
-  /** Unknown is absent, never 0. */
-  amount?: number;
-  /** What the Est. Fee row shows. */
-  display: string;
-  hint: string;
-};
+export type { FeeLine };
 
 /** A Kaspa L1 leg as the swap screen holds it. */
 export type BraidSwapToken = {
@@ -349,7 +342,7 @@ export function useBraidSwap({
   isLedger,
   sign,
   onSubmitted,
-}: BraidSwapInput) {
+}: BraidSwapInput): L1SwapHandlers {
   const [braid] = useState(makeBraid);
   const slippageBps = Math.round(slippage * 100);
   const [isSigning, setIsSigning] = useState(false);

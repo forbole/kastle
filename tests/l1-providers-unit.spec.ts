@@ -54,20 +54,18 @@ const asset = (id: string) => {
 
 // The extension's own network enum, not kaspa-web3's.
 const NetworkType = { Mainnet: "mainnet", TestnetT10: "testnet-10" };
-const { L1_PROVIDERS, hasL1Route, kronListing, useL1Provider } = loadModule(
-  "hooks/swap/l1Providers.ts",
-  {
-    react: React,
-    "@/contexts/SettingsContext": { NetworkType },
-    "@/lib/braid/constants": { BRAID_PROVIDER },
-    "@/assets/images/providers/braid-logo.svg": asset(
-      "@/assets/images/providers/braid-logo.svg",
-    ),
-    "@/assets/images/providers/kron-logo.png": asset(
-      "@/assets/images/providers/kron-logo.png",
-    ),
-  },
-) as typeof import("@/hooks/swap/l1Providers");
+const l1 = loadModule("hooks/swap/l1Providers.ts", {
+  react: React,
+  "@/contexts/SettingsContext": { NetworkType },
+  "@/lib/braid/constants": { BRAID_PROVIDER },
+  "@/assets/images/providers/braid-logo.svg": asset(
+    "@/assets/images/providers/braid-logo.svg",
+  ),
+  "@/assets/images/providers/kron-logo.png": asset(
+    "@/assets/images/providers/kron-logo.png",
+  ),
+}) as typeof import("@/hooks/swap/l1Providers");
+const { L1_PROVIDERS, hasL1Route, kronListing, useL1Provider } = l1;
 
 const Icon = () => null;
 // The provider sheet's row, as Swap.tsx draws each L1 provider.
@@ -92,6 +90,24 @@ const { ProviderRow } = loadModule("components/swap-bridge/ui.tsx", {
   "@/lib/format-amount": { formatAmount: String },
   "/node_modules/flag-icons/css/flag-icons.min.css": {},
 });
+
+const jsxRuntime = nodeRequire("react/jsx-runtime");
+const feeSummary = loadModule("components/swap-bridge/swap-fee-summary.tsx", {
+  react: React,
+  "react/jsx-runtime": jsxRuntime,
+  "@/lib/format-amount": { formatAmount: String },
+});
+// The screen's L1 sheet rows, over the real ProviderRow, FeeRow and registry helpers.
+const { L1ProviderRows, L1FeeRows } = loadModule(
+  "components/swap-bridge/l1Rows.tsx",
+  {
+    react: React,
+    "react/jsx-runtime": jsxRuntime,
+    "@/components/swap-bridge/swap-fee-summary": feeSummary,
+    "@/components/swap-bridge/ui": { ProviderRow },
+    "@/hooks/swap/l1Providers": { isL1Enabled: l1.isL1Enabled },
+  },
+) as typeof import("@/components/swap-bridge/l1Rows");
 
 const MAIN = NetworkType.Mainnet;
 const TESTNET = NetworkType.TestnetT10;
@@ -345,4 +361,132 @@ test("a Braid choice holds while Braid routes the pair, and returns once it does
   await ui.setPair({ a: CURVE, b: KAS, networkId: MAIN, l: both });
   expect(ui.id()).toBe("braid");
   await ui.unmount();
+});
+
+/** Renders `el` into a fresh happy-dom document. */
+async function render(el: unknown) {
+  const win = new Window();
+  for (const k of DOM_GLOBALS)
+    if (!saved.has(k))
+      saved.set(k, Object.getOwnPropertyDescriptor(globalThis, k));
+  Object.assign(globalThis, {
+    window: win,
+    document: win.document,
+    IS_REACT_ACT_ENVIRONMENT: true,
+  });
+  const host = win.document.createElement("div");
+  const root = createRoot(host);
+  await act(async () => root.render(el));
+  return { host, unmount: () => act(async () => root.unmount()) };
+}
+
+const FLAGS = {} as Parameters<NonNullable<L1Provider["enabled"]>>[0];
+const fakeProvider = (id: string, enabled?: () => boolean): L1Provider => ({
+  id,
+  name: id.toUpperCase(),
+  image: `/${id}.png`,
+  supports: () => true,
+  enabled,
+});
+
+/** The sheet's rows as the user sees them: name, subtitle, greyed or not. */
+async function sheetRows(props: Record<string, unknown>) {
+  const { host, unmount } = await render(
+    React.createElement(L1ProviderRows, {
+      flags: FLAGS,
+      currentId: "kron",
+      onPick: () => {},
+      ...props,
+    }),
+  );
+  const rows = Array.from(host.querySelectorAll("button")).map((b: any) => {
+    const spans = b.querySelectorAll("div > span");
+    return {
+      name: spans[0]?.textContent,
+      subtitle: spans[1]?.textContent,
+      disabled: b.disabled,
+    };
+  });
+  await unmount();
+  return rows;
+}
+
+test("a provider whose flag is off has no sheet row; one whose flag is on does", async () => {
+  const off = fakeProvider("off", () => false);
+  const on = fakeProvider("on", () => true);
+  const rows = await sheetRows({
+    providers: [provider("kron"), off, on],
+    supporting: [provider("kron"), off, on],
+  });
+  expect(rows.map((r) => r.name)).toEqual(["KRON", "ON"]);
+});
+
+test("an enabled provider that does not route the pair keeps its greyed Unsupported Pair row", async () => {
+  const on = fakeProvider("on", () => true);
+  const rows = await sheetRows({
+    providers: [provider("kron"), provider("braid"), on],
+    // Only KRON routes it: Braid (no flag) and ON are enabled but unlisted.
+    supporting: [provider("kron")],
+    rate: "1 KAS ≈ 2 CURVE",
+  });
+  expect(rows).toEqual([
+    { name: "KRON", subtitle: "1 KAS ≈ 2 CURVE", disabled: false },
+    { name: "Braid", subtitle: "Unsupported Pair", disabled: true },
+    { name: "ON", subtitle: "Unsupported Pair", disabled: true },
+  ]);
+});
+
+/** The Est. Fee rows an L1 handler's feeLines draw: label, value, note. */
+async function feeRows(lines: unknown[]) {
+  const { host, unmount } = await render(
+    React.createElement(L1FeeRows, { lines }),
+  );
+  const rows = Array.from(host.children).map((row: any) => {
+    const [label, value] = row.querySelectorAll("div > span");
+    return {
+      label: label?.textContent,
+      value: value?.textContent,
+      note: row.querySelector(":scope > span")?.textContent,
+    };
+  });
+  await unmount();
+  return rows;
+}
+
+test("the handler's feeLines draw the fee rows: network first, one row per other fee, Kastle left to the summary", async () => {
+  const line = (name: string, display: string, hint: string) => ({
+    name,
+    symbol: "KAS",
+    display,
+    hint,
+  });
+  // Braid's own lines, as useBraidSwap returns them on a sell.
+  expect(
+    await feeRows([
+      line("Network", "At most 0.2 KAS", "Set when the deposit is built"),
+      line("Kastle", "0.1 KAS", "Kastle fee"),
+      line("Braid", "0.3 KAS", "Router fee"),
+    ]),
+  ).toEqual([
+    {
+      label: "Network fees",
+      value: "At most 0.2 KAS",
+      note: "Set when the deposit is built",
+    },
+    { label: "Braid fees", value: "0.3 KAS", note: "Router fee" },
+  ]);
+  // Any other provider's names: nothing in the rows is Braid's.
+  expect(
+    await feeRows([
+      line("Seal", "0.4 KAS", "Pool fee"),
+      line("Network", "0.01 KAS", "Paid to miners"),
+    ]),
+  ).toEqual([
+    { label: "Network fees", value: "0.01 KAS", note: "Paid to miners" },
+    { label: "Seal fees", value: "0.4 KAS", note: "Pool fee" },
+  ]);
+  // No network line yet: the row stays, as "-".
+  expect(await feeRows([])).toEqual([
+    { label: "Network fees", value: "-", note: undefined },
+  ]);
 });

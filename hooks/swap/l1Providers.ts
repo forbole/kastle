@@ -4,18 +4,22 @@ import kronLogo from "@/assets/images/providers/kron-logo.png";
 import { NetworkType } from "@/contexts/SettingsContext";
 import { BRAID_PROVIDER } from "@/lib/braid/constants";
 import type { KronMarket } from "@/lib/kcc20/swap";
+import type { useFeatureFlags } from "@/hooks/useFeatureFlags";
 
-export type L1ProviderId = "kron" | typeof BRAID_PROVIDER.id;
+// Open: a provider registers its own id.
+export type L1ProviderId =
+  | "kron"
+  | typeof BRAID_PROVIDER.id
+  | (string & NonNullable<unknown>);
+
+export type L1FeatureFlags = ReturnType<typeof useFeatureFlags>;
 
 /** A Kaspa L1 swap leg: KAS, or a KCC-20 token by its covenant id. */
 export type L1Leg = { type: "KAS" } | { type: "KCC20"; covenantId: string };
 
 // What each provider's own listing says it routes, by covenant id.
 // Undefined while unknown: the provider that needs it is then not offered.
-export type L1Listings = {
-  kron?: ReadonlySet<string>;
-  braid?: ReadonlySet<string>;
-};
+export type L1Listings = Partial<Record<L1ProviderId, ReadonlySet<string>>>;
 
 export type L1Provider = {
   id: L1ProviderId;
@@ -28,7 +32,12 @@ export type L1Provider = {
     networkId?: string,
     listings?: L1Listings,
   ) => boolean;
+  /** Off: no sheet row at all. Absent: always on. */
+  enabled?: (flags: L1FeatureFlags) => boolean;
 };
+
+export const isL1Enabled = (p: L1Provider, flags: L1FeatureFlags) =>
+  p.enabled?.(flags) ?? true;
 
 /**
  * KRON's listing: the curve markets the screen already reads. A graduated
