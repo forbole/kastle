@@ -105,9 +105,21 @@ import {
   kronListing,
   useL1Provider,
 } from "@/hooks/swap/l1Providers";
-import type { L1SwapHandlers } from "@/hooks/swap/l1Types";
-import { L1FeeRows, L1ProviderRows } from "@/components/swap-bridge/l1Rows";
-import { BRAID_PENDING_COPY, useBraidSwap } from "@/hooks/swap/useBraidSwap";
+import { l1PendingCopy, type L1SwapHandlers } from "@/hooks/swap/l1Types";
+import {
+  L1FeeRows,
+  L1ProviderRows,
+  L1WalletRows,
+} from "@/components/swap-bridge/l1Rows";
+import { useBraidSwap } from "@/hooks/swap/useBraidSwap";
+import {
+  type KassealQuoteClient,
+  type KassealSwapInput,
+  useKassealSwap,
+} from "@/hooks/swap/useKassealSwap";
+import { useKassealListing } from "@/hooks/swap/kassealListing";
+import useKassealTokens from "@/lib/kasseal/useKassealTokens";
+import { KASSEAL_ERRORS } from "@/lib/kasseal/prepared";
 import { KCC20_LEDGER_UNSUPPORTED_MESSAGE } from "@/lib/wallet/sign-script";
 import { restApis } from "@/components/screens/Settings";
 import {
@@ -215,6 +227,21 @@ const TOOLTIPS = {
 
 const NETWORK_FEE_ERROR = "Oh, you need more for the network fees";
 
+// Turning a Kasseal quote into a preview means building the tx and
+// reconciling it to the wallet (mobile's kassealBuild, in its WebView). The
+// popup has no port of that yet: every quote refuses as terminal, so confirm
+// is never reached and nothing is built, signed or posted.
+const kassealNotPorted = (): never => {
+  throw new Error(`${KASSEAL_ERRORS.BUILD_FAILED}:NOT_PORTED`);
+};
+const kassealQuoteClient: KassealQuoteClient = async () => kassealNotPorted();
+const KASSEAL_TRADE: KassealSwapInput["trade"] = {
+  makeBuilder: kassealNotPorted,
+  build: async () => kassealNotPorted(),
+  post: async () => kassealNotPorted(),
+  status: async () => kassealNotPorted(),
+};
+
 export default function Swap() {
   const { networkId, rpcClient } = useRpcClientStateful();
   const isMainnet = (networkId ?? NetworkType.Mainnet) === NetworkType.Mainnet;
@@ -243,9 +270,17 @@ export default function Swap() {
   const braidNetwork = kronEnabled ? networkId : undefined;
   const braidListing = useBraidListing(braidNetwork);
   const braidRoutable = useBraidRoutable(braidNetwork);
+  // Off: no listing, so Kasseal routes nothing and is never the default.
+  const kassealOn = kronEnabled && flags.isKassealEnabled;
+  const kassealRoutable = useKassealListing(kassealOn);
+  const { data: kassealTokens } = useKassealTokens(undefined, kassealOn);
   const l1Listings = useMemo(
-    () => ({ kron: kronListing(kronMarkets), braid: braidRoutable }),
-    [kronMarkets, braidRoutable],
+    () => ({
+      kasseal: kassealRoutable,
+      kron: kronListing(kronMarkets),
+      braid: braidRoutable,
+    }),
+    [kassealRoutable, kronMarkets, braidRoutable],
   );
 
   const [chainKey, setChainKey] = useState<ChainKey>("igra");
@@ -642,9 +677,32 @@ export default function Swap() {
     sign: kaspaSigner?.signBraidDeposit,
     onSubmitted: () => setAmount(""),
   });
+  const kassealSide = isNativeIn ? "buy" : "sell";
+  const kassealSwap = useKassealSwap({
+    side: kassealSide,
+    // Only the chosen provider quotes: no token, no request.
+    token:
+      isKron && l1ProviderId === "kasseal"
+        ? kassealTokens?.find(
+            (t) => t.covenantId === (isNativeIn ? tokenOut : tokenIn)?.address,
+          )
+        : undefined,
+    amountUnits: rawIn,
+    address: account?.address,
+    network: networkId ?? NetworkType.Mainnet,
+    wallet:
+      kassealSide === "buy"
+        ? { kasSompi: kronBalanceIn }
+        : { tokenUnits: kronBalanceIn },
+    slippage,
+    quoteClient: kassealQuoteClient,
+    trade: KASSEAL_TRADE,
+    signer: kaspaSigner,
+  });
   // Every L1 provider but KRON hands the screen this one contract; such a
   // pair never reads KRON's quote: the row names the venue it shows.
   const l1Handlers: Partial<Record<L1ProviderId, L1SwapHandlers>> = {
+    kasseal: kassealSwap,
     braid: braidSwap,
   };
   const l1 = isKron ? l1Handlers[l1ProviderId] : undefined;
@@ -1220,11 +1278,13 @@ export default function Swap() {
                   {L1_PROVIDERS.filter((p) => p.id === l1ProviderId).map(
                     (p) => (
                       <React.Fragment key={p.id}>
-                        <img
-                          src={p.image}
-                          alt=""
-                          className="size-[26px] rounded-full"
-                        />
+                        {p.image && (
+                          <img
+                            src={p.image}
+                            alt=""
+                            className="size-[26px] rounded-full"
+                          />
+                        )}
                         {p.name}
                       </React.Fragment>
                     ),
@@ -1333,7 +1393,7 @@ export default function Swap() {
               : (!isWrapPair && !selected?.path) || !signer)
         }
         loading={submitting || !!l1?.isSigning}
-        label={l1?.pending ? BRAID_PENDING_COPY : undefined}
+        label={l1?.pending ? l1PendingCopy(l1) : undefined}
         onClick={l1 ? l1.onConfirm : isKron ? onConfirmKron : onConfirm}
       />
       <BottomNav />
@@ -1487,7 +1547,13 @@ export default function Swap() {
       >
         {/* "Swap fees" row (in the design) is hidden until the quote carries DEX fee data. */}
         {l1 ? (
-          <L1FeeRows lines={l1.feeLines} />
+          <>
+            <L1FeeRows lines={l1.feeLines} />
+            <L1WalletRows
+              totalDebit={l1.totalDebit}
+              creditLines={l1.creditLines}
+            />
+          </>
         ) : (
           <FeeRow
             label="Network fees"

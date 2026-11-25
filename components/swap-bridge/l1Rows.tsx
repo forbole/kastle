@@ -6,7 +6,8 @@ import {
   type L1Provider,
   type L1ProviderId,
 } from "@/hooks/swap/l1Providers";
-import type { FeeLine } from "@/hooks/swap/l1Types";
+import type { FeeLine, Money } from "@/hooks/swap/l1Types";
+import { formatAmount } from "@/lib/format-amount";
 
 /**
  * The provider sheet's L1 rows. A provider whose flag is off has no row; an
@@ -67,6 +68,33 @@ export function L1FeeRows({ lines }: { lines: readonly FeeLine[] }) {
             note={l.hint}
           />
         ))}
+    </>
+  );
+}
+
+/**
+ * What the built tx moves in and out of the wallet: the total debit and each
+ * signed credit, a row apiece. Never fees, so none enters the fee sum.
+ */
+export function L1WalletRows({
+  totalDebit,
+  creditLines = [],
+}: {
+  totalDebit?: Money;
+  creditLines?: readonly FeeLine[];
+}) {
+  return (
+    <>
+      {totalDebit && (
+        <FeeRow
+          label="Total debit"
+          value={`-${formatAmount(totalDebit.amount)} ${totalDebit.symbol}`}
+          note="Everything this transaction takes from your wallet"
+        />
+      )}
+      {creditLines.map((l) => (
+        <FeeRow key={l.name} label={l.name} value={l.display} note={l.hint} />
+      ))}
     </>
   );
 }

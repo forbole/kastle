@@ -106,6 +106,7 @@ const { L1ProviderRows, L1FeeRows } = loadModule(
     "@/components/swap-bridge/swap-fee-summary": feeSummary,
     "@/components/swap-bridge/ui": { ProviderRow },
     "@/hooks/swap/l1Providers": { isL1Enabled: l1.isL1Enabled },
+    "@/lib/format-amount": { formatAmount: String },
   },
 ) as typeof import("@/components/swap-bridge/l1Rows");
 
@@ -183,8 +184,9 @@ async function mountProvider(props: Props) {
   };
 }
 
-test("KRON is listed first, then Braid", () => {
+test("Kasseal is listed first, then KRON, then Braid", () => {
   expect(L1_PROVIDERS.map((p: L1Provider) => [p.id, p.name])).toEqual([
+    ["kasseal", "Kasseal"],
     ["kron", "KRON"],
     ["braid", "Braid"],
   ]);
@@ -226,10 +228,12 @@ test("each provider row draws the provider's own mark beside its name", async ()
     };
   });
   expect(rows).toEqual([
+    // Kasseal has no mark, as on mobile: an empty decorative slot keeps the rows aligned.
+    { name: "Kasseal", src: null, alt: "" },
     { name: "KRON", src: "/assets/images/providers/kron-logo.png", alt: "" },
     { name: "Braid", src: "/assets/images/providers/braid-logo.svg", alt: "" },
   ]);
-  for (const r of rows)
+  for (const r of rows.filter((r) => r.src))
     expect(fs.existsSync(path.join(__dirname, "..", r.src!.slice(1)))).toBe(
       true,
     );
