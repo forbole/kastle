@@ -1,5 +1,8 @@
 export const BRAID_PROVIDER = { id: "braid", name: "Braid" } as const;
 
+export const BRAID_PENDING_COPY =
+  "A Braid swap for this pair is still settling.";
+
 // The router API the SDK pins for Kaspa mainnet.
 export const BRAID_API = {
   mainnet: "https://app.braidswap.com/api/mainnet/router",

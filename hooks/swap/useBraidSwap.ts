@@ -8,6 +8,7 @@ import { braidErrorCopy, makeBraid } from "@/lib/braid/client";
 import {
   BRAID_DEPOSIT_FEE_MAX,
   BRAID_KASTLE_FEE_BPS,
+  BRAID_PENDING_COPY,
 } from "@/lib/braid/constants";
 import {
   type BraidSettle,
@@ -31,8 +32,7 @@ const KAS_DECIMALS = 8;
 
 const toKas = (sompi: bigint) => Number(formatUnits(sompi, KAS_DECIMALS));
 
-export const BRAID_PENDING_COPY =
-  "A Braid swap for this pair is still settling.";
+export { BRAID_PENDING_COPY };
 export const PRICE_MOVED_COPY =
   "Price moved. Review the new quote and confirm again.";
 export const BRAID_UNKNOWN_COPY = "Swap may be settling. Check Activity.";

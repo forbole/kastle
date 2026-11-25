@@ -5,6 +5,9 @@ import { IWallet } from "@/lib/wallet/wallet-interface.ts";
 
 const SIG_LEN = 65;
 
+/** All of IWallet that signKassealTx calls. */
+export type KassealWallet = Pick<IWallet, "signInputDigest" | "signTx">;
+
 /** Writes a 65-byte signature over the zero placeholder at `offset`. */
 export function spliceAt(
   script: Uint8Array,
@@ -27,7 +30,7 @@ export function spliceAt(
  * signTx with explicit indexes so it never signs every owned input.
  */
 export async function signKassealTx(
-  wallet: IWallet,
+  wallet: KassealWallet,
   built: BuiltTx,
 ): Promise<string> {
   const tx = Transaction.deserializeFromSafeJSON(built.txJson);

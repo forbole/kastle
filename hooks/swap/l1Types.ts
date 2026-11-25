@@ -1,3 +1,4 @@
+import { BRAID_PENDING_COPY } from "@/lib/braid/constants";
 import type { DiagnosticReport } from "@/lib/diagnostics";
 
 export type Money = { amount: number; symbol: string };
@@ -22,6 +23,8 @@ export type L1SwapHandlers = {
   quote?: { amountOut: bigint };
   /** A swap for this pair is still settling: confirm stays disabled. */
   pending: boolean;
+  /** The confirm label while `pending`; absent: Braid's copy (l1PendingCopy). */
+  pendingCopy?: string;
   isSigning: boolean;
   isLoading: boolean;
   validateAmount: (units: bigint) => string | undefined;
@@ -44,3 +47,7 @@ export type L1SwapHandlers = {
   /** Signed credits read off the tx; never part of the fee sum. */
   creditLines?: FeeLine[];
 };
+
+/** What the confirm button says while a provider's swap is pending. */
+export const l1PendingCopy = (l1: Pick<L1SwapHandlers, "pendingCopy">) =>
+  l1.pendingCopy ?? BRAID_PENDING_COPY;
