@@ -20,8 +20,9 @@ import {
 // One storage key per trade, so no write ever reads another's record.
 export const KASSEAL_PENDING_PREFIX = "kasseal_pending:";
 
+/** Mobile's wording, as the confirm label and the refusal both show it. */
 export const KASSEAL_PENDING_COPY =
-  "A Kasseal trade for this pair is still settling.";
+  "A Kasseal swap on this pair is still settling. Check Activity.";
 
 /** One trade per account and token on a network: the pair a pending blocks. */
 export const kassealTradeKey = (
@@ -40,7 +41,7 @@ export async function loadKassealAttempt(
   return stored && decodeKassealAttempt(stored);
 }
 
-const save = (key: string, attempt: KassealAttempt) =>
+export const saveKassealAttempt = (key: string, attempt: KassealAttempt) =>
   browser.storage.local.set({ [key]: encodeKassealAttempt(attempt) });
 
 export const clearKassealAttempt = (key: string) =>
@@ -87,7 +88,7 @@ export async function submitPersistedKassealTrade(
   const attempt = stored ?? { ...newKassealAttempt(), intent };
   try {
     const txid = await submitKassealTrade(
-      { ...deps, persist: (a) => save(key, a) },
+      { ...deps, persist: (a) => saveKassealAttempt(key, a) },
       attempt,
     );
     await clearKassealAttempt(key);

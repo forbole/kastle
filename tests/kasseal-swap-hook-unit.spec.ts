@@ -5,13 +5,20 @@ import { fileURLToPath } from "node:url";
 import ts from "typescript";
 import { test, expect } from "@playwright/test";
 import { Window } from "happy-dom";
-import type { KassealToken } from "@/lib/kasseal/api";
+import type { BuiltTx, FundingUtxo, SubmitState } from "@kassealhq/sdk";
+import type { KassealToken, KassealTxStatus } from "@/lib/kasseal/api";
 import type { KassealPreview } from "@/lib/kasseal/prepared";
 import type {
   KassealQuoteRequest,
-  KassealReadHandlers,
   KassealSwapInput,
 } from "@/hooks/swap/useKassealSwap";
+import type { L1SwapHandlers } from "@/hooks/swap/l1Types";
+import type { KassealWallet } from "@/lib/kasseal/sign";
+import * as diagnostics from "@/lib/diagnostics";
+import * as market from "@/lib/kasseal/market";
+import * as pending from "@/lib/kasseal/pending";
+import * as popupWallet from "@/lib/kasseal/popupWallet";
+import * as trade from "@/lib/kasseal/trade";
 
 type HookModule = typeof import("../hooks/swap/useKassealSwap");
 
@@ -75,7 +82,98 @@ const hook: HookModule = loadModule("hooks/swap/useKassealSwap.ts", {
   "@/lib/kasseal/api": api,
   "@/lib/kasseal/errorCopy": errorCopy,
   "@/lib/kasseal/prepared": loadModule("lib/kasseal/prepared.ts", {}),
+  "@/lib/kasseal/market": market,
+  "@/lib/kasseal/pending": pending,
+  "@/lib/kasseal/popupWallet": popupWallet,
+  // The real one deserializes through WASM; this one only asks the wallet.
+  "@/lib/kasseal/sign": {
+    signKassealTx: async (wallet: KassealWallet, built: BuiltTx) => {
+      await wallet.signTx({} as never, []);
+      return `${built.txJson}:signed`;
+    },
+  },
+  "@/lib/kasseal/trade": trade,
+  "@/lib/diagnostics": diagnostics,
 });
+
+/** browser.storage.local in memory, through JSON like the real store. */
+let store: Record<string, unknown> = {};
+test.beforeEach(() => {
+  store = {};
+  (globalThis as any).browser = {
+    storage: {
+      local: {
+        async get(key: string) {
+          return key in store ? { [key]: structuredClone(store[key]) } : {};
+        },
+        async set(items: Record<string, unknown>) {
+          for (const [k, v] of Object.entries(items))
+            store[k] = JSON.parse(JSON.stringify(v));
+        },
+        async remove(key: string) {
+          delete store[key];
+        },
+      },
+    },
+  };
+});
+
+const PAIR = pending.kassealTradeKey(
+  "mainnet",
+  "kaspa:qtrader",
+  "ab".repeat(32),
+);
+const fakeBuilt = (txid: string) =>
+  ({
+    txid,
+    txJson: "{}",
+    consumes: [{ txid: "f1", index: 0 }],
+    inputsToSign: [],
+    budgets: [],
+    produces: [],
+    feeSompi: 2_000n,
+    feerate: 1n,
+  }) as unknown as BuiltTx;
+
+/** Submission deps for one buy funded from coin f1; every POST and build is counted. */
+function tradeDeps(
+  post: (built: BuiltTx) => Promise<SubmitState>,
+  opts: {
+    build?: () => Promise<BuiltTx>;
+    status?: (txid: string) => Promise<KassealTxStatus>;
+  } = {},
+) {
+  const seen = { builds: 0, posts: [] as string[] };
+  let t = 0;
+  const deps: KassealSwapInput["trade"] = {
+    makeBuilder: () => ({
+      builder: {} as trade.KassealBuilder,
+      lastFunding: () =>
+        [{ outpoint: { txid: "f1", index: 0 } }] as unknown as FundingUtxo[],
+    }),
+    build: async () => {
+      seen.builds += 1;
+      return (opts.build ?? (async () => fakeBuilt("tx1")))();
+    },
+    post: (built) => {
+      seen.posts.push(built.txid);
+      return post(built);
+    },
+    status: opts.status ?? (async () => ({ kind: "unknown" })),
+    now: () => (t += 1_000),
+    sleepUntil: async (until) => {
+      t = Math.max(t, until);
+    },
+    pollMs: 0,
+  };
+  return { deps, seen };
+}
+
+const okSigner = {
+  signInputDigest: async () => "",
+  signTx: async (tx: never) => tx,
+};
+const never = <T>() => new Promise<T>(() => {});
 
 const TOKEN: KassealToken = {
   covenantId: "ab".repeat(32),
@@ -160,27 +258,37 @@ async function render(overrides: Partial<KassealSwapInput> = {}) {
       calls.push(req);
       return BUY;
     },
+    trade: tradeDeps(async () => {
+      throw new Error("unexpected POST");
+    }).deps,
+    signer: okSigner as unknown as KassealSwapInput["signer"],
     ...overrides,
   };
-  let latest: KassealReadHandlers | undefined;
+  let latest: L1SwapHandlers | undefined;
   const Probe = (p: KassealSwapInput) => {
     latest = hook.useKassealSwap(p);
     return null;
   };
   const root = createRoot(win.document.createElement("div"));
   const cache = new Map();
-  await act(async () =>
-    root.render(
-      React.createElement(
-        swr.SWRConfig,
-        { value: { provider: () => cache, dedupingInterval: 0 } },
-        React.createElement(Probe, input),
+  const draw = (p: KassealSwapInput) =>
+    act(async () =>
+      root.render(
+        React.createElement(
+          swr.SWRConfig,
+          { value: { provider: () => cache, dedupingInterval: 0 } },
+          React.createElement(Probe, p),
+        ),
       ),
-    ),
-  );
+    );
+  await draw(input);
   await settle();
   unmounts.push(() => act(async () => root.unmount()));
-  return { h: () => latest!, calls };
+  return {
+    h: () => latest!,
+    calls,
+    update: (o: Partial<KassealSwapInput>) => draw({ ...input, ...o }),
+  };
 }
 
 test("a live buy quote fills quote, minOut, feeLines, totalDebit and rate", async () => {
@@ -302,7 +410,147 @@ test("testnet-10 quotes through the settings URL, as mainnet does", async () => 
   expect(calls).toHaveLength(0);
 });
 
-test("onConfirm throws until S2b-2 wires it", async () => {
-  const { h } = await render();
-  await expect(h().onConfirm()).rejects.toThrow("kasseal: confirm is S2b-2");
+/** Starts a confirm that may never settle: an async act() that never resolves would hold every update. */
+const press = (h: () => L1SwapHandlers) =>
+  act(() => {
+    void h().onConfirm();
+  });
+
+const stored = () => store[PAIR] as trade.StoredKassealAttempt | undefined;
+
+test.describe("onConfirm", () => {
+  test("the attempt, with the txid being posted and its pinned coin, is stored when the POST goes out", async () => {
+    let atPost: trade.StoredKassealAttempt | undefined;
+    const { deps, seen } = tradeDeps(
+      async (built) => {
+        atPost = structuredClone(stored());
+        return { kind: "submitted", txid: built.txid, at: 0 } as SubmitState;
+      },
+      {
+        status: async (txid) =>
+          ({
+            kind: "accepted",
+            txid,
+            acceptingBlueScore: 3,
+          }) as KassealTxStatus,
+      },
+    );
+    const { h } = await render({ trade: deps });
+    await act(() => h().onConfirm());
+    expect(seen.posts).toEqual(["tx1"]);
+    expect(atPost?.posted).toEqual(["tx1"]);
+    expect(atPost?.pinned).toEqual(["f1:0"]);
+    expect(atPost?.intent).toMatchObject({ side: "buy", amount: "1000000000" });
+    // Landed: the key goes, nothing is pending, no report.
+    expect(stored()).toBeUndefined();
+    expect(h().pending).toBe(false);
+    expect(h().report).toBeUndefined();
+  });
+
+  test("a POST that never answers stays pending with the key kept; reopening reports pending and posts nothing", async () => {
+    const first = tradeDeps(never);
+    const { h } = await render({ trade: first.deps });
+    press(h);
+    await settle();
+    expect(first.seen.posts).toEqual(["tx1"]);
+    expect(h().pending).toBe(true);
+    expect(h().isSigning).toBe(true);
+    expect(stored()?.posted).toEqual(["tx1"]);
+
+    // The popup reopens: /tx has not seen it yet.
+    const again = tradeDeps(async () => {
+      throw new Error("re-broadcast");
+    });
+    const reopened = await render({ trade: again.deps });
+    expect(reopened.h().pending).toBe(true);
+    expect(reopened.h().pendingCopy).toBe(pending.KASSEAL_PENDING_COPY);
+    expect(again.seen.builds).toBe(0);
+    expect(again.seen.posts).toEqual([]);
+    expect(stored()?.posted).toEqual(["tx1"]);
+  });
+
+  test("a definitive refusal clears the key and leaves nothing pending", async () => {
+    const { deps, seen } = tradeDeps(never, {
+      build: async () => {
+        throw new trade.KassealTradeError(
+          "no-pool",
+          "launch proof binds no pool",
+        );
+      },
+    });
+    const { h } = await render({ trade: deps });
+    await act(() => h().onConfirm());
+    expect(seen.posts).toEqual([]);
+    expect(stored()).toBeUndefined();
+    expect(h().pending).toBe(false);
+    expect(h().pendingCopy).toBeUndefined();
+    expect(h().report).toMatchObject({ flow: "kasseal-swap", cleared: true });
+  });
+
+  test("a signer that throws yields a report and clears nothing: the outcome is unknown", async () => {
+    const { deps, seen } = tradeDeps(never);
+    const signer = {
+      signInputDigest: async () => "",
+      signTx: async () => {
+        throw new Error("background signer gone");
+      },
+    } as unknown as KassealSwapInput["signer"];
+    const { h } = await render({ trade: deps, signer });
+    await act(() => h().onConfirm());
+    expect(seen.posts).toEqual([]);
+    const report = h().report;
+    expect(report).not.toBeNull();
+    expect(report).toMatchObject({
+      flow: "kasseal-swap",
+      error: "Error: background signer gone",
+      cleared: false,
+    });
+    expect(stored()).toBeDefined();
+    expect(h().pending).toBe(true);
+    expect(h().extraErrorMessage).toBe(pending.KASSEAL_PENDING_COPY);
+  });
+
+  test("the confirm refuses when the amount changed since the quote", async () => {
+    const { deps, seen } = tradeDeps(never);
+    const { h, update } = await render({ trade: deps });
+    await update({ amountUnits: 2_000_000_000n });
+    await act(() => h().onConfirm());
+    expect(h().extraErrorMessage).toBe(hook.KASSEAL_CHANGED_COPY);
+    expect(seen.builds).toBe(0);
+    expect(stored()).toBeUndefined();
+  });
+
+  test("with a stored open attempt, or one already in flight, onConfirm is not entered twice", async () => {
+    const { deps, seen } = tradeDeps(never);
+    const { h } = await render({ trade: deps });
+    // A double press: the second sees the first's guard, not a stale `pending`.
+    press(h);
+    press(h);
+    await settle();
+    expect(seen.builds).toBe(1);
+    expect(seen.posts).toEqual(["tx1"]);
+
+    // Reopened over that stored attempt: pending, and confirm builds nothing.
+    const again = tradeDeps(never);
+    const reopened = await render({ trade: again.deps });
+    expect(reopened.h().pending).toBe(true);
+    await act(() => reopened.h().onConfirm());
+    await act(() => reopened.h().onConfirm());
+    expect(again.seen.builds).toBe(0);
+    expect(reopened.h().extraErrorMessage).toBe(pending.KASSEAL_PENDING_COPY);
+  });
+
+  test("kassealRefusalClearsLock: only trade.ts build refusals prove nothing is live", () => {
+    expect(
+      hook.kassealRefusalClearsLock(
+        new trade.KassealTradeError("no-pool", "x"),
+      ),
+    ).toBe(true);
+    expect(
+      hook.kassealRefusalClearsLock(
+        new trade.KassealTradeError("outcome-unknown", "x"),
+      ),
+    ).toBe(false);
+    expect(hook.kassealRefusalClearsLock(new Error("no-pool"))).toBe(false);
+  });
 });

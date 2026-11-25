@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import useSWR from "swr";
 import { formatUnits } from "viem";
 import type { KassealNetwork } from "@kassealhq/sdk";
@@ -17,15 +17,60 @@ import {
   kassealCodeOf,
   type KassealPreview,
 } from "@/lib/kasseal/prepared";
+import { venueOf } from "@/lib/kasseal/market";
+import {
+  KASSEAL_PENDING_COPY,
+  clearKassealAttempt,
+  kassealTradeKey,
+  loadKassealAttempt,
+  saveKassealAttempt,
+  settlePendingKasseal,
+} from "@/lib/kasseal/pending";
+import { kassealPopupWallet } from "@/lib/kasseal/popupWallet";
+import { signKassealTx } from "@/lib/kasseal/sign";
+import {
+  KassealTradeError,
+  newKassealAttempt,
+  submitKassealTrade,
+  type KassealAttempt,
+  type KassealSubmissionDeps,
+  type KassealTradeErrorCode,
+} from "@/lib/kasseal/trade";
+import {
+  buildDiagnosticReport,
+  type DiagnosticReport,
+} from "@/lib/diagnostics";
 import type { FeeLine, L1SwapHandlers } from "./l1Types";
 
-// The read half of mobile's hooks/swap/useKassealSwap.ts. Signing, the pair
-// lock, submit and settlement are S2b-2; nothing wires this hook in until then.
+// Mobile's hooks/swap/useKassealSwap.ts for the popup. Mobile holds the pair
+// lock in memory; a popup dies on blur, so the open attempt lives in
+// browser.storage.local (lib/kasseal/pending.ts) and a reopened popup only
+// reconciles it against /tx, never resumes it. Nothing wires it in until S2c.
 
 const KAS_DECIMALS = 8;
 const DEBOUNCE_MS = 300;
 
-export const KASSEAL_CONFIRM_TODO = "kasseal: confirm is S2b-2";
+/** Mobile's wording, kept as is. */
+export const KASSEAL_CHANGED_COPY =
+  "The amount changed. Review the new quote and swipe again.";
+export const KASSEAL_WALLET_LOADING_COPY =
+  "Your wallet is still loading. Swipe again in a moment.";
+
+/** trade.ts's own build refusals: thrown before anything was signed or posted. */
+const NOTHING_SUBMITTED = new Set<KassealTradeErrorCode>([
+  "proof-not-bound",
+  "wrong-token",
+  "no-pool",
+  "invalid-amount",
+]);
+
+/**
+ * True only when the error proves no tx can be live, mobile's rule on the
+ * extension's errors. Anything else (a signer throw, "outcome-unknown",
+ * PinnedFundingGone, unknown text) keeps the stored attempt for /tx to settle.
+ */
+export const kassealRefusalClearsLock = (e: unknown): boolean =>
+  e instanceof KassealTradeError && NOTHING_SUBMITTED.has(e.code);
 
 export const KASSEAL_ENTER_VALID_COPY = "Please enter a valid amount";
 /** Mobile's kcc20Holding wording; useBraidSwap's copy drops the "have". */
@@ -237,12 +282,11 @@ export type KassealSwapInput = {
   /** Percent, as the screen's slippage sheet sets it. */
   slippage: number;
   quoteClient: KassealQuoteClient;
+  /** Builds, posts and reads one trade (the SDK builder and /tx); S2c wires it. */
+  trade: Omit<KassealSubmissionDeps, "sign" | "persist">;
+  /** The popup's hot signer (useKaspaHotWalletSigner); absent while loading. */
+  signer?: Parameters<typeof kassealPopupWallet>[0];
 };
-
-export type KassealReadHandlers = Omit<
-  L1SwapHandlers,
-  "onConfirm" | "report" | "isSigning" | "pending"
-> & { onConfirm: () => Promise<never> };
 
 function useDebounced<T>(value: T): T {
   const [settled, setSettled] = useState(value);
@@ -263,7 +307,9 @@ export function useKassealSwap({
   wallet,
   slippage,
   quoteClient,
-}: KassealSwapInput): KassealReadHandlers {
+  trade,
+  signer,
+}: KassealSwapInput): L1SwapHandlers {
   const settled = useDebounced(amountUnits);
   const net = kassealNetworkOf(network);
   const rawBps = Math.round(slippage * 100);
@@ -306,6 +352,114 @@ export function useKassealSwap({
   // A refused quote shows no numbers, even one SWR kept from before.
   const preview = key && !error ? data : undefined;
 
+  const pairKey =
+    address && covenantId
+      ? kassealTradeKey(network, address, covenantId)
+      : undefined;
+  const [pending, setPending] = useState(false);
+  const [isSigning, setIsSigning] = useState(false);
+  const [report, setReport] = useState<DiagnosticReport | null>();
+  // Shown while the amount it was refused for is still the one typed, as mobile's.
+  const [refusal, setRefusal] = useState<{ units: bigint; message: string }>();
+  const entered = useRef(false);
+  const status = useRef(trade.status);
+  status.current = trade.status;
+
+  // On mount (and per pair): reconcile a stored attempt against /tx only. It
+  // exists to stop a second buy, so nothing here builds, signs or posts.
+  useEffect(() => {
+    setPending(false);
+    if (!pairKey) return;
+    let live = true;
+    settlePendingKasseal(pairKey, (txid) => status.current(txid)).then(
+      (outcome) => live && setPending(outcome === "open"),
+      // An unreadable store may hold an open attempt: stay locked.
+      () => live && setPending(true),
+    );
+    return () => {
+      live = false;
+    };
+  }, [pairKey]);
+
+  const onConfirm = async () => {
+    // 1. Guard, synchronously first so a double press cannot enter twice.
+    if (entered.current) return;
+    const refuse = (message: string) =>
+      setRefusal({ units: amountUnits, message });
+    if (pending || !pairKey) return refuse(KASSEAL_PENDING_COPY);
+    if (
+      !preview ||
+      !token ||
+      inDecimals === undefined ||
+      settled !== amountUnits
+    )
+      return refuse(KASSEAL_CHANGED_COPY);
+    if (!signer) return refuse(KASSEAL_WALLET_LOADING_COPY);
+    entered.current = true;
+    setIsSigning(true);
+    setRefusal(undefined);
+    setReport(undefined);
+    // 2. The attempt trade.ts submits; its build pins the funding coins on it.
+    const attempt: KassealAttempt = {
+      ...newKassealAttempt(),
+      intent: {
+        side,
+        venue: venueOf(token),
+        amount: amountUnits,
+        input: formatUnits(amountUnits, inDecimals),
+      },
+    };
+    try {
+      // The store, not `pending`: a mount reconcile may still be in flight.
+      if (await loadKassealAttempt(pairKey)) {
+        setPending(true);
+        return refuse(KASSEAL_PENDING_COPY);
+      }
+      // 3. Persist before anything is signed or posted.
+      await saveKassealAttempt(pairKey, attempt);
+      setPending(true);
+      const wallet = kassealPopupWallet(signer);
+      // 4–5. Build → sign → persist again with the txid and pinned coins → POST.
+      await submitKassealTrade(
+        {
+          ...trade,
+          sign: async (built) => ({
+            ...built,
+            txJson: await signKassealTx(wallet, built),
+          }),
+          persist: (a) => saveKassealAttempt(pairKey, a),
+        },
+        attempt,
+      );
+      // 6. Landed: the lock goes.
+      await clearKassealAttempt(pairKey);
+      setPending(false);
+    } catch (e) {
+      // 6. Only a refusal proving nothing is live clears; unknown keeps it.
+      const clears = kassealRefusalClearsLock(e);
+      if (clears) {
+        await clearKassealAttempt(pairKey).catch(() => undefined);
+        setPending(false);
+      }
+      refuse(clears ? kassealRefusalCopy(e) : KASSEAL_PENDING_COPY);
+      // 7. The Copy logs report. Fields go in as a function: a getter that
+      // throws yields a null report inside buildDiagnosticReport, never a throw here.
+      setReport(
+        buildDiagnosticReport("kasseal-swap", e, () => ({
+          side,
+          network,
+          covenantId,
+          amount: amountUnits.toString(),
+          posted: attempt.posted.join(","),
+          cleared: clears,
+        })),
+      );
+    } finally {
+      entered.current = false;
+      setIsSigning(false);
+    }
+  };
+
   const validateAmount = (units: bigint) => {
     if (units <= 0n) return KASSEAL_ENTER_VALID_COPY;
     // Below one lot buys or sells nothing; a buy's lot costs at least nextLotPrice.
@@ -344,10 +498,17 @@ export function useKassealSwap({
     isLoading: isLoading || settled !== amountUnits,
     validateAmount,
     findMax,
-    onConfirm: async () => {
-      throw new Error(KASSEAL_CONFIRM_TODO);
-    },
-    extraErrorMessage: key && error ? kassealRefusalCopy(error) : undefined,
+    pending,
+    pendingCopy: pending ? KASSEAL_PENDING_COPY : undefined,
+    isSigning,
+    onConfirm,
+    report,
+    extraErrorMessage:
+      refusal?.units === amountUnits
+        ? refusal.message
+        : key && error
+          ? kassealRefusalCopy(error)
+          : undefined,
     advisory: payHint ? [payHint] : [],
     minOut: preview ? BigInt(preview.minOut) : undefined,
     feeLines: kassealFeeLines(preview),
