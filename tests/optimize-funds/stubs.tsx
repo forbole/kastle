@@ -27,6 +27,10 @@ export type HarnessState = {
   isLedger: boolean;
   // entries the node lists, per address
   entryCounts: Record<string, number>;
+  // the revalidation resolves undefined (a failed SWR fetch, nothing cached),
+  // or rejects with an error whose `.cause` getter throws ("hostile"), or
+  // with a node-style reason naming the queried address ("node")
+  utxoQuery?: "no-data" | "hostile" | "node";
   calls: {
     getAddress: number;
     signTx: number;
@@ -343,6 +347,18 @@ export function useUtxoEntries(address: string | undefined) {
   return {
     mutate: async () => {
       state.calls.revalidate++;
+      if (state.utxoQuery === "no-data") return undefined;
+      if (state.utxoQuery === "node")
+        throw new Error(`getUtxosByAddresses failed for ${address}`);
+      if (state.utxoQuery === "hostile") {
+        const error = new Error("node went away");
+        Object.defineProperty(error, "cause", {
+          get() {
+            throw new Error("hostile cause");
+          },
+        });
+        throw error;
+      }
       return address ? entriesFor(address) : [];
     },
   };

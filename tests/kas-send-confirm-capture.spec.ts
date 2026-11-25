@@ -107,3 +107,67 @@ test("broadcast-phase error with the same text is still captured", async ({
   expect(h.failed).toEqual([FRAGMENTATION]);
   expect(h.captured).toEqual(["Error: Storage mass exceeds maximum"]);
 });
+
+// "Copy logs" on the KAS fail screen: the real KasSend, its report built from
+// the thrown value, not from the reason the screen shows.
+async function failSend(page: Page, scenario: string) {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "clipboard", {
+      value: {
+        writeText: (text: string) => {
+          (window as unknown as { __clip: string }).__clip = text;
+          return Promise.resolve();
+        },
+      },
+    });
+  });
+  await page.goto(`${base}/?view=send&scenario=${scenario}`);
+  await page.getByRole("button", { name: "Confirm", exact: true }).click();
+  await expect(page.getByText("Sorry, Your Majesty.")).toBeVisible();
+  expect(errors).toEqual([]);
+}
+
+test("broadcast rejected: Copy logs carries the node's reason, scrubbed", async ({
+  page,
+}) => {
+  await failSend(page, "reject");
+  // the screen shows the generic copy: the node's text is only in the report
+  await expect(page.getByText("The carriage couldn't deliver")).toBeVisible();
+  await page.getByRole("button", { name: "Copy logs" }).click();
+  const text = await page.evaluate(
+    () => (window as unknown as { __clip?: string }).__clip,
+  );
+  expect(text).toBeTruthy();
+  expect(text).not.toContain("kaspa:");
+  expect(text).not.toMatch(/[0-9a-f]{64}/i);
+  const report = JSON.parse(text!);
+  expect(report.flow).toBe("kas-send");
+  expect(report.error).toContain("RPC Server (remote error)");
+  expect(report.error).toContain("is already spent");
+  expect(report.phase).toBe("broadcast");
+  expect(report.extensionVersion).toBe("9.9.9");
+  expect(report.networkId).toBe("mainnet");
+});
+
+test("build-phase fragmentation: the reason shows, Copy logs has the raw error", async ({
+  page,
+}) => {
+  await failSend(page, "mass");
+  await expect(page.getByText(FRAGMENTATION)).toBeVisible();
+  await page.getByRole("button", { name: "Copy logs" }).click();
+  const report = JSON.parse(
+    await page.evaluate(() => (window as unknown as { __clip: string }).__clip),
+  );
+  expect(report.error).toBe("Storage mass exceeds maximum");
+  expect(report.phase).toBe("build");
+});
+
+test("broadcast error whose .cause getter throws: fail screen, no Copy logs", async ({
+  page,
+}) => {
+  await failSend(page, "hostile");
+  await expect(page.getByText("The carriage couldn't deliver")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Copy logs" })).toHaveCount(0);
+});

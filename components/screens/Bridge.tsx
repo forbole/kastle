@@ -29,7 +29,9 @@ import {
   TokenSheet,
   formatAmount,
   formatUsd,
+  rpcErrorCode,
 } from "@/components/swap-bridge/ui";
+import { buildDiagnosticReport, DiagnosticReport } from "@/lib/diagnostics";
 import BottomNav, { ActivityHeaderButton } from "@/components/BottomNav";
 import kaspaIcon from "@/assets/images/network-logos/kaspa.svg";
 import { NetworkType } from "@/contexts/SettingsContext";
@@ -163,6 +165,8 @@ export default function Bridge() {
   const [sheet, setSheet] = useState<"token" | "to" | "provider" | "fee">();
   const [sheetChain, setSheetChain] = useState<BridgeChain>(route.from);
   const [submitting, setSubmitting] = useState(false);
+  // the last failed submit's "Copy logs"; null: scrubbing failed, no control
+  const [report, setReport] = useState<DiagnosticReport | null>();
 
   const kaspaBalance = useKaspaBalance(account?.address);
   const { data: kasplexBalance } = useEvmKasBalance(hexOf("kasplex"));
@@ -498,6 +502,7 @@ export default function Bridge() {
       ...(kaspaPrice > 0 && { value_usd: amountNum * kaspaPrice }),
     };
     setSubmitting(true);
+    setReport(undefined);
     toast.info(
       `Bridging ${fromSymbol} on ${CHAIN_LABEL[route.from]} to ${CHAIN_LABEL[route.to]}`,
     );
@@ -520,6 +525,14 @@ export default function Bridge() {
             : "Bridge failed. Please try again."),
       );
       emitBridgeCompleted({ ...tracked, status: "failed" });
+      setReport(
+        buildDiagnosticReport("bridge", e, () => ({
+          direction,
+          code: rpcErrorCode(e),
+          extensionVersion: browser.runtime.getManifest().version,
+          walletType: wallet?.type,
+        })),
+      );
     } finally {
       setSubmitting(false);
     }
@@ -677,6 +690,7 @@ export default function Bridge() {
       </div>
       <ConfirmButton
         error={error}
+        report={report}
         balance={
           balance === undefined
             ? undefined

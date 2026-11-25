@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useFormContext } from "react-hook-form";
+import { BaseError } from "viem";
 import { kasplexTestnet } from "@/lib/layer2";
 
 declare global {
@@ -49,10 +50,30 @@ export function DetailsStep({ onNext }: { onNext: () => void }) {
   return null;
 }
 
-// Reached only if estimateGas resolves; no case in the spec gets here.
+// Reached only if estimateGas resolves. ?send=hostile: the broadcast throws an
+// error whose `.cause` getter throws, so its report cannot be built.
 export const sendEvmTransaction = async () => {
   window.__erc20.sent++;
+  const mode = new URLSearchParams(location.search).get("send");
+  // hostile-viem: the same, as a viem BaseError, so walking it for the RPC
+  // code reads the throwing `.cause` before the report is built.
+  if (mode === "hostile" || mode === "hostile-viem") {
+    const error =
+      mode === "hostile"
+        ? new Error("node went away")
+        : new BaseError("node went away");
+    Object.defineProperty(error, "cause", {
+      get() {
+        throw new Error("hostile cause");
+      },
+    });
+    throw error;
+  }
   return "0xtx";
+};
+
+export const browser = {
+  runtime: { getManifest: () => ({ version: "9.9.9" }) },
 };
 
 export const formatUsdAmount = (amount: number) => `$${amount}`;

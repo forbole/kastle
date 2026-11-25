@@ -1,5 +1,5 @@
 // Builds the real ERC-20 send screen (Erc20Send -> HotWalletConfirm ->
-// ConfirmStep -> FailStatus) with its hooks, the details step, the broadcaster
+// ConfirmStep -> FailStatus), and the EVM KAS send screen at /kas/:chainId, with its hooks, the details step, the broadcaster
 // and Sentry swapped for ./stubs.tsx. viem is real: the spec answers the RPC.
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
@@ -43,7 +43,10 @@ export default defineConfig({
           ? `export { ${id.slice(6)} as default, ${id.slice(6)} } from ${JSON.stringify(stubs)};`
           : null,
     },
-    Unimport.vite({ presets: ["react"] }),
+    Unimport.vite({
+      presets: ["react"],
+      imports: [{ name: "browser", from: stubs }],
+    }),
     react(),
   ],
   resolve: {
@@ -56,7 +59,7 @@ export default defineConfig({
         find: new RegExp(`^@/${from}${ext}`),
         replacement: stubs,
       })),
-      // Erc20Send's own relative import of the details step.
+      // Erc20Send's and EvmKasSend's own relative import of the details step.
       { find: /^\.\/DetailsStep$/, replacement: "stub:DetailsStep" },
       { find: /^@sentry\/react$/, replacement: stubs },
       { find: /^@\/(.*)$/, replacement: `${repo}/$1` },

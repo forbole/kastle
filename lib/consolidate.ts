@@ -11,16 +11,23 @@ import {
 import { covenantSelect } from "@kronsdk/kron-sdk";
 import { orderEntries } from "@/lib/sendFee";
 import { isFragmentationError } from "@/lib/kaspa";
-import { redactString } from "@/lib/sentry-scrub";
+import { reportError, scrubReportText } from "@/lib/diagnostics";
 import {
   signAndSubmitBatch,
   UnsignedInputsError,
 } from "@/lib/wallet/transaction-batch";
 import type { IWalletWithGetAddress } from "@/lib/wallet/wallet-interface";
 
+// Moved to lib/diagnostics.ts; re-exported so existing importers keep working.
+export {
+  buildRoundReport,
+  reportError,
+  scrubReportText,
+} from "@/lib/diagnostics";
+
 // The Generator batches at 89 inputs of this shape; 80 leaves ~10% mass
 // headroom so every chunk builds as a single transaction.
-const DEFAULT_INPUTS_PER_TRANSACTION = 80;
+export const DEFAULT_INPUTS_PER_TRANSACTION = 80;
 
 // Ledger signs at most two outputs per transaction.
 const MAX_OUTPUTS = 2;
@@ -383,33 +390,6 @@ export function describeRound({
     return `${sent} · ${what} · nothing paid`;
   }
   return `${sent} · ${rejected} rejected · fee paid ${feePaid} KAS`;
-}
-
-/** 64-hex runs (txids, keys) via the Sentry redactor, then addresses. */
-export const scrubReportText = (text: string) =>
-  redactString(text).replace(/kaspa(?:test|dev|sim)?:[a-z0-9]+/g, "[ADDRESS]");
-
-/** Scrubbed, then cut: a cut 64-hex run would slip past the redactor. */
-export const reportError = (error: unknown) =>
-  scrubReportText(String(error)).slice(0, 300);
-
-/**
- * What the failure screen's "Copy report" hands the user to send us: counts,
- * versions and the node's reason. No address, outpoint or txid: every string
- * field is scrubbed.
- */
-export function buildRoundReport<
-  T extends Record<string, string | number | boolean | undefined>,
->(fields: T): T & { timestamp: string } {
-  return {
-    ...Object.fromEntries(
-      Object.entries(fields).map(([key, value]) => [
-        key,
-        typeof value === "string" ? scrubReportText(value) : value,
-      ]),
-    ),
-    timestamp: new Date().toISOString(),
-  } as T & { timestamp: string };
 }
 
 export const outpointKey = (outpoint: {

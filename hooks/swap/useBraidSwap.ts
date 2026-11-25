@@ -20,6 +20,10 @@ import {
 } from "@/lib/braid/pending";
 import { BraidSignRefusal, type BraidDeposit } from "@/lib/braid/signer";
 import { KCC20_LEDGER_UNSUPPORTED_MESSAGE } from "@/lib/wallet/sign-script";
+import {
+  buildDiagnosticReport,
+  type DiagnosticReport,
+} from "@/lib/diagnostics";
 import { LINEAGE_FAMILY, useBraidTokens } from "./braidListing";
 
 const KAS_DECIMALS = 8;
@@ -142,6 +146,8 @@ export type BraidConfirmInput = {
   onPriceMoved: () => void;
   onRegistered?: (ref: string) => void;
   onSubmitted?: () => void;
+  /** "Copy logs" for a thrown failure; null: scrubbing failed, no control. */
+  onReport?: (report: DiagnosticReport | null) => void;
 };
 
 /**
@@ -228,6 +234,10 @@ export async function confirmBraidSwap(
       prepared?.ref,
       e instanceof Error ? e.message : e,
     );
+    if (live())
+      i.onReport?.(
+        buildDiagnosticReport("braid-swap", e, { ref: prepared?.ref, sent }),
+      );
     const refused =
       e instanceof BraidRefusal ||
       e instanceof BraidSignRefusal ||
@@ -345,6 +355,7 @@ export function useBraidSwap({
   const [isSigning, setIsSigning] = useState(false);
   // A refusal of the quote it was raised on; a fresh quote clears it.
   const [refusal, setRefusal] = useState<{ quote: L1Quote; message: string }>();
+  const [report, setReport] = useState<DiagnosticReport | null>();
   const signingRef = useRef(false);
 
   const {
@@ -371,6 +382,9 @@ export function useBraidSwap({
       : undefined;
   const pairRef = useRef(pairKey);
   pairRef.current = pairKey;
+  // A report belongs to the pair it failed on: another account or token (both
+  // are in pairKey) must not copy the previous attempt's error and ref.
+  useEffect(() => setReport(undefined), [pairKey]);
 
   const quoteKey =
     enabled && isMainnet && covenantId && family && userPublicKey && rawIn > 0n
@@ -506,6 +520,7 @@ export function useBraidSwap({
     signingRef.current = true;
     setIsSigning(true);
     setRefusal(undefined);
+    setReport(undefined);
     try {
       await confirmBraidSwap({
         braid,
@@ -523,6 +538,7 @@ export function useBraidSwap({
         // This context follows it already: a remount adds no listener.
         onRegistered: (ref) => followed.add(ref),
         onSubmitted,
+        onReport: setReport,
       });
     } finally {
       signingRef.current = false;
@@ -589,6 +605,7 @@ export function useBraidSwap({
     validateAmount,
     findMax,
     onConfirm,
+    report,
     extraErrorMessage,
     routeWarning,
     advisory,

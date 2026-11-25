@@ -14,6 +14,7 @@ import useKaspaPrice from "@/hooks/useKaspaPrice";
 import { getChainTokenSymbol } from "@/lib/layer2";
 
 import z from "zod";
+import { DiagnosticReport } from "@/lib/diagnostics";
 
 export const EvmKasSendFormSchema = z.object({
   userInput: z.string().optional(),
@@ -49,6 +50,7 @@ export default function EvmKasSend() {
   const [step, setStep] = useState<Step>(state?.step ?? "details");
   const { chainId } = useParams<{ chainId: `0x${string}` }>();
   const [outTxs, setOutTxs] = useState<string[]>();
+  const [failReport, setFailReport] = useState<DiagnosticReport | null>();
 
   const form = useForm<EvmKasSendForm>({
     defaultValues: {
@@ -85,7 +87,8 @@ export default function EvmKasSend() {
             onNext={() => setStep("broadcast")}
             onBack={onBack}
             setOutTxs={setOutTxs}
-            onFail={() => {
+            onFail={(report) => {
+              setFailReport(report);
               emitSendCompleted({
                 type: "EVM_KAS",
                 id: chainId!,
@@ -127,7 +130,11 @@ export default function EvmKasSend() {
           <SuccessStatus chainId={chainId!} transactionIds={outTxs} />
         )}
         {step === "fail" && (
-          <FailStatus chainId={chainId!} transactionIds={outTxs} />
+          <FailStatus
+            chainId={chainId!}
+            transactionIds={outTxs}
+            report={failReport}
+          />
         )}
       </FormProvider>
     </div>

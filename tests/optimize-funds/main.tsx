@@ -86,8 +86,14 @@ function Succeeded() {
           : pick("signer"),
     signerFails: q.get("signer") === "fail",
     isLedger: q.get("ledger") === "1",
-    // A: 200 entries (3 transactions), B: 250 (4 transactions), L: 81 (1)
-    entryCounts: { [addresses.A]: 200, [addresses.B]: 250, [addresses.L]: 81 },
+    // A: 200 entries (3 transactions), B: 250 (4 transactions), L: 81 (1);
+    // entries=N overrides A
+    entryCounts: {
+      [addresses.A]: Number(q.get("entries") ?? 200),
+      [addresses.B]: 250,
+      [addresses.L]: 81,
+    },
+    utxoQuery: (q.get("utxo") ?? undefined) as HarnessState["utxoQuery"],
     calls: { getAddress: 0, signTx: 0, submit: 0, revalidate: 0 },
     signedIsLegacy: [],
     isLegacyBy: {},
@@ -115,7 +121,24 @@ function Succeeded() {
       { path: "/token-operation-failed", element: <Failed /> },
       { path: "/token-operation-success", element: <Succeeded /> },
     ],
-    { initialEntries: ["/optimize-funds"] },
+    {
+      initialEntries: [
+        {
+          pathname: "/optimize-funds",
+          // spent=all: a Retry from the incomplete screen whose previous
+          // round already spent every one of A's entries (stubs.tsx `entry`)
+          state:
+            q.get("spent") === "all"
+              ? {
+                  spentOutpoints: Array.from(
+                    { length: Number(q.get("entries") ?? 200) },
+                    (_, i) => `${(i + 1).toString(16).padStart(64, "0")}:0`,
+                  ),
+                }
+              : undefined,
+        },
+      ],
+    },
   );
   createRoot(document.getElementById("root")!).render(
     <>

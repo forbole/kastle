@@ -9,6 +9,7 @@ import useWalletManager from "@/hooks/wallet/useWalletManager";
 import HotWalletConfirm from "@/components/send/kas-send/HotWalletConfirm";
 import LedgerConfirm from "@/components/send/kas-send/LedgerConfirm";
 import z from "zod";
+import { DiagnosticReport } from "@/lib/diagnostics";
 import useAnalytics from "@/hooks/useAnalytics";
 import useKaspaPrice from "@/hooks/useKaspaPrice";
 
@@ -64,6 +65,7 @@ export default function KasSend() {
   });
   const [outTxs, setOutTxs] = useState<string[]>();
   const [failReason, setFailReason] = useState<string>();
+  const [failReport, setFailReport] = useState<DiagnosticReport | null>();
 
   const onBack = () => {
     setStep((prevState) => {
@@ -87,8 +89,9 @@ export default function KasSend() {
             onNext={() => setStep("broadcast")}
             onBack={onBack}
             setOutTxs={setOutTxs}
-            onFail={(reason) => {
+            onFail={(reason, report) => {
               setFailReason(reason);
+              setFailReport(report);
               emitSendCompleted({
                 type: "KAS",
                 id: "KAS",
@@ -104,8 +107,9 @@ export default function KasSend() {
             onNext={() => setStep("broadcast")}
             onBack={onBack}
             setOutTxs={setOutTxs}
-            onFail={(reason) => {
+            onFail={(reason, report) => {
               setFailReason(reason);
+              setFailReport(report);
               emitSendCompleted({
                 type: "KAS",
                 id: "KAS",
@@ -139,7 +143,11 @@ export default function KasSend() {
         )}
         {step === "success" && <SuccessStatus transactionIds={outTxs} />}
         {step === "fail" && (
-          <FailStatus transactionIds={outTxs} reason={failReason} />
+          <FailStatus
+            transactionIds={outTxs}
+            reason={failReason}
+            report={failReport}
+          />
         )}
       </FormProvider>
     </div>

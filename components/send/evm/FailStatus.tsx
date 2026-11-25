@@ -2,6 +2,8 @@ import { useNavigate } from "react-router-dom";
 import React from "react";
 import failImage from "@/assets/images/fail.png";
 import Header from "@/components/GeneralHeader";
+import ClipboardCopy from "@/components/dashboard/ClipboardCopy";
+import { DiagnosticReport } from "@/lib/diagnostics";
 import { ALL_SUPPORTED_EVM_L2_CHAINS } from "@/lib/layer2";
 import { hexToNumber } from "viem";
 
@@ -11,6 +13,8 @@ interface FailProps {
   transactionIds?: string[] | undefined;
   tokenName?: string;
   description?: string;
+  // built from the thrown value; null when scrubbing failed: no copy control
+  report?: DiagnosticReport | null;
 }
 
 export default function FailStatus({
@@ -18,6 +22,7 @@ export default function FailStatus({
   transactionIds,
   tokenName = "KAS",
   description,
+  report,
 }: FailProps) {
   const navigate = useNavigate();
   const selectChain = ALL_SUPPORTED_EVM_L2_CHAINS.find(
@@ -84,6 +89,16 @@ export default function FailStatus({
               )}
               <i className="hn hn-external-link text-icy-blue-400"></i>
             </button>
+          )}
+          {report && (
+            <ClipboardCopy
+              textToCopy={JSON.stringify(report)}
+              className="flex min-h-[44px] cursor-pointer items-center gap-2"
+            >
+              <span className="text-sm font-semibold text-icy-blue-400">
+                Copy logs
+              </span>
+            </ClipboardCopy>
           )}
         </div>
 
