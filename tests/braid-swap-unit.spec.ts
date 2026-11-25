@@ -99,6 +99,7 @@ function loadAll(stubs: Record<string, unknown> = {}) {
     "@/lib/braid/constants": constants,
     "@/lib/braid/pending": pending,
     "@/lib/braid/signer": { BraidSignRefusal },
+    "@/lib/diagnostics": { buildDiagnosticReport: () => ({}) },
     "@/lib/wallet/sign-script": {
       KCC20_LEDGER_UNSUPPORTED_MESSAGE: LEDGER_MESSAGE,
     },

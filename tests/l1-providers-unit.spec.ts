@@ -86,7 +86,9 @@ const { ProviderRow } = loadModule("components/swap-bridge/ui.tsx", {
   "@/assets/images/network-logos/kaspa.svg": esm(""),
   "@/components/Layer2AssetImage": esm(Icon),
   "@/components/Toast": esm({}),
+  "@/components/dashboard/ClipboardCopy": esm(Icon),
   "@/hooks/useStorageState": esm(() => [[], async () => {}, false]),
+  viem: { BaseError: class BaseError extends Error {} },
   "@/lib/format-amount": { formatAmount: String },
   "/node_modules/flag-icons/css/flag-icons.min.css": {},
 });
