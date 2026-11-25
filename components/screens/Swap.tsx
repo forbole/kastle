@@ -114,6 +114,8 @@ import {
 import { useBraidSwap } from "@/hooks/swap/useBraidSwap";
 import { useKassealSwap } from "@/hooks/swap/useKassealSwap";
 import { useKassealListing } from "@/hooks/swap/kassealListing";
+import { useKaspaRocketSwap } from "@/hooks/swap/useKaspaRocketSwap";
+import { useKaspaRocketListing } from "@/hooks/swap/kasparocketListing";
 import useKassealTokens from "@/lib/kasseal/useKassealTokens";
 import { kassealQuoteClient, kassealTradeDeps } from "@/lib/kasseal/build";
 import { KCC20_LEDGER_UNSUPPORTED_MESSAGE } from "@/lib/wallet/sign-script";
@@ -255,14 +257,6 @@ export default function Swap() {
   const kassealOn = kronEnabled && flags.isKassealEnabled;
   const kassealRoutable = useKassealListing(kassealOn);
   const { data: kassealTokens } = useKassealTokens(undefined, kassealOn);
-  const l1Listings = useMemo(
-    () => ({
-      kasseal: kassealRoutable,
-      kron: kronListing(kronMarkets),
-      braid: braidRoutable,
-    }),
-    [kassealRoutable, kronMarkets, braidRoutable],
-  );
 
   const [chainKey, setChainKey] = useState<ChainKey>("igra");
   const isKron = chainKey === "kaspa";
@@ -488,6 +482,27 @@ export default function Swap() {
   // The L1 provider: KRON for a curve token, Braid for one only it lists.
   const l1In = toL1Leg(tokenIn);
   const l1Out = toL1Leg(tokenOut);
+  // KaspaRocket probes held tokens and the picked one, never its catalogue.
+  const kaspaRocketHeld = useMemo(
+    () => (kcc20Tokens ?? []).map((t) => t.covenantId),
+    [kcc20Tokens],
+  );
+  const kaspaRocketRoutable = useKaspaRocketListing(
+    networkId,
+    kronEnabled && flags.isKaspaRocketEnabled,
+    kaspaRocketHeld,
+    (l1In?.type === "KCC20" ? l1In : l1Out?.type === "KCC20" ? l1Out : undefined)
+      ?.covenantId,
+  );
+  const l1Listings = useMemo(
+    () => ({
+      kasseal: kassealRoutable,
+      kron: kronListing(kronMarkets),
+      braid: braidRoutable,
+      kasparocket: kaspaRocketRoutable,
+    }),
+    [kassealRoutable, kronMarkets, braidRoutable, kaspaRocketRoutable],
+  );
   const [l1ProviderId, setL1ProviderId] = useL1Provider(
     l1In,
     l1Out,
@@ -687,11 +702,28 @@ export default function Swap() {
     }),
     signer: kaspaSigner,
   });
+  const kaspaRocketToken = isNativeIn ? tokenOut : tokenIn;
+  const kaspaRocketSwap = useKaspaRocketSwap({
+    on: flags.isKaspaRocketEnabled,
+    // Only the chosen provider quotes: inactive, no request.
+    active: isKron && l1ProviderId === "kasparocket",
+    side: kassealSide,
+    tokenId: kaspaRocketToken?.address,
+    tokenDecimals: kaspaRocketToken?.decimals,
+    amountUnits: rawIn,
+    address: account?.address,
+    publicKey: account?.publicKeys?.[0],
+    network: networkId ?? NetworkType.Mainnet,
+    balanceIn: kronBalanceIn,
+    slippage,
+    signer: kaspaSigner,
+  });
   // Every L1 provider but KRON hands the screen this one contract; such a
   // pair never reads KRON's quote: the row names the venue it shows.
   const l1Handlers: Partial<Record<L1ProviderId, L1SwapHandlers>> = {
     kasseal: kassealSwap,
     braid: braidSwap,
+    kasparocket: kaspaRocketSwap,
   };
   const l1 = isKron ? l1Handlers[l1ProviderId] : undefined;
   const l1NetworkFee = l1?.feeLines.find((l) => l.name === "Network");

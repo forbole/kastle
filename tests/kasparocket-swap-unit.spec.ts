@@ -22,6 +22,18 @@ import {
   settlePendingKaspaRocket,
   type PendingKaspaRocketSwap,
 } from "@/lib/kasparocket/pending";
+import {
+  kaspaRocketPlanNetworkFee,
+  type KaspaRocketFees,
+} from "@/lib/kasparocket/fees";
+import {
+  KASPAROCKET_PENDING_COPY,
+  confirmKaspaRocketSwap,
+  kaspaRocketFeeLines,
+  kaspaRocketValidate,
+  type KaspaRocketConfirmInput,
+  type KaspaRocketPrepared,
+} from "@/lib/kasparocket/confirm";
 
 // SYNTHETIC: the hand-built v1 pool buy mobile's signer tests use; its key is
 // a test key that owns nothing. No network, no broadcast.
@@ -380,5 +392,208 @@ test.describe("KaspaRocket pending store", () => {
     const code = src.replace(/\/\/.*$|\/\*[\s\S]*?\*\//gm, "");
     expect(code).not.toMatch(/submit\s*\(|signPlan|planSwap|fetch\s*\(/);
     expect(code).not.toMatch(/^import /m);
+  });
+});
+
+test.describe("confirmKaspaRocketSwap (the hook's onConfirm)", () => {
+  const FEES: KaspaRocketFees = {
+    treasuryRate: 0.01,
+    treasuryMinSompi: 200_000_000n,
+    partnerRate: 0.005,
+    partnerMinSompi: 100_000_000n,
+    minOrderValueSompi: 15_000_000_000n,
+    tokenDecimals: 8,
+  };
+  const prepared = (over: Partial<KaspaRocketPrepared> = {}): KaspaRocketPrepared => ({
+    quote: quoteOf(),
+    plan: planOf(),
+    key: "live",
+    units: 100_000_000n,
+    builtAt: NOW,
+    ...over,
+  });
+  /** One confirm on `pair`, signing with the synthetic key; `submit` stubbed. */
+  function confirmOn(
+    pair: string,
+    submit: KaspaRocketConfirmInput["submit"],
+    over: Partial<KaspaRocketConfirmInput> = {},
+  ) {
+    const storeKey = kaspaRocketPendingKey("mainnet", "kaspa:qa", pair);
+    const sd = fakeSignDigest(over.prepared?.plan ?? planOf());
+    const records: number[] = [];
+    const run = confirmKaspaRocketSwap({
+      storeKey,
+      pairKey: pair,
+      prepared: prepared(),
+      liveKey: "live",
+      tokenId: fixture.tokenId,
+      lpCovenantId: fixture.lpCovenantId,
+      side: "buy",
+      slippageBps: 100,
+      xOnlyPk: fixture.xOnlyPk,
+      signDigest: () => sd.fn,
+      submit,
+      onRecord: () => records.push(sd.calls.length),
+      now: () => NOW,
+      ...over,
+    });
+    return { run, storeKey, sd, records };
+  }
+
+  test("★ writes the pending record before submit: read inside the stubbed submit", async () => {
+    const data = stubStorage();
+    let seen: PendingKaspaRocketSwap | undefined;
+    let submits = 0;
+    const c = confirmOn("KAS:order", async () => {
+      submits++;
+      seen = await loadPendingKaspaRocket(c.storeKey);
+    });
+    const r = await c.run;
+    expect(submits).toBe(1);
+    expect(seen?.pairKey).toBe("KAS:order");
+    expect(String(seen?.amountIn)).toBe("100000000");
+    // The record went down before the first signature was asked for.
+    expect(c.records).toEqual([0]);
+    expect(c.sd.calls.length).toBeGreaterThan(0);
+    expect(r).toEqual({ pending: true, submitted: true });
+    expect(Object.keys(data)).toEqual([c.storeKey]);
+  });
+
+  test("★ a submit that never answers: record stays, pending; a remount settles to pending with 0 submits", async () => {
+    stubStorage();
+    let submits = 0;
+    const c = confirmOn("KAS:hang", () => {
+      submits++;
+      return new Promise(() => {});
+    });
+    let done = false;
+    void c.run.then(() => (done = true));
+    await expect.poll(() => submits).toBe(1);
+    expect(done).toBe(false);
+    expect(c.records).toEqual([0]);
+    expect(await loadPendingKaspaRocket(c.storeKey)).toBeDefined();
+    // The popup reopens: the record is settled from the chain only.
+    let checks = 0;
+    const outcome = await settlePendingKaspaRocket(c.storeKey, async () => {
+      checks++;
+      return "unknown";
+    });
+    expect(outcome).toBe("pending");
+    expect(checks).toBe(1);
+    // A confirm on the reopened popup is refused: nothing signed or sent.
+    const again = confirmOn("KAS:hang", async () => {
+      submits++;
+    });
+    expect((await again.run).pending).toBe(true);
+    expect(again.sd.calls).toEqual([]);
+    expect(submits).toBe(1);
+  });
+
+  test("★ a guard refusal writes no record, signs nothing, submits nothing", async () => {
+    const data = stubStorage();
+    let submits = 0;
+    const c = confirmOn(
+      "KAS:refuse",
+      async () => {
+        submits++;
+      },
+      { prepared: prepared({ quote: quoteOf({ uneconomic: true }) }) },
+    );
+    const r = await c.run;
+    expect(r.pending).toBe(false);
+    expect(r.message).toMatch(/uneconomic/);
+    expect(c.sd.calls).toEqual([]);
+    expect(submits).toBe(0);
+    expect(data).toEqual({});
+  });
+
+  test("★ a refusal after the record (the signature fails) clears it and submits nothing", async () => {
+    const data = stubStorage();
+    let submits = 0;
+    const c = confirmOn(
+      "KAS:signfail",
+      async () => {
+        submits++;
+      },
+      {
+        signDigest: () => async () => {
+          throw new KaspaRocketSignRefusal("background refused");
+        },
+      },
+    );
+    const r = await c.run;
+    expect(c.records).toEqual([0]);
+    expect(r.pending).toBe(false);
+    expect(submits).toBe(0);
+    expect(data).toEqual({});
+  });
+
+  test("★ a second confirm while the first signs plans nothing and signs nothing", async () => {
+    stubStorage();
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    let submits = 0;
+    const first = confirmOn("KAS:double", async () => {
+      submits++;
+      await gate;
+    });
+    await expect.poll(() => submits).toBe(1);
+    const second = confirmOn("KAS:double", async () => {
+      submits++;
+    });
+    expect(await second.run).toEqual({
+      pending: true,
+      message: KASPAROCKET_PENDING_COPY,
+    });
+    expect(second.sd.calls).toEqual([]);
+    release();
+    await first.run;
+    expect(submits).toBe(1);
+  });
+
+  test("★ a stale or changed plan is refused before any record", async () => {
+    const data = stubStorage();
+    const stale = confirmOn("KAS:stale", async () => {}, {
+      now: () => NOW + KASPAROCKET_PLAN_TTL_MS + 1,
+    });
+    expect((await stale.run).rebuild).toBe(true);
+    const changed = confirmOn("KAS:stale", async () => {}, { liveKey: "other" });
+    expect((await changed.run).pending).toBe(false);
+    expect(stale.sd.calls).toEqual([]);
+    expect(changed.sd.calls).toEqual([]);
+    expect(data).toEqual({});
+  });
+
+  test("★ fee lines are the plan's own; a missing figure drops its line, never 0", () => {
+    const plan = planOf(undefined, {
+      summary: { ...planOf().summary, totalPlatformFeeSompi: 300_000_000n },
+    });
+    const network = kaspaRocketPlanNetworkFee(plan)!;
+    const lines = kaspaRocketFeeLines(plan, 100_000_000n, FEES);
+    expect(lines.map((l) => l.name)).toEqual(["Network", "KaspaRocket"]);
+    expect(lines[0].amount).toBe(Number(network) / 1e8);
+    expect(lines[1].amount).toBe(3);
+    expect(lines[1].display).toBe("3 KAS");
+    const noSummary = planOf(undefined, {
+      summary: { ...planOf().summary, totalPlatformFeeSompi: undefined, platformFeeSompi: undefined },
+    });
+    expect(kaspaRocketFeeLines(noSummary, 100_000_000n, FEES).map((l) => l.name)).toEqual([
+      "Network",
+    ]);
+    expect(kaspaRocketFeeLines(undefined, 100_000_000n, FEES)).toEqual([]);
+    for (const l of kaspaRocketFeeLines(noSummary, undefined, undefined))
+      expect(l.amount).not.toBe(0);
+  });
+
+  test("★ validateAmount: under 150 KAS blocks with mobile's copy; nothing while protocol() is unknown", () => {
+    const kas = (n: number) => BigInt(n) * 100_000_000n;
+    expect(kaspaRocketValidate(kas(149), kas(1000), kas(149), FEES)).toBe(
+      "KaspaRocket's minimum trade is 150 KAS.",
+    );
+    expect(kaspaRocketValidate(kas(150), kas(1000), kas(150), FEES)).toBeUndefined();
+    expect(kaspaRocketValidate(kas(149), kas(1000), kas(149), undefined)).toBeUndefined();
+    expect(kaspaRocketValidate(kas(2000), kas(1000), kas(2000), FEES)).toBe(
+      "Oh, you don't have enough funds",
+    );
   });
 });
