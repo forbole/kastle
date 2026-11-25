@@ -39,8 +39,10 @@ export type L1Provider = {
   enabled?: (flags: L1FeatureFlags) => boolean;
 };
 
+// Strict: only a literal `true` shows a gated provider; an unknown
+// (undefined) flag hides it, since these providers move money.
 export const isL1Enabled = (p: L1Provider, flags: L1FeatureFlags) =>
-  p.enabled?.(flags) ?? true;
+  !p.enabled || p.enabled(flags) === true;
 
 /**
  * KRON's listing: the curve markets the screen already reads. A graduated

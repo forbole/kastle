@@ -565,3 +565,76 @@ test.describe("KaspaRocket", () => {
     ]);
   });
 });
+
+test.describe("an unknown flag hides a money-moving provider", () => {
+  // Both providers and KRON list the curve token on mainnet.
+  const ALL_LISTED = {
+    kasseal: new Set([CURVE_ID]),
+    kasparocket: new Set([CURVE_ID]),
+    kron: KRON,
+  } as L1Listings;
+  const realSheet = async (flags: Record<string, unknown>) => {
+    const rows = await sheetRows({
+      providers: L1_PROVIDERS,
+      supporting: L1_PROVIDERS.filter((p: L1Provider) =>
+        p.supports(KAS, CURVE, MAIN, ALL_LISTED),
+      ),
+      flags,
+    });
+    return rows.map((r) => r.name);
+  };
+
+  test("isKassealEnabled undefined: no Kasseal row", async () => {
+    const names = await realSheet({
+      isKassealEnabled: undefined,
+      isKaspaRocketEnabled: true,
+    });
+    expect(names).not.toContain("Kasseal");
+    expect(names).toContain("KaspaRocket");
+  });
+
+  test("isKaspaRocketEnabled undefined: no KaspaRocket row", async () => {
+    const names = await realSheet({
+      isKassealEnabled: true,
+      isKaspaRocketEnabled: undefined,
+    });
+    expect(names).not.toContain("KaspaRocket");
+    expect(names).toContain("Kasseal");
+  });
+
+  test("both flags false: neither row, and KRON still routes the pair", async () => {
+    const supporting = L1_PROVIDERS.filter((p: L1Provider) =>
+      p.supports(KAS, CURVE, MAIN, ALL_LISTED),
+    );
+    const rows = await sheetRows({
+      providers: L1_PROVIDERS,
+      supporting,
+      flags: { isKassealEnabled: false, isKaspaRocketEnabled: false },
+    });
+    const names = rows.map((r) => r.name);
+    expect(names).not.toContain("Kasseal");
+    expect(names).not.toContain("KaspaRocket");
+    expect(rows.find((r) => r.name === "KRON")).toMatchObject({
+      disabled: false,
+    });
+  });
+
+  test("both flags true: Kasseal first, KaspaRocket after", async () => {
+    const names = await realSheet({
+      isKassealEnabled: true,
+      isKaspaRocketEnabled: true,
+    });
+    expect(names.slice(0, 2)).toEqual(["Kasseal", "KaspaRocket"]);
+  });
+
+  test("a provider with no enabled field still renders", async () => {
+    const plain = fakeProvider("plain");
+    expect(plain.enabled).toBeUndefined();
+    const rows = await sheetRows({
+      providers: [plain],
+      supporting: [plain],
+      flags: {},
+    });
+    expect(rows.map((r) => r.name)).toEqual(["PLAIN"]);
+  });
+});
