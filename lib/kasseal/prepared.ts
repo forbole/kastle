@@ -7,6 +7,10 @@
 /** The SDK's own ceiling (MAX_SLIPPAGE_BPS = 1000): the app clamps to it. */
 export const KASSEAL_MAX_SLIPPAGE_BPS = 1000;
 
+/** The screen's slippage percent as the bps a quote is keyed and built under. */
+export const kassealSlippageBps = (pct: number): number =>
+  Math.min(KASSEAL_MAX_SLIPPAGE_BPS, Math.max(0, Math.round(pct * 100)));
+
 export type KassealPreview = {
   side: "buy" | "sell";
   /** Sompi in on a buy, token base units in on a sell. */

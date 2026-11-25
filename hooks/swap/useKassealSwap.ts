@@ -15,6 +15,7 @@ import {
   KASSEAL_ERRORS,
   KASSEAL_MAX_SLIPPAGE_BPS,
   kassealCodeOf,
+  kassealSlippageBps,
   type KassealPreview,
 } from "@/lib/kasseal/prepared";
 import { venueOf } from "@/lib/kasseal/market";
@@ -313,7 +314,7 @@ export function useKassealSwap({
   const settled = useDebounced(amountUnits);
   const net = kassealNetworkOf(network);
   const rawBps = Math.round(slippage * 100);
-  const slippageBps = Math.min(KASSEAL_MAX_SLIPPAGE_BPS, Math.max(0, rawBps));
+  const slippageBps = kassealSlippageBps(slippage);
   const inDecimals = side === "buy" ? KAS_DECIMALS : token?.decimals;
   const outDecimals = side === "buy" ? token?.decimals : KAS_DECIMALS;
   const have = side === "buy" ? wallet.kasSompi : wallet.tokenUnits;

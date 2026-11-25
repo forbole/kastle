@@ -112,14 +112,10 @@ import {
   L1WalletRows,
 } from "@/components/swap-bridge/l1Rows";
 import { useBraidSwap } from "@/hooks/swap/useBraidSwap";
-import {
-  type KassealQuoteClient,
-  type KassealSwapInput,
-  useKassealSwap,
-} from "@/hooks/swap/useKassealSwap";
+import { useKassealSwap } from "@/hooks/swap/useKassealSwap";
 import { useKassealListing } from "@/hooks/swap/kassealListing";
 import useKassealTokens from "@/lib/kasseal/useKassealTokens";
-import { KASSEAL_ERRORS } from "@/lib/kasseal/prepared";
+import { kassealQuoteClient, kassealTradeDeps } from "@/lib/kasseal/build";
 import { KCC20_LEDGER_UNSUPPORTED_MESSAGE } from "@/lib/wallet/sign-script";
 import { restApis } from "@/components/screens/Settings";
 import {
@@ -226,21 +222,6 @@ const TOOLTIPS = {
 };
 
 const NETWORK_FEE_ERROR = "Oh, you need more for the network fees";
-
-// Turning a Kasseal quote into a preview means building the tx and
-// reconciling it to the wallet (mobile's kassealBuild, in its WebView). The
-// popup has no port of that yet: every quote refuses as terminal, so confirm
-// is never reached and nothing is built, signed or posted.
-const kassealNotPorted = (): never => {
-  throw new Error(`${KASSEAL_ERRORS.BUILD_FAILED}:NOT_PORTED`);
-};
-const kassealQuoteClient: KassealQuoteClient = async () => kassealNotPorted();
-const KASSEAL_TRADE: KassealSwapInput["trade"] = {
-  makeBuilder: kassealNotPorted,
-  build: async () => kassealNotPorted(),
-  post: async () => kassealNotPorted(),
-  status: async () => kassealNotPorted(),
-};
 
 export default function Swap() {
   const { networkId, rpcClient } = useRpcClientStateful();
@@ -696,7 +677,14 @@ export default function Swap() {
         : { tokenUnits: kronBalanceIn },
     slippage,
     quoteClient: kassealQuoteClient,
-    trade: KASSEAL_TRADE,
+    trade: kassealTradeDeps({
+      network: networkId ?? NetworkType.Mainnet,
+      covenantId: (isNativeIn ? tokenOut : tokenIn)?.address,
+      side: kassealSide,
+      amountIn: rawIn,
+      slippage,
+      trader: account?.address,
+    }),
     signer: kaspaSigner,
   });
   // Every L1 provider but KRON hands the screen this one contract; such a
