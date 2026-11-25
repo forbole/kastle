@@ -31,7 +31,9 @@ import {
   AmountInput,
   formatAmount,
   formatUsd,
+  rpcErrorCode,
 } from "@/components/swap-bridge/ui";
+import { buildDiagnosticReport, DiagnosticReport } from "@/lib/diagnostics";
 import BottomNav, { ActivityHeaderButton } from "@/components/BottomNav";
 import SwapFamilyTabs, {
   hasFamilyRow,
@@ -482,6 +484,8 @@ export default function Swap() {
     "in" | "out" | "provider" | "slippage" | "fee"
   >();
   const [submitting, setSubmitting] = useState(false);
+  // the last failed submit's "Copy logs"; null: scrubbing failed, no control
+  const [report, setReport] = useState<DiagnosticReport | null>();
 
   const isNativeIn = !tokenIn?.address;
   const isNativeOut = !tokenOut?.address;
@@ -926,6 +930,7 @@ export default function Swap() {
         }),
       });
     setSubmitting(true);
+    setReport(undefined);
     try {
       const account = toAccount({
         address: evmAddress,
@@ -1002,6 +1007,15 @@ export default function Swap() {
       console.error(e);
       toast.error("Swap failed. Please try again.");
       trackSwap("failed");
+      setReport(
+        buildDiagnosticReport("swap", e, {
+          code: rpcErrorCode(e),
+          chainId: chain.id,
+          provider: provider?.name ?? "wrap",
+          extensionVersion: browser.runtime.getManifest().version,
+          walletType: wallet?.type,
+        }),
+      );
     } finally {
       setSubmitting(false);
     }
@@ -1024,6 +1038,7 @@ export default function Swap() {
         ...(kastleFee > 0 && { fee_amount: kastleFee, fee_asset: "KAS" }),
       });
     setSubmitting(true);
+    setReport(undefined);
     try {
       await assertKronVerified(kronMarket, restApis[NetworkType.Mainnet]);
       // Re-quoted against the live curve; refuses below the slippage floor.
@@ -1054,6 +1069,12 @@ export default function Swap() {
       console.error(e);
       toast.error(kronErrorCopy(e, "Swap failed. Please try again."));
       trackSwap("failed");
+      setReport(
+        buildDiagnosticReport("kron-swap", e, {
+          extensionVersion: browser.runtime.getManifest().version,
+          walletType: wallet?.type,
+        }),
+      );
     } finally {
       setSubmitting(false);
     }
@@ -1259,6 +1280,7 @@ export default function Swap() {
       </div>
       <ConfirmButton
         error={error}
+        report={isBraid ? braidSwap.report : report}
         warning={isBraid ? braidSwap.routeWarning : undefined}
         balance={
           isKron

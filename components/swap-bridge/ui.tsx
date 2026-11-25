@@ -19,8 +19,11 @@ import {
 import kasIcon from "@/assets/images/network-logos/kaspa.svg";
 import Layer2AssetImage from "@/components/Layer2AssetImage";
 import toast from "@/components/Toast";
+import ClipboardCopy from "@/components/dashboard/ClipboardCopy";
 import useStorageState from "@/hooks/useStorageState";
+import { BaseError } from "viem";
 import { formatAmount } from "@/lib/format-amount";
+import { DiagnosticReport } from "@/lib/diagnostics";
 import "/node_modules/flag-icons/css/flag-icons.min.css";
 
 export function BottomSheet({
@@ -442,9 +445,20 @@ export function AmountInput({
   );
 }
 
+/** The node's JSON-RPC code, wherever viem wrapped it; off viem, undefined. */
+export const rpcErrorCode = (e: unknown) =>
+  e instanceof BaseError
+    ? (
+        e.walk((c) => typeof (c as { code?: unknown }).code === "number") as {
+          code?: number;
+        } | null
+      )?.code
+    : undefined;
+
 /** Figma 13024:157027 bottom (pinned): error → Balance row (+ Max) → Confirm, 12px apart. */
 export function ConfirmButton({
   error,
+  report,
   warning,
   balance,
   onMax,
@@ -454,6 +468,8 @@ export function ConfirmButton({
   label = "Confirm",
 }: {
   error?: string;
+  /** The last failed submit's, built from the thrown value; null: no control. */
+  report?: DiagnosticReport | null;
   /** Shown verbatim above the button; never gates it. */
   warning?: string;
   /** Pre-formatted, with symbol, e.g. "2,000.24 KAS". */
@@ -471,6 +487,16 @@ export function ConfirmButton({
           <AlertCircle size={16} className="flex-none" />
           {error}
         </p>
+      )}
+      {report && (
+        <ClipboardCopy
+          textToCopy={JSON.stringify(report)}
+          className="mx-auto flex min-h-[44px] cursor-pointer items-center gap-2 px-4"
+        >
+          <span className="text-sm font-semibold text-icy-blue-400">
+            Copy logs
+          </span>
+        </ClipboardCopy>
       )}
       {balance !== undefined && (
         <div className="flex items-center gap-3 bg-[#061e28] px-4 py-2 text-sm">
