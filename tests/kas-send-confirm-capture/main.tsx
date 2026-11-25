@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { FormProvider, useForm } from "react-hook-form";
 import { ConfirmStep } from "@/components/send/kas-send/ConfirmStep";
+import KasSend from "@/components/send/kas-send/KasSend";
 
 window.__kasConfirm = {
   scenario: new URLSearchParams(location.search).get("scenario") ?? "ok",
@@ -35,7 +36,11 @@ function Confirm() {
   );
 }
 
-const router = createMemoryRouter([{ path: "/", element: <Confirm /> }]);
+// ?view=send: the real KasSend -> HotWalletConfirm -> ConfirmStep -> FailStatus
+const view = new URLSearchParams(location.search).get("view");
+const router = createMemoryRouter([
+  { path: "/", element: view === "send" ? <KasSend /> : <Confirm /> },
+]);
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <RouterProvider router={router} />,

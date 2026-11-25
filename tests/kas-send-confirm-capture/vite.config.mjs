@@ -18,12 +18,18 @@ const hooks = {
   "hooks/useKaspaPrice": "useKaspaPrice",
   "hooks/useCurrencyValue": "useCurrencyValue",
   "hooks/useAnalytics": "useAnalytics",
+  "hooks/wallet/useKaspaHotWalletSigner": "useKaspaHotWalletSigner",
+  // KasSend's other steps (?view=send)
+  "components/send/kas-send/DetailsStep": "DetailsStep",
+  "components/send/kas-send/LedgerConfirm": "LedgerConfirm",
+  "components/send/SuccessStatus": "SuccessStatus",
 };
 // Modules whose named exports all come from the stubs.
 const whole = [
   "hooks/useKasFeeEstimate",
   "lib/wallet/transaction-batch",
   "wasm/core/kaspa",
+  "components/screens/Settings",
 ];
 const ext = "(\\.tsx?)?$";
 
@@ -41,10 +47,12 @@ export default defineConfig({
     },
     Unimport.vite({
       presets: ["react"],
-      imports: ["useRpcClientStateful", "useAnalytics"].map((name) => ({
-        name,
-        from: stubs,
-      })),
+      imports: ["useRpcClientStateful", "useAnalytics", "browser"].map(
+        (name) => ({
+          name,
+          from: stubs,
+        }),
+      ),
     }),
     react(),
   ],

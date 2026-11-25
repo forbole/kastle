@@ -14,7 +14,8 @@ import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 import useEvmAddress from "@/hooks/evm/useEvmAddress";
 import useFeeEstimate from "@/hooks/evm/useFeeEstimate";
 import useAnalytics from "@/hooks/useAnalytics.ts";
-import { formatEther } from "viem";
+import { BaseError, formatEther } from "viem";
+import { buildDiagnosticReport, DiagnosticReport } from "@/lib/diagnostics";
 import {
   ALL_SUPPORTED_EVM_L2_CHAINS,
   getChainName,
@@ -44,7 +45,7 @@ export const ConfirmStep = ({
   asset: Erc20Asset;
   onNext: () => void;
   onBack: () => void;
-  onFail: (reason?: string) => void;
+  onFail: (reason?: string, report?: DiagnosticReport | null) => void;
   setOutTxs: (value: string[] | undefined) => void;
   walletSigner?: IWalletWithGetAddress;
 }) => {
@@ -143,13 +144,28 @@ export const ConfirmStep = ({
       onNext();
     } catch (e) {
       console.error(e);
+      const report = buildDiagnosticReport("erc20-send", e, {
+        // the node's JSON-RPC code, wherever viem wrapped it
+        code:
+          e instanceof BaseError
+            ? (
+                e.walk(
+                  (c) => typeof (c as { code?: unknown }).code === "number",
+                ) as { code?: number } | null
+              )?.code
+            : undefined,
+        extensionVersion: browser.runtime.getManifest().version,
+        chainId: asset.chainId,
+        token: asset.symbol,
+        walletType: wallet?.type,
+      });
       // The user asked for more than they hold: show it, don't report it.
       if (isErc20ExceedsBalanceRevert(e)) {
-        onFail(ERC20_EXCEEDS_BALANCE);
+        onFail(ERC20_EXCEEDS_BALANCE, report);
         return;
       }
       captureException(e);
-      onFail();
+      onFail(undefined, report);
     } finally {
       setIsSigning(false);
     }

@@ -15,7 +15,8 @@ import useCurrencyValue from "@/hooks/useCurrencyValue.ts";
 import useEvmAddress from "@/hooks/evm/useEvmAddress";
 import useFeeEstimate from "@/hooks/evm/useFeeEstimate";
 import useAnalytics from "@/hooks/useAnalytics.ts";
-import { formatEther, parseEther } from "viem";
+import { BaseError, formatEther, parseEther } from "viem";
+import { buildDiagnosticReport, DiagnosticReport } from "@/lib/diagnostics";
 import {
   ALL_SUPPORTED_EVM_L2_CHAINS,
   getChainName,
@@ -37,7 +38,7 @@ export const ConfirmStep = ({
   chainId: `0x${string}`;
   onNext: () => void;
   onBack: () => void;
-  onFail: () => void;
+  onFail: (report?: DiagnosticReport | null) => void;
   setOutTxs: (value: string[] | undefined) => void;
   walletSigner?: IWalletWithGetAddress;
 }) => {
@@ -131,7 +132,22 @@ export const ConfirmStep = ({
     } catch (e) {
       captureException(e);
       console.error(e);
-      onFail();
+      onFail(
+        buildDiagnosticReport("evm-kas-send", e, {
+          // the node's JSON-RPC code, wherever viem wrapped it
+          code:
+            e instanceof BaseError
+              ? (
+                  e.walk(
+                    (c) => typeof (c as { code?: unknown }).code === "number",
+                  ) as { code?: number } | null
+                )?.code
+              : undefined,
+          extensionVersion: browser.runtime.getManifest().version,
+          chainId,
+          walletType: wallet?.type,
+        }),
+      );
     } finally {
       setIsSigning(false);
     }

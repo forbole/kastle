@@ -49,10 +49,24 @@ export function DetailsStep({ onNext }: { onNext: () => void }) {
   return null;
 }
 
-// Reached only if estimateGas resolves; no case in the spec gets here.
+// Reached only if estimateGas resolves. ?send=hostile: the broadcast throws an
+// error whose `.cause` getter throws, so its report cannot be built.
 export const sendEvmTransaction = async () => {
   window.__erc20.sent++;
+  if (new URLSearchParams(location.search).get("send") === "hostile") {
+    const error = new Error("node went away");
+    Object.defineProperty(error, "cause", {
+      get() {
+        throw new Error("hostile cause");
+      },
+    });
+    throw error;
+  }
   return "0xtx";
+};
+
+export const browser = {
+  runtime: { getManifest: () => ({ version: "9.9.9" }) },
 };
 
 export const formatUsdAmount = (amount: number) => `$${amount}`;

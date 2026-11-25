@@ -1,3 +1,4 @@
+import { DiagnosticReport } from "@/lib/diagnostics";
 import { ConfirmStep } from "@/components/send/evm/evm-kas-send/ConfirmStep";
 import useEvmHotWalletSigner from "@/hooks/wallet/useEvmHotWalletSigner";
 
@@ -6,7 +7,7 @@ type HotWalletConfirmProps = {
   onNext: () => void;
   onBack: () => void;
   setOutTxs: (value: string[] | undefined) => void;
-  onFail: () => void;
+  onFail: (report?: DiagnosticReport | null) => void;
 };
 
 export default function HotWalletConfirm({

@@ -7,6 +7,7 @@ import { Broadcasting } from "../../Broadcasting";
 import SuccessStatus from "../SuccessStatus";
 import FailStatus from "../FailStatus";
 import z from "zod";
+import { DiagnosticReport } from "@/lib/diagnostics";
 import useWalletManager from "@/hooks/wallet/useWalletManager";
 import useErc20Info from "@/hooks/evm/useErc20Info";
 import useAnalytics from "@/hooks/useAnalytics";
@@ -50,6 +51,7 @@ export default function Erc20Send() {
   }>();
   const [outTxs, setOutTxs] = useState<string[]>();
   const [failReason, setFailReason] = useState<string>();
+  const [failReport, setFailReport] = useState<DiagnosticReport | null>();
 
   const asset = useErc20Info(
     chainId as `0x${string}`,
@@ -89,6 +91,7 @@ export default function Erc20Send() {
             onNext={() => {
               // A new attempt never shows the previous attempt's reason.
               setFailReason(undefined);
+              setFailReport(undefined);
               setStep("confirm");
             }}
             onBack={onBack}
@@ -100,8 +103,9 @@ export default function Erc20Send() {
             onNext={() => setStep("broadcast")}
             onBack={onBack}
             setOutTxs={setOutTxs}
-            onFail={(reason) => {
+            onFail={(reason, report) => {
               setFailReason(reason);
+              setFailReport(report);
               if (asset)
                 emitSendCompleted({
                   type: "ERC20",
@@ -152,6 +156,7 @@ export default function Erc20Send() {
             transactionIds={outTxs}
             tokenName={asset.symbol}
             description={failReason}
+            report={failReport}
           />
         )}
       </FormProvider>

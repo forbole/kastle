@@ -1,3 +1,4 @@
+import { DiagnosticReport } from "@/lib/diagnostics";
 import { ConfirmStep } from "@/components/send/kas-send/ConfirmStep";
 import useLedgerTransport from "@/hooks/useLedgerTransport";
 import LedgerConnectForSign from "@/components/screens/ledger-connect/LedgerConnectForSign";
@@ -8,7 +9,7 @@ type LedgerConfirmProps = {
   onNext: () => void;
   onBack: () => void;
   setOutTxs: (value: string[] | undefined) => void;
-  onFail: (reason?: string) => void;
+  onFail: (reason?: string, report?: DiagnosticReport | null) => void;
 };
 
 export default function LedgerConfirm({

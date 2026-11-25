@@ -20,6 +20,7 @@ import { isFragmentationError, sendFailReason } from "@/lib/kaspa.ts";
 import { useKasFeeEstimate } from "@/hooks/useKasFeeEstimate";
 import { isShortfall, planTransfer } from "@/lib/sendFee";
 import useKaspaBalance from "@/hooks/wallet/useKaspaBalance";
+import { buildDiagnosticReport, DiagnosticReport } from "@/lib/diagnostics";
 
 export const ConfirmStep = ({
   onNext,
@@ -30,7 +31,7 @@ export const ConfirmStep = ({
 }: {
   onNext: () => void;
   onBack: () => void;
-  onFail: (reason?: string) => void;
+  onFail: (reason?: string, report?: DiagnosticReport | null) => void;
   setOutTxs: (value: string[] | undefined) => void;
   walletSigner?: IWalletWithGetAddress;
 }) => {
@@ -145,6 +146,14 @@ export const ConfirmStep = ({
               ? undefined
               : BigInt(Math.round(displayedBalance * 1e8)),
           spendableSompi,
+        }),
+        // from the thrown value: the reason above drops the node's text
+        buildDiagnosticReport("kas-send", e, {
+          phase: building ? "build" : "broadcast",
+          extensionVersion: browser.runtime.getManifest().version,
+          networkId,
+          walletType: wallet?.type,
+          isLegacyWalletEnabled: wallet?.isLegacyWalletEnabled,
         }),
       );
     } finally {

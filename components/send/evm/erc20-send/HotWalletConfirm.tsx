@@ -1,3 +1,4 @@
+import { DiagnosticReport } from "@/lib/diagnostics";
 import { ConfirmStep } from "@/components/send/evm/erc20-send/ConfirmStep";
 import { Erc20Asset } from "@/contexts/EvmAssets";
 import useEvmHotWalletSigner from "@/hooks/wallet/useEvmHotWalletSigner";
@@ -7,7 +8,7 @@ type HotWalletConfirmProps = {
   onNext: () => void;
   onBack: () => void;
   setOutTxs: (value: string[] | undefined) => void;
-  onFail: (reason?: string) => void;
+  onFail: (reason?: string, report?: DiagnosticReport | null) => void;
 };
 
 export default function HotWalletConfirm({
