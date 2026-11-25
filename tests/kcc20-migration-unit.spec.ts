@@ -93,6 +93,8 @@ function renderMigration({
     "@/lib/utils.ts": { isProduction: false },
     "@/lib/kcc20/local-opt-in": { standardLocalOptIn: () => false },
     "@/lib/kasseal/local-opt-in": { kassealLocalOptIn: () => false },
+    // No proxy token: KaspaRocket off, and nothing here reaches the proxy.
+    "@/lib/kasparocket/config": { rocketConfigured: () => false },
   });
   const run = load<HookModule>("hooks/useKcc20Migration.ts", {
     react,

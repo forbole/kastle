@@ -6,6 +6,7 @@ import ts from "typescript";
 import { test, expect } from "@playwright/test";
 import { Window } from "happy-dom";
 import { BRAID_PROVIDER } from "@/lib/braid/constants";
+import { KASPAROCKET_PROVIDER } from "@/lib/kasparocket/config";
 import type {
   L1Leg,
   L1Listings,
@@ -58,6 +59,7 @@ const l1 = loadModule("hooks/swap/l1Providers.ts", {
   react: React,
   "@/contexts/SettingsContext": { NetworkType },
   "@/lib/braid/constants": { BRAID_PROVIDER },
+  "@/lib/kasparocket/config": { KASPAROCKET_PROVIDER },
   "@/assets/images/providers/braid-logo.svg": asset(
     "@/assets/images/providers/braid-logo.svg",
   ),
@@ -192,8 +194,10 @@ async function mountProvider(props: Props) {
 
 const KASSEAL = new Set([CURVE_ID]);
 const BOTH = { kasseal: KASSEAL, kron: KRON };
+// KaspaRocket off: the hook always returns a boolean, and `enabled` reads a
+// missing flag as on (`?? true`), which would add its row to every sheet here.
 const flagsWith = (isKassealEnabled: boolean) =>
-  ({ isKassealEnabled }) as unknown as Parameters<
+  ({ isKassealEnabled, isKaspaRocketEnabled: false }) as unknown as Parameters<
     NonNullable<L1Provider["enabled"]>
   >[0];
 const ON = flagsWith(true);
