@@ -224,7 +224,7 @@ test("ERC-20 node error: Copy logs has the node's text, scrubbed, and -32000", a
   expect(report.code).toBe(-32000);
 });
 
-test("ERC-20 report fails to scrub: fail screen, no Copy logs", async ({
+test("ERC-20 broadcast error whose .cause getter throws: fail screen, no Copy logs", async ({
   page,
 }) => {
   await failWith(page, "send=hostile", { result: "0x5208" });
@@ -249,7 +249,7 @@ test("EVM KAS node error: Copy logs has the node's text, scrubbed, and -32000", 
   expect(report.extensionVersion).toBe("9.9.9");
 });
 
-test("EVM KAS report fails to scrub: fail screen, no Copy logs", async ({
+test("EVM KAS broadcast error whose .cause getter throws: fail screen, no Copy logs", async ({
   page,
 }) => {
   await failWith(page, "flow=kas&send=hostile", { result: "0x5208" });

@@ -5,10 +5,11 @@ import { readFileSync, existsSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-// The real Bridge screen, built by tests/swap-bridge-copy-logs/vite.config.mjs
-// with its hooks and the WASM stubbed: a failed submit puts "Copy logs" in the
-// pinned action bar, its report built from the thrown value, never from the
-// toast's copy. viem is real: the Kasplex RPC is answered here.
+// The real Bridge and Swap screens, built by
+// tests/swap-bridge-copy-logs/vite.config.mjs with their hooks and the WASM
+// stubbed: a failed submit puts "Copy logs" in the pinned action bar, its
+// report built from the thrown value, never from the toast's copy. viem is
+// real: the Kasplex and Igra RPCs are answered here.
 
 const RPC = "https://evmrpc.kasplex.org/";
 const ADDRESS =
@@ -78,13 +79,16 @@ async function open(page: Page, scenario: string) {
 const confirm = (page: Page) =>
   page.getByRole("button", { name: "Confirm", exact: true });
 
-async function submit(page: Page, amount: string) {
+/** Confirms, then waits for the failure: `toast` shown, or a "failed" emit. */
+async function submit(page: Page, amount: string, toast?: string) {
   await page.locator("input").first().fill(amount);
   await expect(confirm(page)).toBeEnabled();
   await confirm(page).click();
-  await expect
-    .poll(() => page.evaluate(() => window.__bridge.emitted))
-    .toEqual(["failed"]);
+  if (toast) await expect(page.getByText(toast)).toBeVisible();
+  else
+    await expect
+      .poll(() => page.evaluate(() => window.__bridge.emitted))
+      .toEqual(["failed"]);
 }
 
 async function copied(page: Page) {
@@ -180,7 +184,7 @@ test("EVM leg fails: Copy logs carries the node's JSON-RPC code", async ({
   expect(errors).toEqual([]);
 });
 
-test("a report that cannot be scrubbed renders no copy control", async ({
+test("an error whose toString throws builds no report: no copy control", async ({
   page,
 }) => {
   const errors = await open(page, "hostile");
@@ -189,5 +193,122 @@ test("a report that cannot be scrubbed renders no copy control", async ({
     page.getByText("Bridge failed. Please try again."),
   ).toBeVisible();
   await expect(page.getByRole("button", { name: "Copy logs" })).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+// Swap: every request off the harness gets a JSON-RPC error, so the EVM legs
+// fail on their first call with the node's -32000 and nothing leaves the box.
+async function openSwap(page: Page, scenario: string) {
+  await page.route(
+    (url) => !url.href.startsWith(base),
+    async (route) => {
+      const cors = {
+        "access-control-allow-origin": "*",
+        "access-control-allow-headers": "*",
+      };
+      const req = route.request();
+      if (req.method() === "OPTIONS")
+        return route.fulfill({ status: 204, headers: cors });
+      if (req.method() !== "POST") return route.abort();
+      const { id } = req.postDataJSON();
+      await route.fulfill({
+        status: 200,
+        headers: { ...cors, "content-type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id,
+          error: { code: -32000, message: `nonce too low ${ADDRESS}` },
+        }),
+      });
+    },
+  );
+  return open(page, `${scenario}&screen=swap`);
+}
+
+const sheet = (page: Page) => page.locator("dialog[open]");
+
+/** iKAS -> KAS on Kaspa L1 -> `symbol`, the provider following the pair. */
+async function pickL1(page: Page, symbol: string) {
+  await page.getByRole("button", { name: "iKAS", exact: true }).first().click();
+  await sheet(page).getByRole("button", { name: "Kaspa", exact: true }).click();
+  await page.keyboard.press("Escape");
+  await expect(sheet(page)).toHaveCount(0);
+  await page.getByRole("button", { name: "Select" }).click();
+  await sheet(page)
+    .getByRole("button", { name: new RegExp(symbol) })
+    .click();
+  await page.keyboard.press("Escape");
+  await expect(sheet(page)).toHaveCount(0);
+}
+
+for (const leg of [
+  {
+    name: "KRON",
+    symbol: "KRN",
+    flow: "kron-swap",
+    reason: "KRON broadcast rejected",
+    cause: "orphan transaction",
+    toast: "Swap failed. Please try again.",
+  },
+  {
+    name: "Braid",
+    symbol: "BRD",
+    flow: "braid-swap",
+    reason: "Braid prepare refused",
+    cause: "deadline passed",
+    // Braid emits no swap analytics: its toast marks the failure
+    toast: "Unable to prepare the swap. Please try again.",
+  },
+]) {
+  test(`Swap ${leg.name} leg fails: Copy logs carries the thrown reason and cause, scrubbed`, async ({
+    page,
+  }) => {
+    const errors = await openSwap(page, "node");
+    await expect(page.getByRole("button", { name: "Copy logs" })).toHaveCount(
+      0,
+    );
+    await pickL1(page, leg.symbol);
+    await submit(page, "1", leg.toast);
+    const report = await copied(page);
+    expect(report.flow).toBe(leg.flow);
+    expect(report.error).toContain(leg.reason);
+    expect(report.error).toContain("[ADDRESS]");
+    expect(report.cause).toContain(leg.cause);
+    if (leg.name === "KRON") {
+      expect(report.extensionVersion).toBe("9.9.9");
+      expect(report.walletType).toBe("hot");
+    } else {
+      // failed at prepare: no ref yet, nothing sent
+      expect(report.sent).toBe(false);
+    }
+    await expectConfirmUnblocked(page);
+    expect(errors).toEqual([]);
+  });
+
+  test(`Swap ${leg.name} leg, an error whose toString throws builds no report: no copy control`, async ({
+    page,
+  }) => {
+    const errors = await openSwap(page, "hostile");
+    await pickL1(page, leg.symbol);
+    await submit(page, "1", leg.toast);
+    await expect(page.getByRole("button", { name: "Copy logs" })).toHaveCount(
+      0,
+    );
+    expect(errors).toEqual([]);
+  });
+}
+
+test("Swap EVM leg (iKAS -> WiKAS wrap) fails: Copy logs carries the node's JSON-RPC code", async ({
+  page,
+}) => {
+  const errors = await openSwap(page, "node");
+  await submit(page, "1");
+  const report = await copied(page);
+  expect(report.flow).toBe("swap");
+  expect(report.provider).toBe("wrap");
+  expect(report.code).toBe(-32000);
+  expect(report.error).toContain("nonce too low");
+  expect(report.walletType).toBe("hot");
+  await expectConfirmUnblocked(page);
   expect(errors).toEqual([]);
 });

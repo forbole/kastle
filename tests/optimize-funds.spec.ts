@@ -331,13 +331,24 @@ test("a signer failure before the query: the report says the query never ran", a
   expect(errors).toEqual([]);
 });
 
-test("scrubbing fails: the banner shows, Retry stays, no copy control", async ({
+test("a UTXO query error whose .cause getter throws: the banner shows, Retry stays, no copy control", async ({
   page,
 }) => {
   const errors = await open(page, "account=A&signer=A&utxo=hostile");
   await expect(page.getByRole("alert")).toHaveText("Error: node went away");
   await expect(page.getByRole("button", { name: "Retry" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Copy logs" })).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test("UTXO query error naming the address: Copy logs carries it scrubbed", async ({
+  page,
+}) => {
+  await stubClipboard(page);
+  const errors = await open(page, "account=A&signer=A&utxo=node");
+  // copyLogs asserts no "kaspa:" survives; this error really carries one
+  const report = await copyLogs(page);
+  expect(report.error).toBe("Error: getUtxosByAddresses failed for [ADDRESS]");
   expect(errors).toEqual([]);
 });
 

@@ -1,6 +1,7 @@
-// Builds the real Bridge screen (its catch -> ConfirmButton "Copy logs") with
-// its hooks, the WASM, the broadcaster and Sentry swapped for ./stubs.tsx.
-// viem is real: the spec answers the EVM RPC.
+// Builds the real Bridge and Swap screens (their catches -> ConfirmButton
+// "Copy logs"; Swap's Braid leg through the real useBraidSwap) with their
+// hooks, the WASM, the KRON and Braid clients, the broadcaster and Sentry
+// swapped for ./stubs.tsx. viem is real: the spec answers the EVM RPC.
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import Unimport from "unimport/unplugin";
@@ -23,6 +24,9 @@ const hooks = {
   "hooks/useAnalytics": "useAnalytics",
   "hooks/useStorageState": "useStorageState",
   "components/BottomNav": "BottomNav",
+  "hooks/useSwitchNetwork": "useSwitchNetwork",
+  "hooks/evm/useErc20Assets": "useErc20Assets",
+  "lib/kcc20/useKcc20Tokens": "useKcc20Tokens",
 };
 // Modules whose named exports all come from the stubs.
 const whole = [
@@ -33,6 +37,22 @@ const whole = [
   "lib/wallet/transaction-batch",
   "contexts/SettingsContext",
   "wasm/core/kaspa",
+  // Swap
+  "hooks/useFeatureFlags",
+  "hooks/useSettings",
+  "hooks/evm/useErc20Prices",
+  "hooks/evm/useErc20Balance",
+  "hooks/evm/provider/useZealousSwap",
+  "hooks/swap/braidListing",
+  "lib/kcc20",
+  "lib/kcc20/swap",
+  "lib/kcc20/useKcc20Price",
+  "lib/hidden-tokens",
+  "lib/braid/client",
+  "lib/braid/pending",
+  "lib/braid/signer",
+  "lib/wallet/sign-script",
+  "components/screens/Settings",
 ];
 const ext = "(\\.tsx?)?$";
 

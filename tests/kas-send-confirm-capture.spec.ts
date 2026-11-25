@@ -164,7 +164,9 @@ test("build-phase fragmentation: the reason shows, Copy logs has the raw error",
   expect(report.phase).toBe("build");
 });
 
-test("report fails to scrub: fail screen, no Copy logs", async ({ page }) => {
+test("broadcast error whose .cause getter throws: fail screen, no Copy logs", async ({
+  page,
+}) => {
   await failSend(page, "hostile");
   await expect(page.getByText("The carriage couldn't deliver")).toBeVisible();
   await expect(page.getByRole("button", { name: "Copy logs" })).toHaveCount(0);
