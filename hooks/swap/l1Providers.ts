@@ -3,12 +3,14 @@ import braidLogo from "@/assets/images/providers/braid-logo.svg";
 import kronLogo from "@/assets/images/providers/kron-logo.png";
 import { NetworkType } from "@/contexts/SettingsContext";
 import { BRAID_PROVIDER } from "@/lib/braid/constants";
+import { KASPAROCKET_PROVIDER } from "@/lib/kasparocket/config";
 import type { KronMarket } from "@/lib/kcc20/swap";
 import type { useFeatureFlags } from "@/hooks/useFeatureFlags";
 
 // Open: a provider registers its own id.
 export type L1ProviderId =
   | "kasseal"
+  | typeof KASPAROCKET_PROVIDER.id
   | "kron"
   | typeof BRAID_PROVIDER.id
   | (string & NonNullable<unknown>);
@@ -64,8 +66,8 @@ export const KASSEAL_NETWORKS: readonly string[] = [
   NetworkType.TestnetT10,
 ];
 
-// Kasseal first, as on mobile: the default for a pair it routes; KRON next,
-// then Braid. A choice of a later one sticks while the pair still fits it.
+// Kasseal first, as on mobile: the default for a pair it routes; KaspaRocket
+// next, then KRON, then Braid. A choice of a later one sticks while the pair still fits it.
 export const L1_PROVIDERS: readonly L1Provider[] = [
   {
     id: "kasseal",
@@ -78,6 +80,19 @@ export const L1_PROVIDERS: readonly L1Provider[] = [
         KASSEAL_NETWORKS.includes(networkId ?? "") &&
         !!token &&
         !!listings?.kasseal?.has(token.covenantId)
+      );
+    },
+  },
+  {
+    ...KASPAROCKET_PROVIDER,
+    enabled: (flags) => flags.isKaspaRocketEnabled,
+    // Mainnet only, and only a token with a pool (useKaspaRocketListing).
+    supports: (a, b, networkId, listings) => {
+      const token = kcc20Of(a, b);
+      return (
+        networkId === NetworkType.Mainnet &&
+        !!token &&
+        !!listings?.kasparocket?.has(token.covenantId)
       );
     },
   },

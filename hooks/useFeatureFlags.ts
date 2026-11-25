@@ -3,6 +3,7 @@ import { PostHogWrapperContext } from "@/contexts/PostHogWrapperProvider.tsx";
 import { isProduction } from "@/lib/utils.ts";
 import { standardLocalOptIn } from "@/lib/kcc20/local-opt-in";
 import { kassealLocalOptIn } from "@/lib/kasseal/local-opt-in";
+import { rocketConfigured } from "@/lib/kasparocket/config";
 
 const SWAP_FLAG_KEY = "swap_enabled_extension";
 const BRIDGE_FLAG_KEY = "bridge_enabled_extension";
@@ -17,6 +18,9 @@ const DOTK_FLAG_KEY = "dotk_enabled_extension";
 // like the KCC-20 standard rows. No UI reads it yet: the launchpad screens were
 // removed, and Kasseal assets will come into the Swap UI later.
 const KASSEAL_FLAG_KEY = "kasseal_enabled_extension";
+// Shared with mobile. Opt-in in every build, and only with the proxy token
+// built in: without it every KaspaRocket request is refused anyway.
+const KASPAROCKET_FLAG_KEY = "kasparocket_swaps";
 // Shared with mobile (same key on every platform). Opt-in, no dev override:
 // the Bridge migrate row only shows on an explicit true.
 const KCC20_MIGRATION_ROUTE_FLAG_KEY = "kcc20_migration_route";
@@ -69,6 +73,8 @@ export function useFeatureFlags() {
         [KASSEAL_FLAG_KEY]:
           postHog.getFeatureFlags()?.[KASSEAL_FLAG_KEY] ??
           (postHog.getFeatureFlags() ? false : undefined),
+        [KASPAROCKET_FLAG_KEY]:
+          postHog.getFeatureFlags()?.[KASPAROCKET_FLAG_KEY],
         [KCC20_MIGRATION_ROUTE_FLAG_KEY]:
           postHog.getFeatureFlags()?.[KCC20_MIGRATION_ROUTE_FLAG_KEY],
       });
@@ -104,6 +110,9 @@ export function useFeatureFlags() {
     // Same bounded wait as KCC-20.
     isKassealLoading:
       isProduction && flags[KASSEAL_FLAG_KEY] === undefined && !flagsTimedOut,
+    // Only an explicit `true` enables, in every build, and only with a token.
+    isKaspaRocketEnabled:
+      flags[KASPAROCKET_FLAG_KEY] === true && rocketConfigured(),
     // Opt-in in every build: missing, not loaded or non-true means hidden.
     kcc20MigrationRoute: flags[KCC20_MIGRATION_ROUTE_FLAG_KEY] === true,
   };

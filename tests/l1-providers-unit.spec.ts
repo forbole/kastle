@@ -6,6 +6,7 @@ import ts from "typescript";
 import { test, expect } from "@playwright/test";
 import { Window } from "happy-dom";
 import { BRAID_PROVIDER } from "@/lib/braid/constants";
+import { KASPAROCKET_PROVIDER } from "@/lib/kasparocket/config";
 import type {
   L1Leg,
   L1Listings,
@@ -58,6 +59,7 @@ const l1 = loadModule("hooks/swap/l1Providers.ts", {
   react: React,
   "@/contexts/SettingsContext": { NetworkType },
   "@/lib/braid/constants": { BRAID_PROVIDER },
+  "@/lib/kasparocket/config": { KASPAROCKET_PROVIDER },
   "@/assets/images/providers/braid-logo.svg": asset(
     "@/assets/images/providers/braid-logo.svg",
   ),
@@ -184,9 +186,10 @@ async function mountProvider(props: Props) {
   };
 }
 
-test("Kasseal is listed first, then KRON, then Braid", () => {
+test("Kasseal is listed first, then KaspaRocket, KRON, Braid", () => {
   expect(L1_PROVIDERS.map((p: L1Provider) => [p.id, p.name])).toEqual([
     ["kasseal", "Kasseal"],
+    ["kasparocket", "KaspaRocket"],
     ["kron", "KRON"],
     ["braid", "Braid"],
   ]);
@@ -230,6 +233,8 @@ test("each provider row draws the provider's own mark beside its name", async ()
   expect(rows).toEqual([
     // Kasseal has no mark, as on mobile: an empty decorative slot keeps the rows aligned.
     { name: "Kasseal", src: null, alt: "" },
+    // No KaspaRocket logo yet (an owner decision): the name alone.
+    { name: "KaspaRocket", src: null, alt: "" },
     { name: "KRON", src: "/assets/images/providers/kron-logo.png", alt: "" },
     { name: "Braid", src: "/assets/images/providers/braid-logo.svg", alt: "" },
   ]);
@@ -493,4 +498,70 @@ test("the handler's feeLines draw the fee rows: network first, one row per other
   expect(await feeRows([])).toEqual([
     { label: "Network fees", value: "-", note: undefined },
   ]);
+});
+
+test.describe("KaspaRocket", () => {
+  const rocket = () => provider("kasparocket");
+  const LISTED = { kasparocket: new Set([CURVE_ID]) } as L1Listings;
+  const ON = { isKaspaRocketEnabled: true } as typeof FLAGS;
+
+  test("routes a pooled token on mainnet, either way round", () => {
+    expect(rocket().supports(KAS, CURVE, MAIN, LISTED)).toBe(true);
+    expect(rocket().supports(CURVE, KAS, MAIN, LISTED)).toBe(true);
+  });
+
+  test("off mainnet it does not route, even a pooled token", () => {
+    expect(rocket().supports(KAS, CURVE, TESTNET, LISTED)).toBe(false);
+  });
+
+  test("an unknown listing, or one without the token, does not route", () => {
+    expect(rocket().supports(KAS, CURVE, MAIN, {})).toBe(false);
+    expect(rocket().supports(KAS, CURVE, MAIN, undefined)).toBe(false);
+    // A token whose pool is null is absent from the set.
+    expect(
+      rocket().supports(KAS, CURVE, MAIN, { kasparocket: new Set<string>() }),
+    ).toBe(false);
+  });
+
+  test("flag off (or no proxy token): no sheet row at all", async () => {
+    const rows = await sheetRows({
+      providers: [provider("kron"), rocket()],
+      supporting: [provider("kron"), rocket()],
+      flags: { isKaspaRocketEnabled: false },
+    });
+    expect(rows.map((r) => r.name)).toEqual(["KRON"]);
+  });
+
+  test("flag on but unknown listing or testnet: KRON stays the route, the row greyed", async () => {
+    for (const [networkId, listings] of [
+      [MAIN, {}],
+      [TESTNET, LISTED],
+    ] as const) {
+      const supporting = L1_PROVIDERS.filter((p: L1Provider) =>
+        p.supports(KAS, CURVE, networkId, { ...listings, kron: KRON }),
+      );
+      expect(supporting).not.toContain(rocket());
+      const rows = await sheetRows({
+        providers: [provider("kron"), rocket()],
+        supporting,
+        flags: ON,
+      });
+      expect(rows.find((r) => r.name === "KaspaRocket")).toMatchObject({
+        subtitle: "Unsupported Pair",
+        disabled: true,
+      });
+    }
+  });
+
+  test("flag on and listed on mainnet: its row is selectable", async () => {
+    const rows = await sheetRows({
+      providers: [rocket()],
+      supporting: [rocket()],
+      flags: ON,
+      currentId: "kasparocket",
+    });
+    expect(rows).toEqual([
+      { name: "KaspaRocket", subtitle: undefined, disabled: false },
+    ]);
+  });
 });

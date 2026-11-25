@@ -21,6 +21,7 @@ function loadFeatureFlagsModule(
     setTimeout = globalThis.setTimeout,
     localOptIn = false,
     kassealOptIn = false,
+    rocketToken = false,
   } = {},
 ): FeatureFlagsModule {
   const source = fs.readFileSync(
@@ -41,6 +42,8 @@ function loadFeatureFlagsModule(
     "@/lib/kcc20/local-opt-in": { standardLocalOptIn: () => localOptIn },
     "@/lib/kcc20/local-opt-in.ts": { standardLocalOptIn: () => localOptIn },
     "@/lib/kasseal/local-opt-in": { kassealLocalOptIn: () => kassealOptIn },
+    // Reads the proxy token from `import.meta.env`, which CommonJS cannot hold.
+    "@/lib/kasparocket/config": { rocketConfigured: () => rocketToken },
   };
   const module = { exports: {} as FeatureFlagsModule };
   new Function("require", "module", "exports", "setTimeout", outputText)(
@@ -115,6 +118,7 @@ function renderFeatureFlags(
     isProduction?: boolean;
     localOptIn?: boolean;
     kassealOptIn?: boolean;
+    rocketToken?: boolean;
   } = {},
 ) {
   let state = {};
@@ -353,5 +357,34 @@ test.describe("useFeatureFlags Kasseal (development)", () => {
       renderFeatureFlags({}, { kassealOptIn: true, isProduction: true })
         .isKassealEnabled,
     ).toBe(false);
+  });
+});
+
+test.describe("useFeatureFlags KaspaRocket", () => {
+  const on = { kasparocket_swaps: true };
+
+  test("needs both an explicit true and the proxy token", () => {
+    expect(
+      renderFeatureFlags(on, { rocketToken: true }).isKaspaRocketEnabled,
+    ).toBe(true);
+    // No token built in: off whatever the flag says.
+    expect(renderFeatureFlags(on).isKaspaRocketEnabled).toBe(false);
+    expect(
+      renderFeatureFlags(on, { rocketToken: true, isProduction: true })
+        .isKaspaRocketEnabled,
+    ).toBe(true);
+  });
+
+  test("missing, false or a string is off, even with the token", () => {
+    for (const flags of <FeatureFlags[]>[
+      {},
+      undefined,
+      { kasparocket_swaps: false },
+      { kasparocket_swaps: "true" },
+    ]) {
+      expect(
+        renderFeatureFlags(flags, { rocketToken: true }).isKaspaRocketEnabled,
+      ).toBe(false);
+    }
   });
 });

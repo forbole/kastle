@@ -1,0 +1,102 @@
+{
+  "note": "SYNTHETIC: hand-built v1 pool buy in the PlannedTransaction shape of @kasparocket/sdk@0.1.6; serverSighash frozen from @dotk/sdk-tx schnorrSighash, not a server build",
+  "privateKeyHex": "1111111111111111111111111111111111111111111111111111111111111111",
+  "xOnlyPk": "4f355bdcb7cc0af728ef3cceb9615d90684bb5b2ca5f859ab0f0b704075871aa",
+  "tokenId": "c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7",
+  "lpCovenantId": "e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1",
+  "plan": {
+    "networkId": "mainnet",
+    "transactions": [
+      {
+        "tx": {
+          "version": 1,
+          "inputs": [
+            {
+              "transactionId": "0101010101010101010101010101010101010101010101010101010101010101",
+              "index": 0,
+              "sequence": "0",
+              "sigOpCount": 1,
+              "computeBudget": 0,
+              "signatureScript": "",
+              "utxo": {
+                "address": null,
+                "amount": "250000000",
+                "scriptPublicKey": "0000204f355bdcb7cc0af728ef3cceb9615d90684bb5b2ca5f859ab0f0b704075871aaac",
+                "blockDaaScore": "9000001",
+                "isCoinbase": false
+              }
+            },
+            {
+              "transactionId": "0202020202020202020202020202020202020202020202020202020202020202",
+              "index": 1,
+              "sequence": "0",
+              "sigOpCount": 0,
+              "computeBudget": 10,
+              "signatureScript": "51",
+              "utxo": {
+                "address": null,
+                "amount": "100000000000",
+                "scriptPublicKey": "0000aa20cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd87",
+                "blockDaaScore": "9000002",
+                "isCoinbase": false
+              }
+            }
+          ],
+          "outputs": [
+            {
+              "value": "100100000000",
+              "scriptPublicKey": "0000aa20cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd87",
+              "covenant": {
+                "authorizingInput": 1,
+                "covenantId": "e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1"
+              }
+            },
+            {
+              "value": "1000",
+              "scriptPublicKey": "0000204f355bdcb7cc0af728ef3cceb9615d90684bb5b2ca5f859ab0f0b704075871aaac",
+              "covenant": {
+                "authorizingInput": 1,
+                "covenantId": "c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7"
+              }
+            },
+            {
+              "value": "140000000",
+              "scriptPublicKey": "0000204f355bdcb7cc0af728ef3cceb9615d90684bb5b2ca5f859ab0f0b704075871aaac",
+              "covenant": null
+            }
+          ],
+          "lockTime": "0",
+          "subnetworkId": "0000000000000000000000000000000000000000",
+          "gas": "0",
+          "payload": ""
+        },
+        "signingInstructions": [
+          {
+            "inputIndex": 0,
+            "kind": "p2pkh",
+            "sigscript": null,
+            "sigOffsets": [],
+            "sighash": "52aec815148881db1fd07859a67f2756b4fb4fb450b4587801c47b92728d6bd9"
+          },
+          {
+            "inputIndex": 1,
+            "kind": "final",
+            "sigscript": null,
+            "sigOffsets": []
+          }
+        ]
+      }
+    ],
+    "summary": {
+      "type": "swap",
+      "kasFlowSompi": "100000000"
+    }
+  },
+  "quote": {
+    "direction": "buy",
+    "amountTokens": "1000",
+    "kasFlowSompi": "100000000",
+    "netKasSompi": "103000000",
+    "uneconomic": false
+  }
+}
