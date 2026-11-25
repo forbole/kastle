@@ -7,7 +7,10 @@ import {
   type DiagnosticReport,
 } from "@/lib/diagnostics";
 import type { IWallet } from "@/lib/wallet/wallet-interface";
-import { kaspaRocketErrorCopy, makeKaspaRocket } from "@/lib/kasparocket/client";
+import {
+  kaspaRocketErrorCopy,
+  makeKaspaRocket,
+} from "@/lib/kasparocket/client";
 import {
   kaspaRocketMinOrderError,
   useKaspaRocketProtocol,
@@ -84,11 +87,11 @@ export function useKaspaRocketSwap(i: KaspaRocketSwapInput): L1SwapHandlers {
   const { side, tokenId, address, amountUnits } = i;
   const live = i.on && i.active;
   const [client] = useState(() => makeKaspaRocket());
-  const { pool, error: poolError, isLoading: poolLoading } = useKaspaRocketPool(
-    client,
-    live,
-    tokenId,
-  );
+  const {
+    pool,
+    error: poolError,
+    isLoading: poolLoading,
+  } = useKaspaRocketPool(client, live, tokenId);
   const { fees } = useKaspaRocketProtocol(client, live);
   const settled = useDebounced(amountUnits);
   const bps = Math.round(i.slippage * 100);
@@ -106,7 +109,15 @@ export function useKaspaRocketSwap(i: KaspaRocketSwapInput): L1SwapHandlers {
 
   const quoteKey =
     live && tokenId && pool && address && settled > 0n
-      ? (["kasparocketQuote", tokenId, pool, side, settled.toString(), bps, address] as const)
+      ? ([
+          "kasparocketQuote",
+          tokenId,
+          pool,
+          side,
+          settled.toString(),
+          bps,
+          address,
+        ] as const)
       : null;
   const {
     data: quote,
@@ -120,10 +131,16 @@ export function useKaspaRocketSwap(i: KaspaRocketSwapInput): L1SwapHandlers {
         tokenId: tokenId!,
         lpCovenantId: pool!,
         direction: side,
-        ...(side === "buy" ? { kasBudgetSompi: settled } : { amountTokens: settled }),
+        ...(side === "buy"
+          ? { kasBudgetSompi: settled }
+          : { amountTokens: settled }),
       }),
     // Paused while signing: a refresh never swaps the quote mid-confirm.
-    { refreshInterval: 15_000, isPaused: () => signingRef.current, revalidateOnFocus: false },
+    {
+      refreshInterval: 15_000,
+      isPaused: () => signingRef.current,
+      revalidateOnFocus: false,
+    },
   );
 
   // Quote, then plan, then preview: the confirm signs this plan or nothing.
@@ -141,10 +158,14 @@ export function useKaspaRocketSwap(i: KaspaRocketSwapInput): L1SwapHandlers {
         lpCovenantId: pool!,
         address: address!,
         direction: side,
-        ...(side === "buy" ? { kasBudgetSompi: units } : { amountTokens: units }),
+        ...(side === "buy"
+          ? { kasBudgetSompi: units }
+          : { amountTokens: units }),
       })
       .then(
-        (plan) => alive && setPrepared({ quote, plan, key, units, builtAt: Date.now() }),
+        (plan) =>
+          alive &&
+          setPrepared({ quote, plan, key, units, builtAt: Date.now() }),
         (e) => alive && setPlanError(e),
       );
     return () => {
@@ -152,7 +173,8 @@ export function useKaspaRocketSwap(i: KaspaRocketSwapInput): L1SwapHandlers {
     };
     // keyOf folds tokenId, side, bps and address into the key.
   }, [planWanted, quote, planNonce, pool, keyOf(settled)]);
-  const shown = quoteKey && prepared?.key === keyOf(settled) ? prepared : undefined;
+  const shown =
+    quoteKey && prepared?.key === keyOf(settled) ? prepared : undefined;
 
   // One swap in flight per account and token, whichever side.
   const pairKey = tokenId ? `KAS:${tokenId}` : undefined;
@@ -185,12 +207,24 @@ export function useKaspaRocketSwap(i: KaspaRocketSwapInput): L1SwapHandlers {
 
   // KAS a trade moves: the budget on buy, the quoted flow on sell.
   const kasOf = (u: bigint) =>
-    side === "buy" ? u : quote && settled === u ? quote.kasFlowSompi : undefined;
+    side === "buy"
+      ? u
+      : quote && settled === u
+        ? quote.kasFlowSompi
+        : undefined;
 
   const onConfirm = async () => {
     if (signingRef.current) return;
     const held = prepared;
-    if (!held || !storeKey || !pairKey || !pool || !tokenId || !xOnlyPk || !i.signer) {
+    if (
+      !held ||
+      !storeKey ||
+      !pairKey ||
+      !pool ||
+      !tokenId ||
+      !xOnlyPk ||
+      !i.signer
+    ) {
       setRefusal({ units: amountUnits, message: PREPARE_COPY });
       return;
     }
@@ -238,25 +272,34 @@ export function useKaspaRocketSwap(i: KaspaRocketSwapInput): L1SwapHandlers {
   };
 
   const inDecimals = side === "buy" ? KAS_DECIMALS : i.tokenDecimals;
-  const outDecimals = side === "buy" ? (fees?.tokenDecimals ?? i.tokenDecimals) : KAS_DECIMALS;
+  const outDecimals =
+    side === "buy" ? (fees?.tokenDecimals ?? i.tokenDecimals) : KAS_DECIMALS;
 
   const extraErrorMessage = (() => {
     if (!i.active) return undefined;
     if (!i.on) return KASPAROCKET_OFF_COPY;
     if (poolError)
-      return kaspaRocketErrorCopy(poolError, "Unable to load KaspaRocket pools. Please try again.");
+      return kaspaRocketErrorCopy(
+        poolError,
+        "Unable to load KaspaRocket pools. Please try again.",
+      );
     if (pool === null) return KASPAROCKET_NO_POOL_COPY;
     if (pending) return KASPAROCKET_PENDING_COPY;
     if (refusal?.units === amountUnits) return refusal.message;
     if (settled === 0n) return undefined;
     const kas = kasOf(settled);
-    const belowMin = kas === undefined ? undefined : kaspaRocketMinOrderError(kas, fees);
+    const belowMin =
+      kas === undefined ? undefined : kaspaRocketMinOrderError(kas, fees);
     if (belowMin) return belowMin;
     if (quoteKey && quoteError)
-      return kaspaRocketErrorCopy(quoteError, "Unable to get a quote. Please try again.");
+      return kaspaRocketErrorCopy(
+        quoteError,
+        "Unable to get a quote. Please try again.",
+      );
     if (quoteKey && quote && (quote.uneconomic || quote.netKasSompi <= 0n))
       return KASPAROCKET_UNECONOMIC_COPY;
-    if (planWanted && planError) return kaspaRocketErrorCopy(planError, PREPARE_COPY);
+    if (planWanted && planError)
+      return kaspaRocketErrorCopy(planError, PREPARE_COPY);
     return undefined;
   })();
 
@@ -280,18 +323,27 @@ export function useKaspaRocketSwap(i: KaspaRocketSwapInput): L1SwapHandlers {
     validateAmount: (units) =>
       kaspaRocketValidate(units, i.balanceIn, kasOf(units), fees),
     findMax: () => {
-      if (i.balanceIn === undefined || inDecimals === undefined) return undefined;
+      if (i.balanceIn === undefined || inDecimals === undefined)
+        return undefined;
       // Buy: the network fee comes on top of the KAS budget.
       const max =
-        side === "buy" ? i.balanceIn - KASPAROCKET_NETWORK_FEE_CEILING_SOMPI : i.balanceIn;
+        side === "buy"
+          ? i.balanceIn - KASPAROCKET_NETWORK_FEE_CEILING_SOMPI
+          : i.balanceIn;
       return formatUnits(max > 0n ? max : 0n, inDecimals);
     },
     onConfirm,
     report,
     extraErrorMessage,
     advisory: [],
-    minOut: shown ? kaspaRocketMinOut(shown.quote, side, BigInt(bps)) : undefined,
-    feeLines: kaspaRocketFeeLines(shown?.plan, settled > 0n ? kasOf(settled) : undefined, fees),
+    minOut: shown
+      ? kaspaRocketMinOut(shown.quote, side, BigInt(bps))
+      : undefined,
+    feeLines: kaspaRocketFeeLines(
+      shown?.plan,
+      settled > 0n ? kasOf(settled) : undefined,
+      fees,
+    ),
     // Kastle's take is KaspaRocket's partner fee, inside the KaspaRocket line.
     kastleFeeBps: 0,
     rate:

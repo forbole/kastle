@@ -27,7 +27,8 @@ export const browser = {
   storage: {
     local: {
       get: async (k: string) => (k in store ? { [k]: store[k] } : {}),
-      set: async (items: Record<string, unknown>) => Object.assign(store, items),
+      set: async (items: Record<string, unknown>) =>
+        Object.assign(store, items),
       remove: async (k: string) => void delete store[k],
     },
   },
@@ -38,7 +39,12 @@ export const useFeatureFlags = () => ({
   isKaspaRocketEnabled: true,
 });
 const MARKETS = Object.assign(
-  [{ covenantId: ROCKET_TOKEN, entry: { symbol: "RKT", decimals: 8, logoURI: "" } }],
+  [
+    {
+      covenantId: ROCKET_TOKEN,
+      entry: { symbol: "RKT", decimals: 8, logoURI: "" },
+    },
+  ],
   { graduated: [] },
 );
 export const fetchKronMarkets = async () => MARKETS;

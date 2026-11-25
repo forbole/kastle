@@ -3,7 +3,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { test, expect } from "@playwright/test";
 import { schnorr } from "@noble/curves/secp256k1";
-import { scriptP2pkh, type Quote, type TransactionPlan } from "@kasparocket/sdk";
+import {
+  scriptP2pkh,
+  type Quote,
+  type TransactionPlan,
+} from "@kasparocket/sdk";
 import { bytesToHex, hexToBytes } from "viem";
 import { planDigests } from "@/lib/kasparocket/adapter";
 import {
@@ -120,7 +124,10 @@ function fakeSignDigest(
   const returned: Uint8Array[] = [];
   const fn = async (t: number, i: number) => {
     calls.push([t, i]);
-    const sig = schnorr.sign(hexToBytes(`0x${digestOf(t, i)}`), hexToBytes(`0x${key}`));
+    const sig = schnorr.sign(
+      hexToBytes(`0x${digestOf(t, i)}`),
+      hexToBytes(`0x${key}`),
+    );
     returned.push(new Uint8Array([...sig, 0x01]));
     return returned[returned.length - 1];
   };
@@ -133,7 +140,11 @@ async function expectRefused(
   message: RegExp,
 ) {
   const sd = fakeSignDigest(plan);
-  const result = kastleKaspaRocketSigner(sd.fn, fixture.xOnlyPk, guard).signPlan(plan);
+  const result = kastleKaspaRocketSigner(
+    sd.fn,
+    fixture.xOnlyPk,
+    guard,
+  ).signPlan(plan);
   await expect(result).rejects.toThrow(KaspaRocketSignRefusal);
   await expect(result).rejects.toThrow(message);
   expect(sd.calls).toEqual([]);
@@ -145,17 +156,32 @@ test.describe("kastleKaspaRocketSigner", () => {
   test("places sig65 at scriptP2pkh and it verifies under the wallet key; the pool input is untouched", async () => {
     const plan = planOf();
     const sd = fakeSignDigest(plan);
-    const [signed] = await kastleKaspaRocketSigner(sd.fn, fixture.xOnlyPk, guardOf()).signPlan(plan);
+    const [signed] = await kastleKaspaRocketSigner(
+      sd.fn,
+      fixture.xOnlyPk,
+      guardOf(),
+    ).signPlan(plan);
     expect(sd.calls).toEqual([[0, 0]]);
-    const inputs = signed.inputs as { signatureScript: string; computeBudget: number }[];
+    const inputs = signed.inputs as {
+      signatureScript: string;
+      computeBudget: number;
+    }[];
     const sig65 = bytesToHex(sd.returned[0]).slice(2);
     expect(inputs[0].signatureScript).toBe(scriptP2pkh(sig65));
     expect(inputs[0].signatureScript).toMatch(/^41[0-9a-f]{128}01$/);
     const [{ digest }] = planDigests(plan);
-    expect(schnorr.verify(inputs[0].signatureScript.slice(2, 130), digest, fixture.xOnlyPk)).toBe(true);
+    expect(
+      schnorr.verify(
+        inputs[0].signatureScript.slice(2, 130),
+        digest,
+        fixture.xOnlyPk,
+      ),
+    ).toBe(true);
     expect(inputs[1].signatureScript).toBe("51");
     expect(inputs[1].computeBudget).toBe(10);
-    expect((plan.transactions[0].tx.inputs as any[])[0].signatureScript).toBe("");
+    expect((plan.transactions[0].tx.inputs as any[])[0].signatureScript).toBe(
+      "",
+    );
   });
 
   test("★ refuses a plan paying a non-allowlisted payee, signing nothing", async () => {
@@ -232,10 +258,14 @@ test.describe("kastleKaspaRocketSigner", () => {
       guardOf(),
       /network fee 10000001 sompi is over the 10000000 sompi ceiling/,
     );
-    const atCeiling = resighed(planOf((t) => (t.outputs[2].value = "139999000")));
+    const atCeiling = resighed(
+      planOf((t) => (t.outputs[2].value = "139999000")),
+    );
     const sd = fakeSignDigest(atCeiling);
     await expect(
-      kastleKaspaRocketSigner(sd.fn, fixture.xOnlyPk, guardOf()).signPlan(atCeiling),
+      kastleKaspaRocketSigner(sd.fn, fixture.xOnlyPk, guardOf()).signPlan(
+        atCeiling,
+      ),
     ).resolves.toHaveLength(1);
   });
 
@@ -259,20 +289,29 @@ test.describe("kastleKaspaRocketSigner", () => {
     const plan = planOf();
     const wrongDigest = fakeSignDigest(plan, undefined, () => "11".repeat(32));
     await expect(
-      kastleKaspaRocketSigner(wrongDigest.fn, fixture.xOnlyPk, guardOf()).signPlan(plan),
+      kastleKaspaRocketSigner(
+        wrongDigest.fn,
+        fixture.xOnlyPk,
+        guardOf(),
+      ).signPlan(plan),
     ).rejects.toThrow(/does not verify under the wallet key/);
     const wrongKey = fakeSignDigest(plan, "22".repeat(32));
     await expect(
-      kastleKaspaRocketSigner(wrongKey.fn, fixture.xOnlyPk, guardOf()).signPlan(plan),
+      kastleKaspaRocketSigner(wrongKey.fn, fixture.xOnlyPk, guardOf()).signPlan(
+        plan,
+      ),
     ).rejects.toThrow(/does not verify under the wallet key/);
   });
 
   test("refuses a signature that is not 64 bytes + SIGHASH_ALL", async () => {
     const plan = planOf();
     const sd = fakeSignDigest(plan);
-    const noType = async (t: number, i: number) => (await sd.fn(t, i)).slice(0, 64);
+    const noType = async (t: number, i: number) =>
+      (await sd.fn(t, i)).slice(0, 64);
     await expect(
-      kastleKaspaRocketSigner(noType, fixture.xOnlyPk, guardOf()).signPlan(plan),
+      kastleKaspaRocketSigner(noType, fixture.xOnlyPk, guardOf()).signPlan(
+        plan,
+      ),
     ).rejects.toThrow(/not 64 bytes and SIGHASH_ALL/);
   });
 });
@@ -348,7 +387,9 @@ test.describe("KaspaRocket pending store", () => {
   for (const outcome of ["landed", "not-sent"] as const) {
     test(`${outcome} clears the record and frees the pair`, async () => {
       await savePendingKaspaRocket(keyA, swapOf("KAS:tokA"));
-      expect(await settlePendingKaspaRocket(keyA, async () => outcome)).toBe(outcome);
+      expect(await settlePendingKaspaRocket(keyA, async () => outcome)).toBe(
+        outcome,
+      );
       expect(await loadPendingKaspaRocket(keyA)).toBeUndefined();
       expect(await claimKaspaRocketPair(keyA)).toBe(true);
       releaseKaspaRocketPair(keyA);
@@ -356,7 +397,9 @@ test.describe("KaspaRocket pending store", () => {
   }
 
   test("nothing stored settles to undefined", async () => {
-    expect(await settlePendingKaspaRocket(keyA, async () => "landed")).toBeUndefined();
+    expect(
+      await settlePendingKaspaRocket(keyA, async () => "landed"),
+    ).toBeUndefined();
   });
 
   test("two pairs do not block each other; one confirm per pair", async () => {
@@ -377,7 +420,9 @@ test.describe("KaspaRocket pending store", () => {
       kaspaRocketPendingKey("testnet-10", "kaspa:qa", "KAS:tokA"),
     ]) {
       expect(await loadPendingKaspaRocket(other)).toBeUndefined();
-      expect(await settlePendingKaspaRocket(other, async () => "landed")).toBeUndefined();
+      expect(
+        await settlePendingKaspaRocket(other, async () => "landed"),
+      ).toBeUndefined();
       expect(await claimKaspaRocketPair(other)).toBe(true);
       releaseKaspaRocketPair(other);
     }
@@ -404,7 +449,9 @@ test.describe("confirmKaspaRocketSwap (the hook's onConfirm)", () => {
     minOrderValueSompi: 15_000_000_000n,
     tokenDecimals: 8,
   };
-  const prepared = (over: Partial<KaspaRocketPrepared> = {}): KaspaRocketPrepared => ({
+  const prepared = (
+    over: Partial<KaspaRocketPrepared> = {},
+  ): KaspaRocketPrepared => ({
     quote: quoteOf(),
     plan: planOf(),
     key: "live",
@@ -557,7 +604,9 @@ test.describe("confirmKaspaRocketSwap (the hook's onConfirm)", () => {
       now: () => NOW + KASPAROCKET_PLAN_TTL_MS + 1,
     });
     expect((await stale.run).rebuild).toBe(true);
-    const changed = confirmOn("KAS:stale", async () => {}, { liveKey: "other" });
+    const changed = confirmOn("KAS:stale", async () => {}, {
+      liveKey: "other",
+    });
     expect((await changed.run).pending).toBe(false);
     expect(stale.sd.calls).toEqual([]);
     expect(changed.sd.calls).toEqual([]);
@@ -575,11 +624,15 @@ test.describe("confirmKaspaRocketSwap (the hook's onConfirm)", () => {
     expect(lines[1].amount).toBe(3);
     expect(lines[1].display).toBe("3 KAS");
     const noSummary = planOf(undefined, {
-      summary: { ...planOf().summary, totalPlatformFeeSompi: undefined, platformFeeSompi: undefined },
+      summary: {
+        ...planOf().summary,
+        totalPlatformFeeSompi: undefined,
+        platformFeeSompi: undefined,
+      },
     });
-    expect(kaspaRocketFeeLines(noSummary, 100_000_000n, FEES).map((l) => l.name)).toEqual([
-      "Network",
-    ]);
+    expect(
+      kaspaRocketFeeLines(noSummary, 100_000_000n, FEES).map((l) => l.name),
+    ).toEqual(["Network"]);
     expect(kaspaRocketFeeLines(undefined, 100_000_000n, FEES)).toEqual([]);
     for (const l of kaspaRocketFeeLines(noSummary, undefined, undefined))
       expect(l.amount).not.toBe(0);
@@ -590,8 +643,12 @@ test.describe("confirmKaspaRocketSwap (the hook's onConfirm)", () => {
     expect(kaspaRocketValidate(kas(149), kas(1000), kas(149), FEES)).toBe(
       "KaspaRocket's minimum trade is 150 KAS.",
     );
-    expect(kaspaRocketValidate(kas(150), kas(1000), kas(150), FEES)).toBeUndefined();
-    expect(kaspaRocketValidate(kas(149), kas(1000), kas(149), undefined)).toBeUndefined();
+    expect(
+      kaspaRocketValidate(kas(150), kas(1000), kas(150), FEES),
+    ).toBeUndefined();
+    expect(
+      kaspaRocketValidate(kas(149), kas(1000), kas(149), undefined),
+    ).toBeUndefined();
     expect(kaspaRocketValidate(kas(2000), kas(1000), kas(2000), FEES)).toBe(
       "Oh, you don't have enough funds",
     );

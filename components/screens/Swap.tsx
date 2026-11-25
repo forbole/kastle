@@ -491,8 +491,12 @@ export default function Swap() {
     networkId,
     kronEnabled && flags.isKaspaRocketEnabled,
     kaspaRocketHeld,
-    (l1In?.type === "KCC20" ? l1In : l1Out?.type === "KCC20" ? l1Out : undefined)
-      ?.covenantId,
+    (l1In?.type === "KCC20"
+      ? l1In
+      : l1Out?.type === "KCC20"
+        ? l1Out
+        : undefined
+    )?.covenantId,
   );
   const l1Listings = useMemo(
     () => ({

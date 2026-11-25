@@ -144,7 +144,11 @@ export async function confirmKaspaRocketSwap(
   if (c.prepared.key !== c.liveKey)
     return { pending: false, message: KASPAROCKET_CHANGED_COPY };
   if (now() - builtAt > KASPAROCKET_PLAN_TTL_MS)
-    return { pending: false, message: KASPAROCKET_PLAN_EXPIRED_COPY, rebuild: true };
+    return {
+      pending: false,
+      message: KASPAROCKET_PLAN_EXPIRED_COPY,
+      rebuild: true,
+    };
   // 2. The plan still within slippage of the quote it was built on.
   const bps = BigInt(c.slippageBps);
   if (kaspaRocketPriceMoved(plan, quote, c.side, bps))
@@ -194,14 +198,22 @@ export async function confirmKaspaRocketSwap(
   } catch (e) {
     // ASSUMPTION carried from mobile: invalid_request from submit means no
     // transaction of the batch reached the network.
-    const rejected = e instanceof KaspaRocketError && e.kind === "invalid_request";
+    const rejected =
+      e instanceof KaspaRocketError && e.kind === "invalid_request";
     if (sent && !rejected)
       return { pending: true, message: KASPAROCKET_UNKNOWN_COPY, error: e };
-    if (written) await clearPendingKaspaRocket(c.storeKey).catch(() => undefined);
+    if (written)
+      await clearPendingKaspaRocket(c.storeKey).catch(() => undefined);
     if (e instanceof KaspaRocketPlanExpired)
-      return { pending: false, message: KASPAROCKET_PLAN_EXPIRED_COPY, error: e, rebuild: true };
+      return {
+        pending: false,
+        message: KASPAROCKET_PLAN_EXPIRED_COPY,
+        error: e,
+        rebuild: true,
+      };
     const refused =
-      e instanceof KaspaRocketSignRefusal || e instanceof KaspaRocketTxFormatError;
+      e instanceof KaspaRocketSignRefusal ||
+      e instanceof KaspaRocketTxFormatError;
     return {
       pending: false,
       error: e,
@@ -237,7 +249,8 @@ export function kaspaRocketValidate(
   fees: KaspaRocketFees | undefined,
 ): string | undefined {
   if (units <= 0n) return undefined;
-  if (balanceIn !== undefined && units > balanceIn) return NOT_ENOUGH_FUNDS_COPY;
+  if (balanceIn !== undefined && units > balanceIn)
+    return NOT_ENOUGH_FUNDS_COPY;
   return kasSompi === undefined
     ? undefined
     : kaspaRocketMinOrderError(kasSompi, fees);
