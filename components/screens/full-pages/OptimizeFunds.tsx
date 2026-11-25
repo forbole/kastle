@@ -7,9 +7,11 @@ import {
   assertSignerOwnsAddress,
   buildRoundReport,
   classifyConsolidation,
+  ConsolidationError,
   ConsolidationPlan,
   ConsolidationProgress,
   ConsolidationResult,
+  DEFAULT_INPUTS_PER_TRANSACTION,
   EntryScreen,
   loadLiveEntries,
   planConsolidationRound,
@@ -25,6 +27,8 @@ import useWalletManager from "@/hooks/wallet/useWalletManager";
 import useKaspaHotWalletSigner from "@/hooks/wallet/useKaspaHotWalletSigner";
 import useKaspaLedgerSigner from "@/hooks/wallet/useKaspaLedgerSigner";
 import LedgerConnectForSign from "@/components/screens/ledger-connect/LedgerConnectForSign";
+import ClipboardCopy from "@/components/dashboard/ClipboardCopy";
+import { buildDiagnosticReport, DiagnosticReport } from "@/lib/diagnostics";
 
 /** One sentence per reason entries stay out of the round. */
 export function describeSkipped({
@@ -162,6 +166,9 @@ export default function OptimizeFunds() {
   const [entries, setEntries] = useState<IUtxoEntry[]>();
   const [plan, setPlan] = useState<ConsolidationPlan | null>();
   const [planError, setPlanError] = useState<string>();
+  // what the plan-error banner's "Copy logs" hands over; null: scrubbing
+  // failed, so no copy control
+  const [planReport, setPlanReport] = useState<DiagnosticReport | null>();
   // bumped by Retry after a failed plan: re-runs the planning effect
   const [planAttempt, setPlanAttempt] = useState(0);
   const [screened, setScreened] = useState<EntryScreen>();
@@ -202,6 +209,7 @@ export default function OptimizeFunds() {
     isPlanning.current = false;
     setPlan(undefined);
     setPlanError(undefined);
+    setPlanReport(undefined);
     setScreened(undefined);
     setEntries(undefined);
     setCancelledEarly(undefined);
@@ -222,6 +230,15 @@ export default function OptimizeFunds() {
     isPlanning.current = true;
     const run = planRun.current;
     const address = account.address;
+    // what this run saw before it failed: tells a node with no UTXOs, a
+    // failed query and a retry whose entries were all spent apart
+    const seen: {
+      // "threw" until the query resolves; "no-data": SWR's mutate resolves
+      // undefined when the fetch fails and nothing is cached
+      utxoQuery: "not-run" | "threw" | "no-data" | "ok";
+      fetchedCount?: number;
+      liveCount?: number;
+    } = { utxoQuery: "not-run" };
     const fail = (error: unknown) => {
       if (run !== planRun.current) return;
       // unlatch so Retry can plan again; the guard above keeps a late
@@ -237,6 +254,29 @@ export default function OptimizeFunds() {
       setPlanError(
         isSignerError ? error.message : scrubReportText(String(error)),
       );
+      setPlanReport(
+        buildDiagnosticReport("optimize-funds-plan", error, {
+          code: error instanceof ConsolidationError ? error.code : undefined,
+          extensionVersion: browser.runtime.getManifest().version,
+          wasmVersion: version(),
+          networkId,
+          rpcUrl: rpcClient.url,
+          walletType: isLedger ? "ledger" : "hot",
+          accountIndex: account.index,
+          isLegacyWalletEnabled: wallet?.isLegacyWalletEnabled ?? false,
+          // the report scrubs whole addresses: the network prefix and the
+          // last characters are enough to tell a wrong address apart
+          addressPrefix: address.split(":")[0],
+          addressTail: address.slice(-6),
+          utxoQuery: seen.utxoQuery,
+          fetchedCount: seen.fetchedCount,
+          spentOutpointsCount: spentOutpoints?.length ?? 0,
+          // fetchedCount minus the entries a previous round already spent
+          liveCount: seen.liveCount,
+          // spendable entries at or below this already fit in one transaction
+          planThreshold: DEFAULT_INPUTS_PER_TRANSACTION,
+        }),
+      );
       setPlan(null);
     };
     (walletSigner
@@ -244,10 +284,14 @@ export default function OptimizeFunds() {
       : Promise.resolve()
     )
       .then(async () => {
-        const live = await loadLiveEntries(
-          () => revalidateEntries(),
-          spentOutpoints,
-        );
+        const live = await loadLiveEntries(async () => {
+          seen.utxoQuery = "threw";
+          const fetched = await revalidateEntries();
+          seen.utxoQuery = fetched ? "ok" : "no-data";
+          seen.fetchedCount = fetched?.length;
+          return fetched;
+        }, spentOutpoints);
+        seen.liveCount = live.length;
         const { plan: planned, screen } = await planConsolidationRound({
           entries: live,
           changeAddress: address,
@@ -258,6 +302,7 @@ export default function OptimizeFunds() {
         setEntries(live);
         setScreened(screen);
         setPlanError(undefined);
+        setPlanReport(undefined);
         setPlan(planned ?? null);
       })
       .catch(fail);
@@ -439,17 +484,30 @@ export default function OptimizeFunds() {
               >
                 {planError}
               </span>
-              <button
-                onClick={() => {
-                  isPlanning.current = false;
-                  setPlanError(undefined);
-                  setPlan(undefined);
-                  setPlanAttempt((n) => n + 1);
-                }}
-                className="min-h-[44px] rounded-full border border-daintree-400 px-4 text-base font-medium text-white transition-colors hover:bg-icy-blue-600"
-              >
-                Retry
-              </button>
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => {
+                    isPlanning.current = false;
+                    setPlanError(undefined);
+                    setPlanReport(undefined);
+                    setPlan(undefined);
+                    setPlanAttempt((n) => n + 1);
+                  }}
+                  className="min-h-[44px] rounded-full border border-daintree-400 px-4 text-base font-medium text-white transition-colors hover:bg-icy-blue-600"
+                >
+                  Retry
+                </button>
+                {planReport && (
+                  <ClipboardCopy
+                    textToCopy={JSON.stringify(planReport)}
+                    className="flex min-h-[44px] cursor-pointer items-center gap-2"
+                  >
+                    <span className="text-sm font-semibold text-icy-blue-400">
+                      Copy logs
+                    </span>
+                  </ClipboardCopy>
+                )}
+              </div>
             </div>
           )}
 

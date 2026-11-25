@@ -27,7 +27,7 @@ export {
 
 // The Generator batches at 89 inputs of this shape; 80 leaves ~10% mass
 // headroom so every chunk builds as a single transaction.
-const DEFAULT_INPUTS_PER_TRANSACTION = 80;
+export const DEFAULT_INPUTS_PER_TRANSACTION = 80;
 
 // Ledger signs at most two outputs per transaction.
 const MAX_OUTPUTS = 2;

@@ -231,3 +231,129 @@ test("Ledger not connected: plans without the early check, shows the connect ste
   expect((await failed(page))?.report?.walletType).toBe("ledger");
   expect(errors).toEqual([]);
 });
+
+// "Copy logs" on the plan-error banner: the report built from the thrown
+// value, naming what the planning run saw.
+const NO_ENTRIES = "No UTXOs to consolidate";
+
+async function stubClipboard(page: Page) {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "clipboard", {
+      value: {
+        writeText: (text: string) => {
+          (window as unknown as { __clip: string }).__clip = text;
+          return Promise.resolve();
+        },
+      },
+    });
+  });
+}
+
+async function copyLogs(page: Page) {
+  await page.getByRole("button", { name: "Copy logs" }).click();
+  const text = await page.evaluate(
+    () => (window as unknown as { __clip?: string }).__clip,
+  );
+  expect(text).toBeTruthy();
+  expect(text).not.toContain("kaspa:");
+  return JSON.parse(text!) as Record<string, unknown>;
+}
+
+test("no-entries, node lists nothing: Copy logs names the address and counts", async ({
+  page,
+}) => {
+  await stubClipboard(page);
+  const errors = await open(page, "account=A&signer=A&index=3&entries=0");
+  await expect(page.getByRole("alert")).toHaveText(`Error: ${NO_ENTRIES}`);
+  const report = await copyLogs(page);
+  const a = await page.evaluate(() => window.__optimize.addresses.A);
+  expect(report).toMatchObject({
+    flow: "optimize-funds-plan",
+    error: `Error: ${NO_ENTRIES}`,
+    code: "no-entries",
+    walletType: "hot",
+    networkId: "mainnet",
+    accountIndex: 3,
+    addressPrefix: "kaspa",
+    addressTail: a.slice(-6),
+    utxoQuery: "ok",
+    fetchedCount: 0,
+    spentOutpointsCount: 0,
+    liveCount: 0,
+    planThreshold: 80,
+  });
+  expect(errors).toEqual([]);
+});
+
+test("no-entries, UTXO query failed: the report says the query returned no data", async ({
+  page,
+}) => {
+  await stubClipboard(page);
+  const errors = await open(page, "account=A&signer=A&utxo=no-data");
+  await expect(page.getByRole("alert")).toHaveText(`Error: ${NO_ENTRIES}`);
+  const report = await copyLogs(page);
+  expect(report.code).toBe("no-entries");
+  expect(report.utxoQuery).toBe("no-data");
+  expect(report).not.toHaveProperty("fetchedCount");
+  // loadLiveEntries reads a missing result as no entries
+  expect(report.liveCount).toBe(0);
+  expect(errors).toEqual([]);
+});
+
+test("no-entries on a Retry whose round spent everything: the report counts the filtered entries", async ({
+  page,
+}) => {
+  await stubClipboard(page);
+  const errors = await open(page, "account=A&signer=A&spent=all");
+  await expect(page.getByRole("alert")).toHaveText(`Error: ${NO_ENTRIES}`);
+  const report = await copyLogs(page);
+  expect(report).toMatchObject({
+    code: "no-entries",
+    utxoQuery: "ok",
+    fetchedCount: 200,
+    spentOutpointsCount: 200,
+    liveCount: 0,
+  });
+  expect(errors).toEqual([]);
+});
+
+test("a signer failure before the query: the report says the query never ran", async ({
+  page,
+}) => {
+  await stubClipboard(page);
+  const errors = await open(page, "account=A&signer=fail");
+  await expect(page.getByRole("alert")).toContainText(
+    "Could not read the signing key's address",
+  );
+  const report = await copyLogs(page);
+  expect(report.utxoQuery).toBe("not-run");
+  expect(report).not.toHaveProperty("code");
+  expect(errors).toEqual([]);
+});
+
+test("scrubbing fails: the banner shows, Retry stays, no copy control", async ({
+  page,
+}) => {
+  const errors = await open(page, "account=A&signer=A&utxo=hostile");
+  await expect(page.getByRole("alert")).toHaveText("Error: node went away");
+  await expect(page.getByRole("button", { name: "Retry" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Copy logs" })).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test("no-entries, then Retry once the node lists entries: plans, and Copy logs goes", async ({
+  page,
+}) => {
+  const errors = await open(page, "account=A&signer=A&entries=0");
+  await expect(page.getByRole("button", { name: "Copy logs" })).toBeVisible();
+  await page.evaluate(() => {
+    const { addresses, update, state } = window.__optimize;
+    update({ entryCounts: { ...state().entryCounts, [addresses.A]: 200 } });
+  });
+  await page.getByRole("button", { name: "Retry" }).click();
+  await expect(optimizeBtn(page)).toBeEnabled();
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Copy logs" })).toHaveCount(0);
+  expect((await calls(page)).revalidate).toBe(2);
+  expect(errors).toEqual([]);
+});
