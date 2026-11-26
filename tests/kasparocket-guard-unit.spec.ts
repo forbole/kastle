@@ -1,13 +1,20 @@
 import { test, expect } from "@playwright/test";
+import { blake2b256 } from "@dotk/sdk";
+import { schnorr } from "@noble/curves/secp256k1";
 import type { Quote, TransactionPlan } from "@kasparocket/sdk";
+import { bytesToHex, hexToBytes } from "viem";
+import { planDigests } from "@/lib/kasparocket/adapter";
 import * as signer from "@/lib/kasparocket/signer";
 import * as confirm from "@/lib/kasparocket/confirm";
 import {
   kaspaRocketFeesOf,
   kaspaRocketPlanNetworkFee,
 } from "@/lib/kasparocket/fees";
+import { splitProgram, successorProgram } from "@/lib/kcc20/standard/program";
+import { BORROW_SCHEME, OWNER_SCHEME } from "@/lib/kcc20/standard/state";
 import {
   REAL_BUDGET_SOMPI,
+  REAL_LEADER_PROGRAM,
   REAL_LP_COVENANT_ID,
   REAL_NETWORK_FEE_SOMPI,
   REAL_TOKEN_ID,
@@ -265,5 +272,180 @@ test.describe("B. the network fee ceiling", () => {
     );
     // Never below zero.
     expect(String(confirm.kaspaRocketMaxIn("buy", ceiling - 1n))).toBe("0");
+  });
+});
+
+test.describe("C. the wallet's debit is bounded on each transaction, not only on the plan", () => {
+  // Each transaction is signed on its own: the server may broadcast one and
+  // never the other, so a credit in one cannot pay for an overcharge in
+  // another. Real plan outputs: 0 partner fee (the wallet's own key),
+  // 1 wallet change, 2 pool vault, 3 token reserve, 4 bought cell, 5 treasury.
+  const KAS = 100_000_000n;
+  const MOST = "16530000000";
+  const tx0 = (raw: any) => raw.transactions[0].tx;
+  /** Moves `sompi` of change into the pool vault: tx 0 debits that much more. */
+  const overcharge = (raw: any, sompi: bigint) => {
+    const o = tx0(raw).outputs;
+    o[1].value = String(BigInt(o[1].value) - sompi);
+    o[2].value = String(BigInt(o[2].value) + sompi);
+  };
+  /**
+   * Appends a second transaction spending input `from` of tx 0's shape into
+   * output `to`'s shape, at `from`'s amount: no network fee of its own.
+   */
+  const addTx = (raw: any, from: number, to: number) => {
+    const t = JSON.parse(JSON.stringify(tx0(raw)));
+    const input = t.inputs[from];
+    input.previousOutpoint.transactionId = "ab".repeat(32);
+    input.utxo.outpoint.transactionId = "ab".repeat(32);
+    input.signatureScript = "";
+    const output = { ...t.outputs[to], value: input.utxo.amount };
+    raw.transactions.push({
+      tx: { ...t, inputs: [input], outputs: [output] },
+      signingInstructions: [],
+    });
+  };
+  const debits = (plan: TransactionPlan) =>
+    signer.kaspaRocketWalletDebits(plan, REAL_XONLY_PK)?.map(String);
+  const total = (plan: TransactionPlan) =>
+    String(signer.kaspaRocketWalletDebit(plan, REAL_XONLY_PK));
+
+  test("★ an overcharging tx 0 offset by a tx 1 that credits the wallet refuses, naming tx 0", async () => {
+    // tx 0 takes 2 KAS more than the buy allows; tx 1 pays the pool vault
+    // input's 2 KAS to the wallet's own key.
+    const plan = realPlan((raw) => {
+      overcharge(raw, 2n * KAS);
+      addTx(raw, 0, 1);
+    });
+    expect(debits(plan)).toEqual(["16618655502", "-200000000"]);
+    // Summed, the plan sits inside the limit: the old check let it by.
+    expect(total(plan)).toBe("16418655502");
+    expect(16418655502n <= BigInt(MOST)).toBe(true);
+    // Every other bound holds: one network fee, the real payout.
+    expect(String(kaspaRocketPlanNetworkFee(plan))).toBe("18658300");
+    expect(
+      String(
+        signer.kaspaRocketPlanPayout(plan, REAL_TOKEN_ID, REAL_XONLY_PK, "buy"),
+      ),
+    ).toBe("5298975");
+    await expectRefused(
+      plan,
+      await guardOf(),
+      new RegExp(
+        `transaction 0 debits 16618655502 sompi from the wallet, over the ${MOST} sompi this buy allows`,
+      ),
+    );
+  });
+
+  test("★ the same overcharge alone refuses", async () => {
+    const plan = realPlan((raw) => overcharge(raw, 2n * KAS));
+    expect(debits(plan)).toEqual(["16618655502"]);
+    await expectRefused(
+      plan,
+      await guardOf(),
+      new RegExp(
+        `debits 16618655502 sompi from the wallet, over the ${MOST} sompi this buy allows`,
+      ),
+    );
+  });
+
+  test("the total stays a second bound: two transactions each under it, over it together, refuse", async () => {
+    // tx 1 spends the wallet's 1.74499999 KAS input into the pool vault.
+    const plan = realPlan((raw) => addTx(raw, 4, 2));
+    expect(debits(plan)).toEqual(["16418655502", "174499999"]);
+    await expectRefused(
+      plan,
+      await guardOf(),
+      new RegExp(
+        `plan debits 16593155501 sompi from the wallet, over the ${MOST} sompi this buy allows`,
+      ),
+    );
+  });
+
+  test("an unreadable transaction has no per-transaction debit", () => {
+    const plan = realPlan((raw) => {
+      addTx(raw, 0, 1);
+      raw.transactions[1].tx.fee = "1";
+    });
+    expect(signer.kaspaRocketWalletDebits(plan, REAL_XONLY_PK)).toBeNull();
+    expect(signer.kaspaRocketWalletDebit(plan, REAL_XONLY_PK)).toBeNull();
+  });
+
+  test("★ the honest real buy passes, and all six wallet inputs are signed", async () => {
+    // The real plan, re-keyed to a throwaway key (unit tests only, never
+    // funded) so its six p2pkh inputs can be signed: the wallet's scripts
+    // and the bought cell's owner move to that key, and the prepared
+    // sighashes are recomputed. Amounts, covenants and summary are the
+    // real plan's.
+    const KEY =
+      "b7e151628aed2a6abf7158809cf4f3c762e7160f38b4da56a784d9045190cfef";
+    const pk = bytesToHex(schnorr.getPublicKey(hexToBytes(`0x${KEY}`))).slice(
+      2,
+    );
+    const p2sh = (r: Uint8Array) =>
+      `aa20${bytesToHex(blake2b256(r)).slice(2)}87`;
+    const cell = p2sh(
+      successorProgram(REAL_LEADER_PROGRAM, {
+        amount: 5_298_975n,
+        owner: hexToBytes(`0x${pk}`),
+        ownerScheme: OWNER_SCHEME.P2PK_SCHNORR,
+        borrowScheme: BORROW_SCHEME.DISABLED,
+        borrowGuard: new Uint8Array(32),
+        extensionCommitment:
+          splitProgram(REAL_LEADER_PROGRAM).state.extensionCommitment,
+      }),
+    );
+    const own = `20${REAL_XONLY_PK}ac`;
+    const rekey = (raw: any) => {
+      const t = tx0(raw);
+      for (const i of t.inputs) {
+        if (i.utxo.scriptPublicKey.script === own)
+          i.utxo.scriptPublicKey.script = `20${pk}ac`;
+      }
+      for (const o of t.outputs) {
+        if (o.scriptPublicKey.script === own)
+          o.scriptPublicKey.script = `20${pk}ac`;
+      }
+      t.outputs[4].scriptPublicKey.script = cell;
+    };
+    // The re-keyed transaction's own digests, as the server would prepare.
+    const digests = planDigests(realPlan(rekey));
+    const plan = realPlan((raw) => {
+      rekey(raw);
+      for (const ins of raw.transactions[0].signingInstructions) {
+        ins.sighash = digests.find(
+          (d) => d.inputIndex === ins.inputIndex,
+        )!.digest;
+      }
+    });
+
+    expect(signer.kaspaRocketWalletDebits(plan, pk)?.map(String)).toEqual([
+      "16418655502",
+    ]);
+    expect(String(kaspaRocketPlanNetworkFee(plan))).toBe("18658300");
+    expect(
+      String(signer.kaspaRocketPlanPayout(plan, REAL_TOKEN_ID, pk, "buy")),
+    ).toBe("5298975");
+
+    const calls: [number, number][] = [];
+    const signed = await kastleKaspaRocketSigner(
+      async (t, i) => {
+        calls.push([t, i]);
+        const d = digests.find((x) => x.txIndex === t && x.inputIndex === i)!;
+        const sig = schnorr.sign(
+          hexToBytes(`0x${d.digest}`),
+          hexToBytes(`0x${KEY}`),
+        );
+        return new Uint8Array([...sig, 0x01]);
+      },
+      pk,
+      await guardOf(),
+    ).signPlan(plan);
+    expect(calls).toEqual([2, 3, 4, 5, 6, 7].map((i) => [0, i]));
+    expect(signed).toHaveLength(1);
+    const scripts = (signed[0].inputs as { signatureScript: string }[]).map(
+      (i) => i.signatureScript,
+    );
+    for (const i of [2, 3, 4, 5, 6, 7]) expect(scripts[i]).not.toBe("");
   });
 });

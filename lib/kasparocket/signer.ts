@@ -340,11 +340,25 @@ export function kaspaRocketWalletDebit(
   plan: TransactionPlan,
   xOnlyPk: string,
 ): bigint | null {
+  const debits = kaspaRocketWalletDebits(plan, xOnlyPk);
+  return debits === null ? null : debits.reduce((a, b) => a + b, 0n);
+}
+
+/**
+ * `kaspaRocketWalletDebit` per transaction, in plan order. Each transaction
+ * is signed on its own, so the server may broadcast any one of them without
+ * the rest: a buy's bound holds on each, not only on their sum. Null when a
+ * transaction cannot be read.
+ */
+export function kaspaRocketWalletDebits(
+  plan: TransactionPlan,
+  xOnlyPk: string,
+): bigint[] | null {
   const own = ownScript(xOnlyPk);
   try {
-    let debit = 0n;
-    for (const { tx } of plan.transactions) {
+    return plan.transactions.map(({ tx }) => {
       const t = kasparocketPlanToTx(tx);
+      let debit = 0n;
       for (const i of t.inputs) {
         if (i.utxo!.scriptPublicKey === own) debit += BigInt(i.utxo!.amount);
       }
@@ -352,8 +366,8 @@ export function kaspaRocketWalletDebit(
         if (paysOwn(o, own) && o.covenant?.covenantId == null)
           debit -= BigInt(o.value);
       }
-    }
-    return debit;
+      return debit;
+    });
   } catch {
     return null;
   }
@@ -592,15 +606,26 @@ function checkGuard(
   // an allowed covenant output moves neither the quote, the summary nor the
   // network fee. A sell's debit is bounded by its payout floor below.
   if (trade.direction === "buy") {
-    const debit = kaspaRocketWalletDebit(plan, pk);
-    if (debit === null) refuse("wallet debit cannot be read");
+    const debits = kaspaRocketWalletDebits(plan, pk);
+    if (debits === null) refuse("wallet debit cannot be read");
     if (!fees) refuse("fee schedule cannot be read");
     const most = kaspaRocketMaxBuyDebit(trade.amountIn, fees!);
-    if (debit! > most) {
+    // All of them together...
+    const debit = debits!.reduce((a, b) => a + b, 0n);
+    if (debit > most) {
       refuse(
         `plan debits ${debit} sompi from the wallet, over the ${most} sompi this buy allows`,
       );
     }
+    // ...and each transaction alone: a credit in another one, which the
+    // server may never broadcast, offsets nothing.
+    debits!.forEach((d, t) => {
+      if (d > most) {
+        refuse(
+          `transaction ${t} debits ${d} sompi from the wallet, over the ${most} sompi this buy allows`,
+        );
+      }
+    });
   }
   // Both sides: what the plan pays out, never less than the preview's floor.
   const paid = kaspaRocketPlanPayout(plan, trade.tokenId, pk, trade.direction);
