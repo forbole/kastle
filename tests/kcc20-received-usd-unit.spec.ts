@@ -235,7 +235,7 @@ test("a token no longer held keeps its KRON market price (graduated pool)", () =
   expect(usdOf(t.receivedUsd)).toBeCloseTo(1917 * 0.0067 * KAS_USD, 8);
 });
 
-test("no source prices the token: no Received USD line at all", () => {
+test("no source prices the token: the Received line says the price is unavailable", () => {
   const std = token(STD_ID, "kcc20-standard", {
     symbol: "NACHO",
     name: "NACHO",
@@ -249,7 +249,7 @@ test("no source prices the token: no Received USD line at all", () => {
     cached: { [STD_ID]: 0.3 },
   });
   expect(t.receivedAmount).toBe("120.5 NACHO");
-  expect("receivedUsd" in t).toBe(false);
+  expect(t.receivedUsd).toBe("Price unavailable");
   // The Paid leg still shows.
   expect(usdOf(t.sentUsd)).toBeCloseTo(14.372 * KAS_USD, 8);
 });
@@ -334,5 +334,5 @@ test("a KCC-20 row whose covenant has no price shows no ticker namesake's", () =
     }),
     { logoFor: () => undefined, priceFor: (s) => prices.get(s.toUpperCase()) },
   );
-  expect(item.amountUsd).not.toMatch(/\$/);
+  expect(item.amountUsd).toBe("Price unavailable");
 });

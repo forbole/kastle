@@ -189,6 +189,12 @@ function amountText(amount: ActivityAmount | undefined): string | undefined {
   return sym ? `${fmtAmount(amount.value)} ${sym}` : fmtAmount(amount.value);
 }
 
+/**
+ * The line every leg with an amount but no price shows, on every row alike:
+ * never "$0", never a silently missing line beside priced neighbours.
+ */
+export const PRICE_UNAVAILABLE = "Price unavailable";
+
 export function usdText(
   amount: ActivityAmount | undefined,
   priceFor: AdapterDeps["priceFor"],
@@ -196,7 +202,8 @@ export function usdText(
   if (!amount) return "";
   const price = priceFor(amount.symbol);
   const value = Number(amount.value);
-  if (!price || !Number.isFinite(value)) return "";
+  if (!Number.isFinite(value)) return "";
+  if (!price || !(price > 0)) return PRICE_UNAVAILABLE;
   const usd = value * price;
   return `≈ ${formatUsdAmount(usd)} USD`;
 }
@@ -224,8 +231,6 @@ export function legPriceFor(
         ? deps.priceFor(tokenId)
         : undefined;
 }
-
-const withUsd = (receivedUsd: string) => (receivedUsd ? { receivedUsd } : {});
 
 /**
  * USD per whole KCC-20 token by upper-case covenant id, the key
@@ -460,8 +465,8 @@ export function toActivityItem(
         ...(row.received
           ? {
               receivedAmount: amountText(row.received),
-              // No price from any source: no USD line, never a dash or $0.
-              ...withUsd(usdText(row.received, priceFor)),
+              // No price from any source: "Price unavailable", never $0.
+              receivedUsd: usdText(row.received, priceFor),
             }
           : bridge && settled
             ? { receivedAmount: "Amount unavailable" }

@@ -412,7 +412,7 @@ test("fmtAmount/fmtFee: a tiny non-zero amount never renders 0", () => {
   expect(m.fmtFee("0.000000000000000001 KAS")).toBe("<0.00000001 KAS");
 });
 
-test("usdText: small USD keeps precision, only a missing price hides it", () => {
+test("usdText: small USD keeps precision, a missing price says so", () => {
   expect(m.usdText({ value: "0.0123", symbol: "KAS" }, () => 0.1)).toBe(
     "≈ $0.00123 USD",
   );
@@ -422,7 +422,14 @@ test("usdText: small USD keeps precision, only a missing price hides it", () => 
   expect(m.usdText({ value: "-0.00000001", symbol: "KAS" }, () => 0.1)).toBe(
     "≈ >-$0.00000001 USD",
   );
-  expect(m.usdText({ value: "1", symbol: "KAS" }, () => 0)).toBe("");
+  expect(m.usdText({ value: "1", symbol: "KAS" }, () => 0)).toBe(
+    "Price unavailable",
+  );
+  expect(m.usdText({ value: "1", symbol: "KING" }, () => undefined)).toBe(
+    "Price unavailable",
+  );
+  // No amount: nothing to value, no line.
+  expect(m.usdText(undefined, () => 0.1)).toBe("");
   expect(m.usdText({ value: "100", symbol: "KAS" }, () => 0.1)).not.toBe("");
 });
 

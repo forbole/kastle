@@ -97,3 +97,23 @@ test("item 1: 77,000 KPEPE is valued at its covenant's price, as on the dashboar
   expect(kpepe.join(" ")).not.toContain("1,381");
   expect(errors).toEqual([]);
 });
+
+test("item 2: every row with an amount has a fiat line, or says the price is unavailable", async ({
+  page,
+}) => {
+  const errors = await open(page);
+  await body(page);
+  const all = await rows(page);
+  console.log("ROWS", JSON.stringify(all));
+  expect(all.length).toBe(5);
+  for (const cells of all) {
+    const fiat = cells[cells.length - 1];
+    expect(fiat, cells.join(" | ")).toMatch(
+      /^(≈ \$[\d,.]+ USD|Price unavailable)$/,
+    );
+  }
+  // KING has no price on either Zealous list: it says so, like its neighbours' lines.
+  expect(row(all, "+2,453.555")).toContain("Price unavailable");
+  expect(row(all, "+43.5").at(-1)).toMatch(/^≈ \$/);
+  expect(errors).toEqual([]);
+});
