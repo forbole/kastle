@@ -245,6 +245,8 @@ export function useKaspaRocketSwap(i: KaspaRocketSwapInput): L1SwapHandlers {
         side,
         slippageBps: bps,
         xOnlyPk,
+        // The SDK caches it: one request per client, not per swap.
+        protocol: () => client.protocol(),
         signDigest: (plan) => kaspaRocketWalletDigest(signer, plan),
         submit: (signed, plan) =>
           client.submit(signed, plan.order_row, plan.sponsor_row),

@@ -1,0 +1,35 @@
+{
+  "note": "REAL: the p2pkh signingInstructions of the same /pro-api/plan/trade buy as kasparocket-plan.trade-buy-FOUR.real.json (FOUR for 160 KAS, 2026-11-26), from ~/kastle-qa/evidence/plan-trade-buy-FOUR-2026-11-26.json. The two final (covenant) instructions are left out: their sigscripts are already in the fixture transaction. Server-prepared sighashes, compared against the digests recomputed locally.",
+  "signingInstructions": [
+    {
+      "inputIndex": 2,
+      "kind": "p2pkh",
+      "sighash": "8b23cc02b7c1f088aa6bec0597bf84ada7420a9cdd4f9b9308ec6985875c1c56"
+    },
+    {
+      "inputIndex": 3,
+      "kind": "p2pkh",
+      "sighash": "c042daa93bd28dd46ee03ae879dd1a417512b753a0d9341bf4468c0c07ddf099"
+    },
+    {
+      "inputIndex": 4,
+      "kind": "p2pkh",
+      "sighash": "77d60e69b2e972cb084d449c2f93a2863b443faba0132b989f3b7402b222b703"
+    },
+    {
+      "inputIndex": 5,
+      "kind": "p2pkh",
+      "sighash": "58056f2787c592662b3fb3ad99078eeb41a485ff55387bb476f182f188389e98"
+    },
+    {
+      "inputIndex": 6,
+      "kind": "p2pkh",
+      "sighash": "743b03a1920b1f6204813ad83f5773544de9ce0a2d50cd4a3a1e00b1d3489692"
+    },
+    {
+      "inputIndex": 7,
+      "kind": "p2pkh",
+      "sighash": "f694a674c12c46eb43f76db185c0431157d4ed7e4bfe5836ac7f14a473730347"
+    }
+  ]
+}

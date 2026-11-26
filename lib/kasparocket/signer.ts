@@ -1,8 +1,10 @@
+import { decodeAddress, Version } from "@dotk/sdk";
 import { schnorrSighash } from "@dotk/sdk-tx";
 import {
   instructionsToSign,
   scriptP2pkh,
   type Direction,
+  type ProtocolInfo,
   type Quote,
   type TransactionPlan,
   type UnsignedTransaction,
@@ -62,6 +64,11 @@ export type KaspaRocketGuard = {
   slippageBps: bigint;
   /** When the plan was built, ms since epoch; older than the TTL refuses. */
   builtAt: number;
+  /**
+   * The SDK client's `protocol()`: read at sign time for the two fee
+   * addresses a plan may pay (see `checkPayees`).
+   */
+  protocol: () => Promise<ProtocolInfo>;
   /** Clock, for tests. */
   now?: () => number;
 };
@@ -138,9 +145,9 @@ const P2SH = /^aa20[0-9a-f]{64}87$/;
  * P2SH, and the summary's `amountTokens` and `userTokensAfter` agree. Any
  * mismatch is null.
  *
- * Read from the raw plan, not through `kasparocketPlanToTx`: the server's
- * transaction (`previousOutpoint`, `{ version, script }`, `storageMass`) is
- * not the safe-JSON shape that reader accepts.
+ * Read from the raw plan, in either `scriptPublicKey` wire form. (Written
+ * when `kasparocketPlanToTx` refused the server's transaction shape; it reads
+ * that shape now, and `checkGuard` has run it before this is reached.)
  */
 function buyPayout(plan: TransactionPlan, tokenId: string): bigint | null {
   const s = (plan.summary ?? {}) as Record<string, unknown>;
@@ -174,9 +181,7 @@ function buyPayout(plan: TransactionPlan, tokenId: string): bigint | null {
  * Sell: KAS, read from the transactions, never the summary: the wallet's plain
  * outputs less its plain inputs, plus the network fee those inputs bore (shown
  * on its own row). Unverified: no server-built sell plan has been checked
- * against this read (none could be built without holding the token), and it
- * still goes through `kasparocketPlanToTx`, which refuses the server's
- * transaction shape the real buy plan has.
+ * against this read (none could be built without holding the token).
  */
 export function kaspaRocketPlanPayout(
   plan: TransactionPlan,
@@ -206,19 +211,88 @@ export function kaspaRocketPlanPayout(
 }
 
 /**
- * Who a plan may pay. Three destinations, and only these:
- *  - the wallet itself (version-0 pay-to-pubkey on its own key): bought
- *    tokens, token change, KAS change and sale proceeds;
+ * The version-0 locking script a mainnet address names, as the adapter reads
+ * one; null when the value is not such an address.
+ */
+function mainnetScriptOf(address: unknown): string | null {
+  if (typeof address !== "string") return null;
+  try {
+    const a = decodeAddress(address);
+    if (a.prefix !== "kaspa") return null;
+    const h = hex(a.payload);
+    if (a.version === Version.PubKey) return `20${h}ac`;
+    if (a.version === Version.PubKeyECDSA) return `21${h}ab`;
+    if (a.version === Version.ScriptHash) return `aa20${h}87`;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/** An output index `summary.outputs` names, or undefined. */
+function namedIndex(plan: TransactionPlan, key: string): number | undefined {
+  const outs = (plan.summary as Record<string, unknown> | undefined)?.outputs;
+  const at = (outs as Record<string, unknown> | null | undefined)?.[key];
+  return Number.isInteger(at) && (at as number) >= 0
+    ? (at as number)
+    : undefined;
+}
+
+/**
+ * Who a plan may pay, and only these:
+ *  - the wallet itself (version-0 pay-to-pubkey on its own key): token change,
+ *    KAS change and sale proceeds;
  *  - the pool covenant `lpCovenantId`: KaspaRocket's side of the trade, a
  *    script the covenant itself enforces;
  *  - a token output to that pool output's own script: tokens sold into the
- *    pool's reserve.
- * The SDK (0.1.6) documents no treasury or partner address. A plain output to
- * anything else is refused rather than guessed at: if KaspaRocket pays its
- * treasury in a plain output, every such plan refuses here until that address
- * is documented and named in this list.
+ *    pool's reserve;
+ *  - the token covenant's own cells, by index: the output at
+ *    `summary.outputs.kcc20Reserve` or `.kcc20User` carrying covenant
+ *    `tokenId`, behind a version-0 P2SH (a real buy: the token's reserve
+ *    cell, and the cell holding the bought tokens, each behind its own P2SH
+ *    that the token covenant checks). Index-driven: a token output at any
+ *    other index still refuses, and so does a named one on a plain key;
+ *  - the platform fee: the plain output at `summary.outputs.fee`, paying
+ *    `protocol().treasuryAddress` exactly `summary.platformFeeSompi`;
+ *  - the partner fee: the plain output at `summary.outputs.partnerFee`, paying
+ *    `protocol().partner.feeAddress` exactly `summary.partnerFeeSompi`.
+ * Both fee addresses come from the protocol document at sign time, never from
+ * this file. Anything else refuses.
+ *
+ * Indexes count over every transaction's outputs in plan order, as
+ * `buyPayout` reads `kcc20User`.
  */
-function checkPayees(txs: Tx[], g: KaspaRocketGuard, own: string) {
+function checkPayees(
+  plan: TransactionPlan,
+  txs: Tx[],
+  g: KaspaRocketGuard,
+  own: string,
+  protocol: ProtocolInfo,
+) {
+  const s = (plan.summary ?? {}) as Record<string, unknown>;
+  const treasury = mainnetScriptOf(
+    (protocol as { treasuryAddress?: unknown }).treasuryAddress,
+  );
+  const partner = mainnetScriptOf(protocol.partner?.feeAddress);
+  const fee = namedIndex(plan, "fee");
+  const partnerFee = namedIndex(plan, "partnerFee");
+  const tokenCells = new Set(
+    [namedIndex(plan, "kcc20Reserve"), namedIndex(plan, "kcc20User")].filter(
+      (i) => i !== undefined,
+    ),
+  );
+  /** A plain version-0 output paying `script` exactly the summary's `amount`. */
+  const paysFee = (
+    o: Tx["outputs"][number],
+    script: string | null,
+    amount: unknown,
+  ) =>
+    script !== null &&
+    o.covenant == null &&
+    o.scriptVersion === 0 &&
+    o.scriptPublicKey === script &&
+    tokenAmount(amount) === BigInt(o.value);
+
   const poolScripts = new Set(
     txs.flatMap((t) =>
       t.outputs
@@ -226,18 +300,49 @@ function checkPayees(txs: Tx[], g: KaspaRocketGuard, own: string) {
         .map((o) => o.scriptPublicKey),
     ),
   );
+  let at = -1;
   for (const t of txs) {
     for (const o of t.outputs) {
+      at += 1;
       const id = o.covenant?.covenantId;
       if (id === g.lpCovenantId || paysOwn(o, own)) continue;
       if (id === g.trade.tokenId && poolScripts.has(o.scriptPublicKey))
         continue;
+      if (
+        id === g.trade.tokenId &&
+        tokenCells.has(at) &&
+        o.scriptVersion === 0 &&
+        P2SH.test(o.scriptPublicKey)
+      )
+        continue;
+      if (at === fee && paysFee(o, treasury, s.platformFeeSompi)) continue;
+      if (at === partnerFee && paysFee(o, partner, s.partnerFeeSompi)) continue;
       refuse("plan pays an address this wallet cannot spend");
     }
   }
 }
 
-function checkGuard(plan: TransactionPlan, g: KaspaRocketGuard, pk: string) {
+/**
+ * `checkPayees` on its own, over the plan's transactions as the adapter reads
+ * them: throws `KaspaRocketSignRefusal` on a payee outside the list. For
+ * specs; `signPlan` runs the same check inside its guard.
+ */
+export function kaspaRocketCheckPayees(
+  plan: TransactionPlan,
+  g: KaspaRocketGuard,
+  xOnlyPk: string,
+  protocol: ProtocolInfo,
+): void {
+  const txs = plan.transactions.map((p) => kasparocketPlanToTx(p.tx));
+  checkPayees(plan, txs, g, ownScript(xOnlyPk), protocol);
+}
+
+function checkGuard(
+  plan: TransactionPlan,
+  g: KaspaRocketGuard,
+  pk: string,
+  protocol: ProtocolInfo,
+) {
   const { quote, trade, lpCovenantId, slippageBps } = g;
   if (lpCovenantId == null) refuse("token has no pool");
   if (quote.uneconomic || quote.netKasSompi <= 0n)
@@ -273,7 +378,7 @@ function checkGuard(plan: TransactionPlan, g: KaspaRocketGuard, pk: string) {
   if (kaspaRocketPriceMoved(plan, quote, trade.direction, slippageBps)) {
     refuse("price moved beyond slippage");
   }
-  checkPayees(txs, g, ownScript(pk));
+  checkPayees(plan, txs, g, ownScript(pk), protocol);
   const fee = kaspaRocketPlanNetworkFee(plan);
   if (fee === undefined) refuse("network fee cannot be read");
   if (fee! > KASPAROCKET_NETWORK_FEE_CEILING_SOMPI) {
@@ -356,9 +461,11 @@ export function kastleKaspaRocketSigner(
 
   return {
     async signPlan(plan: TransactionPlan): Promise<UnsignedTransaction[]> {
+      // Before the TTL check, so a slow protocol() cannot outlast it.
+      const protocol = await guard.protocol();
       if ((guard.now ?? Date.now)() - guard.builtAt > KASPAROCKET_PLAN_TTL_MS)
         throw new KaspaRocketPlanExpired();
-      const txs = checkGuard(plan, guard, pk);
+      const txs = checkGuard(plan, guard, pk, protocol);
 
       const work = plan.transactions.map((planned, t) => {
         const tx = txs[t];

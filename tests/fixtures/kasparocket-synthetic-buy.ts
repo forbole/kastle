@@ -26,10 +26,10 @@ export const resighed = (plan: TransactionPlan): TransactionPlan => {
  * copy each call; `summary.kasFlowSompi` left as the fixture's string.
  * `fixture` is kasparocket-plan.synthetic.json, as the caller loaded it.
  *
- * The cell is put behind the pool vault's own P2SH only because `checkPayees`
- * lets a token output through on a pool script alone. On the real plan the
- * user cell has its own P2SH, which `checkPayees` refuses: a known gap, out of
- * this fixture's scope.
+ * The cell sits behind the pool vault's own P2SH, a token output
+ * `checkPayees` lets through on the pool script. On the real plan the user
+ * cell has its own P2SH and passes on its `summary.outputs.kcc20User` index
+ * instead (kasparocket-plan-shape-unit.spec.ts).
  */
 export function syntheticBuyPlan(fixture: {
   plan: unknown;
