@@ -1,4 +1,5 @@
 import {
+  SIGN_PSKT_METHOD,
   SignTxPayload,
   admissionRefusal,
 } from "@/api/background/handlers/kaspa/utils";
@@ -33,6 +34,10 @@ export default function SignTx({
 }: SignTxProps) {
   const { rpcClient } = useRpcClientStateful();
   const { emitKasSignTx } = useAnalytics();
+  // Set by the background (signTx.ts), never by the dApp.
+  const psktRequest =
+    new URLSearchParams(window.location.search).get("method") ===
+    SIGN_PSKT_METHOD;
   const { account, wallet: selectedWallet } = useWalletManager();
 
   const handleConfirm = async () => {
@@ -102,6 +107,7 @@ export default function SignTx({
             ? PARTIAL_OUTPUT_WARNING
             : undefined
         }
+        psktRequest={psktRequest}
       />
     </>
   );

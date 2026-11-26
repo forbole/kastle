@@ -479,3 +479,35 @@ export function psktSignOptions(
     );
   return options;
 }
+
+/**
+ * What the signer will sign for a signPskt request, as the confirm screen
+ * shows it: the listed inputs plus, unless the listed ones complete the tx,
+ * every own coin (signTxWithScriptOptions' All fallback). `foreign`: signed
+ * inputs that are not the wallet's own coin, by paysWalletScript, the rule the
+ * refusal uses. `undefined` when an input has no UTXO entry: neither number
+ * can be proven, and neither is ever reported as 0.
+ */
+export function psktSignSummary(
+  tx: Transaction,
+  scripts: ScriptOption[],
+  walletAddress: string,
+): { signed: number; foreign: number } | undefined {
+  // tx.inputs access crosses the WASM boundary; read it once
+  const inputs = tx.inputs;
+  if (inputs.some((input) => input.utxo === undefined)) return undefined;
+  const listed = new Set(scripts.map((o) => o.inputIndex));
+  const walletScript = payToAddressScript(walletAddress).script;
+  const fallback = !inputs.every(
+    (input, i) => listed.has(i) || input.signatureScript,
+  );
+  let signed = 0;
+  let foreign = 0;
+  inputs.forEach((input, i) => {
+    const mine = paysWalletScript(input, walletScript);
+    if (!listed.has(i) && !(fallback && mine)) return;
+    signed++;
+    if (!mine) foreign++;
+  });
+  return { signed, foreign };
+}

@@ -2,9 +2,11 @@ import { Handler } from "@/api/background/utils";
 import { ApiRequestWithHost, RPC_ERRORS, RpcErrorCode } from "@/api/message";
 import { ApiUtils } from "@/api/background/utils";
 import {
+  SIGN_PSKT_METHOD,
   SignPsktPayloadSchema,
   SignTxPayload,
   SignTxPayloadSchema,
+  accountFingerprint,
   isCovenantTxJson,
 } from "./utils";
 import { covenantAdmission } from "./covenant-guard";
@@ -21,7 +23,10 @@ type Prepared = SignTxPayload | { error: unknown };
  * signs, or the error to answer with), covenant admission, popup.
  */
 const signTxFlow =
-  (prepare: (payload: unknown) => Promise<Prepared>): Handler =>
+  (
+    prepare: (payload: unknown) => Promise<Prepared>,
+    method?: typeof SIGN_PSKT_METHOD,
+  ): Handler =>
   async (tabId: number, message: ApiRequestWithHost, sendResponse: any) => {
     // Check if extension is initialized
     if (!(await ApiUtils.isInitialized())) {
@@ -53,8 +58,9 @@ const signTxFlow =
 
     // Version 0 never fetches; a covenant request opens only once every input
     // it signs is checked.
-    // The admission is bound to the account it ran for (admittedFor); any value
-    // the dApp sent is overwritten, and dropped for version 0.
+    // The admission is bound to the account it ran for (admittedFor). `prepare`
+    // may bind one itself (signPskt, every version); signTx's prepare drops any
+    // value the dApp sent, so a version-0 signTx stays unbound.
     const admission = isCovenantTxJson(prepared.txJson)
       ? await covenantAdmission(prepared.txJson, prepared.scripts)
       : undefined;
@@ -64,12 +70,32 @@ const signTxFlow =
       );
       return;
     }
-    const payload = { ...prepared, admittedFor: admission?.admittedFor };
+    // The account switched between prepare's checks and the admission's.
+    if (
+      admission &&
+      prepared.admittedFor !== undefined &&
+      prepared.admittedFor !== admission.admittedFor
+    ) {
+      sendResponse(
+        ApiUtils.createApiResponse(
+          message.id,
+          null,
+          RPC_ERRORS.COVENANT_ACCOUNT_CHANGED,
+        ),
+      );
+      return;
+    }
+    const payload = {
+      ...prepared,
+      admittedFor: admission?.admittedFor ?? prepared.admittedFor,
+    };
 
     const url = new URL(browser.runtime.getURL("/popup.html"));
     url.hash = "/sign-tx";
     url.searchParams.set("requestId", message.id);
     url.searchParams.set("payload", JSON.stringify(payload));
+    // Set here only, never from the dApp: the screen says who asked.
+    if (method) url.searchParams.set("method", method);
     if (message.host) {
       url.searchParams.set("origin", message.host);
     }
@@ -86,7 +112,10 @@ const signTxFlow =
 /** signTxHandler to serve BrowserMessageType.SIGN_TX message */
 export const signTxHandler = signTxFlow(async (payload) => {
   const result = SignTxPayloadSchema.safeParse(payload);
-  return result.success ? result.data : { error: INVALID_TX_DATA };
+  // admittedFor is the wallet's to set, never the dApp's.
+  return result.success
+    ? { ...result.data, admittedFor: undefined }
+    : { error: INVALID_TX_DATA };
 });
 
 /**
@@ -107,12 +136,16 @@ export const signPsktHandler = signTxFlow(async (payload) => {
     return { error: INVALID_TX_DATA };
   }
 
+  const wallet = await ApiUtils.getCurrentWallet();
   const account = await ApiUtils.getCurrentAccount();
-  if (!account?.address) return { error: RPC_ERRORS.INTERNAL_ERROR };
+  if (!wallet || !account?.address) return { error: RPC_ERRORS.INTERNAL_ERROR };
   try {
     return {
       txJson: txJsonString,
       scripts: psktSignOptions(tx, options?.signInputs, account.address),
+      // The hole check ran for this account; the confirm refuses any other
+      // (admissionRefusal), version 0 included.
+      admittedFor: accountFingerprint(wallet.id, account.index),
     };
   } catch (e) {
     return {
@@ -122,4 +155,4 @@ export const signPsktHandler = signTxFlow(async (payload) => {
       },
     };
   }
-});
+}, SIGN_PSKT_METHOD);

@@ -105,7 +105,7 @@ export function deserializeTransaction(txJson: string) {
   const tx = realDeserialize(txJson);
   // Defensive only: the product cannot produce this tx (the real
   // deserializer requires every entry); it exists to pin the "Not known" branch.
-  if (query.get("tx") === "v1nofee") {
+  if (["v1nofee", "v0mixednofee"].includes(query.get("tx") ?? "")) {
     tx.inputs = tx.inputs.map((input, i) => {
       if (i !== 1) return input;
       const { utxo: _utxo, ...rest } = input.toJSON() as Record<

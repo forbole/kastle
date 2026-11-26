@@ -349,3 +349,99 @@ test("each token shows the KAS its pieces carry as its own row, and says the amo
   });
   expect(errors).toEqual([]);
 });
+
+// signPskt (psktRequest): v0mixed input 0 is a foreign covenant P2SH, input 1
+// the wallet's own coin, signed by the fallback.
+const ANYONE_CAN_PAY =
+  "An input signed with AllAnyOneCanPay lets another party add inputs to this transaction after you approve. The outputs stay as shown.";
+const SHOTS = path.resolve("test-results/sign-pskt-confirm");
+
+// The popup is fixed-width: at 320px nothing may scroll sideways.
+async function at320(page: Page) {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.evaluate(() => {
+    document.getElementById("popup")!.style.width = "320px";
+  });
+  const overflow = await page.evaluate(() =>
+    [...document.querySelectorAll("#popup *")]
+      .filter((el) => el.scrollWidth > el.clientWidth + 1)
+      .filter((el) => getComputedStyle(el).overflowX !== "visible")
+      .map((el) => el.outerHTML.slice(0, 80)),
+  );
+  expect(overflow).toEqual([]);
+  expect(
+    await page.evaluate(
+      () => document.getElementById("popup")!.getBoundingClientRect().right,
+    ),
+  ).toBeLessThanOrEqual(320);
+  for (const name of ["Cancel", "Confirm"]) {
+    const box = (await page.getByRole("button", { name }).boundingBox())!;
+    expect(box.width).toBeGreaterThanOrEqual(44);
+    expect(box.height).toBeGreaterThanOrEqual(44);
+  }
+}
+
+test("signPskt, mixed: N inputs, M not your own coin, each sighash in words, and the AnyOneCanPay warning", async ({
+  page,
+}) => {
+  const errors = await open(page, "tx=v0mixed&pskt=0:AllAnyOneCanPay");
+  await expect(page.getByText("Sign only", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText(
+      "The site built this transaction, not your wallet's send screen",
+    ),
+  ).toBeVisible();
+  await expect(
+    page.getByText("2 inputs, 1 not your own coin", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Signed with your key without being held at your address"),
+  ).toBeVisible();
+  await expect(
+    page.getByText(
+      "Inputs not listed below are your own coins, signed with All",
+    ),
+  ).toBeVisible();
+  await expect(page.getByText("Input 0", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("AllAnyOneCanPay", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText(ANYONE_CAN_PAY)).toBeVisible();
+  await expect(confirm(page)).toBeEnabled();
+  await at320(page);
+  await page.screenshot({ path: `${SHOTS}/mixed-320.png`, fullPage: true });
+  expect(errors).toEqual([]);
+});
+
+test("signPskt with All: the sighash row says All, and no AnyOneCanPay warning", async ({
+  page,
+}) => {
+  await open(page, "tx=v0mixed&pskt=0:All");
+  await expect(
+    page.getByText("2 inputs, 1 not your own coin", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("All", { exact: true })).toBeVisible();
+  await expect(page.getByText(ANYONE_CAN_PAY)).toHaveCount(0);
+});
+
+test("signPskt without UTXO entries: the count is labelled not known, never 0", async ({
+  page,
+}) => {
+  const errors = await open(page, "tx=v0mixednofee&pskt=0:All");
+  const row = page.locator("li").filter({ hasText: "Inputs you sign" });
+  await expect(row).toContainText("Not known");
+  await expect(row).toContainText(
+    "The site did not send the coin details of every input, so Kastle cannot count them",
+  );
+  await expect(row).not.toContainText("0 not your own coin");
+  await expect(row).not.toContainText(/\d+ inputs?,/);
+  await at320(page);
+  await page.screenshot({ path: `${SHOTS}/no-utxo-320.png`, fullPage: true });
+  expect(errors).toEqual([]);
+});
+
+test("a signTx request shows none of the signPskt rows", async ({ page }) => {
+  await open(page, "tx=v0mixed");
+  await expect(page.getByText("Inputs you sign")).toHaveCount(0);
+  await expect(page.getByText("Sign only")).toHaveCount(0);
+});

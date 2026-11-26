@@ -6,6 +6,7 @@ import init, { PrivateKey, Transaction } from "@/wasm/core/kaspa";
 import { deserializeTransaction } from "@/lib/kaspa-compat";
 import {
   psktSignOptions,
+  psktSignSummary,
   signTxInputWithScriptOption,
   signTxWithScriptOptions,
   toPsktSignType,
@@ -377,5 +378,55 @@ test.describe("signPskt leaves the rest of the transaction alone", () => {
       ).serializeToSafeJSON(),
     );
     expect(result.storageMass).toBe(storageMass);
+  });
+});
+
+test.describe("psktSignSummary (the confirm screen's count)", () => {
+  test("a listed foreign input beside an unlisted own coin: 2 signed, 1 not your own", () => {
+    const tx = mkTx([P2SH, P2PK(TEST_KEY)]);
+    const scripts = psktSignOptions(tx, [{ index: 0 }], WALLET());
+    expect(psktSignSummary(tx, scripts, WALLET())).toEqual({
+      signed: 2,
+      foreign: 1,
+    });
+  });
+
+  test("listed inputs that complete the tx: the own-coin fallback signs nothing more", () => {
+    // Input 1 is an own coin already carrying a signature: nothing re-signs it.
+    const tx = mkTx([P2SH, P2PK(TEST_KEY)], ["", "51"]);
+    expect(
+      psktSignSummary(tx, [{ inputIndex: 0, signType: "All" }], WALLET()),
+    ).toEqual({ signed: 1, foreign: 1 });
+  });
+
+  test("no signInputs: every own coin, none foreign", () => {
+    const tx = mkTx([P2PK(TEST_KEY), P2PK(TEST_KEY)]);
+    expect(psktSignSummary(tx, [], WALLET())).toEqual({
+      signed: 2,
+      foreign: 0,
+    });
+  });
+
+  test("an input without its UTXO entry: not computable, never 0", () => {
+    const tx = new Transaction({
+      version: 0,
+      inputs: [
+        {
+          previousOutpoint: { transactionId: "01".repeat(32), index: 0 },
+          signatureScript: "",
+          sequence: 0n,
+          sigOpCount: 1,
+        },
+      ],
+      outputs: [],
+      lockTime: 0n,
+      subnetworkId: "00".repeat(20),
+      gas: 0n,
+      payload: "",
+    } as any);
+    expect(tx.inputs[0].utxo).toBeUndefined();
+    expect(
+      psktSignSummary(tx, [{ inputIndex: 0, signType: "All" }], WALLET()),
+    ).toBeUndefined();
   });
 });

@@ -88,7 +88,7 @@ const { admissionRefusal } = await import(
 const { CovenantScanRefusal, LEDGER_FOREIGN_INPUT } = await import(
   "@/lib/kcc20/dapp-request"
 );
-const { signTxHandler } = await import(
+const { signTxHandler, signPsktHandler } = await import(
   "@/api/background/handlers/kaspa/signTx"
 );
 const { signAndBroadcastTxHandler } = await import(
@@ -300,3 +300,82 @@ for (const [name, handler] of HANDLERS) {
     });
   });
 }
+
+// The repro's input 1: piece B, a covenant UTXO the wallet does not hold the address of.
+const PIECE_B = {
+  ...PIECE_A,
+  outpoint: {
+    transactionId:
+      "e5aa2289b808367ec116640e98e9e9618ecb434f681750c387cfba4276df55b2",
+    index: 2,
+  },
+  covenantId:
+    "2c4c9e0f46a412391b26499b2f23a14c3d3a965624deafc11d72c5200340dd36",
+};
+
+const callPskt = (
+  txJsonString: string,
+  signInputs?: unknown[],
+): Promise<{ id: string; response: unknown; error?: unknown }> =>
+  new Promise((resolve) =>
+    signPsktHandler(
+      1,
+      {
+        id: "req-pskt",
+        host: "https://kron.example",
+        payload: { txJsonString, options: { signInputs } },
+      } as any,
+      resolve,
+    ),
+  );
+
+const popupPayload = (url: string) =>
+  JSON.parse(new URL(url).searchParams.get("payload")!);
+
+test.describe("signPskt account binding", () => {
+  test("a version-0 signPskt is bound to its account and refuses another; a version-0 signTx is not", async () => {
+    await callPskt(v0TxJson());
+    await call(signTxHandler, v0TxJson(), undefined, { admittedFor: "w9:9" });
+    const [pskt, tx] = guard.popups;
+    // signPskt: bound to the account its hole check ran for, refused for another.
+    expect(popupPayload(pskt).admittedFor).toBe("w1:0");
+    expect(admissionRefusal(popupPayload(pskt), "w2", 0)).toEqual(
+      RPC_ERRORS.COVENANT_ACCOUNT_CHANGED,
+    );
+    // signTx: unchanged, unbound, never refused on a switch.
+    expect(popupPayload(tx).admittedFor).toBeUndefined();
+    expect(admissionRefusal(popupPayload(tx), "w2", 0)).toBeUndefined();
+    // Only the background names the method; signTx carries none.
+    expect(new URL(pskt).searchParams.get("method")).toBe("signPskt");
+    expect(new URL(tx).searchParams.get("method")).toBeNull();
+  });
+
+  test("a version-1 signPskt opens bound to the account the admission ran for", async () => {
+    guard.pieces = async () => [PIECE_A, PIECE_B];
+    const res = await callPskt(V1_TX_JSON, [{ index: 1 }, { index: 2 }]);
+    expect(res.response).toBe("popup-answer");
+    expect(popupPayload(guard.popups[0]).admittedFor).toBe("w1:0");
+  });
+
+  test("an account switch between the hole check and the admission refuses, no popup", async () => {
+    guard.pieces = async () => [PIECE_A, PIECE_B];
+    // First read (signPskt's hole check) sees w1, every later one w2.
+    let reads = 0;
+    Object.defineProperty(guard, "wallet", {
+      configurable: true,
+      get: () => ({ id: reads++ === 0 ? "w1" : "w2", type: "mnemonic" }),
+    });
+    try {
+      const res = await callPskt(V1_TX_JSON, [{ index: 1 }, { index: 2 }]);
+      expect(res.error).toEqual(RPC_ERRORS.COVENANT_ACCOUNT_CHANGED);
+      expect(guard.popups).toHaveLength(0);
+    } finally {
+      Object.defineProperty(guard, "wallet", {
+        configurable: true,
+        enumerable: true,
+        writable: true,
+        value: { id: "w1", type: "mnemonic" },
+      });
+    }
+  });
+});

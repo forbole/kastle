@@ -49,14 +49,18 @@ export const SignPsktPayloadSchema = z.object({
 
 export type SignPsktPayload = z.infer<typeof SignPsktPayloadSchema>;
 
-/** The account a covenant admission ran for: wallet id plus account index. */
+/** The `/sign-tx` popup's `method` URL param for a signPskt request; set by the background only. */
+export const SIGN_PSKT_METHOD = "signPskt";
+
+/** The account a request's checks ran for: wallet id plus account index. */
 export const accountFingerprint = (walletId: string, accountIndex: number) =>
   `${walletId}:${accountIndex}`;
 
 /**
- * Checked at confirm, before signing: a covenant request admitted for one
- * account refuses if another is selected now. A version-0 request carries no
- * admission and is never refused here.
+ * Checked at confirm, before signing: a request admitted for one account
+ * refuses if another is selected now. Covenant requests and every signPskt
+ * request carry an admission; a version-0 signTx or signAndBroadcastTx does
+ * not and is never refused here.
  */
 export function admissionRefusal(
   payload: Pick<SignTxPayload, "admittedFor">,
