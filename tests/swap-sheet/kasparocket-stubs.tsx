@@ -70,11 +70,17 @@ export const makeKaspaRocket = () => ({
     limits: { minOrderValueSompi: "15000000000" },
     token: { decimals: 8 },
   }),
-  quote: async () => ({
+  // A buy's net is the KAS leaving the wallet, negative, as the server sends
+  // it: the budget plus the 3 KAS fee, 2 798 sompi short of the budget into
+  // the pool as on the real FOUR buy. ?scenario=rocket-overbudget asks one
+  // sompi more than budget + fee.
+  quote: async ({ kasBudgetSompi = 0n }: { kasBudgetSompi?: bigint }) => ({
     direction: q.direction,
     amountTokens: BigInt(q.amountTokens),
     kasFlowSompi: BigInt(q.kasFlowSompi),
-    netKasSompi: BigInt(q.netKasSompi),
+    netKasSompi:
+      -(kasBudgetSompi + 300_000_000n) +
+      (scenario === "rocket-overbudget" ? -1n : 2_798n),
     uneconomic: false,
   }),
   planSwap: async () => {

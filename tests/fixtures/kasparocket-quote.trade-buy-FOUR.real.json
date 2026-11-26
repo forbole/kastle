@@ -1,0 +1,20 @@
+{
+  "note": "REAL: the /pro-api/pool/quote answer for the same buy as kasparocket-plan.trade-buy-FOUR.real.json (FOUR, kas_budget_sompi 16000000000, 2026-11-26), from ~/kastle-qa/evidence/quote-buy-FOUR-2026-11-26.json, as the server sent it (snake_case; the SDK's quote() maps it). net_kas_sompi is negative: on a buy it is the KAS leaving the wallet, the budget into the pool plus the 3 KAS fee.",
+  "kasBudgetSompi": "16000000000",
+  "response": {
+    "direction": "buy",
+    "amount_tokens": 5298975,
+    "kas_flow_sompi": 15999997202,
+    "platform_fee_sompi": 200000000,
+    "partner_fee_sompi": 100000000,
+    "total_fee_sompi": 300000000,
+    "net_kas_sompi": -16299997202,
+    "uneconomic": false,
+    "phase": "bonding",
+    "reserve_tokens": 997277837,
+    "reserve_kas_sompi": 7685704483,
+    "spot_before_sompi": 2885.0687259078923,
+    "spot_after_sompi": 3153.83394197606,
+    "pool_txid": "e79eeffec389b003516b4643f3ae788f7fc1b15c4143558e699a05aca56f01c9"
+  }
+}

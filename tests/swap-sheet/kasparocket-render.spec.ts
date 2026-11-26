@@ -11,6 +11,8 @@ import path from "node:path";
 
 const SHOTS = "/tmp/kasparocket-render";
 const PENDING = "A KaspaRocket swap on this pair is still settling.";
+const UNECONOMIC =
+  "This amount is too small to trade on KaspaRocket after fees.";
 let base: string;
 let server: http.Server;
 
@@ -99,6 +101,17 @@ test("KaspaRocket chosen: the row is present and the plan's fee lines render", a
   await expect(page.getByText(/^1 KAS ≈ /)).toBeVisible();
   await expect(page.getByRole("button", { name: "Confirm" })).toBeEnabled();
   await page.screenshot({ path: `${SHOTS}/selected.png` });
+  expect(errors).toEqual([]);
+});
+
+test("a buy quote over the budget plus KaspaRocket's fee: the uneconomic copy, no plan", async ({
+  page,
+}) => {
+  const errors = await open(page, "rocket-overbudget");
+  await expect(page.getByText(UNECONOMIC, { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Confirm" })).toBeDisabled();
+  await expect(page.getByText(/^1 KAS ≈ /)).toHaveCount(0);
+  await page.screenshot({ path: `${SHOTS}/overbudget.png` });
   expect(errors).toEqual([]);
 });
 
