@@ -1,7 +1,10 @@
 import { connectHandler } from "@/api/background/handlers/kaspa/connect";
 import { getAccountHandler } from "@/api/background/handlers/kaspa/getAccount";
 import { signAndBroadcastTxHandler } from "@/api/background/handlers/kaspa/signAndBroadcastTx";
-import { signTxHandler } from "@/api/background/handlers/kaspa/signTx";
+import {
+  signPsktHandler,
+  signTxHandler,
+} from "@/api/background/handlers/kaspa/signTx";
 import {
   Action,
   ApiRequestWithHostSchema,
@@ -85,6 +88,7 @@ export class BackgroundService {
       [Action.GET_ACCOUNT]: getAccountHandler,
       [Action.SIGN_AND_BROADCAST_TX]: signAndBroadcastTxHandler,
       [Action.SIGN_TX]: signTxHandler,
+      [Action.SIGN_PSKT]: signPsktHandler,
       [Action.GET_NETWORK]: getNetwork,
       [Action.ETHEREUM_REQUEST]: ethereumRequestHandler,
       [Action.SIGN_MESSAGE]: signMessageHandler,

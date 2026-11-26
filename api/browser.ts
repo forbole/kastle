@@ -3,7 +3,10 @@ import { Action, ApiRequest, ApiResponseSchema } from "@/api/message";
 import { ScriptOption } from "@/lib/wallet/wallet-interface.ts";
 import { EthereumBrowserAPI } from "./ethereum";
 import { ConnectPayloadSchema } from "@/api/background/handlers/kaspa/connect";
-import { SignTxPayloadSchema } from "@/api/background/handlers/kaspa/utils";
+import {
+  SignPsktPayloadSchema,
+  SignTxPayloadSchema,
+} from "@/api/background/handlers/kaspa/utils";
 import { SignMessagePayloadSchema } from "@/api/background/handlers/kaspa/signMessage";
 import { sendSompiPayloadSchema } from "./background/handlers/kaspa/sendSompi";
 import {
@@ -145,6 +148,7 @@ export class KastleBrowserAPI {
       "kas:get_account": Action.GET_ACCOUNT,
       "kas:get_network": Action.GET_NETWORK,
       "kas:sign_tx": Action.SIGN_TX,
+      "kas:sign_pskt": Action.SIGN_PSKT,
       "kas:sign_and_broadcast_tx": Action.SIGN_AND_BROADCAST_TX,
       "kas:switch_network": Action.SWITCH_NETWORK,
       "kas:sign_message": Action.SIGN_MESSAGE,
@@ -220,6 +224,24 @@ export class KastleBrowserAPI {
         txJson,
         scripts,
       }),
+    );
+    window.postMessage(request, "*");
+
+    return await this.receiveMessageWithTimeout(requestId);
+  }
+
+  // Kasware's call shape; resolves to the signed tx as Safe JSON. Never
+  // throws on a bad payload: it goes to the background as null and comes
+  // back as the invalid-payload error, like any other refused request.
+  async signPskt(payload: {
+    txJsonString: string;
+    options?: { signInputs?: { index: number; sighashType?: number }[] };
+  }): Promise<string> {
+    const requestId = uuid();
+    const request = createApiRequest(
+      Action.SIGN_PSKT,
+      requestId,
+      SignPsktPayloadSchema.safeParse(payload).data ?? null,
     );
     window.postMessage(request, "*");
 
