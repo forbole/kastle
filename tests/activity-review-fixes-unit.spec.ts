@@ -417,10 +417,10 @@ test("usdText: small USD keeps precision, a missing price says so", () => {
     "≈ $0.00123 USD",
   );
   expect(m.usdText({ value: "0.00000001", symbol: "KAS" }, () => 0.1)).toBe(
-    "≈ <$0.00000001 USD",
+    "≈ <$0.000001 USD",
   );
   expect(m.usdText({ value: "-0.00000001", symbol: "KAS" }, () => 0.1)).toBe(
-    "≈ >-$0.00000001 USD",
+    "≈ >-$0.000001 USD",
   );
   expect(m.usdText({ value: "1", symbol: "KAS" }, () => 0)).toBe(
     "Price unavailable",
@@ -696,4 +696,24 @@ test("swaps: collector sweeps cost no receipt probe; a swap through it does", ()
     wkas: "0xwkas",
   });
   expect(probes.map((p) => p.hash)).toEqual(["0xswap"]);
+});
+
+// QA wallet 2026-11-26: Activity printed "≈ $0.02421027 USD",
+// "≈ $0.09298032 USD", "≈ $0.0540858 USD". Two decimals at or above $0.01;
+// below, four significant digits at most, never past six decimals.
+test("usdText: two decimals from $0.01, four significant digits below, never eight", () => {
+  const usd = (v: number) =>
+    m.usdText({ value: String(v), symbol: "KAS" }, () => 1);
+  expect(usd(0.02421027)).toBe("≈ $0.02 USD");
+  expect(usd(0.09298032)).toBe("≈ $0.09 USD");
+  expect(usd(0.0540858)).toBe("≈ $0.05 USD");
+  expect(usd(0.01)).toBe("≈ $0.01 USD");
+  expect(usd(1374.613)).toBe("≈ $1,374.61 USD");
+  expect(usd(1234567.891)).toBe("≈ $1,234,567.89 USD");
+  expect(usd(0.004787853)).toBe("≈ $0.004788 USD");
+  expect(usd(0.0012)).toBe("≈ $0.0012 USD");
+  expect(usd(0.00001234)).toBe("≈ $0.000012 USD");
+  expect(usd(0.0000004)).toBe("≈ <$0.000001 USD");
+  for (const v of [0.02421027, 0.0540858, 0.004787853, 0.00001234, 0.0099999])
+    expect(usd(v)).not.toMatch(/\.\d{7,}/);
 });

@@ -606,7 +606,7 @@ export default function Bridge() {
           onChange={setAmount}
           symbol={fromSymbol}
           chainImage={chainImage(route.from)}
-          usd={`$${formatUsd(amountNum * kaspaPrice)}`}
+          usd={formatUsd(amountNum * kaspaPrice)}
           onFlip={() => {
             setDirection(reverse);
             setAmount("");
@@ -626,7 +626,7 @@ export default function Bridge() {
                   <span className="flex flex-col items-end">
                     ~ {formatAmount(Math.max(received, 0))} {toSymbol}
                     <span className="text-xs text-daintree-400">
-                      (≈ ${formatUsd(Math.max(received, 0) * kaspaPrice)} USD)
+                      (≈ {formatUsd(Math.max(received, 0) * kaspaPrice)} USD)
                     </span>
                   </span>
                 )}

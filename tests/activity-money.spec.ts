@@ -117,3 +117,21 @@ test("item 2: every row with an amount has a fiat line, or says the price is una
   expect(row(all, "+43.5").at(-1)).toMatch(/^≈ \$/);
   expect(errors).toEqual([]);
 });
+
+test("item 3: list and sheet fiat lines use two decimals at or above $0.01", async ({
+  page,
+}) => {
+  const errors = await open(page);
+  const all = await rows(page);
+  console.log("ROWS", JSON.stringify(all));
+  const fiat = all.map((c) => c.at(-1)!).filter((c) => c.startsWith("≈"));
+  expect(fiat.length).toBe(4);
+  for (const line of fiat) expect(line).toMatch(/^≈ \$[\d,]+\.\d{2} USD$/);
+  await page.getByText("+18,922").click();
+  const sheet = await page.locator("dialog").innerText();
+  console.log(`SHEET ─────\n${sheet}\n─────`);
+  const sheetFiat = sheet.split("\n").filter((l) => l.startsWith("≈"));
+  expect(sheetFiat.length).toBe(2);
+  for (const line of sheetFiat) expect(line).not.toMatch(/\.\d{5,}/);
+  expect(errors).toEqual([]);
+});

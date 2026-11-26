@@ -5,7 +5,7 @@ import {
   ActivityRowDescriptor,
   ActivityStatusToken,
 } from "@/lib/activity/types";
-import { formatUsdAmount } from "@/lib/utils";
+import { formatFiatAmount } from "@/lib/utils";
 import {
   IGRA_DEPOSIT_ACTIVITY_TYPE,
   KURVE_BRIDGE_ACTIVITY_TYPE,
@@ -205,7 +205,7 @@ export function usdText(
   if (!Number.isFinite(value)) return "";
   if (!price || !(price > 0)) return PRICE_UNAVAILABLE;
   const usd = value * price;
-  return `≈ ${formatUsdAmount(usd)} USD`;
+  return `≈ ${formatFiatAmount(usd)} USD`;
 }
 
 /**

@@ -132,6 +132,19 @@ function usdOf(line: string | undefined): number {
   return Number(match![1].replace(/,/g, ""));
 }
 
+/**
+ * `line` states `usd` as the fiat format rounds it: to the cent at or above
+ * $0.01, to four significant digits below (six decimals at most).
+ */
+function expectUsd(line: string | undefined, usd: number) {
+  const shown = usdOf(line);
+  if (usd >= 0.01) expect(Math.abs(shown - usd)).toBeLessThanOrEqual(0.005);
+  else
+    expect(Math.abs(shown - usd)).toBeLessThanOrEqual(
+      Math.max(usd * 5e-4, 5e-7),
+    );
+}
+
 // ─── resolveKcc20Price: useKcc20Price's resolution, exported ─────────────────
 
 test("curve family: KRON's curve, then its graduated pool; the cache only until KRON answers", () => {
@@ -209,7 +222,7 @@ test("a held standard token priced by kascov's spot shows its Received USD (amou
     spots: new Map([[STD_ID, 0.0002]]),
   });
   expect(t.receivedAmount).toBe("120.5 NACHO");
-  expect(usdOf(t.receivedUsd)).toBeCloseTo(120.5 * 0.0002 * KAS_USD, 8);
+  expectUsd(t.receivedUsd, 120.5 * 0.0002 * KAS_USD);
 });
 
 test("Leo's KRON row before KRON's markets answer: the dashboard's cached price, not a missing line", () => {
@@ -223,16 +236,16 @@ test("Leo's KRON row before KRON's markets answer: the dashboard's cached price,
     cached: { [KRON_ID]: cachedKas },
   });
   expect(t.receivedAmount).toBe("1,917 KRON");
-  expect(usdOf(t.receivedUsd)).toBeCloseTo(1917 * cachedKas * KAS_USD, 8);
+  expectUsd(t.receivedUsd, 1917 * cachedKas * KAS_USD);
   // The Paid leg is the KAS amount at the KAS price, as before.
-  expect(usdOf(t.sentUsd)).toBeCloseTo(14.372 * KAS_USD, 8);
+  expectUsd(t.sentUsd, 14.372 * KAS_USD);
 });
 
 test("a token no longer held keeps its KRON market price (graduated pool)", () => {
   const t = sheet(buyRow(KRON_ID, "KRON", "1917"), [], {
     markets: markets([], [{ covenantId: KRON_ID, priceKas: 0.0067 }]),
   });
-  expect(usdOf(t.receivedUsd)).toBeCloseTo(1917 * 0.0067 * KAS_USD, 8);
+  expectUsd(t.receivedUsd, 1917 * 0.0067 * KAS_USD);
 });
 
 test("no source prices the token: the Received line says the price is unavailable", () => {
@@ -251,7 +264,7 @@ test("no source prices the token: the Received line says the price is unavailabl
   expect(t.receivedAmount).toBe("120.5 NACHO");
   expect(t.receivedUsd).toBe("Price unavailable");
   // The Paid leg still shows.
-  expect(usdOf(t.sentUsd)).toBeCloseTo(14.372 * KAS_USD, 8);
+  expectUsd(t.sentUsd, 14.372 * KAS_USD);
 });
 
 test("no KAS price yet: no KCC-20 price is made up", () => {

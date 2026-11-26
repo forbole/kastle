@@ -22,6 +22,7 @@ import toast from "@/components/Toast";
 import ClipboardCopy from "@/components/dashboard/ClipboardCopy";
 import useStorageState from "@/hooks/useStorageState";
 import { BaseError } from "viem";
+import { formatFiatAmount } from "@/lib/utils";
 import { formatAmount } from "@/lib/format-amount";
 import { DiagnosticReport } from "@/lib/diagnostics";
 import "/node_modules/flag-icons/css/flag-icons.min.css";
@@ -911,13 +912,5 @@ export function TokenSheet({
 
 export { formatAmount };
 
-/** USD display: sub-cent values round to 0.00 at 2 decimals, so show more. */
-export const formatUsd = (n: number) =>
-  Number.isFinite(n) && n !== 0 && Math.abs(n) < 0.01
-    ? // Significant digits, so any non-zero amount stays visibly non-zero.
-      `${n < 0 ? "-" : ""}${Math.abs(n).toLocaleString("en-US", {
-        minimumSignificantDigits: 2,
-        maximumSignificantDigits: 5,
-        maximumFractionDigits: 20,
-      })}`
-    : formatAmount(n, 2);
+/** A USD amount with its "$": the activity and swap surfaces' one fiat format. */
+export const formatUsd = (n: number) => formatFiatAmount(n, "USD");

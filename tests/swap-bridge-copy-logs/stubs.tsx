@@ -40,7 +40,9 @@ export const useEvmHotWalletSigner = () => ({});
 export const useKaspaHotWalletSigner = () => ({
   signBraidDeposit: async () => ({}),
 });
-export const useKaspaPrice = () => ({ kaspaPrice: 0 });
+// ?kas= sets the KAS price (USD); absent, 0: no price yet.
+const kasPrice = Number(new URLSearchParams(location.search).get("kas") ?? 0);
+export const useKaspaPrice = () => ({ kaspaPrice: kasPrice });
 export const useAnalytics = () => ({
   emitBridgeCompleted: ({ status }: { status: string }) =>
     window.__bridge.emitted.push(status),

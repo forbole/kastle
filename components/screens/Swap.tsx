@@ -1232,7 +1232,7 @@ export default function Swap() {
           symbol={tokenIn?.symbol ?? ""}
           tokenImage={tokenIn?.image}
           chainImage={tokenIn?.chainImage}
-          usd={`$${formatUsd(usdIn)}`}
+          usd={formatUsd(usdIn)}
           onFlip={flip}
           flipDisabled={!tokenOutKey}
         />
@@ -1251,7 +1251,7 @@ export default function Swap() {
                     ~ {minReceived} {tokenOut.symbol}
                     {minReceivedUsd !== undefined && (
                       <span className="text-xs text-daintree-400">
-                        (≈ ${formatUsd(minReceivedUsd)} USD)
+                        (≈ {formatUsd(minReceivedUsd)} USD)
                       </span>
                     )}
                   </span>
