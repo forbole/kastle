@@ -57,6 +57,12 @@ export interface SwapActivityRecord {
   kastleFeeUnobserved?: true;
   /** Chain the swap executed on. Absent → the row falls back to Igra. */
   chainId?: number;
+  /**
+   * A KCC-20 row's token leg: its lower-case covenant id, the only key its
+   * USD price is looked up by. A ticker never prices it: KRC-20 and ERC-20
+   * namesakes are other issuances.
+   */
+  tokenId?: string;
 }
 
 /**
@@ -83,6 +89,7 @@ export function mapSwapActivity(s: SwapActivityRecord): ActivityRowDescriptor {
   const meta: Record<string, string> = {};
   if (s.txHash) meta.txHash = s.txHash;
   if (s.providerId) meta.providerId = s.providerId;
+  if (s.tokenId) meta.tokenId = s.tokenId;
   // Provider Fees: the network (gas) fee the swap tx paid.
   if (s.feeAmount && s.feeSymbol) {
     meta.fee = `${trimDecimal(Number(s.feeAmount))} ${s.feeSymbol}`;

@@ -269,7 +269,10 @@ test("an exact buy becomes a row with the KAS side as the unobserved sentinel", 
     status: "completed",
     txHash: BUY_TXID,
     chainId: 1,
+    // The covenant id that prices the token leg, carried to the row's meta.
+    tokenId: MAGPIE_ID,
   });
+  expect(m.mapSwapActivity(buy!).meta?.tokenId).toBe(MAGPIE_ID);
   // Unenriched: no fee field at all, and never the "-" marker.
   expect(buy?.feeAmount).toBeUndefined();
   expect(buy?.kastleFeeAmount).toBeUndefined();

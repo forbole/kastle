@@ -553,6 +553,7 @@ test.describe("Braid trade in the swap history", () => {
       status: "pending",
       txHash: "d".repeat(64),
       chainId: expect.any(Number),
+      tokenId: COVENANT,
       feeAmount: "0.01",
       feeSymbol: "KAS",
       kastleFeeAmount: "0.25",
@@ -581,6 +582,7 @@ test.describe("Braid trade in the swap history", () => {
       depositTxid: "t",
       startedAt: 1,
       side: "sell",
+      tokenId: "AB".repeat(32),
       tokenSymbol: "TKN",
       tokenDecimals: 2,
       amountIn: 1_234n,
@@ -595,6 +597,8 @@ test.describe("Braid trade in the swap history", () => {
       toAmount: "2.5",
       status: "completed",
       feeAmount: "0.0001",
+      // The token leg's covenant id, lower-cased: what prices it.
+      tokenId: "ab".repeat(32),
     });
     expect(row.kastleFeeAmount).toBeUndefined();
   });
