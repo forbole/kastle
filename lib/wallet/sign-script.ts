@@ -1,5 +1,6 @@
 import {
   createInputSignature,
+  payToAddressScript,
   PrivateKey,
   signTransaction,
   Transaction,
@@ -8,7 +9,9 @@ import { hexToBytes } from "@noble/hashes/utils";
 import {
   LedgerUnsupportedError,
   ScriptOption,
+  SignType,
 } from "@/lib/wallet/wallet-interface.ts";
+import { paysWalletScript } from "@/lib/kcc20/dapp-request";
 import { toSignType } from "@/lib/kaspa.ts";
 import { withOwned } from "@/lib/wallet/wasm-lifecycle.ts";
 
@@ -405,4 +408,136 @@ export async function signTxWithScriptOptions(
     fallbackInputs[inputIndex].signatureScript = signatureScript;
   }
   return signed;
+}
+
+/**
+ * Kasware's numeric sighashType, as signPskt accepts it: 1 (All) only.
+ * Omitted means 1, as in Kasware. Everything else refuses, named: None*
+ * (2, 130) commits no outputs and Single* (4, 132) only the same-index one,
+ * so either lets outputs the user approved change afterwards. 129
+ * (AllAnyOneCanPay) commits every output, but this build's signer emits the
+ * bare ANYONECANPAY byte 0x80 for it, not 0x81 (tests/signtx-unit.spec.ts
+ * HASH_TYPE_BYTE), so it could not be signed as asked. signTx still signs
+ * in-range Single* behind a warning; signPskt is new and takes the stricter line.
+ */
+function psktSighashRefusal(sighashType: unknown): string | undefined {
+  if (sighashType === undefined || sighashType === 1) return undefined;
+  const accepted = "(accepted: 1 (All))";
+  if (sighashType === 129)
+    return `sighashType 129 (AllAnyOneCanPay) is not accepted: this build's signer produces the bare ANYONECANPAY bit (0x80), not ALL|ANYONECANPAY (0x81), so the signature would not be the type the site asked for ${accepted}`;
+  const named =
+    typeof sighashType === "number"
+      ? String(sighashType)
+      : JSON.stringify(sighashType);
+  return `sighashType ${named} is not accepted ${accepted}`;
+}
+
+/**
+ * signPskt's signInputs as signer options, for the wallet at `walletAddress`.
+ * Every input is checked first and the request refused once, naming every
+ * offender by index: a duplicate or missing index, a bad sighashType, a listed
+ * input that already carries a signature, and any input the request would
+ * leave unsigned: not listed, not the wallet's own coin (the signer's fallback
+ * signs those), and not already carrying a signatureScript.
+ *
+ * Why signPskt refuses holes and signTx does not: signTx's contract has always
+ * been "sign what you can" and dApps (KaspaCom listings) rely on a partial
+ * return. signPskt is new and Kasware-shaped: the dApp names the inputs it
+ * wants signed, so an input nobody signs is its mistake, and it hears about it
+ * here rather than from a node rejecting the broadcast.
+ */
+export function psktSignOptions(
+  tx: Transaction,
+  signInputs:
+    | ({ index: number; sighashType?: unknown } | null | undefined)[]
+    | undefined,
+  walletAddress: string,
+): ScriptOption[] {
+  // tx.inputs access crosses WASM boundary; read it once
+  const inputs = tx.inputs;
+  const listed = new Set<number>();
+  const reasons: string[] = [];
+  const options: ScriptOption[] = [];
+  for (const option of signInputs ?? []) {
+    if (option == null) continue;
+    const { index, sighashType } = option;
+    if (!(index >= 0 && index < inputs.length))
+      reasons.push(`input ${index} does not exist (${inputs.length} inputs)`);
+    else if (listed.has(index)) reasons.push(`input ${index} is listed twice`);
+    else if (inputs[index].signatureScript)
+      reasons.push(`input ${index} already carries a signature`);
+    listed.add(index);
+    const sighash = psktSighashRefusal(sighashType);
+    if (sighash) reasons.push(`input ${index}: ${sighash}`);
+    options.push({ inputIndex: index, signType: "All" });
+  }
+
+  const walletScript = payToAddressScript(walletAddress).script;
+  const holes = inputs.flatMap((input, i) =>
+    listed.has(i) ||
+    input.signatureScript ||
+    paysWalletScript(input, walletScript)
+      ? []
+      : [i],
+  );
+  if (holes.length > 0)
+    reasons.push(
+      `input${holes.length > 1 ? "s" : ""} ${holes.join(", ")} would be left unsigned: not listed in signInputs and not your own coin`,
+    );
+  if (reasons.length > 0) throw new Error(`signPskt: ${reasons.join("; ")}`);
+  return options;
+}
+
+/**
+ * signPskt only: run `sign`, then give back every input the signatureScript
+ * it arrived with. signTxWithScriptOptions' fallback re-signs every own-coin
+ * input with All, a pre-signed one too; psktSignOptions refuses a listed
+ * pre-signed input, so only inputs that arrived empty may change.
+ */
+export async function keepArrivedSignatures(
+  tx: Transaction,
+  sign: (tx: Transaction) => Promise<Transaction>,
+): Promise<Transaction> {
+  const before = tx.inputs.map((input) => input.signatureScript);
+  const signed = await sign(tx);
+  const after = signed.inputs;
+  before.forEach((script, i) => {
+    if (script && after[i].signatureScript !== script)
+      after[i].signatureScript = script;
+  });
+  return signed;
+}
+
+/**
+ * What the signer will sign for a signPskt request, as the confirm screen
+ * shows it: the listed inputs plus, unless the listed ones complete the tx,
+ * every own coin (signTxWithScriptOptions' All fallback). `foreign`: signed
+ * inputs that are not the wallet's own coin, by paysWalletScript, the rule the
+ * refusal uses. `undefined` when an input has no UTXO entry: neither number
+ * can be proven, and neither is ever reported as 0.
+ */
+export function psktSignSummary(
+  tx: Transaction,
+  scripts: ScriptOption[],
+  walletAddress: string,
+): { signed: number; foreign: number } | undefined {
+  // tx.inputs access crosses the WASM boundary; read it once
+  const inputs = tx.inputs;
+  if (inputs.some((input) => input.utxo === undefined)) return undefined;
+  const listed = new Set(scripts.map((o) => o.inputIndex));
+  const walletScript = payToAddressScript(walletAddress).script;
+  const fallback = !inputs.every(
+    (input, i) => listed.has(i) || input.signatureScript,
+  );
+  let signed = 0;
+  let foreign = 0;
+  inputs.forEach((input, i) => {
+    // Arrived signed: keepArrivedSignatures gives it back, nothing re-signs it.
+    if (input.signatureScript) return;
+    const mine = paysWalletScript(input, walletScript);
+    if (!listed.has(i) && !(fallback && mine)) return;
+    signed++;
+    if (!mine) foreign++;
+  });
+  return { signed, foreign };
 }

@@ -2,6 +2,7 @@ import {
   addressFromScriptPublicKey,
   payToAddressScript,
   Transaction,
+  TransactionInput,
 } from "@/wasm/core/kaspa";
 import type { Kcc20Family } from "./index";
 
@@ -114,6 +115,16 @@ export function decodeCovenantRequest(
 }
 
 /**
+ * The one ownership rule: the input spends a UTXO locked to the wallet's own
+ * P2PK script (`payToAddressScript(address).script`), which is what the
+ * signer's unscripted fallback signs. Shared by this guard and signPskt.
+ */
+export const paysWalletScript = (
+  input: TransactionInput,
+  walletScript: string,
+) => input.utxo?.scriptPublicKey.script === walletScript;
+
+/**
  * Why the wallet must not sign: an input it is asked to sign with a script
  * (`scripted`) that is neither its own plain P2PK coin nor a verified piece.
  * Unscripted inputs are signed only when the key owns them (the P2PK
@@ -141,14 +152,14 @@ export function uncheckedSignedInput(
   // Every input visited: the P2PK fallback signs a wallet-script input unscripted.
   for (let i = 0; i < inputs.length; i++) {
     const input = inputs[i];
-    if (ledger && input.utxo?.scriptPublicKey.script !== walletScript)
+    if (ledger && !paysWalletScript(input, walletScript))
       return `${LEDGER_FOREIGN_INPUT} (input ${i} is not your own coin)`;
     const { transactionId, index } = input.previousOutpoint;
     if (held.has(`${transactionId}:${index}`)) continue;
     const utxo = input.utxo;
     // A lied-about entry only breaks the signature: the sighash commits to it.
     const covenantId = utxo?.entry.covenantId?.toString();
-    const mine = utxo?.scriptPublicKey.script === walletScript;
+    const mine = paysWalletScript(input, walletScript);
     // Wallet script plus a covenant id is token state, not a plain coin.
     if (mine && !covenantId) continue;
     // Neither scripted nor ours: another party's input, never signed here.

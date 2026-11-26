@@ -25,10 +25,11 @@ Each API method is available in two styles:
 10. [Build Transaction](#10-build-transaction)
 11. [Sign & Broadcast Transaction](#11-sign--broadcast-transaction)
 12. [Sign Transaction](#12-sign-transaction)
-13. [Sign Message](#13-sign-message)
-14. [KRC-20: Transfer Token](#14-krc-20-transfer-token)
-15. [Compound UTXOs](#15-compound-utxos)
-16. [Events](#16-events)
+13. [Sign PSKT](#13-sign-pskt)
+14. [Sign Message](#14-sign-message)
+15. [KRC-20: Transfer Token](#15-krc-20-transfer-token)
+16. [Compound UTXOs](#16-compound-utxos)
+17. [Events](#17-events)
 
 ---
 
@@ -398,9 +399,123 @@ const signedTxJson = await kastle.signTx(networkId, txJson, [
 ]);
 ```
 
+> For the Kasware-compatible call shape (`signPskt` with `signInputs`), see [Sign PSKT](#13-sign-pskt). The two methods differ on sighash types and on inputs left unsigned.
+
 ---
 
-## 13. Sign Message
+## 13. Sign PSKT
+
+Signs named inputs of a transaction the dApp built, with the current account's key, **without** broadcasting it. A named input may be locked to a script address the account does not own (e.g. a P2SH covenant UTXO). Each named input comes back with `41 || 64-byte signature || 01` in its `signatureScript` (`01` is `SIGHASH_ALL`). Nothing else in the transaction changes: an input the request does not name keeps the signature it arrived with if it arrived signed, and an own-coin input that arrives empty is signed with `All`, because the wallet always signs its own inputs. Opens a confirmation popup.
+
+The method takes no `networkId`: it signs for the account's active network, and the confirm screen displays that network.
+
+This is the Kasware-compatible entry point. For Kastle's own call shape, see [Sign Transaction](#12-sign-transaction).
+
+**Parameters**
+
+```ts
+signPskt({
+  txJsonString: string,
+  options?: { signInputs?: { index: number; sighashType?: number }[] },
+}): Promise<string>
+```
+
+| Parameter                          | Type     | Required | Description                                        |
+| ---------------------------------- | -------- | -------- | -------------------------------------------------- |
+| `txJsonString`                     | `string` | ✅       | The transaction as Kaspa **Safe JSON** (see below) |
+| `options.signInputs[].index`       | `number` | ✅       | Index of an input to sign                          |
+| `options.signInputs[].sighashType` | `number` | ❌       | Kasware numeric sighash type (default: `1`, `All`) |
+
+`txJsonString` is the same Safe JSON string that `signTx` takes, and the same one Kasware calls a PSKT. `Transaction.deserializeFromSafeJSON()` can read it. Give every input its UTXO entry: a transaction with an input missing it cannot be read, and the request is refused with `Invalid transaction data` before any popup opens.
+
+**Return value**
+
+The signed transaction as a Safe JSON string.
+
+**Sighash types**
+
+| Value         | Name                            | Kastle `signPskt` | Why                                                                                            |
+| ------------- | ------------------------------- | ----------------- | ---------------------------------------------------------------------------------------------- |
+| `1` (omitted) | `All`                           | accepted, default | commits every input and output                                                                 |
+| `129`         | `AllAnyOneCanPay`               | **refused**       | this build's signer emits the bare ANYONECANPAY bit (`80`), so `129` cannot be signed as asked |
+| `2` / `130`   | `None` / `NoneAnyOneCanPay`     | **refused**       | commits no outputs                                                                             |
+| `4` / `132`   | `Single` / `SingleAnyOneCanPay` | **refused**       | commits only the same-index output                                                             |
+
+The error names the refused value and the accepted set, e.g. `signPskt: input 0: sighashType 132 is not accepted (accepted: 1 (All))`. The "Why" column is here to help you choose a type. The error text does not include it, except for `129`.
+
+`1` (`SIGHASH_ALL`) is the only supported type, and the one a covenant spend needs. With `None*` or `Single*`, outputs the user approved could be changed after approval. This is stricter than Kasware. `signTx` keeps its own behaviour (it signs an in-range `Single*` input behind a warning). The two methods differ on purpose.
+
+**Inputs that would be left unsigned**
+
+Every transaction input must be one of these:
+
+- listed in `signInputs`,
+- the account's own coin (signed automatically with `All`), or
+- already carrying a `signatureScript` (and then not listed: a listed input that already carries one is refused).
+
+If any input is none of these, the whole request is refused before the popup opens, and the error names every such index (e.g. `signPskt: inputs 2, 3 would be left unsigned: not listed in signInputs and not your own coin`). A duplicate index, an index past the last input, a listed input that already carries a signature, and a refused `sighashType` are refused the same way: one error lists every reason, each naming its input. `signTx` behaves differently: given the same transaction, it returns it partially signed.
+
+**Refusals**
+
+A refused request rejects with code `-32602` as a plain `{ code, message }` object, not an `Error`, and no popup opens. The message starts with `signPskt:` and names every offending input in one string, e.g.:
+
+- `signPskt: input 0: sighashType 132 is not accepted (accepted: 1 (All))`
+- `signPskt: input 2 would be left unsigned: not listed in signInputs and not your own coin`
+
+A `signInputs` entry whose `index` is not a non-negative integer fails the schema before any of these checks, and the request rejects with the string `Invalid transaction data`.
+
+**What the wallet does not do**
+
+- It does not build the transaction.
+- It does not append the redeem script. `scriptHex` is a `signTx` option, not a `signPskt` one.
+- It does not broadcast.
+- It does not sign on a Ledger account: a sign-only request is refused before any confirm screen.
+
+The dApp appends its own pushes (e.g. a dispatch tag) and the redeem script, then broadcasts.
+
+If the selected account changes while the request is open, it is refused with code `4302` (`COVENANT_ACCOUNT_CHANGED`). Send it again for the new account.
+
+**Direct method**
+
+```js
+// inputs[0]: a P2SH covenant UTXO. inputs[1]: one of the account's own coins.
+const txJsonString = transaction.serializeToSafeJSON();
+
+const signedTxJson = await kastle.signPskt({
+  txJsonString,
+  options: {
+    // Only index 0 is listed. Index 1 is the account's own coin,
+    // so the wallet signs it automatically with All.
+    signInputs: [{ index: 0, sighashType: 1 }],
+  },
+});
+
+// The dApp completes the P2SH input: signature first (from the wallet),
+// then the pushes the redeem script expects, then the redeem script itself.
+const tx = kaspaWasm.Transaction.deserializeFromSafeJSON(signedTxJson);
+const input = tx.inputs[0];
+input.signatureScript =
+  input.signatureScript + // 41 || signature || 01
+  new kaspaWasm.ScriptBuilder()
+    .addData(dispatchTagHex)
+    .addData(redeemScriptHex)
+    .drain();
+
+const { transactionId } = await rpc.submitTransaction(tx);
+```
+
+**KIP-style**
+
+```js
+const signedTxJson = await kastle.request("kas:sign_pskt", {
+  txJsonString,
+  options: { signInputs: [{ index: 0, sighashType: 1 }] },
+});
+```
+
+---
+
+## 14. Sign Message
 
 Signs an arbitrary message string.
 
@@ -423,7 +538,7 @@ console.log("Signature:", signature);
 
 ---
 
-## 14. KRC-20: Transfer Token
+## 15. KRC-20: Transfer Token
 
 KRC-20 operations use a commit-reveal pattern. Kastle handles both steps — no WASM needed.
 
@@ -475,7 +590,7 @@ console.log("Reveal Tx ID:", result.revealTxId);
 
 ---
 
-## 15. Compound UTXOs
+## 16. Compound UTXOs
 
 > **Available since:** Extension `2.52.0` · Mobile `1.20.0`
 
@@ -511,7 +626,7 @@ console.log("Transaction ID:", txId);
 
 ---
 
-## 16. Events
+## 17. Events
 
 Listen to wallet state changes. Events are emitted in both KasWare-compatible and KIP-style formats simultaneously.
 
@@ -557,6 +672,7 @@ kastle.removeListener("accountsChanged", myHandler);
 | `kastle.buildTransaction(outputs, opts?)`                | `kas:build_transaction`      | `{ networkId, transactions[] }`                     |
 | `kastle.signAndBroadcastTx(networkId, txJson, scripts?)` | `kas:sign_and_broadcast_tx`  | `string` (txId)                                     |
 | `kastle.signTx(networkId, txJson, scripts?)`             | `kas:sign_tx`                | `string` (signed txJson)                            |
+| `kastle.signPskt(payload)`                               | `kas:sign_pskt`              | `string` (signed txJson)                            |
 | `kastle.signMessage(message)`                            | `kas:sign_message`           | `string` (signature)                                |
 | `kastle.commitReveal(networkId, namespace, data, opts?)` | `kas:commit_reveal`          | `{ commitTxId, revealTxId, revealTxIds? }`          |
 | `kastle.compoundUtxos(opts?)`                            | `kas:compound_utxos`         | `string` (txId)                                     |

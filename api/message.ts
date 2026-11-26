@@ -17,6 +17,7 @@ export enum Action {
   BUILD_TRANSACTION,
   GET_VERSION,
   COMPOUND_UTXOS,
+  SIGN_PSKT,
 }
 
 // ================================================================================================
