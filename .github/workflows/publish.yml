@@ -3,7 +3,7 @@
 #   popup bundle, so it is public once shipped. It is NOT the vendor key.
 # - The vendor `kr_live_` key lives only in the proxy. It must never appear in this repo:
 #   not as a repo secret, not as a literal, not in a comment.
-# - If the token is empty the build still passes but KaspaRocket ships disabled, whatever the
+# - If the token is empty (or only whitespace) the build still passes but KaspaRocket ships disabled, whatever the
 #   PostHog flag says. The first step below fails the job instead.
 
 name: Publish Extension
@@ -22,7 +22,9 @@ jobs:
         env:
           VITE_KASPAROCKET_PROXY_TOKEN: ${{ secrets.KASPAROCKET_PROXY_TOKEN }}
         run: |
-          if ! test -n "$VITE_KASPAROCKET_PROXY_TOKEN"; then
+          # Trimmed, as rocketConfigured() reads it: a token of only spaces,
+          # tabs or newlines builds KaspaRocket off just as an empty one does.
+          if [ -z "${VITE_KASPAROCKET_PROXY_TOKEN//[[:space:]]/}" ]; then
             echo "::error::secrets.KASPAROCKET_PROXY_TOKEN is empty or missing: KaspaRocket would ship disabled."
             exit 1
           fi

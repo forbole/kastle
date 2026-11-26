@@ -115,18 +115,27 @@ const cut = (kasSompi: bigint, rate: number, minSompi: bigint) => {
 };
 
 /**
- * What a trade moving `kasSompi` pays KaspaRocket in all: the treasury's cut
+ * What a trade moving `kasSompi` pays KaspaRocket, split: the treasury's cut
  * and the partner's, each a rate with a floor, as the SDK's quote splits it.
  * Both come from protocol(); a schedule with no partner has its figures at 0.
  */
+export function kaspaRocketFeeSplit(
+  kasSompi: bigint,
+  fees: KaspaRocketFees,
+): { treasury: bigint; partner: bigint } {
+  return {
+    treasury: cut(kasSompi, fees.treasuryRate, fees.treasuryMinSompi),
+    partner: cut(kasSompi, fees.partnerRate, fees.partnerMinSompi),
+  };
+}
+
+/** What a trade moving `kasSompi` pays KaspaRocket in all, both cuts. */
 export function kaspaRocketFeeSompi(
   kasSompi: bigint,
   fees: KaspaRocketFees,
 ): bigint {
-  return (
-    cut(kasSompi, fees.treasuryRate, fees.treasuryMinSompi) +
-    cut(kasSompi, fees.partnerRate, fees.partnerMinSompi)
-  );
+  const { treasury, partner } = kaspaRocketFeeSplit(kasSompi, fees);
+  return treasury + partner;
 }
 
 /** protocol()'s fee wording: "1.5% of the KAS traded, at least 3 KAS". */

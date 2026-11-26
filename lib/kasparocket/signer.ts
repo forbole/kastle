@@ -1,4 +1,4 @@
-import { decodeAddress, Version } from "@dotk/sdk";
+import { blake2b256, decodeAddress, Version } from "@dotk/sdk";
 import { schnorrSighash, toSafeJson } from "@dotk/sdk-tx";
 import {
   instructionsToSign,
@@ -11,12 +11,16 @@ import {
   type UnsignedTransaction,
 } from "@kasparocket/sdk";
 import { schnorr } from "@noble/curves/secp256k1";
-import { bytesToHex } from "viem";
+import { bytesToHex, hexToBytes } from "viem";
 import { Transaction } from "@/wasm/core/kaspa";
 import type { IWallet } from "@/lib/wallet/wallet-interface.ts";
+import { splitProgram, successorProgram } from "@/lib/kcc20/standard/program";
+import { BORROW_SCHEME, OWNER_SCHEME } from "@/lib/kcc20/standard/state";
+import { supportsStandardTransfer } from "@/lib/kcc20/standard/templates";
 import { kasparocketPlanToTx } from "./adapter";
 import {
   kaspaRocketFeeSompi,
+  kaspaRocketFeeSplit,
   kaspaRocketFeesOf,
   kaspaRocketPlanNetworkFee,
   type KaspaRocketFees,
@@ -169,22 +173,107 @@ function rawScriptV0(spk: unknown): string | null {
 /** 35-byte P2SH: OP_BLAKE2B, a 32-byte script hash, OP_EQUAL. */
 const P2SH = /^aa20[0-9a-f]{64}87$/;
 
+/** The data of a signature script's last push; null on any non-push opcode. */
+function lastPush(script: Uint8Array): Uint8Array | null {
+  let last: Uint8Array | null = null;
+  let i = 0;
+  while (i < script.length) {
+    const op = script[i++];
+    let n: number;
+    if (op >= 0x01 && op <= 0x4b) n = op;
+    else if (op === 0x4c && i + 1 <= script.length) n = script[i++];
+    else if (op === 0x4d && i + 2 <= script.length) {
+      n = script[i] | (script[i + 1] << 8);
+      i += 2;
+    } else if (op === 0x4e && i + 4 <= script.length) {
+      n =
+        (script[i] |
+          (script[i + 1] << 8) |
+          (script[i + 2] << 16) |
+          (script[i + 3] << 24)) >>>
+        0;
+      i += 4;
+    } else return null;
+    if (i + n > script.length) return null;
+    last = script.subarray(i, i + n);
+    i += n;
+  }
+  return last;
+}
+
+const p2shOf = (program: Uint8Array) => `aa20${hex(blake2b256(program))}87`;
+
 /**
- * A buy's token amount. The transaction does not carry it: the KCC-20 cell
- * the wallet receives (`summary.outputs.kcc20User`) is a covenant output whose
- * `value` is the cell's KAS rent (0.2 KAS on the real plan), and whose script
- * is the token covenant's P2SH, not the wallet's pay-to-pubkey. The amount
- * lives in the cell's program state behind that hash. So the amount is taken
- * from the summary, and only when the transaction has the shape the summary
- * describes: the named output exists, is the token's covenant, sits behind a
- * P2SH, and the summary's `amountTokens` and `userTokensAfter` agree. Any
- * mismatch is null.
+ * Whether the plan's bought-token cell holds exactly `amount` of the token,
+ * owned by the wallet's key: its P2SH is recomputed here from that state, not
+ * read from the summary.
  *
- * Read from the raw plan, in either `scriptPublicKey` wire form. (Written
- * when `kasparocketPlanToTx` refused the server's transaction shape; it reads
- * that shape now, and `checkGuard` has run it before this is reached.)
+ * The cell's program comes from the token's leader input
+ * (`summary.inputs.kcc20Leader`, counted over every transaction's inputs in
+ * plan order): the last push of its signature script, accepted only when that
+ * input is a coin of `tokenId`, the program hashes to the coin's own P2SH, and
+ * its template is one the wallet's KCC-20 transfer builder allowlists
+ * (`supportsStandardTransfer`). The cell's expected state is the one that
+ * builder writes for a recipient: `amount` to the wallet's x-only key,
+ * pay-to-pubkey Schnorr, borrowing disabled, the leader's extension
+ * commitment. Its successor program's P2SH must equal the cell's script.
+ *
+ * What is still the server's word: the leader coin's own script. A coin
+ * claimed with another program does not exist on chain under that outpoint,
+ * so the network refuses the transaction; no node is asked here.
  */
-function buyPayout(plan: TransactionPlan, tokenId: string): bigint | null {
+function userCellBound(
+  plan: TransactionPlan,
+  tokenId: string,
+  xOnlyPk: string,
+  cellScript: string,
+  amount: bigint,
+): boolean {
+  const s = (plan.summary ?? {}) as Record<string, unknown>;
+  const at = (s.inputs as Record<string, unknown> | undefined)?.kcc20Leader;
+  if (!Number.isInteger(at) || (at as number) < 0) return false;
+  const inputs = plan.transactions.flatMap(
+    ({ tx }) => kasparocketPlanToTx(tx).inputs,
+  );
+  const leader = inputs[at as number];
+  const coin = leader?.utxo;
+  if (!coin || coin.covenantId !== tokenId || coin.scriptVersion !== 0)
+    return false;
+  const program = lastPush(hexToBytes(`0x${leader.signatureScript}`));
+  if (!program || p2shOf(program) !== coin.scriptPublicKey) return false;
+  if (!supportsStandardTransfer(program)) return false;
+  const pk = xOnlyPk.toLowerCase().replace(/^0x/, "");
+  const expected = successorProgram(program, {
+    amount,
+    owner: hexToBytes(`0x${pk}`),
+    ownerScheme: OWNER_SCHEME.P2PK_SCHNORR,
+    borrowScheme: BORROW_SCHEME.DISABLED,
+    borrowGuard: new Uint8Array(32),
+    extensionCommitment: splitProgram(program).state.extensionCommitment,
+  });
+  return p2shOf(expected) === cellScript;
+}
+
+/**
+ * A buy's token amount. The transaction does not carry it in the clear: the
+ * KCC-20 cell the wallet receives (`summary.outputs.kcc20User`) is a covenant
+ * output whose `value` is the cell's KAS deposit (2 KAS on the real plan), and
+ * whose script is the token covenant's P2SH, not the wallet's pay-to-pubkey.
+ * The amount lives in the cell's program state behind that hash. So the
+ * amount is the summary's, and only when the transaction has the shape the
+ * summary describes: the named output exists, is the token's covenant, sits
+ * behind a P2SH, the summary's `amountTokens` and `userTokensAfter` agree,
+ * and that P2SH is the one a cell of exactly `amountTokens`, owned by the
+ * wallet, hashes to (`userCellBound`). Any mismatch is null.
+ *
+ * The cell is read from the raw plan, in either `scriptPublicKey` wire form;
+ * the leader input through `kasparocketPlanToTx`, as `checkGuard` reads it.
+ */
+function buyPayout(
+  plan: TransactionPlan,
+  tokenId: string,
+  xOnlyPk: string,
+): bigint | null {
   const s = (plan.summary ?? {}) as Record<string, unknown>;
   if (s.direction !== "buy") return null;
   const at = (s.outputs as Record<string, unknown> | undefined)?.kcc20User;
@@ -203,19 +292,20 @@ function buyPayout(plan: TransactionPlan, tokenId: string): bigint | null {
   const amount = tokenAmount(s.amountTokens);
   const after = tokenAmount(s.userTokensAfter);
   if (amount === null || after === null || amount !== after) return null;
-  return amount;
+  return userCellBound(plan, tokenId, xOnlyPk, script, amount) ? amount : null;
 }
 
 /**
  * What the plan pays the wallet. Null when the plan cannot be read, or does
  * not have the shape its payout is read from.
  *
- * Buy: the tokens, from the summary, gated on the transaction's shape (see
+ * Buy: the tokens, from the summary, bound to the bytes: the cell the wallet
+ * receives must hash to exactly that amount under the wallet's key (see
  * `buyPayout`); checked against a real `/plan/trade` buy plan.
  *
  * Sell: KAS, read from the transactions, never the summary: the wallet's plain
- * outputs less its plain inputs, plus the network fee those inputs bore (shown
- * on its own row). Unverified: no server-built sell plan has been checked
+ * outputs less its plain inputs (`kaspaRocketWalletDebit`, negated), plus the
+ * network fee those inputs bore (shown on its own row). Unverified: no server-built sell plan has been checked
  * against this read (none could be built without holding the token).
  */
 export function kaspaRocketPlanPayout(
@@ -224,25 +314,87 @@ export function kaspaRocketPlanPayout(
   xOnlyPk: string,
   direction: Direction,
 ): bigint | null {
-  const own = ownScript(xOnlyPk);
   try {
-    if (direction === "buy") return buyPayout(plan, tokenId);
-    let paid = 0n;
-    for (const { tx } of plan.transactions) {
-      const t = kasparocketPlanToTx(tx);
-      for (const o of t.outputs) {
-        if (paysOwn(o, own) && o.covenant?.covenantId == null)
-          paid += BigInt(o.value);
-      }
-      for (const i of t.inputs) {
-        if (i.utxo!.scriptPublicKey === own) paid -= BigInt(i.utxo!.amount);
-      }
-    }
-    const fee = kaspaRocketPlanNetworkFee(plan);
-    return fee === undefined ? null : paid + fee;
+    if (direction === "buy") return buyPayout(plan, tokenId, xOnlyPk);
   } catch {
     return null;
   }
+  const debit = kaspaRocketWalletDebit(plan, xOnlyPk);
+  const fee = kaspaRocketPlanNetworkFee(plan);
+  return debit === null || fee === undefined ? null : fee - debit;
+}
+
+/**
+ * What the plan takes from the wallet's KAS, read from the transactions
+ * alone: the wallet's own inputs (coins on its pay-to-pubkey) less the
+ * wallet's own plain outputs (its pay-to-pubkey, no covenant), over every
+ * transaction. Negative when the wallet ends with more KAS (a sell). Null
+ * when a transaction cannot be read.
+ *
+ * The real 160 KAS buy debits 164.18655502 KAS: 159.99997202 into the pool,
+ * 2 KAS treasury fee, 2 KAS deposit in the bought-token cell, 0.186583 KAS
+ * network fee; its 1 KAS partner fee pays the wallet's own key, so it is no
+ * debit.
+ */
+export function kaspaRocketWalletDebit(
+  plan: TransactionPlan,
+  xOnlyPk: string,
+): bigint | null {
+  const debits = kaspaRocketWalletDebits(plan, xOnlyPk);
+  return debits === null ? null : debits.reduce((a, b) => a + b, 0n);
+}
+
+/**
+ * `kaspaRocketWalletDebit` per transaction, in plan order. Each transaction
+ * is signed on its own, so the server may broadcast any one of them without
+ * the rest: a buy's bound holds on each, not only on their sum. Null when a
+ * transaction cannot be read.
+ */
+export function kaspaRocketWalletDebits(
+  plan: TransactionPlan,
+  xOnlyPk: string,
+): bigint[] | null {
+  const own = ownScript(xOnlyPk);
+  try {
+    return plan.transactions.map(({ tx }) => {
+      const t = kasparocketPlanToTx(tx);
+      let debit = 0n;
+      for (const i of t.inputs) {
+        if (i.utxo!.scriptPublicKey === own) debit += BigInt(i.utxo!.amount);
+      }
+      for (const o of t.outputs) {
+        if (paysOwn(o, own) && o.covenant?.covenantId == null)
+          debit -= BigInt(o.value);
+      }
+      return debit;
+    });
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The KAS a buy may leave in the bought-token cell, on top of the trade: the
+ * real plan's `kcc20User` cell carries 2 KAS. It stays the wallet's (the cell
+ * is its own, see `userCellBound`) but is locked in the cell until spent.
+ */
+export const KASPAROCKET_TOKEN_CELL_DEPOSIT_SOMPI = 200_000_000n;
+
+/**
+ * The most a buy may debit the wallet: the budget, what protocol()'s schedule
+ * charges on it, the network-fee ceiling and one token-cell deposit. Real
+ * buy: 160 + 3 + 0.3 + 2 = 165.3 KAS against a 164.18655502 KAS debit.
+ */
+export function kaspaRocketMaxBuyDebit(
+  budgetSompi: bigint,
+  fees: KaspaRocketFees,
+): bigint {
+  return (
+    budgetSompi +
+    kaspaRocketFeeSompi(budgetSompi, fees) +
+    KASPAROCKET_NETWORK_FEE_CEILING_SOMPI +
+    KASPAROCKET_TOKEN_CELL_DEPOSIT_SOMPI
+  );
 }
 
 /**
@@ -288,11 +440,17 @@ function namedIndex(plan: TransactionPlan, key: string): number | undefined {
  *    that the token covenant checks). Index-driven: a token output at any
  *    other index still refuses, and so does a named one on a plain key;
  *  - the platform fee: the plain output at `summary.outputs.fee`, paying
- *    `protocol().treasuryAddress` exactly `summary.platformFeeSompi`;
+ *    `protocol().treasuryAddress` exactly `summary.platformFeeSompi`, and no
+ *    more than protocol()'s schedule charges the treasury on this trade;
  *  - the partner fee: the plain output at `summary.outputs.partnerFee`, paying
- *    `protocol().partner.feeAddress` exactly `summary.partnerFeeSompi`.
- * Both fee addresses come from the protocol document at sign time, never from
- * this file. Anything else refuses.
+ *    `protocol().partner.feeAddress` exactly `summary.partnerFeeSompi`, and no
+ *    more than the schedule's partner cut on this trade.
+ * Both fee addresses and the schedule come from the protocol document at sign
+ * time, never from this file or the summary: a summary raising its own fee to
+ * match a larger fee output still refuses. The trade's KAS size is the buy's
+ * budget (what the quote's flow may not exceed), or a sell's KAS flow as the
+ * plan states it (a sell's fee comes out of its proceeds, which the payout
+ * floor bounds). An unreadable schedule refuses. Anything else refuses.
  *
  * Indexes count over every transaction's outputs in plan order, as
  * `buyPayout` reads `kcc20User`.
@@ -303,8 +461,13 @@ function checkPayees(
   g: KaspaRocketGuard,
   own: string,
   protocol: ProtocolInfo,
+  fees: KaspaRocketFees | undefined,
 ) {
   const s = (plan.summary ?? {}) as Record<string, unknown>;
+  if (!fees) refuse("fee schedule cannot be read");
+  const size = g.trade.direction === "buy" ? g.trade.amountIn : planFlow(plan);
+  if (size === undefined || size <= 0n) refuse("trade size cannot be read");
+  const cap = kaspaRocketFeeSplit(size!, fees!);
   const treasury = mainnetScriptOf(
     (protocol as { treasuryAddress?: unknown }).treasuryAddress,
   );
@@ -316,16 +479,21 @@ function checkPayees(
       (i) => i !== undefined,
     ),
   );
-  /** A plain version-0 output paying `script` exactly the summary's `amount`. */
+  /**
+   * A plain version-0 output paying `script` no more than the schedule's
+   * `most`, and exactly the summary's `amount`.
+   */
   const paysFee = (
     o: Tx["outputs"][number],
     script: string | null,
+    most: bigint,
     amount: unknown,
   ) =>
     script !== null &&
     o.covenant == null &&
     o.scriptVersion === 0 &&
     o.scriptPublicKey === script &&
+    BigInt(o.value) <= most &&
     tokenAmount(amount) === BigInt(o.value);
 
   const poolScripts = new Set(
@@ -350,8 +518,13 @@ function checkPayees(
         P2SH.test(o.scriptPublicKey)
       )
         continue;
-      if (at === fee && paysFee(o, treasury, s.platformFeeSompi)) continue;
-      if (at === partnerFee && paysFee(o, partner, s.partnerFeeSompi)) continue;
+      if (at === fee && paysFee(o, treasury, cap.treasury, s.platformFeeSompi))
+        continue;
+      if (
+        at === partnerFee &&
+        paysFee(o, partner, cap.partner, s.partnerFeeSompi)
+      )
+        continue;
       refuse("plan pays an address this wallet cannot spend");
     }
   }
@@ -369,7 +542,14 @@ export function kaspaRocketCheckPayees(
   protocol: ProtocolInfo,
 ): void {
   const txs = plan.transactions.map((p) => kasparocketPlanToTx(p.tx));
-  checkPayees(plan, txs, g, ownScript(xOnlyPk), protocol);
+  checkPayees(
+    plan,
+    txs,
+    g,
+    ownScript(xOnlyPk),
+    protocol,
+    kaspaRocketFeesOf(toJsonSafe(protocol)),
+  );
 }
 
 function checkGuard(
@@ -414,13 +594,38 @@ function checkGuard(
   if (kaspaRocketPriceMoved(plan, quote, trade.direction, slippageBps)) {
     refuse("price moved beyond slippage");
   }
-  checkPayees(plan, txs, g, ownScript(pk), protocol);
+  checkPayees(plan, txs, g, ownScript(pk), protocol, fees);
   const fee = kaspaRocketPlanNetworkFee(plan);
   if (fee === undefined) refuse("network fee cannot be read");
   if (fee! > KASPAROCKET_NETWORK_FEE_CEILING_SOMPI) {
     refuse(
       `network fee ${fee} sompi is over the ${KASPAROCKET_NETWORK_FEE_CEILING_SOMPI} sompi ceiling`,
     );
+  }
+  // What leaves the wallet, from the transactions: extra change routed into
+  // an allowed covenant output moves neither the quote, the summary nor the
+  // network fee. A sell's debit is bounded by its payout floor below.
+  if (trade.direction === "buy") {
+    const debits = kaspaRocketWalletDebits(plan, pk);
+    if (debits === null) refuse("wallet debit cannot be read");
+    if (!fees) refuse("fee schedule cannot be read");
+    const most = kaspaRocketMaxBuyDebit(trade.amountIn, fees!);
+    // All of them together...
+    const debit = debits!.reduce((a, b) => a + b, 0n);
+    if (debit > most) {
+      refuse(
+        `plan debits ${debit} sompi from the wallet, over the ${most} sompi this buy allows`,
+      );
+    }
+    // ...and each transaction alone: a credit in another one, which the
+    // server may never broadcast, offsets nothing.
+    debits!.forEach((d, t) => {
+      if (d > most) {
+        refuse(
+          `transaction ${t} debits ${d} sompi from the wallet, over the ${most} sompi this buy allows`,
+        );
+      }
+    });
   }
   // Both sides: what the plan pays out, never less than the preview's floor.
   const paid = kaspaRocketPlanPayout(plan, trade.tokenId, pk, trade.direction);

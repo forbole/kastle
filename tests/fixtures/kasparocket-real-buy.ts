@@ -29,6 +29,8 @@ export const REAL_BUDGET_SOMPI = BigInt(quoteDoc.kasBudgetSompi);
 /** Inputs less outputs of the real transaction. */
 export const REAL_NETWORK_FEE_SOMPI = 18_658_300n;
 
+export { REAL_LEADER_PROGRAM } from "./kasparocket-real-leader";
+
 /** The server's p2pkh instructions: input index and prepared sighash. */
 export const REAL_P2PKH: {
   inputIndex: number;
