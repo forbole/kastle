@@ -1,3 +1,11 @@
+# KaspaRocket proxy token (secrets.KASPAROCKET_PROXY_TOKEN -> VITE_KASPAROCKET_PROXY_TOKEN)
+# - It is Kastle's app-side token for its own KaspaRocket proxy. Vite inlines it into the
+#   popup bundle, so it is public once shipped. It is NOT the vendor key.
+# - The vendor `kr_live_` key lives only in the proxy. It must never appear in this repo:
+#   not as a repo secret, not as a literal, not in a comment.
+# - If the token is empty the build still passes but KaspaRocket ships disabled, whatever the
+#   PostHog flag says. The first step below fails the job instead.
+
 name: Publish Extension
 
 on:
