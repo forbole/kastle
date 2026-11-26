@@ -501,5 +501,29 @@ test.describe("kasseal build: the popup's quote and trade deps", () => {
       expect(p).toEqual(fx.previewAfterFix);
       expect(p.walletCreditSompi).toBe("1047246865");
     });
+
+    test("a sell that spends two supply cells is refused", async () => {
+      // A second unsigned token-T input (a copy of the supply cell, index 1)
+      // and its like output are appended: the tx still balances against its
+      // fee, the signed cell stays at 0, the token delta is unchanged. Only
+      // the at-most-one supply-cell rule can refuse this.
+      const fx = loadReal("kasseal-sell-KPEPE.real.json");
+      const tx = JSON.parse(fx.built.txJson);
+      const supply = tx.inputs[1];
+      expect(supply.utxo.covenantId).toBe(fx.tokenId);
+      expect(fx.built.inputsToSign.some((s: any) => s.index === 1)).toBe(false);
+      const back = tx.outputs.find(
+        (o: any) =>
+          o.covenant?.covenantId === fx.tokenId &&
+          o.value === supply.utxo.amount,
+      );
+      tx.inputs.push(structuredClone(supply));
+      tx.outputs.push(structuredClone(back));
+      fx.built.txJson = JSON.stringify(tx);
+      const { build } = setup({ real: fx });
+      await expect(build.kassealQuoteClient(quoteOf(fx))).rejects.toThrow(
+        /^KASSEAL_PREVIEW_UNRECONCILED$/,
+      );
+    });
   });
 });
