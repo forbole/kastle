@@ -98,6 +98,6 @@
     "unimport": "3.14.6",
     "vite": "5.4.19",
     "vite-plugin-node-polyfills": "^0.22.0",
-    "wxt": "^0.19.24"
+    "wxt": "^0.21.5"
   }
 }
