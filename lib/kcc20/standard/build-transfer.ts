@@ -7,7 +7,7 @@ import {
   RpcClient,
   Transaction,
 } from "@/wasm/core/kaspa";
-import { classifyRedeem, isStandardOwnedBy } from "../classify";
+import { isStandardOwnedBy } from "../classify";
 import type { KronNetwork } from "../index";
 import {
   BuiltKcc20Transfer,
@@ -17,14 +17,18 @@ import {
 import { bytesEqual, pushExplicit, pushMinimal } from "./primitives";
 import {
   BORROW_SCHEME,
-  encodeState,
   encodeTransferArgs,
   KCC20State,
   OWNER_SCHEME,
-  STATE_LEN,
   TRANSFER_DELEGATOR_TAG,
 } from "./state";
 import { supportsStandardTransfer } from "./templates";
+import {
+  Kcc20StandardBuildError,
+  splitProgram,
+  successorProgram,
+  type ProgramParts,
+} from "./program";
 import {
   MAX_TOKEN_INPUTS,
   MAX_TOKEN_OUTPUTS,
@@ -37,6 +41,14 @@ import {
 // Each seat's owner signature sits inside its witness push, so seats are built with a 65-byte
 // zero placeholder, the transaction is funded at its final size, then each seat is signed over
 // its SIGHASH_ALL digest and the placeholder is overwritten in place at a computed offset.
+
+export {
+  Kcc20StandardBuildError,
+  PROGRAM_PREFIX_LEN,
+  splitProgram,
+  successorProgram,
+  type ProgramParts,
+} from "./program";
 
 export const SIG_LEN = 65;
 // Decision, not an assumption: every seat signs SIGHASH_ALL. checkSig honours the type in the
@@ -84,30 +96,7 @@ export const FUNDING_COMPUTE_BUDGET = computeBudgetFor(
   FUNDING_SCRIPT_UNITS,
 );
 
-// `6b` OP_TOALTSTACK + `20 <template_hash:32>`: the artifact's state_span starts at 1 and its
-// first field is the template hash, so the KCC20State record spans R[34:146].
-export const PROGRAM_PREFIX_LEN = 34;
-const STATE_END = PROGRAM_PREFIX_LEN + STATE_LEN;
 const TAG_PUSH_LEN = 1 + TRANSFER_DELEGATOR_TAG.length;
-
-export class Kcc20StandardBuildError extends Error {
-  constructor(
-    readonly code:
-      | "invalid-amount"
-      | "insufficient-balance"
-      | "fragmented"
-      | "not-standard"
-      | "not-owned"
-      | "unsupported-template"
-      | "mixed-template"
-      | "rule-violation"
-      | "layout"
-      | "bad-signature",
-    message: string,
-  ) {
-    super(message);
-  }
-}
 
 /** A standard cell to spend: kascov's program bytes plus the node-held outpoint and value. */
 export type StandardSpendPiece = {
@@ -115,51 +104,6 @@ export type StandardSpendPiece = {
   value: bigint;
   redeem: Uint8Array;
 };
-
-export type ProgramParts = {
-  prefix: Uint8Array;
-  state: KCC20State;
-  suffix: Uint8Array;
-  templateHash: string;
-};
-
-/** Split a consumed program `R = R[0:34] || R[34:146] || R[146:]`; refuses anything else. */
-export function splitProgram(R: Uint8Array): ProgramParts {
-  const c = classifyRedeem(R);
-  if (c.family !== "kcc20-standard" || c.stateOffset !== PROGRAM_PREFIX_LEN) {
-    throw new Kcc20StandardBuildError(
-      "not-standard",
-      c.family === "unknown"
-        ? c.reason
-        : `not a standard program (${c.family})`,
-    );
-  }
-  return {
-    prefix: R.slice(0, PROGRAM_PREFIX_LEN),
-    state: c.state,
-    suffix: R.slice(STATE_END),
-    templateHash: c.templateHash,
-  };
-}
-
-/** Successor `R' = R[0:34] || encodeState(next) || R[146:]`: same length, same template hash. */
-export function successorProgram(R: Uint8Array, next: KCC20State): Uint8Array {
-  const { prefix, suffix } = splitProgram(R);
-  const successor = concatBytes(prefix, encodeState(next), suffix);
-  if (
-    successor.length !== R.length ||
-    !bytesEqual(
-      successor.subarray(2, PROGRAM_PREFIX_LEN),
-      R.subarray(2, PROGRAM_PREFIX_LEN),
-    )
-  ) {
-    throw new Kcc20StandardBuildError(
-      "layout",
-      "successor program changed length or template hash",
-    );
-  }
-  return successor;
-}
 
 /** Owner authorization with a zero signature; leader witnesses carry the path byte. */
 export function ownerWitnessPlaceholder(
