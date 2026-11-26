@@ -466,6 +466,17 @@ test.describe("psktSignSummary (the confirm screen's count)", () => {
     ).toEqual({ signed: 1, foreign: 1 });
   });
 
+  test("an unlisted own coin that arrives signed is not counted", () => {
+    // keepArrivedSignatures gives input 1 back as it came: the wallet signs 0 and 2.
+    const own = P2PK(TEST_KEY);
+    const tx = mkTx([P2SH, own, own], ["", "52", ""]);
+    const scripts = psktSignOptions(tx, [{ index: 0 }], WALLET());
+    expect(psktSignSummary(tx, scripts, WALLET())).toEqual({
+      signed: 2,
+      foreign: 1,
+    });
+  });
+
   test("no signInputs: every own coin, none foreign", () => {
     const tx = mkTx([P2PK(TEST_KEY), P2PK(TEST_KEY)]);
     expect(psktSignSummary(tx, [], WALLET())).toEqual({

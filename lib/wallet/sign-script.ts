@@ -538,6 +538,8 @@ export function psktSignSummary(
   let signed = 0;
   let foreign = 0;
   inputs.forEach((input, i) => {
+    // Arrived signed: keepArrivedSignatures gives it back, nothing re-signs it.
+    if (input.signatureScript) return;
     const mine = paysWalletScript(input, walletScript);
     if (!listed.has(i) && !(fallback && mine)) return;
     signed++;

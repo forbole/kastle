@@ -440,6 +440,24 @@ test("signPskt without UTXO entries: the count is labelled not known, never 0", 
   expect(errors).toEqual([]);
 });
 
+// v0presigned: listed P2SH 0, own coin 1 arrives signed, own coin 2 empty.
+test("signPskt: an own coin that arrives signed is not counted as signed", async ({
+  page,
+}) => {
+  const errors = await open(page, "tx=v0presigned&pskt=0:All");
+  await expect(
+    page.getByText("2 inputs, 1 not your own coin", { exact: true }),
+  ).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test("signPskt: an own coin that arrives signed has no per-input row", async ({
+  page,
+}) => {
+  await open(page, "tx=v0presigned&pskt=0:All");
+  await expect(page.getByText(/^Input \d+$/)).toHaveText(["Input 0"]);
+});
+
 test("a signTx request shows none of the signPskt rows", async ({ page }) => {
   await open(page, "tx=v0mixed");
   await expect(page.getByText("Inputs you sign")).toHaveCount(0);

@@ -57,6 +57,20 @@ const v0MixedTxJson = JSON.stringify({
   outputs: [v1.outputs[3]],
 });
 
+// ?tx=v0presigned: v0mixed plus an own coin that arrives signed, at input 1.
+const v0PresignedTxJson = JSON.stringify({
+  ...JSON.parse(v0MixedTxJson),
+  inputs: [
+    JSON.parse(v0MixedTxJson).inputs[0],
+    {
+      ...v1.inputs[2],
+      previousOutpoint: { ...v1.inputs[2].previousOutpoint, index: 7 },
+      signatureScript: "52",
+    },
+    v1.inputs[2],
+  ],
+});
+
 // ?pskt=1:All,2:AllAnyOneCanPay: a signPskt request listing those inputs.
 const pskt = params.get("pskt");
 
@@ -70,6 +84,7 @@ const payload = {
       fee2000: fee2000TxJson,
       v0mixed: v0MixedTxJson,
       v0mixednofee: v0MixedTxJson,
+      v0presigned: v0PresignedTxJson,
       // ?tx=v1nofee: v1 with input 1's UTXO entry dropped (stubs.ts).
       v1nofee: v1TxJson,
     }[params.get("tx") ?? ""] ?? v1TxJson,
