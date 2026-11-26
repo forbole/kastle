@@ -1,7 +1,9 @@
 // KaspaRocket on the real Swap screen: the copy-logs stubs, plus a client
-// that answers from the synthetic plan fixture (its key owns nothing) and a
+// that answers from the synthetic plan fixture in its real-plan buy shape
+// (its key owns nothing; see ../fixtures/kasparocket-synthetic-buy.ts) and a
 // submit that is never reached. ?scenario=rocket-pending stores a record.
 import fixture from "../fixtures/kasparocket-plan.synthetic.json";
+import { syntheticBuyPlan } from "../fixtures/kasparocket-synthetic-buy";
 import { ADDRESS, browser as base } from "../swap-bridge-copy-logs/stubs";
 
 export * from "../swap-bridge-copy-logs/stubs";
@@ -68,20 +70,26 @@ export const makeKaspaRocket = () => ({
     limits: { minOrderValueSompi: "15000000000" },
     token: { decimals: 8 },
   }),
-  quote: async () => ({
+  // A buy's net is the KAS leaving the wallet, negative, as the server sends
+  // it: the budget plus the 3 KAS fee, 2 798 sompi short of the budget into
+  // the pool as on the real FOUR buy. ?scenario=rocket-overbudget asks one
+  // sompi more than budget + fee.
+  quote: async ({ kasBudgetSompi = 0n }: { kasBudgetSompi?: bigint }) => ({
     direction: q.direction,
     amountTokens: BigInt(q.amountTokens),
     kasFlowSompi: BigInt(q.kasFlowSompi),
-    netKasSompi: BigInt(q.netKasSompi),
+    netKasSompi:
+      -(kasBudgetSompi + 300_000_000n) +
+      (scenario === "rocket-overbudget" ? -1n : 2_798n),
     uneconomic: false,
   }),
   planSwap: async () => {
-    const plan = JSON.parse(JSON.stringify(fixture.plan));
+    const plan = syntheticBuyPlan(fixture);
     return {
       ...plan,
       summary: {
         ...plan.summary,
-        kasFlowSompi: BigInt(plan.summary.kasFlowSompi),
+        kasFlowSompi: BigInt(fixture.plan.summary.kasFlowSompi),
         totalPlatformFeeSompi: 300_000_000n,
       },
     };

@@ -1,6 +1,7 @@
 import { transactionId } from "@dotk/sdk-tx";
 import {
   KaspaRocketError,
+  type ProtocolInfo,
   type Quote,
   type TransactionPlan,
   type UnsignedTransaction,
@@ -24,6 +25,7 @@ import {
   type KaspaRocketChainOutcome,
 } from "./pending";
 import {
+  KASPAROCKET_NETWORK_FEE_CEILING_SOMPI,
   KASPAROCKET_PLAN_TTL_MS,
   KaspaRocketPlanExpired,
   KaspaRocketSignRefusal,
@@ -108,6 +110,8 @@ export type KaspaRocketConfirmInput = {
   side: "buy" | "sell";
   slippageBps: number;
   xOnlyPk: string;
+  /** The client's `protocol()`, read by the signer for the fee addresses. */
+  protocol: () => Promise<ProtocolInfo>;
   signDigest: (plan: TransactionPlan) => KaspaRocketSignDigest;
   submit: (
     signed: UnsignedTransaction[],
@@ -187,6 +191,7 @@ export async function confirmKaspaRocketSwap(
         slippageBps: bps,
         builtAt,
         now,
+        protocol: c.protocol,
       },
     );
     // 3–5. Guards, then record, then signatures.
@@ -239,6 +244,22 @@ export function kaspaRocketFeeLines(
   const hint = kaspaRocketFeeLine(kasSompi, fees)?.hint;
   const provider = kaspaRocketPlanFeeLine(plan, hint);
   return [...(network ? [network] : []), ...(provider ? [provider] : [])];
+}
+
+/**
+ * The swap screen's Max, in base units: the whole balance on a sell; on a
+ * buy, the balance less the network fee ceiling the signer allows, since that
+ * fee comes on top of the KAS budget. Never below 0.
+ */
+export function kaspaRocketMaxIn(
+  side: "buy" | "sell",
+  balanceIn: bigint,
+): bigint {
+  const max =
+    side === "buy"
+      ? balanceIn - KASPAROCKET_NETWORK_FEE_CEILING_SOMPI
+      : balanceIn;
+  return max > 0n ? max : 0n;
 }
 
 /** Balance first, then KaspaRocket's minimum; nothing while protocol() is unknown. */

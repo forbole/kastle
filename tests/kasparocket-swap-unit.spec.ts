@@ -5,11 +5,16 @@ import { test, expect } from "@playwright/test";
 import { schnorr } from "@noble/curves/secp256k1";
 import {
   scriptP2pkh,
+  type ProtocolInfo,
   type Quote,
   type TransactionPlan,
 } from "@kasparocket/sdk";
 import { bytesToHex, hexToBytes } from "viem";
 import { planDigests } from "@/lib/kasparocket/adapter";
+import {
+  resighed,
+  syntheticBuyPlan,
+} from "./fixtures/kasparocket-synthetic-buy";
 import {
   KASPAROCKET_PLAN_TTL_MS,
   KaspaRocketPlanExpired,
@@ -53,7 +58,7 @@ function planOf(
   edit?: (tx: any) => void,
   over: Partial<TransactionPlan> = {},
 ): TransactionPlan {
-  const raw = JSON.parse(JSON.stringify(fixture.plan));
+  const raw = JSON.parse(JSON.stringify(syntheticBuyPlan(fixture)));
   edit?.(raw.transactions[0].tx);
   return {
     ...raw,
@@ -81,6 +86,14 @@ function quoteOf(over: Partial<Quote> = {}): Quote {
   } as Quote;
 }
 
+// REAL: the vendor's /protocol document (fee addresses), as fetched 2026-11-26.
+const protocolFixture = JSON.parse(
+  fs.readFileSync(
+    path.join(__dirname, "fixtures/kasparocket-protocol.real.json"),
+    "utf8",
+  ),
+).protocol as ProtocolInfo;
+
 const NOW = 1_000_000;
 const guardOf = (over: Partial<KaspaRocketGuard> = {}): KaspaRocketGuard => ({
   quote: quoteOf(),
@@ -89,25 +102,9 @@ const guardOf = (over: Partial<KaspaRocketGuard> = {}): KaspaRocketGuard => ({
   slippageBps: 100n,
   builtAt: NOW,
   now: () => NOW,
+  protocol: async () => protocolFixture,
   ...over,
 });
-
-/** `plan` with every sighash recomputed from its (edited) transaction. */
-const resighed = (plan: TransactionPlan): TransactionPlan => {
-  const digests = planDigests(plan);
-  return {
-    ...plan,
-    transactions: plan.transactions.map((p, t) => ({
-      ...p,
-      signingInstructions: p.signingInstructions.map((ins) => {
-        const d = digests.find(
-          (x) => x.txIndex === t && x.inputIndex === ins.inputIndex,
-        );
-        return d ? { ...ins, sighash: d.digest } : ins;
-      }),
-    })),
-  };
-};
 
 /**
  * Stands in for the background's signInputDigest: signs the dotk digest of
@@ -251,15 +248,15 @@ test.describe("kastleKaspaRocketSigner", () => {
     );
   });
 
-  test("★ refuses a network fee over 0.1 KAS, and signs one at it", async () => {
-    // The fixture pays 9_999_000 sompi; 1_001 sompi less change makes 10_000_001.
+  test("★ refuses a network fee over the 0.3 KAS ceiling, and signs one at it", async () => {
+    // The fixture pays 9_999_000 sompi; 20_001_001 sompi less change makes 30_000_001.
     await expectRefused(
-      planOf((t) => (t.outputs[2].value = "139998999")),
+      planOf((t) => (t.outputs[2].value = "119998999")),
       guardOf(),
-      /network fee 10000001 sompi is over the 10000000 sompi ceiling/,
+      /network fee 30000001 sompi is over the 30000000 sompi ceiling/,
     );
     const atCeiling = resighed(
-      planOf((t) => (t.outputs[2].value = "139999000")),
+      planOf((t) => (t.outputs[2].value = "119999000")),
     );
     const sd = fakeSignDigest(atCeiling);
     await expect(
@@ -478,6 +475,7 @@ test.describe("confirmKaspaRocketSwap (the hook's onConfirm)", () => {
       side: "buy",
       slippageBps: 100,
       xOnlyPk: fixture.xOnlyPk,
+      protocol: async () => protocolFixture,
       signDigest: () => sd.fn,
       submit,
       onRecord: () => records.push(sd.calls.length),

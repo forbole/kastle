@@ -16,6 +16,14 @@ const swapped = [
 
 export default {
   ...base,
+  // rocketConfigured() true, so the real useKaspaRocketProtocol asks the
+  // stubbed client for its fee schedule (a buy's quote is bounded by it). The
+  // token never leaves: client.ts is stubbed and off-harness requests abort.
+  define: {
+    ...base.define,
+    "import.meta.env.VITE_KASPAROCKET_PROXY_TOKEN":
+      JSON.stringify("render-harness"),
+  },
   plugins: [
     {
       name: "kasparocket-render-stubs",

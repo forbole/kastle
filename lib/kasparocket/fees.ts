@@ -101,7 +101,12 @@ export function useKaspaRocketProtocol(client: KaspaRocket, enabled: boolean) {
     async () => toJsonSafe(await client.protocol()),
     { refreshInterval: KASPAROCKET_PROTOCOL_TTL_MS },
   );
-  return { fees: data ? kaspaRocketFeesOf(data) : undefined, error };
+  return {
+    fees: data ? kaspaRocketFeesOf(data) : undefined,
+    error,
+    /** protocol() answered: `fees` undefined from here means unreadable. */
+    loaded: data !== undefined,
+  };
 }
 
 const cut = (kasSompi: bigint, rate: number, minSompi: bigint) => {
