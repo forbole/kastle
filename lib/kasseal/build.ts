@@ -61,6 +61,18 @@ type BuildContext = {
   cap?: bigint;
 };
 
+/**
+ * KAS locked in the buyer's new token cell on a curve buy: 0.5 KAS. Without
+ * it the SDK locks its 5 KAS default, so a "2 KAS" buy debited ~7 KAS. The
+ * cells Kasseal's own flow created for the QA wallet (KPEPE, KASDOG) each
+ * hold 0.5 KAS. The SDK floor is 0.1 KAS (MIN_USER_CELL_VALUE), but storage
+ * mass binds first: a covenant output has plurality 2, so the cell costs
+ * 4·10^12 / 5·10^7 = 80,000 storage mass. The real KPEPE 2 KAS build weighs
+ * 84,019 in total (fee 0.084 KAS), under the 100,000 the mempool accepts
+ * (MAX_STANDARD_TRANSACTION_MASS); below ~0.42 KAS that build goes over.
+ */
+export const KASSEAL_USER_CELL_SOMPI = 50_000_000n;
+
 // Bounded: 16 recent quotes, enough for SWR's per-amount cache on one screen.
 const MAX_CONTEXTS = 16;
 const contexts = new Map<string, BuildContext>();
@@ -388,6 +400,7 @@ export const kassealQuoteClient: KassealQuoteClient = async (req) => {
         buyer: trader,
         buyerXOnlyPubkey: xOnly,
         maxKasIn: quoted + (quoted * BigInt(slippageBps) + 9999n) / 10000n,
+        userCellValue: KASSEAL_USER_CELL_SOMPI,
       };
       // The full debit (price + token cell + network fee) is read off one
       // build, then capped: the held order is maxAllIn = that figure.

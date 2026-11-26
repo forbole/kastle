@@ -420,6 +420,25 @@ test.describe("kasseal build: the popup's quote and trade deps", () => {
       expect(built.txid).toBe(fx.built.txid);
     });
 
+    test("a curve buy locks 0.5 KAS in the buyer's cell: KPEPE 2 KAS debit = price + fee + cell", async () => {
+      const fx = loadReal("kasseal-buy-KPEPE-cell.real.json");
+      const { build, orders } = setup({ real: fx });
+      // Strings, not bigints: a failing bigint expect crash-loops the worker.
+      const CELL = "50000000"; // 0.5 KAS
+      expect(String(build.KASSEAL_USER_CELL_SOMPI)).toBe(CELL);
+      const p = await build.kassealQuoteClient(quoteOf(fx));
+      // Both builds (cap probe + held order) ask the SDK for the 0.5 KAS cell.
+      expect(orders.map((o) => String(o.userCellValue))).toEqual([CELL, CELL]);
+      const cell = fx.built.produces.find((o: any) => o.role === "token-user");
+      expect(JSON.parse(fx.built.txJson).outputs[cell.index].value).toBe(CELL);
+      expect(p).toEqual(fx.previewAfterFix);
+      expect(p.walletDebitSompi).toBe(
+        String(
+          BigInt(fx.serverQuote.totalSompi) + fx.built.feeSompi + BigInt(CELL),
+        ),
+      );
+    });
+
     test("a buy that would also spend a token cell the wallet signs is refused", async () => {
       // The supply cell stays (index 2); the wallet's own token cell is added
       // in front of it, balanced by a like output, and the wallet's P2PK
