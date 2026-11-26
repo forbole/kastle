@@ -1,6 +1,7 @@
 import { transactionId } from "@dotk/sdk-tx";
 import {
   KaspaRocketError,
+  type ProtocolInfo,
   type Quote,
   type TransactionPlan,
   type UnsignedTransaction,
@@ -108,6 +109,8 @@ export type KaspaRocketConfirmInput = {
   side: "buy" | "sell";
   slippageBps: number;
   xOnlyPk: string;
+  /** The client's `protocol()`, read by the signer for the fee addresses. */
+  protocol: () => Promise<ProtocolInfo>;
   signDigest: (plan: TransactionPlan) => KaspaRocketSignDigest;
   submit: (
     signed: UnsignedTransaction[],
@@ -187,6 +190,7 @@ export async function confirmKaspaRocketSwap(
         slippageBps: bps,
         builtAt,
         now,
+        protocol: c.protocol,
       },
     );
     // 3–5. Guards, then record, then signatures.

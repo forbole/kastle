@@ -1,0 +1,54 @@
+{
+  "note": "REAL: /pro-api/protocol, mainnet, 2026-11-26, with Kastle partner key. Copied from ~/kastle-qa/evidence/protocol-2026-11-26.json, values unchanged. treasuryAddress and partner.feeAddress are what checkPayees allows the plan's fee and partnerFee outputs to pay.",
+  "protocol": {
+    "network": "mainnet",
+    "partner": {
+      "slug": "kastlewallet",
+      "feeAddress": "kaspa:qzy6me2q7tdgn863uhu52rwdruq6u2rx0e6y4dvj3k9yl3aqnjt7jh077p3s3",
+      "scopes": ["read", "trade", "create_token", "catalogue:write"],
+      "rateLimitPerMinute": 120
+    },
+    "fees": {
+      "rate": 0.015,
+      "treasuryRate": 0.01,
+      "treasuryMinSompi": "200000000",
+      "partnerRate": 0.005,
+      "partnerMinSompi": "100000000",
+      "chargeOnOrderCreation": false,
+      "billableOperations": ["swap", "fill", "trade"],
+      "examples": {
+        "10_kas": {
+          "treasurySompi": "200000000",
+          "partnerSompi": "100000000",
+          "totalSompi": "300000000"
+        },
+        "200_kas": {
+          "treasurySompi": "200000000",
+          "partnerSompi": "100000000",
+          "totalSompi": "300000000"
+        },
+        "1000_kas": {
+          "treasurySompi": "1000000000",
+          "partnerSompi": "500000000",
+          "totalSompi": "1500000000"
+        }
+      }
+    },
+    "limits": {
+      "maxCovIns": 10,
+      "maxCovOuts": 10,
+      "maxKcc20Inputs": 10,
+      "minOrderValueSompi": 15000000000
+    },
+    "treasuryAddress": "kaspa:qqgaj6tkfd0u9a58659vk0yl46mgja0l0gdpurj9fwqnw7ysg97xuvm9ack2h",
+    "token": {
+      "decimals": 3,
+      "rawPerToken": 1000,
+      "rawTotalSupply": 1000000000
+    },
+    "curve": {
+      "displayTotalSupply": 1000000,
+      "rawTotalSupply": 1000000000
+    }
+  }
+}

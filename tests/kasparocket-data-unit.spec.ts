@@ -110,9 +110,11 @@ test.describe("adapter", () => {
   });
 
   for (const [where, edit] of [
-    ["transaction", (t: any) => (t.storageMass = "1")],
+    // storageMass and utxo.covenantId are read now (the server sends them):
+    // kasparocket-plan-shape-unit.spec.ts. Unknown keys still refuse.
+    ["transaction", (t: any) => (t.verboseData = null)],
     ["input", (t: any) => (t.inputs[0].verboseData = null)],
-    ["coin", (t: any) => (t.inputs[0].utxo.covenantId = null)],
+    ["coin", (t: any) => (t.inputs[0].utxo.verboseData = null)],
     ["output", (t: any) => (t.outputs[0].verboseData = null)],
     ["covenant", (t: any) => (t.outputs[0].covenant.extra = 1)],
   ] as const) {

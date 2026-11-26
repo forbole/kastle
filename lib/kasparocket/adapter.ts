@@ -14,9 +14,26 @@ import { KASPAROCKET_MAX_INPUTS } from "./config";
 
 /**
  * A KaspaRocket plan's transaction as @dotk/sdk-tx's Tx, read from the
- * rusty-kaspa safe-JSON the SDK hands a signer (`PlannedTransaction.tx`,
- * left unparsed by the SDK). Strict: any field this reader does not know is
- * refused, so a digest is never computed over a transaction it half read.
+ * transaction the SDK hands a signer (`PlannedTransaction.tx`, left unparsed
+ * by the SDK). Strict: any field this reader does not know is refused, so a
+ * digest is never computed over a transaction it half read.
+ *
+ * Two wire shapes are read. The rusty-kaspa safe-JSON one (outpoint flat on
+ * the input, `scriptPublicKey` a hex string with its 2-byte version in
+ * front), and the one `/pro-api/plan/trade` actually sends (checked against a
+ * real buy, 2026-11-26), which differs in five places:
+ *  - `input.previousOutpoint: { transactionId, index }` instead of the flat
+ *    pair: read, the same checks as the flat form, exactly one form allowed;
+ *  - `scriptPublicKey: { version, script }` on coins and outputs, the form
+ *    @dotk/sdk-tx's own wasm adapters take: read, version and hex checked;
+ *  - `utxo.outpoint`: the coin's outpoint repeated. Dropped once checked
+ *    equal to the input's: a coin that names another outpoint refuses;
+ *  - `utxo.covenantId`: the coin's KIP-20 covenant id, null on a plain coin.
+ *    Checked (null or 32-byte hex) and carried as `UtxoEntry.covenantId`;
+ *  - `storageMass`: the KIP-9 storage mass, a u64. Checked, then dropped:
+ *    it is not in a v1 sighash and dotk's Tx has no field for it (the node
+ *    recomputes it, as it does `mass`).
+ * Anything outside those, in either shape, still refuses.
  */
 
 export class KaspaRocketTxFormatError extends Error {
@@ -69,11 +86,29 @@ function hexOf(x: unknown, name: string, bytes?: number): string {
   return x as string;
 }
 
-/** `scriptPublicKey` on the wire: 2-byte big-endian version, then the script. */
+/**
+ * `scriptPublicKey` on the wire, either form: the safe-JSON hex string (2-byte
+ * big-endian version, then the script), or the server's `{ version, script }`.
+ */
 function spkOf(x: unknown, name: string) {
+  if (typeof x !== "string") {
+    const o = only(x, ["version", "script"], name);
+    const script = hexOf(o.script, `${name} script`);
+    if (!script) fail(`bad ${name} script`);
+    return { version: int(o.version, 0xffff, `${name} version`), script };
+  }
   const s = hexOf(x, name);
   if (s.length < 6) fail(`bad ${name}`);
   return { version: parseInt(s.slice(0, 4), 16), script: s.slice(4) };
+}
+
+/** An outpoint, `{ transactionId, index }`, checked. */
+function outpointOf(x: unknown, name: string) {
+  const o = only(x, ["transactionId", "index"], name);
+  return {
+    transactionId: hexOf(o.transactionId, `${name} transactionId`, 32),
+    index: int(o.index, 0xffffffff, `${name} index`),
+  };
 }
 
 function inputOf(x: unknown, i: number): TxInput {
@@ -83,6 +118,7 @@ function inputOf(x: unknown, i: number): TxInput {
     [
       "transactionId",
       "index",
+      "previousOutpoint",
       "sequence",
       "sigOpCount",
       "computeBudget",
@@ -93,9 +129,35 @@ function inputOf(x: unknown, i: number): TxInput {
   );
   const u = only(
     o.utxo,
-    ["address", "amount", "scriptPublicKey", "blockDaaScore", "isCoinbase"],
+    [
+      "address",
+      "amount",
+      "scriptPublicKey",
+      "blockDaaScore",
+      "isCoinbase",
+      "outpoint",
+      "covenantId",
+    ],
     `${name} coin`,
   );
+  const flat = o.transactionId !== undefined || o.index !== undefined;
+  if (flat === (o.previousOutpoint !== undefined))
+    fail(`${name} needs exactly one outpoint form`);
+  const previousOutpoint = flat
+    ? outpointOf({ transactionId: o.transactionId, index: o.index }, name)
+    : outpointOf(o.previousOutpoint, `${name} previousOutpoint`);
+  if (u.outpoint !== undefined) {
+    const c = outpointOf(u.outpoint, `${name} coin outpoint`);
+    if (
+      c.transactionId !== previousOutpoint.transactionId ||
+      c.index !== previousOutpoint.index
+    )
+      fail(`${name} coin names another outpoint`);
+  }
+  const covenantId =
+    u.covenantId == null
+      ? undefined
+      : hexOf(u.covenantId, `${name} coin covenantId`, 32);
   // A v1 sighash does not commit to the sig-op count; check it, don't carry it.
   int(o.sigOpCount, 255, `${name} sigOpCount`);
   if (typeof u.isCoinbase !== "boolean") fail(`bad ${name} isCoinbase`);
@@ -103,10 +165,7 @@ function inputOf(x: unknown, i: number): TxInput {
     fail(`bad ${name} address`);
   const spk = spkOf(u.scriptPublicKey, `${name} scriptPublicKey`);
   return {
-    previousOutpoint: {
-      transactionId: hexOf(o.transactionId, `${name} transactionId`, 32),
-      index: int(o.index, 0xffffffff, `${name} index`),
-    },
+    previousOutpoint,
     signatureScript: hexOf(o.signatureScript, `${name} signatureScript`),
     sequence: u64(o.sequence, `${name} sequence`),
     // Outside the digest, but the node refuses the transaction without it.
@@ -121,6 +180,7 @@ function inputOf(x: unknown, i: number): TxInput {
       blockDaaScore: u64(u.blockDaaScore, `${name} blockDaaScore`),
       isCoinbase: u.isCoinbase as boolean,
       ...(u.address ? { address: u.address as string } : {}),
+      ...(covenantId ? { covenantId } : {}),
     },
   };
 }
@@ -165,12 +225,14 @@ export function kasparocketPlanToTx(tx: PlannedTransaction["tx"]): Tx {
       "lockTime",
       "gas",
       "mass",
+      "storageMass",
       "payload",
     ],
     "transaction",
   );
   if (t.id !== undefined) hexOf(t.id, "id", 32);
   if (t.mass !== undefined) u64(t.mass, "mass");
+  if (t.storageMass !== undefined) u64(t.storageMass, "storageMass");
   if (!Array.isArray(t.inputs) || !t.inputs.length) fail("no inputs");
   if (!Array.isArray(t.outputs) || !t.outputs.length) fail("no outputs");
   if ((t.inputs as unknown[]).length > KASPAROCKET_MAX_INPUTS) {

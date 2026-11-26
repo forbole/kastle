@@ -5,6 +5,7 @@ import { test, expect } from "@playwright/test";
 import { schnorr } from "@noble/curves/secp256k1";
 import {
   scriptP2pkh,
+  type ProtocolInfo,
   type Quote,
   type TransactionPlan,
 } from "@kasparocket/sdk";
@@ -85,6 +86,14 @@ function quoteOf(over: Partial<Quote> = {}): Quote {
   } as Quote;
 }
 
+// REAL: the vendor's /protocol document (fee addresses), as fetched 2026-11-26.
+const protocolFixture = JSON.parse(
+  fs.readFileSync(
+    path.join(__dirname, "fixtures/kasparocket-protocol.real.json"),
+    "utf8",
+  ),
+).protocol as ProtocolInfo;
+
 const NOW = 1_000_000;
 const guardOf = (over: Partial<KaspaRocketGuard> = {}): KaspaRocketGuard => ({
   quote: quoteOf(),
@@ -93,6 +102,7 @@ const guardOf = (over: Partial<KaspaRocketGuard> = {}): KaspaRocketGuard => ({
   slippageBps: 100n,
   builtAt: NOW,
   now: () => NOW,
+  protocol: async () => protocolFixture,
   ...over,
 });
 
@@ -465,6 +475,7 @@ test.describe("confirmKaspaRocketSwap (the hook's onConfirm)", () => {
       side: "buy",
       slippageBps: 100,
       xOnlyPk: fixture.xOnlyPk,
+      protocol: async () => protocolFixture,
       signDigest: () => sd.fn,
       submit,
       onRecord: () => records.push(sd.calls.length),
