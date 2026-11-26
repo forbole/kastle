@@ -172,7 +172,9 @@ function readBuilt(b: BuiltTx, c: BuildContext) {
     let curveOut = 0n;
     let curveIns = 0;
     let curveOuts = 0;
+    let supplyIns = 0;
     const ownIdx: number[] = [];
+    const signed = new Set(b.inputsToSign.map((s) => s.index));
     tx.inputs.forEach((x, i) => {
       const v = amt(x.utxo.amount);
       totalIn += v;
@@ -181,7 +183,13 @@ function readBuilt(b: BuiltTx, c: BuildContext) {
         curveIns++;
         curveIn = v;
       } else if (cov === c.tokenId) {
-        if (c.side !== "sell") throw unreconciled();
+        // Every curve trade spends the curve's own supply cell of this token
+        // (a buy carves the lots out of it, a sell returns them to it). The
+        // wallet never signs that cell; a token cell it would sign is its own,
+        // and only a sell may spend one.
+        if (signed.has(i)) {
+          if (c.side !== "sell") throw unreconciled();
+        } else supplyIns++;
         tokenIn += v;
       } else if (typeof cov === "string" && cov) throw unreconciled();
       else if (own(x.utxo.scriptPublicKey)) {
@@ -209,6 +217,8 @@ function readBuilt(b: BuiltTx, c: BuildContext) {
     if (
       curveIns !== 1 ||
       curveOuts !== 1 ||
+      (c.side === "buy" && supplyIns !== 1) ||
+      supplyIns > 1 ||
       totalIn - totalOut !== amt(b.feeSompi) ||
       p2pk.join() !== ownIdx.join() ||
       !opt ||
