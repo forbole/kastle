@@ -5,7 +5,10 @@ import {
   ActivityRowDescriptor,
   ActivityStatusToken,
 } from "@/lib/activity/types";
-import { formatUsdAmount } from "@/lib/utils";
+import { formatFiatAmount } from "@/lib/utils";
+import { fmtAmount } from "@/lib/activity/format";
+
+export { fmtAmount };
 import {
   IGRA_DEPOSIT_ACTIVITY_TYPE,
   KURVE_BRIDGE_ACTIVITY_TYPE,
@@ -18,7 +21,6 @@ import { igraMainnet, kasplexMainnet } from "@/lib/layer2";
 import { NetworkType } from "@/contexts/SettingsContext";
 import { kcc20TxLinks } from "@/components/screens/Settings";
 import type { Kcc20Token } from "@/lib/kcc20";
-import { fillFromKrc20, type Krc20Entry } from "@/lib/kcc20/krc20Fill";
 import {
   type Kcc20PriceSources,
   resolveKcc20Price,
@@ -155,23 +157,6 @@ function sheetTitle(row: ActivityRowDescriptor): string {
   return asset ? `Bridge ${asset} (${dir})` : `Bridge (${dir})`;
 }
 
-/** Dashboard parity with mobile's formatNumber: at most 3 fraction digits. */
-export function fmtAmount(value: string): string {
-  if (!value) return value;
-  const n = Number(value);
-  if (!Number.isFinite(n)) return value;
-  // A true non-zero amount under 0.001 (e.g. 0.0004 KAS) would round to a false
-  // "0" at 3dp. Show up to 8 decimals instead (>= 5 significant for anything
-  // down to 0.00001), bounded so a 36-decimal raw value never prints in full.
-  if (n !== 0 && Math.abs(n) < 0.001) {
-    const tiny = new Intl.NumberFormat("en-US", {
-      maximumFractionDigits: 8,
-    }).format(n);
-    return Number(tiny) === 0 ? `${n < 0 ? "-" : ""}<0.00000001` : tiny;
-  }
-  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 3 }).format(n);
-}
-
 /** "<num> <SYM>" fee strings: cap like amounts, but never print a false 0. */
 export function fmtFee(fee: string): string {
   const [num, ...rest] = fee.split(" ");
@@ -190,6 +175,12 @@ function amountText(amount: ActivityAmount | undefined): string | undefined {
   return sym ? `${fmtAmount(amount.value)} ${sym}` : fmtAmount(amount.value);
 }
 
+/**
+ * The line every leg with an amount but no price shows, on every row alike:
+ * never "$0", never a silently missing line beside priced neighbours.
+ */
+export const PRICE_UNAVAILABLE = "Price unavailable";
+
 export function usdText(
   amount: ActivityAmount | undefined,
   priceFor: AdapterDeps["priceFor"],
@@ -197,32 +188,41 @@ export function usdText(
   if (!amount) return "";
   const price = priceFor(amount.symbol);
   const value = Number(amount.value);
-  if (!price || !Number.isFinite(value)) return "";
+  if (!Number.isFinite(value)) return "";
+  if (!price || !(price > 0)) return PRICE_UNAVAILABLE;
   const usd = value * price;
-  return `≈ ${formatUsdAmount(usd)} USD`;
+  return `≈ ${formatFiatAmount(usd)} USD`;
 }
 
 /**
- * A KCC-20 swap row's token leg is priced by the covenant id its row id ends
- * in, whatever symbol it carries; the KAS leg and every other row by symbol.
+ * The price a row's legs are valued at. A KCC-20 swap (Kaspa L1) prices its
+ * KAS leg by symbol and its token leg by the covenant id the record carries,
+ * never by ticker: "KPEPE" or "PEPE" on the KRC-20 / ERC-20 lists is another
+ * issuance (77,000 KPEPE once read $1,374.61 off Igra's ERC-20 KPEPE while
+ * the dashboard valued the holding at $0.27). Every other row by symbol.
  */
-function receivedPriceFor(
+export function legPriceFor(
   row: ActivityRowDescriptor,
   deps: AdapterDeps,
 ): AdapterDeps["priceFor"] {
-  const tokenId = /^swap:kcc20:.*:([0-9a-f]{64})$/.exec(row.id)?.[1];
+  if (row.type !== SWAP_ACTIVITY_TYPE || row.meta?.l2Chain !== "Kaspa")
+    return deps.priceFor;
+  // Rows recorded before tokenId existed still end in it.
+  const tokenId =
+    row.meta?.tokenId ?? /^swap:kcc20:.*:([0-9a-f]{64})$/.exec(row.id)?.[1];
   return (symbol) =>
-    tokenId && symbol.toUpperCase() !== "KAS"
-      ? deps.priceFor(tokenId)
-      : deps.priceFor(symbol);
+    symbol.toUpperCase() === "KAS"
+      ? deps.priceFor(symbol)
+      : tokenId
+        ? deps.priceFor(tokenId)
+        : undefined;
 }
-
-const withUsd = (receivedUsd: string) => (receivedUsd ? { receivedUsd } : {});
 
 /**
  * USD per whole KCC-20 token by upper-case covenant id, the key
- * receivedPriceFor looks up. A held token resolves as its dashboard row does,
+ * legPriceFor looks up. A held token resolves as its dashboard row does,
  * so both show one number; a token no longer held falls back to its KRON market.
+ * No KRC-20 namesake prices a KCC-20 token.
  */
 export function kcc20UsdPrices(
   tokens: readonly Kcc20Token[],
@@ -230,14 +230,13 @@ export function kcc20UsdPrices(
     spots,
     cached,
     ...sources
-  }: Omit<Kcc20PriceSources, "spot" | "cached" | "krc20"> & {
-    krc20?: readonly (Krc20Entry & { price: number })[];
+  }: Omit<Kcc20PriceSources, "spot" | "cached"> & {
     /** kascov's answered spots by lower-case covenant id; a token not answered is absent. */
     spots?: ReadonlyMap<string, number | null>;
     cached?: Record<string, number>;
   },
 ): Map<string, number> {
-  const { markets, krc20, kaspaPrice } = sources;
+  const { markets, kaspaPrice } = sources;
   const prices = new Map<string, number>();
   // The KAS price reads 0 until it loads: unknown, not worthless.
   if (!(kaspaPrice > 0)) return prices;
@@ -247,7 +246,7 @@ export function kcc20UsdPrices(
       prices.set(m.covenantId.toUpperCase(), m.priceKas * kaspaPrice);
   }
   for (const token of tokens) {
-    const { priceKas } = resolveKcc20Price(fillFromKrc20(token, krc20), {
+    const { priceKas } = resolveKcc20Price(token, {
       ...sources,
       spot: spots?.get(token.covenantId.toLowerCase()),
       cached: cached?.[token.covenantId],
@@ -412,6 +411,8 @@ export function toActivityItem(
   const swapCredit = swap && !!row.received && row.status !== "failed";
   // Only a delivered amount is a credit; an outlay is never signed "+".
   const signed = !!amountLeg && (bridge ? settled : swapCredit);
+  // One lookup for every leg, so the list row and the sheet state one number.
+  const priceFor = legPriceFor(row, deps);
 
   return {
     id: row.id,
@@ -424,7 +425,7 @@ export function toActivityItem(
       ? `${signed ? "+" : ""}${fmtAmount(amountLeg.value)}`
       : "-",
     amountSymbol: amountLeg ? symbolText(amountLeg.symbol) : undefined,
-    amountUsd: usdText(amountLeg, deps.priceFor),
+    amountUsd: usdText(amountLeg, priceFor),
     tone: signed && !inProgress ? "credit" : "neutral",
     isInProgress: inProgress,
     sheet: {
@@ -440,7 +441,7 @@ export function toActivityItem(
         toChainImage: swap ? chainLogo : intoL2 ? chainLogo : kaspaIcon,
         sentLabel: swap ? "Paid" : "Sent",
         sentAmount: amountText(row.sent) ?? "-",
-        sentUsd: usdText(row.sent, deps.priceFor),
+        sentUsd: usdText(row.sent, priceFor),
         receivedLabel:
           row.received && ((bridge && !settled) || (swap && isInProgress(row)))
             ? "You'll receive"
@@ -450,8 +451,8 @@ export function toActivityItem(
         ...(row.received
           ? {
               receivedAmount: amountText(row.received),
-              // No price from any source: no USD line, never a dash or $0.
-              ...withUsd(usdText(row.received, receivedPriceFor(row, deps))),
+              // No price from any source: "Price unavailable", never $0.
+              receivedUsd: usdText(row.received, priceFor),
             }
           : bridge && settled
             ? { receivedAmount: "Amount unavailable" }

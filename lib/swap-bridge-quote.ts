@@ -11,6 +11,27 @@ import {
 // FeeCollectorSwapExecutor's fallback when feeRate() cannot be read.
 export const KASTLE_SWAP_FEE_BPS = 75n;
 
+/**
+ * What a KRON quote card says its Kastle fee is. The fee taken is 0.75% of
+ * the KAS leg (the buy's KAS in, the sell's net KAS out), floored at the SDK's
+ * 0.2 KAS fee-output minimum (lib/kcc20/swap.ts kronKastleFee). When the floor
+ * set it, `minimum` is that fee: the card names it in KAS, never as the floor
+ * divided by the amount ("20%" at 1 KAS, "6.67%" at 3 KAS), a rate no code
+ * applies.
+ */
+export function kronKastleFeeTerms(q: {
+  side: "buy" | "sell";
+  amountIn: bigint;
+  amountOut: bigint;
+  kastleFee: bigint;
+}): { bps: number; minimum?: bigint } {
+  const kas = q.side === "buy" ? q.amountIn : q.amountOut + q.kastleFee;
+  const bps = Number(KASTLE_SWAP_FEE_BPS);
+  return (kas * KASTLE_SWAP_FEE_BPS) / 10_000n < q.kastleFee
+    ? { bps, minimum: q.kastleFee }
+    : { bps };
+}
+
 /** What the router receives after the fee collector's feeBps cut (0n direct). */
 export const swapPathAmountIn = (raw: bigint, feeBps: bigint) =>
   (raw * (10_000n - feeBps)) / 10_000n;

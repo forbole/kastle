@@ -205,7 +205,6 @@ function useTokenMaps(isMainnet: boolean) {
     const kcc20 = kcc20UsdPrices(tokens ?? [], {
       markets: kron,
       spots,
-      krc20: kasplex?.tokens,
       kaspaPrice,
       cached,
     });

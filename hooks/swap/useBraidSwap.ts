@@ -4,6 +4,7 @@ import { formatUnits } from "viem";
 import { BraidError, BraidRefusal } from "@braid_swap/sdk";
 import type { BraidL1, L1Quote, PreparedDeposit } from "@braid_swap/sdk";
 import toast from "@/components/Toast";
+import { fmtAmount } from "@/lib/activity/format";
 import { braidErrorCopy, makeBraid } from "@/lib/braid/client";
 import {
   BRAID_DEPOSIT_FEE_MAX,
@@ -276,7 +277,8 @@ export function braidSettleToast(
       // Chain-verified either way; the amount only shown when known.
       notify.success(
         chain?.amount !== undefined && outDecimals !== undefined
-          ? `Swapped successfully! Received ${formatUnits(chain.amount, outDecimals)} ${outSymbol}`
+          ? // The Activity row's formatter: "18,922 PEPE", never "18922 PEPE".
+            `Swapped successfully! Received ${fmtAmount(formatUnits(chain.amount, outDecimals))} ${outSymbol}`
           : "Swapped successfully!",
       );
     } else if (state === "refunded") {

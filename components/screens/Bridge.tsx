@@ -606,7 +606,12 @@ export default function Bridge() {
           onChange={setAmount}
           symbol={fromSymbol}
           chainImage={chainImage(route.from)}
-          usd={`$${formatUsd(amountNum * kaspaPrice)}`}
+          // Nothing typed, or no KAS price yet: no fiat line, never "$0".
+          usd={
+            amountNum * kaspaPrice > 0
+              ? formatUsd(amountNum * kaspaPrice)
+              : undefined
+          }
           onFlip={() => {
             setDirection(reverse);
             setAmount("");
@@ -625,9 +630,12 @@ export default function Bridge() {
                 ) : (
                   <span className="flex flex-col items-end">
                     ~ {formatAmount(Math.max(received, 0))} {toSymbol}
-                    <span className="text-xs text-daintree-400">
-                      (≈ ${formatUsd(Math.max(received, 0) * kaspaPrice)} USD)
-                    </span>
+                    {/* No KAS price yet: no line, never "$0.00". */}
+                    {kaspaPrice > 0 && (
+                      <span className="text-xs text-daintree-400">
+                        (≈ {formatUsd(Math.max(received, 0) * kaspaPrice)} USD)
+                      </span>
+                    )}
                   </span>
                 )}
               </QuoteRow>

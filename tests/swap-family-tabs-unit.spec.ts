@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { createRequire } from "node:module";
+import { createRequire, registerHooks } from "node:module";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
 import { test, expect } from "@playwright/test";
@@ -8,6 +8,21 @@ import { Window } from "happy-dom";
 import type { Kcc20Family } from "@/lib/kcc20";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// lib/utils (formatFiatAmount, which ui.tsx's formatUsd wraps) reaches network
+// logos and package.json; stub images as their path and load JSON as JSON.
+registerHooks({
+  load(url, context, next) {
+    if (url.endsWith(".json"))
+      return next(url, { ...context, importAttributes: { type: "json" } });
+    if (!/\.(svg|png)$/.test(url)) return next(url, context);
+    return {
+      format: "commonjs",
+      source: `module.exports = ${JSON.stringify(url)};`,
+      shortCircuit: true,
+    };
+  },
+});
+const { formatFiatAmount } = await import("@/lib/utils");
 const nodeRequire = createRequire(import.meta.url);
 const React = nodeRequire("react");
 const { createRoot } = nodeRequire("react-dom/client");
@@ -70,6 +85,7 @@ const { TokenSheet } = loadModule("components/swap-bridge/ui.tsx", {
   }),
   viem: { BaseError: class BaseError extends Error {} },
   "@/lib/format-amount": { formatAmount: String },
+  "@/lib/utils": { formatFiatAmount },
   "/node_modules/flag-icons/css/flag-icons.min.css": {},
 });
 const {

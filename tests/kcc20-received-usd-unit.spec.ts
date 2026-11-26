@@ -132,6 +132,19 @@ function usdOf(line: string | undefined): number {
   return Number(match![1].replace(/,/g, ""));
 }
 
+/**
+ * `line` states `usd` as the fiat format rounds it: to the cent at or above
+ * $0.01, to four significant digits below (six decimals at most).
+ */
+function expectUsd(line: string | undefined, usd: number) {
+  const shown = usdOf(line);
+  if (usd >= 0.01) expect(Math.abs(shown - usd)).toBeLessThanOrEqual(0.005);
+  else
+    expect(Math.abs(shown - usd)).toBeLessThanOrEqual(
+      Math.max(usd * 5e-4, 5e-7),
+    );
+}
+
 // ─── resolveKcc20Price: useKcc20Price's resolution, exported ─────────────────
 
 test("curve family: KRON's curve, then its graduated pool; the cache only until KRON answers", () => {
@@ -167,7 +180,7 @@ test("curve family: KRON's curve, then its graduated pool; the cache only until 
   ).toBeUndefined();
 });
 
-test("standard family: kascov's spot, then one priced KRC-20 namesake; null from kascov drops the cache", () => {
+test("standard family: kascov's spot only, never a KRC-20 namesake; null from kascov drops the cache", () => {
   const std = token(STD_ID, "kcc20-standard", {
     symbol: "NACHO",
     name: "NACHO",
@@ -176,16 +189,12 @@ test("standard family: kascov's spot, then one priced KRC-20 namesake; null from
   });
   const base = { kaspaPrice: KAS_USD, cached: 0.5 };
   expect(m.resolveKcc20Price(std, { ...base, spot: 0.2 }).priceKas).toBe(0.2);
-  const namesake = [{ symbol: "nacho", price: 0.003 }];
-  expect(
-    m.resolveKcc20Price(std, { ...base, spot: null, krc20: namesake }).priceKas,
-  ).toBeCloseTo(0.003 / KAS_USD, 12);
-  // Two namesakes: no way to tell which one, so no price.
+  // kascov has no market: no price, whatever a KRC-20 "NACHO" trades at.
   expect(
     m.resolveKcc20Price(std, {
       ...base,
       spot: null,
-      krc20: [...namesake, { symbol: "NACHO", price: 0.004 }],
+      ...({ krc20: [{ symbol: "nacho", price: 0.003 }] } as object),
     }).priceKas,
   ).toBeUndefined();
   expect(m.resolveKcc20Price(std, base).priceKas).toBe(0.5);
@@ -213,7 +222,7 @@ test("a held standard token priced by kascov's spot shows its Received USD (amou
     spots: new Map([[STD_ID, 0.0002]]),
   });
   expect(t.receivedAmount).toBe("120.5 NACHO");
-  expect(usdOf(t.receivedUsd)).toBeCloseTo(120.5 * 0.0002 * KAS_USD, 8);
+  expectUsd(t.receivedUsd, 120.5 * 0.0002 * KAS_USD);
 });
 
 test("Leo's KRON row before KRON's markets answer: the dashboard's cached price, not a missing line", () => {
@@ -227,19 +236,19 @@ test("Leo's KRON row before KRON's markets answer: the dashboard's cached price,
     cached: { [KRON_ID]: cachedKas },
   });
   expect(t.receivedAmount).toBe("1,917 KRON");
-  expect(usdOf(t.receivedUsd)).toBeCloseTo(1917 * cachedKas * KAS_USD, 8);
+  expectUsd(t.receivedUsd, 1917 * cachedKas * KAS_USD);
   // The Paid leg is the KAS amount at the KAS price, as before.
-  expect(usdOf(t.sentUsd)).toBeCloseTo(14.372 * KAS_USD, 8);
+  expectUsd(t.sentUsd, 14.372 * KAS_USD);
 });
 
 test("a token no longer held keeps its KRON market price (graduated pool)", () => {
   const t = sheet(buyRow(KRON_ID, "KRON", "1917"), [], {
     markets: markets([], [{ covenantId: KRON_ID, priceKas: 0.0067 }]),
   });
-  expect(usdOf(t.receivedUsd)).toBeCloseTo(1917 * 0.0067 * KAS_USD, 8);
+  expectUsd(t.receivedUsd, 1917 * 0.0067 * KAS_USD);
 });
 
-test("no source prices the token: no Received USD line at all", () => {
+test("no source prices the token: the Received line says the price is unavailable", () => {
   const std = token(STD_ID, "kcc20-standard", {
     symbol: "NACHO",
     name: "NACHO",
@@ -248,15 +257,14 @@ test("no source prices the token: no Received USD line at all", () => {
   });
   const t = sheet(buyRow(STD_ID, "NACHO", "120.5"), [std], {
     markets: markets([]),
-    // kascov answered: no market. No KRC-20 namesake, a stale cache entry.
+    // kascov answered: no market; a stale cache entry.
     spots: new Map([[STD_ID, null]]),
-    krc20: [],
     cached: { [STD_ID]: 0.3 },
   });
   expect(t.receivedAmount).toBe("120.5 NACHO");
-  expect("receivedUsd" in t).toBe(false);
+  expect(t.receivedUsd).toBe("Price unavailable");
   // The Paid leg still shows.
-  expect(usdOf(t.sentUsd)).toBeCloseTo(14.372 * KAS_USD, 8);
+  expectUsd(t.sentUsd, 14.372 * KAS_USD);
 });
 
 test("no KAS price yet: no KCC-20 price is made up", () => {
@@ -286,4 +294,58 @@ test("sameSpots compares spot Maps by content, not by type", () => {
   ).toBe(false);
   expect(m.sameSpots(undefined, before)).toBe(false);
   expect(m.sameSpots(undefined, undefined)).toBe(true);
+});
+
+// ─── The list row's USD: the same covenant-id price as the sheet ────────────
+
+// QA wallet 2026-11-26: 77,000 KPEPE (kascov 6c5d77…, a standard token at
+// 0.00013132628 KAS) read "≈ $1,374.61 USD" on its Activity row: the row priced
+// the leg by ticker, and Igra's ERC-20 "KPEPE" trades at $0.0179.
+const KPEPE_ID =
+  "6c5d77e7c094412389a07d1d4e96e079e24fc772a8c3e8fa3e134686da9f1a03";
+
+test("a KCC-20 row's list USD is its covenant's price, never a ticker namesake's", () => {
+  const kpepe = token(KPEPE_ID, "kcc20-standard", {
+    symbol: "KPEPE",
+    name: "KPEPE",
+    decimals: 0,
+  });
+  const kas = 0.0266;
+  const prices = new Map<string, number>([
+    ["KAS", kas],
+    // The ERC-20 / KRC-20 symbol map Activity also builds.
+    ["KPEPE", 0.017943390347176052],
+  ]);
+  for (const [id, usd] of m.kcc20UsdPrices([kpepe], {
+    spots: new Map([[KPEPE_ID, 0.00013132628]]),
+    kaspaPrice: kas,
+  }))
+    prices.set(id, usd);
+  const item = m.toActivityItem(
+    m.mapSwapActivity({
+      ...buyRow(KPEPE_ID, "KPEPE", "77000"),
+      tokenId: KPEPE_ID,
+    }),
+    { logoFor: () => undefined, priceFor: (s) => prices.get(s.toUpperCase()) },
+  );
+  const expected = 77000 * 0.00013132628 * kas; // ≈ $0.269
+  console.log("row:", item.amountNumber, item.amountSymbol, item.amountUsd);
+  expect(usdOf(item.amountUsd)).toBeCloseTo(expected, 2);
+  // The row and the sheet read one number.
+  expect(item.amountUsd).toBe(item.sheet.transfer.receivedUsd);
+});
+
+test("a KCC-20 row whose covenant has no price shows no ticker namesake's", () => {
+  const prices = new Map<string, number>([
+    ["KAS", 0.0266],
+    ["PEPE", 0.000002858355099295944],
+  ]);
+  const item = m.toActivityItem(
+    m.mapSwapActivity({
+      ...buyRow(KPEPE_ID, "PEPE", "18922"),
+      tokenId: KPEPE_ID,
+    }),
+    { logoFor: () => undefined, priceFor: (s) => prices.get(s.toUpperCase()) },
+  );
+  expect(item.amountUsd).toBe("Price unavailable");
 });

@@ -216,6 +216,7 @@ export function buildKcc20SwapRecords({
           txHash: entry.txid,
           ...(venue ? { providerId: venue } : {}),
           chainId: KAT_L1_CHAIN_ID,
+          tokenId: tokenId.toLowerCase(),
         });
       } catch {
         unattributed++;
@@ -669,6 +670,8 @@ export interface BraidTradeInput {
   depositTxid: string;
   startedAt: number;
   side: "buy" | "sell";
+  /** The token leg's covenant id. */
+  tokenId: string;
   tokenSymbol: string;
   tokenDecimals: number;
   /** Buy: the sompi paid in (payTotal). Sell: the token base units sold. */
@@ -714,6 +717,7 @@ export function braidSwapRecord(t: BraidTradeInput): SwapActivityRecord {
     txHash: t.depositTxid,
     providerId: BRAID_PROVIDER.id,
     chainId: KAT_L1_CHAIN_ID,
+    tokenId: t.tokenId.toLowerCase(),
     ...(t.money
       ? {
           feeAmount: formatUnits(t.money.networkFeeSompi, KAS_DECIMALS),
@@ -759,6 +763,7 @@ export function braidPendingRecords(
           depositTxid: p.depositTxid,
           startedAt: s.startedAt,
           side: buy ? "buy" : "sell",
+          tokenId: token.id,
           tokenSymbol: meta.symbol,
           tokenDecimals: meta.decimals,
           amountIn: BigInt(buy ? p.payTotal! : p.amountIn),

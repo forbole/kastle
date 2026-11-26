@@ -77,8 +77,6 @@ export type Kcc20PriceSources = {
   markets?: KronMarkets;
   /** kascov's spot in KAS; null when kascov has no market for the token. */
   spot?: number | null;
-  /** The KRC-20 list, USD prices by symbol. */
-  krc20?: readonly { symbol: string; price: number }[];
   kaspaPrice: number;
   /** The token's last price cached under the current network. */
   cached?: number;
@@ -90,20 +88,13 @@ export type Kcc20PriceSources = {
  */
 export function resolveKcc20Price(
   token: Pick<Kcc20Token, "covenantId" | "family" | "meta">,
-  { markets, spot, krc20, kaspaPrice, cached }: Kcc20PriceSources,
+  { markets, spot, cached }: Kcc20PriceSources,
 ): { live?: number; priceKas?: number } {
   const isStandard = token.family === "kcc20-standard";
-  // No kascov market: the KRC-20 list's USD price for the same symbol (one entry only).
-  const symbol = token.meta?.symbol.toUpperCase();
-  const namesakes = symbol
-    ? (krc20 ?? []).filter((t) => t.symbol.toUpperCase() === symbol)
-    : [];
-  const krc20Kas =
-    namesakes.length === 1 && namesakes[0].price > 0 && kaspaPrice
-      ? namesakes[0].price / kaspaPrice
-      : undefined;
+  // No kascov market means no price: a KRC-20 namesake is another issuance,
+  // and its price is not this covenant's.
   const live = isStandard
-    ? (spot ?? krc20Kas)
+    ? (spot ?? undefined)
     : kcc20PriceKas(markets, token.covenantId);
   // null is an answer: kascov has no market, so no cached price may stand in.
   const answered = isStandard ? spot !== undefined : markets !== undefined;
@@ -161,12 +152,10 @@ export function useKcc20Price(
     ([, id, decimals]) => fetchStandardMarketPrice(id, decimals),
     { refreshInterval: 60_000 },
   );
-  const { data: krc20 } = useZealousSwapTokensMetadata();
   const cache = useKcc20CachedPrices(networkId);
   const { live, priceKas } = resolveKcc20Price(token, {
     markets,
     spot,
-    krc20: krc20?.tokens,
     kaspaPrice,
     cached: cache?.[covenantId],
   });

@@ -19,11 +19,14 @@ const {
   isSequencerUnreachable,
   kronErrorCopy,
   kronKastleFee,
-  kronKastleFeeBps,
   quoteKron,
   quoteKronSwap,
   submitKronSwap,
 } = await import("@/lib/kcc20/swap");
+const { kronKastleFeeTerms } = await import("@/lib/swap-bridge-quote");
+const { kastleFeeNote } = await import(
+  "@/components/swap-bridge/swap-fee-summary"
+);
 const { Kcc20TransferError, fundCovenantSpend } = await import(
   "@/lib/kcc20/transfer"
 );
@@ -53,7 +56,7 @@ test("buy: the Kastle fee comes off the KAS in, the rest goes to the curve", () 
   expect(String(q.curveKas)).toBe(String(cp.kasIn));
   expect(String(q.amountOut)).toBe(String(cp.tokenOut));
   expect(String(q.curveFee)).toBe(String(cp.fee));
-  expect(kronKastleFeeBps(q)).toBe(75);
+  expect(kronKastleFeeTerms(q)).toEqual({ bps: 75 });
 });
 
 test("sell: the Kastle fee comes off the curve's net KAS out", () => {
@@ -65,10 +68,24 @@ test("sell: the Kastle fee comes off the curve's net KAS out", () => {
   expect(String(q.curveKas)).toBe(String(cp.kasOut));
 });
 
-test("the 0.2 KAS floor shows as its effective rate; dust trades do not quote", () => {
+test("the 0.2 KAS floor is named as a minimum, never as an effective rate; dust trades do not quote", () => {
   const q = quoteKron(state, "buy", 10n * KAS)!;
   expect(String(q.kastleFee)).toBe(String(curve.FEE_OUT_MIN));
-  expect(kronKastleFeeBps(q)).toBe(200);
+  const terms = kronKastleFeeTerms(q);
+  expect(terms.bps).toBe(75);
+  expect(String(terms.minimum)).toBe(String(q.kastleFee));
+  // A sell whose net KAS out is under 26.67 KAS (0.2 token: ~7.1 KAS) hits the same floor.
+  const sell = quoteKron(state, "sell", KAS / 5n)!;
+  expect(String(sell.kastleFee)).toBe(String(curve.FEE_OUT_MIN));
+  expect(String(kronKastleFeeTerms(sell).minimum)).toBe(String(sell.kastleFee));
+  // At 1 KAS and 3 KAS the note is the same words, not "20%" then "6.67%".
+  for (const kas of [1n, 3n]) {
+    const t = kronKastleFeeTerms(quoteKron(state, "buy", kas * KAS)!);
+    expect(kastleFeeNote(t.bps, "0.2 KAS")).toBe(
+      "Quote includes the 0.2 KAS minimum Kastle Fee (0.75% on larger swaps)",
+    );
+    expect(String(t.minimum)).toBe(String(curve.FEE_OUT_MIN));
+  }
   expect(quoteKron(state, "buy", curve.FEE_OUT_MIN)).toBeUndefined();
   // 0.3 KAS: the 0.2 KAS fee floor would exceed the ~0.1 KAS curve leg.
   expect(quoteKron(state, "buy", (3n * KAS) / 10n)).toBeUndefined();

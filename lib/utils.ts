@@ -65,6 +65,43 @@ export function formatCurrency(number: number, code: string = "USD") {
   return formatter.format(number);
 }
 
+/** The smallest fiat amount formatFiatAmount prints; anything smaller reads "<$0.000001". */
+export const FIAT_DISPLAY_FLOOR = 1e-6;
+
+/**
+ * A fiat VALUE on the activity and swap surfaces (a leg's worth, a typed
+ * amount, a minimum received): two decimals at or above $0.01; below, up to
+ * four significant digits and never more than six decimals ("$0.004787"),
+ * floored at "<$0.000001". One Intl.NumberFormat call, so grouping and the
+ * separator are the currency's own ("$1,374.61"). Not for unit prices: a
+ * token priced at $0.0000029 is a price, not an amount.
+ */
+export function formatFiatAmount(number: number, code: string = "USD"): string {
+  const abs = Math.abs(number);
+  const currencyDisplay = CURRENCY_SYMBOL_MAPPING[code] ?? "symbol";
+  if (!Number.isFinite(number) || abs === 0 || abs >= 0.01)
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: code,
+      currencyDisplay,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(number);
+  if (abs < FIAT_DISPLAY_FLOOR) {
+    const floor = formatFiatAmount(FIAT_DISPLAY_FLOOR, code);
+    return number < 0 ? `>-${floor}` : `<${floor}`;
+  }
+  // Decimals that keep four significant digits, capped at six.
+  const fraction = Math.min(6, 3 - Math.floor(Math.log10(abs)));
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: code,
+    currencyDisplay,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: fraction,
+  }).format(number);
+}
+
 export const USD_AMOUNT_FLOOR = 1e-8;
 const MINOR_DIGITS = new Map<string, number>();
 

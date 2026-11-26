@@ -95,6 +95,8 @@ function loadAll(stubs: Record<string, unknown> = {}) {
     viem,
     "@braid_swap/sdk": sdk,
     "@/components/Toast": {},
+    // The real formatter the Activity rows use.
+    "@/lib/activity/format": loadModule<object>("lib/activity/format.ts", {}),
     "@/lib/braid/client": client,
     "@/lib/braid/constants": constants,
     "@/lib/braid/pending": pending,
@@ -393,6 +395,37 @@ function stubReact() {
   return { react, flush: () => effects.splice(0).forEach((fn) => fn()) };
 }
 
+// QA wallet 2026-11-26: "Swapped successfully! Received 18922 PEPE" — the
+// toast printed formatUnits' bare digits while the row read "+18,922 PEPE".
+test("the settle toast states the amount as the Activity row does", () => {
+  const { hook } = loadAll();
+  const said: string[] = [];
+  const notify = {
+    success: (m: string) => said.push(m),
+    info: (m: string) => said.push(m),
+    error: (m: string) => said.push(m),
+  };
+  hook.braidSettleToast(
+    notify as never,
+    "PEPE",
+    0,
+  )("done", {
+    chain: { amount: 18922n },
+  } as never);
+  hook.braidSettleToast(
+    notify as never,
+    "NACHO",
+    8,
+  )("done", {
+    chain: { amount: 123456789012345n },
+  } as never);
+  console.log("TOASTS", JSON.stringify(said));
+  expect(said).toEqual([
+    "Swapped successfully! Received 18,922 PEPE",
+    "Swapped successfully! Received 1,234,567.89 NACHO",
+  ]);
+});
+
 test.describe("useBraidSwap", () => {
   test("a reopened popup follows a stored deposit while another provider is selected", async () => {
     // The closed popup registered a deposit and never saw it settle.
@@ -553,6 +586,7 @@ test.describe("Braid trade in the swap history", () => {
       status: "pending",
       txHash: "d".repeat(64),
       chainId: expect.any(Number),
+      tokenId: COVENANT,
       feeAmount: "0.01",
       feeSymbol: "KAS",
       kastleFeeAmount: "0.25",
@@ -581,6 +615,7 @@ test.describe("Braid trade in the swap history", () => {
       depositTxid: "t",
       startedAt: 1,
       side: "sell",
+      tokenId: "AB".repeat(32),
       tokenSymbol: "TKN",
       tokenDecimals: 2,
       amountIn: 1_234n,
@@ -595,6 +630,8 @@ test.describe("Braid trade in the swap history", () => {
       toAmount: "2.5",
       status: "completed",
       feeAmount: "0.0001",
+      // The token leg's covenant id, lower-cased: what prices it.
+      tokenId: "ab".repeat(32),
     });
     expect(row.kastleFeeAmount).toBeUndefined();
   });

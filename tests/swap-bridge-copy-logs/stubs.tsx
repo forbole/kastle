@@ -40,7 +40,9 @@ export const useEvmHotWalletSigner = () => ({});
 export const useKaspaHotWalletSigner = () => ({
   signBraidDeposit: async () => ({}),
 });
-export const useKaspaPrice = () => ({ kaspaPrice: 0 });
+// ?kas= sets the KAS price (USD); absent, 0: no price yet.
+const kasPrice = Number(new URLSearchParams(location.search).get("kas") ?? 0);
+export const useKaspaPrice = () => ({ kaspaPrice: kasPrice });
 export const useAnalytics = () => ({
   emitBridgeCompleted: ({ status }: { status: string }) =>
     window.__bridge.emitted.push(status),
@@ -122,11 +124,25 @@ const KRON_MARKETS = Object.assign(
 );
 export const fetchKronMarkets = async () => KRON_MARKETS;
 export const assertKronVerified = async () => {};
-export const buildKronSwap = async () => ({
-  quote: { amountOut: 5n * 10n ** 8n, curveFee: 0n, kastleFee: 0n },
-  fee: 1000n,
-});
-export const kronKastleFeeBps = () => 0;
+// The Kastle fee lib/kcc20/swap.ts kronKastleFee takes: 0.75% of the KAS in,
+// floored at the SDK's 0.2 KAS fee output.
+export const buildKronSwap = async (a: {
+  side: "buy" | "sell";
+  amountIn: bigint;
+}) => {
+  const rate = (a.amountIn * 75n) / 10_000n;
+  const kastleFee = rate > 20_000_000n ? rate : 20_000_000n;
+  return {
+    quote: {
+      side: a.side,
+      amountIn: a.amountIn,
+      amountOut: 5n * 10n ** 8n,
+      curveFee: 0n,
+      kastleFee,
+    },
+    fee: 1000n,
+  };
+};
 export const kronErrorCopy = (_e: unknown, fallback: string) => fallback;
 export const submitKronSwap = async () =>
   fail("KRON broadcast rejected", "orphan transaction");
