@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 import type { TransactionPlan } from "@kasparocket/sdk";
 import * as signer from "@/lib/kasparocket/signer";
+import { kaspaRocketFeesOf } from "@/lib/kasparocket/fees";
 import {
   REAL_BUDGET_SOMPI,
   REAL_LP_COVENANT_ID,
@@ -13,7 +14,8 @@ import {
 } from "./fixtures/kasparocket-real-buy";
 
 // What the signer takes on the server's word, on the real FOUR buy
-// (fixtures/kasparocket-real-buy.ts): B the fee outputs. Nothing is signed: the signDigest below throws
+// (fixtures/kasparocket-real-buy.ts): B the fee outputs, C the wallet's debit.
+// Nothing is signed: the signDigest below throws
 // REACHED. A plan whose transaction was edited cannot reach it (its prepared
 // sighashes no longer match), so "refused at the sighash check" is how such a
 // plan shows it cleared every check before it. No network, no broadcast.
@@ -24,7 +26,9 @@ type KaspaRocketGuard = signer.KaspaRocketGuard;
 
 const NOW = 1_000_000;
 const REACHED = "reached the key: every pre-sign check passed";
+const PAST_GUARD = /input 2 sighash does not match the prepared one/;
 const PAYEE = /plan pays an address this wallet cannot spend/;
+const DEBIT = /plan debits \d+ sompi from the wallet, over the \d+ sompi/;
 const KAS = 100_000_000n;
 // Real plan outputs: 0 partner fee (the wallet's own key), 1 wallet change,
 // 2 pool vault, 3 token reserve cell, 4 bought-token cell, 5 treasury fee.
@@ -171,6 +175,65 @@ test.describe("B. fee outputs are bounded by protocol()'s schedule, not the summ
         payees(realPlan(), { protocol: realProtocol(edit) }),
       ).toThrow(/fee schedule cannot be read/);
     }
+  });
+});
+
+test.describe("C. the wallet's debit is bounded, from the transactions", () => {
+  test("★ the real buy debits 164.18655502 KAS, under the 165.3 KAS it may", async () => {
+    const plan = realPlan();
+    expect(String(signer.kaspaRocketWalletDebit(plan, REAL_XONLY_PK))).toBe(
+      "16418655502",
+    );
+    const fees = kaspaRocketFeesOf(realProtocol())!;
+    expect(String(signer.kaspaRocketMaxBuyDebit(REAL_BUDGET_SOMPI, fees))).toBe(
+      "16530000000",
+    );
+    // Why the bound carries the token cell's deposit: budget, fee and the
+    // network ceiling alone (163.3 KAS) sit under the real debit.
+    expect(
+      16418655502n >
+        REAL_BUDGET_SOMPI +
+          3n * KAS +
+          signer.KASPAROCKET_NETWORK_FEE_CEILING_SOMPI,
+    ).toBe(true);
+    expect(String(signer.KASPAROCKET_TOKEN_CELL_DEPOSIT_SOMPI)).toBe(
+      outsOf(realPlan()).at(4).value,
+    );
+    await expectReached(plan);
+  });
+
+  test("★ extra change into an allowed covenant output refuses on the debit", async () => {
+    // The pool vault (2), the token reserve (3), the bought-token cell (4):
+    // each passes checkPayees on its covenant; quote, summary and network
+    // fee all stay as they were.
+    for (const to of [2, 3, 4]) {
+      const plan = realPlan((raw) => moveChange(raw, to, 2n * KAS));
+      expect(String(signer.kaspaRocketWalletDebit(plan, REAL_XONLY_PK))).toBe(
+        "16618655502",
+      );
+      await expectRefused(
+        plan,
+        /plan debits 16618655502 sompi from the wallet, over the 16530000000 sompi this buy allows/,
+      );
+    }
+  });
+
+  test("★ the bound itself passes; one sompi over refuses", async () => {
+    const slack = 16530000000n - 16418655502n;
+    // At the bound: every check passes; the edit then fails the sighash.
+    await expectRefused(
+      realPlan((raw) => moveChange(raw, 3, slack)),
+      PAST_GUARD,
+    );
+    await expectRefused(
+      realPlan((raw) => moveChange(raw, 3, slack + 1n)),
+      DEBIT,
+    );
+  });
+
+  test("an unreadable transaction has no debit", () => {
+    const plan = realPlan((raw) => (raw.transactions[0].tx.fee = "1"));
+    expect(signer.kaspaRocketWalletDebit(plan, REAL_XONLY_PK)).toBeNull();
   });
 });
 

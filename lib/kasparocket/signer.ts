@@ -215,8 +215,8 @@ function buyPayout(plan: TransactionPlan, tokenId: string): bigint | null {
  * `buyPayout`); checked against a real `/plan/trade` buy plan.
  *
  * Sell: KAS, read from the transactions, never the summary: the wallet's plain
- * outputs less its plain inputs, plus the network fee those inputs bore (shown
- * on its own row). Unverified: no server-built sell plan has been checked
+ * outputs less its plain inputs (`kaspaRocketWalletDebit`, negated), plus the
+ * network fee those inputs bore (shown on its own row). Unverified: no server-built sell plan has been checked
  * against this read (none could be built without holding the token).
  */
 export function kaspaRocketPlanPayout(
@@ -225,25 +225,72 @@ export function kaspaRocketPlanPayout(
   xOnlyPk: string,
   direction: Direction,
 ): bigint | null {
-  const own = ownScript(xOnlyPk);
   try {
     if (direction === "buy") return buyPayout(plan, tokenId);
-    let paid = 0n;
-    for (const { tx } of plan.transactions) {
-      const t = kasparocketPlanToTx(tx);
-      for (const o of t.outputs) {
-        if (paysOwn(o, own) && o.covenant?.covenantId == null)
-          paid += BigInt(o.value);
-      }
-      for (const i of t.inputs) {
-        if (i.utxo!.scriptPublicKey === own) paid -= BigInt(i.utxo!.amount);
-      }
-    }
-    const fee = kaspaRocketPlanNetworkFee(plan);
-    return fee === undefined ? null : paid + fee;
   } catch {
     return null;
   }
+  const debit = kaspaRocketWalletDebit(plan, xOnlyPk);
+  const fee = kaspaRocketPlanNetworkFee(plan);
+  return debit === null || fee === undefined ? null : fee - debit;
+}
+
+/**
+ * What the plan takes from the wallet's KAS, read from the transactions
+ * alone: the wallet's own inputs (coins on its pay-to-pubkey) less the
+ * wallet's own plain outputs (its pay-to-pubkey, no covenant), over every
+ * transaction. Negative when the wallet ends with more KAS (a sell). Null
+ * when a transaction cannot be read.
+ *
+ * The real 160 KAS buy debits 164.18655502 KAS: 159.99997202 into the pool,
+ * 2 KAS treasury fee, 2 KAS deposit in the bought-token cell, 0.186583 KAS
+ * network fee; its 1 KAS partner fee pays the wallet's own key, so it is no
+ * debit.
+ */
+export function kaspaRocketWalletDebit(
+  plan: TransactionPlan,
+  xOnlyPk: string,
+): bigint | null {
+  const own = ownScript(xOnlyPk);
+  try {
+    let debit = 0n;
+    for (const { tx } of plan.transactions) {
+      const t = kasparocketPlanToTx(tx);
+      for (const i of t.inputs) {
+        if (i.utxo!.scriptPublicKey === own) debit += BigInt(i.utxo!.amount);
+      }
+      for (const o of t.outputs) {
+        if (paysOwn(o, own) && o.covenant?.covenantId == null)
+          debit -= BigInt(o.value);
+      }
+    }
+    return debit;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The KAS a buy may leave in the bought-token cell, on top of the trade: the
+ * real plan's `kcc20User` cell carries 2 KAS, locked in the cell until spent.
+ */
+export const KASPAROCKET_TOKEN_CELL_DEPOSIT_SOMPI = 200_000_000n;
+
+/**
+ * The most a buy may debit the wallet: the budget, what protocol()'s schedule
+ * charges on it, the network-fee ceiling and one token-cell deposit. Real
+ * buy: 160 + 3 + 0.3 + 2 = 165.3 KAS against a 164.18655502 KAS debit.
+ */
+export function kaspaRocketMaxBuyDebit(
+  budgetSompi: bigint,
+  fees: KaspaRocketFees,
+): bigint {
+  return (
+    budgetSompi +
+    kaspaRocketFeeSompi(budgetSompi, fees) +
+    KASPAROCKET_NETWORK_FEE_CEILING_SOMPI +
+    KASPAROCKET_TOKEN_CELL_DEPOSIT_SOMPI
+  );
 }
 
 /**
@@ -450,6 +497,20 @@ function checkGuard(
     refuse(
       `network fee ${fee} sompi is over the ${KASPAROCKET_NETWORK_FEE_CEILING_SOMPI} sompi ceiling`,
     );
+  }
+  // What leaves the wallet, from the transactions: extra change routed into
+  // an allowed covenant output moves neither the quote, the summary nor the
+  // network fee. A sell's debit is bounded by its payout floor below.
+  if (trade.direction === "buy") {
+    const debit = kaspaRocketWalletDebit(plan, pk);
+    if (debit === null) refuse("wallet debit cannot be read");
+    if (!fees) refuse("fee schedule cannot be read");
+    const most = kaspaRocketMaxBuyDebit(trade.amountIn, fees!);
+    if (debit! > most) {
+      refuse(
+        `plan debits ${debit} sompi from the wallet, over the ${most} sompi this buy allows`,
+      );
+    }
   }
   // Both sides: what the plan pays out, never less than the preview's floor.
   const paid = kaspaRocketPlanPayout(plan, trade.tokenId, pk, trade.direction);
