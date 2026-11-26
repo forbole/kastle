@@ -96,6 +96,7 @@ const { ProviderRow } = loadModule("components/swap-bridge/ui.tsx", {
   "@/hooks/useStorageState": esm(() => [[], async () => {}, false]),
   viem: { BaseError: class BaseError extends Error {} },
   "@/lib/format-amount": { formatAmount: String },
+  "@/lib/utils": { formatFiatAmount: String },
   "/node_modules/flag-icons/css/flag-icons.min.css": {},
 });
 

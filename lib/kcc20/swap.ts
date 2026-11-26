@@ -794,13 +794,6 @@ export async function assertKronVerified(market: KronMarket, restApi: string) {
   return meta;
 }
 
-/** The Kastle fee as bps of the KAS leg it came off; above 75 only when the 0.2 KAS floor applied. */
-export function kronKastleFeeBps(q: KronQuote) {
-  const kas = q.side === "buy" ? q.amountIn : q.amountOut + q.kastleFee;
-  const bps = Number((q.kastleFee * 10_000n + kas - 1n) / kas);
-  return Math.max(bps, Number(KASTLE_SWAP_FEE_BPS));
-}
-
 const KRON_ERROR_COPY: Record<KronSwapError["code"], string> = {
   unverified: "This token's details could not be verified",
   graduated: "This token has graduated and can no longer be swapped here",

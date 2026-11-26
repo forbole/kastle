@@ -21,18 +21,32 @@ export function FeeRow({
   );
 }
 
+/**
+ * The Kastle fee note. With `minimum` ("0.2 KAS") the floor set the fee, so the
+ * note names it in KAS rather than as an effective percentage that would move
+ * with the amount.
+ */
+export function kastleFeeNote(kastleFeeBps: number, minimum?: string) {
+  const rate = `${kastleFeeBps / 100}%`;
+  return minimum
+    ? `Quote includes the ${minimum} minimum Kastle Fee (${rate} on larger swaps)`
+    : `Quote includes ${rate} Kastle Fee`;
+}
+
 export function SwapFeeFootnote({
   kastleFee,
   kastleFeeBps,
+  kastleFeeMinimum,
 }: {
   kastleFee: number;
   kastleFeeBps: number;
+  kastleFeeMinimum?: string;
 }) {
   if (kastleFee <= 0) return null;
   return (
     <p className="flex items-center gap-2 border-t border-daintree-700 px-4 py-3 text-xs font-medium text-daintree-400">
       <i className="hn hn-info-circle text-base" />
-      Quote includes {kastleFeeBps / 100}% Kastle Fee
+      {kastleFeeNote(kastleFeeBps, kastleFeeMinimum)}
     </p>
   );
 }
@@ -41,10 +55,12 @@ export function SwapFeeSummary({
   kastleFee,
   kastleFeeSymbol,
   kastleFeeBps,
+  kastleFeeMinimum,
 }: {
   kastleFee: number;
   kastleFeeSymbol?: string;
   kastleFeeBps: number;
+  kastleFeeMinimum?: string;
 }) {
   return (
     <FeeRow
@@ -54,7 +70,7 @@ export function SwapFeeSummary({
       }
       note={
         kastleFee > 0
-          ? `Quote includes ${kastleFeeBps / 100}% Kastle Fee`
+          ? kastleFeeNote(kastleFeeBps, kastleFeeMinimum)
           : undefined
       }
     />

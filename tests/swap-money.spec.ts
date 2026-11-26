@@ -131,3 +131,48 @@ test("item 5: the Bridge amount field follows the same rule", async ({
   expect(text).not.toMatch(/\$0(?:\.0+)?(?![\d.])/);
   expect(errors).toEqual([]);
 });
+
+const sheet = (page: Page) => page.locator("dialog[open]");
+
+/** iKAS -> KAS on Kaspa L1 -> `symbol`, as tests/swap-bridge-copy-logs.spec.ts picks it. */
+async function pickL1(page: Page, symbol: string) {
+  await page.getByRole("button", { name: "iKAS", exact: true }).first().click();
+  await sheet(page).getByRole("button", { name: "Kaspa", exact: true }).click();
+  await page.keyboard.press("Escape");
+  await expect(sheet(page)).toHaveCount(0);
+  await page.getByRole("button", { name: "Select" }).click();
+  await sheet(page)
+    .getByRole("button", { name: new RegExp(symbol) })
+    .click();
+  await page.keyboard.press("Escape");
+  await expect(sheet(page)).toHaveCount(0);
+}
+
+test("item 6: a KRON quote under the 0.2 KAS floor names the minimum, not a size-dependent percentage", async ({
+  page,
+}) => {
+  const errors = await openSwap(page, "0.02667811");
+  await pickL1(page, "KRN");
+  const input = page.locator("input[inputmode=decimal]");
+  const floor =
+    "Quote includes the 0.2 KAS minimum Kastle Fee (0.75% on larger swaps)";
+  for (const amount of ["1", "3"]) {
+    await input.fill(amount);
+    await expect(page.getByText(floor)).toBeVisible();
+    const text = await body(page);
+    expect(text).not.toMatch(/20% Kastle|6\.67% Kastle/);
+  }
+  // The Est. Fee sheet states the fee actually taken with the same words.
+  await page.getByText("Est. Fee").first().click();
+  await expect(sheet(page).getByText("0.2 KAS", { exact: true })).toBeVisible();
+  await expect(sheet(page).getByText(floor)).toBeVisible();
+  await page.keyboard.press("Escape");
+  // Above 26.67 KAS the rate sets the fee: 100 KAS pays 0.75 KAS.
+  await input.fill("100");
+  await expect(page.getByText("Quote includes 0.75% Kastle Fee")).toBeVisible();
+  await page.getByText("Est. Fee").first().click();
+  await expect(
+    sheet(page).getByText("0.75 KAS", { exact: true }),
+  ).toBeVisible();
+  expect(errors).toEqual([]);
+});

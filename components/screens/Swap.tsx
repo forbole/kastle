@@ -75,6 +75,7 @@ import {
 } from "@/lib/evm/swap/swapExecutor";
 import {
   computeSwapKastleFee,
+  kronKastleFeeTerms,
   swapMinReceived,
   swapPathAmountIn,
 } from "@/lib/swap-bridge-quote";
@@ -125,7 +126,6 @@ import {
   buildKronSwap,
   fetchKronMarkets,
   kronErrorCopy,
-  kronKastleFeeBps,
   submitKronSwap,
 } from "@/lib/kcc20/swap";
 
@@ -853,7 +853,15 @@ export default function Swap() {
     tokenOutDecimals: tokenOut?.decimals ?? 18,
     tokenOutSymbol: tokenOut?.symbol,
   });
-  // KRON's fee is a KAS output on the swap tx itself.
+  // KRON's fee is a KAS output on the swap tx itself. A floored KRON fee is
+  // stated as the 0.2 KAS minimum, never as the floor divided by the amount
+  // ("20%" at 1 KAS, "6.67%" at 3 KAS).
+  const kronFeeTerms =
+    !l1 && isKron && kronQuote ? kronKastleFeeTerms(kronQuote) : undefined;
+  const kastleFeeMinimum =
+    kronFeeTerms?.minimum !== undefined
+      ? `${formatAmount(Number(formatUnits(kronFeeTerms.minimum, KAS_DECIMALS)))} KAS`
+      : undefined;
   const { kastleFeeBps, kastleFeeSymbol, kastleFee } = l1
     ? {
         kastleFeeBps: l1.kastleFeeBps,
@@ -862,7 +870,7 @@ export default function Swap() {
       }
     : isKron
       ? {
-          kastleFeeBps: kronQuote ? kronKastleFeeBps(kronQuote) : 0,
+          kastleFeeBps: kronFeeTerms?.bps ?? 0,
           kastleFeeSymbol: "KAS",
           kastleFee: kronQuote
             ? Number(formatUnits(kronQuote.kastleFee, KAS_DECIMALS))
@@ -1365,6 +1373,7 @@ export default function Swap() {
               <SwapFeeFootnote
                 kastleFee={kastleFee}
                 kastleFeeBps={kastleFeeBps}
+                kastleFeeMinimum={kastleFeeMinimum}
               />
             </div>
           )}
@@ -1606,6 +1615,7 @@ export default function Swap() {
           kastleFee={kastleFee}
           kastleFeeSymbol={kastleFeeSymbol}
           kastleFeeBps={kastleFeeBps}
+          kastleFeeMinimum={kastleFeeMinimum}
         />
       </BottomSheet>
     </div>
