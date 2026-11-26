@@ -6,6 +6,9 @@ import {
   ActivityStatusToken,
 } from "@/lib/activity/types";
 import { formatFiatAmount } from "@/lib/utils";
+import { fmtAmount } from "@/lib/activity/format";
+
+export { fmtAmount };
 import {
   IGRA_DEPOSIT_ACTIVITY_TYPE,
   KURVE_BRIDGE_ACTIVITY_TYPE,
@@ -152,23 +155,6 @@ function sheetTitle(row: ActivityRowDescriptor): string {
   const dir =
     row.meta?.route === "l1-to-l2" ? `Kaspa → ${l2}` : `${l2} → Kaspa`;
   return asset ? `Bridge ${asset} (${dir})` : `Bridge (${dir})`;
-}
-
-/** Dashboard parity with mobile's formatNumber: at most 3 fraction digits. */
-export function fmtAmount(value: string): string {
-  if (!value) return value;
-  const n = Number(value);
-  if (!Number.isFinite(n)) return value;
-  // A true non-zero amount under 0.001 (e.g. 0.0004 KAS) would round to a false
-  // "0" at 3dp. Show up to 8 decimals instead (>= 5 significant for anything
-  // down to 0.00001), bounded so a 36-decimal raw value never prints in full.
-  if (n !== 0 && Math.abs(n) < 0.001) {
-    const tiny = new Intl.NumberFormat("en-US", {
-      maximumFractionDigits: 8,
-    }).format(n);
-    return Number(tiny) === 0 ? `${n < 0 ? "-" : ""}<0.00000001` : tiny;
-  }
-  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 3 }).format(n);
 }
 
 /** "<num> <SYM>" fee strings: cap like amounts, but never print a false 0. */

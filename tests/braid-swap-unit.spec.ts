@@ -95,6 +95,8 @@ function loadAll(stubs: Record<string, unknown> = {}) {
     viem,
     "@braid_swap/sdk": sdk,
     "@/components/Toast": {},
+    // The real formatter the Activity rows use.
+    "@/lib/activity/format": loadModule<object>("lib/activity/format.ts", {}),
     "@/lib/braid/client": client,
     "@/lib/braid/constants": constants,
     "@/lib/braid/pending": pending,
@@ -392,6 +394,37 @@ function stubReact() {
   };
   return { react, flush: () => effects.splice(0).forEach((fn) => fn()) };
 }
+
+// QA wallet 2026-11-26: "Swapped successfully! Received 18922 PEPE" — the
+// toast printed formatUnits' bare digits while the row read "+18,922 PEPE".
+test("the settle toast states the amount as the Activity row does", () => {
+  const { hook } = loadAll();
+  const said: string[] = [];
+  const notify = {
+    success: (m: string) => said.push(m),
+    info: (m: string) => said.push(m),
+    error: (m: string) => said.push(m),
+  };
+  hook.braidSettleToast(
+    notify as never,
+    "PEPE",
+    0,
+  )("done", {
+    chain: { amount: 18922n },
+  } as never);
+  hook.braidSettleToast(
+    notify as never,
+    "NACHO",
+    8,
+  )("done", {
+    chain: { amount: 123456789012345n },
+  } as never);
+  console.log("TOASTS", JSON.stringify(said));
+  expect(said).toEqual([
+    "Swapped successfully! Received 18,922 PEPE",
+    "Swapped successfully! Received 1,234,567.89 NACHO",
+  ]);
+});
 
 test.describe("useBraidSwap", () => {
   test("a reopened popup follows a stored deposit while another provider is selected", async () => {
