@@ -90,3 +90,44 @@ test("item 3: the typed amount's fiat is two decimals at or above $0.01, four si
   await body(page);
   expect(errors).toEqual([]);
 });
+
+test("item 5: nothing typed shows no fiat line, never $0", async ({ page }) => {
+  const errors = await openSwap(page, "0.02667811");
+  expect(await amountFiat(page)).toBeNull();
+  const text = await body(page);
+  expect(text).not.toMatch(/\$0(?:\.0+)?(?![\d.])/);
+  const input = page.locator("input[inputmode=decimal]");
+  await input.fill("2");
+  await expect.poll(() => amountFiat(page)).toBe("$0.05");
+  await input.fill("");
+  await expect.poll(() => amountFiat(page)).toBeNull();
+  expect(errors).toEqual([]);
+});
+
+test("item 5: an amount with no price yet shows no fiat line, never $0", async ({
+  page,
+}) => {
+  const errors = await openSwap(page, "0");
+  await page.locator("input[inputmode=decimal]").fill("2");
+  await expect(page.getByText("Min Received")).toBeVisible();
+  expect(await amountFiat(page)).toBeNull();
+  const text = await body(page);
+  expect(text).not.toMatch(/\$0(?:\.0+)?(?![\d.])/);
+  expect(errors).toEqual([]);
+});
+
+test("item 5: the Bridge amount field follows the same rule", async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.setViewportSize({ width: 375, height: 600 });
+  await page.goto(`${base}/?kas=0.02667811`);
+  await expect(page.locator("input[inputmode=decimal]")).toBeVisible();
+  expect(await amountFiat(page)).toBeNull();
+  await page.locator("input[inputmode=decimal]").fill("10");
+  await expect.poll(() => amountFiat(page)).toBe("$0.27");
+  const text = await body(page);
+  expect(text).not.toMatch(/\$0(?:\.0+)?(?![\d.])/);
+  expect(errors).toEqual([]);
+});

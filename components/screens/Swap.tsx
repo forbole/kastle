@@ -1232,7 +1232,8 @@ export default function Swap() {
           symbol={tokenIn?.symbol ?? ""}
           tokenImage={tokenIn?.image}
           chainImage={tokenIn?.chainImage}
-          usd={formatUsd(usdIn)}
+          // Nothing typed, or no price: no fiat line. "$0" would claim a value.
+          usd={usdIn > 0 ? formatUsd(usdIn) : undefined}
           onFlip={flip}
           flipDisabled={!tokenOutKey}
         />
