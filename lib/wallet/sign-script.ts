@@ -1,5 +1,6 @@
 import {
   createInputSignature,
+  payToAddressScript,
   PrivateKey,
   signTransaction,
   Transaction,
@@ -8,7 +9,9 @@ import { hexToBytes } from "@noble/hashes/utils";
 import {
   LedgerUnsupportedError,
   ScriptOption,
+  SignType,
 } from "@/lib/wallet/wallet-interface.ts";
+import { paysWalletScript } from "@/lib/kcc20/dapp-request";
 import { toSignType } from "@/lib/kaspa.ts";
 import { withOwned } from "@/lib/wallet/wasm-lifecycle.ts";
 
@@ -405,4 +408,74 @@ export async function signTxWithScriptOptions(
     fallbackInputs[inputIndex].signatureScript = signatureScript;
   }
   return signed;
+}
+
+/**
+ * Kasware's numeric sighashType, as signPskt accepts it: 1 (All) and
+ * 129 (AllAnyOneCanPay), both committing every output. Omitted means 1, as in
+ * Kasware. Everything else refuses, named: None* (2, 130) commits no outputs
+ * and Single* (4, 132) only the same-index one, so either lets outputs the
+ * user approved change afterwards. signTx still signs in-range Single*
+ * behind a warning; signPskt is new and takes the stricter line.
+ */
+export function toPsktSignType(sighashType: unknown): SignType {
+  if (sighashType === undefined || sighashType === 1) return "All";
+  if (sighashType === 129) return "AllAnyOneCanPay";
+  const named =
+    typeof sighashType === "number"
+      ? String(sighashType)
+      : JSON.stringify(sighashType);
+  throw new Error(
+    `signPskt: sighashType ${named} is not accepted; accepted: 1 (All), 129 (AllAnyOneCanPay)`,
+  );
+}
+
+/**
+ * signPskt's signInputs as signer options, for the wallet at `walletAddress`.
+ * Refuses a duplicate or missing index, and any input the request would leave
+ * unsigned: not listed, not the wallet's own coin (the signer's fallback signs
+ * those), and not already carrying a signatureScript.
+ *
+ * Why signPskt refuses holes and signTx does not: signTx's contract has always
+ * been "sign what you can" and dApps (KaspaCom listings) rely on a partial
+ * return. signPskt is new and Kasware-shaped: the dApp names the inputs it
+ * wants signed, so an input nobody signs is its mistake, and it hears about it
+ * here rather than from a node rejecting the broadcast.
+ */
+export function psktSignOptions(
+  tx: Transaction,
+  signInputs:
+    | ({ index: number; sighashType?: unknown } | null | undefined)[]
+    | undefined,
+  walletAddress: string,
+): ScriptOption[] {
+  // tx.inputs access crosses WASM boundary; read it once
+  const inputs = tx.inputs;
+  const listed = new Set<number>();
+  const options = (signInputs ?? [])
+    .filter((option) => option != null)
+    .map(({ index, sighashType }) => {
+      if (!(index >= 0 && index < inputs.length))
+        throw new Error(
+          `signPskt: input ${index} does not exist (${inputs.length} inputs)`,
+        );
+      if (listed.has(index))
+        throw new Error(`signPskt: input ${index} is listed twice`);
+      listed.add(index);
+      return { inputIndex: index, signType: toPsktSignType(sighashType) };
+    });
+
+  const walletScript = payToAddressScript(walletAddress).script;
+  const holes = inputs.flatMap((input, i) =>
+    listed.has(i) ||
+    input.signatureScript ||
+    paysWalletScript(input, walletScript)
+      ? []
+      : [i],
+  );
+  if (holes.length > 0)
+    throw new Error(
+      `signPskt: input${holes.length > 1 ? "s" : ""} ${holes.join(", ")} would be left unsigned: not listed in signInputs and not your own coin`,
+    );
+  return options;
 }

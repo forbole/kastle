@@ -13,6 +13,42 @@ export const SignTxPayloadSchema = z.object({
 
 export type SignTxPayload = z.infer<typeof SignTxPayloadSchema>;
 
+const isJson = (s: string) => {
+  try {
+    JSON.parse(s);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Kasware's signPskt payload. Kasware's "PSKT" is the Safe JSON signTx already
+ * takes, so txJsonString is a txJson. sighashType stays unknown here:
+ * toPsktSignType refuses a bad one by name, which a schema failure cannot.
+ * Null / hole entries are skipped, as signTx skips them in `scripts`.
+ * Unknown fields are stripped, never forwarded.
+ */
+export const SignPsktPayloadSchema = z.object({
+  txJsonString: z.string().refine(isJson),
+  options: z
+    .object({
+      signInputs: z
+        .array(
+          z
+            .object({
+              index: z.number().int().nonnegative(),
+              sighashType: z.unknown(),
+            })
+            .nullish(),
+        )
+        .optional(),
+    })
+    .optional(),
+});
+
+export type SignPsktPayload = z.infer<typeof SignPsktPayloadSchema>;
+
 /** The account a covenant admission ran for: wallet id plus account index. */
 export const accountFingerprint = (walletId: string, accountIndex: number) =>
   `${walletId}:${accountIndex}`;
