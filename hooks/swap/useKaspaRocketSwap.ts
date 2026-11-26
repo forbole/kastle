@@ -20,9 +20,9 @@ import {
   settlePendingKaspaRocket,
 } from "@/lib/kasparocket/pending";
 import {
-  KASPAROCKET_NETWORK_FEE_CEILING_SOMPI,
   kaspaRocketMinOut,
   kaspaRocketPlanPayout,
+  kaspaRocketQuoteUneconomic,
   kaspaRocketWalletDigest,
 } from "@/lib/kasparocket/signer";
 import {
@@ -35,6 +35,7 @@ import {
   confirmKaspaRocketSwap,
   kaspaRocketChainCheck,
   kaspaRocketFeeLines,
+  kaspaRocketMaxIn,
   kaspaRocketValidate,
   type KaspaRocketConfirmResult,
   type KaspaRocketPrepared,
@@ -92,7 +93,11 @@ export function useKaspaRocketSwap(i: KaspaRocketSwapInput): L1SwapHandlers {
     error: poolError,
     isLoading: poolLoading,
   } = useKaspaRocketPool(client, live, tokenId);
-  const { fees } = useKaspaRocketProtocol(client, live);
+  const {
+    fees,
+    error: protocolError,
+    loaded: protocolLoaded,
+  } = useKaspaRocketProtocol(client, live);
   const settled = useDebounced(amountUnits);
   const bps = Math.round(i.slippage * 100);
   const pk = i.publicKey?.replace(/^0x/, "");
@@ -143,9 +148,22 @@ export function useKaspaRocketSwap(i: KaspaRocketSwapInput): L1SwapHandlers {
     },
   );
 
+  // The signer's own rule. A buy's is bounded by protocol()'s fee schedule:
+  // undecided until it loads, and an unreadable one is an error, not "too
+  // small" (the signer refuses it either way).
+  const scheduleKnown = side === "sell" || !!fees;
+  const scheduleUnread =
+    !scheduleKnown && (protocolLoaded || protocolError !== undefined);
+  const uneconomic =
+    quoteKey && quote && scheduleKnown
+      ? kaspaRocketQuoteUneconomic(
+          quote,
+          { direction: side, amountIn: settled },
+          fees,
+        )
+      : undefined;
   // Quote, then plan, then preview: the confirm signs this plan or nothing.
-  const planWanted =
-    !!quoteKey && !!quote && !quote.uneconomic && quote.netKasSompi > 0n;
+  const planWanted = uneconomic === false;
   useEffect(() => {
     if (!planWanted || !quote) return;
     let alive = true;
@@ -298,8 +316,9 @@ export function useKaspaRocketSwap(i: KaspaRocketSwapInput): L1SwapHandlers {
         quoteError,
         "Unable to get a quote. Please try again.",
       );
-    if (quoteKey && quote && (quote.uneconomic || quote.netKasSompi <= 0n))
-      return KASPAROCKET_UNECONOMIC_COPY;
+    if (uneconomic) return KASPAROCKET_UNECONOMIC_COPY;
+    if (quoteKey && quote && scheduleUnread)
+      return kaspaRocketErrorCopy(protocolError, PREPARE_COPY);
     if (planWanted && planError)
       return kaspaRocketErrorCopy(planError, PREPARE_COPY);
     return undefined;
@@ -320,6 +339,7 @@ export function useKaspaRocketSwap(i: KaspaRocketSwapInput): L1SwapHandlers {
       (live && pool === undefined && !poolError) ||
       poolLoading ||
       quoteLoading ||
+      (!!quoteKey && !!quote && !scheduleKnown && !scheduleUnread) ||
       (planWanted && !shown && !planError) ||
       settled !== amountUnits,
     validateAmount: (units) =>
@@ -327,12 +347,7 @@ export function useKaspaRocketSwap(i: KaspaRocketSwapInput): L1SwapHandlers {
     findMax: () => {
       if (i.balanceIn === undefined || inDecimals === undefined)
         return undefined;
-      // Buy: the network fee comes on top of the KAS budget.
-      const max =
-        side === "buy"
-          ? i.balanceIn - KASPAROCKET_NETWORK_FEE_CEILING_SOMPI
-          : i.balanceIn;
-      return formatUnits(max > 0n ? max : 0n, inDecimals);
+      return formatUnits(kaspaRocketMaxIn(side, i.balanceIn), inDecimals);
     },
     onConfirm,
     report,

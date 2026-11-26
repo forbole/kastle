@@ -1,8 +1,9 @@
 import { decodeAddress, Version } from "@dotk/sdk";
-import { schnorrSighash } from "@dotk/sdk-tx";
+import { schnorrSighash, toSafeJson } from "@dotk/sdk-tx";
 import {
   instructionsToSign,
   scriptP2pkh,
+  toJsonSafe,
   type Direction,
   type ProtocolInfo,
   type Quote,
@@ -14,7 +15,12 @@ import { bytesToHex } from "viem";
 import { Transaction } from "@/wasm/core/kaspa";
 import type { IWallet } from "@/lib/wallet/wallet-interface.ts";
 import { kasparocketPlanToTx } from "./adapter";
-import { kaspaRocketPlanNetworkFee } from "./fees";
+import {
+  kaspaRocketFeeSompi,
+  kaspaRocketFeesOf,
+  kaspaRocketPlanNetworkFee,
+  type KaspaRocketFees,
+} from "./fees";
 
 // Ported from mobile lib/kasparocket/signer.ts. One substitution: the popup
 // never holds the key, so a signature comes from `signDigest` (the
@@ -81,10 +87,39 @@ function planFlow(plan: TransactionPlan): bigint | undefined {
 }
 
 /**
- * The most network fee a plan may pay, over all its transactions: 0.1 KAS,
- * what the swap screen's Max keeps back from a KAS budget for that fee.
+ * The most network fee a plan may pay, over all its transactions: 0.3 KAS.
+ * A real 160 KAS buy (FOUR, 2026-11-26: one transaction, 8 inputs, two of
+ * them covenant cells) pays 0.186583 KAS. The swap screen's Max keeps this
+ * same figure back from a KAS budget (`kaspaRocketMaxIn`).
  */
-export const KASPAROCKET_NETWORK_FEE_CEILING_SOMPI = 10_000_000n;
+export const KASPAROCKET_NETWORK_FEE_CEILING_SOMPI = 30_000_000n;
+
+/**
+ * True when a quote is not worth signing. Fail-closed: a quote the rule
+ * cannot read counts as uneconomic.
+ *
+ * Buy: `netKasSompi` is the KAS leaving the wallet, so it is negative: the
+ * budget into the pool plus KaspaRocket's fee on top (real FOUR buy:
+ * 160 KAS budget, 159.99997202 KAS into the pool, 3 KAS fee, -162.99997202
+ * KAS net). Uneconomic when the quote says so, when no KAS leaves (0n is
+ * also what the SDK reads a missing `net_kas_sompi` as), when protocol()'s
+ * fee schedule is unknown, or when the outflow is more than the budget the
+ * user entered plus the fee that schedule charges on it.
+ *
+ * Sell: the KAS received, `netKasSompi`, must be positive.
+ */
+export function kaspaRocketQuoteUneconomic(
+  quote: Quote,
+  trade: Pick<KaspaRocketTrade, "direction" | "amountIn">,
+  fees: KaspaRocketFees | undefined,
+): boolean {
+  const net = quote.netKasSompi;
+  if (quote.uneconomic !== false || typeof net !== "bigint") return true;
+  if (trade.direction === "sell") return net <= 0n;
+  if (trade.direction !== "buy" || !fees || trade.amountIn <= 0n) return true;
+  if (net >= 0n) return true;
+  return -net > trade.amountIn + kaspaRocketFeeSompi(trade.amountIn, fees);
+}
 
 /** The wallet's own version-0 pay-to-pubkey script, as the adapter reads one. */
 const ownScript = (xOnlyPk: string) =>
@@ -345,7 +380,8 @@ function checkGuard(
 ) {
   const { quote, trade, lpCovenantId, slippageBps } = g;
   if (lpCovenantId == null) refuse("token has no pool");
-  if (quote.uneconomic || quote.netKasSompi <= 0n)
+  const fees = kaspaRocketFeesOf(toJsonSafe(protocol));
+  if (kaspaRocketQuoteUneconomic(quote, trade, fees))
     refuse("quote is uneconomic");
   if (
     quote.direction !== trade.direction ||
@@ -425,16 +461,23 @@ export type KaspaRocketSignDigest = (
  * The popup's `signDigest` for `plan`: the planned transaction as WASM, its
  * input signed by the background, as `lib/kasseal/sign.ts` does. The digest
  * WASM signs is checked against the dotk one by the signer, after the fact.
+ *
+ * The server's transaction is not in WASM's safe-JSON form (nested
+ * `previousOutpoint`, `{ version, script }` keys), and
+ * `deserializeFromSafeJSON` refuses it (``missing field `transactionId` ``).
+ * So it goes through the strict reader the digest checks use, then
+ * @dotk/sdk-tx's own `toSafeJson`, as `lib/dotk/node.ts` hands a Tx to WASM.
  */
 export const kaspaRocketWalletDigest =
   (
     wallet: Pick<IWallet, "signInputDigest">,
     plan: TransactionPlan,
   ): KaspaRocketSignDigest =>
-  (txIndex, inputIndex) =>
+  // async: a transaction the reader refuses rejects, never throws in place.
+  async (txIndex, inputIndex) =>
     wallet.signInputDigest(
       Transaction.deserializeFromSafeJSON(
-        JSON.stringify(plan.transactions[txIndex].tx),
+        toSafeJson(kasparocketPlanToTx(plan.transactions[txIndex].tx)),
       ),
       inputIndex,
     );

@@ -96,7 +96,7 @@
     "direction": "buy",
     "amountTokens": "1000",
     "kasFlowSompi": "100000000",
-    "netKasSompi": "103000000",
+    "netKasSompi": "-103000000",
     "uneconomic": false
   }
 }

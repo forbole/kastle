@@ -248,15 +248,15 @@ test.describe("kastleKaspaRocketSigner", () => {
     );
   });
 
-  test("★ refuses a network fee over 0.1 KAS, and signs one at it", async () => {
-    // The fixture pays 9_999_000 sompi; 1_001 sompi less change makes 10_000_001.
+  test("★ refuses a network fee over the 0.3 KAS ceiling, and signs one at it", async () => {
+    // The fixture pays 9_999_000 sompi; 20_001_001 sompi less change makes 30_000_001.
     await expectRefused(
-      planOf((t) => (t.outputs[2].value = "139998999")),
+      planOf((t) => (t.outputs[2].value = "119998999")),
       guardOf(),
-      /network fee 10000001 sompi is over the 10000000 sompi ceiling/,
+      /network fee 30000001 sompi is over the 30000000 sompi ceiling/,
     );
     const atCeiling = resighed(
-      planOf((t) => (t.outputs[2].value = "139999000")),
+      planOf((t) => (t.outputs[2].value = "119999000")),
     );
     const sd = fakeSignDigest(atCeiling);
     await expect(
