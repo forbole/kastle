@@ -670,8 +670,11 @@ test("a KCC-20 swap and an EVM swap carry the same detail label list", async () 
 
 // ─── Received leg USD (QA7 item 1) ──────────────────────────────────────────
 
-const sheetPriced = (prices: Record<string, number>) =>
-  m.toActivityItem(m.mapSwapActivity(kronRow()), {
+const sheetPriced = (
+  prices: Record<string, number>,
+  row: SwapActivityRecord = kronRow(),
+) =>
+  m.toActivityItem(m.mapSwapActivity(row), {
     logoFor: () => undefined,
     priceFor: (s: string) => prices[s.toUpperCase()],
   }).sheet.transfer;
@@ -682,8 +685,12 @@ test("a KCC-20 swap's received token is priced by its covenant id", () => {
   expect(t.receivedUsd).toMatch(/^≈ \$\S+ USD$/);
 });
 
-test("a received token with no price anywhere has no USD line, not a dash", () => {
-  expect("receivedUsd" in sheetPriced({})).toBe(false);
+test('a received amount with no price says "Price unavailable"; an empty received leg has no line', () => {
+  expect(sheetPriced({}).receivedUsd).toBe("Price unavailable");
   // A KRC-20 ticker sharing the symbol is not the token's price.
-  expect("receivedUsd" in sheetPriced({ KRON: 5 })).toBe(false);
+  expect(sheetPriced({ KRON: 5 }).receivedUsd).toBe("Price unavailable");
+  // No received amount at all: no line, so an empty leg never grows one.
+  const empty = sheetPriced({}, { ...kronRow(), toAmount: "0" });
+  expect("receivedUsd" in empty).toBe(false);
+  expect("receivedAmount" in empty).toBe(false);
 });
