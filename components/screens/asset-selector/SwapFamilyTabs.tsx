@@ -14,7 +14,7 @@ export const FAMILY_TABS: {
   logo?: string;
 }[] = [
   { key: "all", label: "All" },
-  { key: "kcc20-standard", label: "Standard", logo: braidLogo },
+  { key: "kcc20-standard", label: "Braid", logo: braidLogo },
   { key: "kron-legacy", label: "KRON", logo: kronLogo },
 ];
 

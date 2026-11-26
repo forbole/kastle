@@ -81,6 +81,12 @@ const l1 = loadModule("hooks/swap/l1Providers.ts", {
   "@/assets/images/providers/kron-logo.png": asset(
     "@/assets/images/providers/kron-logo.png",
   ),
+  "@/assets/images/providers/kasseal-logo.png": asset(
+    "@/assets/images/providers/kasseal-logo.png",
+  ),
+  "@/assets/images/providers/kasparocket-logo.png": asset(
+    "@/assets/images/providers/kasparocket-logo.png",
+  ),
 }) as typeof import("@/hooks/swap/l1Providers");
 const {
   L1_PROVIDERS,

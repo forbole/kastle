@@ -90,6 +90,7 @@ const { TokenSheet } = loadModule("components/swap-bridge/ui.tsx", {
 });
 const {
   default: SwapFamilyTabs,
+  FAMILY_TABS,
   hasFamilyRow,
   inFamily,
 } = loadModule("components/screens/asset-selector/SwapFamilyTabs.tsx", {
@@ -218,11 +219,11 @@ async function mountSheet(tokens: Row[]) {
   };
 }
 
-test("Standard and KRON tabs split the Kaspa L1 rows; a switch keeps the pair valid", async () => {
+test("Braid and KRON tabs split the Kaspa L1 rows; a switch keeps the pair valid", async () => {
   const s = await mountSheet([KAS, STANDARD, CURVE, IGRA]);
-  expect(s.tabs()).toEqual(["All", "Standard", "KRON"]);
+  expect(s.tabs()).toEqual(["All", "Braid", "KRON"]);
 
-  await s.tap("Standard");
+  await s.tap("Braid");
   expect(s.symbols()).toEqual(["KAS", "KING"]);
   await s.pick("KING");
   expect([s.pair.in, s.pair.out]).toEqual([KAS.key, STANDARD.key]);
@@ -234,7 +235,7 @@ test("Standard and KRON tabs split the Kaspa L1 rows; a switch keeps the pair va
   await s.pick("KRON");
   expect([s.pair.in, s.pair.out]).toEqual([KAS.key, CURVE.key]);
 
-  await s.tap("Standard");
+  await s.tap("Braid");
   expect([s.pair.in, s.pair.out]).toEqual([KAS.key, CURVE.key]);
   expect(s.host.textContent).not.toContain("tokens to trade");
   s.unmount();
@@ -242,12 +243,12 @@ test("Standard and KRON tabs split the Kaspa L1 rows; a switch keeps the pair va
 
 test("an empty family says so and keeps the tab back to the other", async () => {
   const s = await mountSheet([KAS, CURVE]);
-  expect(s.tabs()).toEqual(["All", "Standard", "KRON"]);
+  expect(s.tabs()).toEqual(["All", "Braid", "KRON"]);
   // All never says empty: a KRON-only holder sees the KRON row on open.
   expect(s.host.textContent).not.toContain("tokens to trade");
   expect(s.symbols()).toEqual(["KAS", "KRON"]);
-  await s.tap("Standard");
-  expect(s.host.textContent).toContain("No Standard tokens to trade");
+  await s.tap("Braid");
+  expect(s.host.textContent).toContain("No Braid tokens to trade");
   expect(s.symbols()).toEqual(["KAS"]);
   await s.tap("KRON");
   expect(s.host.textContent).not.toContain("tokens to trade");
@@ -255,7 +256,7 @@ test("an empty family says so and keeps the tab back to the other", async () => 
   s.unmount();
 });
 
-test("the sheet opens on All; KRON and Standard filter; the pair never moves", async () => {
+test("the sheet opens on All; KRON and Braid filter; the pair never moves", async () => {
   const s = await mountSheet([KAS, STANDARD, CURVE, IGRA]);
   expect(s.selected()).toBe("All");
   expect(s.symbols().sort()).toEqual(["KAS", "KING", "KRON"]);
@@ -267,7 +268,7 @@ test("the sheet opens on All; KRON and Standard filter; the pair never moves", a
   expect(s.symbols().sort()).toEqual(["KAS", "KRON"]);
   expect([s.pair.in, s.pair.out]).toEqual(pair);
 
-  await s.tap("Standard");
+  await s.tap("Braid");
   expect(s.symbols().sort()).toEqual(["KAS", "KING"]);
   expect([s.pair.in, s.pair.out]).toEqual(pair);
 
@@ -297,12 +298,22 @@ test("the family tablist is one tab stop; arrows, Home and End select", async ()
     expect(from.ownerDocument.activeElement?.textContent).toBe(want);
   };
   expect(stops()).toEqual(["All"]);
-  await press("ArrowRight", "Standard");
+  await press("ArrowRight", "Braid");
   await press("End", "KRON");
   await press("ArrowRight", "All"); // wraps
   await press("ArrowLeft", "KRON"); // wraps back
   await press("Home", "All");
   s.unmount();
+});
+
+test("the Braid tab is labelled Braid and still filters the kcc20-standard family", () => {
+  expect(
+    FAMILY_TABS.map((t: { key: string; label: string }) => [t.key, t.label]),
+  ).toEqual([
+    ["all", "All"],
+    ["kcc20-standard", "Braid"],
+    ["kron-legacy", "KRON"],
+  ]);
 });
 
 test("off Kaspa L1 the tabs filter nothing", () => {
@@ -313,7 +324,7 @@ test("off Kaspa L1 the tabs filter nothing", () => {
   expect(inFamily(STANDARD, "kron-legacy")).toBe(false);
 });
 
-test("the Standard and KRON tabs carry their provider's mark, All none", async () => {
+test("the Braid and KRON tabs carry their provider's mark, All none", async () => {
   const s = await mountSheet([KAS, STANDARD, CURVE]);
   const tabImages = (): Record<string, { src: string; alt: string }[]> =>
     Object.fromEntries(
@@ -328,7 +339,7 @@ test("the Standard and KRON tabs carry their provider's mark, All none", async (
   expect(tabImages()).toEqual({
     All: [],
     // Decorative: the label beside it names the tab.
-    Standard: [{ src: "/assets/images/providers/braid-logo.svg", alt: "" }],
+    Braid: [{ src: "/assets/images/providers/braid-logo.svg", alt: "" }],
     KRON: [{ src: "/assets/images/providers/kron-logo.png", alt: "" }],
   });
   for (const [img] of Object.values(tabImages()).filter((v) => v.length))

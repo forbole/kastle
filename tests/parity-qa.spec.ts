@@ -408,12 +408,12 @@ test("10 a provider with no rate renders no subtitle and no dash, and keeps its 
 });
 
 // 5, 7, 8: swap selector
-test("06 swap selector: All / Standard / KRON, opening on All; tabs filter; a pick survives a tab switch", async ({
+test("06 swap selector: All / Braid / KRON, opening on All; tabs filter; a pick survives a tab switch", async ({
   page,
 }) => {
   const errors = await open(page, "swap", "rows=6");
   const tabs = page.getByRole("tab");
-  await expect(tabs).toHaveText(["All", "Standard", "KRON"]);
+  await expect(tabs).toHaveText(["All", "Braid", "KRON"]);
   await expect(tabs.nth(0)).toHaveAttribute("aria-selected", "true");
   const symbols = () =>
     page
@@ -434,7 +434,7 @@ test("06 swap selector: All / Standard / KRON, opening on All; tabs filter; a pi
   ]);
   await shot(page, "05-swap-tabs.png", page.locator("dialog"));
 
-  await page.getByRole("tab", { name: "Standard" }).click();
+  await page.getByRole("tab", { name: "Braid" }).click();
   expect(await symbols()).toEqual(["KAS", "STD0", "STD2", "STD4"]);
   await page.getByRole("button", { name: /STD2/ }).click();
   await expect(page.getByTestId("pair")).toHaveText("KAS → STD2");
@@ -447,7 +447,7 @@ test("06 swap selector: All / Standard / KRON, opening on All; tabs filter; a pi
   await page.getByRole("tab", { name: "All" }).click();
   await expect(page.getByTestId("pair")).toHaveText("KAS → KRON3");
 
-  // Standard carries Braid's mark, KRON KRON's, All none; both draw.
+  // Braid carries Braid's mark, KRON KRON's, All none; both draw.
   await expect(tabs.nth(0).locator("img")).toHaveCount(0);
   for (const i of [1, 2]) {
     const img = await drawn(page, tabs.nth(i).locator("img"));
@@ -474,6 +474,40 @@ test("07 provider rows: KRON and Braid draw their marks", async ({ page }) => {
   for (const f of ["kron-logo.png", "braid-logo.svg"])
     expect(existsSync(path.resolve("assets/images/providers", f))).toBe(true);
   await shot(page, "06-provider-rows.png", page.getByTestId("providers"));
+  expect(errors).toEqual([]);
+});
+
+test("07b at 320 px all four provider rows draw a mark, and the tab reads Braid", async ({
+  page,
+}) => {
+  const out = path.resolve("test-results/provider-marks");
+  mkdirSync(out, { recursive: true });
+  const narrow = async () => {
+    await page.setViewportSize({ width: 320, height: 800 });
+    await page.addStyleTag({ content: "#popup{width:320px!important}" });
+  };
+  const errors = await open(page, "swap", "view=providers&all=1");
+  await narrow();
+  const rows = page.getByTestId("providers").getByRole("button");
+  await expect(rows).toHaveText([/Kasseal/, /KaspaRocket/, /KRON/, /Braid/]);
+  for (let i = 0; i < 4; i++) {
+    const img = await drawn(page, rows.nth(i).locator("img"));
+    expect(img.width, `row ${i} mark`).toBeGreaterThan(0);
+  }
+  await page.evaluate(() => document.fonts.ready);
+  await page
+    .getByTestId("providers")
+    .screenshot({ path: path.join(out, "provider-rows-320.png") });
+
+  errors.push(...(await open(page, "swap", "rows=6")));
+  await narrow();
+  const braid = page.getByRole("tab").nth(1);
+  await expect(braid).toHaveText("Braid");
+  expect((await drawn(page, braid.locator("img"))).width).toBeGreaterThan(0);
+  await page.evaluate(() => document.fonts.ready);
+  await page
+    .locator("dialog")
+    .screenshot({ path: path.join(out, "family-tabs-320.png") });
   expect(errors).toEqual([]);
 });
 
