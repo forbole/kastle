@@ -1,4 +1,5 @@
 import {
+  SIGN_PSKT_METHOD,
   SignTxPayload,
   admissionRefusal,
 } from "@/api/background/handlers/kaspa/utils";
@@ -13,6 +14,7 @@ import { deserializeTransaction } from "@/lib/kaspa-compat";
 import {
   hasPartialOutputCommitment,
   hasScriptOptions,
+  keepArrivedSignatures,
 } from "@/lib/wallet/sign-script.ts";
 
 export const PARTIAL_OUTPUT_WARNING =
@@ -33,6 +35,10 @@ export default function SignTx({
 }: SignTxProps) {
   const { rpcClient } = useRpcClientStateful();
   const { emitKasSignTx } = useAnalytics();
+  // Set by the background (signTx.ts), never by the dApp.
+  const psktRequest =
+    new URLSearchParams(window.location.search).get("method") ===
+    SIGN_PSKT_METHOD;
   const { account, wallet: selectedWallet } = useWalletManager();
 
   const handleConfirm = async () => {
@@ -59,10 +65,13 @@ export default function SignTx({
       const tx = deserializeTransaction(payload.txJson);
       // The Ledger signer refuses any truthy `scripts` value, so the schema's
       // empty default must reach it as undefined (script-free signing).
-      const signed = await wallet.signTx(
-        tx,
-        hasScriptOptions(payload.scripts) ? payload.scripts : undefined,
-      );
+      const scripts = hasScriptOptions(payload.scripts)
+        ? payload.scripts
+        : undefined;
+      // signPskt: an input the request does not name keeps its signatureScript.
+      const signed = psktRequest
+        ? await keepArrivedSignatures(tx, (t) => wallet.signTx(t, scripts))
+        : await wallet.signTx(tx, scripts);
       await ApiExtensionUtils.sendMessage(
         requestId,
         ApiUtils.createApiResponse(requestId, signed.serializeToSafeJSON()),
@@ -102,6 +111,7 @@ export default function SignTx({
             ? PARTIAL_OUTPUT_WARNING
             : undefined
         }
+        psktRequest={psktRequest}
       />
     </>
   );

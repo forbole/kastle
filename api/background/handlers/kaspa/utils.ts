@@ -13,14 +13,54 @@ export const SignTxPayloadSchema = z.object({
 
 export type SignTxPayload = z.infer<typeof SignTxPayloadSchema>;
 
-/** The account a covenant admission ran for: wallet id plus account index. */
+const isJson = (s: string) => {
+  try {
+    JSON.parse(s);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Kasware's signPskt payload. Kasware's "PSKT" is the Safe JSON signTx already
+ * takes, so txJsonString is a txJson. sighashType stays unknown here:
+ * psktSignOptions refuses a bad one by name, which a schema failure cannot.
+ * Null / hole entries are skipped, as signTx skips them in `scripts`.
+ * Unknown fields are stripped, never forwarded.
+ */
+export const SignPsktPayloadSchema = z.object({
+  txJsonString: z.string().refine(isJson),
+  options: z
+    .object({
+      signInputs: z
+        .array(
+          z
+            .object({
+              index: z.number().int().nonnegative(),
+              sighashType: z.unknown(),
+            })
+            .nullish(),
+        )
+        .optional(),
+    })
+    .optional(),
+});
+
+export type SignPsktPayload = z.infer<typeof SignPsktPayloadSchema>;
+
+/** The `/sign-tx` popup's `method` URL param for a signPskt request; set by the background only. */
+export const SIGN_PSKT_METHOD = "signPskt";
+
+/** The account a request's checks ran for: wallet id plus account index. */
 export const accountFingerprint = (walletId: string, accountIndex: number) =>
   `${walletId}:${accountIndex}`;
 
 /**
- * Checked at confirm, before signing: a covenant request admitted for one
- * account refuses if another is selected now. A version-0 request carries no
- * admission and is never refused here.
+ * Checked at confirm, before signing: a request admitted for one account
+ * refuses if another is selected now. Covenant requests and every signPskt
+ * request carry an admission; a version-0 signTx or signAndBroadcastTx does
+ * not and is never refused here.
  */
 export function admissionRefusal(
   payload: Pick<SignTxPayload, "admittedFor">,

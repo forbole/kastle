@@ -17,6 +17,7 @@ import { deserializeTransaction } from "@/lib/kaspa-compat";
 import {
   hasScriptOptions,
   hasZeroOutputCommitment,
+  psktSignSummary,
 } from "@/lib/wallet/sign-script.ts";
 import { useDappCovenantDecode } from "@/lib/kcc20/useDappCovenantDecode";
 import { CovenantTokenMovements } from "@/ui/popup/browser-api/CovenantTokenMovements";
@@ -45,11 +46,22 @@ const COVENANT_CAVEAT =
 const COVENANT_CAVEAT_OFF_MAINNET =
   "Standard KCC-20 tokens cannot be checked on this network.";
 
+// signTx script option only: signPskt signs All (psktSignOptions). AllAnyOneCanPay
+// commits every output but only its own input.
+export const ANYONE_CAN_PAY_WARNING =
+  "An input signed with AllAnyOneCanPay lets another party add inputs to this transaction after you approve. The outputs stay as shown.";
+const SIGN_COUNT_UNKNOWN =
+  "The site did not send the coin details of every input, so Kastle cannot count them";
+// The account is still loading: nothing is missing from the request yet.
+const SIGN_COUNT_LOADING = "Counting the inputs this request signs…";
+
 type SignConfirmProps = {
   payload: SignTxPayload;
   confirm: () => void;
   cancel: () => void;
   warning?: string;
+  // The request came from signPskt (the popup URL's background-set `method`).
+  psktRequest?: boolean;
 };
 
 export default function SignConfirm({
@@ -57,6 +69,7 @@ export default function SignConfirm({
   confirm,
   cancel,
   warning,
+  psktRequest = false,
 }: SignConfirmProps) {
   const kaspaPrice = useKaspaPrice();
   const { account, wallet } = useWalletManager();
@@ -87,16 +100,33 @@ export default function SignConfirm({
     ledgerCovenant ||
     partialSighashCovenant ||
     (covenant.isCovenant && covenant.status !== "ready");
+  // signPskt: the listed inputs, by index, with their sighash type.
+  const psktListed = psktRequest
+    ? [...payload.scripts].sort((a, b) => a.inputIndex - b.inputIndex)
+    : [];
+  const psktSummary =
+    psktRequest && account
+      ? psktSignSummary(transaction, payload.scripts, account.address)
+      : undefined;
+  const signWarning =
+    [
+      warning,
+      (payload.scripts ?? []).some((o) => o?.signType === "AllAnyOneCanPay")
+        ? ANYONE_CAN_PAY_WARNING
+        : undefined,
+    ]
+      .filter(Boolean)
+      .join("\n\n") || undefined;
   const shownWarning = covenant.isCovenant
     ? [
-        warning,
+        signWarning,
         settings?.networkId === NetworkType.Mainnet
           ? COVENANT_CAVEAT
           : `${COVENANT_CAVEAT} ${COVENANT_CAVEAT_OFF_MAINNET}`,
       ]
         .filter(Boolean)
         .join("\n\n")
-    : warning;
+    : signWarning;
 
   // Inputs the request sent without a UTXO entry: their amount is not known,
   // so neither is the fee nor the balance change. Never counted as 0.
@@ -222,9 +252,13 @@ export default function SignConfirm({
       background: "bg-yellow-800",
     },
   ];
-  const selectedNetwork = networks.find((n) => n.id === payload.networkId);
-
   const networkId = settings?.networkId;
+  // The dApp's networkId is optional (signPskt never sends one): fall back to
+  // the account's network so the badge is never blank. On a mismatch it still
+  // names the requested network, which the switch button needs.
+  const selectedNetwork = networks.find(
+    (n) => n.id === (payload.networkId || networkId),
+  );
 
   const networkMismatched =
     !!payload.networkId && networkId?.toString() !== payload.networkId;
@@ -273,7 +307,7 @@ export default function SignConfirm({
                 selectedNetwork?.iconColor,
               )}
             />
-            {selectedNetwork?.name}
+            {selectedNetwork?.name ?? "Not known"}
           </div>
         </div>
 
@@ -331,6 +365,66 @@ export default function SignConfirm({
               >
                 {PARTIAL_SIGHASH_COVENANT_ERROR}
               </div>
+            )}
+            {psktRequest && (
+              <ul className="mt-3 flex flex-col rounded-lg bg-daintree-800">
+                <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
+                  <div className="flex w-full items-start justify-between">
+                    <span className="font-medium">Request</span>
+                    <div className="flex flex-col text-right">
+                      <span className="font-medium">Sign only</span>
+                      <span className="text-xs text-daintree-400">
+                        The site built this transaction, not your wallet&apos;s
+                        send screen
+                      </span>
+                    </div>
+                  </div>
+                </li>
+                <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
+                  <div className="flex w-full items-start justify-between">
+                    <span className="font-medium">Inputs you sign</span>
+                    {!account ? (
+                      <span className="text-xs text-daintree-400">
+                        {SIGN_COUNT_LOADING}
+                      </span>
+                    ) : psktSummary === undefined ? (
+                      <UnknownAmount reason={SIGN_COUNT_UNKNOWN} />
+                    ) : (
+                      <div className="flex flex-col text-right">
+                        <span className="font-medium">
+                          {psktSummary.signed} input
+                          {psktSummary.signed === 1 ? "" : "s"},{" "}
+                          {psktSummary.foreign} not your own coin
+                        </span>
+                        {psktSummary.foreign > 0 && (
+                          <span className="text-xs text-yellow-400">
+                            Signed with your key without being held at your
+                            address
+                          </span>
+                        )}
+                        {psktSummary.signed > psktListed.length && (
+                          <span className="text-xs text-daintree-400">
+                            {psktListed.length > 0
+                              ? "Inputs not listed below are your own coins, signed with All"
+                              : "All are your own coins, signed with All"}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </li>
+                {psktListed.map((o) => (
+                  <li
+                    key={o.inputIndex}
+                    className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg"
+                  >
+                    <div className="flex w-full items-start justify-between">
+                      <span className="font-medium">Input {o.inputIndex}</span>
+                      <span className="font-medium">{o.signType ?? "All"}</span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
             )}
             <ul className="mt-3 flex flex-col rounded-lg bg-daintree-800">
               <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
