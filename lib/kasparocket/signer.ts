@@ -97,18 +97,86 @@ export function kaspaRocketMinOut(
   return (out * (BPS - slippageBps)) / BPS;
 }
 
+/** A whole token amount from the plan summary: bigint, exact number, or decimal string. */
+function tokenAmount(x: unknown): bigint | null {
+  if (typeof x === "bigint") return x >= 0n ? x : null;
+  if (typeof x === "number")
+    return Number.isSafeInteger(x) && x >= 0 ? BigInt(x) : null;
+  if (typeof x === "string" && /^(0|[1-9][0-9]*)$/.test(x)) return BigInt(x);
+  return null;
+}
+
 /**
- * What the plan pays the wallet, read from its transactions, never from its
- * summary. Buy: the tokens in the token's covenant outputs to the wallet's own
- * script. Sell: KAS, the wallet's plain outputs less its plain inputs, plus
- * the network fee those inputs bore (shown on its own row). Null when the plan
- * cannot be read.
+ * A raw plan output's script, version 0 only, in either wire form: the
+ * server's `{ version, script }`, or the safe-JSON hex string with its 2-byte
+ * version in front. Anything else is null.
+ */
+function rawScriptV0(spk: unknown): string | null {
+  if (typeof spk === "string") {
+    return /^0000([0-9a-f]{2})+$/.test(spk) ? spk.slice(4) : null;
+  }
+  if (!spk || typeof spk !== "object") return null;
+  const { version, script } = spk as { version?: unknown; script?: unknown };
+  return version === 0 &&
+    typeof script === "string" &&
+    /^([0-9a-f]{2})+$/.test(script)
+    ? script
+    : null;
+}
+
+/** 35-byte P2SH: OP_BLAKE2B, a 32-byte script hash, OP_EQUAL. */
+const P2SH = /^aa20[0-9a-f]{64}87$/;
+
+/**
+ * A buy's token amount. The transaction does not carry it: the KCC-20 cell
+ * the wallet receives (`summary.outputs.kcc20User`) is a covenant output whose
+ * `value` is the cell's KAS rent (0.2 KAS on the real plan), and whose script
+ * is the token covenant's P2SH, not the wallet's pay-to-pubkey. The amount
+ * lives in the cell's program state behind that hash. So the amount is taken
+ * from the summary, and only when the transaction has the shape the summary
+ * describes: the named output exists, is the token's covenant, sits behind a
+ * P2SH, and the summary's `amountTokens` and `userTokensAfter` agree. Any
+ * mismatch is null.
  *
- * Known gap (carried from mobile): a buy reads the token amount from the
- * token output's `value`, which is where the synthetic fixture puts it. No
- * server-built plan has been checked against this, and a standard KCC-20 cell
- * keeps its amount in program state behind P2SH. Check it against a live plan
- * before the flag goes on.
+ * Read from the raw plan, not through `kasparocketPlanToTx`: the server's
+ * transaction (`previousOutpoint`, `{ version, script }`, `storageMass`) is
+ * not the safe-JSON shape that reader accepts.
+ */
+function buyPayout(plan: TransactionPlan, tokenId: string): bigint | null {
+  const s = (plan.summary ?? {}) as Record<string, unknown>;
+  if (s.direction !== "buy") return null;
+  const at = (s.outputs as Record<string, unknown> | undefined)?.kcc20User;
+  if (!Number.isInteger(at) || (at as number) < 0) return null;
+  const outputs = plan.transactions.flatMap(({ tx }) => {
+    const o = (tx as { outputs?: unknown }).outputs;
+    if (!Array.isArray(o)) throw new Error("plan transaction has no outputs");
+    return o as unknown[];
+  });
+  const cell = outputs[at as number] as Record<string, unknown> | undefined;
+  if (!cell || typeof cell !== "object") return null;
+  const covenant = cell.covenant as { covenantId?: unknown } | null | undefined;
+  if (covenant?.covenantId !== tokenId) return null;
+  const script = rawScriptV0(cell.scriptPublicKey);
+  if (script === null || !P2SH.test(script)) return null;
+  const amount = tokenAmount(s.amountTokens);
+  const after = tokenAmount(s.userTokensAfter);
+  if (amount === null || after === null || amount !== after) return null;
+  return amount;
+}
+
+/**
+ * What the plan pays the wallet. Null when the plan cannot be read, or does
+ * not have the shape its payout is read from.
+ *
+ * Buy: the tokens, from the summary, gated on the transaction's shape (see
+ * `buyPayout`); checked against a real `/plan/trade` buy plan.
+ *
+ * Sell: KAS, read from the transactions, never the summary: the wallet's plain
+ * outputs less its plain inputs, plus the network fee those inputs bore (shown
+ * on its own row). Unverified: no server-built sell plan has been checked
+ * against this read (none could be built without holding the token), and it
+ * still goes through `kasparocketPlanToTx`, which refuses the server's
+ * transaction shape the real buy plan has.
  */
 export function kaspaRocketPlanPayout(
   plan: TransactionPlan,
@@ -118,23 +186,18 @@ export function kaspaRocketPlanPayout(
 ): bigint | null {
   const own = ownScript(xOnlyPk);
   try {
+    if (direction === "buy") return buyPayout(plan, tokenId);
     let paid = 0n;
     for (const { tx } of plan.transactions) {
       const t = kasparocketPlanToTx(tx);
       for (const o of t.outputs) {
-        if (!paysOwn(o, own)) continue;
-        const id = o.covenant?.covenantId;
-        if (direction === "buy" ? id === tokenId : id == null) {
+        if (paysOwn(o, own) && o.covenant?.covenantId == null)
           paid += BigInt(o.value);
-        }
       }
-      if (direction === "sell") {
-        for (const i of t.inputs) {
-          if (i.utxo!.scriptPublicKey === own) paid -= BigInt(i.utxo!.amount);
-        }
+      for (const i of t.inputs) {
+        if (i.utxo!.scriptPublicKey === own) paid -= BigInt(i.utxo!.amount);
       }
     }
-    if (direction === "buy") return paid;
     const fee = kaspaRocketPlanNetworkFee(plan);
     return fee === undefined ? null : paid + fee;
   } catch {

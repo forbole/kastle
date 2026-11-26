@@ -11,6 +11,10 @@ import {
 import { bytesToHex, hexToBytes } from "viem";
 import { planDigests } from "@/lib/kasparocket/adapter";
 import {
+  resighed,
+  syntheticBuyPlan,
+} from "./fixtures/kasparocket-synthetic-buy";
+import {
   KASPAROCKET_PLAN_TTL_MS,
   KaspaRocketPlanExpired,
   KaspaRocketSignRefusal,
@@ -53,7 +57,7 @@ function planOf(
   edit?: (tx: any) => void,
   over: Partial<TransactionPlan> = {},
 ): TransactionPlan {
-  const raw = JSON.parse(JSON.stringify(fixture.plan));
+  const raw = JSON.parse(JSON.stringify(syntheticBuyPlan(fixture)));
   edit?.(raw.transactions[0].tx);
   return {
     ...raw,
@@ -91,23 +95,6 @@ const guardOf = (over: Partial<KaspaRocketGuard> = {}): KaspaRocketGuard => ({
   now: () => NOW,
   ...over,
 });
-
-/** `plan` with every sighash recomputed from its (edited) transaction. */
-const resighed = (plan: TransactionPlan): TransactionPlan => {
-  const digests = planDigests(plan);
-  return {
-    ...plan,
-    transactions: plan.transactions.map((p, t) => ({
-      ...p,
-      signingInstructions: p.signingInstructions.map((ins) => {
-        const d = digests.find(
-          (x) => x.txIndex === t && x.inputIndex === ins.inputIndex,
-        );
-        return d ? { ...ins, sighash: d.digest } : ins;
-      }),
-    })),
-  };
-};
 
 /**
  * Stands in for the background's signInputDigest: signs the dotk digest of

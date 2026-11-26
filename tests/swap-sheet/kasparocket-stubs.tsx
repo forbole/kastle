@@ -1,7 +1,9 @@
 // KaspaRocket on the real Swap screen: the copy-logs stubs, plus a client
-// that answers from the synthetic plan fixture (its key owns nothing) and a
+// that answers from the synthetic plan fixture in its real-plan buy shape
+// (its key owns nothing; see ../fixtures/kasparocket-synthetic-buy.ts) and a
 // submit that is never reached. ?scenario=rocket-pending stores a record.
 import fixture from "../fixtures/kasparocket-plan.synthetic.json";
+import { syntheticBuyPlan } from "../fixtures/kasparocket-synthetic-buy";
 import { ADDRESS, browser as base } from "../swap-bridge-copy-logs/stubs";
 
 export * from "../swap-bridge-copy-logs/stubs";
@@ -76,12 +78,12 @@ export const makeKaspaRocket = () => ({
     uneconomic: false,
   }),
   planSwap: async () => {
-    const plan = JSON.parse(JSON.stringify(fixture.plan));
+    const plan = syntheticBuyPlan(fixture);
     return {
       ...plan,
       summary: {
         ...plan.summary,
-        kasFlowSompi: BigInt(plan.summary.kasFlowSompi),
+        kasFlowSompi: BigInt(fixture.plan.summary.kasFlowSompi),
         totalPlatformFeeSompi: 300_000_000n,
       },
     };

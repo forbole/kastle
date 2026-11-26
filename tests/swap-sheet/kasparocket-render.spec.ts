@@ -95,6 +95,9 @@ test("KaspaRocket chosen: the row is present and the plan's fee lines render", a
   await expect(sheet(page).getByText("3 KAS", { exact: true })).toBeVisible();
   await page.screenshot({ path: `${SHOTS}/fee-lines.png` });
   await page.keyboard.press("Escape");
+  // The plan's buy payout reaches the screen: a rate, and a Confirm to press.
+  await expect(page.getByText(/^1 KAS ≈ /)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Confirm" })).toBeEnabled();
   await page.screenshot({ path: `${SHOTS}/selected.png` });
   expect(errors).toEqual([]);
 });
