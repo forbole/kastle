@@ -46,11 +46,14 @@ const COVENANT_CAVEAT =
 const COVENANT_CAVEAT_OFF_MAINNET =
   "Standard KCC-20 tokens cannot be checked on this network.";
 
-// signPskt request only. AllAnyOneCanPay commits every output but only its own input.
+// signTx script option only: signPskt signs All (psktSignOptions). AllAnyOneCanPay
+// commits every output but only its own input.
 export const ANYONE_CAN_PAY_WARNING =
   "An input signed with AllAnyOneCanPay lets another party add inputs to this transaction after you approve. The outputs stay as shown.";
 const SIGN_COUNT_UNKNOWN =
   "The site did not send the coin details of every input, so Kastle cannot count them";
+// The account is still loading: nothing is missing from the request yet.
+const SIGN_COUNT_LOADING = "Counting the inputs this request signs…";
 
 type SignConfirmProps = {
   payload: SignTxPayload;
@@ -108,7 +111,7 @@ export default function SignConfirm({
   const signWarning =
     [
       warning,
-      psktListed.some((o) => o.signType === "AllAnyOneCanPay")
+      (payload.scripts ?? []).some((o) => o?.signType === "AllAnyOneCanPay")
         ? ANYONE_CAN_PAY_WARNING
         : undefined,
     ]
@@ -376,7 +379,11 @@ export default function SignConfirm({
                 <li className="-mt-px inline-flex items-center gap-x-2 border border-daintree-700 px-4 py-3 text-sm first:mt-0 first:rounded-t-lg last:rounded-b-lg">
                   <div className="flex w-full items-start justify-between">
                     <span className="font-medium">Inputs you sign</span>
-                    {psktSummary === undefined ? (
+                    {!account ? (
+                      <span className="text-xs text-daintree-400">
+                        {SIGN_COUNT_LOADING}
+                      </span>
+                    ) : psktSummary === undefined ? (
                       <UnknownAmount reason={SIGN_COUNT_UNKNOWN} />
                     ) : (
                       <div className="flex flex-col text-right">

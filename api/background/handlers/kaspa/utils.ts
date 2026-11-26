@@ -25,7 +25,7 @@ const isJson = (s: string) => {
 /**
  * Kasware's signPskt payload. Kasware's "PSKT" is the Safe JSON signTx already
  * takes, so txJsonString is a txJson. sighashType stays unknown here:
- * toPsktSignType refuses a bad one by name, which a schema failure cannot.
+ * psktSignOptions refuses a bad one by name, which a schema failure cannot.
  * Null / hole entries are skipped, as signTx skips them in `scripts`.
  * Unknown fields are stripped, never forwarded.
  */

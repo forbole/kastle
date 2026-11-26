@@ -10,7 +10,6 @@ import {
   psktSignSummary,
   signTxInputWithScriptOption,
   signTxWithScriptOptions,
-  toPsktSignType,
 } from "@/lib/wallet/sign-script";
 import { SignPsktPayloadSchema } from "@/api/background/handlers/kaspa/utils";
 
@@ -76,24 +75,25 @@ const sigScripts = (tx: Transaction): string[] =>
     (input: { signatureScript: string }) => input.signatureScript,
   );
 
-test.describe("toPsktSignType", () => {
-  test("maps 1 to All; omitted is All", () => {
-    expect(toPsktSignType(1)).toBe("All");
-    expect(toPsktSignType(undefined)).toBe("All");
-  });
+// What a site receives: psktSignOptions' refusal, with its input prefix.
+const refusalOf = (sighashType: unknown) => {
+  try {
+    psktSignOptions(mkTx([P2SH]), [{ index: 0, sighashType }], WALLET());
+  } catch (e) {
+    return (e as Error).message;
+  }
+  return undefined;
+};
 
-  test("every accepted sighashType signs a push ending in 01 (SIGHASH_ALL)", async () => {
-    for (const sighashType of [undefined, 1, 129]) {
-      let scripts;
-      try {
-        scripts = psktSignOptions(
-          mkTx([P2SH]),
-          [{ index: 0, sighashType }],
-          WALLET(),
-        );
-      } catch {
-        continue; // refused: never signed
-      }
+test.describe("psktSignOptions sighashType", () => {
+  test("every accepted sighashType yields All and signs a push ending in 01 (SIGHASH_ALL)", async () => {
+    for (const sighashType of [undefined, 1]) {
+      const scripts = psktSignOptions(
+        mkTx([P2SH]),
+        [{ index: 0, sighashType }],
+        WALLET(),
+      );
+      expect(scripts).toEqual([{ inputIndex: 0, signType: "All" }]);
       const signed = await signTxWithScriptOptions(
         mkTx([P2SH]),
         scripts,
@@ -104,13 +104,12 @@ test.describe("toPsktSignType", () => {
   });
 
   test("refuses 129: this build's signer cannot produce ALL|ANYONECANPAY", () => {
-    expect(() => toPsktSignType(129)).toThrow(
-      "signPskt: sighashType 129 (AllAnyOneCanPay) is not accepted: this build's signer produces the bare ANYONECANPAY bit (0x80), not ALL|ANYONECANPAY (0x81), so the signature would not be the type the site asked for (accepted: 1 (All))",
+    expect(refusalOf(129)).toBe(
+      "signPskt: input 0: sighashType 129 (AllAnyOneCanPay) is not accepted: this build's signer produces the bare ANYONECANPAY bit (0x80), not ALL|ANYONECANPAY (0x81), so the signature would not be the type the site asked for (accepted: 1 (All))",
     );
   });
 
   test("refuses every other value, naming it and the accepted set", () => {
-    const accepted = "(accepted: 1 (All))";
     const refused: [unknown, string][] = [
       [2, "2"], // None
       [130, "130"], // NoneAnyOneCanPay
@@ -125,8 +124,8 @@ test.describe("toPsktSignType", () => {
       [true, "true"],
     ];
     for (const [value, named] of refused) {
-      expect(() => toPsktSignType(value)).toThrow(
-        `signPskt: sighashType ${named} is not accepted ${accepted}`,
+      expect(refusalOf(value)).toBe(
+        `signPskt: input 0: sighashType ${named} is not accepted (accepted: 1 (All))`,
       );
     }
   });
@@ -325,7 +324,7 @@ test.describe("SignPsktPayloadSchema", () => {
     }
   });
 
-  test("refuses a malformed index; leaves sighashType to toPsktSignType", () => {
+  test("refuses a malformed index; leaves sighashType to psktSignOptions", () => {
     for (const index of [-1, 1.5, "0", null, undefined]) {
       expect(
         SignPsktPayloadSchema.safeParse({

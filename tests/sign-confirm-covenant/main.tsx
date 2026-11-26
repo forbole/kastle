@@ -71,7 +71,7 @@ const v0PresignedTxJson = JSON.stringify({
   ],
 });
 
-// ?pskt=1:All,2:AllAnyOneCanPay: a signPskt request listing those inputs.
+// ?pskt=0:All,1:All: a signPskt request listing those inputs.
 const pskt = params.get("pskt");
 
 const payload = {
@@ -88,14 +88,20 @@ const payload = {
       // ?tx=v1nofee: v1 with input 1's UTXO entry dropped (stubs.ts).
       v1nofee: v1TxJson,
     }[params.get("tx") ?? ""] ?? v1TxJson,
-  // ?sign=<SignType>: one script option on the wallet input (index 2).
+  // ?sign=<SignType>: one script option on the wallet input (index 2, or
+  // ?signIndex=).
   scripts: pskt
     ? pskt.split(",").map((entry) => {
         const [index, signType] = entry.split(":");
         return { inputIndex: Number(index), signType: signType as "All" };
       })
     : params.get("sign")
-      ? [{ inputIndex: 2, signType: params.get("sign") as "All" }]
+      ? [
+          {
+            inputIndex: Number(params.get("signIndex") ?? 2),
+            signType: params.get("sign") as "All",
+          },
+        ]
       : [],
 };
 

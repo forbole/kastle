@@ -432,12 +432,6 @@ function psktSighashRefusal(sighashType: unknown): string | undefined {
   return `sighashType ${named} is not accepted ${accepted}`;
 }
 
-export function toPsktSignType(sighashType: unknown): SignType {
-  const refusal = psktSighashRefusal(sighashType);
-  if (refusal) throw new Error(`signPskt: ${refusal}`);
-  return "All";
-}
-
 /**
  * signPskt's signInputs as signer options, for the wallet at `walletAddress`.
  * Every input is checked first and the request refused once, naming every

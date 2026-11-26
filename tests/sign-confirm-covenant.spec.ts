@@ -381,10 +381,10 @@ async function at320(page: Page) {
   }
 }
 
-test("signPskt, mixed: N inputs, M not your own coin, each sighash in words, and the AnyOneCanPay warning", async ({
+test("signPskt, mixed: N inputs, M not your own coin, each sighash in words", async ({
   page,
 }) => {
-  const errors = await open(page, "tx=v0mixed&pskt=0:AllAnyOneCanPay");
+  const errors = await open(page, "tx=v0mixed&pskt=0:All");
   await expect(page.getByText("Sign only", { exact: true })).toBeVisible();
   await expect(
     page.getByText(
@@ -403,10 +403,7 @@ test("signPskt, mixed: N inputs, M not your own coin, each sighash in words, and
     ),
   ).toBeVisible();
   await expect(page.getByText("Input 0", { exact: true })).toBeVisible();
-  await expect(
-    page.getByText("AllAnyOneCanPay", { exact: true }),
-  ).toBeVisible();
-  await expect(page.getByText(ANYONE_CAN_PAY)).toBeVisible();
+  await expect(page.getByText("All", { exact: true })).toBeVisible();
   await expect(confirm(page)).toBeEnabled();
   await at320(page);
   await page.screenshot({ path: `${SHOTS}/mixed-320.png`, fullPage: true });
@@ -437,6 +434,28 @@ test("signPskt without UTXO entries: the count is labelled not known, never 0", 
   await expect(row).not.toContainText(/\d+ inputs?,/);
   await at320(page);
   await page.screenshot({ path: `${SHOTS}/no-utxo-320.png`, fullPage: true });
+  expect(errors).toEqual([]);
+});
+
+test("signPskt while the account loads: the count row is neutral, never blames the site", async ({
+  page,
+}) => {
+  const errors = await open(page, "tx=v0mixed&pskt=0:All&account=loading");
+  const row = page.locator("li").filter({ hasText: "Inputs you sign" });
+  await expect(row).toContainText("Counting the inputs this request signs…");
+  await expect(row).not.toContainText("did not send");
+  await expect(row).not.toContainText("Not known");
+  expect(errors).toEqual([]);
+});
+
+// signPskt cannot carry AllAnyOneCanPay (psktSignOptions signs All); a signTx
+// script option still can. v0's input 0 is the wallet's own coin.
+test("a signTx request with an AllAnyOneCanPay script option shows the AnyOneCanPay warning", async ({
+  page,
+}) => {
+  const errors = await open(page, "tx=v0&sign=AllAnyOneCanPay&signIndex=0");
+  await expect(page.getByText(ANYONE_CAN_PAY)).toBeVisible();
+  await expect(page.getByText("Inputs you sign")).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 

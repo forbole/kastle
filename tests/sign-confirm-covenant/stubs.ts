@@ -65,7 +65,11 @@ export async function walletKcc20Pieces(...args: unknown[]) {
 
 export function useWalletManager() {
   return {
-    account: { address: WALLET, publicKeys: [] },
+    // ?account=loading: the account has not loaded yet
+    account:
+      query.get("account") === "loading"
+        ? undefined
+        : { address: WALLET, publicKeys: [] },
     wallet: { type: query.get("wallet") ?? "software" },
   };
 }
