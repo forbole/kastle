@@ -17,6 +17,7 @@ import type { IWallet } from "@/lib/wallet/wallet-interface.ts";
 import { kasparocketPlanToTx } from "./adapter";
 import {
   kaspaRocketFeeSompi,
+  kaspaRocketFeeSplit,
   kaspaRocketFeesOf,
   kaspaRocketPlanNetworkFee,
   type KaspaRocketFees,
@@ -288,11 +289,17 @@ function namedIndex(plan: TransactionPlan, key: string): number | undefined {
  *    that the token covenant checks). Index-driven: a token output at any
  *    other index still refuses, and so does a named one on a plain key;
  *  - the platform fee: the plain output at `summary.outputs.fee`, paying
- *    `protocol().treasuryAddress` exactly `summary.platformFeeSompi`;
+ *    `protocol().treasuryAddress` exactly `summary.platformFeeSompi`, and no
+ *    more than protocol()'s schedule charges the treasury on this trade;
  *  - the partner fee: the plain output at `summary.outputs.partnerFee`, paying
- *    `protocol().partner.feeAddress` exactly `summary.partnerFeeSompi`.
- * Both fee addresses come from the protocol document at sign time, never from
- * this file. Anything else refuses.
+ *    `protocol().partner.feeAddress` exactly `summary.partnerFeeSompi`, and no
+ *    more than the schedule's partner cut on this trade.
+ * Both fee addresses and the schedule come from the protocol document at sign
+ * time, never from this file or the summary: a summary raising its own fee to
+ * match a larger fee output still refuses. The trade's KAS size is the buy's
+ * budget (what the quote's flow may not exceed), or a sell's KAS flow as the
+ * plan states it (a sell's fee comes out of its proceeds, which the payout
+ * floor bounds). An unreadable schedule refuses. Anything else refuses.
  *
  * Indexes count over every transaction's outputs in plan order, as
  * `buyPayout` reads `kcc20User`.
@@ -303,8 +310,13 @@ function checkPayees(
   g: KaspaRocketGuard,
   own: string,
   protocol: ProtocolInfo,
+  fees: KaspaRocketFees | undefined,
 ) {
   const s = (plan.summary ?? {}) as Record<string, unknown>;
+  if (!fees) refuse("fee schedule cannot be read");
+  const size = g.trade.direction === "buy" ? g.trade.amountIn : planFlow(plan);
+  if (size === undefined || size <= 0n) refuse("trade size cannot be read");
+  const cap = kaspaRocketFeeSplit(size!, fees!);
   const treasury = mainnetScriptOf(
     (protocol as { treasuryAddress?: unknown }).treasuryAddress,
   );
@@ -316,16 +328,21 @@ function checkPayees(
       (i) => i !== undefined,
     ),
   );
-  /** A plain version-0 output paying `script` exactly the summary's `amount`. */
+  /**
+   * A plain version-0 output paying `script` no more than the schedule's
+   * `most`, and exactly the summary's `amount`.
+   */
   const paysFee = (
     o: Tx["outputs"][number],
     script: string | null,
+    most: bigint,
     amount: unknown,
   ) =>
     script !== null &&
     o.covenant == null &&
     o.scriptVersion === 0 &&
     o.scriptPublicKey === script &&
+    BigInt(o.value) <= most &&
     tokenAmount(amount) === BigInt(o.value);
 
   const poolScripts = new Set(
@@ -350,8 +367,13 @@ function checkPayees(
         P2SH.test(o.scriptPublicKey)
       )
         continue;
-      if (at === fee && paysFee(o, treasury, s.platformFeeSompi)) continue;
-      if (at === partnerFee && paysFee(o, partner, s.partnerFeeSompi)) continue;
+      if (at === fee && paysFee(o, treasury, cap.treasury, s.platformFeeSompi))
+        continue;
+      if (
+        at === partnerFee &&
+        paysFee(o, partner, cap.partner, s.partnerFeeSompi)
+      )
+        continue;
       refuse("plan pays an address this wallet cannot spend");
     }
   }
@@ -369,7 +391,14 @@ export function kaspaRocketCheckPayees(
   protocol: ProtocolInfo,
 ): void {
   const txs = plan.transactions.map((p) => kasparocketPlanToTx(p.tx));
-  checkPayees(plan, txs, g, ownScript(xOnlyPk), protocol);
+  checkPayees(
+    plan,
+    txs,
+    g,
+    ownScript(xOnlyPk),
+    protocol,
+    kaspaRocketFeesOf(toJsonSafe(protocol)),
+  );
 }
 
 function checkGuard(
@@ -414,7 +443,7 @@ function checkGuard(
   if (kaspaRocketPriceMoved(plan, quote, trade.direction, slippageBps)) {
     refuse("price moved beyond slippage");
   }
-  checkPayees(plan, txs, g, ownScript(pk), protocol);
+  checkPayees(plan, txs, g, ownScript(pk), protocol, fees);
   const fee = kaspaRocketPlanNetworkFee(plan);
   if (fee === undefined) refuse("network fee cannot be read");
   if (fee! > KASPAROCKET_NETWORK_FEE_CEILING_SOMPI) {
