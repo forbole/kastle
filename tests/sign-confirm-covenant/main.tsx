@@ -46,21 +46,68 @@ const fee2000TxJson = JSON.stringify({
   ],
 });
 
+// ?tx=v0mixed: version 0, the repro's foreign covenant input (its P2SH, no
+// covenant id) beside the wallet's own coin. ?tx=v0mixednofee drops input 1's
+// UTXO entry (stubs.ts).
+const foreignUtxo = { ...v1.inputs[1].utxo, covenantId: undefined };
+const v0MixedTxJson = JSON.stringify({
+  ...v1,
+  version: 0,
+  inputs: [{ ...v1.inputs[1], utxo: foreignUtxo }, v1.inputs[2]],
+  outputs: [v1.outputs[3]],
+});
+
+// ?tx=v0presigned: v0mixed plus an own coin that arrives signed, at input 1.
+const v0PresignedTxJson = JSON.stringify({
+  ...JSON.parse(v0MixedTxJson),
+  inputs: [
+    JSON.parse(v0MixedTxJson).inputs[0],
+    {
+      ...v1.inputs[2],
+      previousOutpoint: { ...v1.inputs[2].previousOutpoint, index: 7 },
+      signatureScript: "52",
+    },
+    v1.inputs[2],
+  ],
+});
+
+// ?pskt=0:All,1:All: a signPskt request listing those inputs.
+const pskt = params.get("pskt");
+
 const payload = {
   // ?network= overrides both the request and the settings network (stubs.ts).
-  networkId: params.get("network") ?? networkId,
+  // signPskt payloads carry no networkId (signTx.ts); ?nonet=1 drops it from
+  // a signTx request too.
+  networkId:
+    pskt !== null || params.has("nonet")
+      ? undefined
+      : (params.get("network") ?? networkId),
   txJson:
     {
       v0: v0TxJson,
       v1unknown: v1UnknownTxJson,
       fee2000: fee2000TxJson,
+      v0mixed: v0MixedTxJson,
+      v0mixednofee: v0MixedTxJson,
+      v0presigned: v0PresignedTxJson,
       // ?tx=v1nofee: v1 with input 1's UTXO entry dropped (stubs.ts).
       v1nofee: v1TxJson,
     }[params.get("tx") ?? ""] ?? v1TxJson,
-  // ?sign=<SignType>: one script option on the wallet input (index 2).
-  scripts: params.get("sign")
-    ? [{ inputIndex: 2, signType: params.get("sign") as "All" }]
-    : [],
+  // ?sign=<SignType>: one script option on the wallet input (index 2, or
+  // ?signIndex=).
+  scripts: pskt
+    ? pskt.split(",").map((entry) => {
+        const [index, signType] = entry.split(":");
+        return { inputIndex: Number(index), signType: signType as "All" };
+      })
+    : params.get("sign")
+      ? [
+          {
+            inputIndex: Number(params.get("signIndex") ?? 2),
+            signType: params.get("sign") as "All",
+          },
+        ]
+      : [],
 };
 
 const router = createMemoryRouter([
@@ -76,6 +123,7 @@ const router = createMemoryRouter([
           window.__signHarness.cancelled++;
         }}
         warning={params.get("warning") ?? undefined}
+        psktRequest={pskt !== null}
       />
     ),
   },
