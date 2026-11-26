@@ -84,7 +84,9 @@ export const makeKaspaRocket = () => ({
     uneconomic: false,
   }),
   planSwap: async () => {
-    const plan = syntheticBuyPlan(fixture);
+    // The bought-token cell bound to the harness wallet's key (the copy-logs
+    // stub's `publicKeys[0]`, x-only), as the hook reads the payout for it.
+    const plan = syntheticBuyPlan({ ...fixture, xOnlyPk: "11".repeat(32) });
     return {
       ...plan,
       summary: {

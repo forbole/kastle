@@ -14,6 +14,7 @@ import { planDigests } from "@/lib/kasparocket/adapter";
 import {
   resighed,
   syntheticBuyPlan,
+  syntheticBuyPlanUnbound,
 } from "./fixtures/kasparocket-synthetic-buy";
 import {
   KASPAROCKET_PLAN_TTL_MS,
@@ -178,6 +179,24 @@ test.describe("kastleKaspaRocketSigner", () => {
     expect(inputs[1].computeBudget).toBe(10);
     expect((plan.transactions[0].tx.inputs as any[])[0].signatureScript).toBe(
       "",
+    );
+  });
+
+  test("★ refuses the synthetic buy whose token cell no program binds", async () => {
+    // The shape this spec used before the payout was bound to the cell's
+    // bytes: the cell behind the pool's P2SH, no token program spent.
+    const raw = syntheticBuyPlanUnbound(fixture) as any;
+    const plan = {
+      ...raw,
+      summary: {
+        ...raw.summary,
+        kasFlowSompi: BigInt(raw.summary.kasFlowSompi),
+      },
+    } as TransactionPlan;
+    await expectRefused(
+      plan,
+      guardOf(),
+      /plan pays less than the minimum shown/,
     );
   });
 

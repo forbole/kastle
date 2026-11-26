@@ -1,4 +1,4 @@
-import { decodeAddress, Version } from "@dotk/sdk";
+import { blake2b256, decodeAddress, Version } from "@dotk/sdk";
 import { schnorrSighash, toSafeJson } from "@dotk/sdk-tx";
 import {
   instructionsToSign,
@@ -11,9 +11,12 @@ import {
   type UnsignedTransaction,
 } from "@kasparocket/sdk";
 import { schnorr } from "@noble/curves/secp256k1";
-import { bytesToHex } from "viem";
+import { bytesToHex, hexToBytes } from "viem";
 import { Transaction } from "@/wasm/core/kaspa";
 import type { IWallet } from "@/lib/wallet/wallet-interface.ts";
+import { splitProgram, successorProgram } from "@/lib/kcc20/standard/program";
+import { BORROW_SCHEME, OWNER_SCHEME } from "@/lib/kcc20/standard/state";
+import { supportsStandardTransfer } from "@/lib/kcc20/standard/templates";
 import { kasparocketPlanToTx } from "./adapter";
 import {
   kaspaRocketFeeSompi,
@@ -170,22 +173,107 @@ function rawScriptV0(spk: unknown): string | null {
 /** 35-byte P2SH: OP_BLAKE2B, a 32-byte script hash, OP_EQUAL. */
 const P2SH = /^aa20[0-9a-f]{64}87$/;
 
+/** The data of a signature script's last push; null on any non-push opcode. */
+function lastPush(script: Uint8Array): Uint8Array | null {
+  let last: Uint8Array | null = null;
+  let i = 0;
+  while (i < script.length) {
+    const op = script[i++];
+    let n: number;
+    if (op >= 0x01 && op <= 0x4b) n = op;
+    else if (op === 0x4c && i + 1 <= script.length) n = script[i++];
+    else if (op === 0x4d && i + 2 <= script.length) {
+      n = script[i] | (script[i + 1] << 8);
+      i += 2;
+    } else if (op === 0x4e && i + 4 <= script.length) {
+      n =
+        (script[i] |
+          (script[i + 1] << 8) |
+          (script[i + 2] << 16) |
+          (script[i + 3] << 24)) >>>
+        0;
+      i += 4;
+    } else return null;
+    if (i + n > script.length) return null;
+    last = script.subarray(i, i + n);
+    i += n;
+  }
+  return last;
+}
+
+const p2shOf = (program: Uint8Array) => `aa20${hex(blake2b256(program))}87`;
+
 /**
- * A buy's token amount. The transaction does not carry it: the KCC-20 cell
- * the wallet receives (`summary.outputs.kcc20User`) is a covenant output whose
- * `value` is the cell's KAS rent (0.2 KAS on the real plan), and whose script
- * is the token covenant's P2SH, not the wallet's pay-to-pubkey. The amount
- * lives in the cell's program state behind that hash. So the amount is taken
- * from the summary, and only when the transaction has the shape the summary
- * describes: the named output exists, is the token's covenant, sits behind a
- * P2SH, and the summary's `amountTokens` and `userTokensAfter` agree. Any
- * mismatch is null.
+ * Whether the plan's bought-token cell holds exactly `amount` of the token,
+ * owned by the wallet's key: its P2SH is recomputed here from that state, not
+ * read from the summary.
  *
- * Read from the raw plan, in either `scriptPublicKey` wire form. (Written
- * when `kasparocketPlanToTx` refused the server's transaction shape; it reads
- * that shape now, and `checkGuard` has run it before this is reached.)
+ * The cell's program comes from the token's leader input
+ * (`summary.inputs.kcc20Leader`, counted over every transaction's inputs in
+ * plan order): the last push of its signature script, accepted only when that
+ * input is a coin of `tokenId`, the program hashes to the coin's own P2SH, and
+ * its template is one the wallet's KCC-20 transfer builder allowlists
+ * (`supportsStandardTransfer`). The cell's expected state is the one that
+ * builder writes for a recipient: `amount` to the wallet's x-only key,
+ * pay-to-pubkey Schnorr, borrowing disabled, the leader's extension
+ * commitment. Its successor program's P2SH must equal the cell's script.
+ *
+ * What is still the server's word: the leader coin's own script. A coin
+ * claimed with another program does not exist on chain under that outpoint,
+ * so the network refuses the transaction; no node is asked here.
  */
-function buyPayout(plan: TransactionPlan, tokenId: string): bigint | null {
+function userCellBound(
+  plan: TransactionPlan,
+  tokenId: string,
+  xOnlyPk: string,
+  cellScript: string,
+  amount: bigint,
+): boolean {
+  const s = (plan.summary ?? {}) as Record<string, unknown>;
+  const at = (s.inputs as Record<string, unknown> | undefined)?.kcc20Leader;
+  if (!Number.isInteger(at) || (at as number) < 0) return false;
+  const inputs = plan.transactions.flatMap(
+    ({ tx }) => kasparocketPlanToTx(tx).inputs,
+  );
+  const leader = inputs[at as number];
+  const coin = leader?.utxo;
+  if (!coin || coin.covenantId !== tokenId || coin.scriptVersion !== 0)
+    return false;
+  const program = lastPush(hexToBytes(`0x${leader.signatureScript}`));
+  if (!program || p2shOf(program) !== coin.scriptPublicKey) return false;
+  if (!supportsStandardTransfer(program)) return false;
+  const pk = xOnlyPk.toLowerCase().replace(/^0x/, "");
+  const expected = successorProgram(program, {
+    amount,
+    owner: hexToBytes(`0x${pk}`),
+    ownerScheme: OWNER_SCHEME.P2PK_SCHNORR,
+    borrowScheme: BORROW_SCHEME.DISABLED,
+    borrowGuard: new Uint8Array(32),
+    extensionCommitment: splitProgram(program).state.extensionCommitment,
+  });
+  return p2shOf(expected) === cellScript;
+}
+
+/**
+ * A buy's token amount. The transaction does not carry it in the clear: the
+ * KCC-20 cell the wallet receives (`summary.outputs.kcc20User`) is a covenant
+ * output whose `value` is the cell's KAS deposit (2 KAS on the real plan), and
+ * whose script is the token covenant's P2SH, not the wallet's pay-to-pubkey.
+ * The amount lives in the cell's program state behind that hash. So the
+ * amount is the summary's, and only when the transaction has the shape the
+ * summary describes: the named output exists, is the token's covenant, sits
+ * behind a P2SH, the summary's `amountTokens` and `userTokensAfter` agree,
+ * and that P2SH is the one a cell of exactly `amountTokens`, owned by the
+ * wallet, hashes to (`userCellBound`). Any mismatch is null.
+ *
+ * The cell is read from the raw plan, in either `scriptPublicKey` wire form;
+ * the leader input through `kasparocketPlanToTx`, as `checkGuard` reads it.
+ */
+function buyPayout(
+  plan: TransactionPlan,
+  tokenId: string,
+  xOnlyPk: string,
+): bigint | null {
   const s = (plan.summary ?? {}) as Record<string, unknown>;
   if (s.direction !== "buy") return null;
   const at = (s.outputs as Record<string, unknown> | undefined)?.kcc20User;
@@ -204,14 +292,15 @@ function buyPayout(plan: TransactionPlan, tokenId: string): bigint | null {
   const amount = tokenAmount(s.amountTokens);
   const after = tokenAmount(s.userTokensAfter);
   if (amount === null || after === null || amount !== after) return null;
-  return amount;
+  return userCellBound(plan, tokenId, xOnlyPk, script, amount) ? amount : null;
 }
 
 /**
  * What the plan pays the wallet. Null when the plan cannot be read, or does
  * not have the shape its payout is read from.
  *
- * Buy: the tokens, from the summary, gated on the transaction's shape (see
+ * Buy: the tokens, from the summary, bound to the bytes: the cell the wallet
+ * receives must hash to exactly that amount under the wallet's key (see
  * `buyPayout`); checked against a real `/plan/trade` buy plan.
  *
  * Sell: KAS, read from the transactions, never the summary: the wallet's plain
@@ -226,7 +315,7 @@ export function kaspaRocketPlanPayout(
   direction: Direction,
 ): bigint | null {
   try {
-    if (direction === "buy") return buyPayout(plan, tokenId);
+    if (direction === "buy") return buyPayout(plan, tokenId, xOnlyPk);
   } catch {
     return null;
   }
@@ -272,7 +361,8 @@ export function kaspaRocketWalletDebit(
 
 /**
  * The KAS a buy may leave in the bought-token cell, on top of the trade: the
- * real plan's `kcc20User` cell carries 2 KAS, locked in the cell until spent.
+ * real plan's `kcc20User` cell carries 2 KAS. It stays the wallet's (the cell
+ * is its own, see `userCellBound`) but is locked in the cell until spent.
  */
 export const KASPAROCKET_TOKEN_CELL_DEPOSIT_SOMPI = 200_000_000n;
 

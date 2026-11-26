@@ -1,9 +1,19 @@
 import { test, expect } from "@playwright/test";
+import { blake2b256 } from "@dotk/sdk";
 import type { TransactionPlan } from "@kasparocket/sdk";
+import { bytesToHex, hexToBytes } from "viem";
 import * as signer from "@/lib/kasparocket/signer";
 import { kaspaRocketFeesOf } from "@/lib/kasparocket/fees";
+import { pushMinimal } from "@/lib/kcc20/standard/primitives";
+import { splitProgram, successorProgram } from "@/lib/kcc20/standard/program";
+import {
+  BORROW_SCHEME,
+  OWNER_SCHEME,
+  type KCC20State,
+} from "@/lib/kcc20/standard/state";
 import {
   REAL_BUDGET_SOMPI,
+  REAL_LEADER_PROGRAM,
   REAL_LP_COVENANT_ID,
   REAL_NETWORK_FEE_SOMPI,
   REAL_TOKEN_ID,
@@ -14,8 +24,8 @@ import {
 } from "./fixtures/kasparocket-real-buy";
 
 // What the signer takes on the server's word, on the real FOUR buy
-// (fixtures/kasparocket-real-buy.ts): B the fee outputs, C the wallet's debit.
-// Nothing is signed: the signDigest below throws
+// (fixtures/kasparocket-real-buy.ts): B the fee outputs, C the wallet's debit,
+// D the bought-token cell. Nothing is signed: the signDigest below throws
 // REACHED. A plan whose transaction was edited cannot reach it (its prepared
 // sighashes no longer match), so "refused at the sighash check" is how such a
 // plan shows it cleared every check before it. No network, no broadcast.
@@ -29,6 +39,7 @@ const REACHED = "reached the key: every pre-sign check passed";
 const PAST_GUARD = /input 2 sighash does not match the prepared one/;
 const PAYEE = /plan pays an address this wallet cannot spend/;
 const DEBIT = /plan debits \d+ sompi from the wallet, over the \d+ sompi/;
+const MIN_OUT = /plan pays less than the minimum shown/;
 const KAS = 100_000_000n;
 // Real plan outputs: 0 partner fee (the wallet's own key), 1 wallet change,
 // 2 pool vault, 3 token reserve cell, 4 bought-token cell, 5 treasury fee.
@@ -234,6 +245,98 @@ test.describe("C. the wallet's debit is bounded, from the transactions", () => {
   test("an unreadable transaction has no debit", () => {
     const plan = realPlan((raw) => (raw.transactions[0].tx.fee = "1"));
     expect(signer.kaspaRocketWalletDebit(plan, REAL_XONLY_PK)).toBeNull();
+  });
+});
+
+// ---- D: the bought-token cell, bound to its program state ----
+
+const hex = (b: Uint8Array) => bytesToHex(b).slice(2);
+const p2sh = (r: Uint8Array) => `aa20${hex(blake2b256(r))}87`;
+const cellState = (over: Partial<KCC20State> = {}): KCC20State => ({
+  amount: 5_298_975n,
+  owner: hexToBytes(`0x${REAL_XONLY_PK}`),
+  ownerScheme: OWNER_SCHEME.P2PK_SCHNORR,
+  borrowScheme: BORROW_SCHEME.DISABLED,
+  borrowGuard: new Uint8Array(32),
+  extensionCommitment:
+    splitProgram(REAL_LEADER_PROGRAM).state.extensionCommitment,
+  ...over,
+});
+const cellScript = (over?: Partial<KCC20State>) =>
+  p2sh(successorProgram(REAL_LEADER_PROGRAM, cellState(over)));
+const payout = (plan: TransactionPlan) =>
+  String(
+    signer.kaspaRocketPlanPayout(plan, REAL_TOKEN_ID, REAL_XONLY_PK, "buy"),
+  );
+const withCell = (script: string) =>
+  realPlan((raw) => (outsOf(raw)[4].scriptPublicKey.script = script));
+
+test.describe("D. the buy's payout is bound to the cell's bytes", () => {
+  test("★ the real cell is the program's successor for 5298975 to the wallet's key", () => {
+    expect(cellScript()).toBe(outsOf(realPlan()).at(4).scriptPublicKey.script);
+    expect(payout(realPlan())).toBe("5298975");
+  });
+
+  test("★ a summary claiming more tokens than the cell holds refuses", async () => {
+    // Summary only: the transaction, so its sighashes, are untouched.
+    const plan = realPlan((raw) => {
+      raw.summary.amountTokens = 6_000_000;
+      raw.summary.userTokensAfter = 6_000_000;
+    });
+    expect(payout(plan)).toBe("null");
+    await expectRefused(plan, MIN_OUT);
+  });
+
+  test("★ a cell holding fewer tokens, or owned by another key, is no payout", () => {
+    expect(payout(withCell(cellScript({ amount: 1n })))).toBe("null");
+    expect(
+      payout(
+        withCell(cellScript({ owner: hexToBytes(`0x${"cd".repeat(32)}`) })),
+      ),
+    ).toBe("null");
+    // Borrowing enabled on the bought cell: not the state a buy writes.
+    expect(
+      payout(withCell(cellScript({ borrowScheme: BORROW_SCHEME.HASH_CHAIN }))),
+    ).toBe("null");
+  });
+
+  test("the leader program must be the token's, the coin's own and allowlisted", () => {
+    const leader = (raw: any) =>
+      raw.transactions[0].tx.inputs[raw.summary.inputs.kcc20Leader];
+    const cases: [string, (raw: any) => void][] = [
+      ["no kcc20Leader index", (raw) => delete raw.summary.inputs.kcc20Leader],
+      [
+        "kcc20Leader on a plain input",
+        (raw) => (raw.summary.inputs.kcc20Leader = 2),
+      ],
+      [
+        "kcc20Leader on the pool's coin",
+        (raw) => (raw.summary.inputs.kcc20Leader = 0),
+      ],
+      [
+        "program does not hash to the coin",
+        (raw) =>
+          (leader(raw).utxo.scriptPublicKey.script =
+            `aa20${"00".repeat(32)}87`),
+      ],
+      [
+        "program outside the allowlist, coin rehashed to match",
+        (raw) => {
+          const bent = REAL_LEADER_PROGRAM.slice();
+          bent[bent.length - 1] ^= 0xff;
+          leader(raw).signatureScript = hex(pushMinimal(bent));
+          leader(raw).utxo.scriptPublicKey.script = p2sh(bent);
+        },
+      ],
+      [
+        "signature script with a non-push opcode",
+        (raw) =>
+          (leader(raw).signatureScript = `51${leader(raw).signatureScript}`),
+      ],
+    ];
+    for (const [name, edit] of cases) {
+      expect(payout(realPlan(edit)), name).toBe("null");
+    }
   });
 });
 
