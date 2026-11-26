@@ -405,7 +405,7 @@ const signedTxJson = await kastle.signTx(networkId, txJson, [
 
 ## 13. Sign PSKT
 
-Signs named inputs of a transaction the dApp built, with the current account's key, **without** broadcasting it. A named input may be locked to a script address the account does not own (e.g. a P2SH covenant UTXO). Each named input comes back with `41 || 64-byte signature || 01` in its `signatureScript` (`01` is `SIGHASH_ALL`). Nothing else in the transaction changes: an input the request does not name keeps the `signatureScript` it arrived with. Opens a confirmation popup.
+Signs named inputs of a transaction the dApp built, with the current account's key, **without** broadcasting it. A named input may be locked to a script address the account does not own (e.g. a P2SH covenant UTXO). Each named input comes back with `41 || 64-byte signature || 01` in its `signatureScript` (`01` is `SIGHASH_ALL`). Nothing else in the transaction changes: an input the request does not name keeps the signature it arrived with if it arrived signed, and an own-coin input that arrives empty is signed with `All`, because the wallet always signs its own inputs. Opens a confirmation popup.
 
 This is the Kasware-compatible entry point. For Kastle's own call shape, see [Sign Transaction](#12-sign-transaction).
 
@@ -432,12 +432,14 @@ The signed transaction as a Safe JSON string.
 
 **Sighash types**
 
-| Value         | Name                            | Kastle `signPskt`                                                                                                         |
-| ------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `1` (omitted) | `All`                           | accepted, the default                                                                                                     |
-| `129`         | `AllAnyOneCanPay`               | **refused**: this build's signer emits the bare ANYONECANPAY bit (`80`), so a `129` signature cannot be produced as asked |
-| `2` / `130`   | `None` / `NoneAnyOneCanPay`     | **refused**: commits no outputs                                                                                           |
-| `4` / `132`   | `Single` / `SingleAnyOneCanPay` | **refused**: commits only the same-index output                                                                           |
+| Value         | Name                            | Kastle `signPskt` | Why                                                                                            |
+| ------------- | ------------------------------- | ----------------- | ---------------------------------------------------------------------------------------------- |
+| `1` (omitted) | `All`                           | accepted, default | commits every input and output                                                                 |
+| `129`         | `AllAnyOneCanPay`               | **refused**       | this build's signer emits the bare ANYONECANPAY bit (`80`), so `129` cannot be signed as asked |
+| `2` / `130`   | `None` / `NoneAnyOneCanPay`     | **refused**       | commits no outputs                                                                             |
+| `4` / `132`   | `Single` / `SingleAnyOneCanPay` | **refused**       | commits only the same-index output                                                             |
+
+The error names the refused value and the accepted set, e.g. `signPskt: input 0: sighashType 132 is not accepted (accepted: 1 (All))`. The "Why" column is here to help you choose a type. The error text does not include it, except for `129`.
 
 `1` (`SIGHASH_ALL`) is the only supported type, and the one a covenant spend needs. With `None*` or `Single*`, outputs the user approved could be changed after approval. This is stricter than Kasware. `signTx` keeps its own behaviour (it signs an in-range `Single*` input behind a warning). The two methods differ on purpose.
 
@@ -450,6 +452,15 @@ Every transaction input must be one of these:
 - already carrying a `signatureScript` (and then not listed: a listed input that already carries one is refused).
 
 If any input is none of these, the whole request is refused before the popup opens, and the error names every such index (e.g. `signPskt: inputs 2, 3 would be left unsigned: not listed in signInputs and not your own coin`). A duplicate index, an index past the last input, a listed input that already carries a signature, and a refused `sighashType` are refused the same way: one error lists every reason, each naming its input. `signTx` behaves differently: given the same transaction, it returns it partially signed.
+
+**Refusals**
+
+A refused request rejects with code `-32602` as a plain `{ code, message }` object, not an `Error`, and no popup opens. The message starts with `signPskt:` and names every offending input in one string, e.g.:
+
+- `signPskt: input 0: sighashType 132 is not accepted (accepted: 1 (All))`
+- `signPskt: input 2 would be left unsigned: not listed in signInputs and not your own coin`
+
+A `signInputs` entry whose `index` is not a non-negative integer fails the schema before any of these checks, and the request rejects with the string `Invalid transaction data`.
 
 **What the wallet does not do**
 
