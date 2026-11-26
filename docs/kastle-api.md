@@ -405,7 +405,7 @@ const signedTxJson = await kastle.signTx(networkId, txJson, [
 
 ## 13. Sign PSKT
 
-Signs named inputs of a transaction the dApp built, with the current account's key, **without** broadcasting it. A named input may be locked to a script address the account does not own (e.g. a P2SH covenant UTXO). Each named input comes back with `41 || 64-byte signature || sighash byte` in its `signatureScript` (`01` for `All`, `81` for `AllAnyOneCanPay`). Nothing else in the transaction changes. Opens a confirmation popup.
+Signs named inputs of a transaction the dApp built, with the current account's key, **without** broadcasting it. A named input may be locked to a script address the account does not own (e.g. a P2SH covenant UTXO). Each named input comes back with `41 || 64-byte signature || 01` in its `signatureScript` (`01` is `SIGHASH_ALL`). Nothing else in the transaction changes: an input the request does not name keeps the `signatureScript` it arrived with. Opens a confirmation popup.
 
 This is the Kasware-compatible entry point. For Kastle's own call shape, see [Sign Transaction](#12-sign-transaction).
 
@@ -424,7 +424,7 @@ signPskt({
 | `options.signInputs[].index`       | `number` | ✅       | Index of an input to sign                          |
 | `options.signInputs[].sighashType` | `number` | ❌       | Kasware numeric sighash type (default: `1`, `All`) |
 
-`txJsonString` is the same Safe JSON string that `signTx` takes, and the same one Kasware calls a PSKT. `Transaction.deserializeFromSafeJSON()` can read it. Give every input its UTXO entry: when one is missing, the confirm screen shows the input counts as "Not known".
+`txJsonString` is the same Safe JSON string that `signTx` takes, and the same one Kasware calls a PSKT. `Transaction.deserializeFromSafeJSON()` can read it. Give every input its UTXO entry: a transaction with an input missing it cannot be read, and the request is refused with `Invalid transaction data` before any popup opens.
 
 **Return value**
 
@@ -432,14 +432,14 @@ The signed transaction as a Safe JSON string.
 
 **Sighash types**
 
-| Value         | Name                            | Kastle `signPskt`                                |
-| ------------- | ------------------------------- | ------------------------------------------------ |
-| `1` (omitted) | `All`                           | accepted, the default                            |
-| `129`         | `AllAnyOneCanPay`               | accepted, and warned about on the confirm screen |
-| `2` / `130`   | `None` / `NoneAnyOneCanPay`     | **refused**: commits no outputs                  |
-| `4` / `132`   | `Single` / `SingleAnyOneCanPay` | **refused**: commits only the same-index output  |
+| Value         | Name                            | Kastle `signPskt`                                                                                                         |
+| ------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `1` (omitted) | `All`                           | accepted, the default                                                                                                     |
+| `129`         | `AllAnyOneCanPay`               | **refused**: this build's signer emits the bare ANYONECANPAY bit (`80`), so a `129` signature cannot be produced as asked |
+| `2` / `130`   | `None` / `NoneAnyOneCanPay`     | **refused**: commits no outputs                                                                                           |
+| `4` / `132`   | `Single` / `SingleAnyOneCanPay` | **refused**: commits only the same-index output                                                                           |
 
-With either refused type, outputs the user approved could be changed after approval. This is stricter than Kasware. `signTx` keeps its own behaviour (it signs an in-range `Single*` input behind a warning). The two methods differ on purpose.
+`1` (`SIGHASH_ALL`) is the only supported type, and the one a covenant spend needs. With `None*` or `Single*`, outputs the user approved could be changed after approval. This is stricter than Kasware. `signTx` keeps its own behaviour (it signs an in-range `Single*` input behind a warning). The two methods differ on purpose.
 
 **Inputs that would be left unsigned**
 
@@ -447,9 +447,9 @@ Every transaction input must be one of these:
 
 - listed in `signInputs`,
 - the account's own coin (signed automatically with `All`), or
-- already carrying a `signatureScript`.
+- already carrying a `signatureScript` (and then not listed: a listed input that already carries one is refused).
 
-If any input is none of these, the whole request is refused before the popup opens, and the error names every such index (e.g. `signPskt: inputs 2, 3 would be left unsigned: not listed in signInputs and not your own coin`). A duplicate index, or an index past the last input, is refused the same way. `signTx` behaves differently: given the same transaction, it returns it partially signed.
+If any input is none of these, the whole request is refused before the popup opens, and the error names every such index (e.g. `signPskt: inputs 2, 3 would be left unsigned: not listed in signInputs and not your own coin`). A duplicate index, an index past the last input, a listed input that already carries a signature, and a refused `sighashType` are refused the same way: one error lists every reason, each naming its input. `signTx` behaves differently: given the same transaction, it returns it partially signed.
 
 **What the wallet does not do**
 

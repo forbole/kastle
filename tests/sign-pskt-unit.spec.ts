@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import init, { PrivateKey, Transaction } from "@/wasm/core/kaspa";
 import { deserializeTransaction } from "@/lib/kaspa-compat";
 import {
+  keepArrivedSignatures,
   psktSignOptions,
   psktSignSummary,
   signTxInputWithScriptOption,
@@ -76,14 +77,40 @@ const sigScripts = (tx: Transaction): string[] =>
   );
 
 test.describe("toPsktSignType", () => {
-  test("maps 1 to All and 129 to AllAnyOneCanPay; omitted is All", () => {
+  test("maps 1 to All; omitted is All", () => {
     expect(toPsktSignType(1)).toBe("All");
-    expect(toPsktSignType(129)).toBe("AllAnyOneCanPay");
     expect(toPsktSignType(undefined)).toBe("All");
   });
 
+  test("every accepted sighashType signs a push ending in 01 (SIGHASH_ALL)", async () => {
+    for (const sighashType of [undefined, 1, 129]) {
+      let scripts;
+      try {
+        scripts = psktSignOptions(
+          mkTx([P2SH]),
+          [{ index: 0, sighashType }],
+          WALLET(),
+        );
+      } catch {
+        continue; // refused: never signed
+      }
+      const signed = await signTxWithScriptOptions(
+        mkTx([P2SH]),
+        scripts,
+        TEST_KEY,
+      );
+      expect(sigScripts(signed)[0]).toMatch(/^41[0-9a-f]{128}01$/);
+    }
+  });
+
+  test("refuses 129: this build's signer cannot produce ALL|ANYONECANPAY", () => {
+    expect(() => toPsktSignType(129)).toThrow(
+      "signPskt: sighashType 129 (AllAnyOneCanPay) is not accepted: this build's signer produces the bare ANYONECANPAY bit (0x80), not ALL|ANYONECANPAY (0x81), so the signature would not be the type the site asked for (accepted: 1 (All))",
+    );
+  });
+
   test("refuses every other value, naming it and the accepted set", () => {
-    const accepted = "accepted: 1 (All), 129 (AllAnyOneCanPay)";
+    const accepted = "(accepted: 1 (All))";
     const refused: [unknown, string][] = [
       [2, "2"], // None
       [130, "130"], // NoneAnyOneCanPay
@@ -99,7 +126,7 @@ test.describe("toPsktSignType", () => {
     ];
     for (const [value, named] of refused) {
       expect(() => toPsktSignType(value)).toThrow(
-        `signPskt: sighashType ${named} is not accepted; ${accepted}`,
+        `signPskt: sighashType ${named} is not accepted ${accepted}`,
       );
     }
   });
@@ -111,11 +138,11 @@ test.describe("psktSignOptions", () => {
     expect(
       psktSignOptions(
         tx,
-        [{ index: 1, sighashType: 129 }, { index: 0 }],
+        [{ index: 1, sighashType: 1 }, { index: 0 }],
         WALLET(),
       ),
     ).toEqual([
-      { inputIndex: 1, signType: "AllAnyOneCanPay" },
+      { inputIndex: 1, signType: "All" },
       { inputIndex: 0, signType: "All" },
     ]);
   });
@@ -183,7 +210,7 @@ test.describe("psktSignOptions", () => {
     expect(() =>
       psktSignOptions(
         mkTx([P2SH, P2SH]),
-        [{ index: 0 }, { index: 1 }, { index: 0, sighashType: 129 }],
+        [{ index: 0 }, { index: 1 }, { index: 0, sighashType: 1 }],
         WALLET(),
       ),
     ).toThrow("signPskt: input 0 is listed twice");
@@ -199,8 +226,48 @@ test.describe("psktSignOptions", () => {
     const tx = mkTx([P2SH]);
     expect(() =>
       psktSignOptions(tx, [{ index: 0, sighashType: 4 }], WALLET()),
-    ).toThrow("signPskt: sighashType 4 is not accepted");
+    ).toThrow("signPskt: input 0: sighashType 4 is not accepted");
     expect(sigScripts(tx)).toEqual([""]);
+  });
+
+  test("refuses a listed input that already carries a signature, by index, beside a hole", () => {
+    expect(() =>
+      psktSignOptions(
+        mkTx([P2SH, P2SH], ["", "52"]),
+        [{ index: 1 }, { index: 0 }],
+        WALLET(),
+      ),
+    ).toThrow("signPskt: input 1 already carries a signature");
+    expect(() =>
+      psktSignOptions(mkTx([P2SH, P2SH], ["52", ""]), [{ index: 0 }], WALLET()),
+    ).toThrow(
+      "signPskt: input 0 already carries a signature; input 1 would be left unsigned: not listed in signInputs and not your own coin",
+    );
+  });
+
+  test("one refusal names every offender: duplicate, out of range and hole", () => {
+    expect(() =>
+      psktSignOptions(
+        mkTx([P2SH, P2SH, P2SH]),
+        [{ index: 0 }, { index: 0 }, { index: 5 }],
+        WALLET(),
+      ),
+    ).toThrow(
+      "signPskt: input 0 is listed twice; input 5 does not exist (3 inputs); inputs 1, 2 would be left unsigned: not listed in signInputs and not your own coin",
+    );
+  });
+
+  test("an unlisted pre-signed own coin keeps its signatureScript when the fallback runs", async () => {
+    const own = P2PK(TEST_KEY);
+    const tx = mkTx([P2SH, own, own], ["", "52", ""]);
+    const scripts = psktSignOptions(tx, [{ index: 0 }], WALLET());
+    const signed = await keepArrivedSignatures(tx, (t) =>
+      signTxWithScriptOptions(t, scripts, TEST_KEY),
+    );
+    const [listed, prefilled, empty] = sigScripts(signed);
+    expect(prefilled).toBe("52");
+    expect(empty).toMatch(/^41[0-9a-f]{128}01$/);
+    expect(listed).toMatch(/^41/);
   });
 
   test("skips null and hole entries in a sparse signInputs array", () => {
