@@ -8,6 +8,7 @@ import { braidErrorCopy, makeBraid } from "@/lib/braid/client";
 import {
   BRAID_DEPOSIT_FEE_MAX,
   BRAID_KASTLE_FEE_BPS,
+  BRAID_PENDING_COPY,
 } from "@/lib/braid/constants";
 import {
   type BraidSettle,
@@ -25,13 +26,13 @@ import {
   type DiagnosticReport,
 } from "@/lib/diagnostics";
 import { LINEAGE_FAMILY, useBraidTokens } from "./braidListing";
+import type { FeeLine, L1SwapHandlers } from "./l1Types";
 
 const KAS_DECIMALS = 8;
 
 const toKas = (sompi: bigint) => Number(formatUnits(sompi, KAS_DECIMALS));
 
-export const BRAID_PENDING_COPY =
-  "A Braid swap for this pair is still settling.";
+export { BRAID_PENDING_COPY };
 export const PRICE_MOVED_COPY =
   "Price moved. Review the new quote and confirm again.";
 export const BRAID_UNKNOWN_COPY = "Swap may be settling. Check Activity.";
@@ -294,15 +295,7 @@ export function braidSettleToast(
 // settle toast to one deposit.
 const followed = new Set<string>();
 
-export type FeeLine = {
-  name: "Network" | "Kastle" | "Braid";
-  symbol: "KAS";
-  /** Unknown is absent, never 0. */
-  amount?: number;
-  /** What the Est. Fee row shows. */
-  display: string;
-  hint: string;
-};
+export type { FeeLine };
 
 /** A Kaspa L1 leg as the swap screen holds it. */
 export type BraidSwapToken = {
@@ -349,7 +342,7 @@ export function useBraidSwap({
   isLedger,
   sign,
   onSubmitted,
-}: BraidSwapInput) {
+}: BraidSwapInput): L1SwapHandlers {
   const [braid] = useState(makeBraid);
   const slippageBps = Math.round(slippage * 100);
   const [isSigning, setIsSigning] = useState(false);

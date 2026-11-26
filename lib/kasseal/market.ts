@@ -5,6 +5,21 @@ import type { KassealVenue } from "./trade";
 export const venueOf = (token: KassealToken): KassealVenue =>
   token.phase === "bonding" ? "curve" : "pool";
 
+/**
+ * The covenant ids Kasseal routes: curve (bonding) tokens only, as on mobile;
+ * a graduated one would refuse KASSEAL_NO_POOL. Undefined while unknown.
+ */
+export function kassealRoutable(
+  tokens: readonly KassealToken[] | undefined,
+): ReadonlySet<string> | undefined {
+  return (
+    tokens &&
+    new Set(
+      tokens.filter((t) => venueOf(t) === "curve").map((t) => t.covenantId),
+    )
+  );
+}
+
 /** Launch proof and curve params: the curve key moves with every lot sold. */
 export function kassealMarketKey(
   network: KassealNetwork | undefined,

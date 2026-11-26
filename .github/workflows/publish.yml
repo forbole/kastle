@@ -21,6 +21,9 @@ jobs:
 
       - name: Zip extensions
         run: npm run zip
+        # Build-time VITE_*: an empty KaspaRocket token builds KaspaRocket off (no row, no request).
+        env:
+          VITE_KASPAROCKET_PROXY_TOKEN: ${{ secrets.KASPAROCKET_PROXY_TOKEN }}
 
       - name: Submit to Chrome Web store
         run: |

@@ -2,6 +2,19 @@ import { defineConfig } from "wxt"; // See https://wxt.dev/api/config.html
 import { nodePolyfills } from "vite-plugin-node-polyfills";
 import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
+
+// The Kasseal SDK's web entry fetches its WASM from
+// `<page origin>/kaspa/web/kaspa_bg.wasm` and its export map hides the file,
+// so it cannot be imported as a URL. Copy it from the installed package at
+// build time so the shipped bytes always match the SDK version.
+const kassealWasm = join(
+  dirname(
+    createRequire(import.meta.url).resolve("@kassealhq/sdk/package.json"),
+  ),
+  "dist/kaspa/web/kaspa_bg.wasm",
+);
 
 // Store builds run in GitHub Actions (publish.yml), where CI is set. Every
 // other build is a local/QA build and gets the commit stamped into
@@ -67,6 +80,14 @@ export default defineConfig({
         run_at: "document_start",
       },
     ],
+  },
+  hooks: {
+    "build:publicAssets": (_, files) => {
+      files.push({
+        absoluteSrc: kassealWasm,
+        relativeDest: "kaspa/web/kaspa_bg.wasm",
+      });
+    },
   },
   runner: {
     startUrls: ["https://forbole.github.io/kastle/"],

@@ -90,7 +90,9 @@ function Providers() {
   const [chosen, setChosen] = useState("kron");
   return (
     <div data-testid="providers" className="flex flex-col gap-2 p-4">
-      {L1_PROVIDERS.map((p) => (
+      {/* Ungated rows only: this harness sets no flags, and test 10 pins
+          KRON and Braid; the flag-gated providers have their own specs. */}
+      {L1_PROVIDERS.filter((p) => !p.enabled).map((p) => (
         <ProviderRow
           key={p.id}
           image={p.image}

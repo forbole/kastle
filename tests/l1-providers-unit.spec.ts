@@ -6,6 +6,7 @@ import ts from "typescript";
 import { test, expect } from "@playwright/test";
 import { Window } from "happy-dom";
 import { BRAID_PROVIDER } from "@/lib/braid/constants";
+import { KASPAROCKET_PROVIDER } from "@/lib/kasparocket/config";
 import type {
   L1Leg,
   L1Listings,
@@ -54,20 +55,19 @@ const asset = (id: string) => {
 
 // The extension's own network enum, not kaspa-web3's.
 const NetworkType = { Mainnet: "mainnet", TestnetT10: "testnet-10" };
-const { L1_PROVIDERS, hasL1Route, kronListing, useL1Provider } = loadModule(
-  "hooks/swap/l1Providers.ts",
-  {
-    react: React,
-    "@/contexts/SettingsContext": { NetworkType },
-    "@/lib/braid/constants": { BRAID_PROVIDER },
-    "@/assets/images/providers/braid-logo.svg": asset(
-      "@/assets/images/providers/braid-logo.svg",
-    ),
-    "@/assets/images/providers/kron-logo.png": asset(
-      "@/assets/images/providers/kron-logo.png",
-    ),
-  },
-) as typeof import("@/hooks/swap/l1Providers");
+const l1 = loadModule("hooks/swap/l1Providers.ts", {
+  react: React,
+  "@/contexts/SettingsContext": { NetworkType },
+  "@/lib/braid/constants": { BRAID_PROVIDER },
+  "@/lib/kasparocket/config": { KASPAROCKET_PROVIDER },
+  "@/assets/images/providers/braid-logo.svg": asset(
+    "@/assets/images/providers/braid-logo.svg",
+  ),
+  "@/assets/images/providers/kron-logo.png": asset(
+    "@/assets/images/providers/kron-logo.png",
+  ),
+}) as typeof import("@/hooks/swap/l1Providers");
+const { L1_PROVIDERS, hasL1Route, kronListing, useL1Provider } = l1;
 
 const Icon = () => null;
 // The provider sheet's row, as Swap.tsx draws each L1 provider.
@@ -92,6 +92,25 @@ const { ProviderRow } = loadModule("components/swap-bridge/ui.tsx", {
   "@/lib/format-amount": { formatAmount: String },
   "/node_modules/flag-icons/css/flag-icons.min.css": {},
 });
+
+const jsxRuntime = nodeRequire("react/jsx-runtime");
+const feeSummary = loadModule("components/swap-bridge/swap-fee-summary.tsx", {
+  react: React,
+  "react/jsx-runtime": jsxRuntime,
+  "@/lib/format-amount": { formatAmount: String },
+});
+// The screen's L1 sheet rows, over the real ProviderRow, FeeRow and registry helpers.
+const { L1ProviderRows, L1FeeRows } = loadModule(
+  "components/swap-bridge/l1Rows.tsx",
+  {
+    react: React,
+    "react/jsx-runtime": jsxRuntime,
+    "@/components/swap-bridge/swap-fee-summary": feeSummary,
+    "@/components/swap-bridge/ui": { ProviderRow },
+    "@/hooks/swap/l1Providers": { isL1Enabled: l1.isL1Enabled },
+    "@/lib/format-amount": { formatAmount: String },
+  },
+) as typeof import("@/components/swap-bridge/l1Rows");
 
 const MAIN = NetworkType.Mainnet;
 const TESTNET = NetworkType.TestnetT10;
@@ -167,8 +186,10 @@ async function mountProvider(props: Props) {
   };
 }
 
-test("KRON is listed first, then Braid", () => {
+test("Kasseal is listed first, then KaspaRocket, KRON, Braid", () => {
   expect(L1_PROVIDERS.map((p: L1Provider) => [p.id, p.name])).toEqual([
+    ["kasseal", "Kasseal"],
+    ["kasparocket", "KaspaRocket"],
     ["kron", "KRON"],
     ["braid", "Braid"],
   ]);
@@ -210,10 +231,14 @@ test("each provider row draws the provider's own mark beside its name", async ()
     };
   });
   expect(rows).toEqual([
+    // Kasseal has no mark, as on mobile: an empty decorative slot keeps the rows aligned.
+    { name: "Kasseal", src: null, alt: "" },
+    // No KaspaRocket logo yet (an owner decision): the name alone.
+    { name: "KaspaRocket", src: null, alt: "" },
     { name: "KRON", src: "/assets/images/providers/kron-logo.png", alt: "" },
     { name: "Braid", src: "/assets/images/providers/braid-logo.svg", alt: "" },
   ]);
-  for (const r of rows)
+  for (const r of rows.filter((r) => r.src))
     expect(fs.existsSync(path.join(__dirname, "..", r.src!.slice(1)))).toBe(
       true,
     );
@@ -345,4 +370,271 @@ test("a Braid choice holds while Braid routes the pair, and returns once it does
   await ui.setPair({ a: CURVE, b: KAS, networkId: MAIN, l: both });
   expect(ui.id()).toBe("braid");
   await ui.unmount();
+});
+
+/** Renders `el` into a fresh happy-dom document. */
+async function render(el: unknown) {
+  const win = new Window();
+  for (const k of DOM_GLOBALS)
+    if (!saved.has(k))
+      saved.set(k, Object.getOwnPropertyDescriptor(globalThis, k));
+  Object.assign(globalThis, {
+    window: win,
+    document: win.document,
+    IS_REACT_ACT_ENVIRONMENT: true,
+  });
+  const host = win.document.createElement("div");
+  const root = createRoot(host);
+  await act(async () => root.render(el));
+  return { host, unmount: () => act(async () => root.unmount()) };
+}
+
+const FLAGS = {} as Parameters<NonNullable<L1Provider["enabled"]>>[0];
+const fakeProvider = (id: string, enabled?: () => boolean): L1Provider => ({
+  id,
+  name: id.toUpperCase(),
+  image: `/${id}.png`,
+  supports: () => true,
+  enabled,
+});
+
+/** The sheet's rows as the user sees them: name, subtitle, greyed or not. */
+async function sheetRows(props: Record<string, unknown>) {
+  const { host, unmount } = await render(
+    React.createElement(L1ProviderRows, {
+      flags: FLAGS,
+      currentId: "kron",
+      onPick: () => {},
+      ...props,
+    }),
+  );
+  const rows = Array.from(host.querySelectorAll("button")).map((b: any) => {
+    const spans = b.querySelectorAll("div > span");
+    return {
+      name: spans[0]?.textContent,
+      subtitle: spans[1]?.textContent,
+      disabled: b.disabled,
+    };
+  });
+  await unmount();
+  return rows;
+}
+
+test("a provider whose flag is off has no sheet row; one whose flag is on does", async () => {
+  const off = fakeProvider("off", () => false);
+  const on = fakeProvider("on", () => true);
+  const rows = await sheetRows({
+    providers: [provider("kron"), off, on],
+    supporting: [provider("kron"), off, on],
+  });
+  expect(rows.map((r) => r.name)).toEqual(["KRON", "ON"]);
+});
+
+test("an enabled provider that does not route the pair keeps its greyed Unsupported Pair row", async () => {
+  const on = fakeProvider("on", () => true);
+  const rows = await sheetRows({
+    providers: [provider("kron"), provider("braid"), on],
+    // Only KRON routes it: Braid (no flag) and ON are enabled but unlisted.
+    supporting: [provider("kron")],
+    rate: "1 KAS ≈ 2 CURVE",
+  });
+  expect(rows).toEqual([
+    { name: "KRON", subtitle: "1 KAS ≈ 2 CURVE", disabled: false },
+    { name: "Braid", subtitle: "Unsupported Pair", disabled: true },
+    { name: "ON", subtitle: "Unsupported Pair", disabled: true },
+  ]);
+});
+
+/** The Est. Fee rows an L1 handler's feeLines draw: label, value, note. */
+async function feeRows(lines: unknown[]) {
+  const { host, unmount } = await render(
+    React.createElement(L1FeeRows, { lines }),
+  );
+  const rows = Array.from(host.children).map((row: any) => {
+    const [label, value] = row.querySelectorAll("div > span");
+    return {
+      label: label?.textContent,
+      value: value?.textContent,
+      note: row.querySelector(":scope > span")?.textContent,
+    };
+  });
+  await unmount();
+  return rows;
+}
+
+test("the handler's feeLines draw the fee rows: network first, one row per other fee, Kastle left to the summary", async () => {
+  const line = (name: string, display: string, hint: string) => ({
+    name,
+    symbol: "KAS",
+    display,
+    hint,
+  });
+  // Braid's own lines, as useBraidSwap returns them on a sell.
+  expect(
+    await feeRows([
+      line("Network", "At most 0.2 KAS", "Set when the deposit is built"),
+      line("Kastle", "0.1 KAS", "Kastle fee"),
+      line("Braid", "0.3 KAS", "Router fee"),
+    ]),
+  ).toEqual([
+    {
+      label: "Network fees",
+      value: "At most 0.2 KAS",
+      note: "Set when the deposit is built",
+    },
+    { label: "Braid fees", value: "0.3 KAS", note: "Router fee" },
+  ]);
+  // Any other provider's names: nothing in the rows is Braid's.
+  expect(
+    await feeRows([
+      line("Seal", "0.4 KAS", "Pool fee"),
+      line("Network", "0.01 KAS", "Paid to miners"),
+    ]),
+  ).toEqual([
+    { label: "Network fees", value: "0.01 KAS", note: "Paid to miners" },
+    { label: "Seal fees", value: "0.4 KAS", note: "Pool fee" },
+  ]);
+  // No network line yet: the row stays, as "-".
+  expect(await feeRows([])).toEqual([
+    { label: "Network fees", value: "-", note: undefined },
+  ]);
+});
+
+test.describe("KaspaRocket", () => {
+  const rocket = () => provider("kasparocket");
+  const LISTED = { kasparocket: new Set([CURVE_ID]) } as L1Listings;
+  const ON = { isKaspaRocketEnabled: true } as typeof FLAGS;
+
+  test("routes a pooled token on mainnet, either way round", () => {
+    expect(rocket().supports(KAS, CURVE, MAIN, LISTED)).toBe(true);
+    expect(rocket().supports(CURVE, KAS, MAIN, LISTED)).toBe(true);
+  });
+
+  test("off mainnet it does not route, even a pooled token", () => {
+    expect(rocket().supports(KAS, CURVE, TESTNET, LISTED)).toBe(false);
+  });
+
+  test("an unknown listing, or one without the token, does not route", () => {
+    expect(rocket().supports(KAS, CURVE, MAIN, {})).toBe(false);
+    expect(rocket().supports(KAS, CURVE, MAIN, undefined)).toBe(false);
+    // A token whose pool is null is absent from the set.
+    expect(
+      rocket().supports(KAS, CURVE, MAIN, { kasparocket: new Set<string>() }),
+    ).toBe(false);
+  });
+
+  test("flag off (or no proxy token): no sheet row at all", async () => {
+    const rows = await sheetRows({
+      providers: [provider("kron"), rocket()],
+      supporting: [provider("kron"), rocket()],
+      flags: { isKaspaRocketEnabled: false },
+    });
+    expect(rows.map((r) => r.name)).toEqual(["KRON"]);
+  });
+
+  test("flag on but unknown listing or testnet: KRON stays the route, the row greyed", async () => {
+    for (const [networkId, listings] of [
+      [MAIN, {}],
+      [TESTNET, LISTED],
+    ] as const) {
+      const supporting = L1_PROVIDERS.filter((p: L1Provider) =>
+        p.supports(KAS, CURVE, networkId, { ...listings, kron: KRON }),
+      );
+      expect(supporting).not.toContain(rocket());
+      const rows = await sheetRows({
+        providers: [provider("kron"), rocket()],
+        supporting,
+        flags: ON,
+      });
+      expect(rows.find((r) => r.name === "KaspaRocket")).toMatchObject({
+        subtitle: "Unsupported Pair",
+        disabled: true,
+      });
+    }
+  });
+
+  test("flag on and listed on mainnet: its row is selectable", async () => {
+    const rows = await sheetRows({
+      providers: [rocket()],
+      supporting: [rocket()],
+      flags: ON,
+      currentId: "kasparocket",
+    });
+    expect(rows).toEqual([
+      { name: "KaspaRocket", subtitle: undefined, disabled: false },
+    ]);
+  });
+});
+
+test.describe("an unknown flag hides a money-moving provider", () => {
+  // Both providers and KRON list the curve token on mainnet.
+  const ALL_LISTED = {
+    kasseal: new Set([CURVE_ID]),
+    kasparocket: new Set([CURVE_ID]),
+    kron: KRON,
+  } as L1Listings;
+  const realSheet = async (flags: Record<string, unknown>) => {
+    const rows = await sheetRows({
+      providers: L1_PROVIDERS,
+      supporting: L1_PROVIDERS.filter((p: L1Provider) =>
+        p.supports(KAS, CURVE, MAIN, ALL_LISTED),
+      ),
+      flags,
+    });
+    return rows.map((r) => r.name);
+  };
+
+  test("isKassealEnabled undefined: no Kasseal row", async () => {
+    const names = await realSheet({
+      isKassealEnabled: undefined,
+      isKaspaRocketEnabled: true,
+    });
+    expect(names).not.toContain("Kasseal");
+    expect(names).toContain("KaspaRocket");
+  });
+
+  test("isKaspaRocketEnabled undefined: no KaspaRocket row", async () => {
+    const names = await realSheet({
+      isKassealEnabled: true,
+      isKaspaRocketEnabled: undefined,
+    });
+    expect(names).not.toContain("KaspaRocket");
+    expect(names).toContain("Kasseal");
+  });
+
+  test("both flags false: neither row, and KRON still routes the pair", async () => {
+    const supporting = L1_PROVIDERS.filter((p: L1Provider) =>
+      p.supports(KAS, CURVE, MAIN, ALL_LISTED),
+    );
+    const rows = await sheetRows({
+      providers: L1_PROVIDERS,
+      supporting,
+      flags: { isKassealEnabled: false, isKaspaRocketEnabled: false },
+    });
+    const names = rows.map((r) => r.name);
+    expect(names).not.toContain("Kasseal");
+    expect(names).not.toContain("KaspaRocket");
+    expect(rows.find((r) => r.name === "KRON")).toMatchObject({
+      disabled: false,
+    });
+  });
+
+  test("both flags true: Kasseal first, KaspaRocket after", async () => {
+    const names = await realSheet({
+      isKassealEnabled: true,
+      isKaspaRocketEnabled: true,
+    });
+    expect(names.slice(0, 2)).toEqual(["Kasseal", "KaspaRocket"]);
+  });
+
+  test("a provider with no enabled field still renders", async () => {
+    const plain = fakeProvider("plain");
+    expect(plain.enabled).toBeUndefined();
+    const rows = await sheetRows({
+      providers: [plain],
+      supporting: [plain],
+      flags: {},
+    });
+    expect(rows.map((r) => r.name)).toEqual(["PLAIN"]);
+  });
 });

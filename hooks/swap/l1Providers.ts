@@ -3,32 +3,46 @@ import braidLogo from "@/assets/images/providers/braid-logo.svg";
 import kronLogo from "@/assets/images/providers/kron-logo.png";
 import { NetworkType } from "@/contexts/SettingsContext";
 import { BRAID_PROVIDER } from "@/lib/braid/constants";
+import { KASPAROCKET_PROVIDER } from "@/lib/kasparocket/config";
 import type { KronMarket } from "@/lib/kcc20/swap";
+import type { useFeatureFlags } from "@/hooks/useFeatureFlags";
 
-export type L1ProviderId = "kron" | typeof BRAID_PROVIDER.id;
+// Open: a provider registers its own id.
+export type L1ProviderId =
+  | "kasseal"
+  | typeof KASPAROCKET_PROVIDER.id
+  | "kron"
+  | typeof BRAID_PROVIDER.id
+  | (string & NonNullable<unknown>);
+
+export type L1FeatureFlags = ReturnType<typeof useFeatureFlags>;
 
 /** A Kaspa L1 swap leg: KAS, or a KCC-20 token by its covenant id. */
 export type L1Leg = { type: "KAS" } | { type: "KCC20"; covenantId: string };
 
 // What each provider's own listing says it routes, by covenant id.
 // Undefined while unknown: the provider that needs it is then not offered.
-export type L1Listings = {
-  kron?: ReadonlySet<string>;
-  braid?: ReadonlySet<string>;
-};
+export type L1Listings = Partial<Record<L1ProviderId, ReadonlySet<string>>>;
 
 export type L1Provider = {
   id: L1ProviderId;
   name: string;
-  /** The provider's own mark (braidswap.com favicon, kron.technology nav logo). */
-  image: string;
+  /** The provider's own mark (braidswap.com favicon, kron.technology nav logo); absent: name only. */
+  image?: string;
   supports: (
     a?: L1Leg,
     b?: L1Leg,
     networkId?: string,
     listings?: L1Listings,
   ) => boolean;
+  /** Off: no sheet row at all. Absent: always on. */
+  enabled?: (flags: L1FeatureFlags) => boolean;
 };
+
+// Strict: only a literal `true` shows a gated provider; an unknown
+// (undefined) flag hides it, since these providers move money.
+export const isL1Enabled = (p: L1Provider, flags: L1FeatureFlags) =>
+  !p.enabled || p.enabled(flags) === true;
 
 /**
  * KRON's listing: the curve markets the screen already reads. A graduated
@@ -48,8 +62,42 @@ const kcc20Of = (a?: L1Leg, b?: L1Leg) =>
       ? a
       : undefined;
 
-// KRON first: it is the default for a pair both providers support.
+/** Networks Kasseal is offered on; testnet-10 so it can be QA'd. */
+export const KASSEAL_NETWORKS: readonly string[] = [
+  NetworkType.Mainnet,
+  NetworkType.TestnetT10,
+];
+
+// Kasseal first, as on mobile: the default for a pair it routes; KaspaRocket
+// next, then KRON, then Braid. A choice of a later one sticks while the pair still fits it.
 export const L1_PROVIDERS: readonly L1Provider[] = [
+  {
+    id: "kasseal",
+    name: "Kasseal",
+    enabled: (flags) => flags.isKassealEnabled,
+    // Only a curve token Kasseal's own listing routes (useKassealListing).
+    supports: (a, b, networkId, listings) => {
+      const token = kcc20Of(a, b);
+      return (
+        KASSEAL_NETWORKS.includes(networkId ?? "") &&
+        !!token &&
+        !!listings?.kasseal?.has(token.covenantId)
+      );
+    },
+  },
+  {
+    ...KASPAROCKET_PROVIDER,
+    enabled: (flags) => flags.isKaspaRocketEnabled,
+    // Mainnet only, and only a token with a pool (useKaspaRocketListing).
+    supports: (a, b, networkId, listings) => {
+      const token = kcc20Of(a, b);
+      return (
+        networkId === NetworkType.Mainnet &&
+        !!token &&
+        !!listings?.kasparocket?.has(token.covenantId)
+      );
+    },
+  },
   {
     id: "kron",
     name: "KRON",
@@ -74,6 +122,10 @@ export const L1_PROVIDERS: readonly L1Provider[] = [
     },
   },
 ];
+
+// No provider routes the pair: KRON, always on and the screen's inline path,
+// never a flagged provider that may be off.
+const L1_FALLBACK = L1_PROVIDERS.find((p) => p.id === "kron")!;
 
 function firstSupporting(
   a?: L1Leg,
@@ -100,7 +152,7 @@ export function hasL1Route(
  * forgotten: it applies again once the pair fits it. Support depends on the
  * network (Braid is mainnet only) and on each provider's own listing (KRON
  * routes only curve tokens, Braid only tokens it lists). With no supporting
- * provider it is the first entry, so the screen always has a name to show.
+ * provider it is KRON (L1_FALLBACK), so the screen always has a name to show.
  */
 export function useL1Provider(
   a?: L1Leg,
@@ -108,12 +160,12 @@ export function useL1Provider(
   networkId?: string,
   listings?: L1Listings,
 ): [L1ProviderId, (id: L1ProviderId) => void] {
-  const [chosen, setChosen] = useState<L1ProviderId>(
-    () => (firstSupporting(a, b, networkId, listings) ?? L1_PROVIDERS[0]).id,
-  );
+  // Only the user's own pick is state: a default taken at mount (often the
+  // fallback, before any listing loads) must not outrank Kasseal later.
+  const [chosen, setChosen] = useState<L1ProviderId>();
   const current = L1_PROVIDERS.find((p) => p.id === chosen);
   const id = current?.supports(a, b, networkId, listings)
-    ? chosen
-    : (firstSupporting(a, b, networkId, listings) ?? L1_PROVIDERS[0]).id;
+    ? current.id
+    : (firstSupporting(a, b, networkId, listings) ?? L1_FALLBACK).id;
   return [id, setChosen];
 }

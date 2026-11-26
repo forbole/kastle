@@ -17,6 +17,8 @@ const TRADE_COPY: Record<KassealTradeErrorCode, string> = {
     "Your trade may still go through. Trying again checks it first and reuses the same coins, so it cannot pay twice.",
 };
 
+export const KASSEAL_SLIPPAGE_COPY = "Slippage must be between 0% and 10%.";
+
 // SDK error codes the user can act on; anything else keeps a generic line.
 const SDK_COPY: Record<string, string> = {
   CURVE_NOT_OF_PROOF:
@@ -31,7 +33,7 @@ const SDK_COPY: Record<string, string> = {
   INSUFFICIENT_TOKENS: "You don't have enough of this token for this amount.",
   NET_BOUND_EXCEEDED:
     "The price moved past your slippage limit. Nothing was sent.",
-  SLIPPAGE_OUT_OF_RANGE: "Slippage must be between 0% and 10%.",
+  SLIPPAGE_OUT_OF_RANGE: KASSEAL_SLIPPAGE_COPY,
   HEAD_MOVING: "The market is busy. Try again in a moment.",
   PINNED_FUNDING_GONE:
     "Your earlier attempt may have gone through. Check your activity before trying again.",
