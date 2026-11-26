@@ -1,3 +1,11 @@
+# KaspaRocket proxy token (secrets.KASPAROCKET_PROXY_TOKEN -> VITE_KASPAROCKET_PROXY_TOKEN)
+# - It is Kastle's app-side token for its own KaspaRocket proxy. Vite inlines it into the
+#   popup bundle, so it is public once shipped. It is NOT the vendor key.
+# - The vendor `kr_live_` key lives only in the proxy. It must never appear in this repo:
+#   not as a repo secret, not as a literal, not in a comment.
+# - If the token is empty the build still passes but KaspaRocket ships disabled, whatever the
+#   PostHog flag says. The first step below fails the job instead.
+
 name: Publish Extension
 
 on:
@@ -9,6 +17,16 @@ jobs:
   submit:
     runs-on: ubuntu-latest
     steps:
+      # Fail closed: an empty token does not break the build, it silently builds KaspaRocket off.
+      - name: Require KaspaRocket proxy token
+        env:
+          VITE_KASPAROCKET_PROXY_TOKEN: ${{ secrets.KASPAROCKET_PROXY_TOKEN }}
+        run: |
+          if ! test -n "$VITE_KASPAROCKET_PROXY_TOKEN"; then
+            echo "::error::secrets.KASPAROCKET_PROXY_TOKEN is empty or missing: KaspaRocket would ship disabled."
+            exit 1
+          fi
+
       - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v7
