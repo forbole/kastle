@@ -76,7 +76,12 @@ const pskt = params.get("pskt");
 
 const payload = {
   // ?network= overrides both the request and the settings network (stubs.ts).
-  networkId: params.get("network") ?? networkId,
+  // signPskt payloads carry no networkId (signTx.ts); ?nonet=1 drops it from
+  // a signTx request too.
+  networkId:
+    pskt !== null || params.has("nonet")
+      ? undefined
+      : (params.get("network") ?? networkId),
   txJson:
     {
       v0: v0TxJson,

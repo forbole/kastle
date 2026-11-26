@@ -252,9 +252,13 @@ export default function SignConfirm({
       background: "bg-yellow-800",
     },
   ];
-  const selectedNetwork = networks.find((n) => n.id === payload.networkId);
-
   const networkId = settings?.networkId;
+  // The dApp's networkId is optional (signPskt never sends one): fall back to
+  // the account's network so the badge is never blank. On a mismatch it still
+  // names the requested network, which the switch button needs.
+  const selectedNetwork = networks.find(
+    (n) => n.id === (payload.networkId || networkId),
+  );
 
   const networkMismatched =
     !!payload.networkId && networkId?.toString() !== payload.networkId;
@@ -303,7 +307,7 @@ export default function SignConfirm({
                 selectedNetwork?.iconColor,
               )}
             />
-            {selectedNetwork?.name}
+            {selectedNetwork?.name ?? "Not known"}
           </div>
         </div>
 

@@ -407,6 +407,8 @@ const signedTxJson = await kastle.signTx(networkId, txJson, [
 
 Signs named inputs of a transaction the dApp built, with the current account's key, **without** broadcasting it. A named input may be locked to a script address the account does not own (e.g. a P2SH covenant UTXO). Each named input comes back with `41 || 64-byte signature || 01` in its `signatureScript` (`01` is `SIGHASH_ALL`). Nothing else in the transaction changes: an input the request does not name keeps the signature it arrived with if it arrived signed, and an own-coin input that arrives empty is signed with `All`, because the wallet always signs its own inputs. Opens a confirmation popup.
 
+The method takes no `networkId`: it signs for the account's active network, and the confirm screen displays that network.
+
 This is the Kasware-compatible entry point. For Kastle's own call shape, see [Sign Transaction](#12-sign-transaction).
 
 **Parameters**

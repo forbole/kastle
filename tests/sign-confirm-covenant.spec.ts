@@ -482,3 +482,21 @@ test("a signTx request shows none of the signPskt rows", async ({ page }) => {
   await expect(page.getByText("Inputs you sign")).toHaveCount(0);
   await expect(page.getByText("Sign only")).toHaveCount(0);
 });
+
+// The badge names the account's network when the request carries none:
+// signPskt never sends networkId, and signTx's is optional.
+test("signPskt: the network badge reads the account's network", async ({
+  page,
+}) => {
+  const errors = await open(page, "tx=v0mixed&pskt=0:All&network=mainnet");
+  await expect(page.getByText("Mainnet", { exact: true })).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test("signTx without networkId: the badge reads the account's network", async ({
+  page,
+}) => {
+  const errors = await open(page, "tx=v0&nonet=1");
+  await expect(page.getByText("Testnet | T10", { exact: true })).toBeVisible();
+  expect(errors).toEqual([]);
+});
