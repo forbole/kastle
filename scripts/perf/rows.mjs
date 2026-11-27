@@ -52,7 +52,12 @@ const rows = m.assembleActivityFeed(
 );
 const deps = { logoFor: () => undefined, priceFor: () => 0.05 };
 const fn = m[adapter];
-const once = () => m.rowsForPage(rows, "swap").map((r) => fn(r, deps));
+// Activity.tsx's items: map, then pin in-flight rows (stable sort).
+const once = () =>
+  m
+    .rowsForPage(rows, "swap")
+    .map((r) => fn(r, deps))
+    .sort((a, b) => Number(b.isInProgress) - Number(a.isInProgress));
 for (let i = 0; i < 200; i++) once();
 const t = [];
 for (let i = 0; i < 200; i++) {
