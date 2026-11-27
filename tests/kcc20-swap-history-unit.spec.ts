@@ -805,8 +805,8 @@ test("Braid sell (real deposit): no swap row until its BRT1 payload is read, the
   expect(
     m
       .applyBraidTxids(built.swaps, built.braidSells, braid, [pending])
-      .some((s) => s.txHash === BRAID_SELL_TXID),
-  ).toBe(false);
+      .filter((s) => s.txHash === BRAID_SELL_TXID),
+  ).toEqual([pending]);
 
   // A send to a script that is not a Braid deposit stays out.
   route([[`${KASPA_TX}${BRAID_SELL_TXID}`, { ...BRAID_SELL_TX, payload: "" }]]);
@@ -1041,15 +1041,14 @@ test("a pending Braid sell with no token decimals stays pending, never completed
   });
   // As the hook composes them: the chain's confirmed deposit defers to the
   // local record, so the trade reads in flight.
-  const rows = [
-    ...pending,
-    ...m.applyBraidTxids(
+  const rows = m
+    .applyBraidTxids(
       built.swaps,
       built.braidSells,
       new Set([BRAID_SELL_TXID]),
       pending,
-    ),
-  ].filter((s) => s.txHash === BRAID_SELL_TXID);
+    )
+    .filter((s) => s.txHash === BRAID_SELL_TXID);
   expect(rows.map((s) => s.status)).toEqual(["pending"]);
   expect(sheetOf(rows[0]).transfer.fromSymbol).toBe("BRD");
 });
@@ -1094,6 +1093,7 @@ const KASPA_ADDR = "https://api.kaspa.org/addresses/";
 async function braidSell(
   listing: unknown,
   tokens?: Map<string, { symbol: string; decimals?: number }>,
+  pending: Parameters<typeof m.applyBraidTxids>[3] = [],
 ) {
   const built = await venueRecords(VENUES, tokens);
   route([
@@ -1108,18 +1108,47 @@ async function braidSell(
     VENUE_WALLET,
     deposits,
   );
-  const row = m
+  const rows = m
     .applyBraidTxids(
       built.swaps,
       built.braidSells,
       braid,
-      [],
+      pending,
       deposits,
       settles,
     )
-    .find((s) => s.txHash === BRAID_SELL_TXID)!;
-  return { row, settles, unread, seen, deposits };
+    .filter((s) => s.txHash === BRAID_SELL_TXID);
+  return { row: rows[0], rows, settles, unread, seen, deposits };
 }
+
+test("Braid sell: a settle read final outranks a stale pending record; an open or unread one does not", async () => {
+  // Still open on chain: the record keeps the row.
+  const depositOnly = BRAID_SELL_COIN.filter(
+    (t: { transaction_id: string }) => t.transaction_id === BRAID_SELL_TXID,
+  );
+  const { row: chainRow } = await braidSell(depositOnly);
+  // The record a closed popup left in storage: its poll never ran to delete it.
+  const stale = { ...chainRow, id: "braid:ref", toAmount: "0" };
+  const open = await braidSell(depositOnly, undefined, [stale]);
+  expect(open.settles.get(BRAID_SELL_TXID)?.state).toBe("open");
+  expect(open.rows).toEqual([stale]);
+  // Unread proves nothing: the record keeps the row.
+  const unread = await braidSell([], undefined, [stale]);
+  expect(unread.unread).toBe(1);
+  expect(unread.rows).toEqual([stale]);
+
+  // Settled (final, cached from here on): one row, the settled one, with
+  // Received and both fees; the record is dropped.
+  const done = await braidSell(BRAID_SELL_COIN, undefined, [stale]);
+  expect(done.settles.get(BRAID_SELL_TXID)?.state).toBe("done");
+  expect(done.rows).toHaveLength(1);
+  expect(done.row).toMatchObject({
+    id: chainRow.id,
+    status: "completed",
+    toAmount: "8.661776",
+    feeAmount: "0.113124",
+  });
+});
 
 test("Braid sell (live settle): Received net of the router coin, bond and both fees", async () => {
   const { row, settles, seen } = await braidSell(BRAID_SELL_COIN);

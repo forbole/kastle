@@ -202,7 +202,7 @@ export function useKcc20SwapHistory(
     // An unread candidate may be a Braid sell this list cannot show yet.
     return {
       ...rest,
-      swaps: [...pending, ...swaps],
+      swaps,
       braidUnread: braid?.unread ?? 0,
     };
   }, [built, money, braid, settles, ownerKey, braidSwaps, tokenMeta]);

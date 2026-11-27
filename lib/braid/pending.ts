@@ -382,10 +382,42 @@ export async function getPendingBraidSwaps(): Promise<PendingBraidSwap[]> {
   return Object.values((await read()).swaps);
 }
 
-/** Calls `fn` whenever a swap is registered or settles. */
+/**
+ * Calls `fn` whenever a swap is registered or settles, in this context or
+ * another (popup, tab: their writes reach here only through storage), and
+ * when a stored swap's window ends, which drops it on read with no write.
+ */
 export function subscribeBraidSwaps(fn: () => void): () => void {
-  watchers.add(fn);
+  let on = true;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  // Wakes at the earliest stored window end; re-armed on every call.
+  const arm = () =>
+    void read().then(
+      (s) => {
+        clearTimeout(timer);
+        const ends = Object.values(s.swaps).map(
+          (w) => w.startedAt + braidSettleTimeoutMs(w.prepared),
+        );
+        if (on && ends.length)
+          timer = setTimeout(call, Math.max(0, Math.min(...ends) - Date.now()));
+      },
+      () => {},
+    );
+  const call = () => {
+    if (!on) return;
+    fn();
+    arm();
+  };
+  const changed = (changes: Record<string, unknown>, area: string) => {
+    if (area === "local" && BRAID_PENDING_KEY in changes) call();
+  };
+  watchers.add(call);
+  browser.storage.onChanged?.addListener(changed);
+  arm();
   return () => {
-    watchers.delete(fn);
+    on = false;
+    clearTimeout(timer);
+    watchers.delete(call);
+    browser.storage.onChanged?.removeListener(changed);
   };
 }

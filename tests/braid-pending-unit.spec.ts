@@ -273,6 +273,73 @@ test.describe("pending Braid swaps across a popup close", () => {
   });
 });
 
+/** Adds storage.onChanged: every set reaches each listener, as in every context. */
+function stubOnChanged() {
+  const store = (globalThis as any).browser.storage;
+  const listeners = new Set<(c: object, area: string) => void>();
+  const set = store.local.set.bind(store.local);
+  store.local.set = async (items: Record<string, unknown>) => {
+    await set(items);
+    listeners.forEach((l) => l(items, "local"));
+  };
+  store.onChanged = {
+    addListener: (l: never) => listeners.add(l),
+    removeListener: (l: never) => listeners.delete(l),
+  };
+  return listeners;
+}
+
+test.describe("subscribeBraidSwaps", () => {
+  test("another context's settle reaches a subscriber here", async () => {
+    stubStorage();
+    const listeners = stubOnChanged();
+    const tab = loadPending();
+    const { braid, deliver } = stubBraid();
+    const s = settled();
+    await tab.registerBraidSwap({
+      ref: REF,
+      prepared: deposit(),
+      pairKey: PAIR,
+      onSettle: s.onSettle,
+      braid,
+    });
+
+    const popup = loadPending();
+    const seen: number[] = [];
+    const off = popup.subscribeBraidSwaps(
+      () => void popup.getPendingBraidSwaps().then((w) => seen.push(w.length)),
+    );
+    deliver();
+    await s.done;
+    await new Promise((r) => setTimeout(r, 20));
+    expect(seen).toContain(0);
+    off();
+    expect(listeners.size).toBe(0);
+  });
+
+  test("a swap whose window ends wakes a subscriber, with no write", async () => {
+    const { data } = stubStorage();
+    await loadPending().registerBraidSwap({
+      ref: REF,
+      prepared: deposit(),
+      pairKey: PAIR,
+      onSettle: () => {},
+      braid: stubBraid().braid,
+    });
+    stored(data).swaps[REF].startedAt = Date.now() - WINDOW_MS + 50;
+
+    const m = loadPending();
+    expect(await m.getPendingBraidSwaps()).toHaveLength(1);
+    const seen: number[] = [];
+    const off = m.subscribeBraidSwaps(
+      () => void m.getPendingBraidSwaps().then((w) => seen.push(w.length)),
+    );
+    await new Promise((r) => setTimeout(r, 200));
+    expect(seen).toEqual([0]);
+    off();
+  });
+});
+
 test.describe("claimBraidPair", () => {
   test("two swaps on one pair cannot both submit", async () => {
     stubStorage();

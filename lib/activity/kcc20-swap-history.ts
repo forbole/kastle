@@ -1096,8 +1096,10 @@ export async function fetchBraidSellSettles(
 /**
  * The chain rows with Braid's trades attributed: a buy Braid settled names
  * Braid instead of the market it filled at, and a Braid sell joins the rows
- * once its deposit is confirmed. A row a pending Braid record already shows
- * (same deposit txid) is left to that record, which knows the settle state.
+ * once its deposit is confirmed. The pending records come first; a row one
+ * already shows (same deposit txid) is left to it, unless the sell's settle
+ * is read final: only the context that polled the swap deletes its record, so
+ * with that context closed the record outlives the sale until its window ends.
  */
 export function applyBraidTxids(
   swaps: readonly SwapActivityRecord[],
@@ -1107,8 +1109,21 @@ export function applyBraidTxids(
   deposits: ReadonlyMap<string, BraidDeposit> = new Map(),
   settles: ReadonlyMap<string, BraidSellSettle> = new Map(),
 ): SwapActivityRecord[] {
-  const shown = new Set(pending.map((p) => p.txHash));
-  return [
+  const settled = new Set(
+    braidSells
+      .filter(
+        (s) =>
+          s.txHash &&
+          braid.has(s.txHash) &&
+          // kascov's refund, or a settle read done or refunded.
+          (s.status === "failed" ||
+            (settles.get(s.txHash)?.state ?? "open") !== "open"),
+      )
+      .map((s) => s.txHash),
+  );
+  const live = pending.filter((p) => !p.txHash || !settled.has(p.txHash));
+  const shown = new Set(live.map((p) => p.txHash));
+  const rows = [
     ...swaps.map((s) =>
       s.fromSymbol === "KAS" && s.txHash && braid.has(s.txHash)
         ? { ...s, providerId: BRAID_PROVIDER.id }
@@ -1153,6 +1168,7 @@ export function applyBraidTxids(
         };
       }),
   ].filter((s) => !s.txHash || !shown.has(s.txHash));
+  return [...live, ...rows];
 }
 
 // ─── Braid: the wallet's own deposit ─────────────────────────────────────────
