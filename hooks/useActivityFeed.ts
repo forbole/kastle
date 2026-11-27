@@ -8,7 +8,10 @@ import {
   SwapHistoryDegradation,
 } from "@/lib/activity/swap-history";
 import { useKcc20SwapHistory } from "@/hooks/useKcc20SwapHistory";
-import { SWAP_ACTIVITY_TYPE } from "@/lib/activity/mappers";
+import {
+  type ActivityPageType,
+  SWAP_ACTIVITY_TYPE,
+} from "@/lib/activity/mappers";
 import type { BridgeHistoryDegradation } from "@/lib/bridge/kat-bridge-history";
 import type { IgraDepositDegradation } from "@/lib/bridge/igra-deposit-history";
 import type { KurveRegistryDegradation } from "@/lib/bridge/kat-registry";
@@ -30,7 +33,7 @@ import { storeActivity, useStoredActivity } from "@/lib/activity/feed-store";
  * Igra exits reach this feed through KAT's own history instead
  * (fetchKatBridgeHistory covers both directions).
  */
-export function useActivityFeed(enabled: boolean) {
+export function useActivityFeed(enabled: boolean, page: ActivityPageType) {
   const sender = useEvmAddress();
   const { account } = useWalletManager();
   const kaspaAddress = account?.address;
@@ -42,19 +45,26 @@ export function useActivityFeed(enabled: boolean) {
   const [isRefreshing, setIsRefreshing] = useState(false);
   // KCC-20 swaps (Kaspa L1, kascov) arrive on their own SWR entry and are
   // merged below, so kascov loading or failing never holds back these rows.
-  const kcc20 = useKcc20SwapHistory(kaspaAddress, enabled);
+  // Swap page only, like the EVM swaps (fetchActivityFeed).
+  const kcc20 = useKcc20SwapHistory(kaspaAddress, enabled && page === "swap");
 
   // The last feed this wallet pair showed, painted while the live read runs.
-  const storeId = enabled ? `${sender}:${kaspaAddress}` : undefined;
+  const storeId = enabled ? `${page}:${sender}:${kaspaAddress}` : undefined;
   const stored = useStoredActivity<ActivityFeedData>("feed", storeId);
 
   const { data, error, isLoading, mutate } = useSWR(
-    enabled ? ["activity-feed", sender, kaspaAddress] : null,
+    // Page in the key: each page has its own entry, so neither waits on the other.
+    enabled ? ["activity-feed", page, sender, kaspaAddress] : null,
     async () => {
       const forceIgra = forceIgraRef.current;
       forceIgraRef.current = false;
-      const feed = await fetchActivityFeed({ sender, kaspaAddress, forceIgra });
-      storeActivity("feed", `${sender}:${kaspaAddress}`, feed);
+      const feed = await fetchActivityFeed({
+        page,
+        sender,
+        kaspaAddress,
+        forceIgra,
+      });
+      storeActivity("feed", `${page}:${sender}:${kaspaAddress}`, feed);
       return feed;
     },
     { refreshInterval: 10_000, dedupingInterval: 5_000, fallbackData: stored },

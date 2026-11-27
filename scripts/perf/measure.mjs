@@ -85,13 +85,28 @@ const tag = (src, fn) =>
     return { v, ms: T() - t0 };
   });
 
+// argv[5]: "" = both pages (the whole screen), "swap" or "bridge" = that page alone.
+const PAGE = process.argv[5];
+const PAGES =
+  PAGE === "swap" || PAGE === "bridge" ? [PAGE] : ["swap", "bridge"];
 async function feed(force) {
   const start = log.length,
     t0 = T();
-  const r = await tag("feed", () =>
-    m.fetchActivityFeed({ sender: EVM, kaspaAddress: KASPA, forceIgra: force }),
+  const runs = await Promise.all(
+    PAGES.map((page) =>
+      tag(`feed-${page}`, () =>
+        m.fetchActivityFeed({
+          page,
+          sender: EVM,
+          kaspaAddress: KASPA,
+          forceIgra: force,
+        }),
+      ),
+    ),
   );
-  return { ms: T() - t0, reqs: log.slice(start), v: r.v };
+  const v = Object.fromEntries(PAGES.map((p, i) => [p, runs[i].v]));
+  const per = Object.fromEntries(PAGES.map((p, i) => [`page ${p}`, runs[i]]));
+  return { ms: T() - t0, reqs: log.slice(start), v, per };
 }
 async function kcc20() {
   const start = log.length,
@@ -184,9 +199,27 @@ function report(name, run) {
       `   ${String(v.n).padStart(3)}× ${String(v.b).padStart(8)} B  [${v.ms.join(",")}] ms  ${k}`,
     );
 }
-const ONLY = process.argv[5];
-if (ONLY === "kcc20") {
-  const k = await kcc20();
+const withKcc20 = PAGES.includes("swap");
+const none = { reqs: [], ms: 0 };
+const a = await feed(false);
+report("feed COLD (fresh process, empty caches+storage)", a);
+for (const [p, v] of Object.entries(a.v))
+  console.log(
+    `   rows ${p}:`,
+    "swaps",
+    v.swapHistory.swaps.length,
+    "bridge items",
+    v.items.length,
+    "degraded",
+    JSON.stringify([
+      v.swapHistory.degraded,
+      v.bridgeSource,
+      v.depositSource,
+      v.kurveSource,
+    ]),
+  );
+const k = withKcc20 ? await kcc20() : none;
+if (withKcc20) {
   report("kcc20 COLD", k);
   console.log(
     "   ",
@@ -199,53 +232,25 @@ if (ONLY === "kcc20") {
       health: k.health,
     }),
   );
-  const k2 = await kcc20();
-  report("kcc20 POLL (money/braid caches hot)", k2);
-  process.exit(0);
 }
-const a = await feed(false);
-report("feed COLD (fresh process, empty caches+storage)", a);
-console.log(
-  "   rows:",
-  "swaps",
-  a.v.swapHistory.swaps.length,
-  "bridge items",
-  a.v.items.length,
-  "degraded",
-  JSON.stringify([
-    a.v.swapHistory.degraded,
-    a.v.bridgeSource,
-    a.v.depositSource,
-    a.v.kurveSource,
-  ]),
-);
-const k = await kcc20();
-report("kcc20 COLD", k);
-console.log(
-  "   ",
-  JSON.stringify({
-    rowsMs: Math.round(k.rowsMs),
-    transfers: k.transfers,
-    swaps: k.swaps,
-    moneyIds: k.moneyIds,
-    braidIds: k.braidIds,
-    health: k.health,
-  }),
-);
+console.log(`## COLD total: ${a.reqs.length + k.reqs.length} requests`);
 const b = await feed(false);
 report("feed POLL (same process, module caches hot, igra head TTL live)", b);
 const c = await feed(true);
 report("feed POLL with igra head re-read (force=true ≙ head TTL expired)", c);
-const k2 = await kcc20();
-report("kcc20 POLL (money/braid caches hot)", k2);
+const k2 = withKcc20 ? await kcc20() : none;
+if (withKcc20) report("kcc20 POLL (money/braid caches hot)", k2);
+console.log(`## POLL total: ${b.reqs.length + k2.reqs.length} requests`);
 
 import { writeFileSync } from "node:fs";
 // What the hooks store after this cold read: seeds scripts/perf/first-row.
 writeFileSync(
   (process.argv[6] ?? "/tmp/ap/log.json") + ".stored.json",
   JSON.stringify({
-    feed: m.encodeStored(a.v),
-    kcc20: m.encodeStored(k.family),
+    feed: Object.fromEntries(
+      Object.entries(a.v).map(([p, v]) => [p, m.encodeStored(v)]),
+    ),
+    kcc20: k.family && m.encodeStored(k.family),
   }),
 );
 writeFileSync(

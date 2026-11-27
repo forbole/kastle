@@ -17,7 +17,8 @@ await build({
 });
 const stored = JSON.parse(readFileSync(storedFile, "utf8"));
 const seed = {
-  [`local:cache:activity:feed:${EVM}:${KASPA}`]: stored.feed,
+  [`local:cache:activity:feed:swap:${EVM}:${KASPA}`]: stored.feed.swap,
+  [`local:cache:activity:feed:bridge:${EVM}:${KASPA}`]: stored.feed.bridge,
   [`local:cache:activity:kcc20:${KASPA}`]: stored.kcc20,
 };
 const server = http.createServer((req, res) => {

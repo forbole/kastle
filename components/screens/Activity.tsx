@@ -402,7 +402,7 @@ export default function Activity() {
     params.get("type") === "bridge" ? "bridge" : "swap";
   const { networkId } = useRpcClientStateful();
   const isMainnet = (networkId ?? NetworkType.Mainnet) === NetworkType.Mainnet;
-  const feed = useActivityFeed(isMainnet);
+  const feed = useActivityFeed(isMainnet, pageType);
   const { logoFor, priceFor } = useTokenMaps(isMainnet);
   const [openId, setOpenId] = useState<string>();
 
