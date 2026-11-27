@@ -1,6 +1,7 @@
 import { NetworkType } from "@/contexts/SettingsContext";
 import { IGRA_KAS_VAULT_MAINNET } from "@/lib/bridge/igra-exit-abi";
 import { KASPA_REST_APIS } from "@/lib/activity/externals";
+import { fetchTxCount } from "@/lib/bridge/igra-deposit-history";
 
 // Ported from kastle-mobile lib/activity/exit-payout.ts — fetchVaultPayouts
 // only. The rest of the mobile module matches LOCAL exit records to their L1
@@ -37,6 +38,21 @@ const FETCH_LIMIT = 50;
 const REQUEST_TIMEOUT_MS = 10_000;
 
 /**
+ * Last answer per address+vault, with the transactions-count read just
+ * before its listing. The listing is 1.92 MB decoded on the QA wallet and the
+ * feed polls it; while the count has not moved the answer cannot have.
+ */
+const payoutsHeld = new Map<
+  string,
+  { count: number; payouts: PayoutCandidate[] }
+>();
+
+/** Test seam — a fresh process starts empty, so only tests need this. */
+export function clearVaultPayoutCache(): void {
+  payoutsHeld.clear();
+}
+
+/**
  * Transactions where `vault` paid `kaspaAddress` on L1. Same REST API
  * and response shape as hooks/kaspa/useKasTxHistory. Throws on HTTP/network
  * failure — callers degrade to "no completion info", never a broken feed.
@@ -47,8 +63,15 @@ export async function fetchVaultPayouts(
   kaspaAddress: string,
   vault: string = IGRA_KAS_VAULT_MAINNET,
 ): Promise<PayoutCandidate[]> {
+  const base = KASPA_REST_APIS[NetworkType.Mainnet];
+  const key = `${kaspaAddress}|${vault}`;
+  // Read BEFORE the listing, so a transaction landing in between raises the
+  // next count and re-lists rather than hiding behind an equal one.
+  const count = await fetchTxCount(base, kaspaAddress);
+  const held = payoutsHeld.get(key);
+  if (count !== null && held?.count === count) return held.payouts;
   const url =
-    `${KASPA_REST_APIS[NetworkType.Mainnet]}/addresses/${kaspaAddress}` +
+    `${base}/addresses/${kaspaAddress}` +
     `/full-transactions?resolve_previous_outpoints=light&limit=${FETCH_LIMIT}`;
   // A hung socket must not hang the feed: without this the promise never
   // settles, and the activity screen's pull-to-refresh spinner never stops.
@@ -70,7 +93,7 @@ export async function fetchVaultPayouts(
     outputs?: Array<{ script_public_key_address: string; amount: number }>;
   }> = await res.json();
 
-  return txs
+  const payouts = txs
     .filter((tx) =>
       (tx.inputs ?? []).some((i) => i.previous_outpoint_address === vault),
     )
@@ -82,4 +105,9 @@ export async function fetchVaultPayouts(
       timeMs: tx.accepting_block_time,
     }))
     .filter((c) => c.amountSompi > 0);
+  // An unaccepted transaction's time can still change under the same count.
+  if (count !== null && txs.every((tx) => tx.accepting_block_time))
+    payoutsHeld.set(key, { count, payouts });
+  else payoutsHeld.delete(key);
+  return payouts;
 }

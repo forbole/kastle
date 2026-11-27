@@ -123,7 +123,7 @@ export function formatDateTime(timestampMs: number): string {
 
 const isBridgeRow = (row: ActivityRowDescriptor) =>
   row.type !== SWAP_ACTIVITY_TYPE;
-const isInProgress = (row: ActivityRowDescriptor) =>
+export const isInProgress = (row: ActivityRowDescriptor) =>
   row.status === "pending" || row.status === "submitted";
 
 // The list row's title must never read "Swapped"/"Bridged" when the status

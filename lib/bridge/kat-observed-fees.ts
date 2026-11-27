@@ -103,15 +103,24 @@ const MAX_OBSERVED_ROWS = 50;
  * Successful reads only, keyed by txid.
  *
  * The feed polls every 10s and these transactions are immutable once they
- * exist, so a hit never goes stale. Failures are deliberately NOT cached: a
- * transient L1 timeout would otherwise dash a row's fees for the lifetime of
- * the process.
+ * exist, so a hit never goes stale. Failures are NOT kept here: a transient
+ * L1 timeout would otherwise dash a row's fees for the lifetime of the
+ * process (they wait out NO_FEE_TTL_MS instead).
  */
 const observedByTx = new Map<string, KatObservedFees>();
+
+/**
+ * Reads that came back with no fee, and when. An exit whose layout never
+ * decodes would otherwise cost its RPC reads on every 10 s poll, forever;
+ * ten minutes bounds how long a transient failure keeps a row's fee dashed.
+ */
+const NO_FEE_TTL_MS = 10 * 60_000;
+const noFeeAt = new Map<string, number>();
 
 /** Test seam — a fresh process starts empty, so only tests need this. */
 export function clearKatObservedFeeCache(): void {
   observedByTx.clear();
+  noFeeAt.clear();
   kurveKastleFeeByTx.clear();
 }
 
@@ -403,6 +412,9 @@ export async function attachKatObservedFees(
         feesById.set(tx.id, cached);
         return;
       }
+      const missedAt = noFeeAt.get(key);
+      if (missedAt !== undefined && Date.now() - missedAt < NO_FEE_TTL_MS)
+        return;
 
       // The two exit lanes carry the fee in different places: a token exit
       // pays it as msg.value, a native one nets it out and states the split in
@@ -415,7 +427,8 @@ export async function attachKatObservedFees(
               ? readNativeExitFeeWei(hash, tx.fromChainId)
               : readExitBridgeFeeWei(hash, tx.fromChainId)
           ).then((wei) => (wei === null ? null : { exitBridgeFeeWei: wei }));
-      if (!fees) return;
+      if (!fees) return void noFeeAt.set(key, Date.now());
+      noFeeAt.delete(key);
       observedByTx.set(key, fees);
       feesById.set(tx.id, fees);
     }),

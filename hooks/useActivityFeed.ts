@@ -20,6 +20,25 @@ import {
   fetchActivityFeed,
 } from "@/lib/activity/fetch-feed";
 import { storeActivity, useStoredActivity } from "@/lib/activity/feed-store";
+import { isInProgress } from "@/lib/activity/adapters";
+
+/**
+ * 10 s while any row is still moving, 60 s once everything has settled.
+ * Reads the data SWR hands it (not the rendered rows), so the first poll
+ * after a fetch that turned up a pending row already runs at 10 s.
+ * KCC-20 rows poll on their own entry (useKcc20SwapHistory).
+ */
+function pollInterval(data?: ActivityFeedData): number {
+  if (!data) return 10_000;
+  const rows = assembleActivityFeed([
+    ...data.items,
+    ...data.swapHistory.swaps.map((swap) => ({
+      type: SWAP_ACTIVITY_TYPE,
+      data: swap,
+    })),
+  ]);
+  return rows.some(isInProgress) ? 10_000 : 60_000;
+}
 
 /**
  * Swap + bridge activity feed, ported from kastle-mobile
@@ -67,7 +86,11 @@ export function useActivityFeed(enabled: boolean, page: ActivityPageType) {
       storeActivity("feed", `${page}:${sender}:${kaspaAddress}`, feed);
       return feed;
     },
-    { refreshInterval: 10_000, dedupingInterval: 5_000, fallbackData: stored },
+    {
+      refreshInterval: pollInterval,
+      dedupingInterval: 5_000,
+      fallbackData: stored,
+    },
   );
   // SWR's isLoading ignores fallbackData: data here while loading is the
   // stored copy, so its statuses may be seconds old until this read lands.

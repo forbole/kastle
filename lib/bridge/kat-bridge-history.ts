@@ -111,6 +111,7 @@ const warnedTruncated = new Set<string>();
 /** Test seam — a fresh process starts empty, so only tests need this. */
 export function clearKatBridgeHistoryWarnings(): void {
   warnedTruncated.clear();
+  collectorHeld = null;
 }
 
 /**
@@ -123,10 +124,11 @@ export function clearKatBridgeHistoryWarnings(): void {
 async function fetchWalletSide(
   param: "fromL1Wallet" | "fromL2Wallet",
   wallet: string,
+  maxPages = MAX_PAGES,
 ): Promise<{ txs: KatBridgeTx[]; ok: boolean; truncated: boolean }> {
   const txs: KatBridgeTx[] = [];
   let total: number | null = null;
-  for (let page = 0; page < MAX_PAGES; page++) {
+  for (let page = 0; page < maxPages; page++) {
     const payload = await requestJson(
       `${KAT_BRIDGE_API}/bridge-history?${param}=${encodeURIComponent(wallet)}` +
         `&limit=${PAGE_SIZE}&offset=${page * PAGE_SIZE}`,
@@ -163,6 +165,51 @@ async function fetchWalletSide(
   return { txs, ok: true, truncated: true };
 }
 
+/** Last full read of the collector side, and when it ran. */
+let collectorHeld: {
+  side: { txs: KatBridgeTx[]; ok: true; truncated: boolean };
+  at: number;
+} | null = null;
+/** Backstop: a full collector read at least this often. */
+const COLLECTOR_FULL_TTL_MS = 10 * 60_000;
+
+/**
+ * The collector side is every Kastle user's Igra exits (4 pages), so the
+ * 10 s poll re-read 400 rows to learn about the newest few. Once a full read
+ * is held, page 0 is spliced onto it — unless page 0 no longer overlaps the
+ * held rows (more than a page landed), one of this wallet's held rows is
+ * still PENDING outside page 0 (its status could only move there), or the
+ * backstop lapsed. Any of those pays for the full read, as before.
+ */
+async function fetchCollectorSide(kaspaAddress: string) {
+  const held = collectorHeld;
+  if (held && Date.now() - held.at < COLLECTOR_FULL_TTL_MS) {
+    const head = await fetchWalletSide(
+      "fromL2Wallet",
+      KAT_IGRA_FEE_COLLECTOR_BRIDGE_ADDRESS,
+      1,
+    );
+    if (!head.ok) return head;
+    const headIds = new Set(head.txs.map((tx) => tx.id));
+    const older = held.side.txs.filter((tx) => !headIds.has(tx.id));
+    const overlaps = older.length < held.side.txs.length;
+    const ownPendingOutside = older.some(
+      (tx) => tx.status === "PENDING" && paysTo(tx, kaspaAddress),
+    );
+    if (overlaps && !ownPendingOutside) {
+      const side = { ...held.side, txs: [...head.txs, ...older] };
+      collectorHeld = { side, at: held.at };
+      return side;
+    }
+  }
+  const side = await fetchWalletSide(
+    "fromL2Wallet",
+    KAT_IGRA_FEE_COLLECTOR_BRIDGE_ADDRESS,
+  );
+  if (side.ok) collectorHeld = { side: { ...side, ok: true }, at: Date.now() };
+  return side;
+}
+
 /**
  * Full KAT history for an account: deposits from the Kaspa address, exits from
  * the EVM address, plus exits the user routed through the Igra fee collector.
@@ -186,9 +233,7 @@ export async function fetchKatBridgeHistory({
   const [deposits, exits, collectorExits] = await Promise.all([
     kaspaAddress ? fetchWalletSide("fromL1Wallet", kaspaAddress) : null,
     evmAddress ? fetchWalletSide("fromL2Wallet", evmAddress) : null,
-    kaspaAddress && evmAddress
-      ? fetchWalletSide("fromL2Wallet", KAT_IGRA_FEE_COLLECTOR_BRIDGE_ADDRESS)
-      : null,
+    kaspaAddress && evmAddress ? fetchCollectorSide(kaspaAddress) : null,
   ]);
   // Deliberately absent from `degraded`, failed or truncated alike: the
   // collector's history is shared by all users (258 rows on 2026-10-14), so a

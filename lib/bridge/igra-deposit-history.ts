@@ -163,6 +163,12 @@ interface CacheEntry {
   scannedAt: number;
   /** When page 0 was last re-read. Governs the head TTLs. */
   headAt: number;
+  /**
+   * transactions-count read just BEFORE the last page 0, or null when page 0
+   * came from a cold scan (whose count is read after paging, so it may
+   * already include a transaction the scan missed).
+   */
+  count: number | null;
   /** Newest transaction id of the last read, or null if the wallet has none. */
   newestTxId: string | null;
   result: IgraDepositResult;
@@ -289,7 +295,7 @@ async function fetchPage(
  * An upper bound is exactly what is needed to rule truncation out: if it fits
  * inside the horizon, so does the real history.
  */
-async function fetchTxCount(
+export async function fetchTxCount(
   base: string,
   kaspaAddress: string,
 ): Promise<number | null> {
@@ -410,6 +416,16 @@ export async function fetchIgraDeposits({
     if (!force && now - hit.headAt < headTtl(hit.result)) return hit.result;
 
     if (now - hit.scannedAt < FULL_TTL_MS) {
+      // Every deposit settled: page 0 can only change if a transaction
+      // landed, which the 13 B count answers instead of a 2 MB page. A
+      // pending deposit skips this — its acceptance does not move the count.
+      const count = await fetchTxCount(base, kaspaAddress);
+      if (
+        count !== null &&
+        count === hit.count &&
+        hit.result.deposits.every((d) => d.accepted)
+      )
+        return remember(kaspaAddress, { ...hit, headAt: now });
       const head = await fetchPage(base, kaspaAddress, 0);
       // A transient L1 failure must not throw away a good history: keep serving
       // what we have and try again on the next refresh.
@@ -434,6 +450,7 @@ export async function fetchIgraDeposits({
         return remember(kaspaAddress, {
           scannedAt: hit.scannedAt,
           headAt: now,
+          count,
           newestTxId: head[0]?.transaction_id ?? hit.newestTxId,
           result: { ...hit.result, deposits: merged },
         });
@@ -497,6 +514,7 @@ export async function fetchIgraDeposits({
   return remember(kaspaAddress, {
     scannedAt: Date.now(),
     headAt: Date.now(),
+    count: null,
     newestTxId,
     result: { deposits, ok: true, truncated },
   });

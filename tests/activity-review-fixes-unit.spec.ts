@@ -493,6 +493,7 @@ const ok = (rows: unknown[]) =>
 test("kat history: collector-routed exits paying this account are merged, others dropped", async () => {
   const realFetch = globalThis.fetch;
   m.igraExitStore.clear();
+  m.clearKatBridgeHistoryWarnings(); // also drops the held collector read
   try {
     let collectorDown = false;
     const asked: string[] = [];
@@ -542,6 +543,7 @@ test("kat history: collector-routed exits paying this account are merged, others
 test("kat history: persisted collector exits merge with the fresh scan, deduped by id", async () => {
   const realFetch = globalThis.fetch;
   m.igraExitStore.clear();
+  m.clearKatBridgeHistoryWarnings(); // also drops the held collector read
   // Seen on earlier polls: one exit since pushed past the collector window,
   // one still in it but PENDING then, and another account's exit.
   m.igraExitStore.set(IGRA_EXITS, [
