@@ -10,6 +10,7 @@ import SwapFamilyTabs, {
   hasFamilyRow,
   inFamily,
   type SwapFamilyTab,
+  visibleTabs,
 } from "@/components/screens/asset-selector/SwapFamilyTabs";
 import { L1_PROVIDERS } from "@/hooks/swap/l1Providers";
 import type { Kcc20Family } from "@/lib/kcc20";
@@ -38,6 +39,20 @@ const rows: Row[] = [
     };
   }),
 ];
+
+// providers=kasseal,kasparocket: those provider tabs on. Kasseal routes the
+// KRON rows, KaspaRocket rows 0 and 1, so KRON1 sits under both.
+const on = new Set(params.get("providers")?.split(","));
+const tabs = visibleTabs({
+  kasseal: on.has("kasseal"),
+  kasparocket: on.has("kasparocket"),
+});
+const coverage = {
+  kasseal: new Set(
+    rows.filter((r) => r.family === "kron-legacy").map((r) => r.address!),
+  ),
+  kasparocket: new Set(rows.slice(1, 3).map((r) => r.address!)),
+};
 
 declare global {
   interface Window {
@@ -71,12 +86,13 @@ function Sheet() {
         chains={[{ key: "kaspa", label: "Kaspa", image: kasIcon }]}
         chain="kaspa"
         onChain={() => {}}
-        tokens={side.filter((t) => inFamily(t, family))}
+        tokens={side.filter((t) => inFamily(t, family, coverage))}
         tabs={
           <SwapFamilyTabs
+            tabs={tabs}
             value={family}
             onChange={setFamily}
-            empty={!hasFamilyRow(side, family)}
+            empty={!hasFamilyRow(side, family, coverage)}
           />
         }
         onSelect={(t) => setOut(t.key)}

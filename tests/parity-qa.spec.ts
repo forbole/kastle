@@ -511,6 +511,165 @@ test("07b at 320 px all four provider rows draw a mark, and the tab reads Braid"
   expect(errors).toEqual([]);
 });
 
+test("07c at 320 px five tabs wrap onto two rows, one row once wide enough; the ring is never cut; arrows reach every tab in sight", async ({
+  page,
+}) => {
+  const out = path.resolve("test-results/provider-tabs");
+  mkdirSync(out, { recursive: true });
+  const errors = await open(
+    page,
+    "swap",
+    "rows=6&providers=kasseal,kasparocket",
+  );
+  await page.setViewportSize({ width: 320, height: 800 });
+  await page.addStyleTag({ content: "#popup{width:320px!important}" });
+  await page.evaluate(() => document.fonts.ready);
+  const dialog = page.locator("dialog");
+  const list = page.getByRole("tablist");
+  const tabs = page.getByRole("tab");
+  await expect(tabs).toHaveText([
+    "All",
+    "Braid",
+    "KRON",
+    "Kasseal",
+    "KaspaRocket",
+  ]);
+  for (let i = 1; i < 5; i++) {
+    const img = await drawn(page, tabs.nth(i).locator("img"));
+    expect(img.width, `tab ${i} mark`).toBeGreaterThan(0);
+  }
+  // Wrapped, never scrolled: the row's own box holds every pill.
+  const geometry = (el: HTMLElement) => {
+    const cs = getComputedStyle(el);
+    const row = el.getBoundingClientRect();
+    const pills = [...el.children].map((c) => c.getBoundingClientRect());
+    return {
+      overflowX: cs.overflowX,
+      flexWrap: cs.flexWrap,
+      overflows: el.scrollWidth > el.clientWidth,
+      lines: new Set(pills.map((b) => Math.round(b.top))).size,
+      heights: [...new Set(pills.map((b) => b.height))],
+      inside: pills.every(
+        (b) => b.left >= row.left - 0.5 && b.right <= row.right + 0.5,
+      ),
+      panelWidth: el.closest("dialog")!.getBoundingClientRect().width,
+      widest: Math.max(...pills.map((b) => b.right)) - row.left,
+    };
+  };
+  const at320 = await list.evaluate(geometry);
+  expect(at320.overflowX).toBe("visible");
+  expect(at320.flexWrap).toBe("wrap");
+  expect(at320.overflows).toBe(false);
+  expect(at320.lines).toBe(2); // five pills, two lines at 320 px
+  expect(at320.heights).toEqual([36]); // h-9 kept
+  expect(at320.inside).toBe(true);
+  expect(at320.widest).toBeLessThanOrEqual(at320.panelWidth);
+  await dialog.screenshot({ path: path.join(out, "tabs-320.png") });
+
+  // The five pills need ~538 px of row, so they stay on two lines at 480 px
+  // and fold into one once the panel is wide enough (600 px).
+  for (const [width, lines] of [
+    [480, 2],
+    [600, 1],
+  ] as const) {
+    await page.setViewportSize({ width, height: 800 });
+    await page.addStyleTag({ content: `#popup{width:${width}px!important}` });
+    const wide = await list.evaluate(geometry);
+    expect(wide.lines, `${width} px lines`).toBe(lines);
+    expect(wide.heights).toEqual([36]);
+    expect(wide.inside).toBe(true);
+    await dialog.screenshot({ path: path.join(out, `tabs-${width}.png`) });
+  }
+  await page.setViewportSize({ width: 320, height: 800 });
+  await page.addStyleTag({ content: "#popup{width:320px!important}" });
+  expect((await list.evaluate(geometry)).lines).toBe(2);
+
+  // Keyboard only: focus All, then walk right in reading order. The focused
+  // tab and its ring sit wholly inside the row, the row inside the panel, and
+  // the token list starts below the row, at every step.
+  await tabs.nth(0).focus();
+  const labels = ["All", "Braid", "KRON", "Kasseal", "KaspaRocket"];
+  for (let i = 0; i < labels.length; i++) {
+    if (i) await page.keyboard.press("ArrowRight");
+    const tab = tabs.nth(i);
+    await expect(tab).toBeFocused();
+    await expect(tab).toHaveAttribute("aria-selected", "true");
+    const fit = await tab.evaluate((el) => {
+      const cs = getComputedStyle(el);
+      const ring =
+        (cs.outlineStyle === "none" ? 0 : parseFloat(cs.outlineWidth)) +
+        Math.max(0, parseFloat(cs.outlineOffset) || 0);
+      const shadow = cs.boxShadow;
+      const b = el.getBoundingClientRect();
+      const c = el.parentElement!.getBoundingClientRect();
+      const dialog = el.closest("dialog")!;
+      const d = dialog.getBoundingClientRect();
+      const firstRow = dialog
+        .querySelector("button:not([role=tab])")!
+        .getBoundingClientRect();
+      return {
+        ring,
+        shadow,
+        // On screen: inside the panel, above the token list.
+        inPanel:
+          b.left >= d.left &&
+          b.right <= d.right &&
+          b.top >= d.top &&
+          b.bottom <= d.bottom,
+        aboveList: c.bottom <= firstRow.top + 0.5,
+        left: b.left - ring - c.left,
+        right: c.right - (b.right + ring),
+        top: b.top - ring - c.top,
+        bottom: c.bottom - (b.bottom + ring),
+      };
+    });
+    expect(
+      fit.ring + (fit.shadow === "none" ? 0 : 1),
+      `${labels[i]} ring`,
+    ).toBeGreaterThan(0);
+    for (const side of ["left", "right", "top", "bottom"] as const)
+      expect(fit[side], `${labels[i]} ${side}`).toBeGreaterThanOrEqual(-0.5);
+    expect(fit.inPanel, `${labels[i]} in panel`).toBe(true);
+    expect(fit.aboveList, `${labels[i]} above list`).toBe(true);
+    await dialog.screenshot({
+      path: path.join(out, `tab-${labels[i]}-320.png`),
+    });
+  }
+  // Nothing scrolled to get there; Home and End jump across the two lines.
+  expect(await list.evaluate((el) => el.scrollLeft)).toBe(0);
+  await page.keyboard.press("Home");
+  await expect(tabs.nth(0)).toBeFocused();
+  await page.keyboard.press("End");
+  await expect(tabs.nth(4)).toBeFocused();
+  await page.keyboard.press("ArrowRight");
+  await expect(tabs.nth(0)).toBeFocused();
+
+  // Coverage, not lineage: KRON1 is under both providers, KAS under every tab.
+  const symbols = () =>
+    page
+      .locator("dialog button:not([role=tab])")
+      .evaluateAll((bs) =>
+        bs
+          .map((b) => b.querySelector("span.font-semibold")?.textContent)
+          .filter(Boolean),
+      );
+  await page.getByRole("tab", { name: "Kasseal" }).click();
+  expect(await symbols()).toEqual(["KAS", "KRON1", "KRON3", "KRON5"]);
+  await page.getByRole("tab", { name: "KaspaRocket" }).click();
+  expect(await symbols()).toEqual(["KAS", "STD0", "KRON1"]);
+  expect(errors).toEqual([]);
+
+  // Either provider off: its tab is gone.
+  for (const [query, want] of [
+    ["providers=kasseal", ["All", "Braid", "KRON", "Kasseal"]],
+    ["providers=kasparocket", ["All", "Braid", "KRON", "KaspaRocket"]],
+  ] as const) {
+    errors.push(...(await open(page, "swap", `rows=6&${query}`)));
+    await expect(page.getByRole("tab")).toHaveText([...want]);
+  }
+  expect(errors).toEqual([]);
+});
+
 test("08 a 200-row sheet mounts only the rows in view; it scrolls to the end and search filters", async ({
   page,
 }) => {
