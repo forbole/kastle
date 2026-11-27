@@ -62,14 +62,28 @@ if (process.argv[2] === "urls") {
 }
 const log = JSON.parse(readFileSync(process.argv[2], "utf8"));
 const memo = new Map();
+// A replay that errors, or answers other than the logged status, has no
+// bytes to count: the group is reported INCOMPLETE, never as a smaller total,
+// and the failure is not memoised for later groups.
+const replayFailed = (r, m) =>
+  m.status === "ERR" || (typeof r.status === "number" && m.status !== r.status);
 for (const [name, reqs] of Object.entries(log)) {
   let wire = 0,
-    dec = 0;
+    dec = 0,
+    failed = 0;
   const byHost = {};
   for (const r of reqs) {
     const key = r.method + r.url + (r.body ?? "");
     if (!memo.has(key)) memo.set(key, await raw(r.url, r.method, r.body));
     const m = memo.get(key);
+    if (replayFailed(r, m)) {
+      memo.delete(key);
+      failed++;
+      console.log(
+        `   replay failed (${m.status}, logged ${r.status}): ${r.url.slice(0, 110)}`,
+      );
+      continue;
+    }
     wire += m.wire;
     dec += m.dec;
     const h = new URL(r.url).host;
@@ -79,7 +93,10 @@ for (const [name, reqs] of Object.entries(log)) {
     byHost[h].dec += m.dec;
   }
   console.log(
-    `${name}: ${reqs.length} requests, wire ${wire} B, decoded ${dec} B`,
+    `${name}: ${reqs.length} requests, wire ${wire} B, decoded ${dec} B` +
+      (failed
+        ? ` — INCOMPLETE: ${failed} replay(s) failed, totals exclude them`
+        : ""),
   );
   for (const [h, v] of Object.entries(byHost))
     console.log(`   ${h}: ${v.n} req, wire ${v.wire}, decoded ${v.dec}`);
