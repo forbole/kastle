@@ -121,6 +121,7 @@ const calls = (page: Page) =>
   );
 const rows = (page: Page) => page.locator("button:has(> div.relative.size-10)");
 const spinner = (page: Page) => page.locator(".hn-refresh.animate-spin");
+const retry = (page: Page) => page.getByRole("button", { name: "Retry" });
 
 test("stored rows paint while the live read runs, with the refresh spinner on, until it lands", async ({
   page,
@@ -147,6 +148,24 @@ test("another wallet's stored copy never stands in: a switch shows skeletons unt
   await page.evaluate(() => dispatchEvent(new Event("harness-wallet")));
   await expect(page.locator(".animate-pulse").first()).toBeVisible();
   await expect(rows(page)).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test("a failed live read over stored rows offers Retry, stops the spinner, and Retry replaces them", async ({
+  page,
+}) => {
+  const errors = await open(page, { mode: "fail" });
+  await expect(retry(page)).toBeVisible();
+  await expect(page.getByText("Couldn't load activity.")).toBeVisible();
+  // The stored rows stay, under the Retry, and the spinner does not run on.
+  await expect(rows(page)).toHaveCount(1);
+  await expect(spinner(page)).toHaveCount(0);
+  await expect(page.getByLabel("Refresh")).toBeEnabled();
+  await set(page, { mode: "ok" });
+  await retry(page).click();
+  await expect(rows(page).first()).toContainText("Bridged");
+  await expect(retry(page)).toHaveCount(0);
+  await expect(spinner(page)).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 

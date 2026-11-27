@@ -489,6 +489,18 @@ export default function Activity() {
   };
 
   const [emptyTitle, emptyBody] = EMPTY_COPY[pageType];
+  const retry = (
+    <div className="flex flex-col items-center gap-3 py-10 text-center">
+      <p className="text-sm text-daintree-400">{"Couldn't load activity."}</p>
+      <button
+        type="button"
+        onClick={feed.refresh}
+        className="rounded-full bg-icy-blue-400 px-4 py-2 text-sm font-semibold text-white"
+      >
+        Retry
+      </button>
+    </div>
+  );
 
   return (
     <div className="flex h-full flex-col">
@@ -550,20 +562,11 @@ export default function Activity() {
               </div>
             )}
 
+            {/* Stored rows over a failed live read: they may be out of date. */}
+            {items !== undefined && feed.error && feed.isStale && retry}
             {items === undefined ? (
               feed.error ? (
-                <div className="flex flex-col items-center gap-3 py-10 text-center">
-                  <p className="text-sm text-daintree-400">
-                    {"Couldn't load activity."}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={feed.refresh}
-                    className="rounded-full bg-icy-blue-400 px-4 py-2 text-sm font-semibold text-white"
-                  >
-                    Retry
-                  </button>
-                </div>
+                retry
               ) : (
                 Array.from({ length: 5 }, (_, i) => (
                   <div

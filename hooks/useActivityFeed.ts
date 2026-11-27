@@ -94,8 +94,11 @@ export function useActivityFeed(enabled: boolean, page: ActivityPageType) {
   );
   // SWR's isLoading ignores fallbackData: data here while loading is the
   // stored copy, so its statuses may be seconds old until this read lands.
-  const feedStale = isLoading && data !== undefined;
-  const isStale = feedStale || kcc20.stale;
+  const feedLoading = isLoading && data !== undefined;
+  // A failed first read leaves SWR serving the fallback, still stale, but no
+  // longer loading: the screen shows Retry over it, not the spinner.
+  const feedFailed = !!error && data !== undefined && data === stored;
+  const isStale = feedLoading || feedFailed || kcc20.stale;
 
   const merged = useMemo(() => {
     if (!data) return null;
@@ -126,10 +129,10 @@ export function useActivityFeed(enabled: boolean, page: ActivityPageType) {
     kurveSource: (data?.kurveSource ?? null) as KurveRegistryDegradation | null,
     error,
     isLoading,
-    /** Rows are the stored copy; the live read has not answered yet. */
+    /** Rows are the stored copy; the live read has not answered, or failed. */
     isStale,
     // The existing refresh spinner also runs while stored rows revalidate.
-    isRefreshing: isRefreshing || isStale,
+    isRefreshing: isRefreshing || feedLoading || kcc20.stale,
     refresh: () => {
       forceRef.current = true;
       setIsRefreshing(true);
