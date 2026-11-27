@@ -7,6 +7,8 @@ export const ADDRESS =
   "kaspa:qre57qjr9cv23f2lux0l5ps79craefeu5gwglvez835h6dm836w2668gh9ekk";
 export const PEPE_ID =
   "a73cdef004099b191759d320de970451be0e10423a7eb15b07d5e51d050b47cd";
+export const BRD_ID =
+  "b77cb1a7a9701cc4398edb5be836688feb13463a62f4f57da86104108ecddfe4";
 export const KPEPE_ID =
   "6c5d77e7c094412389a07d1d4e96e079e24fc772a8c3e8fa3e134686da9f1a03";
 export const KAS_USD = 0.02667811;
@@ -80,7 +82,11 @@ export const useKcc20Tokens = () => ({ data: TOKENS, isLoading: false });
 export const fetchStandardMarketPrice = async (id: string) => SPOTS[id] ?? null;
 export const fetchKronMarkets = async () =>
   Object.assign([], {
-    graduated: [{ covenantId: PEPE_ID, priceKas: SPOTS[PEPE_ID] }],
+    graduated: [
+      { covenantId: PEPE_ID, priceKas: SPOTS[PEPE_ID] },
+      // The Braid round trip's token (records.ts BRAID), at its sell's price.
+      { covenantId: BRD_ID, priceKas: 0.0002 },
+    ],
   });
 
 // main.tsx maps RECORDS (./records.ts) through the real mapSwapActivity: a

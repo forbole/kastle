@@ -17,6 +17,7 @@ import {
 import { swapVenueName, toProviderId } from "@/lib/activity/swap-history";
 import { ALL_SWAP_PROVIDERS } from "@/lib/evm/swap/constants";
 import { L1_PROVIDERS } from "@/hooks/swap/l1Providers";
+import { BRAID_KASTLE_FEE_BPS, BRAID_PROVIDER } from "@/lib/braid/constants";
 import { igraMainnet, kasplexMainnet } from "@/lib/layer2";
 import { NetworkType } from "@/contexts/SettingsContext";
 import { kcc20TxLinks } from "@/components/screens/Settings";
@@ -292,6 +293,13 @@ function feeRows(row: ActivityRowDescriptor): DetailRow[] {
     rows.push({ label: "Kastle fee", value: fmtFee(row.meta.kastleFee) });
   } else if (row.meta?.kastleFeeUnobserved) {
     rows.push({ label: "Kastle fee", value: "-" });
+  } else if (
+    row.meta?.providerId === BRAID_PROVIDER.id &&
+    BRAID_KASTLE_FEE_BPS === 0
+  ) {
+    // Braid quotes go out with no integrator block (lib/braid/constants.ts),
+    // so Kastle took nothing: say so rather than hide the row.
+    rows.push({ label: "Kastle fee", value: "0 KAS" });
   }
   return rows;
 }
@@ -452,20 +460,26 @@ export function toActivityItem(
         sentAmount: amountText(row.sent) ?? "-",
         sentUsd: usdText(row.sent, priceFor),
         receivedLabel:
-          row.received && ((bridge && !settled) || (swap && isInProgress(row)))
+          (bridge && row.received && !settled) || (swap && isInProgress(row))
             ? "You'll receive"
             : "Received",
-        // No received leg: omit the line, except on a settled bridge, where a
-        // missing line would read as a broken sheet.
+        // No received leg: a swap still draws the line (its unread leg is
+        // "Amount unavailable"; a failed one delivered nothing), as does a
+        // settled bridge. Only an unsettled bridge omits it.
         ...(row.received
           ? {
               receivedAmount: amountText(row.received),
               // No price from any source: "Price unavailable", never $0.
               receivedUsd: usdText(row.received, priceFor),
             }
-          : bridge && settled
-            ? { receivedAmount: "Amount unavailable" }
-            : {}),
+          : swap
+            ? {
+                receivedAmount:
+                  row.status === "failed" ? "-" : "Amount unavailable",
+              }
+            : settled
+              ? { receivedAmount: "Amount unavailable" }
+              : {}),
       },
       details: buildDetails(row),
     },
@@ -473,12 +487,13 @@ export function toActivityItem(
 }
 
 /**
- * SWR `compare` for a spot Map. SWR's default dequal/lite treats any two Maps
- * as equal, which would discard every refreshed spot; compare entries instead.
+ * SWR `compare` for any Map-valued entry (spots, money reads, Braid settles).
+ * SWR's default dequal/lite treats any two Maps as equal, which would discard
+ * every refreshed read; compare entries instead, each by identity.
  */
-export function sameSpots(
-  a: ReadonlyMap<string, number | null> | undefined,
-  b: ReadonlyMap<string, number | null> | undefined,
+export function sameSpots<V>(
+  a: ReadonlyMap<string, V> | undefined,
+  b: ReadonlyMap<string, V> | undefined,
 ): boolean {
   if (a === b) return true;
   if (!a || !b || a.size !== b.size) return false;

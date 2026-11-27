@@ -20,7 +20,7 @@ const REF = "ref-1";
  * A fresh evaluation of the real source each call: new module-scope Maps,
  * as when the popup closes and opens again. Its only imports are types.
  */
-function loadPending(): PendingModule {
+function loadPending(scope: Record<string, unknown> = {}): PendingModule {
   const { outputText } = ts.transpileModule(SOURCE, {
     compilerOptions: {
       module: ts.ModuleKind.CommonJS,
@@ -28,12 +28,20 @@ function loadPending(): PendingModule {
     },
   });
   const module = { exports: {} as PendingModule };
-  new Function("require", "module", "exports", outputText)(
+  // `scope` shadows globals (Date, setTimeout…) for this evaluation alone.
+  new Function(
+    "require",
+    "module",
+    "exports",
+    ...Object.keys(scope),
+    outputText,
+  )(
     (id: string) => {
       throw new Error(`unexpected runtime import ${id}`);
     },
     module,
     module.exports,
+    ...Object.values(scope),
   );
   return module.exports;
 }
@@ -270,6 +278,85 @@ test.describe("pending Braid swaps across a popup close", () => {
     const m = loadPending();
     expect(await m.isBraidPending(PAIR)).toBe(true);
     expect(await m.claimBraidPair(PAIR)).toBe(false);
+  });
+});
+
+/** Adds storage.onChanged: every set reaches each listener, as in every context. */
+function stubOnChanged() {
+  const store = (globalThis as any).browser.storage;
+  const listeners = new Set<(c: object, area: string) => void>();
+  const set = store.local.set.bind(store.local);
+  store.local.set = async (items: Record<string, unknown>) => {
+    await set(items);
+    listeners.forEach((l) => l(items, "local"));
+  };
+  store.onChanged = {
+    addListener: (l: never) => listeners.add(l),
+    removeListener: (l: never) => listeners.delete(l),
+  };
+  return listeners;
+}
+
+test.describe("subscribeBraidSwaps", () => {
+  test("another context's settle reaches a subscriber here", async () => {
+    stubStorage();
+    const listeners = stubOnChanged();
+    const tab = loadPending();
+    const { braid, deliver } = stubBraid();
+    const s = settled();
+    await tab.registerBraidSwap({
+      ref: REF,
+      prepared: deposit(),
+      pairKey: PAIR,
+      onSettle: s.onSettle,
+      braid,
+    });
+
+    const popup = loadPending();
+    const seen: number[] = [];
+    const off = popup.subscribeBraidSwaps(
+      () => void popup.getPendingBraidSwaps().then((w) => seen.push(w.length)),
+    );
+    deliver();
+    await s.done;
+    await new Promise((r) => setTimeout(r, 20));
+    expect(seen).toContain(0);
+    off();
+    expect(listeners.size).toBe(0);
+  });
+
+  test("a swap whose window ends wakes a subscriber, with no write", async () => {
+    const { data } = stubStorage();
+    await loadPending().registerBraidSwap({
+      ref: REF,
+      prepared: deposit(),
+      pairKey: PAIR,
+      onSettle: () => {},
+      braid: stubBraid().braid,
+    });
+    // A controlled clock: the swap is live until `now` is moved, however
+    // long transpiling and the subscription's first read take.
+    let now = Date.now();
+    stored(data).swaps[REF].startedAt = now - WINDOW_MS + 1_000;
+    const timers: { fn: () => void; ms: number }[] = [];
+    const m = loadPending({
+      Date: { now: () => now },
+      setTimeout: (fn: () => void, ms: number) => timers.push({ fn, ms }),
+      clearTimeout: () => {},
+    });
+    expect(await m.getPendingBraidSwaps()).toHaveLength(1);
+    const seen: number[] = [];
+    const off = m.subscribeBraidSwaps(
+      () => void m.getPendingBraidSwaps().then((w) => seen.push(w.length)),
+    );
+    // Armed for the window's end, nothing called yet.
+    await expect.poll(() => timers.length).toBe(1);
+    expect(timers[0].ms).toBe(1_000);
+    expect(seen).toEqual([]);
+    now += 1_000;
+    timers[0].fn();
+    await expect.poll(() => seen).toEqual([0]);
+    off();
   });
 });
 
