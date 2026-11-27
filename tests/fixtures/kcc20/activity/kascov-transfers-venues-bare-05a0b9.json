@@ -1,0 +1,99 @@
+{
+ "generated_at_ms": 1795750949059,
+ "network": "mainnet",
+ "order": "desc",
+ "scope": "verified_market_tokens",
+ "semantics": {
+  "amounts": "decimal strings preserve exact integer output-cell balances; deltas are not amounts that may be summed as payments",
+  "attribution": "movements are emitted only when every input cell has one exact source owner; multi-owner merges stay ambiguous",
+  "event_unit": "one complete token state transition; split and merge deltas never cross pages",
+  "owner_filter": "matches indexed owner_from or owner_to fields; ambiguous multi-owner source identities are intentionally unavailable"
+ },
+ "transfers": [
+  {
+   "accepting_daa": 603299688,
+   "attribution": {
+    "movements": [
+     {
+      "amount": "42595",
+      "owner_from": "05a0b96e3768d6c140840c1e6147fcc739b0d53936dc0082971f3a1db845025c",
+      "owner_to": "script:6c0f73a4815329a482098327cf028f45680f38818e2d37ce28ccc32c069a0cb8"
+     }
+    ],
+    "owner_from": "05a0b96e3768d6c140840c1e6147fcc739b0d53936dc0082971f3a1db845025c",
+    "status": "exact"
+   },
+   "event_kind": "transition",
+   "kind": "transfer",
+   "seq": 150,
+   "token_id": "b77cb1a7a9701cc4398edb5be836688feb13463a62f4f57da86104108ecddfe4",
+   "tx_index": 2,
+   "txid": "89fea3f894849b521e396ac5248ae4edc94502216c45832c43e64db561801df5",
+   "verified_market": {
+    "build": "KasForge curve v1",
+    "market_id": "94229b1c5fc4f13c5a1cd79fb9fc708a7e89bd16ffb956c16f8c63ee5a81da5c",
+    "program_hash": "ddf5c8c654c21641dedffbb3796669a871f69166df656ef095b8214ca2da945f"
+   }
+  },
+  {
+   "accepting_daa": 603294538,
+   "attribution": {
+    "movements": [
+     {
+      "amount": "523717",
+      "owner_from": "covenant:a71cb497a15a37d8aef538a75fdc4964216435d4870f836ee10c052928709e7f",
+      "owner_to": "05a0b96e3768d6c140840c1e6147fcc739b0d53936dc0082971f3a1db845025c"
+     }
+    ],
+    "owner_from": "covenant:a71cb497a15a37d8aef538a75fdc4964216435d4870f836ee10c052928709e7f",
+    "status": "exact"
+   },
+   "event_kind": "transition",
+   "kind": "split",
+   "market_activity": {
+    "kind": "trade",
+    "market_id": "a71cb497a15a37d8aef538a75fdc4964216435d4870f836ee10c052928709e7f",
+    "side": "buy"
+   },
+   "seq": 1077,
+   "token_id": "3cb7bd371ea2014af95f3471d2995ede8ffbde454d3a37e3b566880daf011c5a",
+   "tx_index": 1,
+   "txid": "a16ec67b691110c19e1cce0cf09515d98456bd7453634fb55d550a2f77f5457c",
+   "verified_market": {
+    "build": "KaspaRocket lp-amm v1",
+    "market_id": "a71cb497a15a37d8aef538a75fdc4964216435d4870f836ee10c052928709e7f",
+    "program_hash": "6f3326a49efb10d69057830aa13027fb6a7cb031dd7c1771c6faa3cf88f9c4ee"
+   }
+  },
+  {
+   "accepting_daa": 602725420,
+   "attribution": {
+    "movements": [
+     {
+      "amount": "42595",
+      "owner_from": "covenant:94229b1c5fc4f13c5a1cd79fb9fc708a7e89bd16ffb956c16f8c63ee5a81da5c",
+      "owner_to": "05a0b96e3768d6c140840c1e6147fcc739b0d53936dc0082971f3a1db845025c"
+     }
+    ],
+    "owner_from": "covenant:94229b1c5fc4f13c5a1cd79fb9fc708a7e89bd16ffb956c16f8c63ee5a81da5c",
+    "status": "exact"
+   },
+   "event_kind": "transition",
+   "kind": "split",
+   "market_activity": {
+    "kind": "trade",
+    "market_id": "94229b1c5fc4f13c5a1cd79fb9fc708a7e89bd16ffb956c16f8c63ee5a81da5c",
+    "side": "buy"
+   },
+   "seq": 146,
+   "token_id": "b77cb1a7a9701cc4398edb5be836688feb13463a62f4f57da86104108ecddfe4",
+   "tx_index": 1,
+   "txid": "8642568dd20267dbba6aba7459469531b2961426c5245d9455e45979d82e1548",
+   "verified_market": {
+    "build": "KasForge curve v1",
+    "market_id": "94229b1c5fc4f13c5a1cd79fb9fc708a7e89bd16ffb956c16f8c63ee5a81da5c",
+    "program_hash": "ddf5c8c654c21641dedffbb3796669a871f69166df656ef095b8214ca2da945f"
+   }
+  }
+ ]
+}

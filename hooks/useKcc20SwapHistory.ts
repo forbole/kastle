@@ -7,15 +7,19 @@ import { useFeatureFlags } from "@/hooks/useFeatureFlags";
 import useKcc20Tokens from "@/lib/kcc20/useKcc20Tokens";
 import { ownerStrings, standardOwnerKey } from "@/lib/kcc20/history";
 import {
+  applyBraidTxids,
   applyKcc20SwapMoney,
+  braidCandidateTxids,
   braidPendingRecords,
   buildKcc20SwapRecords,
+  fetchBraidTxids,
   fetchKcc20SwapMoney,
   fetchKcc20SwapTransfers,
   kcc20SwapMoneyTxids,
   kcc20SwapTokenMeta,
 } from "@/lib/activity/kcc20-swap-history";
 import type { Kcc20SwapFamily } from "@/lib/activity/swap-history";
+import type { SwapActivityRecord } from "@/lib/activity/mappers";
 import {
   type PendingBraidSwap,
   getPendingBraidSwaps,
@@ -80,15 +84,17 @@ export function useKcc20SwapHistory(
     };
   }, [on]);
 
-  const built = useMemo((): Kcc20SwapFamily | null => {
+  const built = useMemo(():
+    | (Kcc20SwapFamily & { braidSells: SwapActivityRecord[] })
+    | null => {
     // Until the token list settles a row may not be nameable yet; that is
-    // loading, not an unidentified token.
+    // loading, not an unknown token.
     if (!data || !owners || tokens.isLoading) return null;
     if (!data.tip)
       return {
         swaps: [],
+        braidSells: [],
         health: data.health,
-        unidentified: 0,
         unattributed: 0,
       };
     return {
@@ -116,9 +122,23 @@ export function useKcc20SwapHistory(
     () => fetchKcc20SwapMoney(kaspaAddress!, built!.swaps),
   );
 
-  const family = useMemo(() => {
+  // Which trades went through Braid: a pending record is gone once a trade
+  // settles, so the deposit's own payload says it. Same per-txid read shape.
+  const braidTxids = useMemo(
+    () => (built ? braidCandidateTxids(built.swaps, built.braidSells) : []),
+    [built],
+  );
+  const { data: braid, mutate: mutateBraid } = useSWR(
+    on && braidTxids.length
+      ? ["kcc20-swap-braid", kaspaAddress, ...braidTxids]
+      : null,
+    () => fetchBraidTxids(kaspaAddress!, braidTxids),
+  );
+
+  const family = useMemo((): Kcc20SwapFamily | null => {
     if (!built) return built;
-    const swaps = money ? applyKcc20SwapMoney(built.swaps, money) : built.swaps;
+    const { braidSells, ...rest } = built;
+    const priced = money ? applyKcc20SwapMoney(rest.swaps, money) : rest.swaps;
     const pending =
       ownerKey && braidSwaps.length
         ? braidPendingRecords(
@@ -127,15 +147,19 @@ export function useKcc20SwapHistory(
             kcc20SwapTokenMeta(tokens.data ?? [], data?.holdings ?? []),
           )
         : [];
-    return pending.length || money
-      ? { ...built, swaps: [...pending, ...swaps] }
-      : built;
-  }, [built, money, ownerKey, braidSwaps, tokens.data, data?.holdings]);
+    const swaps = applyBraidTxids(
+      priced,
+      braidSells,
+      braid ?? new Set(),
+      pending,
+    );
+    return { ...rest, swaps: [...pending, ...swaps] };
+  }, [built, money, braid, ownerKey, braidSwaps, tokens.data, data?.holdings]);
 
   return {
     family: on ? family : null,
     // A timed-out money read is not cached, so re-reading retries it even
     // when the rows (and so the money key) are unchanged.
-    refresh: () => Promise.all([mutate(), mutateMoney()]),
+    refresh: () => Promise.all([mutate(), mutateMoney(), mutateBraid()]),
   };
 }

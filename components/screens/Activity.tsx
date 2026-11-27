@@ -84,9 +84,6 @@ const SWAP_SOURCE_MESSAGE: Record<SwapHistoryDegradation, string> = {
   // Not a failure: the rows shown are real, older ones are past the page bound.
   swap_history_kcc20_partial:
     "Only recent KCC-20 swaps are shown — this wallet's KCC-20 history is too long to read in full.",
-  // Rows were read but left out: without the token's decimals no amount can be shown.
-  swap_history_kcc20_unidentified:
-    "Some KCC-20 swaps aren't shown — their token couldn't be identified.",
   // Rows were read but left out: kascov could not attribute the token amount to this wallet.
   swap_history_kcc20_unattributed:
     "Some KCC-20 swaps aren't shown — their amount couldn't be attributed to this wallet.",
