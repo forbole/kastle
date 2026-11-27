@@ -774,6 +774,7 @@ test("KaspaRocket buy (real row) is a row on a cold start: no pool cache, no tok
   expect(await m.fetchBraidTxids(VENUE_WALLET, [GUZA_TXID])).toEqual({
     braid: new Set(),
     unread: 0,
+    deposits: new Map(),
   });
   expect(seen).toHaveLength(1);
 });
@@ -868,6 +869,7 @@ test("Braid buy (real settle): kascov names KasForge's market, the spent deposit
   expect(await m.fetchBraidTxids(VENUE_WALLET, [BRAID_SETTLE_TXID])).toEqual({
     braid: new Set([BRAID_SETTLE_TXID]),
     unread: 0,
+    deposits: new Map(),
   });
   expect(again).toEqual([]);
 });
@@ -935,7 +937,7 @@ test("a Braid read that fails is reported unread, never answered 'not Braid'", a
   // A failure is not cached: the next read answers.
   route([[`${KASPA_TX}${BRAID_SELL_TXID}`, BRAID_SELL_TX]]);
   const up = await m.fetchBraidTxids(VENUE_WALLET, [BRAID_SELL_TXID]);
-  expect(up).toEqual({ braid: new Set([BRAID_SELL_TXID]), unread: 0 });
+  expect(up).toMatchObject({ braid: new Set([BRAID_SELL_TXID]), unread: 0 });
   // The family carries it to the page as a warning of its own.
   const out = m.mergeKcc20SwapHistory(
     { swaps: [], degraded: [] },
@@ -1035,4 +1037,33 @@ test("a pending Braid sell with no token decimals stays pending, never completed
   ].filter((s) => s.txHash === BRAID_SELL_TXID);
   expect(rows.map((s) => s.status)).toEqual(["pending"]);
   expect(sheetOf(rows[0]).transfer.fromSymbol).toBe("BRD");
+});
+
+// ─── Braid swaps complete in the list and the sheet ─────────────────────────
+
+test("Braid sell: the deposit already read gives the row its network fee", async () => {
+  const built = await venueRecords();
+  const seen = route([[`${KASPA_TX}${BRAID_SELL_TXID}`, BRAID_SELL_TX]]);
+  const { braid, deposits } = await m.fetchBraidTxids(VENUE_WALLET, [
+    BRAID_SELL_TXID,
+  ]);
+  // No request beyond the one that names it Braid.
+  expect(seen).toHaveLength(1);
+  // 844387220 in − 842560820 out; router coin = output 1, 1 KAS.
+  expect(deposits.get(BRAID_SELL_TXID)).toEqual({
+    networkFeeSompi: 1826400n,
+    coin: {
+      index: 1,
+      address:
+        "kaspa:ppkq7uays9fjnfyzpxpj0ncz3azksrecsx8z6d7w9rxvxtqxngxts5fkpg2r9",
+      amountSompi: 100000000n,
+    },
+  });
+  const sell = m
+    .applyBraidTxids(built.swaps, built.braidSells, braid, [], deposits)
+    .find((s) => s.txHash === BRAID_SELL_TXID)!;
+  expect(sell).toMatchObject({ feeAmount: "0.018264", feeSymbol: "KAS" });
+  expect(
+    sheetOf(sell).details.find((d) => d.label === "Network fee")?.value,
+  ).toBe("0.018 KAS"); // fmtFee caps the sheet at 3 dp
 });

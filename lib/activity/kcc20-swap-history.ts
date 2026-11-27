@@ -671,8 +671,70 @@ interface BraidReadTx extends Kcc20SwapTx {
 const isBraidDeposit = (tx: BraidReadTx | null) =>
   !!tx?.payload?.toLowerCase().startsWith(BRT1_PAYLOAD);
 
-/** Confirmed transactions never change: true and false are both final. */
-const braidByTx = new Map<string, boolean>();
+/** The router coin a Braid deposit made: what the settle spends. */
+export interface BraidRouterCoin {
+  index: number;
+  address: string;
+  amountSompi: bigint;
+}
+
+/** What a sell's own deposit says, read with no request beyond the one that names it Braid. */
+export interface BraidDeposit {
+  /** inputs − outputs; absent when a plain input is not the wallet's (no guess). */
+  networkFeeSompi?: bigint;
+  coin?: BraidRouterCoin;
+}
+
+/** Confirmed transactions never change: both answers are final. Per address and txid. */
+const braidByTx = new Map<string, { braid: boolean; deposit?: BraidDeposit }>();
+
+/**
+ * The index of a deposit's router coin: its one plain P2SH output (Braid's
+ * verifyDeposit admits no other — the note and token change carry a
+ * covenant, the KAS change is the depositor's P2PK).
+ * ponytail: structural, not re-derived; re-deriving the coin's script needs
+ * the router program bytes, which only the node-only recover module embeds.
+ */
+function routerCoinIndex(tx: BraidReadTx): number | undefined {
+  const outs = tx.outputs ?? [];
+  const coins = outs.flatMap((o, i) =>
+    !covenantOf(o) && o.script_public_key_address?.startsWith("kaspa:p")
+      ? [i]
+      : [],
+  );
+  return coins.length === 1 ? coins[0] : undefined;
+}
+
+/** The deposit's fee (when the wallet alone funded it) and its router coin. */
+function braidDeposit(tx: BraidReadTx, address: string): BraidDeposit {
+  const out: BraidDeposit = {};
+  const index = routerCoinIndex(tx);
+  const o = index === undefined ? undefined : tx.outputs![index];
+  const amount = sompi(o?.amount);
+  if (index !== undefined && o?.script_public_key_address && amount !== null)
+    out.coin = {
+      index,
+      address: o.script_public_key_address,
+      amountSompi: amount,
+    };
+  let fee = 0n;
+  for (const i of tx.inputs ?? []) {
+    const a = sompi(i?.previous_outpoint_amount);
+    if (
+      a === null ||
+      (!covenantOf(i) && i.previous_outpoint_address !== address)
+    )
+      return out;
+    fee += a;
+  }
+  for (const o of tx.outputs ?? []) {
+    const a = sompi(o?.amount);
+    if (a === null) return out;
+    fee -= a;
+  }
+  if (tx.inputs?.length && fee >= 0n) out.networkFeeSompi = fee;
+  return out;
+}
 
 /**
  * Txids to ask fetchBraidTxids about: every chain buy (Braid settles a buy at
@@ -692,26 +754,15 @@ export function braidCandidateTxids(
   );
 }
 
-/**
- * A deposit's router coin is the output `i` spends: the deposit's one plain
- * P2SH output (Braid's verifyDeposit admits no other — the note and token
- * change carry a covenant, the KAS change is the depositor's P2PK).
- * ponytail: structural, not re-derived; re-deriving the coin's script needs
- * the router program bytes, which only the node-only recover module embeds.
- */
+/** Input `i` spends `parent`'s router coin (routerCoinIndex). */
 function spendsRouterCoin(parent: BraidReadTx, i: MoneyTxInput): boolean {
   if (!isBraidDeposit(parent)) return false;
-  const outs = parent.outputs ?? [];
-  const coins = outs.filter(
-    (o) =>
-      !covenantOf(o) && !!o.script_public_key_address?.startsWith("kaspa:p"),
-  );
-  const o = outs[Number(i.previous_outpoint_index)];
+  const index = Number(i.previous_outpoint_index);
+  const o = parent.outputs?.[index];
   return (
-    coins.length === 1 &&
-    o === coins[0] &&
-    o.script_public_key_address === i.previous_outpoint_address &&
-    o.amount === i.previous_outpoint_amount
+    routerCoinIndex(parent) === index &&
+    o?.script_public_key_address === i.previous_outpoint_address &&
+    o?.amount === i.previous_outpoint_amount
   );
 }
 
@@ -720,6 +771,8 @@ export interface BraidReadResult {
   braid: Set<string>;
   /** Txids whose transaction (or a parent) could not be read: unknown, not "not Braid". */
   unread: number;
+  /** The sells' own deposits, by txid: what was read to name them, kept. */
+  deposits: Map<string, BraidDeposit>;
 }
 
 /**
@@ -736,14 +789,17 @@ export async function fetchBraidTxids(
   txids: readonly string[],
 ): Promise<BraidReadResult> {
   const out = new Set<string>();
+  const deposits = new Map<string, BraidDeposit>();
   let unread = 0;
   await Promise.allSettled(
     txids.map(async (txid) => {
-      let braid = braidByTx.get(txid);
-      if (braid === undefined) {
+      const key = `${address}:${txid}`;
+      let hit = braidByTx.get(key);
+      if (hit === undefined) {
         const tx = (await fetchKaspaTx(txid)) as BraidReadTx | null;
         if (!tx) return void unread++;
-        braid = isBraidDeposit(tx);
+        let braid = isBraidDeposit(tx);
+        const deposit = braid ? braidDeposit(tx, address) : undefined;
         const parents = new Map<string, MoneyTxInput[]>();
         for (const i of tx.inputs ?? []) {
           const id = i.previous_outpoint_hash;
@@ -757,12 +813,14 @@ export async function fetchBraidTxids(
           if (!parent) return void unread++;
           braid = spends.some((i) => spendsRouterCoin(parent, i));
         }
-        braidByTx.set(txid, braid);
+        hit = { braid, ...(deposit ? { deposit } : {}) };
+        braidByTx.set(key, hit);
       }
-      if (braid) out.add(txid);
+      if (hit.braid) out.add(txid);
+      if (hit.deposit) deposits.set(txid, hit.deposit);
     }),
   );
-  return { braid: out, unread };
+  return { braid: out, unread, deposits };
 }
 
 /**
@@ -776,6 +834,7 @@ export function applyBraidTxids(
   braidSells: readonly SwapActivityRecord[],
   braid: ReadonlySet<string>,
   pending: readonly SwapActivityRecord[] = [],
+  deposits: ReadonlyMap<string, BraidDeposit> = new Map(),
 ): SwapActivityRecord[] {
   const shown = new Set(pending.map((p) => p.txHash));
   return [
@@ -784,7 +843,19 @@ export function applyBraidTxids(
         ? { ...s, providerId: BRAID_PROVIDER.id }
         : s,
     ),
-    ...braidSells.filter((s) => s.txHash && braid.has(s.txHash)),
+    ...braidSells
+      .filter((s) => s.txHash && braid.has(s.txHash))
+      .map((s) => {
+        // The deposit's own fee: read already, so the row never dashes it.
+        const fee = deposits.get(s.txHash!)?.networkFeeSompi;
+        return fee === undefined
+          ? s
+          : {
+              ...s,
+              feeAmount: formatUnits(fee, KAS_DECIMALS),
+              feeSymbol: "KAS",
+            };
+      }),
   ].filter((s) => !s.txHash || !shown.has(s.txHash));
 }
 

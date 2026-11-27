@@ -152,6 +152,7 @@ export function useKcc20SwapHistory(
       braidSells,
       braid?.braid ?? new Set(),
       pending,
+      braid?.deposits,
     );
     // An unread candidate may be a Braid sell this list cannot show yet.
     return {
