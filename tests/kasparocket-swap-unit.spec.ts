@@ -10,7 +10,10 @@ import {
   type TransactionPlan,
 } from "@kasparocket/sdk";
 import { bytesToHex, hexToBytes } from "viem";
-import { planDigests } from "@/lib/kasparocket/adapter";
+import {
+  KaspaRocketTooManyCellsError,
+  planDigests,
+} from "@/lib/kasparocket/adapter";
 import {
   resighed,
   syntheticBuyPlan,
@@ -180,6 +183,84 @@ test.describe("kastleKaspaRocketSigner", () => {
     expect((plan.transactions[0].tx.inputs as any[])[0].signatureScript).toBe(
       "",
     );
+  });
+
+  test("signs a buy spending 19 plain KAS coins, every one of them", async () => {
+    // The synthetic buy plus 18 more 10 KAS wallet coins, their KAS back as
+    // change: fee and debit unchanged. A wallet of ~19 coins hit
+    // "19 inputs, more than 10" here.
+    const base = planOf();
+    const tx = JSON.parse(JSON.stringify(base.transactions[0].tx));
+    const ins = [...base.transactions[0].signingInstructions];
+    for (let k = 0; k < 18; k++) {
+      tx.inputs.push({
+        ...tx.inputs[0],
+        transactionId: (k + 16).toString(16).repeat(32),
+        utxo: { ...tx.inputs[0].utxo, amount: "1000000000" },
+      });
+      ins.push({
+        inputIndex: tx.inputs.length - 1,
+        kind: "p2pkh",
+        sigscript: null,
+        sigOffsets: [],
+      });
+    }
+    tx.outputs[2].value = String(
+      BigInt(tx.outputs[2].value) + 18n * 1_000_000_000n,
+    );
+    const plan = resighed({
+      ...base,
+      transactions: [{ tx, signingInstructions: ins }],
+    } as TransactionPlan);
+
+    const sd = fakeSignDigest(plan);
+    const [signed] = await kastleKaspaRocketSigner(
+      sd.fn,
+      fixture.xOnlyPk,
+      guardOf(),
+    ).signPlan(plan);
+    const digests = planDigests(plan);
+    const wallet = ins
+      .filter((i) => i.kind === "p2pkh")
+      .map((i) => i.inputIndex);
+    expect(wallet).toHaveLength(19);
+    expect(sd.calls).toHaveLength(19);
+    for (const i of wallet) {
+      const s = (signed.inputs as { signatureScript: string }[])[i]
+        .signatureScript;
+      const { digest } = digests.find((d) => d.inputIndex === i)!;
+      expect(schnorr.verify(s.slice(2, 130), digest, fixture.xOnlyPk)).toBe(
+        true,
+      );
+    }
+  });
+
+  test("refuses a sell spending more than 10 token cells, before the key", async () => {
+    const plan = planOf((t) => {
+      const cell = {
+        ...t.inputs[1],
+        utxo: { ...t.inputs[1].utxo, covenantId: fixture.tokenId },
+      };
+      t.inputs.push(...Array.from({ length: 10 }, () => cell));
+    });
+    const sd = fakeSignDigest(plan);
+    const result = kastleKaspaRocketSigner(
+      sd.fn,
+      fixture.xOnlyPk,
+      guardOf({
+        quote: quoteOf({ direction: "sell", netKasSompi: 103_000_000n }),
+        trade: {
+          tokenId: fixture.tokenId,
+          direction: "sell",
+          amountIn: BigInt(fixture.quote.amountTokens),
+        },
+      }),
+    ).signPlan(plan);
+    await expect(result).rejects.toThrow(KaspaRocketTooManyCellsError);
+    await expect(result).rejects.toThrow(
+      /at most 10 in one swap, and Kastle can't merge them yet/,
+    );
+    expect(sd.calls).toEqual([]);
   });
 
   test("★ refuses the synthetic buy whose token cell no program binds", async () => {

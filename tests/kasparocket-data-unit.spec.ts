@@ -6,6 +6,7 @@ import ts from "typescript";
 import { test, expect } from "@playwright/test";
 import { KaspaRocketError, type TransactionPlan } from "@kasparocket/sdk";
 import {
+  KaspaRocketTooManyCellsError,
   KaspaRocketTxFormatError,
   kasparocketPlanToTx,
   planDigests,
@@ -125,11 +126,29 @@ test.describe("adapter", () => {
     });
   }
 
-  test("refuses more than 10 inputs", () => {
+  test("reads a buy spending 19 plain KAS coins: only covenant inputs are capped", () => {
     const tx = planOf((t) => {
-      t.inputs = Array.from({ length: 11 }, () => t.inputs[0]);
+      t.inputs = Array.from({ length: 19 }, () => t.inputs[0]);
     }).transactions[0].tx;
-    expect(() => kasparocketPlanToTx(tx)).toThrow(/11 inputs, more than 10/);
+    expect(kasparocketPlanToTx(tx).inputs).toHaveLength(19);
+  });
+
+  test("refuses 11 covenant inputs with the user's copy, reads 10", () => {
+    const cells = (n: number) =>
+      planOf((t) => {
+        const cell = {
+          ...t.inputs[1],
+          utxo: { ...t.inputs[1].utxo, covenantId: fixture.tokenId },
+        };
+        t.inputs = [t.inputs[0], ...Array.from({ length: n }, () => cell)];
+      }).transactions[0].tx;
+    expect(() => kasparocketPlanToTx(cells(11))).toThrow(
+      KaspaRocketTooManyCellsError,
+    );
+    expect(() => kasparocketPlanToTx(cells(11))).toThrow(
+      "This sale spends your tokens from too many separate pieces: KaspaRocket takes at most 10 in one swap, and Kastle can't merge them yet. Try selling a smaller amount.",
+    );
+    expect(kasparocketPlanToTx(cells(10)).inputs).toHaveLength(11);
   });
 
   test("planDigests: one v1 SIGHASH_ALL digest per instruction, equal to the frozen vector", () => {

@@ -10,7 +10,7 @@ import {
   type TransactionPlan,
 } from "@kasparocket/sdk";
 import { bytesToHex } from "viem";
-import { KASPAROCKET_MAX_INPUTS } from "./config";
+import { KASPAROCKET_MAX_COVENANT_INPUTS } from "./config";
 
 /**
  * A KaspaRocket plan's transaction as @dotk/sdk-tx's Tx, read from the
@@ -40,6 +40,25 @@ export class KaspaRocketTxFormatError extends Error {
   constructor(message: string) {
     super(`KaspaRocket transaction refused: ${message}`);
     this.name = "KaspaRocketTxFormatError";
+  }
+}
+
+/**
+ * A plan spending more covenant inputs than KaspaRocket takes in one
+ * transaction: a sell of a holding split across too many token cells. Its
+ * message is the user's copy, shown as is on the swap screen; the wallet has
+ * no way to merge cells (Optimize funds leaves covenant coins alone).
+ */
+export class KaspaRocketTooManyCellsError extends KaspaRocketTxFormatError {
+  constructor(public readonly cells: number) {
+    super(
+      `${cells} covenant inputs, more than ${KASPAROCKET_MAX_COVENANT_INPUTS}`,
+    );
+    this.name = "KaspaRocketTooManyCellsError";
+    this.message =
+      `This sale spends your tokens from too many separate pieces: KaspaRocket ` +
+      `takes at most ${KASPAROCKET_MAX_COVENANT_INPUTS} in one swap, and Kastle ` +
+      `can't merge them yet. Try selling a smaller amount.`;
   }
 }
 
@@ -212,7 +231,10 @@ function outputOf(x: unknown, i: number, inputCount: number): TxOutput {
   return out;
 }
 
-/** One planned transaction's `tx` as a Tx, at most `KASPAROCKET_MAX_INPUTS` inputs. */
+/**
+ * One planned transaction's `tx` as a Tx, at most
+ * `KASPAROCKET_MAX_COVENANT_INPUTS` of its inputs covenant coins.
+ */
 export function kasparocketPlanToTx(tx: PlannedTransaction["tx"]): Tx {
   const t = only(
     tx,
@@ -235,12 +257,11 @@ export function kasparocketPlanToTx(tx: PlannedTransaction["tx"]): Tx {
   if (t.storageMass !== undefined) u64(t.storageMass, "storageMass");
   if (!Array.isArray(t.inputs) || !t.inputs.length) fail("no inputs");
   if (!Array.isArray(t.outputs) || !t.outputs.length) fail("no outputs");
-  if ((t.inputs as unknown[]).length > KASPAROCKET_MAX_INPUTS) {
-    fail(
-      `${(t.inputs as unknown[]).length} inputs, more than ${KASPAROCKET_MAX_INPUTS}`,
-    );
-  }
   const inputs = (t.inputs as unknown[]).map(inputOf);
+  const cells = inputs.filter((i) => i.utxo?.covenantId).length;
+  if (cells > KASPAROCKET_MAX_COVENANT_INPUTS) {
+    throw new KaspaRocketTooManyCellsError(cells);
+  }
   return {
     version: int(t.version, 0xffff, "version"),
     inputs,
