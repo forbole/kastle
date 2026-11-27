@@ -18,6 +18,22 @@ const kcc20 = (txid: string, tokenId: string) => ({
   status: "completed" as const,
 });
 
+// A KaspaRocket sell of a token the wallet names (verified-list ticker) but no
+// source scales — e.g. one no longer held: its amount is the unobserved sentinel.
+export const GUZA_ID =
+  "3cb7bd371ea2014af95f3471d2995ede8ffbde454d3a37e3b566880daf011c5a";
+export const UNSCALED: SwapActivityRecord[] = [
+  {
+    ...kcc20("aa".repeat(32), GUZA_ID),
+    timestampMs: at(2026, 11, 27, 9, 0),
+    fromSymbol: "GUZA",
+    toSymbol: "KAS",
+    fromAmount: "0",
+    toAmount: "1.5",
+    providerId: "kasparocket",
+  },
+];
+
 export const RECORDS: SwapActivityRecord[] = [
   {
     ...kcc20(
@@ -86,3 +102,29 @@ export const RECORDS: SwapActivityRecord[] = [
     feeSymbol: "KAS",
   },
 ];
+
+// Sheet-title cases (activity-money.spec.ts): an explorer KCC-20 row whose KAS
+// leg is not yet read and whose token has no decimals carries both amounts "0",
+// so only meta names the token.
+const titleCase = (
+  fromSymbol: string,
+  toSymbol: string,
+  fromAmount: string,
+  toAmount: string,
+): SwapActivityRecord[] => [
+  {
+    ...kcc20("bb".repeat(32), GUZA_ID),
+    timestampMs: at(2026, 11, 27, 10, 0),
+    fromSymbol,
+    toSymbol,
+    fromAmount,
+    toAmount,
+    providerId: "kasparocket",
+  },
+];
+export const TITLE_CASES: Record<string, SwapActivityRecord[]> = {
+  both: titleCase("KAS", "GUZA", "1.5", "42"),
+  onlyTo: titleCase("KAS", "GUZA", "0", "0"),
+  onlyFrom: titleCase("GUZA", "KAS", "0", "0"),
+  neither: titleCase("", "", "0", "0"),
+};

@@ -150,10 +150,15 @@ export function useKcc20SwapHistory(
     const swaps = applyBraidTxids(
       priced,
       braidSells,
-      braid ?? new Set(),
+      braid?.braid ?? new Set(),
       pending,
     );
-    return { ...rest, swaps: [...pending, ...swaps] };
+    // An unread candidate may be a Braid sell this list cannot show yet.
+    return {
+      ...rest,
+      swaps: [...pending, ...swaps],
+      braidUnread: braid?.unread ?? 0,
+    };
   }, [built, money, braid, ownerKey, braidSwaps, tokens.data, data?.holdings]);
 
   return {

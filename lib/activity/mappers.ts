@@ -89,7 +89,16 @@ export function mapSwapActivity(s: SwapActivityRecord): ActivityRowDescriptor {
   const meta: Record<string, string> = {};
   if (s.txHash) meta.txHash = s.txHash;
   if (s.providerId) meta.providerId = s.providerId;
-  if (s.tokenId) meta.tokenId = s.tokenId;
+  if (s.tokenId) {
+    meta.tokenId = s.tokenId;
+    // A KCC-20 token leg whose amount was not read (no decimals) still names
+    // its token: the leg is left out, its symbol is not. The KAS leg keeps
+    // its placeholder; only the token side is named by tokenId.
+    if (!sent && s.fromSymbol && s.fromSymbol !== "KAS")
+      meta.fromSymbol = s.fromSymbol;
+    if (!received && s.toSymbol && s.toSymbol !== "KAS")
+      meta.toSymbol = s.toSymbol;
+  }
   // Provider Fees: the network (gas) fee the swap tx paid.
   if (s.feeAmount && s.feeSymbol) {
     meta.fee = `${trimDecimal(Number(s.feeAmount))} ${s.feeSymbol}`;

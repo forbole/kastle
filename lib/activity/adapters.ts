@@ -135,11 +135,18 @@ export function rowTitle(row: ActivityRowDescriptor): string {
   return isInProgress(row) ? "Bridging" : "Bridged";
 }
 
+/** A leg's symbol: its amount's, or a named KCC-20 token leg whose amount was not read. */
+const fromSymbolOf = (row: ActivityRowDescriptor) =>
+  symbolText(row.sent?.symbol ?? row.meta?.fromSymbol);
+const toSymbolOf = (row: ActivityRowDescriptor) =>
+  symbolText(row.received?.symbol ?? row.meta?.toSymbol);
+
 function sheetTitle(row: ActivityRowDescriptor): string {
   if (row.type === SWAP_ACTIVITY_TYPE) {
-    return row.sent?.symbol && row.received?.symbol
-      ? `Swap ${row.sent.symbol} → ${row.received.symbol}`
-      : "Swap";
+    const from = fromSymbolOf(row);
+    const to = toSymbolOf(row);
+    // One unread side keeps the other's name; "-" as the leg rows render it.
+    return from || to ? `Swap ${from ?? "-"} → ${to ?? "-"}` : "Swap";
   }
   if (row.type === KURVE_BRIDGE_ACTIVITY_TYPE) {
     return row.meta?.route === "l1-to-l2"
@@ -394,8 +401,8 @@ export function toActivityItem(
       ? kasplexMainnet.icon
       : (CHAIN_LOGOS[row.meta?.l2Chain ?? "Igra"] ?? igraMainnet.icon);
   const intoL2 = row.meta?.route === "l1-to-l2";
-  const fromAsset = symbolText(row.sent?.symbol);
-  const toAsset = symbolText(row.received?.symbol);
+  const fromAsset = fromSymbolOf(row);
+  const toAsset = toSymbolOf(row);
   const fromImage = fromAsset ? deps.logoFor(fromAsset) : undefined;
   const toImage = toAsset ? deps.logoFor(toAsset) : undefined;
 

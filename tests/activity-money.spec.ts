@@ -135,3 +135,46 @@ test("item 3: list and sheet fiat lines use two decimals at or above $0.01", asy
   for (const line of sheetFiat) expect(line).not.toMatch(/\.\d{5,}/);
   expect(errors).toEqual([]);
 });
+
+test("a named token with no decimals shows its name on the sheet, its amount absent", async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.setViewportSize({ width: 375, height: 600 });
+  await page.goto(`${base}/?unscaled`);
+  await page.getByText("+1.5").click();
+  const sheet = await page.locator("dialog").innerText();
+  console.log(`SHEET ─────\n${sheet}\n─────`);
+  const lines = sheet
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+  expect(lines[0]).toBe("Swap GUZA → KAS");
+  // The Paid leg: no amount was read, so "-" — but the token is named, not "-".
+  const paid = lines.indexOf("Paid");
+  expect(lines.slice(paid, paid + 3)).toEqual(["Paid", "-", "GUZA"]);
+  // Never "0 GUZA" for an amount nobody read.
+  expect(sheet).not.toMatch(/\b0 GUZA\b/);
+  expect(errors).toEqual([]);
+});
+
+// A missing side reads "-" (as an unread leg amount does); a lone name is kept.
+for (const [name, title] of [
+  ["both", "Swap KAS → GUZA"],
+  ["onlyTo", "Swap - → GUZA"],
+  ["onlyFrom", "Swap GUZA → -"],
+  ["neither", "Swap"],
+] as const) {
+  test(`sheet title, ${name}: ${title}`, async ({ page }) => {
+    const errors: string[] = [];
+    page.on("pageerror", (e) => errors.push(e.message));
+    await page.setViewportSize({ width: 375, height: 600 });
+    await page.goto(`${base}/?case=${name}`);
+    await page.locator("button:has(> div.relative.size-10)").first().click();
+    const sheet = await page.locator("dialog").innerText();
+    console.log(`SHEET ${name} ─────\n${sheet}\n─────`);
+    expect(sheet.split("\n")[0].trim()).toBe(title);
+    expect(errors).toEqual([]);
+  });
+}
