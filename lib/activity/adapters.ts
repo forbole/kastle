@@ -126,6 +126,10 @@ const RATE = new Intl.NumberFormat("en-US", { maximumFractionDigits: 6 });
 
 export function formatDateTime(timestampMs: number): string {
   const d = new Date(timestampMs);
+  // Intl.DateTimeFormat.format throws RangeError on an invalid date where
+  // toLocale*String printed "Invalid Date"; Igra rows carry an unvalidated
+  // REST timestamp, so keep the old harmless text instead of a render crash.
+  if (Number.isNaN(d.getTime())) return "Invalid Date｜Invalid Date";
   const date = (
     d.getFullYear() !== new Date().getFullYear() ? DATE_YEAR : DATE
   ).format(d);

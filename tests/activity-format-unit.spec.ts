@@ -10,7 +10,8 @@ import { pathToFileURL } from "node:url";
 // on, and dates this year and before.
 type Modules = typeof import("@/lib/utils") &
   typeof import("@/lib/activity/format") &
-  typeof import("@/lib/activity/adapters");
+  typeof import("@/lib/activity/adapters") &
+  typeof import("@/lib/activity/mappers");
 let m: Modules;
 
 test.beforeAll(async () => {
@@ -22,6 +23,7 @@ test.beforeAll(async () => {
         "@/lib/utils",
         "@/lib/activity/format",
         "@/lib/activity/adapters",
+        "@/lib/activity/mappers",
       ]
         .map((p) => `export * from ${JSON.stringify(p)};`)
         .join("\n"),
@@ -144,4 +146,49 @@ test("formatDateTime: same text as toLocale*String, this year and earlier", () =
   );
   for (const t of [...stamps, ...stamps])
     expect(m.formatDateTime(t)).toBe(oldDateTime(t));
+});
+
+// ─── every cached formatter is total: bad input prints, never throws ──────
+
+const noDeps = { logoFor: () => undefined, priceFor: () => undefined };
+
+test("an unparseable Igra accepting_block_time renders its row, does not throw", () => {
+  for (const accepting_block_time of [undefined, null, "garbage", NaN, 9e15]) {
+    const row = m.mapIgraDepositActivity({
+      txId: "97b1aa",
+      evmAddress: "0x151e6413aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      amountSompi: 972_500_000,
+      entryOutSompi: 972_500_000,
+      kastleFeeSompi: 0,
+      // igra-deposit-history copies the REST field through unchecked.
+      timestampMs: accepting_block_time as unknown as number,
+      accepted: true,
+    });
+    const item = m.toActivityItem(row, noDeps);
+    // null is epoch to Date, the rest are invalid: same text either way.
+    expect(item.dateTime).toBe(oldDateTime(row.timestampMs));
+    expect(item.sheet.subtitle).toBe(item.dateTime);
+  }
+});
+
+test("amount, fiat and rate formatters print the old text for non-finite input", () => {
+  for (const v of [NaN, Infinity, -Infinity, undefined as unknown as number])
+    expect(m.formatFiatAmount(v)).toBe(oldFiat(v));
+  for (const s of ["NaN", "Infinity", "-Infinity", "1e400", "0x"])
+    expect(m.fmtAmount(s)).toBe(oldAmount(s));
+  // received / sent overflows to Infinity: the per-call RATE printed "∞".
+  const swap = m.mapSwapActivity({
+    id: "s",
+    timestampMs: Date.UTC(2026, 0, 1),
+    fromSymbol: "KAS",
+    toSymbol: "iKAS",
+    fromAmount: "5e-324",
+    toAmount: "1e308",
+    status: "completed",
+  });
+  const rate = m
+    .toActivityItem(swap, noDeps)
+    .sheet.details.find((d) => d.label === "Rate");
+  const old = new Intl.NumberFormat("en-US", { maximumFractionDigits: 6 });
+  expect(rate?.value).toBe(`1 KAS ≈ ${old.format(Infinity)} iKAS`);
 });
