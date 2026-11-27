@@ -961,6 +961,23 @@ test("a deposit read without its outputs is unread, never a network fee", async 
   expect(up.deposits.get(BRAID_SELL_TXID)?.networkFeeSompi).toBe(1826400n);
 });
 
+test("a deposit read without an amount is unread, never cached without its fee", async () => {
+  const noInAmount = structuredClone(BRAID_SELL_TX);
+  delete noInAmount.inputs[0].previous_outpoint_amount;
+  const noOutAmount = structuredClone(BRAID_SELL_TX);
+  delete noOutAmount.outputs[0].amount;
+  for (const tx of [noInAmount, noOutAmount]) {
+    route([[`${KASPA_TX}${BRAID_SELL_TXID}`, tx]]);
+    const r = await m.fetchBraidTxids(VENUE_WALLET, [BRAID_SELL_TXID]);
+    expect(r.deposits.has(BRAID_SELL_TXID)).toBe(false);
+    expect(r.unread).toBe(1);
+  }
+  // Not cached: the whole transaction, read next, gives the fee.
+  route([[`${KASPA_TX}${BRAID_SELL_TXID}`, BRAID_SELL_TX]]);
+  const up = await m.fetchBraidTxids(VENUE_WALLET, [BRAID_SELL_TXID]);
+  expect(up.deposits.get(BRAID_SELL_TXID)?.networkFeeSompi).toBe(1826400n);
+});
+
 test("a BRT1 parent is Braid only through its router coin, not another output", async () => {
   // Someone else's Braid deposit change (a plain P2PK output of a BRT1
   // transaction) spent by the settle: the deposit is real, the coin is not its router's.
@@ -1230,6 +1247,22 @@ test("Braid sell: no accepted spender is Pending, never Completed", async () => 
   // Not cached: once accepted, the next read finds it.
   const { row: later } = await braidSell(BRAID_SELL_COIN);
   expect(later.status).toBe("completed");
+});
+
+test("Braid sell: an accepted spender listed without its inputs is unread, never Pending", async () => {
+  for (const inputs of [undefined, [{ previous_outpoint_index: "0" }]]) {
+    m.clearKcc20SwapMoneyCache();
+    const listing = BRAID_SELL_COIN.map((t: { transaction_id: string }) =>
+      t.transaction_id === BRAID_SELL_TXID ? t : { ...t, inputs },
+    );
+    const { settles, unread, deposits } = await braidSell(listing);
+    expect(settles.has(BRAID_SELL_TXID)).toBe(false);
+    expect(unread).toBe(1);
+    // Not cached: the whole listing, read next, answers.
+    route([[KASPA_ADDR, BRAID_SELL_COIN]]);
+    const again = await m.fetchBraidSellSettles(VENUE_WALLET, deposits);
+    expect(again.settles.get(BRAID_SELL_TXID)?.state).toBe("done");
+  }
 });
 
 test("Braid sell: a refund is proven by the spend; a sale under its fees is never Failed; a batched one is refused", async () => {

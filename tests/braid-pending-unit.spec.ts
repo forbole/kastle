@@ -20,7 +20,7 @@ const REF = "ref-1";
  * A fresh evaluation of the real source each call: new module-scope Maps,
  * as when the popup closes and opens again. Its only imports are types.
  */
-function loadPending(): PendingModule {
+function loadPending(scope: Record<string, unknown> = {}): PendingModule {
   const { outputText } = ts.transpileModule(SOURCE, {
     compilerOptions: {
       module: ts.ModuleKind.CommonJS,
@@ -28,12 +28,20 @@ function loadPending(): PendingModule {
     },
   });
   const module = { exports: {} as PendingModule };
-  new Function("require", "module", "exports", outputText)(
+  // `scope` shadows globals (Date, setTimeout…) for this evaluation alone.
+  new Function(
+    "require",
+    "module",
+    "exports",
+    ...Object.keys(scope),
+    outputText,
+  )(
     (id: string) => {
       throw new Error(`unexpected runtime import ${id}`);
     },
     module,
     module.exports,
+    ...Object.values(scope),
   );
   return module.exports;
 }
@@ -326,16 +334,28 @@ test.describe("subscribeBraidSwaps", () => {
       onSettle: () => {},
       braid: stubBraid().braid,
     });
-    stored(data).swaps[REF].startedAt = Date.now() - WINDOW_MS + 50;
-
-    const m = loadPending();
+    // A controlled clock: the swap is live until `now` is moved, however
+    // long transpiling and the subscription's first read take.
+    let now = Date.now();
+    stored(data).swaps[REF].startedAt = now - WINDOW_MS + 1_000;
+    const timers: { fn: () => void; ms: number }[] = [];
+    const m = loadPending({
+      Date: { now: () => now },
+      setTimeout: (fn: () => void, ms: number) => timers.push({ fn, ms }),
+      clearTimeout: () => {},
+    });
     expect(await m.getPendingBraidSwaps()).toHaveLength(1);
     const seen: number[] = [];
     const off = m.subscribeBraidSwaps(
       () => void m.getPendingBraidSwaps().then((w) => seen.push(w.length)),
     );
-    await new Promise((r) => setTimeout(r, 200));
-    expect(seen).toEqual([0]);
+    // Armed for the window's end, nothing called yet.
+    await expect.poll(() => timers.length).toBe(1);
+    expect(timers[0].ms).toBe(1_000);
+    expect(seen).toEqual([]);
+    now += 1_000;
+    timers[0].fn();
+    await expect.poll(() => seen).toEqual([0]);
     off();
   });
 });

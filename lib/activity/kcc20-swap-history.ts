@@ -585,12 +585,18 @@ function readTx(txid: string): Promise<BraidReadTx | null> {
   let p = txById.get(txid);
   if (!p) {
     p = fetchKaspaTx(txid).then(
-      (tx) => {
-        // A transaction without its input list or outputs is an incomplete
-        // answer, not one with none: unread, so the next ask re-reads it.
-        const whole = Array.isArray(tx?.inputs) && !!tx?.outputs?.length;
+      (got) => {
+        // A transaction without its input list, its outputs or any amount in
+        // them is an incomplete answer, not one with none: unread, so the
+        // next ask re-reads it.
+        const tx = got as BraidReadTx | null | undefined;
+        const whole =
+          Array.isArray(tx?.inputs) &&
+          !!tx?.outputs?.length &&
+          tx.inputs.every((i) => sompi(i?.previous_outpoint_amount) !== null) &&
+          tx.outputs.every((o) => sompi(o?.amount) !== null);
         if (!whole) txById.delete(txid);
-        return whole ? (tx as BraidReadTx) : null;
+        return whole ? tx! : null;
       },
       () => {
         txById.delete(txid);
@@ -945,10 +951,23 @@ export function deriveBraidSellSettle(
   const settle = listed.find(
     (t) => t.is_accepted === true && t.inputs?.some(spendsCoin),
   );
-  // "Open" only from a listing that holds the deposit: an empty or lagging
-  // one proves nothing, so the sell is unread instead.
+  // "Open" only from a listing that holds the deposit and every accepted
+  // transaction's whole input list: an empty or lagging one, or a spender
+  // listed without its inputs, proves nothing, so the sell is unread instead.
   if (!settle)
-    return listed.some((t) => t.transaction_id === depositTxid) ? OPEN : null;
+    return listed.some((t) => t.transaction_id === depositTxid) &&
+      listed.every(
+        (t) =>
+          t.is_accepted !== true ||
+          (Array.isArray(t.inputs) &&
+            t.inputs.every(
+              (i) =>
+                typeof i?.previous_outpoint_hash === "string" &&
+                i.previous_outpoint_index != null,
+            )),
+      )
+      ? OPEN
+      : null;
   // A settle listed without its outputs is incomplete, not one that paid
   // nothing (that would derive a refund, cached for good): unread.
   if (!settle.outputs?.length) return null;
