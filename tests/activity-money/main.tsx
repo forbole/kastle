@@ -8,7 +8,7 @@ import { RECORDS } from "./records";
 
 (window as unknown as { __feed: unknown }).__feed = {
   rows: RECORDS.map(mapSwapActivity),
-  swapSource: ["swap_history_kcc20_unidentified"],
+  swapSource: ["swap_history_kcc20_unattributed"],
   bridgeSource: null,
   depositSource: null,
   kurveSource: null,

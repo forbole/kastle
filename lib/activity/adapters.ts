@@ -324,7 +324,9 @@ export function buildDetails(row: ActivityRowDescriptor): DetailRow[] {
       : undefined;
     const providerName =
       provider?.name ??
-      (row.meta?.providerId ? swapVenueName(row.meta.providerId) : null);
+      (row.meta?.providerId ? swapVenueName(row.meta.providerId) : null) ??
+      // A Kaspa L1 swap whose venue nothing names is still a swap: say so.
+      (row.meta?.l2Chain === "Kaspa" ? "Unknown" : null);
     if (providerName) {
       details.push({
         label: "Provider",

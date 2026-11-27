@@ -307,7 +307,7 @@ test("a trade with no attributed token amount is dropped and counted, never 0", 
   }
 });
 
-test("a token no source names is counted unidentified", async () => {
+test("a token no source names is still a row: unknown symbol, no token amount", async () => {
   route([
     [`${KASCOV}/addr/`, holdingsDoc],
     ["before_daa=", { transfers: [] }],
@@ -320,8 +320,13 @@ test("a token no source names is counted unidentified", async () => {
     tip: TIP,
     tokens: new Map(),
   });
-  expect(built.swaps).toEqual([]);
-  expect(built.unidentified).toBeGreaterThan(0);
+  expect(built.swaps.length).toBeGreaterThan(0);
+  for (const s of built.swaps) {
+    const token = s.fromSymbol === "KAS" ? s.toSymbol : s.fromSymbol;
+    expect(token).toBe(m.UNKNOWN_TOKEN_SYMBOL);
+    // The sentinel, never base units dressed as display units.
+    expect(s.fromSymbol === "KAS" ? s.toAmount : s.fromAmount).toBe("0");
+  }
 });
 
 test("kascov down: unreachable, no rows", async () => {
@@ -450,7 +455,6 @@ test("merge: an unreachable KCC-20 family keeps the EVM rows and adds its own to
   const out = m.mergeKcc20SwapHistory(evm(), {
     swaps: [],
     health: "unreachable",
-    unidentified: 0,
     unattributed: 0,
   });
   expect(out.swaps.map((s) => s.id)).toEqual(["0xevm"]);
@@ -467,14 +471,12 @@ test("merge: a malformed KCC-20 row is skipped and counted, the rest survive", (
     {
       swaps: [bad, buyRow()],
       health: "truncated",
-      unidentified: 1,
       unattributed: 0,
     },
   );
   expect(out.swaps.map((s) => s.id)).toEqual([`kcc20:${BUY_TXID}:14`]);
   expect(out.degraded).toEqual([
     "swap_history_kcc20_partial",
-    "swap_history_kcc20_unidentified",
     "swap_history_kcc20_unattributed",
   ]);
 });
@@ -487,7 +489,7 @@ test("merge: no KCC-20 family (disabled or loading) returns the EVM result as is
 // TWO_TOKEN_TX's second covenant, as a token kascov lists in the same buy.
 const OTHER_ID = "c0ffee" + "0".repeat(58);
 
-test("two tokens in one transaction: two rows or one refused row, never one merged row", async () => {
+test("two tokens in one transaction: two rows, never one merged row, and no read", async () => {
   const { fetched } = await magpieSwaps(MAGPIE);
   const rows = [
     ...fetched.rows,
@@ -519,17 +521,20 @@ test("two tokens in one transaction: two rows or one refused row, never one merg
   ).toEqual(both);
   expect(seen).toEqual([]);
 
-  // One unnamed: the survivor is the transaction's only row, and the read is
+  // One unnamed: still two rows (the other an unknown token), so the read is
   // still refused — it would print both tokens' KAS and fees as MAGPIE's.
   const one = build([magpie]);
-  expect(one).toHaveLength(1);
-  const [row] = m.applyKcc20SwapMoney(
+  expect(one.map((s) => s.toSymbol).sort()).toEqual([
+    "MAGPIE",
+    m.UNKNOWN_TOKEN_SYMBOL,
+  ]);
+  const rows2 = m.applyKcc20SwapMoney(
     one,
     await m.fetchKcc20SwapMoney(BUY_WALLET, one),
   );
-  expect(row).toEqual(one[0]);
-  expect(row.fromAmount).toBe("0");
-  expect(row.feeAmount).toBeUndefined();
+  expect(rows2).toEqual(one);
+  expect(rows2.every((r) => r.fromAmount === "0" && !r.feeAmount)).toBe(true);
+  expect(seen).toEqual([]);
 });
 
 // ─── KRON commit → reveal (QA item 5) ───────────────────────────────────────
@@ -693,4 +698,187 @@ test('a received amount with no price says "Price unavailable"; an empty receive
   const empty = sheetPriced({}, { ...kronRow(), toAmount: "0" });
   expect("receivedUsd" in empty).toBe(false);
   expect("receivedAmount" in empty).toBe(false);
+});
+
+// ─── venues: KaspaRocket, Braid, unknown (swap-activity-venues) ─────────────
+
+// Real, captured 2026-11-27 from kascov /transfers?owner=<bare pk> and
+// api.kaspa.org /transactions/{txid}, trimmed to the fields read. One wallet:
+// a KaspaRocket GUZA buy, a Braid sell deposit, a Braid buy settled at KasForge.
+const VENUES = fixture("kascov-transfers-venues-bare-05a0b9.json");
+const GUZA_TX = fixture("kaspa-tx-kasparocket-guza-buy.json");
+const BRAID_SELL_TX = fixture("kaspa-tx-braid-sell-deposit.json");
+const BRAID_SETTLE_TX = fixture("kaspa-tx-braid-buy-settle.json");
+const BRAID_DEPOSIT_TX = fixture("kaspa-tx-braid-buy-deposit.json");
+const VENUE_WALLET = KRON_WALLET;
+const VENUE_PK =
+  "05a0b96e3768d6c140840c1e6147fcc739b0d53936dc0082971f3a1db845025c";
+const VENUE_TIP = { daa: 603303261, atMs: 1795750893029 };
+const GUZA_ID =
+  "3cb7bd371ea2014af95f3471d2995ede8ffbde454d3a37e3b566880daf011c5a";
+const GUZA_TXID = GUZA_TX.transaction_id as string;
+const BRAID_SELL_TXID = BRAID_SELL_TX.transaction_id as string;
+const BRAID_SETTLE_TXID = BRAID_SETTLE_TX.transaction_id as string;
+
+/** The venues page built with `tokens`: no token list, holdings or pool cache — a cold start. */
+async function venueRecords(
+  transfers: unknown = VENUES,
+  tokens: Map<string, { symbol: string; decimals?: number }> = new Map(),
+) {
+  route([
+    [
+      `${KASCOV}/addr/`,
+      {
+        token_holdings: [],
+        tip_daa: VENUE_TIP.daa,
+        tip_at_ms: VENUE_TIP.atMs,
+      },
+    ],
+    [`${KASCOV}/transfers`, transfers],
+  ]);
+  const fetched = await m.fetchKcc20SwapTransfers(VENUE_WALLET, [VENUE_PK]);
+  return m.buildKcc20SwapRecords({
+    rows: fetched.rows,
+    own: new Set([VENUE_PK, `presence:${VENUE_PK}`]),
+    tip: fetched.tip!,
+    tokens,
+  });
+}
+
+test("KaspaRocket buy (real row) is a row on a cold start: no pool cache, no token name or decimals", async () => {
+  const built = await venueRecords();
+  const guza = built.swaps.find((s) => s.txHash === GUZA_TXID);
+  // The venue is the transaction's own: kascov's "KaspaRocket lp-amm v1".
+  expect(guza).toMatchObject({
+    fromSymbol: "KAS",
+    toSymbol: m.UNKNOWN_TOKEN_SYMBOL,
+    toAmount: "0",
+    status: "completed",
+    providerId: "kasparocket",
+    tokenId: GUZA_ID,
+  });
+  const provider = sheetOf(guza!).details.find((d) => d.label === "Provider");
+  expect(provider?.value).toBe("KaspaRocket");
+
+  // Named with its 3 display decimals: 523717 base units are 523.717 GUZA.
+  const named = await venueRecords(
+    VENUES,
+    new Map([[GUZA_ID, { symbol: "GUZA", decimals: 3 }]]),
+  );
+  expect(named.swaps.find((s) => s.txHash === GUZA_TXID)?.toAmount).toBe(
+    "523.717",
+  );
+
+  // It spends two Braid deposits' change, which is the wallet's own: not Braid.
+  const seen = route([[`${KASPA_TX}${GUZA_TXID}`, GUZA_TX]]);
+  expect(await m.fetchBraidTxids(VENUE_WALLET, [GUZA_TXID])).toEqual(new Set());
+  expect(seen).toHaveLength(1);
+});
+
+test("Braid sell (real deposit): no swap row until its BRT1 payload is read, then a Braid row", async () => {
+  const built = await venueRecords();
+  // kascov sees a token sent to a script owner, which any P2SH may be.
+  expect(built.swaps.some((s) => s.txHash === BRAID_SELL_TXID)).toBe(false);
+  const seen = route([[`${KASPA_TX}${BRAID_SELL_TXID}`, BRAID_SELL_TX]]);
+  const txids = m.braidCandidateTxids(built.swaps, built.braidSells);
+  expect(txids).toContain(BRAID_SELL_TXID);
+  const braid = await m.fetchBraidTxids(VENUE_WALLET, [BRAID_SELL_TXID]);
+  expect(seen).toHaveLength(1);
+  const rows = m.applyBraidTxids(built.swaps, built.braidSells, braid);
+  const sell = rows.find((s) => s.txHash === BRAID_SELL_TXID);
+  expect(sell).toMatchObject({
+    fromSymbol: m.UNKNOWN_TOKEN_SYMBOL,
+    toSymbol: "KAS",
+    status: "completed",
+    providerId: "braid",
+  });
+  expect(
+    sheetOf(sell!).details.find((d) => d.label === "Provider")?.value,
+  ).toBe("Braid");
+
+  // A pending record for the same deposit already shows it: one row, not two.
+  const pending = { ...sell!, id: "braid:ref", status: "pending" as const };
+  expect(
+    m
+      .applyBraidTxids(built.swaps, built.braidSells, braid, [pending])
+      .some((s) => s.txHash === BRAID_SELL_TXID),
+  ).toBe(false);
+
+  // A send to a script that is not a Braid deposit stays out.
+  route([[`${KASPA_TX}${BRAID_SELL_TXID}`, { ...BRAID_SELL_TX, payload: "" }]]);
+  m.clearKcc20SwapMoneyCache();
+  const none = await m.fetchBraidTxids(VENUE_WALLET, [BRAID_SELL_TXID]);
+  expect(
+    m
+      .applyBraidTxids(built.swaps, built.braidSells, none)
+      .some((s) => s.txHash === BRAID_SELL_TXID),
+  ).toBe(false);
+});
+
+test("Braid sell refunded: the token back from the same router note marks it failed", async () => {
+  const [deposit] = VENUES.transfers.filter(
+    (r: { txid: string }) => r.txid === BRAID_SELL_TXID,
+  );
+  const [move] = deposit.attribution.movements;
+  const refund = {
+    ...deposit,
+    txid: "ab".repeat(32),
+    seq: deposit.seq + 1,
+    accepting_daa: deposit.accepting_daa + 100,
+    attribution: {
+      ...deposit.attribution,
+      owner_from: move.owner_to,
+      movements: [{ ...move, owner_from: move.owner_to, owner_to: VENUE_PK }],
+    },
+  };
+  const built = await venueRecords({
+    ...VENUES,
+    transfers: [refund, ...VENUES.transfers],
+  });
+  expect(
+    built.braidSells.find((s) => s.txHash === BRAID_SELL_TXID)?.status,
+  ).toBe("failed");
+});
+
+test("Braid buy (real settle): kascov names KasForge's market, the spent deposit names Braid", async () => {
+  const built = await venueRecords();
+  const before = built.swaps.find((s) => s.txHash === BRAID_SETTLE_TXID);
+  expect(before).toMatchObject({ fromSymbol: "KAS", providerId: "kasforge" });
+  const seen = route([
+    [`${KASPA_TX}${BRAID_SETTLE_TXID}`, BRAID_SETTLE_TX],
+    [`${KASPA_TX}${BRAID_DEPOSIT_TX.transaction_id}`, BRAID_DEPOSIT_TX],
+  ]);
+  const braid = await m.fetchBraidTxids(VENUE_WALLET, [BRAID_SETTLE_TXID]);
+  // The settle, then the deposit its router-coin input came from.
+  expect(seen).toHaveLength(2);
+  const [row] = m
+    .applyBraidTxids(built.swaps, built.braidSells, braid)
+    .filter((s) => s.txHash === BRAID_SETTLE_TXID);
+  expect(row).toMatchObject({ providerId: "braid", status: "completed" });
+  expect(sheetOf(row).details.find((d) => d.label === "Provider")?.value).toBe(
+    "Braid",
+  );
+  // A confirmed answer is final: a second ask reads nothing.
+  const again = route([]);
+  expect(await m.fetchBraidTxids(VENUE_WALLET, [BRAID_SETTLE_TXID])).toEqual(
+    new Set([BRAID_SETTLE_TXID]),
+  );
+  expect(again).toEqual([]);
+});
+
+test("an unknown venue (no market build) is still a row, its Provider Unknown", async () => {
+  const unbuilt = {
+    ...VENUES,
+    transfers: VENUES.transfers.map((r: { verified_market?: object }) => ({
+      ...r,
+      verified_market: { ...r.verified_market, build: undefined },
+    })),
+  };
+  const built = await venueRecords(unbuilt);
+  const guza = built.swaps.find((s) => s.txHash === GUZA_TXID);
+  expect(guza).toBeDefined();
+  expect(guza!.providerId).toBeUndefined();
+  expect(
+    sheetOf(guza!).details.find((d) => d.label === "Provider")?.value,
+  ).toBe("Unknown");
 });

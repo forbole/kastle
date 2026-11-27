@@ -60,8 +60,15 @@ import {
 /** Pages per owner string. 4 × 50 transitions — an extension, not an indexer. */
 const MAX_PAGES = 4;
 
-/** Name + decimals for one token id, from the wallet's verified token list or kascov's holdings. */
-export type Kcc20SwapTokenMeta = { symbol: string; decimals: number };
+/**
+ * Name + decimals for one token id, from the wallet's verified token list or
+ * kascov's holdings. No decimals (a KaspaRocket token declares none): the row
+ * still shows, its token amount left out.
+ */
+export type Kcc20SwapTokenMeta = { symbol: string; decimals?: number };
+
+/** A traded token no source names: still a row, never a dropped one. */
+export const UNKNOWN_TOKEN_SYMBOL = "Unknown token";
 
 /**
  * What one read established, in the vocabulary mergeSwapHistories uses for a
@@ -133,8 +140,12 @@ export interface BuildKcc20SwapRecordsInput {
 
 export interface Kcc20SwapRecords {
   swaps: SwapActivityRecord[];
-  /** Trades in a token neither source can name: no decimals, so no amount. */
-  unidentified: number;
+  /**
+   * Braid sells until the chain confirms them: the wallet's token sent to a
+   * `script:` owner, as a Braid deposit sends it. Any P2SH may receive a
+   * token, so none is a swap row until fetchBraidTxids reads its BRT1 payload.
+   */
+  braidSells: SwapActivityRecord[];
   /** Trades with no attributed token amount (or that failed to map): no amount to show. */
   unattributed: number;
 }
@@ -145,11 +156,12 @@ export interface Kcc20SwapRecords {
  * its tokens crossed to or from the market's covenant. Receives, sends and
  * self-merges are not swaps and are left out.
  *
- * A trade whose token amount cannot be computed is dropped and counted — in
- * `unidentified` when no source names the token, in `unattributed` when kascov
- * could not attribute the movement — so the page says the list is short
- * instead of printing 0. Mapping is per row: one bad row is skipped and
- * counted, never fatal to the rest.
+ * A trade in a token no source names is still a row: UNKNOWN_TOKEN_SYMBOL
+ * when nothing names it, the token leg the unobserved sentinel when nothing
+ * gives its decimals. Venue and naming are not what makes a swap a swap. A
+ * trade kascov could not attribute is dropped and counted in `unattributed`,
+ * so the page says the list is short instead of printing 0. Mapping is per
+ * row: one bad row is skipped and counted, never fatal to the rest.
  */
 export function buildKcc20SwapRecords({
   rows,
@@ -169,7 +181,7 @@ export function buildKcc20SwapRecords({
   }
 
   const swaps: SwapActivityRecord[] = [];
-  let unidentified = 0;
+  const braidSells: SwapActivityRecord[] = [];
   let unattributed = 0;
   for (const [tokenId, tokenRows] of byToken) {
     let entries;
@@ -179,20 +191,49 @@ export function buildKcc20SwapRecords({
       unattributed += tokenRows.length;
       continue;
     }
+    const meta = tokens.get(tokenId);
+    const symbol = meta?.symbol ?? UNKNOWN_TOKEN_SYMBOL;
     for (const entry of entries) {
-      if (entry.kind !== "buy" && entry.kind !== "sell") continue;
-      const meta = tokens.get(tokenId);
-      if (!meta) {
-        unidentified++;
-        continue;
-      }
+      const braidSell =
+        entry.kind === "send" &&
+        !!entry.counterparty?.startsWith("script:") &&
+        entry.amount !== undefined &&
+        entry.amount > 0n;
+      if (entry.kind !== "buy" && entry.kind !== "sell" && !braidSell) continue;
       try {
-        const amount =
-          entry.amount !== undefined && entry.amount > 0n
-            ? formatUnits(entry.amount, meta.decimals)
-            : null;
-        if (amount === null || !Number.isFinite(entry.timestampMs)) {
+        if (
+          entry.amount === undefined ||
+          entry.amount <= 0n ||
+          !Number.isFinite(entry.timestampMs)
+        ) {
           unattributed++;
+          continue;
+        }
+        // No decimals: the unobserved-leg sentinel, never base units as display units.
+        const amount =
+          meta?.decimals === undefined
+            ? "0"
+            : formatUnits(entry.amount, meta.decimals);
+        if (braidSell) {
+          // A Braid refund hands the token back from the same router note.
+          const refunded = entries.some(
+            (e) =>
+              e.kind === "receive" && e.counterparty === entry.counterparty,
+          );
+          braidSells.push({
+            id: `braid:${entry.id}:${tokenId}`,
+            timestampMs: entry.timestampMs,
+            fromSymbol: symbol,
+            toSymbol: "KAS",
+            fromAmount: amount,
+            // Braid pays the KAS in its own settle transaction: unobserved here.
+            toAmount: "0",
+            status: refunded ? "failed" : "completed",
+            txHash: entry.txid,
+            providerId: BRAID_PROVIDER.id,
+            chainId: KAT_L1_CHAIN_ID,
+            tokenId: tokenId.toLowerCase(),
+          });
           continue;
         }
         const buy = entry.kind === "buy";
@@ -206,8 +247,8 @@ export function buildKcc20SwapRecords({
         swaps.push({
           id: `kcc20:${entry.id}:${tokenId}`,
           timestampMs: entry.timestampMs,
-          fromSymbol: buy ? "KAS" : meta.symbol,
-          toSymbol: buy ? meta.symbol : "KAS",
+          fromSymbol: buy ? "KAS" : symbol,
+          toSymbol: buy ? symbol : "KAS",
           // KAS side: the unobserved-leg sentinel until applyKcc20SwapMoney.
           fromAmount: buy ? "0" : amount,
           toAmount: buy ? amount : "0",
@@ -223,7 +264,7 @@ export function buildKcc20SwapRecords({
       }
     }
   }
-  return { swaps, unidentified, unattributed };
+  return { swaps, braidSells, unattributed };
 }
 
 /**
@@ -238,23 +279,22 @@ export function kcc20SwapTokenMeta(
   holdings: readonly KascovHolding[],
 ): Map<string, Kcc20SwapTokenMeta> {
   const map = new Map<string, Kcc20SwapTokenMeta>();
-  // A partial claim (no ticker or no scale) names no trade: same as no meta.
+  // A ticker without a scale still names the row; either source may fill the scale.
   for (const t of verified)
-    if (t.meta?.symbol && t.meta.decimals !== undefined)
+    if (t.meta?.symbol)
       map.set(t.covenantId.toLowerCase(), {
         symbol: t.meta.symbol,
         decimals: t.meta.decimals,
       });
-  for (const h of holdings)
-    if (
-      !map.has(h.tokenId) &&
-      h.claimedTicker &&
-      h.displayDecimals !== undefined
-    )
+  for (const h of holdings) {
+    const m = map.get(h.tokenId);
+    const symbol = m?.symbol ?? h.claimedTicker;
+    if (symbol)
       map.set(h.tokenId, {
-        symbol: h.claimedTicker,
-        decimals: h.displayDecimals,
+        symbol,
+        decimals: m?.decimals ?? h.displayDecimals,
       });
+  }
   return map;
 }
 
@@ -503,6 +543,7 @@ const moneyByTx = new Map<string, Kcc20SwapMoney>();
 /** Test seam — a fresh popup starts empty, so only tests need this. */
 export function clearKcc20SwapMoneyCache(): void {
   moneyByTx.clear();
+  braidByTx.clear();
 }
 
 /**
@@ -612,6 +653,110 @@ export function applyKcc20SwapMoney(
       return s;
     }
   });
+}
+
+// ─── Braid: which trades went through it, from the chain ─────────────────────
+
+/**
+ * "BRT1": the recovery payload every Braid router deposit carries
+ * (@braid_swap/sdk/recover decodeBrt). The deposit's own transaction names
+ * the venue, so no local record or listing is needed to know it.
+ */
+const BRT1_PAYLOAD = "42525431";
+
+interface BraidReadTx extends Kcc20SwapTx {
+  payload?: string;
+}
+
+const isBraidDeposit = (tx: BraidReadTx | null) =>
+  !!tx?.payload?.toLowerCase().startsWith(BRT1_PAYLOAD);
+
+/** Confirmed transactions never change: true and false are both final. */
+const braidByTx = new Map<string, boolean>();
+
+/**
+ * Txids to ask fetchBraidTxids about: every chain buy (Braid settles a buy at
+ * another venue's market, which kascov names) and every pending Braid sell,
+ * newest KCC20_SWAP_MONEY_LIMIT, one per transaction.
+ */
+export function braidCandidateTxids(
+  swaps: readonly SwapActivityRecord[],
+  braidSells: readonly SwapActivityRecord[],
+): string[] {
+  const rows = [...swaps.filter((s) => s.fromSymbol === "KAS"), ...braidSells]
+    .filter((s) => s.txHash)
+    .sort((a, b) => b.timestampMs - a.timestampMs);
+  return [...new Set(rows.map((s) => s.txHash!))].slice(
+    0,
+    KCC20_SWAP_MONEY_LIMIT,
+  );
+}
+
+/**
+ * The txids among `txids` that are Braid trades, read from the transactions
+ * themselves. A sell is a Braid deposit: its payload is BRT1. A buy spends a
+ * deposit's router coin: a plain input not the wallet's whose transaction is
+ * a deposit. A deposit's change is the wallet's own address, so a later trade
+ * spending it (the KaspaRocket GUZA buy spends two) is not Braid's. A read
+ * that fails is not cached and leaves that txid out. Never throws.
+ */
+export async function fetchBraidTxids(
+  address: string,
+  txids: readonly string[],
+): Promise<Set<string>> {
+  const out = new Set<string>();
+  await Promise.allSettled(
+    txids.map(async (txid) => {
+      let braid = braidByTx.get(txid);
+      if (braid === undefined) {
+        const tx = (await fetchKaspaTx(txid)) as BraidReadTx | null;
+        if (!tx) return;
+        braid = isBraidDeposit(tx);
+        const parents = new Set(
+          (tx.inputs ?? [])
+            .filter(
+              (i) =>
+                !covenantOf(i) &&
+                i.previous_outpoint_address !== address &&
+                i.previous_outpoint_hash,
+            )
+            .map((i) => i.previous_outpoint_hash!),
+        );
+        for (const id of parents) {
+          if (braid) break;
+          const parent = (await fetchKaspaTx(id)) as BraidReadTx | null;
+          if (!parent) return;
+          braid = isBraidDeposit(parent);
+        }
+        braidByTx.set(txid, braid);
+      }
+      if (braid) out.add(txid);
+    }),
+  );
+  return out;
+}
+
+/**
+ * The chain rows with Braid's trades attributed: a buy Braid settled names
+ * Braid instead of the market it filled at, and a Braid sell joins the rows
+ * once its deposit is confirmed. A row a pending Braid record already shows
+ * (same deposit txid) is left to that record, which knows the settle state.
+ */
+export function applyBraidTxids(
+  swaps: readonly SwapActivityRecord[],
+  braidSells: readonly SwapActivityRecord[],
+  braid: ReadonlySet<string>,
+  pending: readonly SwapActivityRecord[] = [],
+): SwapActivityRecord[] {
+  const shown = new Set(pending.map((p) => p.txHash));
+  return [
+    ...swaps.map((s) =>
+      s.fromSymbol === "KAS" && s.txHash && braid.has(s.txHash)
+        ? { ...s, providerId: BRAID_PROVIDER.id }
+        : s,
+    ),
+    ...braidSells.filter((s) => s.txHash && braid.has(s.txHash)),
+  ].filter((s) => !s.txHash || !shown.has(s.txHash));
 }
 
 // ─── Braid: the wallet's own deposit ─────────────────────────────────────────
@@ -756,7 +901,7 @@ export function braidPendingRecords(
       const buy = p.payTotal != null;
       const token = buy ? p.to : p.from;
       const meta = tokens.get(token.id.toLowerCase());
-      if (!meta) return [];
+      if (meta?.decimals === undefined) return [];
       return [
         braidSwapRecord({
           ref: s.ref,
