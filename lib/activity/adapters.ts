@@ -145,7 +145,8 @@ function sheetTitle(row: ActivityRowDescriptor): string {
   if (row.type === SWAP_ACTIVITY_TYPE) {
     const from = fromSymbolOf(row);
     const to = toSymbolOf(row);
-    return from && to ? `Swap ${from} → ${to}` : "Swap";
+    // One unread side keeps the other's name; "-" as the leg rows render it.
+    return from || to ? `Swap ${from ?? "-"} → ${to ?? "-"}` : "Swap";
   }
   if (row.type === KURVE_BRIDGE_ACTIVITY_TYPE) {
     return row.meta?.route === "l1-to-l2"

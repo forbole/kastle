@@ -4,13 +4,15 @@ import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import "@/entrypoints/main.css";
 import { mapSwapActivity } from "@/lib/activity/mappers";
 import Activity from "@/components/screens/Activity";
-import { RECORDS, UNSCALED } from "./records";
+import { RECORDS, TITLE_CASES, UNSCALED } from "./records";
 
 (window as unknown as { __feed: unknown }).__feed = {
-  // ?unscaled: the one named-but-unscaled row alone (activity-money.spec.ts).
-  rows: (location.search.includes("unscaled") ? UNSCALED : RECORDS).map(
-    mapSwapActivity,
-  ),
+  // ?unscaled: the one named-but-unscaled row alone; ?case=<name>: one
+  // sheet-title row (activity-money.spec.ts).
+  rows: (
+    TITLE_CASES[new URLSearchParams(location.search).get("case") ?? ""] ??
+    (location.search.includes("unscaled") ? UNSCALED : RECORDS)
+  ).map(mapSwapActivity),
   swapSource: ["swap_history_kcc20_unattributed"],
   bridgeSource: null,
   depositSource: null,

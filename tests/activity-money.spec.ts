@@ -158,3 +158,23 @@ test("a named token with no decimals shows its name on the sheet, its amount abs
   expect(sheet).not.toMatch(/\b0 GUZA\b/);
   expect(errors).toEqual([]);
 });
+
+// A missing side reads "-" (as an unread leg amount does); a lone name is kept.
+for (const [name, title] of [
+  ["both", "Swap KAS → GUZA"],
+  ["onlyTo", "Swap - → GUZA"],
+  ["onlyFrom", "Swap GUZA → -"],
+  ["neither", "Swap"],
+] as const) {
+  test(`sheet title, ${name}: ${title}`, async ({ page }) => {
+    const errors: string[] = [];
+    page.on("pageerror", (e) => errors.push(e.message));
+    await page.setViewportSize({ width: 375, height: 600 });
+    await page.goto(`${base}/?case=${name}`);
+    await page.locator("button:has(> div.relative.size-10)").first().click();
+    const sheet = await page.locator("dialog").innerText();
+    console.log(`SHEET ${name} ─────\n${sheet}\n─────`);
+    expect(sheet.split("\n")[0].trim()).toBe(title);
+    expect(errors).toEqual([]);
+  });
+}

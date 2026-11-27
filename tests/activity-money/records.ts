@@ -102,3 +102,29 @@ export const RECORDS: SwapActivityRecord[] = [
     feeSymbol: "KAS",
   },
 ];
+
+// Sheet-title cases (activity-money.spec.ts): an explorer KCC-20 row whose KAS
+// leg is not yet read and whose token has no decimals carries both amounts "0",
+// so only meta names the token.
+const titleCase = (
+  fromSymbol: string,
+  toSymbol: string,
+  fromAmount: string,
+  toAmount: string,
+): SwapActivityRecord[] => [
+  {
+    ...kcc20("bb".repeat(32), GUZA_ID),
+    timestampMs: at(2026, 11, 27, 10, 0),
+    fromSymbol,
+    toSymbol,
+    fromAmount,
+    toAmount,
+    providerId: "kasparocket",
+  },
+];
+export const TITLE_CASES: Record<string, SwapActivityRecord[]> = {
+  both: titleCase("KAS", "GUZA", "1.5", "42"),
+  onlyTo: titleCase("KAS", "GUZA", "0", "0"),
+  onlyFrom: titleCase("GUZA", "KAS", "0", "0"),
+  neither: titleCase("", "", "0", "0"),
+};
