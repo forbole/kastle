@@ -1274,3 +1274,44 @@ test("a token the wallet sold out of is named and scaled from KRON's registry", 
       .get(tokenId),
   ).toEqual({ symbol: "MINE", decimals: 8 });
 });
+
+test("Braid buy: money and Braid reads share one transaction cache; Paid, fee, Provider filled", async () => {
+  const built = await venueRecords();
+  const seen = route([
+    [`${KASPA_TX}${BRAID_SETTLE_TXID}`, BRAID_SETTLE_TX],
+    [`${KASPA_TX}${BRAID_DEPOSIT_TX.transaction_id}`, BRAID_DEPOSIT_TX],
+  ]);
+  // Both SWR entries fire on the same render.
+  const [money, { braid }] = await Promise.all([
+    m.fetchKcc20SwapMoney(
+      VENUE_WALLET,
+      built.swaps.filter((s) => s.txHash === BRAID_SETTLE_TXID),
+    ),
+    m.fetchBraidTxids(VENUE_WALLET, [BRAID_SETTLE_TXID]),
+  ]);
+  // The settle and its deposit, once each — not once per reader.
+  const txidOf = (u: string) => /transactions\/([0-9a-f]{64})/.exec(u)?.[1];
+  expect(seen.map(txidOf).sort()).toEqual(
+    [BRAID_SETTLE_TXID, BRAID_DEPOSIT_TX.transaction_id].sort(),
+  );
+  const [row] = m
+    .applyBraidTxids(
+      m.applyKcc20SwapMoney(built.swaps, money),
+      built.braidSells,
+      braid,
+    )
+    .filter((s) => s.txHash === BRAID_SETTLE_TXID);
+  // Hand-computed from the two fixtures (the plan's figures): the deposit
+  // funds the router coin, so its fee joins the settle's.
+  expect(row).toMatchObject({
+    providerId: "braid",
+    fromSymbol: "KAS",
+    fromAmount: "9.365754",
+    feeAmount: "0.090604",
+    feeSymbol: "KAS",
+  });
+  expect(row.kastleFeeAmount).toBeUndefined();
+  expect(
+    sheetOf(row).details.find((d) => d.label === "Kastle fee")?.value,
+  ).toBe("0 KAS");
+});

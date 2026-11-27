@@ -570,11 +570,41 @@ function singleRowTxids(swaps: readonly SwapActivityRecord[]): Set<string> {
  */
 const moneyByTx = new Map<string, Kcc20SwapMoney>();
 
+/**
+ * Every transaction this module reads, by txid, shared by the money read and
+ * the Braid read: a Braid buy's settle and its deposit are each fetched once,
+ * not once per reader. In flight reads are shared too (both SWR entries fire
+ * on the same render). A failed read is dropped, so the next ask retries.
+ * ponytail: holds whole API objects (signature scripts included, up to
+ * ~100 KB each) for the popup's life, bounded by the newest-20 limits; slim
+ * them to the fields read if a long-lived page ever holds this module.
+ */
+const txById = new Map<string, Promise<BraidReadTx | null>>();
+
+function readTx(txid: string): Promise<BraidReadTx | null> {
+  let p = txById.get(txid);
+  if (!p) {
+    p = fetchKaspaTx(txid).then(
+      (tx) => {
+        if (!tx) txById.delete(txid);
+        return tx as BraidReadTx | null;
+      },
+      () => {
+        txById.delete(txid);
+        return null;
+      },
+    );
+    txById.set(txid, p);
+  }
+  return p;
+}
+
 /** Test seam — a fresh popup starts empty, so only tests need this. */
 export function clearKcc20SwapMoneyCache(): void {
   moneyByTx.clear();
   braidByTx.clear();
   braidSettleByTx.clear();
+  txById.clear();
 }
 
 /**
@@ -614,7 +644,7 @@ export async function fetchKcc20SwapMoney(
       const key = `${address}:${txid}`;
       const hit = moneyByTx.get(key);
       if (hit) return void out.set(txid, hit);
-      const tx = (await fetchKaspaTx(txid)) as Kcc20SwapTx | null;
+      const tx = await readTx(txid);
       if (!tx) return;
       // A KRON swap spends the wallet's own commit output: read that commit too.
       const commitIds = new Set(
@@ -629,7 +659,7 @@ export async function fetchKcc20SwapMoney(
       );
       const commits = new Map<string, Kcc20SwapTx>();
       for (const id of commitIds) {
-        const c = (await fetchKaspaTx(id)) as Kcc20SwapTx | null;
+        const c = await readTx(id);
         if (!c) return;
         commits.set(id, c);
       }
@@ -827,7 +857,7 @@ export async function fetchBraidTxids(
       const key = `${address}:${txid}`;
       let hit = braidByTx.get(key);
       if (hit === undefined) {
-        const tx = (await fetchKaspaTx(txid)) as BraidReadTx | null;
+        const tx = await readTx(txid);
         if (!tx) return void unread++;
         let braid = isBraidDeposit(tx);
         const deposit = braid ? braidDeposit(tx, address) : undefined;
@@ -840,7 +870,7 @@ export async function fetchBraidTxids(
         }
         for (const [id, spends] of parents) {
           if (braid) break;
-          const parent = (await fetchKaspaTx(id)) as BraidReadTx | null;
+          const parent = await readTx(id);
           if (!parent) return void unread++;
           braid = spends.some((i) => spendsRouterCoin(parent, i));
         }
