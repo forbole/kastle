@@ -1,7 +1,10 @@
 import { NetworkType } from "@/contexts/SettingsContext";
 import { IGRA_KAS_VAULT_MAINNET } from "@/lib/bridge/igra-exit-abi";
 import { KASPA_REST_APIS } from "@/lib/activity/externals";
-import { fetchTxCount } from "@/lib/bridge/igra-deposit-history";
+import {
+  fetchTxCount,
+  LISTING_MAX_AGE_MS,
+} from "@/lib/bridge/igra-deposit-history";
 
 // Ported from kastle-mobile lib/activity/exit-payout.ts — fetchVaultPayouts
 // only. The rest of the mobile module matches LOCAL exit records to their L1
@@ -40,11 +43,19 @@ const REQUEST_TIMEOUT_MS = 10_000;
 /**
  * Last answer per address+vault, with the transactions-count read just
  * before its listing. The listing is 1.92 MB decoded on the QA wallet and the
- * feed polls it; while the count has not moved the answer cannot have.
+ * feed polls it; while the count has not moved the answer cannot have — once
+ * `confirmed`: the listing is cached longer than the count, so the first
+ * listing under a new count may predate it. `since` is when this count was
+ * first read; a listing read LISTING_MAX_AGE_MS after it covers it.
  */
 const payoutsHeld = new Map<
   string,
-  { count: number; payouts: PayoutCandidate[] }
+  {
+    count: number;
+    since: number;
+    confirmed: boolean;
+    payouts: PayoutCandidate[];
+  }
 >();
 
 /** Test seam — a fresh process starts empty, so only tests need this. */
@@ -57,19 +68,23 @@ export function clearVaultPayoutCache(): void {
  * and response shape as hooks/kaspa/useKasTxHistory. Throws on HTTP/network
  * failure — callers degrade to "no completion info", never a broken feed.
  * Defaults to the Igra vault; the Kurve completion probe passes its own
- * hot-wallet address (lib/activity/kurve-completion.ts).
+ * hot-wallet address (lib/activity/kurve-completion.ts). `force` (Refresh)
+ * always re-lists.
  */
 export async function fetchVaultPayouts(
   kaspaAddress: string,
   vault: string = IGRA_KAS_VAULT_MAINNET,
+  force = false,
 ): Promise<PayoutCandidate[]> {
   const base = KASPA_REST_APIS[NetworkType.Mainnet];
   const key = `${kaspaAddress}|${vault}`;
   // Read BEFORE the listing, so a transaction landing in between raises the
   // next count and re-lists rather than hiding behind an equal one.
   const count = await fetchTxCount(base, kaspaAddress);
+  const countAt = Date.now();
   const held = payoutsHeld.get(key);
-  if (count !== null && held?.count === count) return held.payouts;
+  const same = count !== null && held?.count === count;
+  if (!force && same && held.confirmed) return held.payouts;
   const url =
     `${base}/addresses/${kaspaAddress}` +
     `/full-transactions?resolve_previous_outpoints=light&limit=${FETCH_LIMIT}`;
@@ -77,6 +92,7 @@ export async function fetchVaultPayouts(
   // settles, and the activity screen's pull-to-refresh spinner never stops.
   // An abort rejects, which is the same failure path this function already
   // documents for HTTP errors, so callers degrade exactly as before.
+  const listedAt = Date.now();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   let res: Response;
@@ -106,8 +122,14 @@ export async function fetchVaultPayouts(
     }))
     .filter((c) => c.amountSompi > 0);
   // An unaccepted transaction's time can still change under the same count.
-  if (count !== null && txs.every((tx) => tx.accepting_block_time))
-    payoutsHeld.set(key, { count, payouts });
-  else payoutsHeld.delete(key);
+  if (count !== null && txs.every((tx) => tx.accepting_block_time)) {
+    const since = same ? held.since : countAt;
+    payoutsHeld.set(key, {
+      count,
+      since,
+      confirmed: listedAt - since >= LISTING_MAX_AGE_MS,
+      payouts,
+    });
+  } else payoutsHeld.delete(key);
   return payouts;
 }

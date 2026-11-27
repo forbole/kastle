@@ -32,12 +32,12 @@ export async function fetchActivityFeed({
   page,
   sender,
   kaspaAddress,
-  forceIgra,
+  force,
 }: {
   page: ActivityPageType;
   sender: string | undefined;
   kaspaAddress: string | undefined;
-  forceIgra: boolean;
+  force: boolean;
 }) {
   // Independent sources, run together: wall-clock is the slowest one, not
   // the sum (mobile measured 11.2 s sequential). Each bounds its own
@@ -74,6 +74,7 @@ export async function fetchActivityFeed({
           await applyKurveCompletions(mergeKurveHistory(local, remote), {
             kaspaAddress: kaspaAddress ?? null,
             evmAddress: sender ?? null,
+            force,
           }),
         ),
         truncated: pages.some((p) => p.truncated),
@@ -93,7 +94,7 @@ export async function fetchActivityFeed({
       ? fetchIgraDeposits({
           kaspaAddress,
           entryAddress: IGRA_ENTRY_ADDRESS.mainnet,
-          force: forceIgra,
+          force,
         }).then(async (r) => ({
           ...r,
           deposits: await attachIgraCredits(r.deposits),

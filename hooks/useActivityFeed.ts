@@ -58,7 +58,7 @@ export function useActivityFeed(enabled: boolean, page: ActivityPageType) {
   const kaspaAddress = account?.address;
   // Igra's deposit scan is the one source with a cache (60 s / 10 s head TTL);
   // a manual refresh forces just its head-check. Consumed once per run.
-  const forceIgraRef = useRef(false);
+  const forceRef = useRef(false);
   // Spinner for the manual refresh only — NOT isValidating, which also goes
   // true on every 10 s background poll.
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -75,13 +75,13 @@ export function useActivityFeed(enabled: boolean, page: ActivityPageType) {
     // Page in the key: each page has its own entry, so neither waits on the other.
     enabled ? ["activity-feed", page, sender, kaspaAddress] : null,
     async () => {
-      const forceIgra = forceIgraRef.current;
-      forceIgraRef.current = false;
+      const force = forceRef.current;
+      forceRef.current = false;
       const feed = await fetchActivityFeed({
         page,
         sender,
         kaspaAddress,
-        forceIgra,
+        force,
       });
       storeActivity("feed", `${page}:${sender}:${kaspaAddress}`, feed);
       return feed;
@@ -131,7 +131,7 @@ export function useActivityFeed(enabled: boolean, page: ActivityPageType) {
     // The existing refresh spinner also runs while stored rows revalidate.
     isRefreshing: isRefreshing || isStale,
     refresh: () => {
-      forceIgraRef.current = true;
+      forceRef.current = true;
       setIsRefreshing(true);
       // Bound to THIS revalidation, so a background poll settling mid-refresh
       // can't clear the spinner early; catch() because mutate() rethrows.

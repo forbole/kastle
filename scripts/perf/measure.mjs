@@ -99,7 +99,7 @@ async function feed(force) {
           page,
           sender: EVM,
           kaspaAddress: KASPA,
-          forceIgra: force,
+          force,
         }),
       ),
     ),
@@ -238,6 +238,22 @@ const b = await feed(false);
 report("feed POLL (same process, module caches hot, igra head TTL live)", b);
 const c = await feed(true);
 report("feed POLL with igra head re-read (force=true ≙ head TTL expired)", c);
+// The head TTL lapsing, twice (the clock moved 61 s each time): the first
+// read after a count is first seen confirms it with one more listing, the
+// next is gated on the count alone.
+const realNow = Date.now;
+let shift = 0;
+Date.now = () => realNow() + shift;
+const lapsed = [];
+for (let i = 1; i <= 2; i++) {
+  shift += 61_000;
+  lapsed.push(await feed(false));
+  report(
+    `feed POLL, head TTL lapsed #${i} (clock +${i * 61} s)`,
+    lapsed.at(-1),
+  );
+}
+Date.now = realNow;
 const k2 = withKcc20 ? await kcc20() : none;
 if (withKcc20) report("kcc20 POLL (money/braid caches hot)", k2);
 console.log(`## POLL total: ${b.reqs.length + k2.reqs.length} requests`);
@@ -259,5 +275,7 @@ writeFileSync(
     cold: [...a.reqs, ...k.reqs],
     poll: [...b.reqs, ...k2.reqs],
     pollHead: [...c.reqs, ...k2.reqs],
+    pollLapsed1: lapsed[0].reqs,
+    pollLapsed2: lapsed[1].reqs,
   }),
 );
