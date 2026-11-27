@@ -935,7 +935,10 @@ export function deriveBraidSellSettle(
   const settle = listed.find(
     (t) => t.is_accepted === true && t.inputs?.some(spendsCoin),
   );
-  if (!settle) return OPEN;
+  // "Open" only from a listing that holds the deposit: an empty or lagging
+  // one proves nothing, so the sell is unread instead.
+  if (!settle)
+    return listed.some((t) => t.transaction_id === depositTxid) ? OPEN : null;
   let inputs = 0n;
   let walletIn = 0n;
   for (const i of settle.inputs ?? []) {

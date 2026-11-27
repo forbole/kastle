@@ -1172,6 +1172,16 @@ test("Braid sell: no accepted spender is Pending, never Completed", async () => 
     is_accepted: false,
   }));
   expect((await braidSell(unaccepted)).row.status).toBe("pending");
+  // A listing that does not hold the deposit proves nothing: unread, not
+  // Pending, and not re-asked as an open sell.
+  const lagging = unaccepted.filter(
+    (t: { transaction_id: string }) => t.transaction_id !== BRAID_SELL_TXID,
+  );
+  for (const listing of [[], lagging]) {
+    const empty = await braidSell(listing);
+    expect(empty.settles.has(BRAID_SELL_TXID)).toBe(false);
+    expect(empty.row.status).toBe("completed");
+  }
   // Not cached: once accepted, the next read finds it.
   const { row: later } = await braidSell(BRAID_SELL_COIN);
   expect(later.status).toBe("completed");
