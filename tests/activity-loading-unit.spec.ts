@@ -283,3 +283,119 @@ test("igra: Refresh re-reads page 0 inside the head TTL and under a confirmed co
   expect((await igra(true)).deposits).toHaveLength(1);
   expect(pages()).toBe(4);
 });
+
+// ─── Page scoping ────────────────────────────────────────────────────────────
+const EVM = "0x178F82eD0c5a5B924CD72529d0267Be5b452C337";
+const feedFor = (page: "swap" | "bridge") =>
+  m.fetchActivityFeed({ page, sender: EVM, kaspaAddress: ADDR, force: false });
+
+test("page scoping: Swap reads the L2 swap explorers and no bridge source", async () => {
+  answer = () => null;
+  await feedFor("swap");
+  expect(count("module=account")).toBeGreaterThan(0);
+  expect(count("katbridge") + count("api.kaspa.org")).toBe(0);
+});
+
+test("page scoping: Bridge reads the bridge sources and no swap explorer", async () => {
+  answer = () => null;
+  await feedFor("bridge");
+  expect(count("katbridge")).toBeGreaterThan(0);
+  expect(count("module=account")).toBe(0);
+});
+
+// ─── KAT observed fees: the no-fee wait ──────────────────────────────────────
+const katRow = (over: Record<string, unknown>) => ({
+  id: "row",
+  direction: "DEPOSIT",
+  fromChainId: 0,
+  toChainId: 0,
+  fromWallet: ADDR,
+  toWallet: ADDR,
+  tokenContract: "",
+  tokenTick: "KAS",
+  amount: "1",
+  status: "COMPLETED",
+  l1TxId: null,
+  l2TxHash: null,
+  completedAt: null,
+  createdAt: new Date(now).toISOString(),
+  ...over,
+});
+
+test("fees: a fee read that came back empty is retried once 10 minutes pass, not before", async () => {
+  answer = () => null; // the L1 read fails
+  const row = katRow({ l1TxId: "REVEAL" }) as never;
+  await m.attachKatObservedFees([row]);
+  expect(count("/transactions/REVEAL")).toBe(1);
+  now += 5 * 60 * S;
+  await m.attachKatObservedFees([row]);
+  expect(count("/transactions/REVEAL")).toBe(1);
+  now += 5 * 60 * S + S;
+  await m.attachKatObservedFees([row]);
+  expect(count("/transactions/REVEAL")).toBe(2);
+});
+
+// ─── KAT collector side: the page-0 splice ───────────────────────────────────
+/** KAT's collector history: page 0 then page 1 (hasMore on page 0). */
+function collectorUpstream(state: { page0: unknown[]; page1: unknown[] }) {
+  answer = (url) => {
+    if (!url.includes("katbridge")) return null;
+    const u = new URL(url);
+    const own =
+      u.searchParams.get("fromL2Wallet") !==
+      m.KAT_IGRA_FEE_COLLECTOR_BRIDGE_ADDRESS;
+    const p1 = u.searchParams.get("offset") !== "0";
+    return {
+      data: {
+        transactions: own ? [] : p1 ? state.page1 : state.page0,
+        pagination: { hasMore: !own && !p1 },
+      },
+    };
+  };
+}
+const exit = (id: string, toWallet = "kaspa:qqother", status = "COMPLETED") =>
+  katRow({ id, direction: "WITHDRAW", toWallet, status });
+const collectorReads = () =>
+  count(`fromL2Wallet=${m.KAT_IGRA_FEE_COLLECTOR_BRIDGE_ADDRESS}`);
+const kat = () =>
+  m.fetchKatBridgeHistory({ kaspaAddress: ADDR, evmAddress: EVM });
+
+test("collector: an overlapping page 0 is spliced onto the held read — one page, not all", async () => {
+  const up = { page0: [exit("b"), exit("a")], page1: [exit("z")] };
+  collectorUpstream(up);
+  await kat();
+  expect(collectorReads()).toBe(2); // full: pages 0 and 1
+  up.page0 = [exit("c"), exit("b")];
+  now += 10 * S;
+  await kat();
+  expect(collectorReads()).toBe(3); // page 0 only
+});
+
+test("collector: a page 0 that no longer overlaps the held rows pays for the full read", async () => {
+  const up = { page0: [exit("b"), exit("a")], page1: [exit("z")] };
+  collectorUpstream(up);
+  await kat();
+  up.page0 = [exit("e"), exit("d")];
+  up.page1 = [exit("c"), exit("b")];
+  now += 10 * S;
+  await kat();
+  expect(collectorReads()).toBe(2 + 1 + 2); // head, then the full read
+});
+
+test("collector: this wallet's PENDING exit outside page 0 pays for the full read, and its status lands", async () => {
+  const up = {
+    page0: [exit("b"), exit("a")],
+    page1: [exit("mine", ADDR, "PENDING")],
+  };
+  collectorUpstream(up);
+  expect((await kat()).txs.find((t) => t.id === "mine")?.status).toBe(
+    "PENDING",
+  );
+  up.page0 = [exit("c"), exit("b")];
+  up.page1 = [exit("a"), exit("mine", ADDR, "COMPLETED")];
+  now += 10 * S;
+  expect((await kat()).txs.find((t) => t.id === "mine")?.status).toBe(
+    "COMPLETED",
+  );
+  expect(collectorReads()).toBe(2 + 1 + 2);
+});
