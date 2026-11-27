@@ -1177,7 +1177,7 @@ test("Braid sell: no accepted spender is Pending, never Completed", async () => 
   expect(later.status).toBe("completed");
 });
 
-test("Braid sell: a settle that pays nothing for the token is failed; a batched one is refused", async () => {
+test("Braid sell: a refund is proven by the spend; a sale under its fees is never Failed; a batched one is refused", async () => {
   const settleOf = (
     f: (t: { inputs: object[]; outputs: { amount: number }[] }) => void,
   ) =>
@@ -1187,12 +1187,32 @@ test("Braid sell: a settle that pays nothing for the token is failed; a batched 
       f(c);
       return c;
     });
-  // Refund shape: only the coin back, less the settle fee.
-  const refund = settleOf((t) => {
-    t.outputs[2].amount = 90514000;
-    t.outputs[1].amount += 1018004000 - 90514000;
+  // A real sale grossing 0.1 KAS, under both fees (0.113124): the wallet's
+  // 1.50514 less coin, bond and deposit fee is −0.013124. Market still in the
+  // spend, so it sold: unread, never "Failed".
+  const underFees = settleOf((t) => {
+    t.outputs[2].amount = 150514000;
+    t.outputs[1].amount += 1018004000 - 150514000;
   });
-  expect((await braidSell(refund)).row.status).toBe("failed");
+  const under = await braidSell(underFees);
+  expect(under.settles.has(BRAID_SELL_TXID)).toBe(false);
+  expect(under.row).toMatchObject({ status: "completed", toAmount: "0" });
+  m.clearKcc20SwapMoneyCache();
+  // Refund shape (synthetic — none captured): no market in the spend. The
+  // deposit's note goes back under its own covenant, the coin less the fee
+  // to the wallet.
+  const refund = settleOf((t) => {
+    const ins = t.inputs as { previous_outpoint_hash: string }[];
+    t.inputs = ins.filter((i) => i.previous_outpoint_hash === BRAID_SELL_TXID);
+    const [, , wallet] = t.outputs as { amount: number }[];
+    t.outputs = [
+      { ...t.outputs[0], amount: 50000000 },
+      { ...wallet, amount: 90514000 },
+    ];
+  });
+  const back = await braidSell(refund);
+  expect(back.settles.get(BRAID_SELL_TXID)).toEqual({ state: "refunded" });
+  expect(back.row.status).toBe("failed");
   m.clearKcc20SwapMoneyCache(); // the refund is final, so it was cached
   // Someone else's plain input: the fee is not the wallet's alone.
   const batched = settleOf((t) => {

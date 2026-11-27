@@ -960,9 +960,16 @@ export function deriveBraidSellSettle(
   if (settleFee < 0n || covenants > 2) return null;
   const kas =
     walletOut - walletIn - coin.amountSompi + bond - deposit.networkFeeSompi;
-  // ponytail: "no proceeds" stands for the refund shape (the coin spent, the
-  // token handed back); a settle that pays less than both fees reads as one.
-  if (kas <= 0n) return { state: "refunded" };
+  if (kas <= 0n) {
+    // Nothing net is no proof: a sale grossing under both fees nets below 0
+    // too. A refund is a spend that touches no market — only the deposit's
+    // own note covenant moves (the only covenant there, so the note's), the
+    // token handed back. Else unread, never "Failed" about a real sale.
+    const note = settle.inputs?.some(
+      (i) => i.previous_outpoint_hash === depositTxid && covenantOf(i),
+    );
+    return note && covenants === 1 ? { state: "refunded" } : null;
+  }
   return { state: "done", kasSompi: kas, settleFeeSompi: settleFee };
 }
 
