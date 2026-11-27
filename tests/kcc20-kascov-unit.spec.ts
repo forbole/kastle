@@ -386,6 +386,69 @@ test("isolation: the first holding's cells 500 does not drop the second's row", 
   );
 });
 
+test("GUZA: a KaspaRocket holding's display_decimals reaches the asset row", async () => {
+  // Live kascov shape: no decimals on chain, a venue convention instead.
+  const guza = {
+    token_id: COVID,
+    balance: 523717,
+    cells: 1,
+    status: "verified",
+    owner_scheme_name: "p2pk-schnorr/v1",
+    metadata_source: "genesis_payload",
+    claimed_ticker: "GUZA",
+    claimed_name: "Froguza",
+    claimed_decimals: null,
+    display_decimals: 3,
+    display_decimals_source: "venue:kasparocket",
+  };
+  const redeem = program(ownState(523717n));
+  const c = cell(1, redeem, 523717n);
+  const { rpc } = node([{ n: 1, redeem, covid: COVID }]);
+  const rows = (tokenHoldings: unknown[]) =>
+    withFetch(
+      {
+        kascov: (url) =>
+          url.pathname.startsWith("/data/mainnet/addr/")
+            ? { token_holdings: tokenHoldings }
+            : {
+                cells:
+                  url.searchParams.get("owner") === c.owner ? [rawCell(c)] : [],
+              },
+      },
+      async () =>
+        (
+          await fetchKcc20Tokens(address, rpc, REST, {
+            standard: true,
+            indexer: fakeIndexer([]),
+            registry: fakeRegistry([]),
+          })
+        ).tokens,
+    );
+
+  const [row] = await rows([guza]);
+  expect(row.family).toBe("kcc20-standard");
+  expect(String(row.amount)).toBe("523717");
+  expect(row.meta).toEqual({
+    symbol: "GUZA",
+    name: "Froguza",
+    decimals: 3,
+    unverified: true,
+  });
+
+  // A declared 0 still wins over the venue convention.
+  const [zero] = await rows([{ ...guza, claimed_decimals: 0 }]);
+  expect(zero.meta?.decimals).toBe(0);
+
+  // No decimals anywhere: the row stays, its scale unknown, never 0.
+  const bare = await rows([{ ...guza, display_decimals: null }]);
+  expect(bare).toHaveLength(1);
+  expect(bare[0].meta).toEqual({
+    symbol: "GUZA",
+    name: "Froguza",
+    unverified: true,
+  });
+});
+
 // Kept from the earlier draft of this spec: further drop paths.
 
 test("a cell owned by another key is dropped", async () => {

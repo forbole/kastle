@@ -81,8 +81,10 @@ export function parseHolding(row: unknown): KascovHolding | undefined {
   if (!tokenId || !HEX32.test(tokenId) || balance === undefined)
     return undefined;
   // A declared row carries `claimed_*`, a listed one `listed_*` (as mobile);
-  // `??`, not `||`: 0 decimals is real.
-  const decimals = row.claimed_decimals ?? row.listed_decimals;
+  // a KaspaRocket token declares none, so kascov publishes the venue's
+  // `display_decimals`. `??`, not `||`: 0 decimals is real.
+  const decimals =
+    row.claimed_decimals ?? row.listed_decimals ?? row.display_decimals;
   return {
     tokenId,
     balance,
