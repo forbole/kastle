@@ -1,5 +1,31 @@
 # Changelog
 
+## [2.64.0](https://github.com/forbole/kastle/compare/v2.63.2...v2.64.0) (2026-11-27)
+
+
+### Features
+
+* **api:** Kasware-compatible signPskt for covenant spends ([#353](https://github.com/forbole/kastle/issues/353)) ([#491](https://github.com/forbole/kastle/issues/491)) ([881b95c](https://github.com/forbole/kastle/commit/881b95c4f4645197f0bf0758f6e0ef6447fd0077))
+* **diagnostics:** Copy logs on every surface where signing can fail ([#478](https://github.com/forbole/kastle/issues/478)) ([ba8a693](https://github.com/forbole/kastle/commit/ba8a6930d170f9144d09ae9455d21a36ef3fb593))
+* **kcc20:** guard covenant signing, and show what the window moves ([#475](https://github.com/forbole/kastle/issues/475)) ([afe6938](https://github.com/forbole/kastle/commit/afe6938b94f268982c9a3bb7e336c4d67277ab15))
+* **swap:** every L1 provider carries its mark; the Braid tab says Braid ([#501](https://github.com/forbole/kastle/issues/501)) ([e0ddd0d](https://github.com/forbole/kastle/commit/e0ddd0dc99dbf4d2bf9bf3d18a80a3b54fe0ff43))
+* **swap:** Kasseal and KaspaRocket as providers in the extension Swap UI ([#479](https://github.com/forbole/kastle/issues/479)) ([6ead844](https://github.com/forbole/kastle/commit/6ead84499aa1066bcac40ca262fa31b113d8dc3a))
+* **swap:** Kasseal and KaspaRocket tabs filter the token picker by provider coverage ([#502](https://github.com/forbole/kastle/issues/502)) ([9686e85](https://github.com/forbole/kastle/commit/9686e85d919650de64930323e14519e10717d465))
+
+
+### Bug Fixes
+
+* **activity,swap:** fiat and fee figures match what the wallet actually did ([#500](https://github.com/forbole/kastle/issues/500)) ([580d6cb](https://github.com/forbole/kastle/commit/580d6cbeeabe191934b6a5e6c9250a63d2b118ea))
+* **activity:** PR [#505](https://github.com/forbole/kastle/issues/505) review — token names, unread Braid checks, router-coin proof, pending sells ([#506](https://github.com/forbole/kastle/issues/506)) ([d9717d9](https://github.com/forbole/kastle/commit/d9717d92fa6c9f47bcfc2b13b9223d2a6b620461))
+* **activity:** show Braid and KaspaRocket swaps instead of dropping them ([#505](https://github.com/forbole/kastle/issues/505)) ([806ee40](https://github.com/forbole/kastle/commit/806ee400e3ec589ebb9893cf5258819ed7de6e38))
+* **evm:** say what the wallet is short of, instead of "Internal error" ([#474](https://github.com/forbole/kastle/issues/474)) ([a98ad56](https://github.com/forbole/kastle/commit/a98ad56c568fd02133211787be65bfb5c7c252df))
+* **kasparocket:** a real buy plan now passes every pre-sign check ([#496](https://github.com/forbole/kastle/issues/496)) ([d68d429](https://github.com/forbole/kastle/commit/d68d42904df1617cbba7602be754621a21aac8b8))
+* **kasparocket:** cap covenant inputs only; a buy may spend any number of KAS coins ([#503](https://github.com/forbole/kastle/issues/503)) ([711aaa9](https://github.com/forbole/kastle/commit/711aaa94915d75522166bfc5f28262e5e9f8d4ff))
+* **kasparocket:** stop taking the server's word on fees, debit and the bought cell ([#497](https://github.com/forbole/kastle/issues/497)) ([e91afcb](https://github.com/forbole/kastle/commit/e91afcbe40f82902a9430060a148b322ae43f66a))
+* **kasseal:** a curve buy may spend the curve's own supply cell ([#499](https://github.com/forbole/kastle/issues/499)) ([92623a5](https://github.com/forbole/kastle/commit/92623a55e682108e7680af094f9c6dd964c2f95f))
+* **kcc20:** read kascov's display_decimals when no decimals are declared ([#504](https://github.com/forbole/kastle/issues/504)) ([7c09a8c](https://github.com/forbole/kastle/commit/7c09a8c7248447fa5cede4595c7135595ebe1f9c))
+* **sentry:** do not initialise Sentry in an automated browser (KASTLE-4X, KASTLE-4W) ([#477](https://github.com/forbole/kastle/issues/477)) ([783eabb](https://github.com/forbole/kastle/commit/783eabb9775cf6b470cc4add4cb1b9cada31b06f))
+
 ## [2.63.2](https://github.com/forbole/kastle/compare/v2.63.1...v2.63.2) (2026-11-19)
 
 
