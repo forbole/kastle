@@ -1100,7 +1100,7 @@ async function braidSell(
       settles,
     )
     .find((s) => s.txHash === BRAID_SELL_TXID)!;
-  return { row, settles, seen };
+  return { row, settles, seen, deposits };
 }
 
 test("Braid sell (live settle): Received net of the router coin, bond and both fees", async () => {
@@ -1149,12 +1149,9 @@ test("Braid sell (live settle): Received net of the router coin, bond and both f
   // Final: the second ask reads nothing.
   const again = route([]);
   expect(
-    (
-      await m.fetchBraidSellSettles(
-        VENUE_WALLET,
-        new Map([[BRAID_SELL_TXID, {}]]),
-      )
-    ).get(BRAID_SELL_TXID)?.state,
+    (await m.fetchBraidSellSettles(VENUE_WALLET, scaled.deposits)).get(
+      BRAID_SELL_TXID,
+    )?.state,
   ).toBe("done");
   expect(again).toEqual([]);
 });
@@ -1235,9 +1232,13 @@ test("Braid sell: a refund is proven by the spend; a sale under its fees is neve
       covenant_id: null,
     });
   });
-  const { row, settles } = await braidSell(batched);
+  const { row, settles, deposits } = await braidSell(batched);
   expect(settles.size).toBe(0);
   expect(row).toMatchObject({ toAmount: "0", feeAmount: "0.018264" });
+  // The refusal is final too: the next read asks for nothing.
+  const again = route([]);
+  expect((await m.fetchBraidSellSettles(VENUE_WALLET, deposits)).size).toBe(0);
+  expect(again).toEqual([]);
 });
 
 test("Braid sell, settle unread: Received drawn as Amount unavailable, KAS named, Kastle fee 0 KAS", async () => {

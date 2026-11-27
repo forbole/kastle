@@ -916,17 +916,19 @@ const OPEN: BraidSellSettle = { state: "open" };
  * fees, which the row shows together as its Network fee. On the live fixture
  * (89fea3… → 568d41…): 10.18004 − 1 − 0.5 − 0.018264 = 8.661776 KAS.
  *
- * Null — no guess — when a plain input other than the coin is not the
- * wallet's (Braid batched another party's coin: the fee is not ours alone),
- * the settle spans more than one token/market pair, the outputs exceed the
- * inputs, or the deposit fee is unknown.
+ * "refused" — no guess, and final: the accepted settle never changes — when
+ * a plain input other than the coin is not the wallet's (Braid batched
+ * another party's coin: the fee is not ours alone), the settle spans more
+ * than one token/market pair, the outputs exceed the inputs, or it nets
+ * nothing without proving a refund. Null (unread, asked again) when the
+ * deposit fee is unknown, or the listing lacks the deposit or an amount.
  */
 export function deriveBraidSellSettle(
   listed: readonly BraidListedTx[],
   depositTxid: string,
   deposit: BraidDeposit,
   address: string,
-): BraidSellSettle | null {
+): BraidSellSettle | "refused" | null {
   const coin = deposit.coin;
   if (!coin || deposit.networkFeeSompi === undefined) return null;
   const spendsCoin = (i: MoneyTxInput) =>
@@ -946,7 +948,7 @@ export function deriveBraidSellSettle(
     if (a === null) return null;
     inputs += a;
     if (covenantOf(i) || spendsCoin(i)) continue;
-    if (i.previous_outpoint_address !== address) return null;
+    if (i.previous_outpoint_address !== address) return "refused";
     walletIn += a;
   }
   let outputs = 0n;
@@ -960,7 +962,7 @@ export function deriveBraidSellSettle(
   }
   const settleFee = inputs - outputs;
   const { bond, covenants } = covenantBond(settle);
-  if (settleFee < 0n || covenants > 2) return null;
+  if (settleFee < 0n || covenants > 2) return "refused";
   const kas =
     walletOut - walletIn - coin.amountSompi + bond - deposit.networkFeeSompi;
   if (kas <= 0n) {
@@ -971,13 +973,17 @@ export function deriveBraidSellSettle(
     const note = settle.inputs?.some(
       (i) => i.previous_outpoint_hash === depositTxid && covenantOf(i),
     );
-    return note && covenants === 1 ? { state: "refunded" } : null;
+    return note && covenants === 1 ? { state: "refunded" } : "refused";
   }
   return { state: "done", kasSompi: kas, settleFeeSompi: settleFee };
 }
 
-/** Final outcomes (done, refunded) per address and deposit txid; `open` is re-read. */
-const braidSettleByTx = new Map<string, BraidSellSettle>();
+/**
+ * Final outcomes (done, refunded, refused) per address and deposit txid;
+ * `open` and unread are re-read. A refusal is cached like an answer: the
+ * accepted settle it read cannot change, and its listing is ~105 KB.
+ */
+const braidSettleByTx = new Map<string, BraidSellSettle | "refused">();
 
 /** Newest transactions at a router coin's address: its deposit and its settle. */
 const BRAID_COIN_LISTING_LIMIT = 10;
@@ -997,7 +1003,7 @@ export async function fetchBraidSellSettles(
     [...deposits].map(async ([txid, deposit]) => {
       const key = `${address}:${txid}`;
       const hit = braidSettleByTx.get(key);
-      if (hit) return void out.set(txid, hit);
+      if (hit) return void (hit !== "refused" && out.set(txid, hit));
       if (!deposit.coin) return;
       const listed = await requestJson(
         `${base}/addresses/${encodeURIComponent(deposit.coin.address)}` +
@@ -1011,8 +1017,9 @@ export async function fetchBraidSellSettles(
         address,
       );
       if (!settle) return;
-      if (settle.state !== "open") braidSettleByTx.set(key, settle);
-      out.set(txid, settle);
+      if (settle === "refused" || settle.state !== "open")
+        braidSettleByTx.set(key, settle);
+      if (settle !== "refused") out.set(txid, settle);
     }),
   );
   return out;
