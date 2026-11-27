@@ -165,6 +165,8 @@ export interface KurveWallets {
   kaspaAddress: string | null;
   /** L2 recipient of deposits (the user's own evm address). */
   evmAddress: string | null;
+  /** Refresh: re-list L1 payouts even when the count has not moved. */
+  force?: boolean;
 }
 
 const upgradeable = (row: KurveBridgeActivity) =>
@@ -186,7 +188,8 @@ export async function applyKurveCompletions(
   rows: KurveBridgeActivity[],
   wallets: KurveWallets,
   fetchers = {
-    l1Payouts: (addr: string) => fetchVaultPayouts(addr, KURVE_L1_HOT_WALLET),
+    l1Payouts: (addr: string) =>
+      fetchVaultPayouts(addr, KURVE_L1_HOT_WALLET, wallets.force),
     l2Credits: fetchKasplexBridgeCredits,
   },
 ): Promise<KurveBridgeActivity[]> {

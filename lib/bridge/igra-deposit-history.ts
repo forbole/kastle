@@ -163,6 +163,16 @@ interface CacheEntry {
   scannedAt: number;
   /** When page 0 was last re-read. Governs the head TTLs. */
   headAt: number;
+  /**
+   * transactions-count read just BEFORE the last page 0, or null when page 0
+   * came from a cold scan (whose count is read after paging, so it may
+   * already include a transaction the scan missed).
+   */
+  count: number | null;
+  /** When `count` was first read (see LISTING_MAX_AGE_MS). */
+  countSince: number;
+  /** A page 0 read LISTING_MAX_AGE_MS after countSince: `count` may gate. */
+  confirmed: boolean;
   /** Newest transaction id of the last read, or null if the wallet has none. */
   newestTxId: string | null;
   result: IgraDepositResult;
@@ -282,6 +292,15 @@ async function fetchPage(
 }
 
 /**
+ * api.kaspa.org caches full-transactions for 8 s and transactions-count for
+ * 4 s (max-age, served from the CDN), so a listing read right after a count
+ * can predate it: the new count paired with the old listing. A count may only
+ * stand in for a listing once a listing read this long after the count was
+ * first seen came back under it.
+ */
+export const LISTING_MAX_AGE_MS = 8_000;
+
+/**
  * Total transactions the indexer holds for the address, or null if unavailable.
  *
  * This counts index rows, which is an upper bound on distinct transactions —
@@ -289,7 +308,7 @@ async function fetchPage(
  * An upper bound is exactly what is needed to rule truncation out: if it fits
  * inside the horizon, so does the real history.
  */
-async function fetchTxCount(
+export async function fetchTxCount(
   base: string,
   kaspaAddress: string,
 ): Promise<number | null> {
@@ -387,9 +406,10 @@ export async function fetchIgraDeposits({
   kaspaAddress?: string | null;
   entryAddress: string;
   /**
-   * Skip the head-TTL short-circuit so an explicit refresh (pull-to-refresh)
-   * always re-checks L1 instead of serving a stale head. Still splices onto
-   * the cached tail rather than paying the full cold-scan cost — a failed
+   * Skip the head-TTL short-circuit and the count gate so an explicit
+   * refresh (pull-to-refresh) always re-reads page 0 instead of serving a
+   * stale head. Still splices onto the cached tail rather than paying the
+   * full cold-scan cost — a failed
    * read is never cached (see below), so a degraded source already retries
    * fully on its own; force only matters when the cache is healthy but
    * within TTL and the user wants a genuine re-check anyway.
@@ -410,6 +430,22 @@ export async function fetchIgraDeposits({
     if (!force && now - hit.headAt < headTtl(hit.result)) return hit.result;
 
     if (now - hit.scannedAt < FULL_TTL_MS) {
+      // Every deposit settled: page 0 can only change if a transaction
+      // landed, which the 13 B count answers instead of a 2 MB page. A
+      // pending deposit skips this — its acceptance does not move the count.
+      // `force` (Refresh) always re-reads page 0.
+      const count = await fetchTxCount(base, kaspaAddress);
+      const countAt = Date.now();
+      const same = count !== null && count === hit.count;
+      if (
+        !force &&
+        same &&
+        hit.confirmed &&
+        hit.result.deposits.every((d) => d.accepted)
+      )
+        return remember(kaspaAddress, { ...hit, headAt: now });
+      const listedAt = Date.now();
+      const countSince = same ? hit.countSince : countAt;
       const head = await fetchPage(base, kaspaAddress, 0);
       // A transient L1 failure must not throw away a good history: keep serving
       // what we have and try again on the next refresh.
@@ -434,6 +470,9 @@ export async function fetchIgraDeposits({
         return remember(kaspaAddress, {
           scannedAt: hit.scannedAt,
           headAt: now,
+          count,
+          countSince,
+          confirmed: listedAt - countSince >= LISTING_MAX_AGE_MS,
           newestTxId: head[0]?.transaction_id ?? hit.newestTxId,
           result: { ...hit.result, deposits: merged },
         });
@@ -497,6 +536,9 @@ export async function fetchIgraDeposits({
   return remember(kaspaAddress, {
     scannedAt: Date.now(),
     headAt: Date.now(),
+    count: null,
+    countSince: 0,
+    confirmed: false,
     newestTxId,
     result: { deposits, ok: true, truncated },
   });

@@ -402,15 +402,22 @@ export default function Activity() {
     params.get("type") === "bridge" ? "bridge" : "swap";
   const { networkId } = useRpcClientStateful();
   const isMainnet = (networkId ?? NetworkType.Mainnet) === NetworkType.Mainnet;
-  const feed = useActivityFeed(isMainnet);
+  const feed = useActivityFeed(isMainnet, pageType);
   const { logoFor, priceFor } = useTokenMaps(isMainnet);
   const [openId, setOpenId] = useState<string>();
 
-  const rows = feed.rows ? rowsForPage(feed.rows, pageType) : null;
-  // In-flight bridges pin to the top; the stable sort keeps newest-first below.
-  const items = rows
-    ?.map((row) => toActivityItem(row, { logoFor, priceFor }))
-    .sort((a, b) => Number(b.isInProgress) - Number(a.isInProgress));
+  // Rebuilt only when the rows or the token maps change, not on every
+  // render (opening a sheet, a dismissal).
+  const items = useMemo(
+    () =>
+      feed.rows
+        ? rowsForPage(feed.rows, pageType)
+            .map((row) => toActivityItem(row, { logoFor, priceFor }))
+            // In-flight bridges pin to the top; the stable sort keeps newest-first below.
+            .sort((a, b) => Number(b.isInProgress) - Number(a.isInProgress))
+        : undefined,
+    [feed.rows, pageType, logoFor, priceFor],
+  );
   const open = items?.find((i) => i.id === openId);
 
   const [dismissed, setDismissed] = useState<Dismissed>();
@@ -434,13 +441,14 @@ export default function Activity() {
 
   // A source that recovered drops its dismissal, so a later failure with the
   // same code is shown again. Only an answered, error-free read prunes:
-  // `undefined` (unanswered) or an error with no code proves nothing.
+  // `undefined` (unanswered), stored rows or an error with no code prove nothing.
   const pageSources =
     pageType === "bridge"
       ? [feed.bridgeSource, feed.depositSource, feed.kurveSource]
       : [feed.swapSource];
   const answered =
     feed.rows != null &&
+    !feed.isStale &&
     !feed.error &&
     pageSources.every((s) => s !== undefined);
   const liveCodes = pageSources.flatMap((s) => toList(s ?? null)) as string[];
@@ -481,6 +489,18 @@ export default function Activity() {
   };
 
   const [emptyTitle, emptyBody] = EMPTY_COPY[pageType];
+  const retry = (
+    <div className="flex flex-col items-center gap-3 py-10 text-center">
+      <p className="text-sm text-daintree-400">{"Couldn't load activity."}</p>
+      <button
+        type="button"
+        onClick={feed.refresh}
+        className="rounded-full bg-icy-blue-400 px-4 py-2 text-sm font-semibold text-white"
+      >
+        Retry
+      </button>
+    </div>
+  );
 
   return (
     <div className="flex h-full flex-col">
@@ -542,20 +562,11 @@ export default function Activity() {
               </div>
             )}
 
+            {/* Stored rows over a failed live read: they may be out of date. */}
+            {items !== undefined && feed.error && feed.isStale && retry}
             {items === undefined ? (
               feed.error ? (
-                <div className="flex flex-col items-center gap-3 py-10 text-center">
-                  <p className="text-sm text-daintree-400">
-                    {"Couldn't load activity."}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={feed.refresh}
-                    className="rounded-full bg-icy-blue-400 px-4 py-2 text-sm font-semibold text-white"
-                  >
-                    Retry
-                  </button>
-                </div>
+                retry
               ) : (
                 Array.from({ length: 5 }, (_, i) => (
                   <div

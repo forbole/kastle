@@ -76,30 +76,37 @@ export const FIAT_DISPLAY_FLOOR = 1e-6;
  * separator are the currency's own ("$1,374.61"). Not for unit prices: a
  * token priced at $0.0000029 is a price, not an amount.
  */
-export function formatFiatAmount(number: number, code: string = "USD"): string {
-  const abs = Math.abs(number);
-  const currencyDisplay = CURRENCY_SYMBOL_MAPPING[code] ?? "symbol";
-  if (!Number.isFinite(number) || abs === 0 || abs >= 0.01)
-    return new Intl.NumberFormat("en-US", {
+// One formatter per currency + max decimals (≤ 3 × currencies in use):
+// building an Intl formatter costs far more than format(), and Activity
+// formats every row's USD on every render.
+const fiatFormatters = new Map<string, Intl.NumberFormat>();
+function fiatFormatter(code: string, maximumFractionDigits: number) {
+  const key = `${code}|${maximumFractionDigits}`;
+  let f = fiatFormatters.get(key);
+  if (!f) {
+    f = new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: code,
-      currencyDisplay,
+      currencyDisplay: CURRENCY_SYMBOL_MAPPING[code] ?? "symbol",
       minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(number);
+      maximumFractionDigits,
+    });
+    fiatFormatters.set(key, f);
+  }
+  return f;
+}
+
+export function formatFiatAmount(number: number, code: string = "USD"): string {
+  const abs = Math.abs(number);
+  if (!Number.isFinite(number) || abs === 0 || abs >= 0.01)
+    return fiatFormatter(code, 2).format(number);
   if (abs < FIAT_DISPLAY_FLOOR) {
     const floor = formatFiatAmount(FIAT_DISPLAY_FLOOR, code);
     return number < 0 ? `>-${floor}` : `<${floor}`;
   }
   // Decimals that keep four significant digits, capped at six.
   const fraction = Math.min(6, 3 - Math.floor(Math.log10(abs)));
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: code,
-    currencyDisplay,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: fraction,
-  }).format(number);
+  return fiatFormatter(code, fraction).format(number);
 }
 
 export const USD_AMOUNT_FLOOR = 1e-8;

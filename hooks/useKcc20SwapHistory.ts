@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 import { bytesToHex } from "@noble/hashes/utils";
 import { NetworkType } from "@/contexts/SettingsContext";
@@ -25,6 +25,7 @@ import {
   getPendingBraidSwaps,
   subscribeBraidSwaps,
 } from "@/lib/braid/pending";
+import { storeActivity, useStoredActivity } from "@/lib/activity/feed-store";
 
 /**
  * KCC-20 swaps of the wallet's Kaspa address, for useActivityFeed to merge
@@ -38,7 +39,12 @@ import {
 export function useKcc20SwapHistory(
   kaspaAddress: string | undefined,
   enabled: boolean,
-): { family: Kcc20SwapFamily | null; refresh: () => Promise<unknown> } {
+): {
+  family: Kcc20SwapFamily | null;
+  /** `family` is the stored copy; the live read has not settled yet. */
+  stale: boolean;
+  refresh: () => Promise<unknown>;
+} {
   const [settings] = useSettings();
   const { isKcc20StandardEnabled } = useFeatureFlags();
   const ownerKey = useMemo(
@@ -115,7 +121,11 @@ export function useKcc20SwapHistory(
     () => (built ? kcc20SwapMoneyTxids(built.swaps) : []),
     [built],
   );
-  const { data: money, mutate: mutateMoney } = useSWR(
+  const {
+    data: money,
+    error: moneyError,
+    mutate: mutateMoney,
+  } = useSWR(
     on && moneyTxids.length
       ? ["kcc20-swap-money", kaspaAddress, ...moneyTxids]
       : null,
@@ -128,7 +138,11 @@ export function useKcc20SwapHistory(
     () => (built ? braidCandidateTxids(built.swaps, built.braidSells) : []),
     [built],
   );
-  const { data: braid, mutate: mutateBraid } = useSWR(
+  const {
+    data: braid,
+    error: braidError,
+    mutate: mutateBraid,
+  } = useSWR(
     on && braidTxids.length
       ? ["kcc20-swap-braid", kaspaAddress, ...braidTxids]
       : null,
@@ -161,8 +175,30 @@ export function useKcc20SwapHistory(
     };
   }, [built, money, braid, ownerKey, braidSwaps, tokens.data, data?.holdings]);
 
+  // Last settled family, shown on the next open until this read settles —
+  // rows, amounts and Braid checks together, so amounts never blink out.
+  const stored = useStoredActivity<Kcc20SwapFamily>(
+    "kcc20",
+    on ? kaspaAddress : undefined,
+  );
+  const settled =
+    !!family &&
+    (!moneyTxids.length || money !== undefined || !!moneyError) &&
+    (!braidTxids.length || braid !== undefined || !!braidError);
+  // A new trade re-keys the money read; once live has settled for this
+  // address, its rows stay up and the stored copy never comes back.
+  const settledFor = useRef<string>();
+  useEffect(() => {
+    if (!on || !settled) return;
+    settledFor.current = kaspaAddress;
+    storeActivity("kcc20", kaspaAddress!, family);
+  }, [on, settled, kaspaAddress, family]);
+  const stale =
+    on && !!stored && !settled && settledFor.current !== kaspaAddress;
+
   return {
-    family: on ? family : null,
+    family: on ? (stale ? stored! : family) : null,
+    stale,
     // A timed-out money read is not cached, so re-reading retries it even
     // when the rows (and so the money key) are unchanged.
     refresh: () => Promise.all([mutate(), mutateMoney(), mutateBraid()]),

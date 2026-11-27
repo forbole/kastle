@@ -103,15 +103,25 @@ const MAX_OBSERVED_ROWS = 50;
  * Successful reads only, keyed by txid.
  *
  * The feed polls every 10s and these transactions are immutable once they
- * exist, so a hit never goes stale. Failures are deliberately NOT cached: a
- * transient L1 timeout would otherwise dash a row's fees for the lifetime of
- * the process.
+ * exist, so a hit never goes stale. Failures are NOT kept here: a transient
+ * L1 timeout would otherwise dash a row's fees for the lifetime of the
+ * process (they wait out NO_FEE_TTL_MS instead).
  */
 const observedByTx = new Map<string, KatObservedFees>();
+
+/**
+ * Reads that came back with no fee, and when. An exit whose layout never
+ * decodes would otherwise cost its RPC reads on every 10 s poll, forever;
+ * ten minutes bounds how long a transient failure keeps a row's fee dashed.
+ */
+const NO_FEE_TTL_MS = 10 * 60_000;
+const noFeeAt = new Map<string, number>();
 
 /** Test seam — a fresh process starts empty, so only tests need this. */
 export function clearKatObservedFeeCache(): void {
   observedByTx.clear();
+  noFeeAt.clear();
+  txReads.clear();
   kurveKastleFeeByTx.clear();
 }
 
@@ -169,13 +179,39 @@ export function outputsTo(tx: KaspaTx, address: string): number | null {
   );
 }
 
-export async function fetchKaspaTx(txId: string): Promise<KaspaTx | null> {
+/**
+ * One read per transaction: the KCC-20 money and Braid passes run together
+ * over the same txids (9 × ~160 KB each on W1), so a read in flight or
+ * settled in the last 30 s is shared. Callers read only inputs/outputs,
+ * which never change once the tx exists. A failed read is dropped at once so
+ * the next caller retries. ponytail: 30 s window, not a cache — the callers
+ * keep their own derived caches (moneyByTx, braidByTx, observedByTx).
+ */
+const SHARED_TX_MS = 30_000;
+const txReads = new Map<string, Promise<KaspaTx | null>>();
+
+/** Test seam — specs reuse txids with different bodies. */
+export function clearSharedTxReads(): void {
+  txReads.clear();
+}
+
+export function fetchKaspaTx(txId: string): Promise<KaspaTx | null> {
+  const held = txReads.get(txId);
+  if (held) return held;
   const base = KASPA_REST_APIS[NetworkType.Mainnet];
-  const payload = await requestJson(
+  const read = requestJson(
     `${base}/transactions/${encodeURIComponent(txId)}` +
       `?inputs=true&outputs=true&resolve_previous_outpoints=light`,
+  ).then((payload) => (isKaspaTx(payload) ? payload : null));
+  txReads.set(txId, read);
+  void read.then(
+    (tx) => {
+      if (!tx) txReads.delete(txId);
+      else setTimeout(() => txReads.delete(txId), SHARED_TX_MS);
+    },
+    () => txReads.delete(txId),
   );
-  return isKaspaTx(payload) ? payload : null;
+  return read;
 }
 
 /**
@@ -403,6 +439,9 @@ export async function attachKatObservedFees(
         feesById.set(tx.id, cached);
         return;
       }
+      const missedAt = noFeeAt.get(key);
+      if (missedAt !== undefined && Date.now() - missedAt < NO_FEE_TTL_MS)
+        return;
 
       // The two exit lanes carry the fee in different places: a token exit
       // pays it as msg.value, a native one nets it out and states the split in
@@ -415,7 +454,8 @@ export async function attachKatObservedFees(
               ? readNativeExitFeeWei(hash, tx.fromChainId)
               : readExitBridgeFeeWei(hash, tx.fromChainId)
           ).then((wei) => (wei === null ? null : { exitBridgeFeeWei: wei }));
-      if (!fees) return;
+      if (!fees) return void noFeeAt.set(key, Date.now());
+      noFeeAt.delete(key);
       observedByTx.set(key, fees);
       feesById.set(tx.id, fees);
     }),
