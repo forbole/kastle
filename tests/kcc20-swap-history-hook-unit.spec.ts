@@ -64,7 +64,8 @@ const STUBS: [RegExp, string, string?][] = [
   ],
   [
     /^@\/lib\/kcc20\/swap$/,
-    `export const fetchKronMarkets = async () => [];`,
+    // The sold token, held no more and in no list: only KRON's registry names it.
+    `export const fetchKronMarkets = async () => Object.assign([{ covenantId: "${"B77CB1A7A9701CC4398EDB5BE836688FEB13463A62F4F57DA86104108ECDDFE4"}", entry: { symbol: "BRD", decimals: 8 } }], { graduated: [] });`,
     "hook",
   ],
   [
@@ -220,6 +221,7 @@ test("hook: refresh() lands a settle accepted after the first read — Pending t
   // SWR's default compare calls any two Maps equal and kept the open read.
   expect(await r.until("completed")).toMatchObject({
     status: "completed",
+    fromSymbol: "BRD",
     toAmount: "8.661776",
     feeAmount: "0.113124",
   });
