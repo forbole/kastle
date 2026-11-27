@@ -165,7 +165,9 @@ test.beforeEach(() => {
       );
     if (url.includes("/full-transactions")) {
       listings++;
-      return json(listing);
+      return listing === 500
+        ? new Response("", { status: 500 })
+        : json(listing);
     }
     const tx = TXS.find((t) =>
       url.includes(`/transactions/${t.transaction_id}`),
@@ -240,5 +242,23 @@ test("hook: the open sell's own re-check reaches the row without a refresh", asy
   const after = listings;
   await b.React.act(() => new Promise((res) => realSetTimeout(res, 200)));
   expect(listings).toBe(after);
+  await r.unmount();
+});
+
+test("hook: a failed listing is re-read on its own — the sell does not keep a dash", async () => {
+  // The 30 s re-check, run at 30 ms; every other timer as asked.
+  globalThis.setTimeout = ((fn: () => void, ms?: number, ...a: unknown[]) =>
+    realSetTimeout(fn, ms === 30_000 ? 30 : ms, ...a)) as typeof setTimeout;
+  listing = 500;
+  const r = await render();
+  const tick = () =>
+    b.React.act(() => new Promise((res) => realSetTimeout(res, 20)));
+  // The failed read lands: no settle, nothing marked open, Received unread.
+  for (let i = 0; i < 100 && listings === 0; i++) await tick();
+  expect(listings).toBeGreaterThan(0);
+  listing = COIN;
+  const sell = () => r.h().family?.swaps.find((s) => s.txHash === SELL_TXID);
+  for (let i = 0; i < 100 && sell()?.toAmount !== "8.661776"; i++) await tick();
+  expect(sell()).toMatchObject({ status: "completed", toAmount: "8.661776" });
   await r.unmount();
 });

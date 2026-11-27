@@ -1104,7 +1104,10 @@ async function braidSell(
     BRAID_SELL_TXID,
   ]);
   const seen = route([[KASPA_ADDR, listing]]);
-  const settles = await m.fetchBraidSellSettles(VENUE_WALLET, deposits);
+  const { settles, unread } = await m.fetchBraidSellSettles(
+    VENUE_WALLET,
+    deposits,
+  );
   const row = m
     .applyBraidTxids(
       built.swaps,
@@ -1115,7 +1118,7 @@ async function braidSell(
       settles,
     )
     .find((s) => s.txHash === BRAID_SELL_TXID)!;
-  return { row, settles, seen, deposits };
+  return { row, settles, unread, seen, deposits };
 }
 
 test("Braid sell (live settle): Received net of the router coin, bond and both fees", async () => {
@@ -1164,7 +1167,7 @@ test("Braid sell (live settle): Received net of the router coin, bond and both f
   // Final: the second ask reads nothing.
   const again = route([]);
   expect(
-    (await m.fetchBraidSellSettles(VENUE_WALLET, scaled.deposits)).get(
+    (await m.fetchBraidSellSettles(VENUE_WALLET, scaled.deposits)).settles.get(
       BRAID_SELL_TXID,
     )?.state,
   ).toBe("done");
@@ -1184,14 +1187,15 @@ test("Braid sell: no accepted spender is Pending, never Completed", async () => 
     is_accepted: false,
   }));
   expect((await braidSell(unaccepted)).row.status).toBe("pending");
-  // A listing that does not hold the deposit proves nothing: unread, not
-  // Pending, and not re-asked as an open sell.
+  // A listing that does not hold the deposit proves nothing: unread (asked
+  // again), never Pending.
   const lagging = unaccepted.filter(
     (t: { transaction_id: string }) => t.transaction_id !== BRAID_SELL_TXID,
   );
   for (const listing of [[], lagging]) {
     const empty = await braidSell(listing);
     expect(empty.settles.has(BRAID_SELL_TXID)).toBe(false);
+    expect(empty.unread).toBe(1);
     expect(empty.row.status).toBe("completed");
   }
   // Not cached: once accepted, the next read finds it.
@@ -1252,7 +1256,9 @@ test("Braid sell: a refund is proven by the spend; a sale under its fees is neve
   expect(row).toMatchObject({ toAmount: "0", feeAmount: "0.018264" });
   // The refusal is final too: the next read asks for nothing.
   const again = route([]);
-  expect((await m.fetchBraidSellSettles(VENUE_WALLET, deposits)).size).toBe(0);
+  expect(
+    (await m.fetchBraidSellSettles(VENUE_WALLET, deposits)).settles.size,
+  ).toBe(0);
   expect(again).toEqual([]);
 });
 
@@ -1274,7 +1280,7 @@ test("Braid sell: the settle is found past ten newer transactions at the coin's 
     ["offset=10", BRAID_SELL_COIN],
     [KASPA_ADDR, newer],
   ]);
-  const settles = await m.fetchBraidSellSettles(VENUE_WALLET, deposits);
+  const { settles } = await m.fetchBraidSellSettles(VENUE_WALLET, deposits);
   expect(settles.get(BRAID_SELL_TXID)).toMatchObject({
     state: "done",
     kasSompi: 866177600n,
@@ -1298,8 +1304,8 @@ test("Braid sell: the settle is found past ten newer transactions at the coin's 
   route([[`${KASPA_TX}${BRAID_SELL_TXID}`, BRAID_SELL_TX]]);
   const again = await m.fetchBraidTxids(VENUE_WALLET, [BRAID_SELL_TXID]);
   const busy = route([[KASPA_ADDR, newer]]);
-  const unread = await m.fetchBraidSellSettles(VENUE_WALLET, again.deposits);
-  expect(unread.has(BRAID_SELL_TXID)).toBe(false);
+  const past = await m.fetchBraidSellSettles(VENUE_WALLET, again.deposits);
+  expect(past).toMatchObject({ settles: new Map(), unread: 1 });
   expect(busy).toHaveLength(5);
 });
 
@@ -1311,13 +1317,14 @@ test("Braid sell: an accepted settle listed without outputs is unread, never ref
     const listing = BRAID_SELL_COIN.map((t: { transaction_id: string }) =>
       t.transaction_id === BRAID_SELL_TXID ? t : { ...t, outputs },
     );
-    const { row, settles, deposits } = await braidSell(listing);
+    const { row, settles, unread, deposits } = await braidSell(listing);
     expect(settles.has(BRAID_SELL_TXID)).toBe(false);
     expect(row.status).not.toBe("failed");
+    expect(unread).toBe(1);
     // Not cached: the whole listing, read next, answers.
     route([[KASPA_ADDR, BRAID_SELL_COIN]]);
     const again = await m.fetchBraidSellSettles(VENUE_WALLET, deposits);
-    expect(again.get(BRAID_SELL_TXID)?.state).toBe("done");
+    expect(again.settles.get(BRAID_SELL_TXID)?.state).toBe("done");
   }
 });
 

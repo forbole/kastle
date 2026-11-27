@@ -994,6 +994,13 @@ export function deriveBraidSellSettle(
  */
 const braidSettleByTx = new Map<string, BraidSellSettle | "refused">();
 
+export interface BraidSettleResult {
+  /** Outcomes read, by deposit txid. */
+  settles: Map<string, BraidSellSettle>;
+  /** Sells whose listing failed or was incomplete: unknown, asked again. */
+  unread: number;
+}
+
 /** One page of a router coin address's listing, newest first. */
 const BRAID_COIN_PAGE = 10;
 /**
@@ -1010,20 +1017,23 @@ const BRAID_COIN_PAGES = 5;
  * later, is then listed too — or the listing ends, at most BRAID_COIN_PAGES.
  * ponytail: offset paging; a transaction landing mid-walk shifts the pages,
  * which repeats a row, never skips one. A sell whose listing fails or will
- * not derive is left out of the map. Never throws.
+ * not derive is left out of the map and counted in `unread`; one that can
+ * never derive (no coin, or a deposit fee not the wallet's alone) is not
+ * counted. Never throws.
  */
 export async function fetchBraidSellSettles(
   address: string,
   deposits: ReadonlyMap<string, BraidDeposit>,
-): Promise<Map<string, BraidSellSettle>> {
+): Promise<BraidSettleResult> {
   const out = new Map<string, BraidSellSettle>();
+  let unread = 0;
   const base = KASPA_REST_APIS[NetworkType.Mainnet];
   await Promise.allSettled(
     [...deposits].map(async ([txid, deposit]) => {
       const key = `${address}:${txid}`;
       const hit = braidSettleByTx.get(key);
       if (hit) return void (hit !== "refused" && out.set(txid, hit));
-      if (!deposit.coin) return;
+      if (!deposit.coin || deposit.networkFeeSompi === undefined) return;
       const listed: BraidListedTx[] = [];
       for (let page = 0; page < BRAID_COIN_PAGES; page++) {
         const got = await requestJson(
@@ -1031,7 +1041,7 @@ export async function fetchBraidSellSettles(
             `/full-transactions?resolve_previous_outpoints=light` +
             `&limit=${BRAID_COIN_PAGE}&offset=${page * BRAID_COIN_PAGE}`,
         );
-        if (!Array.isArray(got)) return;
+        if (!Array.isArray(got)) return void unread++;
         listed.push(...(got as BraidListedTx[]));
         if (
           got.length < BRAID_COIN_PAGE ||
@@ -1040,13 +1050,13 @@ export async function fetchBraidSellSettles(
           break;
       }
       const settle = deriveBraidSellSettle(listed, txid, deposit, address);
-      if (!settle) return;
+      if (!settle) return void unread++;
       if (settle === "refused" || settle.state !== "open")
         braidSettleByTx.set(key, settle);
       if (settle !== "refused") out.set(txid, settle);
     }),
   );
-  return out;
+  return { settles: out, unread };
 }
 
 /**

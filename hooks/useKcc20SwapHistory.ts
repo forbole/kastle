@@ -166,10 +166,17 @@ export function useKcc20SwapHistory(
       : null,
     () => fetchBraidSellSettles(kaspaAddress!, braid!.deposits),
     {
+      // Re-read while a sell is open or its listing could not be read: a
+      // failed read is not "no settle", and nothing else would ask again.
       refreshInterval: (d) =>
-        d && [...d.values()].some((v) => v.state === "open") ? 30_000 : 0,
+        d &&
+        (d.unread > 0 ||
+          [...d.settles.values()].some((v) => v.state === "open"))
+          ? 30_000
+          : 0,
       // Without it a re-read that finds the settle is discarded as "equal".
-      compare: sameSpots,
+      compare: (a, b) =>
+        a?.unread === b?.unread && sameSpots(a?.settles, b?.settles),
     },
   );
 
@@ -187,7 +194,7 @@ export function useKcc20SwapHistory(
       braid?.braid ?? new Set(),
       pending,
       braid?.deposits,
-      settles,
+      settles?.settles,
     );
     // An unread candidate may be a Braid sell this list cannot show yet.
     return {
