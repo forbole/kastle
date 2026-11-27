@@ -5,7 +5,10 @@ import { braidWalletJsonToTx } from "@/lib/braid/adapter";
 import { BRAID_PROVIDER } from "@/lib/braid/constants";
 import type { BraidSettleState, PendingBraidSwap } from "@/lib/braid/pending";
 import { KAT_L1_CHAIN_ID } from "@/lib/bridge/kat-bridge-history";
-import { fetchKaspaTx } from "@/lib/bridge/kat-observed-fees";
+import {
+  clearSharedTxReads,
+  fetchKaspaTx,
+} from "@/lib/bridge/kat-observed-fees";
 import { DaaTip, toHistoryEntries } from "@/lib/kcc20/history";
 import {
   KascovHolding,
@@ -544,6 +547,7 @@ const moneyByTx = new Map<string, Kcc20SwapMoney>();
 export function clearKcc20SwapMoneyCache(): void {
   moneyByTx.clear();
   braidByTx.clear();
+  clearSharedTxReads();
 }
 
 /**
