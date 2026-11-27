@@ -12,7 +12,11 @@ import { SWAP_ACTIVITY_TYPE } from "@/lib/activity/mappers";
 import type { BridgeHistoryDegradation } from "@/lib/bridge/kat-bridge-history";
 import type { IgraDepositDegradation } from "@/lib/bridge/igra-deposit-history";
 import type { KurveRegistryDegradation } from "@/lib/bridge/kat-registry";
-import { fetchActivityFeed } from "@/lib/activity/fetch-feed";
+import {
+  type ActivityFeedData,
+  fetchActivityFeed,
+} from "@/lib/activity/fetch-feed";
+import { storeActivity, useStoredActivity } from "@/lib/activity/feed-store";
 
 /**
  * Swap + bridge activity feed, ported from kastle-mobile
@@ -40,15 +44,25 @@ export function useActivityFeed(enabled: boolean) {
   // merged below, so kascov loading or failing never holds back these rows.
   const kcc20 = useKcc20SwapHistory(kaspaAddress, enabled);
 
+  // The last feed this wallet pair showed, painted while the live read runs.
+  const storeId = enabled ? `${sender}:${kaspaAddress}` : undefined;
+  const stored = useStoredActivity<ActivityFeedData>("feed", storeId);
+
   const { data, error, isLoading, mutate } = useSWR(
     enabled ? ["activity-feed", sender, kaspaAddress] : null,
-    () => {
+    async () => {
       const forceIgra = forceIgraRef.current;
       forceIgraRef.current = false;
-      return fetchActivityFeed({ sender, kaspaAddress, forceIgra });
+      const feed = await fetchActivityFeed({ sender, kaspaAddress, forceIgra });
+      storeActivity("feed", `${sender}:${kaspaAddress}`, feed);
+      return feed;
     },
-    { refreshInterval: 10_000, dedupingInterval: 5_000 },
+    { refreshInterval: 10_000, dedupingInterval: 5_000, fallbackData: stored },
   );
+  // SWR's isLoading ignores fallbackData: data here while loading is the
+  // stored copy, so its statuses may be seconds old until this read lands.
+  const feedStale = isLoading && data !== undefined;
+  const isStale = feedStale || kcc20.stale;
 
   const merged = useMemo(() => {
     if (!data) return null;
@@ -79,7 +93,10 @@ export function useActivityFeed(enabled: boolean) {
     kurveSource: (data?.kurveSource ?? null) as KurveRegistryDegradation | null,
     error,
     isLoading,
-    isRefreshing,
+    /** Rows are the stored copy; the live read has not answered yet. */
+    isStale,
+    // The existing refresh spinner also runs while stored rows revalidate.
+    isRefreshing: isRefreshing || isStale,
     refresh: () => {
       forceIgraRef.current = true;
       setIsRefreshing(true);

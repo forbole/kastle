@@ -27,7 +27,11 @@ const stub = {
 };
 await build({
   stdin: {
-    contents: ["@/lib/activity/fetch-feed", "@/lib/activity/kcc20-swap-history"]
+    contents: [
+      "@/lib/activity/fetch-feed",
+      "@/lib/activity/feed-store",
+      "@/lib/activity/kcc20-swap-history",
+    ]
       .map((p) => `export * from ${JSON.stringify(p)};`)
       .concat([
         `export { ownerStrings, standardOwnerKey } from "@/lib/kcc20/history";`,
@@ -119,11 +123,25 @@ async function kcc20() {
       tokens: m.kcc20SwapTokenMeta([], a.v.holdings),
     });
   const braidIds = m.braidCandidateTxids(built.swaps, built.braidSells);
-  await Promise.all([
+  const [money, braid] = await Promise.all([
     tag("kcc20-money", () => m.fetchKcc20SwapMoney(KASPA, built.swaps)),
     tag("kcc20-braid", () => m.fetchBraidTxids(KASPA, braidIds)),
   ]);
+  // The settled family as hooks/useKcc20SwapHistory.ts assembles it (no local pending Braid swaps).
+  const { braidSells, ...rest } = built;
+  const family = {
+    ...rest,
+    health: a.v.health,
+    swaps: m.applyBraidTxids(
+      m.applyKcc20SwapMoney(rest.swaps, money.v),
+      braidSells,
+      braid.v.braid,
+      [],
+    ),
+    braidUnread: braid.v.unread,
+  };
   return {
+    family,
     ms: T() - t0,
     rowsMs,
     reqs: log.slice(start),
@@ -222,6 +240,14 @@ const k2 = await kcc20();
 report("kcc20 POLL (money/braid caches hot)", k2);
 
 import { writeFileSync } from "node:fs";
+// What the hooks store after this cold read: seeds scripts/perf/first-row.
+writeFileSync(
+  (process.argv[6] ?? "/tmp/ap/log.json") + ".stored.json",
+  JSON.stringify({
+    feed: m.encodeStored(a.v),
+    kcc20: m.encodeStored(k.family),
+  }),
+);
 writeFileSync(
   process.argv[6] ?? "/tmp/ap/log.json",
   JSON.stringify({

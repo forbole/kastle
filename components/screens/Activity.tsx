@@ -434,13 +434,14 @@ export default function Activity() {
 
   // A source that recovered drops its dismissal, so a later failure with the
   // same code is shown again. Only an answered, error-free read prunes:
-  // `undefined` (unanswered) or an error with no code proves nothing.
+  // `undefined` (unanswered), stored rows or an error with no code prove nothing.
   const pageSources =
     pageType === "bridge"
       ? [feed.bridgeSource, feed.depositSource, feed.kurveSource]
       : [feed.swapSource];
   const answered =
     feed.rows != null &&
+    !feed.isStale &&
     !feed.error &&
     pageSources.every((s) => s !== undefined);
   const liveCodes = pageSources.flatMap((s) => toList(s ?? null)) as string[];
