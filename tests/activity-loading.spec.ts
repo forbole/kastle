@@ -47,7 +47,7 @@ const EVM = "0x178F82eD0c5a5B924CD72529d0267Be5b452C337";
 const A = "kaspa:qqwalleta";
 const B = "kaspa:qqwalletb";
 const storeKey = (kaspa: string) =>
-  `local:cache:activity:feed:bridge:${EVM}:${kaspa}`;
+  `local:cache:activity:v1:feed:bridge:${EVM}:${kaspa}`;
 
 const kurve = (originTxHash: string, status: "PENDING" | "COMPLETED") => ({
   type: "bridge_kurve",

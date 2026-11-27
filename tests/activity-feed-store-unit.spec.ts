@@ -30,7 +30,7 @@ test.beforeAll(async () => {
           }));
           b.onLoad({ filter: /.*/, namespace: "stub" }, () => ({
             loader: "js",
-            contents: `const store = new Map(); globalThis.__writes = [];
+            contents: `const store = new Map(); globalThis.__writes = []; globalThis.__store = store;
               export const storage = {
                 getItem: async (k) => store.get(k) ?? null,
                 setItem: async (k, v) => { globalThis.__writes.push(k); store.set(k, v); },
@@ -74,4 +74,15 @@ test("an unchanged poll writes nothing; a changed one writes", () => {
   expect(writes.length - before).toBe(1);
   m.storeActivity("feed", "0xa:kaspa:q1", { items: [2] });
   expect(writes.length - before).toBe(2);
+});
+
+test("a copy under another schema's key is never restored", async () => {
+  const store = (globalThis as unknown as { __store: Map<string, string> })
+    .__store;
+  // What 673552ec wrote: no schema segment.
+  const old = m.encodeStored({ swaps: [{ id: "old-shape" }] });
+  store.set("local:cache:activity:kcc20:kaspa:q9", old);
+  expect(await m.loadStoredActivity("kcc20", "kaspa:q9")).toBeUndefined();
+  m.storeActivity("kcc20", "kaspa:q9", { swaps: [] });
+  expect(writes.at(-1)).toBe("local:cache:activity:v1:kcc20:kaspa:q9");
 });

@@ -7,8 +7,12 @@ import { storage } from "wxt/storage";
  * only, like the feed. Values may carry bigint, which storage's JSON drops,
  * so they are stored as tagged JSON text.
  */
+// Bump on any change to the stored shapes (useActivityFeed's ActivityItem[]
+// per page, useKcc20SwapHistory's Kcc20SwapFamily): a copy an older build
+// wrote then stays unread instead of rendering as the current shape.
+const SCHEMA = 1;
 const key = (kind: "feed" | "kcc20", id: string) =>
-  `local:cache:activity:${kind}:${id}` as const;
+  `local:cache:activity:v${SCHEMA}:${kind}:${id}` as const;
 
 const BIG = "__bigint";
 
