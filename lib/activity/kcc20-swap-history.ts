@@ -994,13 +994,23 @@ export function deriveBraidSellSettle(
  */
 const braidSettleByTx = new Map<string, BraidSellSettle | "refused">();
 
-/** Newest transactions at a router coin's address: its deposit and its settle. */
-const BRAID_COIN_LISTING_LIMIT = 10;
+/** One page of a router coin address's listing, newest first. */
+const BRAID_COIN_PAGE = 10;
+/**
+ * Pages read before a sell is left unread: the 50 newest transactions at the
+ * coin's address. A live router address holds two, the deposit and its settle
+ * (kaspa:ppkq7…: total 2), so one page answers; the cap only bounds a reused
+ * address, and past it the row keeps a dash, never a guessed Pending.
+ */
+const BRAID_COIN_PAGES = 5;
 
 /**
- * One request per sell: the router coin address's listing carries the settle
- * whole, so nothing else is read. A sell whose listing fails or will not
- * derive is left out of the map. Never throws.
+ * The router coin address's listing carries the settle whole, so nothing else
+ * is read. Paged newest first until the deposit is listed — its spender, being
+ * later, is then listed too — or the listing ends, at most BRAID_COIN_PAGES.
+ * ponytail: offset paging; a transaction landing mid-walk shifts the pages,
+ * which repeats a row, never skips one. A sell whose listing fails or will
+ * not derive is left out of the map. Never throws.
  */
 export async function fetchBraidSellSettles(
   address: string,
@@ -1014,17 +1024,22 @@ export async function fetchBraidSellSettles(
       const hit = braidSettleByTx.get(key);
       if (hit) return void (hit !== "refused" && out.set(txid, hit));
       if (!deposit.coin) return;
-      const listed = await requestJson(
-        `${base}/addresses/${encodeURIComponent(deposit.coin.address)}` +
-          `/full-transactions?resolve_previous_outpoints=light&limit=${BRAID_COIN_LISTING_LIMIT}`,
-      );
-      if (!Array.isArray(listed)) return;
-      const settle = deriveBraidSellSettle(
-        listed as BraidListedTx[],
-        txid,
-        deposit,
-        address,
-      );
+      const listed: BraidListedTx[] = [];
+      for (let page = 0; page < BRAID_COIN_PAGES; page++) {
+        const got = await requestJson(
+          `${base}/addresses/${encodeURIComponent(deposit.coin.address)}` +
+            `/full-transactions?resolve_previous_outpoints=light` +
+            `&limit=${BRAID_COIN_PAGE}&offset=${page * BRAID_COIN_PAGE}`,
+        );
+        if (!Array.isArray(got)) return;
+        listed.push(...(got as BraidListedTx[]));
+        if (
+          got.length < BRAID_COIN_PAGE ||
+          got.some((t) => t?.transaction_id === txid)
+        )
+          break;
+      }
+      const settle = deriveBraidSellSettle(listed, txid, deposit, address);
       if (!settle) return;
       if (settle === "refused" || settle.state !== "open")
         braidSettleByTx.set(key, settle);

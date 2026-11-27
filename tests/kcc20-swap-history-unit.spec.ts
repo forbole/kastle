@@ -1083,7 +1083,7 @@ test("Braid sell: the deposit already read gives the row its network fee", async
   ).toBe("0.018 KAS"); // fmtFee caps the sheet at 3 dp
 });
 
-// api.kaspa.org /addresses/{router coin}/full-transactions?resolve_previous_outpoints=light&limit=10
+// api.kaspa.org /addresses/{router coin}/full-transactions?resolve_previous_outpoints=light&limit=10&offset=0
 // for BRAID_SELL_TX's coin, read live 2026-11-27 and trimmed to the fields read:
 // the deposit and its settle 568d41…, which pays the wallet 10.18004 KAS.
 const BRAID_SELL_COIN = fixture(
@@ -1254,6 +1254,53 @@ test("Braid sell: a refund is proven by the spend; a sale under its fees is neve
   const again = route([]);
   expect((await m.fetchBraidSellSettles(VENUE_WALLET, deposits)).size).toBe(0);
   expect(again).toEqual([]);
+});
+
+test("Braid sell: the settle is found past ten newer transactions at the coin's address, within a stated bound", async () => {
+  // Ten newer accepted transactions at the router address, none spending
+  // the coin: the first page alone holds neither the deposit nor its settle.
+  const newer = Array.from({ length: 10 }, (_, n) => ({
+    transaction_id: n.toString(16).padStart(64, "e"),
+    is_accepted: true,
+    inputs: [],
+    outputs: [{ amount: 1, script_public_key_address: VENUE_WALLET }],
+  }));
+  const built = await venueRecords();
+  route([[`${KASPA_TX}${BRAID_SELL_TXID}`, BRAID_SELL_TX]]);
+  const { braid, deposits } = await m.fetchBraidTxids(VENUE_WALLET, [
+    BRAID_SELL_TXID,
+  ]);
+  const seen = route([
+    ["offset=10", BRAID_SELL_COIN],
+    [KASPA_ADDR, newer],
+  ]);
+  const settles = await m.fetchBraidSellSettles(VENUE_WALLET, deposits);
+  expect(settles.get(BRAID_SELL_TXID)).toMatchObject({
+    state: "done",
+    kasSompi: 866177600n,
+  });
+  // Stopped at the page that lists the deposit.
+  expect(seen).toHaveLength(2);
+  const row = m
+    .applyBraidTxids(
+      built.swaps,
+      built.braidSells,
+      braid,
+      [],
+      deposits,
+      settles,
+    )
+    .find((s) => s.txHash === BRAID_SELL_TXID)!;
+  expect(row).toMatchObject({ status: "completed", toAmount: "8.661776" });
+
+  // Past the bound (50 newest, never the deposit): unread, never Pending.
+  m.clearKcc20SwapMoneyCache();
+  route([[`${KASPA_TX}${BRAID_SELL_TXID}`, BRAID_SELL_TX]]);
+  const again = await m.fetchBraidTxids(VENUE_WALLET, [BRAID_SELL_TXID]);
+  const busy = route([[KASPA_ADDR, newer]]);
+  const unread = await m.fetchBraidSellSettles(VENUE_WALLET, again.deposits);
+  expect(unread.has(BRAID_SELL_TXID)).toBe(false);
+  expect(busy).toHaveLength(5);
 });
 
 test("Braid sell: an accepted settle listed without outputs is unread, never refunded", async () => {
