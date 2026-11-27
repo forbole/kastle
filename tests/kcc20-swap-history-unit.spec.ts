@@ -1256,6 +1256,24 @@ test("Braid sell: a refund is proven by the spend; a sale under its fees is neve
   expect(again).toEqual([]);
 });
 
+test("Braid sell: an accepted settle listed without outputs is unread, never refunded", async () => {
+  // With the live inputs and no outputs it would net below 0 and prove a
+  // refund (the note is its only covenant), cached for the popup's life.
+  for (const outputs of [[], undefined]) {
+    m.clearKcc20SwapMoneyCache();
+    const listing = BRAID_SELL_COIN.map((t: { transaction_id: string }) =>
+      t.transaction_id === BRAID_SELL_TXID ? t : { ...t, outputs },
+    );
+    const { row, settles, deposits } = await braidSell(listing);
+    expect(settles.has(BRAID_SELL_TXID)).toBe(false);
+    expect(row.status).not.toBe("failed");
+    // Not cached: the whole listing, read next, answers.
+    route([[KASPA_ADDR, BRAID_SELL_COIN]]);
+    const again = await m.fetchBraidSellSettles(VENUE_WALLET, deposits);
+    expect(again.get(BRAID_SELL_TXID)?.state).toBe("done");
+  }
+});
+
 test("Braid sell, settle unread: Received drawn as Amount unavailable, KAS named, Kastle fee 0 KAS", async () => {
   const built = await venueRecords();
   const sell = m

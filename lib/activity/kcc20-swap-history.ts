@@ -926,7 +926,8 @@ const OPEN: BraidSellSettle = { state: "open" };
  * another party's coin: the fee is not ours alone), the settle spans more
  * than one token/market pair, the outputs exceed the inputs, or it nets
  * nothing without proving a refund. Null (unread, asked again) when the
- * deposit fee is unknown, or the listing lacks the deposit or an amount.
+ * deposit fee is unknown, or the listing lacks the deposit, the settle's
+ * outputs or an amount.
  */
 export function deriveBraidSellSettle(
   listed: readonly BraidListedTx[],
@@ -946,6 +947,9 @@ export function deriveBraidSellSettle(
   // one proves nothing, so the sell is unread instead.
   if (!settle)
     return listed.some((t) => t.transaction_id === depositTxid) ? OPEN : null;
+  // A settle listed without its outputs is incomplete, not one that paid
+  // nothing (that would derive a refund, cached for good): unread.
+  if (!settle.outputs?.length) return null;
   let inputs = 0n;
   let walletIn = 0n;
   for (const i of settle.inputs ?? []) {
@@ -958,7 +962,7 @@ export function deriveBraidSellSettle(
   }
   let outputs = 0n;
   let walletOut = 0n;
-  for (const o of settle.outputs ?? []) {
+  for (const o of settle.outputs) {
     const a = sompi(o?.amount);
     if (a === null) return null;
     outputs += a;
