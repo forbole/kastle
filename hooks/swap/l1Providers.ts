@@ -1,5 +1,7 @@
 import { useState } from "react";
 import braidLogo from "@/assets/images/providers/braid-logo.svg";
+import kasparocketLogo from "@/assets/images/providers/kasparocket-logo.png";
+import kassealLogo from "@/assets/images/providers/kasseal-logo.png";
 import kronLogo from "@/assets/images/providers/kron-logo.png";
 import { NetworkType } from "@/contexts/SettingsContext";
 import { BRAID_PROVIDER } from "@/lib/braid/constants";
@@ -74,6 +76,7 @@ export const L1_PROVIDERS: readonly L1Provider[] = [
   {
     id: "kasseal",
     name: "Kasseal",
+    image: kassealLogo,
     enabled: (flags) => flags.isKassealEnabled,
     // Only a curve token Kasseal's own listing routes (useKassealListing).
     supports: (a, b, networkId, listings) => {
@@ -87,6 +90,7 @@ export const L1_PROVIDERS: readonly L1Provider[] = [
   },
   {
     ...KASPAROCKET_PROVIDER,
+    image: kasparocketLogo,
     enabled: (flags) => flags.isKaspaRocketEnabled,
     // Mainnet only, and only a token with a pool (useKaspaRocketListing).
     supports: (a, b, networkId, listings) => {

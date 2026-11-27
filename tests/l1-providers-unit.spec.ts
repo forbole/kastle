@@ -81,6 +81,12 @@ const l1 = loadModule("hooks/swap/l1Providers.ts", {
   "@/assets/images/providers/kron-logo.png": asset(
     "@/assets/images/providers/kron-logo.png",
   ),
+  "@/assets/images/providers/kasseal-logo.png": asset(
+    "@/assets/images/providers/kasseal-logo.png",
+  ),
+  "@/assets/images/providers/kasparocket-logo.png": asset(
+    "@/assets/images/providers/kasparocket-logo.png",
+  ),
 }) as typeof import("@/hooks/swap/l1Providers");
 const { L1_PROVIDERS, hasL1Route, kronListing, useL1Provider } = l1;
 
@@ -211,6 +217,18 @@ test("Kasseal is listed first, then KaspaRocket, KRON, Braid", () => {
   ]);
 });
 
+test("every provider that can be enabled carries a mark: none ships anonymous", () => {
+  const allOn = new Proxy({}, { get: () => true }) as Parameters<
+    typeof l1.isL1Enabled
+  >[1];
+  const enabled = L1_PROVIDERS.filter((p: L1Provider) =>
+    l1.isL1Enabled(p, allOn),
+  );
+  expect(enabled).toHaveLength(L1_PROVIDERS.length);
+  for (const p of enabled)
+    expect(p.image?.trim(), `${p.id} has no image`).toBeTruthy();
+});
+
 test("each provider row draws the provider's own mark beside its name", async () => {
   const win = new Window();
   for (const k of DOM_GLOBALS)
@@ -247,10 +265,16 @@ test("each provider row draws the provider's own mark beside its name", async ()
     };
   });
   expect(rows).toEqual([
-    // Kasseal has no mark, as on mobile: an empty decorative slot keeps the rows aligned.
-    { name: "Kasseal", src: null, alt: "" },
-    // No KaspaRocket logo yet (an owner decision): the name alone.
-    { name: "KaspaRocket", src: null, alt: "" },
+    {
+      name: "Kasseal",
+      src: "/assets/images/providers/kasseal-logo.png",
+      alt: "",
+    },
+    {
+      name: "KaspaRocket",
+      src: "/assets/images/providers/kasparocket-logo.png",
+      alt: "",
+    },
     { name: "KRON", src: "/assets/images/providers/kron-logo.png", alt: "" },
     { name: "Braid", src: "/assets/images/providers/braid-logo.svg", alt: "" },
   ]);
