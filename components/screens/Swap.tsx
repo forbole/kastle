@@ -39,6 +39,7 @@ import SwapFamilyTabs, {
   hasFamilyRow,
   type SwapFamilyTab,
   inFamily,
+  visibleTabs,
 } from "@/components/screens/asset-selector/SwapFamilyTabs";
 import { NetworkType } from "@/contexts/SettingsContext";
 import useSwitchNetwork from "@/hooks/useSwitchNetwork";
@@ -941,7 +942,24 @@ export default function Swap() {
     [chainKey, setProviderName],
   );
 
-  const [family, setFamily] = useState<SwapFamilyTab>("all");
+  const [familyPick, setFamily] = useState<SwapFamilyTab>("all");
+  // Provider tabs: the same gates and routable sets the L1 providers use.
+  const familyTabs = useMemo(
+    () =>
+      visibleTabs({
+        kasseal: kassealOn,
+        kasparocket: kronEnabled && flags.isKaspaRocketEnabled,
+      }),
+    [kassealOn, kronEnabled, flags.isKaspaRocketEnabled],
+  );
+  const coverage = useMemo(
+    () => ({ kasseal: kassealRoutable, kasparocket: kaspaRocketRoutable }),
+    [kassealRoutable, kaspaRocketRoutable],
+  );
+  // A provider switched off mid-session takes its tab with it: back to All.
+  const family = familyTabs.some((t) => t.key === familyPick)
+    ? familyPick
+    : "all";
   // Each side's rows, rebuilt only when the list or a picked key changes.
   // Tokens hidden on the dashboard leave both sheets (display only: the pair
   // still resolves from `tokens`). Native rows have no hide id and stay.
@@ -964,17 +982,18 @@ export default function Swap() {
     () =>
       (["in", "out"] as const).map((side) => ({
         side,
-        tokens: sideTokens[side].filter((t) => inFamily(t, family)),
+        tokens: sideTokens[side].filter((t) => inFamily(t, family, coverage)),
         tabs: chainKey === "kaspa" && (
           <SwapFamilyTabs
+            tabs={familyTabs}
             value={family}
             onChange={setFamily}
-            empty={!hasFamilyRow(sideTokens[side], family)}
+            empty={!hasFamilyRow(sideTokens[side], family, coverage)}
           />
         ),
         onSelect: (t: SheetToken) => pickToken(side, t),
       })),
-    [sideTokens, family, chainKey, pickToken],
+    [sideTokens, family, familyTabs, coverage, chainKey, pickToken],
   );
   const closeSheet = useCallback(() => setSheet(undefined), []);
   const sheetChains = useMemo(

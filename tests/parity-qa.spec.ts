@@ -511,6 +511,120 @@ test("07b at 320 px all four provider rows draw a mark, and the tab reads Braid"
   expect(errors).toEqual([]);
 });
 
+test("07c at 320 px five tabs scroll in one row; the ring is never cut; arrows reach and reveal every tab", async ({
+  page,
+}) => {
+  const out = path.resolve("test-results/provider-tabs");
+  mkdirSync(out, { recursive: true });
+  const errors = await open(
+    page,
+    "swap",
+    "rows=6&providers=kasseal,kasparocket",
+  );
+  await page.setViewportSize({ width: 320, height: 800 });
+  await page.addStyleTag({ content: "#popup{width:320px!important}" });
+  await page.evaluate(() => document.fonts.ready);
+  const dialog = page.locator("dialog");
+  const list = page.getByRole("tablist");
+  const tabs = page.getByRole("tab");
+  await expect(tabs).toHaveText([
+    "All",
+    "Braid",
+    "KRON",
+    "Kasseal",
+    "KaspaRocket",
+  ]);
+  for (let i = 1; i < 5; i++) {
+    const img = await drawn(page, tabs.nth(i).locator("img"));
+    expect(img.width, `tab ${i} mark`).toBeGreaterThan(0);
+  }
+  const geometry = await list.evaluate((el: HTMLElement) => {
+    const cs = getComputedStyle(el);
+    return {
+      overflowX: cs.overflowX,
+      overflows: el.scrollWidth > el.clientWidth,
+      // A horizontal scrollbar would take height from the client box.
+      scrollbarHeight: el.offsetHeight - el.clientHeight,
+      tops: [...el.children].map((c) => c.getBoundingClientRect().top),
+      heights: [...el.children].map((c) => c.getBoundingClientRect().height),
+    };
+  });
+  expect(geometry.overflowX).toBe("auto");
+  expect(geometry.overflows).toBe(true);
+  expect(geometry.scrollbarHeight).toBe(0);
+  expect(new Set(geometry.tops).size).toBe(1); // one row, no wrap
+  expect(new Set(geometry.heights)).toEqual(new Set([36])); // h-9 kept
+  await dialog.screenshot({ path: path.join(out, "tabs-320.png") });
+
+  // Keyboard only: focus All, then walk right. The focused tab and its ring
+  // sit wholly inside the scroll clip at every step.
+  await tabs.nth(0).focus();
+  const labels = ["All", "Braid", "KRON", "Kasseal", "KaspaRocket"];
+  for (let i = 0; i < labels.length; i++) {
+    if (i) await page.keyboard.press("ArrowRight");
+    const tab = tabs.nth(i);
+    await expect(tab).toBeFocused();
+    await expect(tab).toHaveAttribute("aria-selected", "true");
+    const fit = await tab.evaluate((el) => {
+      const cs = getComputedStyle(el);
+      const ring =
+        (cs.outlineStyle === "none" ? 0 : parseFloat(cs.outlineWidth)) +
+        Math.max(0, parseFloat(cs.outlineOffset) || 0);
+      const shadow = cs.boxShadow;
+      const b = el.getBoundingClientRect();
+      const c = el.parentElement!.getBoundingClientRect();
+      return {
+        ring,
+        shadow,
+        left: b.left - ring - c.left,
+        right: c.right - (b.right + ring),
+        top: b.top - ring - c.top,
+        bottom: c.bottom - (b.bottom + ring),
+      };
+    });
+    expect(
+      fit.ring + (fit.shadow === "none" ? 0 : 1),
+      `${labels[i]} ring`,
+    ).toBeGreaterThan(0);
+    for (const side of ["left", "right", "top", "bottom"] as const)
+      expect(fit[side], `${labels[i]} ${side}`).toBeGreaterThanOrEqual(-0.5);
+    await dialog.screenshot({
+      path: path.join(out, `tab-${labels[i]}-320.png`),
+    });
+  }
+  // Scrolled to the end: KaspaRocket fully in view; Home brings All back.
+  expect(await list.evaluate((el) => el.scrollLeft)).toBeGreaterThan(0);
+  await dialog.screenshot({ path: path.join(out, "scrolled-320.png") });
+  await page.keyboard.press("Home");
+  await expect(tabs.nth(0)).toBeFocused();
+  expect(await list.evaluate((el) => el.scrollLeft)).toBe(0);
+
+  // Coverage, not lineage: KRON1 is under both providers, KAS under every tab.
+  const symbols = () =>
+    page
+      .locator("dialog button:not([role=tab])")
+      .evaluateAll((bs) =>
+        bs
+          .map((b) => b.querySelector("span.font-semibold")?.textContent)
+          .filter(Boolean),
+      );
+  await page.getByRole("tab", { name: "Kasseal" }).click();
+  expect(await symbols()).toEqual(["KAS", "KRON1", "KRON3", "KRON5"]);
+  await page.getByRole("tab", { name: "KaspaRocket" }).click();
+  expect(await symbols()).toEqual(["KAS", "STD0", "KRON1"]);
+  expect(errors).toEqual([]);
+
+  // Either provider off: its tab is gone.
+  for (const [query, want] of [
+    ["providers=kasseal", ["All", "Braid", "KRON", "Kasseal"]],
+    ["providers=kasparocket", ["All", "Braid", "KRON", "KaspaRocket"]],
+  ] as const) {
+    errors.push(...(await open(page, "swap", `rows=6&${query}`)));
+    await expect(page.getByRole("tab")).toHaveText([...want]);
+  }
+  expect(errors).toEqual([]);
+});
+
 test("08 a 200-row sheet mounts only the rows in view; it scrolls to the end and search filters", async ({
   page,
 }) => {

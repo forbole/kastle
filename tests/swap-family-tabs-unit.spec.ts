@@ -93,6 +93,7 @@ const {
   FAMILY_TABS,
   hasFamilyRow,
   inFamily,
+  visibleTabs,
 } = loadModule("components/screens/asset-selector/SwapFamilyTabs.tsx", {
   ...base,
   "@/assets/images/providers/braid-logo.svg": asset(
@@ -100,6 +101,12 @@ const {
   ),
   "@/assets/images/providers/kron-logo.png": asset(
     "@/assets/images/providers/kron-logo.png",
+  ),
+  "@/assets/images/providers/kasseal-logo.png": asset(
+    "@/assets/images/providers/kasseal-logo.png",
+  ),
+  "@/assets/images/providers/kasparocket-logo.png": asset(
+    "@/assets/images/providers/kasparocket-logo.png",
   ),
 }) as typeof import("@/components/screens/asset-selector/SwapFamilyTabs");
 
@@ -141,7 +148,16 @@ test.afterEach(() => {
 });
 
 /** The swap screen's out-side sheet, wired as Swap.tsx wires it: a pair, the tab state, the real sheet. */
-async function mountSheet(tokens: Row[]) {
+type Providers = {
+  on?: { kasseal: boolean; kasparocket: boolean };
+  coverage?: { kasseal?: Set<string>; kasparocket?: Set<string> };
+};
+const OFF = { kasseal: false, kasparocket: false };
+
+async function mountSheet(
+  tokens: Row[],
+  { on = OFF, coverage = {} }: Providers = {},
+) {
   const win = new Window();
   for (const k of DOM_GLOBALS)
     if (!saved.has(k))
@@ -162,11 +178,12 @@ async function mountSheet(tokens: Row[]) {
       chains: [{ key: "kaspa", label: "Kaspa" }],
       chain: "kaspa",
       onChain: () => {},
-      tokens: side.filter((t) => inFamily(t, family)),
+      tokens: side.filter((t) => inFamily(t, family, coverage)),
       tabs: React.createElement(SwapFamilyTabs, {
+        tabs: visibleTabs(on),
         value: family,
         onChange: setFamily,
-        empty: !hasFamilyRow(side, family),
+        empty: !hasFamilyRow(side, family, coverage),
       }),
       onSelect: (t: Row) => setOut(t.key),
       recentKey: "local:test",
@@ -313,6 +330,8 @@ test("the Braid tab is labelled Braid and still filters the kcc20-standard famil
     ["all", "All"],
     ["kcc20-standard", "Braid"],
     ["kron-legacy", "KRON"],
+    ["kasseal", "Kasseal"],
+    ["kasparocket", "KaspaRocket"],
   ]);
 });
 
@@ -324,8 +343,10 @@ test("off Kaspa L1 the tabs filter nothing", () => {
   expect(inFamily(STANDARD, "kron-legacy")).toBe(false);
 });
 
-test("the Braid and KRON tabs carry their provider's mark, All none", async () => {
-  const s = await mountSheet([KAS, STANDARD, CURVE]);
+test("every venue tab carries its provider's mark, All none", async () => {
+  const s = await mountSheet([KAS, STANDARD, CURVE], {
+    on: { kasseal: true, kasparocket: true },
+  });
   const tabImages = (): Record<string, { src: string; alt: string }[]> =>
     Object.fromEntries(
       Array.from(s.host.querySelectorAll('[role="tab"]')).map((b: any) => [
@@ -341,6 +362,10 @@ test("the Braid and KRON tabs carry their provider's mark, All none", async () =
     // Decorative: the label beside it names the tab.
     Braid: [{ src: "/assets/images/providers/braid-logo.svg", alt: "" }],
     KRON: [{ src: "/assets/images/providers/kron-logo.png", alt: "" }],
+    Kasseal: [{ src: "/assets/images/providers/kasseal-logo.png", alt: "" }],
+    KaspaRocket: [
+      { src: "/assets/images/providers/kasparocket-logo.png", alt: "" },
+    ],
   });
   for (const [img] of Object.values(tabImages()).filter((v) => v.length))
     expect(fs.existsSync(path.join(__dirname, "..", img.src.slice(1)))).toBe(
@@ -371,5 +396,114 @@ test("a long list mounts only the rows in view, and the full list scrolls", asyn
   // A filter to fewer rows than the window mounts them all.
   await s.tap("KRON");
   expect(s.symbols()).toEqual(["KAS"]);
+  s.unmount();
+});
+
+// Provider tabs filter on coverage, not lineage: the sets Swap.tsx builds L1Listings from.
+const ROCKET_ID = "b0".repeat(32);
+const ROCKET: Row = {
+  key: `kaspa:${ROCKET_ID}`,
+  chain: "kaspa",
+  symbol: "ROCK",
+  address: ROCKET_ID,
+  family: "kcc20-standard",
+};
+const ALL_ON = { kasseal: true, kasparocket: true };
+// KRON's curve token is on Kasseal too; KING on KaspaRocket too; ROCK only there.
+const COVERAGE = {
+  kasseal: new Set([CURVE_ID]),
+  kasparocket: new Set([STD_ID, CURVE_ID, ROCKET_ID]),
+};
+
+test("Kasseal and KaspaRocket tabs list only the tokens they route, plus KAS", async () => {
+  const s = await mountSheet([KAS, STANDARD, CURVE, ROCKET], {
+    on: ALL_ON,
+    coverage: COVERAGE,
+  });
+  expect(s.tabs()).toEqual(["All", "Braid", "KRON", "Kasseal", "KaspaRocket"]);
+  expect(s.symbols()).toEqual(["KAS", "KING", "KRON", "ROCK"]);
+  await s.tap("Kasseal");
+  expect(s.symbols()).toEqual(["KAS", "KRON"]);
+  await s.tap("KaspaRocket");
+  expect(s.symbols()).toEqual(["KAS", "KING", "KRON", "ROCK"]);
+  // Two venues, both tabs: KRON's curve token is under KRON, Kasseal and KaspaRocket.
+  await s.tap("KRON");
+  expect(s.symbols()).toEqual(["KAS", "KRON"]);
+  await s.tap("Braid");
+  expect(s.symbols()).toEqual(["KAS", "KING", "ROCK"]);
+  s.unmount();
+});
+
+test("a provider tab with nothing routed says so and keeps the way back", async () => {
+  const s = await mountSheet([KAS, STANDARD], {
+    on: ALL_ON,
+    coverage: { kasseal: new Set(), kasparocket: undefined },
+  });
+  await s.tap("Kasseal");
+  expect(s.host.textContent).toContain("No Kasseal tokens to trade");
+  expect(s.symbols()).toEqual(["KAS"]);
+  await s.tap("KaspaRocket");
+  expect(s.host.textContent).toContain("No KaspaRocket tokens to trade");
+  expect(s.symbols()).toEqual(["KAS"]);
+  await s.tap("All");
+  expect(s.host.textContent).not.toContain("tokens to trade");
+  s.unmount();
+});
+
+test("a provider that is off contributes no tab", async () => {
+  for (const [on, want] of [
+    [OFF, ["All", "Braid", "KRON"]],
+    [
+      { kasseal: true, kasparocket: false },
+      ["All", "Braid", "KRON", "Kasseal"],
+    ],
+    [
+      { kasseal: false, kasparocket: true },
+      ["All", "Braid", "KRON", "KaspaRocket"],
+    ],
+  ] as const) {
+    const s = await mountSheet([KAS, STANDARD, CURVE], {
+      on,
+      coverage: COVERAGE,
+    });
+    expect(s.tabs()).toEqual(want);
+    s.unmount();
+  }
+});
+
+test("KAS and off-L1 rows stay under every provider tab", () => {
+  for (const tab of ["kasseal", "kasparocket"] as const) {
+    expect(inFamily(KAS, tab, COVERAGE)).toBe(true);
+    expect(inFamily(IGRA, tab, COVERAGE)).toBe(true);
+    // No coverage yet (listing loading or off): KAS only, and the panel says empty.
+    expect(inFamily(CURVE, tab)).toBe(false);
+    expect(hasFamilyRow([KAS, CURVE], tab)).toBe(false);
+  }
+  expect(hasFamilyRow([KAS, CURVE], "kasseal", COVERAGE)).toBe(true);
+});
+
+test("arrow keys walk all five tabs and wrap", async () => {
+  const s = await mountSheet([KAS, STANDARD, CURVE], {
+    on: ALL_ON,
+    coverage: COVERAGE,
+  });
+  const press = async (key: string, want: string) => {
+    const from = [...s.host.querySelectorAll('[role="tab"]')].find(
+      (b: any) => b.tabIndex === 0,
+    ) as any;
+    from.dispatchEvent(
+      new (from.ownerDocument.defaultView as any).KeyboardEvent("keydown", {
+        key,
+        bubbles: true,
+      }),
+    );
+    await expect.poll(s.selected).toBe(want);
+    expect(from.ownerDocument.activeElement?.textContent).toBe(want);
+  };
+  for (const want of ["Braid", "KRON", "Kasseal", "KaspaRocket", "All"])
+    await press("ArrowRight", want);
+  await press("End", "KaspaRocket");
+  await press("Home", "All");
+  await press("ArrowLeft", "KaspaRocket");
   s.unmount();
 });
