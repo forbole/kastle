@@ -87,6 +87,9 @@ const SWAP_SOURCE_MESSAGE: Record<SwapHistoryDegradation, string> = {
   // Rows were read but left out: kascov could not attribute the token amount to this wallet.
   swap_history_kcc20_unattributed:
     "Some KCC-20 swaps aren't shown — their amount couldn't be attributed to this wallet.",
+  // A Braid check whose transaction read failed: unknown, so the row may be missing.
+  swap_history_kcc20_braid_unread:
+    "Some KCC-20 swaps may be missing — a transaction couldn't be read to check it. Refresh to retry.",
 };
 
 const EMPTY_COPY: Record<ActivityPageType, [string, string]> = {

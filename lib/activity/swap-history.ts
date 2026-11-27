@@ -691,7 +691,8 @@ export type SwapHistoryDegradation =
   // KCC-20 swaps (Kaspa L1, read from kascov) — see kcc20-swap-history.ts.
   | "swap_history_kcc20_unavailable"
   | "swap_history_kcc20_partial"
-  | "swap_history_kcc20_unattributed";
+  | "swap_history_kcc20_unattributed"
+  | "swap_history_kcc20_braid_unread";
 
 export interface SwapHistoryResult {
   chainId: number;
@@ -1405,6 +1406,8 @@ export interface Kcc20SwapFamily {
   health: Kcc20SwapHealth;
   /** Trades left out because no token amount could be attributed. */
   unattributed: number;
+  /** Braid candidates whose transaction could not be read (fetchBraidTxids). */
+  braidUnread?: number;
 }
 
 /**
@@ -1441,6 +1444,7 @@ export function mergeKcc20SwapHistory(
     degraded.push("swap_history_kcc20_unavailable");
   if (kcc20.health === "truncated") degraded.push("swap_history_kcc20_partial");
   if (unattributed > 0) degraded.push("swap_history_kcc20_unattributed");
+  if (kcc20.braidUnread) degraded.push("swap_history_kcc20_braid_unread");
   return { swaps: [...evm.swaps, ...rows], degraded };
 }
 

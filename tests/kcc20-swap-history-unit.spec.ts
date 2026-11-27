@@ -771,7 +771,10 @@ test("KaspaRocket buy (real row) is a row on a cold start: no pool cache, no tok
 
   // It spends two Braid deposits' change, which is the wallet's own: not Braid.
   const seen = route([[`${KASPA_TX}${GUZA_TXID}`, GUZA_TX]]);
-  expect(await m.fetchBraidTxids(VENUE_WALLET, [GUZA_TXID])).toEqual(new Set());
+  expect(await m.fetchBraidTxids(VENUE_WALLET, [GUZA_TXID])).toEqual({
+    braid: new Set(),
+    unread: 0,
+  });
   expect(seen).toHaveLength(1);
 });
 
@@ -782,7 +785,7 @@ test("Braid sell (real deposit): no swap row until its BRT1 payload is read, the
   const seen = route([[`${KASPA_TX}${BRAID_SELL_TXID}`, BRAID_SELL_TX]]);
   const txids = m.braidCandidateTxids(built.swaps, built.braidSells);
   expect(txids).toContain(BRAID_SELL_TXID);
-  const braid = await m.fetchBraidTxids(VENUE_WALLET, [BRAID_SELL_TXID]);
+  const { braid } = await m.fetchBraidTxids(VENUE_WALLET, [BRAID_SELL_TXID]);
   expect(seen).toHaveLength(1);
   const rows = m.applyBraidTxids(built.swaps, built.braidSells, braid);
   const sell = rows.find((s) => s.txHash === BRAID_SELL_TXID);
@@ -807,7 +810,9 @@ test("Braid sell (real deposit): no swap row until its BRT1 payload is read, the
   // A send to a script that is not a Braid deposit stays out.
   route([[`${KASPA_TX}${BRAID_SELL_TXID}`, { ...BRAID_SELL_TX, payload: "" }]]);
   m.clearKcc20SwapMoneyCache();
-  const none = await m.fetchBraidTxids(VENUE_WALLET, [BRAID_SELL_TXID]);
+  const { braid: none } = await m.fetchBraidTxids(VENUE_WALLET, [
+    BRAID_SELL_TXID,
+  ]);
   expect(
     m
       .applyBraidTxids(built.swaps, built.braidSells, none)
@@ -848,7 +853,7 @@ test("Braid buy (real settle): kascov names KasForge's market, the spent deposit
     [`${KASPA_TX}${BRAID_SETTLE_TXID}`, BRAID_SETTLE_TX],
     [`${KASPA_TX}${BRAID_DEPOSIT_TX.transaction_id}`, BRAID_DEPOSIT_TX],
   ]);
-  const braid = await m.fetchBraidTxids(VENUE_WALLET, [BRAID_SETTLE_TXID]);
+  const { braid } = await m.fetchBraidTxids(VENUE_WALLET, [BRAID_SETTLE_TXID]);
   // The settle, then the deposit its router-coin input came from.
   expect(seen).toHaveLength(2);
   const [row] = m
@@ -860,9 +865,10 @@ test("Braid buy (real settle): kascov names KasForge's market, the spent deposit
   );
   // A confirmed answer is final: a second ask reads nothing.
   const again = route([]);
-  expect(await m.fetchBraidTxids(VENUE_WALLET, [BRAID_SETTLE_TXID])).toEqual(
-    new Set([BRAID_SETTLE_TXID]),
-  );
+  expect(await m.fetchBraidTxids(VENUE_WALLET, [BRAID_SETTLE_TXID])).toEqual({
+    braid: new Set([BRAID_SETTLE_TXID]),
+    unread: 0,
+  });
   expect(again).toEqual([]);
 });
 
@@ -881,4 +887,152 @@ test("an unknown venue (no market build) is still a row, its Provider Unknown", 
   expect(
     sheetOf(guza!).details.find((d) => d.label === "Provider")?.value,
   ).toBe("Unknown");
+});
+
+// ─── PR #505 review (Copilot) ───────────────────────────────────────────────
+
+test("a named token with no decimals keeps its name on the sheet; the amount stays absent", async () => {
+  // Named (a verified-list ticker, e.g. a token no longer held) but no scale.
+  const built = await venueRecords(
+    VENUES,
+    new Map([[GUZA_ID, { symbol: "GUZA" }]]),
+  );
+  const guza = built.swaps.find((s) => s.txHash === GUZA_TXID)!;
+  const t = sheetOf(guza).transfer;
+  expect(t.toSymbol).toBe("GUZA");
+  // The amount was not observed: no received line, never "0 GUZA".
+  expect("receivedAmount" in t).toBe(false);
+  // A sell draws the Paid leg even unread: the name, beside a "-" amount.
+  const sellToken = built.braidSells.find(
+    (s) => s.txHash === BRAID_SELL_TXID,
+  )!.tokenId!;
+  const sell = (
+    await venueRecords(VENUES, new Map([[sellToken, { symbol: "BRD" }]]))
+  ).braidSells.find((s) => s.txHash === BRAID_SELL_TXID)!;
+  expect(sheetOf(sell).transfer).toMatchObject({
+    fromSymbol: "BRD",
+    sentAmount: "-",
+  });
+  // A token nothing names says so, rather than "-".
+  const cold = (await venueRecords()).swaps.find(
+    (s) => s.txHash === GUZA_TXID,
+  )!;
+  expect(sheetOf(cold).transfer.toSymbol).toBe(m.UNKNOWN_TOKEN_SYMBOL);
+});
+
+test("a Braid read that fails is reported unread, never answered 'not Braid'", async () => {
+  route([[`${KASPA_TX}${BRAID_SELL_TXID}`, 500]]);
+  const down = await m.fetchBraidTxids(VENUE_WALLET, [BRAID_SELL_TXID]);
+  expect(down.braid).toEqual(new Set());
+  expect(down.unread).toBe(1);
+  // The settle reads, its parent deposit does not: still unknown.
+  route([
+    [`${KASPA_TX}${BRAID_SETTLE_TXID}`, BRAID_SETTLE_TX],
+    [`${KASPA_TX}${BRAID_DEPOSIT_TX.transaction_id}`, 500],
+  ]);
+  const parentDown = await m.fetchBraidTxids(VENUE_WALLET, [BRAID_SETTLE_TXID]);
+  expect(parentDown.unread).toBe(1);
+  // A failure is not cached: the next read answers.
+  route([[`${KASPA_TX}${BRAID_SELL_TXID}`, BRAID_SELL_TX]]);
+  const up = await m.fetchBraidTxids(VENUE_WALLET, [BRAID_SELL_TXID]);
+  expect(up).toEqual({ braid: new Set([BRAID_SELL_TXID]), unread: 0 });
+  // The family carries it to the page as a warning of its own.
+  const out = m.mergeKcc20SwapHistory(
+    { swaps: [], degraded: [] },
+    { swaps: [], health: "ok", unattributed: 0, braidUnread: down.unread },
+  );
+  expect(out.degraded).toEqual(["swap_history_kcc20_braid_unread"]);
+});
+
+test("a BRT1 parent is Braid only through its router coin, not another output", async () => {
+  // Someone else's Braid deposit change (a plain P2PK output of a BRT1
+  // transaction) spent by the settle: the deposit is real, the coin is not its router's.
+  const OTHER =
+    "kaspa:qrs2vdyfkcg0ws3r0npxu0zrs2klmv3fqvu7l9ncz8m5wg5y6u2cqah8c2m4y";
+  const deposit = structuredClone(BRAID_DEPOSIT_TX);
+  deposit.outputs[1].script_public_key_address = OTHER;
+  const settle = structuredClone(BRAID_SETTLE_TX);
+  const spent = settle.inputs.find(
+    (i: { previous_outpoint_hash: string }) =>
+      i.previous_outpoint_hash === deposit.transaction_id,
+  );
+  spent.previous_outpoint_index = 1;
+  spent.previous_outpoint_address = OTHER;
+  spent.previous_outpoint_amount = deposit.outputs[1].amount;
+  route([
+    [`${KASPA_TX}${BRAID_SETTLE_TXID}`, settle],
+    [`${KASPA_TX}${deposit.transaction_id}`, deposit],
+  ]);
+  const res = await m.fetchBraidTxids(VENUE_WALLET, [BRAID_SETTLE_TXID]);
+  expect(res.braid).toEqual(new Set());
+  expect(res.unread).toBe(0);
+});
+
+test("a pending Braid sell with no token decimals stays pending, never completed", async () => {
+  const built = await venueRecords();
+  const chain = built.braidSells.find((s) => s.txHash === BRAID_SELL_TXID)!;
+  const walletJson = JSON.stringify({
+    version: 1,
+    inputs: [
+      {
+        transactionId: "aa".repeat(32),
+        index: 0,
+        sequence: "0",
+        sigOpCount: 1,
+        signatureScript: "",
+        utxo: {
+          address: null,
+          amount: "300000000",
+          scriptPublicKey: `000020${VENUE_PK}ac`,
+          blockDaaScore: "1",
+          isCoinbase: false,
+        },
+      },
+    ],
+    outputs: [{ value: "299000000", scriptPublicKey: `000020${VENUE_PK}ac` }],
+    subnetworkId: "00".repeat(20),
+    lockTime: "0",
+    gas: "0",
+    payload: "",
+  });
+  const pending = m.braidPendingRecords(
+    [
+      {
+        ref: "ref-sell",
+        pairKey: `${VENUE_PK}:${chain.tokenId}`,
+        startedAt: VENUE_TIP.atMs,
+        prepared: {
+          userPublicKey: VENUE_PK,
+          depositTxid: BRAID_SELL_TXID,
+          from: { id: chain.tokenId!, symbol: "BRD" },
+          to: { id: "", symbol: "KAS" },
+          amountIn: "1000",
+          walletJson,
+        },
+      } as unknown as Parameters<typeof m.braidPendingRecords>[0][number],
+    ],
+    VENUE_PK,
+    // Named, but no source gives its scale.
+    new Map([[chain.tokenId!, { symbol: "BRD" }]]),
+  );
+  expect(pending).toHaveLength(1);
+  expect(pending[0]).toMatchObject({
+    status: "pending",
+    fromSymbol: "BRD",
+    toSymbol: "KAS",
+    txHash: BRAID_SELL_TXID,
+  });
+  // As the hook composes them: the chain's confirmed deposit defers to the
+  // local record, so the trade reads in flight.
+  const rows = [
+    ...pending,
+    ...m.applyBraidTxids(
+      built.swaps,
+      built.braidSells,
+      new Set([BRAID_SELL_TXID]),
+      pending,
+    ),
+  ].filter((s) => s.txHash === BRAID_SELL_TXID);
+  expect(rows.map((s) => s.status)).toEqual(["pending"]);
+  expect(sheetOf(rows[0]).transfer.fromSymbol).toBe("BRD");
 });

@@ -18,6 +18,22 @@ const kcc20 = (txid: string, tokenId: string) => ({
   status: "completed" as const,
 });
 
+// A KaspaRocket sell of a token the wallet names (verified-list ticker) but no
+// source scales — e.g. one no longer held: its amount is the unobserved sentinel.
+export const GUZA_ID =
+  "3cb7bd371ea2014af95f3471d2995ede8ffbde454d3a37e3b566880daf011c5a";
+export const UNSCALED: SwapActivityRecord[] = [
+  {
+    ...kcc20("aa".repeat(32), GUZA_ID),
+    timestampMs: at(2026, 11, 27, 9, 0),
+    fromSymbol: "GUZA",
+    toSymbol: "KAS",
+    fromAmount: "0",
+    toAmount: "1.5",
+    providerId: "kasparocket",
+  },
+];
+
 export const RECORDS: SwapActivityRecord[] = [
   {
     ...kcc20(
