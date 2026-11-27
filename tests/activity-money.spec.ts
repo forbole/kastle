@@ -164,6 +164,7 @@ for (const [name, title] of [
   ["both", "Swap KAS → GUZA"],
   ["onlyTo", "Swap - → GUZA"],
   ["onlyFrom", "Swap GUZA → -"],
+  ["kasUnread", "Swap GUZA → KAS"],
   ["neither", "Swap"],
 ] as const) {
   test(`sheet title, ${name}: ${title}`, async ({ page }) => {

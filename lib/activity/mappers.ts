@@ -91,13 +91,11 @@ export function mapSwapActivity(s: SwapActivityRecord): ActivityRowDescriptor {
   if (s.providerId) meta.providerId = s.providerId;
   if (s.tokenId) {
     meta.tokenId = s.tokenId;
-    // A KCC-20 token leg whose amount was not read (no decimals) still names
-    // its token: the leg is left out, its symbol is not. The KAS leg keeps
-    // its placeholder; only the token side is named by tokenId.
-    if (!sent && s.fromSymbol && s.fromSymbol !== "KAS")
-      meta.fromSymbol = s.fromSymbol;
-    if (!received && s.toSymbol && s.toSymbol !== "KAS")
-      meta.toSymbol = s.toSymbol;
+    // A KCC-20 leg whose amount was not read (a token with no decimals, the
+    // KAS side before its L1 read) still names its asset: the leg is left
+    // out, its symbol is not, so the sheet reads "Swap NACHO → KAS".
+    if (!sent && s.fromSymbol) meta.fromSymbol = s.fromSymbol;
+    if (!received && s.toSymbol) meta.toSymbol = s.toSymbol;
   }
   // Provider Fees: the network (gas) fee the swap tx paid.
   if (s.feeAmount && s.feeSymbol) {

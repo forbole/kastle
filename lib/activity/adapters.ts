@@ -17,6 +17,7 @@ import {
 import { swapVenueName, toProviderId } from "@/lib/activity/swap-history";
 import { ALL_SWAP_PROVIDERS } from "@/lib/evm/swap/constants";
 import { L1_PROVIDERS } from "@/hooks/swap/l1Providers";
+import { BRAID_KASTLE_FEE_BPS, BRAID_PROVIDER } from "@/lib/braid/constants";
 import { igraMainnet, kasplexMainnet } from "@/lib/layer2";
 import { NetworkType } from "@/contexts/SettingsContext";
 import { kcc20TxLinks } from "@/components/screens/Settings";
@@ -292,6 +293,13 @@ function feeRows(row: ActivityRowDescriptor): DetailRow[] {
     rows.push({ label: "Kastle fee", value: fmtFee(row.meta.kastleFee) });
   } else if (row.meta?.kastleFeeUnobserved) {
     rows.push({ label: "Kastle fee", value: "-" });
+  } else if (
+    row.meta?.providerId === BRAID_PROVIDER.id &&
+    BRAID_KASTLE_FEE_BPS === 0
+  ) {
+    // Braid quotes go out with no integrator block (lib/braid/constants.ts),
+    // so Kastle took nothing: say so rather than hide the row.
+    rows.push({ label: "Kastle fee", value: "0 KAS" });
   }
   return rows;
 }
@@ -452,20 +460,26 @@ export function toActivityItem(
         sentAmount: amountText(row.sent) ?? "-",
         sentUsd: usdText(row.sent, priceFor),
         receivedLabel:
-          row.received && ((bridge && !settled) || (swap && isInProgress(row)))
+          (bridge && row.received && !settled) || (swap && isInProgress(row))
             ? "You'll receive"
             : "Received",
-        // No received leg: omit the line, except on a settled bridge, where a
-        // missing line would read as a broken sheet.
+        // No received leg: a swap still draws the line (its unread leg is
+        // "Amount unavailable"; a failed one delivered nothing), as does a
+        // settled bridge. Only an unsettled bridge omits it.
         ...(row.received
           ? {
               receivedAmount: amountText(row.received),
               // No price from any source: "Price unavailable", never $0.
               receivedUsd: usdText(row.received, priceFor),
             }
-          : bridge && settled
-            ? { receivedAmount: "Amount unavailable" }
-            : {}),
+          : swap
+            ? {
+                receivedAmount:
+                  row.status === "failed" ? "-" : "Amount unavailable",
+              }
+            : settled
+              ? { receivedAmount: "Amount unavailable" }
+              : {}),
       },
       details: buildDetails(row),
     },

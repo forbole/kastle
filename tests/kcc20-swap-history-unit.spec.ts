@@ -690,14 +690,14 @@ test("a KCC-20 swap's received token is priced by its covenant id", () => {
   expect(t.receivedUsd).toMatch(/^≈ \$\S+ USD$/);
 });
 
-test('a received amount with no price says "Price unavailable"; an empty received leg has no line', () => {
+test('a received amount with no price says "Price unavailable"; an unread received leg says so', () => {
   expect(sheetPriced({}).receivedUsd).toBe("Price unavailable");
   // A KRC-20 ticker sharing the symbol is not the token's price.
   expect(sheetPriced({ KRON: 5 }).receivedUsd).toBe("Price unavailable");
-  // No received amount at all: no line, so an empty leg never grows one.
+  // No received amount read: the line says so, and no amount has no price.
   const empty = sheetPriced({}, { ...kronRow(), toAmount: "0" });
   expect("receivedUsd" in empty).toBe(false);
-  expect("receivedAmount" in empty).toBe(false);
+  expect(empty.receivedAmount).toBe("Amount unavailable");
 });
 
 // ─── venues: KaspaRocket, Braid, unknown (swap-activity-venues) ─────────────
@@ -902,8 +902,8 @@ test("a named token with no decimals keeps its name on the sheet; the amount sta
   const guza = built.swaps.find((s) => s.txHash === GUZA_TXID)!;
   const t = sheetOf(guza).transfer;
   expect(t.toSymbol).toBe("GUZA");
-  // The amount was not observed: no received line, never "0 GUZA".
-  expect("receivedAmount" in t).toBe(false);
+  // The amount was not observed: said so, never "0 GUZA".
+  expect(t.receivedAmount).toBe("Amount unavailable");
   // A sell draws the Paid leg even unread: the name, beside a "-" amount.
   const sellToken = built.braidSells.find(
     (s) => s.txHash === BRAID_SELL_TXID,
@@ -1208,4 +1208,34 @@ test("Braid sell: a settle that pays nothing for the token is failed; a batched 
   const { row, settles } = await braidSell(batched);
   expect(settles.size).toBe(0);
   expect(row).toMatchObject({ toAmount: "0", feeAmount: "0.018264" });
+});
+
+test("Braid sell, settle unread: Received drawn as Amount unavailable, KAS named, Kastle fee 0 KAS", async () => {
+  const built = await venueRecords();
+  const sell = m
+    .applyBraidTxids(built.swaps, built.braidSells, new Set([BRAID_SELL_TXID]))
+    .find((s) => s.txHash === BRAID_SELL_TXID)!;
+  const sheet = sheetOf(sell);
+  expect(sheet.title).toBe(`Swap ${m.UNKNOWN_TOKEN_SYMBOL} → KAS`);
+  expect(sheet.transfer).toMatchObject({
+    receivedLabel: "Received",
+    receivedAmount: "Amount unavailable",
+    toSymbol: "KAS",
+  });
+  expect(sheet.details.find((d) => d.label === "Kastle fee")?.value).toBe(
+    "0 KAS",
+  );
+  // Failed delivered nothing: "-", not "unavailable".
+  expect(sheetOf({ ...sell, status: "failed" }).transfer.receivedAmount).toBe(
+    "-",
+  );
+  // In flight: the line says what is coming.
+  expect(sheetOf({ ...sell, status: "pending" }).transfer.receivedLabel).toBe(
+    "You'll receive",
+  );
+  // A KRON row that paid no cut still shows no Kastle fee row.
+  const kron = built.swaps.find((s) => s.providerId !== "braid")!;
+  expect(sheetOf(kron).details.some((d) => d.label === "Kastle fee")).toBe(
+    false,
+  );
 });

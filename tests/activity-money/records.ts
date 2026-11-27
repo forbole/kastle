@@ -124,7 +124,10 @@ const titleCase = (
 ];
 export const TITLE_CASES: Record<string, SwapActivityRecord[]> = {
   both: titleCase("KAS", "GUZA", "1.5", "42"),
-  onlyTo: titleCase("KAS", "GUZA", "0", "0"),
-  onlyFrom: titleCase("GUZA", "KAS", "0", "0"),
+  // A blank symbol (an EVM leg nothing indexed) is the only unnamed side.
+  onlyTo: titleCase("", "GUZA", "0", "0"),
+  onlyFrom: titleCase("GUZA", "", "0", "0"),
+  // An unread KAS leg is still KAS.
+  kasUnread: titleCase("GUZA", "KAS", "0", "0"),
   neither: titleCase("", "", "0", "0"),
 };
