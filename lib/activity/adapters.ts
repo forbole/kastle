@@ -487,12 +487,13 @@ export function toActivityItem(
 }
 
 /**
- * SWR `compare` for a spot Map. SWR's default dequal/lite treats any two Maps
- * as equal, which would discard every refreshed spot; compare entries instead.
+ * SWR `compare` for any Map-valued entry (spots, money reads, Braid settles).
+ * SWR's default dequal/lite treats any two Maps as equal, which would discard
+ * every refreshed read; compare entries instead, each by identity.
  */
-export function sameSpots(
-  a: ReadonlyMap<string, number | null> | undefined,
-  b: ReadonlyMap<string, number | null> | undefined,
+export function sameSpots<V>(
+  a: ReadonlyMap<string, V> | undefined,
+  b: ReadonlyMap<string, V> | undefined,
 ): boolean {
   if (a === b) return true;
   if (!a || !b || a.size !== b.size) return false;

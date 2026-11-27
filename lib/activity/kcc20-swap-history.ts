@@ -902,6 +902,9 @@ export type BraidSellSettle =
   | { state: "refunded" }
   | { state: "open" };
 
+// One object, so an unchanged "open" re-read compares equal (sameSpots).
+const OPEN: BraidSellSettle = { state: "open" };
+
 /**
  * How a sell settled, from the transactions at its router coin's address.
  * The settle is the accepted transaction spending (deposit, coin index).
@@ -932,7 +935,7 @@ export function deriveBraidSellSettle(
   const settle = listed.find(
     (t) => t.is_accepted === true && t.inputs?.some(spendsCoin),
   );
-  if (!settle) return { state: "open" };
+  if (!settle) return OPEN;
   let inputs = 0n;
   let walletIn = 0n;
   for (const i of settle.inputs ?? []) {

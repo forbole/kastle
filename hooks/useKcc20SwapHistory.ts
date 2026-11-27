@@ -22,6 +22,7 @@ import {
 import type { Kcc20SwapFamily } from "@/lib/activity/swap-history";
 import { fetchKronMarkets } from "@/lib/kcc20/swap";
 import type { SwapActivityRecord } from "@/lib/activity/mappers";
+import { sameSpots } from "@/lib/activity/adapters";
 import {
   type PendingBraidSwap,
   getPendingBraidSwaps,
@@ -135,6 +136,8 @@ export function useKcc20SwapHistory(
       ? ["kcc20-swap-money", kaspaAddress, ...moneyTxids]
       : null,
     () => fetchKcc20SwapMoney(kaspaAddress!, built!.swaps),
+    // A retried read lands only if SWR can tell the Maps apart.
+    { compare: sameSpots },
   );
 
   // Which trades went through Braid: a pending record is gone once a trade
@@ -165,6 +168,8 @@ export function useKcc20SwapHistory(
     {
       refreshInterval: (d) =>
         d && [...d.values()].some((v) => v.state === "open") ? 30_000 : 0,
+      // Without it a re-read that finds the settle is discarded as "equal".
+      compare: sameSpots,
     },
   );
 
