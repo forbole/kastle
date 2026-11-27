@@ -900,11 +900,12 @@ export interface BraidListedTx extends BraidReadTx {
 /**
  * A Braid sell's outcome. `done`: the settle paid the wallet `kasSompi` and
  * took `settleFeeSompi`. `refunded`: the coin was spent and nothing was paid
- * for the token. `open`: nothing accepted spends the coin yet.
+ * for the token; the refund still took `settleFeeSompi`, from the wallet's
+ * coin. `open`: nothing accepted spends the coin yet.
  */
 export type BraidSellSettle =
   | { state: "done"; kasSompi: bigint; settleFeeSompi: bigint }
-  | { state: "refunded" }
+  | { state: "refunded"; settleFeeSompi: bigint }
   | { state: "open" };
 
 // One object, so an unchanged "open" re-read compares equal (sameSpots).
@@ -982,7 +983,9 @@ export function deriveBraidSellSettle(
     const note = settle.inputs?.some(
       (i) => i.previous_outpoint_hash === depositTxid && covenantOf(i),
     );
-    return note && covenants === 1 ? { state: "refunded" } : "refused";
+    return note && covenants === 1
+      ? { state: "refunded", settleFeeSompi: settleFee }
+      : "refused";
   }
   return { state: "done", kasSompi: kas, settleFeeSompi: settleFee };
 }
@@ -1097,13 +1100,10 @@ export function applyBraidTxids(
         // kascov's refund (the token handed back) outranks any read.
         if (!settle || s.status === "failed") return row;
         if (settle.state === "open") return { ...row, status: "pending" };
-        if (settle.state === "refunded") return { ...row, status: "failed" };
-        return {
-          ...row,
-          toAmount: formatUnits(settle.kasSompi, KAS_DECIMALS),
-          status: "completed",
-          // Both network fees the trade paid: the deposit's and the settle's.
-          ...(fee === undefined
+        // Both network fees the trade paid, refunded or not: the deposit's
+        // and the settle's.
+        const fees =
+          fee === undefined
             ? {}
             : {
                 feeAmount: formatUnits(
@@ -1111,7 +1111,14 @@ export function applyBraidTxids(
                   KAS_DECIMALS,
                 ),
                 feeSymbol: "KAS",
-              }),
+              };
+        if (settle.state === "refunded")
+          return { ...row, status: "failed", ...fees };
+        return {
+          ...row,
+          toAmount: formatUnits(settle.kasSompi, KAS_DECIMALS),
+          status: "completed",
+          ...fees,
         };
       }),
   ].filter((s) => !s.txHash || !shown.has(s.txHash));

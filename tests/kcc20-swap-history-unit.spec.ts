@@ -1237,8 +1237,16 @@ test("Braid sell: a refund is proven by the spend; a sale under its fees is neve
     ];
   });
   const back = await braidSell(refund);
-  expect(back.settles.get(BRAID_SELL_TXID)).toEqual({ state: "refunded" });
-  expect(back.row.status).toBe("failed");
+  // 1 KAS coin + 0.5 KAS note in, 0.5 + 0.90514 out: the refund took 0.09486.
+  expect(back.settles.get(BRAID_SELL_TXID)).toEqual({
+    state: "refunded",
+    settleFeeSompi: 9486000n,
+  });
+  // Failed, and its Network fee is both: 0.018264 deposit + 0.09486 refund.
+  expect(back.row).toMatchObject({ status: "failed", feeAmount: "0.113124" });
+  expect(
+    sheetOf(back.row).details.find((d) => d.label === "Network fee")?.value,
+  ).toBe("0.113 KAS");
   m.clearKcc20SwapMoneyCache(); // the refund is final, so it was cached
   // Someone else's plain input: the fee is not the wallet's alone.
   const batched = settleOf((t) => {
