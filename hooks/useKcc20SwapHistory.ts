@@ -12,6 +12,7 @@ import {
   braidCandidateTxids,
   braidPendingRecords,
   buildKcc20SwapRecords,
+  fetchBraidSellSettles,
   fetchBraidTxids,
   fetchKcc20SwapMoney,
   fetchKcc20SwapTransfers,
@@ -135,6 +136,24 @@ export function useKcc20SwapHistory(
     () => fetchBraidTxids(kaspaAddress!, braidTxids),
   );
 
+  // How each Braid sell settled: one listing of its router coin's address.
+  // Its own entry, so the rows paint before it lands. An open sell is
+  // re-read until its settle is accepted; final outcomes are cached.
+  const settleTxids = useMemo(
+    () => [...(braid?.deposits.keys() ?? [])],
+    [braid],
+  );
+  const { data: settles, mutate: mutateSettles } = useSWR(
+    on && settleTxids.length
+      ? ["kcc20-swap-braid-settle", kaspaAddress, ...settleTxids]
+      : null,
+    () => fetchBraidSellSettles(kaspaAddress!, braid!.deposits),
+    {
+      refreshInterval: (d) =>
+        d && [...d.values()].some((v) => v.state === "open") ? 30_000 : 0,
+    },
+  );
+
   const family = useMemo((): Kcc20SwapFamily | null => {
     if (!built) return built;
     const { braidSells, ...rest } = built;
@@ -153,6 +172,7 @@ export function useKcc20SwapHistory(
       braid?.braid ?? new Set(),
       pending,
       braid?.deposits,
+      settles,
     );
     // An unread candidate may be a Braid sell this list cannot show yet.
     return {
@@ -160,12 +180,22 @@ export function useKcc20SwapHistory(
       swaps: [...pending, ...swaps],
       braidUnread: braid?.unread ?? 0,
     };
-  }, [built, money, braid, ownerKey, braidSwaps, tokens.data, data?.holdings]);
+  }, [
+    built,
+    money,
+    braid,
+    settles,
+    ownerKey,
+    braidSwaps,
+    tokens.data,
+    data?.holdings,
+  ]);
 
   return {
     family: on ? family : null,
     // A timed-out money read is not cached, so re-reading retries it even
     // when the rows (and so the money key) are unchanged.
-    refresh: () => Promise.all([mutate(), mutateMoney(), mutateBraid()]),
+    refresh: () =>
+      Promise.all([mutate(), mutateMoney(), mutateBraid(), mutateSettles()]),
   };
 }

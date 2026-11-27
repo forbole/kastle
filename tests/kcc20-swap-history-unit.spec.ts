@@ -1067,3 +1067,145 @@ test("Braid sell: the deposit already read gives the row its network fee", async
     sheetOf(sell).details.find((d) => d.label === "Network fee")?.value,
   ).toBe("0.018 KAS"); // fmtFee caps the sheet at 3 dp
 });
+
+// api.kaspa.org /addresses/{router coin}/full-transactions?resolve_previous_outpoints=light&limit=10
+// for BRAID_SELL_TX's coin, read live 2026-11-27 and trimmed to the fields read:
+// the deposit and its settle 568d41…, which pays the wallet 10.18004 KAS.
+const BRAID_SELL_COIN = fixture(
+  "kaspa-addr-braid-sell-coin.live-2026-11-27.json",
+);
+const KASPA_ADDR = "https://api.kaspa.org/addresses/";
+
+async function braidSell(
+  listing: unknown,
+  tokens?: Map<string, { symbol: string; decimals?: number }>,
+) {
+  const built = await venueRecords(VENUES, tokens);
+  route([
+    [`${KASPA_TX}${BRAID_SELL_TXID}`, BRAID_SELL_TX],
+    [KASPA_ADDR, listing],
+  ]);
+  const { braid, deposits } = await m.fetchBraidTxids(VENUE_WALLET, [
+    BRAID_SELL_TXID,
+  ]);
+  const seen = route([[KASPA_ADDR, listing]]);
+  const settles = await m.fetchBraidSellSettles(VENUE_WALLET, deposits);
+  const row = m
+    .applyBraidTxids(
+      built.swaps,
+      built.braidSells,
+      braid,
+      [],
+      deposits,
+      settles,
+    )
+    .find((s) => s.txHash === BRAID_SELL_TXID)!;
+  return { row, settles, seen };
+}
+
+test("Braid sell (live settle): Received net of the router coin, bond and both fees", async () => {
+  const { row, settles, seen } = await braidSell(BRAID_SELL_COIN);
+  // One request: the coin's listing carries the settle whole.
+  expect(seen).toHaveLength(1);
+  expect(seen[0]).toContain(
+    "/addresses/kaspa%3Appkq7uays9fjnfyzpxpj0ncz3azksrecsx8z6d7w9rxvxtqxngxts5fkpg2r9/full-transactions",
+  );
+  // 1018004000 to the wallet − 100000000 coin − 50000000 freed note bond
+  // − 1826400 deposit fee; settle fee 4239874067435 in − 4239864581435 out.
+  expect(settles.get(BRAID_SELL_TXID)).toEqual({
+    state: "done",
+    kasSompi: 866177600n,
+    settleFeeSompi: 9486000n,
+  });
+  expect(row).toMatchObject({
+    toSymbol: "KAS",
+    toAmount: "8.661776",
+    status: "completed",
+    // 1826400 + 9486000
+    feeAmount: "0.113124",
+    feeSymbol: "KAS",
+  });
+  const item = m.toActivityItem(m.mapSwapActivity(row), {
+    logoFor: () => undefined,
+    priceFor: () => undefined,
+  });
+  // fmtAmount caps the list and sheet at 3 dp; the record keeps all 8.
+  expect(item.amountNumber).toBe("+8.662");
+  expect(item.amountSymbol).toBe("KAS");
+  expect(item.tone).toBe("credit");
+  expect(item.sheet.transfer.receivedAmount).toBe("8.662 KAS");
+  // No decimals for this token on a cold start: Rate needs both legs.
+  expect(item.sheet.details.find((d) => d.label === "Rate")?.value).toBe("-");
+  // Scaled, both legs exist and Rate follows.
+  m.clearKcc20SwapMoneyCache();
+  const scaled = await braidSell(
+    BRAID_SELL_COIN,
+    new Map([[row.tokenId!, { symbol: "BRD", decimals: 8 }]]),
+  );
+  const sheet = sheetOf(scaled.row);
+  expect(sheet.details.find((d) => d.label === "Rate")?.value).toMatch(
+    /^1 BRD ≈ [\d.,]+ KAS$/,
+  );
+  // Final: the second ask reads nothing.
+  const again = route([]);
+  expect(
+    (
+      await m.fetchBraidSellSettles(
+        VENUE_WALLET,
+        new Map([[BRAID_SELL_TXID, {}]]),
+      )
+    ).get(BRAID_SELL_TXID)?.state,
+  ).toBe("done");
+  expect(again).toEqual([]);
+});
+
+test("Braid sell: no accepted spender is Pending, never Completed", async () => {
+  const depositOnly = BRAID_SELL_COIN.filter(
+    (t: { transaction_id: string }) => t.transaction_id === BRAID_SELL_TXID,
+  );
+  const { row } = await braidSell(depositOnly);
+  expect(row.status).toBe("pending");
+  expect(row.toAmount).toBe("0");
+  // The settle in a block not accepted is not a settle either.
+  const unaccepted = BRAID_SELL_COIN.map((t: object) => ({
+    ...t,
+    is_accepted: false,
+  }));
+  expect((await braidSell(unaccepted)).row.status).toBe("pending");
+  // Not cached: once accepted, the next read finds it.
+  const { row: later } = await braidSell(BRAID_SELL_COIN);
+  expect(later.status).toBe("completed");
+});
+
+test("Braid sell: a settle that pays nothing for the token is failed; a batched one is refused", async () => {
+  const settleOf = (
+    f: (t: { inputs: object[]; outputs: { amount: number }[] }) => void,
+  ) =>
+    BRAID_SELL_COIN.map((t: { transaction_id: string }) => {
+      if (t.transaction_id === BRAID_SELL_TXID) return t;
+      const c = structuredClone(t) as never;
+      f(c);
+      return c;
+    });
+  // Refund shape: only the coin back, less the settle fee.
+  const refund = settleOf((t) => {
+    t.outputs[2].amount = 90514000;
+    t.outputs[1].amount += 1018004000 - 90514000;
+  });
+  expect((await braidSell(refund)).row.status).toBe("failed");
+  m.clearKcc20SwapMoneyCache(); // the refund is final, so it was cached
+  // Someone else's plain input: the fee is not the wallet's alone.
+  const batched = settleOf((t) => {
+    t.inputs.push({
+      previous_outpoint_hash: "cd".repeat(32),
+      previous_outpoint_index: "0",
+      previous_outpoint_address:
+        "kaspa:qrs2vdyfkcg0ws3r0npxu0zrs2klmv3fqvu7l9ncz8m5wg5y6u2cqah8c2m4y",
+      previous_outpoint_amount: 1000,
+      covenant_id: null,
+    });
+  });
+  const { row, settles } = await braidSell(batched);
+  expect(settles.size).toBe(0);
+  expect(row).toMatchObject({ toAmount: "0", feeAmount: "0.018264" });
+});

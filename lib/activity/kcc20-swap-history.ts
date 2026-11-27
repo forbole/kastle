@@ -6,6 +6,9 @@ import { BRAID_PROVIDER } from "@/lib/braid/constants";
 import type { BraidSettleState, PendingBraidSwap } from "@/lib/braid/pending";
 import { KAT_L1_CHAIN_ID } from "@/lib/bridge/kat-bridge-history";
 import { fetchKaspaTx } from "@/lib/bridge/kat-observed-fees";
+import { requestJson } from "@/lib/bridge/kat-registry";
+import { KASPA_REST_APIS } from "@/lib/activity/externals";
+import { NetworkType } from "@/contexts/SettingsContext";
 import { DaaTip, toHistoryEntries } from "@/lib/kcc20/history";
 import {
   KascovHolding,
@@ -432,17 +435,6 @@ export function deriveKcc20SwapMoney(
     }
     return sum >= 0n ? sum : null;
   };
-  // Per covenant: [sum, largest] of its inputs and of its outputs.
-  const covenants = new Map<
-    string,
-    { inSum: bigint; inMax: bigint; outSum: bigint; outMax: bigint }
-  >();
-  const covenant = (id: string) => {
-    let c = covenants.get(id);
-    if (!c)
-      covenants.set(id, (c = { inSum: 0n, inMax: 0n, outSum: 0n, outMax: 0n }));
-    return c;
-  };
   let inputs = 0n;
   let walletIn = 0n;
   let funded = false;
@@ -451,11 +443,6 @@ export function deriveKcc20SwapMoney(
     if (amount === null || !i.previous_outpoint_address) return null;
     inputs += amount;
     const id = covenantOf(i);
-    if (id) {
-      const c = covenant(id);
-      c.inSum += amount;
-      if (amount > c.inMax) c.inMax = amount;
-    }
     if (i.previous_outpoint_address === address) {
       funded = true;
       if (!id) walletIn += amount;
@@ -474,28 +461,16 @@ export function deriveKcc20SwapMoney(
     const amount = sompi(o?.amount);
     if (amount === null || !o.script_public_key_address) return null;
     outputs += amount;
-    const id = covenantOf(o);
-    if (id) {
-      const c = covenant(id);
-      c.outSum += amount;
-      if (amount > c.outMax) c.outMax = amount;
-      continue;
-    }
+    if (covenantOf(o)) continue;
     if (o.script_public_key_address === address) walletOut += amount;
     else venue += amount;
   }
   const networkFee = inputs - outputs;
   // The wallet did not fund it, so neither fee is the wallet's.
   if (networkFee < 0n || !funded) return null;
+  const { bond, covenants } = covenantBond(tx);
   // More than one token/market pair: the KAS cannot be pinned to one row.
-  if (covenants.size > 2) return null;
-  // Locked by this tx (buy) when positive, freed by it (sell) when negative.
-  // Assumes the market's state or reserve UTXO is the largest under its
-  // covenant; a state UTXO smaller than a bond, or one covenant carrying both
-  // a state and a reserve UTXO, would count the market's own KAS as bond.
-  let bond = 0n;
-  for (const c of covenants.values())
-    bond += c.outSum - c.outMax - (c.inSum - c.inMax);
+  if (covenants > 2) return null;
   if (side === "buy" ? bond < 0n : bond > 0n) return null;
   let committed = 0n;
   for (const f of commitFees.values()) committed += f;
@@ -509,6 +484,42 @@ export function deriveKcc20SwapMoney(
     networkFeeSompi: networkFee + committed,
     venueFeeSompi: venue,
   };
+}
+
+/**
+ * The covenant bond a transaction locks (positive) or frees (negative), and
+ * how many covenants it touches. Per covenant, the largest input and the
+ * largest output are the market's own UTXO carried forward; the rest is bond.
+ * Assumes the market's state or reserve UTXO is the largest under its
+ * covenant; a state UTXO smaller than a bond, or one covenant carrying both
+ * a state and a reserve UTXO, would count the market's own KAS as bond.
+ * Callers have checked every amount is a sompi value.
+ */
+function covenantBond(tx: Kcc20SwapTx): { bond: bigint; covenants: number } {
+  const per = new Map<
+    string,
+    { inSum: bigint; inMax: bigint; outSum: bigint; outMax: bigint }
+  >();
+  const add = (id: string | null, amount: bigint, side: "in" | "out") => {
+    if (!id) return;
+    let c = per.get(id);
+    if (!c) per.set(id, (c = { inSum: 0n, inMax: 0n, outSum: 0n, outMax: 0n }));
+    if (side === "in") {
+      c.inSum += amount;
+      if (amount > c.inMax) c.inMax = amount;
+    } else {
+      c.outSum += amount;
+      if (amount > c.outMax) c.outMax = amount;
+    }
+  };
+  for (const i of tx.inputs ?? [])
+    add(covenantOf(i), sompi(i.previous_outpoint_amount) ?? 0n, "in");
+  for (const o of tx.outputs ?? [])
+    add(covenantOf(o), sompi(o.amount) ?? 0n, "out");
+  let bond = 0n;
+  for (const c of per.values())
+    bond += c.outSum - c.outMax - (c.inSum - c.inMax);
+  return { bond, covenants: per.size };
 }
 
 /** "kcc20:<txid>:<seq>:<tokenId>" — the id buildKcc20SwapRecords gives every row. */
@@ -544,6 +555,7 @@ const moneyByTx = new Map<string, Kcc20SwapMoney>();
 export function clearKcc20SwapMoneyCache(): void {
   moneyByTx.clear();
   braidByTx.clear();
+  braidSettleByTx.clear();
 }
 
 /**
@@ -823,6 +835,127 @@ export async function fetchBraidTxids(
   return { braid: out, unread, deposits };
 }
 
+// ─── Braid: how a sell settled, from its router coin's spender ───────────────
+
+/** api.kaspa.org /addresses/{a}/full-transactions rows, the fields read. */
+export interface BraidListedTx extends BraidReadTx {
+  transaction_id?: string;
+  is_accepted?: boolean;
+}
+
+/**
+ * A Braid sell's outcome. `done`: the settle paid the wallet `kasSompi` and
+ * took `settleFeeSompi`. `refunded`: the coin was spent and nothing was paid
+ * for the token. `open`: nothing accepted spends the coin yet.
+ */
+export type BraidSellSettle =
+  | { state: "done"; kasSompi: bigint; settleFeeSompi: bigint }
+  | { state: "refunded" }
+  | { state: "open" };
+
+/**
+ * How a sell settled, from the transactions at its router coin's address.
+ * The settle is the accepted transaction spending (deposit, coin index).
+ *
+ * Received is the trade's KAS alone, as a KRON sell's (deriveKcc20SwapMoney):
+ * the wallet's plain outputs in the settle, less the router coin the wallet
+ * put in (it funds the settle fee and comes back as change), less the note
+ * bond the settle frees, less the deposit's own fee — so net of both network
+ * fees, which the row shows together as its Network fee. On the live fixture
+ * (89fea3… → 568d41…): 10.18004 − 1 − 0.5 − 0.018264 = 8.661776 KAS.
+ *
+ * Null — no guess — when a plain input other than the coin is not the
+ * wallet's (Braid batched another party's coin: the fee is not ours alone),
+ * the settle spans more than one token/market pair, the outputs exceed the
+ * inputs, or the deposit fee is unknown.
+ */
+export function deriveBraidSellSettle(
+  listed: readonly BraidListedTx[],
+  depositTxid: string,
+  deposit: BraidDeposit,
+  address: string,
+): BraidSellSettle | null {
+  const coin = deposit.coin;
+  if (!coin || deposit.networkFeeSompi === undefined) return null;
+  const spendsCoin = (i: MoneyTxInput) =>
+    i.previous_outpoint_hash === depositTxid &&
+    Number(i.previous_outpoint_index) === coin.index;
+  const settle = listed.find(
+    (t) => t.is_accepted === true && t.inputs?.some(spendsCoin),
+  );
+  if (!settle) return { state: "open" };
+  let inputs = 0n;
+  let walletIn = 0n;
+  for (const i of settle.inputs ?? []) {
+    const a = sompi(i?.previous_outpoint_amount);
+    if (a === null) return null;
+    inputs += a;
+    if (covenantOf(i) || spendsCoin(i)) continue;
+    if (i.previous_outpoint_address !== address) return null;
+    walletIn += a;
+  }
+  let outputs = 0n;
+  let walletOut = 0n;
+  for (const o of settle.outputs ?? []) {
+    const a = sompi(o?.amount);
+    if (a === null) return null;
+    outputs += a;
+    if (!covenantOf(o) && o.script_public_key_address === address)
+      walletOut += a;
+  }
+  const settleFee = inputs - outputs;
+  const { bond, covenants } = covenantBond(settle);
+  if (settleFee < 0n || covenants > 2) return null;
+  const kas =
+    walletOut - walletIn - coin.amountSompi + bond - deposit.networkFeeSompi;
+  // ponytail: "no proceeds" stands for the refund shape (the coin spent, the
+  // token handed back); a settle that pays less than both fees reads as one.
+  if (kas <= 0n) return { state: "refunded" };
+  return { state: "done", kasSompi: kas, settleFeeSompi: settleFee };
+}
+
+/** Final outcomes (done, refunded) per address and deposit txid; `open` is re-read. */
+const braidSettleByTx = new Map<string, BraidSellSettle>();
+
+/** Newest transactions at a router coin's address: its deposit and its settle. */
+const BRAID_COIN_LISTING_LIMIT = 10;
+
+/**
+ * One request per sell: the router coin address's listing carries the settle
+ * whole, so nothing else is read. A sell whose listing fails or will not
+ * derive is left out of the map. Never throws.
+ */
+export async function fetchBraidSellSettles(
+  address: string,
+  deposits: ReadonlyMap<string, BraidDeposit>,
+): Promise<Map<string, BraidSellSettle>> {
+  const out = new Map<string, BraidSellSettle>();
+  const base = KASPA_REST_APIS[NetworkType.Mainnet];
+  await Promise.allSettled(
+    [...deposits].map(async ([txid, deposit]) => {
+      const key = `${address}:${txid}`;
+      const hit = braidSettleByTx.get(key);
+      if (hit) return void out.set(txid, hit);
+      if (!deposit.coin) return;
+      const listed = await requestJson(
+        `${base}/addresses/${encodeURIComponent(deposit.coin.address)}` +
+          `/full-transactions?resolve_previous_outpoints=light&limit=${BRAID_COIN_LISTING_LIMIT}`,
+      );
+      if (!Array.isArray(listed)) return;
+      const settle = deriveBraidSellSettle(
+        listed as BraidListedTx[],
+        txid,
+        deposit,
+        address,
+      );
+      if (!settle) return;
+      if (settle.state !== "open") braidSettleByTx.set(key, settle);
+      out.set(txid, settle);
+    }),
+  );
+  return out;
+}
+
 /**
  * The chain rows with Braid's trades attributed: a buy Braid settled names
  * Braid instead of the market it filled at, and a Braid sell joins the rows
@@ -835,6 +968,7 @@ export function applyBraidTxids(
   braid: ReadonlySet<string>,
   pending: readonly SwapActivityRecord[] = [],
   deposits: ReadonlyMap<string, BraidDeposit> = new Map(),
+  settles: ReadonlyMap<string, BraidSellSettle> = new Map(),
 ): SwapActivityRecord[] {
   const shown = new Set(pending.map((p) => p.txHash));
   return [
@@ -845,16 +979,37 @@ export function applyBraidTxids(
     ),
     ...braidSells
       .filter((s) => s.txHash && braid.has(s.txHash))
-      .map((s) => {
+      .map((s): SwapActivityRecord => {
         // The deposit's own fee: read already, so the row never dashes it.
         const fee = deposits.get(s.txHash!)?.networkFeeSompi;
-        return fee === undefined
-          ? s
-          : {
-              ...s,
-              feeAmount: formatUnits(fee, KAS_DECIMALS),
-              feeSymbol: "KAS",
-            };
+        const row =
+          fee === undefined
+            ? s
+            : {
+                ...s,
+                feeAmount: formatUnits(fee, KAS_DECIMALS),
+                feeSymbol: "KAS",
+              };
+        const settle = settles.get(s.txHash!);
+        // kascov's refund (the token handed back) outranks any read.
+        if (!settle || s.status === "failed") return row;
+        if (settle.state === "open") return { ...row, status: "pending" };
+        if (settle.state === "refunded") return { ...row, status: "failed" };
+        return {
+          ...row,
+          toAmount: formatUnits(settle.kasSompi, KAS_DECIMALS),
+          status: "completed",
+          // Both network fees the trade paid: the deposit's and the settle's.
+          ...(fee === undefined
+            ? {}
+            : {
+                feeAmount: formatUnits(
+                  fee + settle.settleFeeSompi,
+                  KAS_DECIMALS,
+                ),
+                feeSymbol: "KAS",
+              }),
+        };
       }),
   ].filter((s) => !s.txHash || !shown.has(s.txHash));
 }
