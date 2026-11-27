@@ -21,6 +21,9 @@ export const KASPAROCKET_PROVIDER = {
   name: "KaspaRocket",
 } as const;
 
-// The most KCC-20 inputs one KaspaRocket sell spends; past that a holding
-// must be merged first.
-export const KASPAROCKET_MAX_INPUTS = 10;
+// The most covenant inputs (coins carrying a covenant id: token cells, the
+// pool) one KaspaRocket transaction spends: protocol()'s `limits.maxCovIns`
+// and `maxKcc20Inputs`, both 10. A sell whose holding is split across more
+// cells must be merged first. Plain KAS coins do not count: a buy may spend
+// as many as the plan carries.
+export const KASPAROCKET_MAX_COVENANT_INPUTS = 10;
