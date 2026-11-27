@@ -399,3 +399,56 @@ test("collector: this wallet's PENDING exit outside page 0 pays for the full rea
   );
   expect(collectorReads()).toBe(2 + 1 + 2);
 });
+
+const own = async () =>
+  (await kat()).txs.map((t) => `${t.id}:${t.status}`).sort();
+const offsets = () =>
+  calls
+    .filter((u) =>
+      u.includes(`fromL2Wallet=${m.KAT_IGRA_FEE_COLLECTOR_BRIDGE_ADDRESS}`),
+    )
+    .map((u) => new URL(u).searchParams.get("offset"));
+
+test("collector: a cached head with a new exit splices it in, and a status change inside page 0 lands", async () => {
+  const up = {
+    page0: [exit("a", ADDR, "PENDING"), exit("b")],
+    page1: [exit("z", ADDR)],
+  };
+  collectorUpstream(up);
+  expect(await own()).toEqual(["a:PENDING", "z:COMPLETED"]);
+  up.page0 = [exit("new", ADDR, "PENDING"), exit("a", ADDR, "COMPLETED")];
+  up.page1 = [exit("b"), exit("z", ADDR)];
+  now += 10 * S;
+  // Each row once: the head replaces its held copy, older rows are kept.
+  expect(await own()).toEqual(["a:COMPLETED", "new:PENDING", "z:COMPLETED"]);
+  expect(offsets()).toEqual(["0", "100", "0"]);
+});
+
+test("collector: an unchanged cached head splices to the same rows, one page read", async () => {
+  const up = {
+    page0: [exit("a", ADDR), exit("b")],
+    page1: [exit("z", ADDR)],
+  };
+  collectorUpstream(up);
+  const first = await own();
+  now += 10 * S;
+  expect(await own()).toEqual(first);
+  expect(offsets()).toEqual(["0", "100", "0"]);
+});
+
+test("collector: the 10-minute backstop pays for the full read though page 0 overlaps", async () => {
+  const up = {
+    page0: [exit("a", ADDR), exit("b")],
+    page1: [exit("z", ADDR)],
+  };
+  collectorUpstream(up);
+  await kat();
+  // An older own row the head can never show: only a full read finds it.
+  up.page1 = [exit("z", ADDR), exit("y", ADDR)];
+  now += 10 * 60 * S - 1;
+  expect(await own()).toEqual(["a:COMPLETED", "z:COMPLETED"]);
+  expect(offsets()).toEqual(["0", "100", "0"]);
+  now += 1;
+  expect(await own()).toEqual(["a:COMPLETED", "y:COMPLETED", "z:COMPLETED"]);
+  expect(offsets()).toEqual(["0", "100", "0", "0", "100"]);
+});
