@@ -18,6 +18,7 @@ import {
   fetchKcc20SwapTransfers,
   kcc20SwapMoneyTxids,
   kcc20SwapTokenMeta,
+  resetBraidSettleRetries,
 } from "@/lib/activity/kcc20-swap-history";
 import type { Kcc20SwapFamily } from "@/lib/activity/swap-history";
 import { fetchKronMarkets } from "@/lib/kcc20/swap";
@@ -168,6 +169,8 @@ export function useKcc20SwapHistory(
     {
       // Re-read while a sell is open or its listing could not be read: a
       // failed read is not "no settle", and nothing else would ask again.
+      // An unread sell is listed on a capped backoff inside the fetcher
+      // (BRAID_SETTLE_TRIES); given up, it stops counting, so this stops.
       refreshInterval: (d) =>
         d &&
         (d.unread > 0 ||
@@ -208,7 +211,15 @@ export function useKcc20SwapHistory(
     family: on ? family : null,
     // A timed-out money read is not cached, so re-reading retries it even
     // when the rows (and so the money key) are unchanged.
-    refresh: () =>
-      Promise.all([mutate(), mutateMoney(), mutateBraid(), mutateSettles()]),
+    // A fresh load asks given-up Braid sells again, on the same schedule.
+    refresh: () => {
+      resetBraidSettleRetries();
+      return Promise.all([
+        mutate(),
+        mutateMoney(),
+        mutateBraid(),
+        mutateSettles(),
+      ]);
+    },
   };
 }

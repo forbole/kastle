@@ -607,6 +607,7 @@ export function clearKcc20SwapMoneyCache(): void {
   moneyByTx.clear();
   braidByTx.clear();
   braidSettleByTx.clear();
+  braidSettleRetry.clear();
   txById.clear();
 }
 
@@ -1015,6 +1016,25 @@ const BRAID_COIN_PAGE = 10;
 const BRAID_COIN_PAGES = 5;
 
 /**
+ * Listing attempts for a sell that keeps reading unread (API down, settle
+ * listed without outputs, a null amount, deposit past the 50 newest), then
+ * it is left as is — "Amount unavailable", never a figure, never Pending —
+ * until refresh() or the popup reopens. Same shape as SWR's error retry
+ * (errorRetryCount, doubling wait), counted in the 30 s poll's ticks: the
+ * fetcher cannot throw, it returns the sells it did read. After the n-th
+ * miss 2^(n-1) - 1 ticks are skipped, so attempts land at 0, 30, 90, 210,
+ * 450 s. An open sell is a good read: it resets this and polls every 30 s.
+ */
+const BRAID_SETTLE_TRIES = 5;
+/** Unread sells' misses so far and ticks still to skip, by address:txid. */
+const braidSettleRetry = new Map<string, { tries: number; skip: number }>();
+
+/** A fresh activity load asks every given-up sell again. */
+export function resetBraidSettleRetries(): void {
+  braidSettleRetry.clear();
+}
+
+/**
  * The router coin address's listing carries the settle whole, so nothing else
  * is read. Paged newest first until the deposit is listed — its spender, being
  * later, is then listed too — or the listing ends, at most BRAID_COIN_PAGES.
@@ -1037,6 +1057,16 @@ export async function fetchBraidSellSettles(
       const hit = braidSettleByTx.get(key);
       if (hit) return void (hit !== "refused" && out.set(txid, hit));
       if (!deposit.coin || deposit.networkFeeSompi === undefined) return;
+      const retry = braidSettleRetry.get(key);
+      // Given up: no listing, not counted, so the poll can stop.
+      if (retry && retry.tries >= BRAID_SETTLE_TRIES) return;
+      // Backing off: still counted unread, keeps the tick alive, no listing.
+      if (retry && retry.skip > 0) return void (retry.skip--, unread++);
+      const miss = () => {
+        const tries = (retry?.tries ?? 0) + 1;
+        braidSettleRetry.set(key, { tries, skip: 2 ** (tries - 1) - 1 });
+        if (tries < BRAID_SETTLE_TRIES) unread++;
+      };
       const listed: BraidListedTx[] = [];
       for (let page = 0; page < BRAID_COIN_PAGES; page++) {
         const got = await requestJson(
@@ -1044,7 +1074,7 @@ export async function fetchBraidSellSettles(
             `/full-transactions?resolve_previous_outpoints=light` +
             `&limit=${BRAID_COIN_PAGE}&offset=${page * BRAID_COIN_PAGE}`,
         );
-        if (!Array.isArray(got)) return void unread++;
+        if (!Array.isArray(got)) return miss();
         listed.push(...(got as BraidListedTx[]));
         if (
           got.length < BRAID_COIN_PAGE ||
@@ -1053,7 +1083,8 @@ export async function fetchBraidSellSettles(
           break;
       }
       const settle = deriveBraidSellSettle(listed, txid, deposit, address);
-      if (!settle) return void unread++;
+      if (!settle) return miss();
+      braidSettleRetry.delete(key);
       if (settle === "refused" || settle.state !== "open")
         braidSettleByTx.set(key, settle);
       if (settle !== "refused") out.set(txid, settle);

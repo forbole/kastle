@@ -12,7 +12,9 @@ import { Window } from "happy-dom";
 // (browser storage), the owner key (WASM) and KRON's registry. Everything
 // between kascov's rows and the returned family is the real code.
 type Bundle = typeof import("@/hooks/useKcc20SwapHistory") &
-  typeof import("@/lib/activity/kcc20-swap-history") & {
+  typeof import("@/lib/activity/kcc20-swap-history") &
+  typeof import("@/lib/activity/adapters") &
+  typeof import("@/lib/activity/mappers") & {
     React: typeof import("react");
     createRoot: typeof import("react-dom/client").createRoot;
     SWRConfig: typeof import("swr").SWRConfig;
@@ -90,7 +92,9 @@ test.beforeAll(async () => {
     stdin: {
       contents: [
         `export * from "@/hooks/useKcc20SwapHistory";`,
-        `export { clearKcc20SwapMoneyCache } from "@/lib/activity/kcc20-swap-history";`,
+        `export { clearKcc20SwapMoneyCache, fetchBraidTxids, fetchBraidSellSettles } from "@/lib/activity/kcc20-swap-history";`,
+        `export { toActivityItem } from "@/lib/activity/adapters";`,
+        `export { mapSwapActivity } from "@/lib/activity/mappers";`,
         `export * as React from "react";`,
         `export { createRoot } from "react-dom/client";`,
         `export { SWRConfig } from "swr";`,
@@ -181,7 +185,8 @@ test.afterEach(() => {
   globalThis.setTimeout = realSetTimeout;
 });
 
-async function render() {
+/** `ticks`: no 2 s dedupe, so each sped-up 30 s tick is a real fetch. */
+async function render(ticks = false) {
   const { React, createRoot, SWRConfig } = b;
   let latest: ReturnType<typeof b.useKcc20SwapHistory> | undefined;
   const Probe = () => {
@@ -194,7 +199,12 @@ async function render() {
     root.render(
       React.createElement(
         SWRConfig,
-        { value: { provider: () => cache } },
+        {
+          value: {
+            provider: () => cache,
+            ...(ticks && { dedupingInterval: 0 }),
+          },
+        },
         React.createElement(Probe),
       ),
     ),
@@ -261,4 +271,81 @@ test("hook: a failed listing is re-read on its own — the sell does not keep a 
   for (let i = 0; i < 100 && sell()?.toAmount !== "8.661776"; i++) await tick();
   expect(sell()).toMatchObject({ status: "completed", toAmount: "8.661776" });
   await r.unmount();
+});
+
+/** Every 30 s timer at 1 ms, so the backoff's ticks run in the test. */
+const fastPoll = () => {
+  globalThis.setTimeout = ((fn: () => void, ms?: number, ...a: unknown[]) =>
+    realSetTimeout(fn, ms === 30_000 ? 1 : ms, ...a)) as typeof setTimeout;
+};
+const settle = () =>
+  b.React.act(() => new Promise((res) => realSetTimeout(res, 20)));
+
+test("hook: a sell that never reads stops being listed after 5 attempts and keeps Amount unavailable", async () => {
+  fastPoll();
+  listing = 500;
+  const r = await render(true);
+  const sell = () => r.h().family?.swaps.find((s) => s.txHash === SELL_TXID);
+  // Attempts at ticks 0, 1, 3, 7, 15; give it far more ticks than that.
+  for (let i = 0; i < 60; i++) await settle();
+  expect(listings).toBe(5);
+  const row = sell()!;
+  expect(row.status).toBe("completed");
+  // kascov's "0" placeholder, never the settle's figure.
+  expect(row.toAmount).not.toBe("8.661776");
+  const sheet = b.toActivityItem(b.mapSwapActivity(row), {
+    logoFor: () => undefined,
+    priceFor: () => undefined,
+  }).sheet;
+  expect(sheet.transfer?.receivedAmount).toBe("Amount unavailable");
+  // A fresh activity load asks again.
+  listing = COIN;
+  await b.React.act(async () => void (await r.h().refresh()));
+  for (let i = 0; i < 100 && sell()?.toAmount !== "8.661776"; i++)
+    await settle();
+  expect(sell()).toMatchObject({ status: "completed", toAmount: "8.661776" });
+  await r.unmount();
+});
+
+test("hook: an open sell is still re-read every tick past the cap", async () => {
+  fastPoll();
+  const r = await render(true);
+  expect((await r.until("pending"))?.status).toBe("pending");
+  for (let i = 0; i < 100 && listings < 12; i++) await settle();
+  expect(listings).toBeGreaterThanOrEqual(12);
+  expect(r.h().family?.swaps.find((s) => s.txHash === SELL_TXID)?.status).toBe(
+    "pending",
+  );
+  await r.unmount();
+});
+
+test("hook: a sell unread twice resolves on the third attempt", async () => {
+  fastPoll();
+  listing = 500;
+  const r = await render(true);
+  for (let i = 0; i < 200 && listings < 2; i++)
+    await b.React.act(() => new Promise((res) => realSetTimeout(res, 0)));
+  expect(listings).toBe(2);
+  listing = COIN;
+  const sell = () => r.h().family?.swaps.find((s) => s.txHash === SELL_TXID);
+  for (let i = 0; i < 100 && sell()?.toAmount !== "8.661776"; i++)
+    await settle();
+  expect(sell()).toMatchObject({ status: "completed", toAmount: "8.661776" });
+  expect(listings).toBe(3);
+  await r.unmount();
+});
+
+test("fetcher: an unread sell is listed at ticks 0, 1, 3, 7, 15, counted until given up", async () => {
+  listing = 500;
+  const { deposits } = await b.fetchBraidTxids(WALLET, [SELL_TXID]);
+  const listedAt: number[] = [];
+  const unread: number[] = [];
+  for (let tick = 0; tick < 20; tick++) {
+    const before = listings;
+    unread.push((await b.fetchBraidSellSettles(WALLET, deposits)).unread);
+    if (listings > before) listedAt.push(tick);
+  }
+  expect(listedAt).toEqual([0, 1, 3, 7, 15]);
+  // Counted (the poll lives) through the fourth miss's wait, then dropped.
+  expect(unread).toEqual([...Array(15).fill(1), ...Array(5).fill(0)]);
 });
