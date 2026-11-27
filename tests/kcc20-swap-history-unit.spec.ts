@@ -946,6 +946,21 @@ test("a Braid read that fails is reported unread, never answered 'not Braid'", a
   expect(out.degraded).toEqual(["swap_history_kcc20_braid_unread"]);
 });
 
+test("a deposit read without its outputs is unread, never a network fee", async () => {
+  // Missing or empty outputs would make the fee the whole input sum: the
+  // wallet's funding shown as "Network fee".
+  for (const outputs of [[], undefined]) {
+    route([[`${KASPA_TX}${BRAID_SELL_TXID}`, { ...BRAID_SELL_TX, outputs }]]);
+    const r = await m.fetchBraidTxids(VENUE_WALLET, [BRAID_SELL_TXID]);
+    expect(r.deposits.get(BRAID_SELL_TXID)?.networkFeeSompi).toBeUndefined();
+    expect(r.unread).toBe(1);
+  }
+  // Not cached: the whole transaction, read next, answers.
+  route([[`${KASPA_TX}${BRAID_SELL_TXID}`, BRAID_SELL_TX]]);
+  const up = await m.fetchBraidTxids(VENUE_WALLET, [BRAID_SELL_TXID]);
+  expect(up.deposits.get(BRAID_SELL_TXID)?.networkFeeSompi).toBe(1826400n);
+});
+
 test("a BRT1 parent is Braid only through its router coin, not another output", async () => {
   // Someone else's Braid deposit change (a plain P2PK output of a BRT1
   // transaction) spent by the settle: the deposit is real, the coin is not its router's.

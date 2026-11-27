@@ -586,8 +586,11 @@ function readTx(txid: string): Promise<BraidReadTx | null> {
   if (!p) {
     p = fetchKaspaTx(txid).then(
       (tx) => {
-        if (!tx) txById.delete(txid);
-        return tx as BraidReadTx | null;
+        // A transaction without its input list or outputs is an incomplete
+        // answer, not one with none: unread, so the next ask re-reads it.
+        const whole = Array.isArray(tx?.inputs) && !!tx?.outputs?.length;
+        if (!whole) txById.delete(txid);
+        return whole ? (tx as BraidReadTx) : null;
       },
       () => {
         txById.delete(txid);
@@ -793,7 +796,9 @@ function braidDeposit(tx: BraidReadTx, address: string): BraidDeposit {
     if (a === null) return out;
     fee -= a;
   }
-  if (tx.inputs?.length && fee >= 0n) out.networkFeeSompi = fee;
+  // No inputs or no outputs: the fee would be the whole input sum. Unknown.
+  if (tx.inputs?.length && tx.outputs?.length && fee >= 0n)
+    out.networkFeeSompi = fee;
   return out;
 }
 
