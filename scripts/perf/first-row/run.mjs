@@ -9,6 +9,8 @@ import { readFileSync, existsSync, statSync } from "node:fs";
 import path from "node:path";
 
 const [storedFile, KASPA, EVM] = process.argv.slice(2);
+if (!EVM)
+  throw new Error("usage: run.mjs <log.json.stored.json> <kaspa> <evm>");
 const here = path.dirname(new URL(import.meta.url).pathname);
 const outDir = `/tmp/perf-first-row-${process.pid}`;
 await build({
@@ -44,7 +46,13 @@ for (const type of ["swap", "bridge"]) {
       viewport: { width: 375, height: 600 },
     });
     page.on("pageerror", (e) => console.log("pageerror", e.message));
-    await page.addInitScript((s) => (window.__stored = s), seed);
+    await page.addInitScript(
+      ([s, w]) => {
+        window.__stored = s;
+        window.__wallet = w;
+      },
+      [seed, { kaspa: KASPA, evm: EVM }],
+    );
     await page.goto(`${base}/?type=${type}`);
     const ms = await page
       .waitForFunction(() => window.__firstRow, null, { timeout: 5000 })

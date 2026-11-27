@@ -1,9 +1,15 @@
-// tests/activity-money/stubs.tsx, plus: W1's EVM address, a wxt storage seeded
-// from window.__stored (what measure.mjs wrote after a real W1 read), and the
+// tests/activity-money/stubs.tsx, plus: the wallet run.mjs was given
+// (window.__wallet, so the hook reads the keys it seeded), a wxt storage seeded
+// from window.__stored (what measure.mjs wrote after a real read), and the
 // KCC-20 owner keys (the wasm is not loaded here).
 export * from "../../../tests/activity-money/stubs";
 
-export const useEvmAddress = () => "0x178F82eD0c5a5B924CD72529d0267Be5b452C337";
+const wallet = () =>
+  (window as unknown as { __wallet: { kaspa: string; evm: string } }).__wallet;
+export const useEvmAddress = () => wallet().evm;
+export const useWalletManager = () => ({
+  account: { address: wallet().kaspa },
+});
 const seeded = () =>
   (window as unknown as { __stored: Record<string, string> }).__stored;
 export const storage = {
