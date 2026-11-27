@@ -272,7 +272,10 @@ export function buildKcc20SwapRecords({
 
 /**
  * Token names for the join: the wallet's verified token list first (it names
- * legacy tokens from the registry), kascov's claimed holdings for the rest.
+ * legacy tokens from the registry), kascov's claimed holdings next, then
+ * KRON's registry (the markets download the screen already makes) for a
+ * token the wallet no longer holds — a sold-out token keeps its name and
+ * amount. Each later source fills only what the earlier left out.
  */
 export function kcc20SwapTokenMeta(
   verified: readonly {
@@ -280,6 +283,10 @@ export function kcc20SwapTokenMeta(
     meta?: { symbol: string; decimals?: number };
   }[],
   holdings: readonly KascovHolding[],
+  registry: readonly {
+    covenantId: string;
+    entry: { symbol: string; decimals: number };
+  }[] = [],
 ): Map<string, Kcc20SwapTokenMeta> {
   const map = new Map<string, Kcc20SwapTokenMeta>();
   // A ticker without a scale still names the row; either source may fill the scale.
@@ -296,6 +303,18 @@ export function kcc20SwapTokenMeta(
       map.set(h.tokenId, {
         symbol,
         decimals: m?.decimals ?? h.displayDecimals,
+      });
+  }
+  for (const { covenantId, entry } of registry) {
+    const id = covenantId.toLowerCase();
+    const m = map.get(id);
+    const symbol = m?.symbol ?? entry.symbol;
+    if (symbol)
+      map.set(id, {
+        symbol,
+        decimals:
+          m?.decimals ??
+          (Number.isInteger(entry.decimals) ? entry.decimals : undefined),
       });
   }
   return map;

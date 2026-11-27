@@ -1239,3 +1239,38 @@ test("Braid sell, settle unread: Received drawn as Amount unavailable, KAS named
     false,
   );
 });
+
+test("a token the wallet sold out of is named and scaled from KRON's registry", async () => {
+  const cold = await venueRecords();
+  const tokenId = cold.braidSells.find(
+    (s) => s.txHash === BRAID_SELL_TXID,
+  )!.tokenId!;
+  expect(
+    cold.braidSells.find((s) => s.txHash === BRAID_SELL_TXID),
+  ).toMatchObject({ fromSymbol: m.UNKNOWN_TOKEN_SYMBOL, fromAmount: "0" });
+  // Not held, not in the verified list: the registry (upper-case id) alone.
+  const registry = [
+    {
+      covenantId: tokenId.toUpperCase(),
+      entry: { symbol: "BRD", decimals: 8 },
+    },
+  ];
+  const named = await venueRecords(
+    VENUES,
+    m.kcc20SwapTokenMeta([], [], registry),
+  );
+  const sell = named.braidSells.find((s) => s.txHash === BRAID_SELL_TXID)!;
+  expect(sell.fromSymbol).toBe("BRD");
+  expect(Number(sell.fromAmount)).toBeGreaterThan(0);
+  expect(sheetOf(sell).transfer.sentAmount).toMatch(/ BRD$/);
+  // An earlier source wins; the registry fills only what it left out.
+  expect(
+    m
+      .kcc20SwapTokenMeta(
+        [{ covenantId: tokenId, meta: { symbol: "MINE" } }],
+        [],
+        registry,
+      )
+      .get(tokenId),
+  ).toEqual({ symbol: "MINE", decimals: 8 });
+});

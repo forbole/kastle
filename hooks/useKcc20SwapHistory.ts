@@ -20,6 +20,7 @@ import {
   kcc20SwapTokenMeta,
 } from "@/lib/activity/kcc20-swap-history";
 import type { Kcc20SwapFamily } from "@/lib/activity/swap-history";
+import { fetchKronMarkets } from "@/lib/kcc20/swap";
 import type { SwapActivityRecord } from "@/lib/activity/mappers";
 import {
   type PendingBraidSwap,
@@ -66,6 +67,19 @@ export function useKcc20SwapHistory(
     { refreshInterval: 30_000, dedupingInterval: 5_000 },
   );
 
+  // KRON's registry names a token the wallet sold out of. Same key as the
+  // screen's price maps and useKcc20Price: one download, shared. Never waited
+  // on: the rows paint, then a late registry names what it can.
+  const { data: kron } = useSWR(on ? "kronMarkets" : null, fetchKronMarkets);
+  const tokenMeta = useMemo(
+    () =>
+      kcc20SwapTokenMeta(tokens.data ?? [], data?.holdings ?? [], [
+        ...(kron ?? []),
+        ...(kron?.graduated ?? []),
+      ]),
+    [tokens.data, data?.holdings, kron],
+  );
+
   // Braid deposits this wallet sent that have not settled: kascov lists a
   // trade only once it is accepted, so these rows come from local storage.
   const [braidSwaps, setBraidSwaps] = useState<PendingBraidSwap[]>([]);
@@ -103,11 +117,11 @@ export function useKcc20SwapHistory(
         rows: data.rows,
         own: new Set(owners),
         tip: data.tip,
-        tokens: kcc20SwapTokenMeta(tokens.data ?? [], data.holdings),
+        tokens: tokenMeta,
       }),
       health: data.health,
     };
-  }, [data, owners, tokens.data, tokens.isLoading]);
+  }, [data, owners, tokens.isLoading, tokenMeta]);
 
   // The KAS side, one L1 transaction read per row, in its own SWR entry so
   // the rows paint first and the amounts land after. Keyed on the txids it
@@ -160,11 +174,7 @@ export function useKcc20SwapHistory(
     const priced = money ? applyKcc20SwapMoney(rest.swaps, money) : rest.swaps;
     const pending =
       ownerKey && braidSwaps.length
-        ? braidPendingRecords(
-            braidSwaps,
-            bytesToHex(ownerKey),
-            kcc20SwapTokenMeta(tokens.data ?? [], data?.holdings ?? []),
-          )
+        ? braidPendingRecords(braidSwaps, bytesToHex(ownerKey), tokenMeta)
         : [];
     const swaps = applyBraidTxids(
       priced,
@@ -180,16 +190,7 @@ export function useKcc20SwapHistory(
       swaps: [...pending, ...swaps],
       braidUnread: braid?.unread ?? 0,
     };
-  }, [
-    built,
-    money,
-    braid,
-    settles,
-    ownerKey,
-    braidSwaps,
-    tokens.data,
-    data?.holdings,
-  ]);
+  }, [built, money, braid, settles, ownerKey, braidSwaps, tokenMeta]);
 
   return {
     family: on ? family : null,
