@@ -406,11 +406,18 @@ export default function Activity() {
   const { logoFor, priceFor } = useTokenMaps(isMainnet);
   const [openId, setOpenId] = useState<string>();
 
-  const rows = feed.rows ? rowsForPage(feed.rows, pageType) : null;
-  // In-flight bridges pin to the top; the stable sort keeps newest-first below.
-  const items = rows
-    ?.map((row) => toActivityItem(row, { logoFor, priceFor }))
-    .sort((a, b) => Number(b.isInProgress) - Number(a.isInProgress));
+  // Rebuilt only when the rows or the token maps change, not on every
+  // render (opening a sheet, a dismissal).
+  const items = useMemo(
+    () =>
+      feed.rows
+        ? rowsForPage(feed.rows, pageType)
+            .map((row) => toActivityItem(row, { logoFor, priceFor }))
+            // In-flight bridges pin to the top; the stable sort keeps newest-first below.
+            .sort((a, b) => Number(b.isInProgress) - Number(a.isInProgress))
+        : undefined,
+    [feed.rows, pageType, logoFor, priceFor],
+  );
   const open = items?.find((i) => i.id === openId);
 
   const [dismissed, setDismissed] = useState<Dismissed>();

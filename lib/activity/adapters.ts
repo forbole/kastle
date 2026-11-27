@@ -107,18 +107,29 @@ export interface AdapterDeps {
   priceFor: (symbol: string) => number | undefined;
 }
 
+// Built once (same output as toLocale*String with these options): a new
+// formatter per row was most of the Activity render's cost.
+const DATE = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "short",
+});
+const DATE_YEAR = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+});
+const TIME = new Intl.DateTimeFormat("en-GB", {
+  hour: "2-digit",
+  minute: "2-digit",
+});
+const RATE = new Intl.NumberFormat("en-US", { maximumFractionDigits: 6 });
+
 export function formatDateTime(timestampMs: number): string {
   const d = new Date(timestampMs);
-  const date = d.toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: d.getFullYear() !== new Date().getFullYear() ? "numeric" : undefined,
-  });
-  const time = d.toLocaleTimeString("en-GB", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  return `${date}｜${time}`;
+  const date = (
+    d.getFullYear() !== new Date().getFullYear() ? DATE_YEAR : DATE
+  ).format(d);
+  return `${date}｜${TIME.format(d)}`;
 }
 
 const isBridgeRow = (row: ActivityRowDescriptor) =>
@@ -272,9 +283,7 @@ function rateText(row: ActivityRowDescriptor): string | null {
   const sent = Number(row.sent!.value);
   const received = Number(row.received!.value);
   if (!(sent > 0) || !(received > 0)) return null;
-  const rate = new Intl.NumberFormat("en-US", {
-    maximumFractionDigits: 6,
-  }).format(received / sent);
+  const rate = RATE.format(received / sent);
   return `1 ${from} ≈ ${rate} ${to}`;
 }
 
