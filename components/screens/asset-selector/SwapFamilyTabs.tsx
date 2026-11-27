@@ -99,20 +99,18 @@ export default function SwapFamilyTabs({
               : undefined;
     if (next === undefined) return;
     event.preventDefault();
-    // focus() alone leaves a tab past the edge hidden; scroll-px keeps its ring in.
     refs.current[next]?.focus();
-    refs.current[next]?.scrollIntoView({ block: "nearest", inline: "nearest" });
     onChange(tabs[next].key);
   };
   return (
     <div className="pb-2">
       {/* --prevent-on-load-init: Preline's HSTabs autoInit claims
           [role=tablist] and throws when no child carries its `active` class. */}
-      {/* Five pills overflow 320 px: the row scrolls, never wraps. -m-1 p-1
-          gives the focus ring room inside the scroll clip. */}
+      {/* Five pills overflow 320 px: the row wraps to a second line so every
+          tab stays in sight. -m-1 p-1 keeps the focus ring inside the row. */}
       <div
         role="tablist"
-        className="--prevent-on-load-init no-scrollbar -m-1 flex scroll-px-1 gap-2 overflow-x-auto p-1"
+        className="--prevent-on-load-init -m-1 flex flex-wrap gap-2 p-1"
       >
         {tabs.map((t, index) => (
           <button
