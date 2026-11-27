@@ -131,3 +131,57 @@ export const TITLE_CASES: Record<string, SwapActivityRecord[]> = {
   kasUnread: titleCase("GUZA", "KAS", "0", "0"),
   neither: titleCase("", "", "0", "0"),
 };
+
+// Braid: one real round trip of wallet 05a0b9… in token b77cb1…, each field
+// as kcc20-swap-history-unit.spec.ts derives it from the recorded transactions
+// (buy settle 864256…, sell deposit 89fea3… and its live settle 568d41…).
+// The token's name and scale are placeholders ("BRD", 0 decimals): nothing
+// recorded names it. A third row is a sell whose settle was not read.
+export const BRD_ID =
+  "b77cb1a7a9701cc4398edb5be836688feb13463a62f4f57da86104108ecddfe4";
+const braidRow = { chainId: 1, tokenId: BRD_ID, providerId: "braid" };
+export const BRAID: SwapActivityRecord[] = [
+  {
+    ...braidRow,
+    id:
+      "braid:89fea3f894849b521e396ac5248ae4edc94502216c45832c43e64db561801df5:150:" +
+      BRD_ID,
+    txHash: "89fea3f894849b521e396ac5248ae4edc94502216c45832c43e64db561801df5",
+    timestampMs: at(2026, 11, 27, 12, 0),
+    fromSymbol: "BRD",
+    toSymbol: "KAS",
+    fromAmount: "42595",
+    toAmount: "8.661776",
+    status: "completed",
+    feeAmount: "0.113124",
+    feeSymbol: "KAS",
+  },
+  {
+    ...braidRow,
+    id:
+      "kcc20:8642568dd20267dbba6aba7459469531b2961426c5245d9455e45979d82e1548:146:" +
+      BRD_ID,
+    txHash: "8642568dd20267dbba6aba7459469531b2961426c5245d9455e45979d82e1548",
+    timestampMs: at(2026, 11, 27, 11, 0),
+    fromSymbol: "KAS",
+    toSymbol: "BRD",
+    fromAmount: "9.365754",
+    toAmount: "42595",
+    status: "completed",
+    feeAmount: "0.090604",
+    feeSymbol: "KAS",
+  },
+  {
+    ...braidRow,
+    id: "braid:" + "cd".repeat(32) + ":1:" + BRD_ID,
+    txHash: "cd".repeat(32),
+    timestampMs: at(2026, 11, 27, 10, 0),
+    fromSymbol: "BRD",
+    toSymbol: "KAS",
+    fromAmount: "1000",
+    toAmount: "0",
+    status: "completed",
+    feeAmount: "0.018264",
+    feeSymbol: "KAS",
+  },
+];

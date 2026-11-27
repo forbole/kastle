@@ -179,3 +179,73 @@ for (const [name, title] of [
     expect(errors).toEqual([]);
   });
 }
+
+// Braid round trip (records.ts BRAID): every field of the reference sheet is
+// filled, or says why it is not — never blank.
+test("Braid buy and sell: list rows carry amount, symbol and fiat; sheets fill every reference field", async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.setViewportSize({ width: 375, height: 600 });
+  await page.goto(`${base}/?case=braid`);
+  await expect(page.getByText("+8.662")).toBeVisible();
+  const all = await rows(page);
+  console.log("ROWS", JSON.stringify(all));
+  expect(all.length).toBe(3);
+  const sheets: string[][] = [];
+  for (let i = 0; i < all.length; i++) {
+    await page.locator("button:has(> div.relative.size-10)").nth(i).click();
+    const text = await page.locator("dialog").innerText();
+    console.log(`SHEET ${i} ─────\n${text}\n─────`);
+    sheets.push(
+      text
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean),
+    );
+    await page.keyboard.press("Escape");
+    await expect(page.locator("dialog")).toBeHidden();
+  }
+  // List: amount, symbol and a fiat line on every row; a delivered KAS leg is a credit.
+  for (const cells of all) {
+    expect(cells[2], cells.join(" | ")).toMatch(/^\+?[\d,.]+ (KAS|BRD)$/);
+    expect(cells[3], cells.join(" | ")).toMatch(/^≈ \$[\d,.]+ USD$/);
+  }
+  expect(all.map((c) => c[2])).toEqual([
+    "+8.662 KAS",
+    "+42,595 BRD",
+    "1,000 BRD",
+  ]);
+  // The line after a label is its value.
+  const after = (lines: string[], label: string) => {
+    const i = lines.indexOf(label);
+    expect(i, `${label} in ${lines.join(" | ")}`).toBeGreaterThan(-1);
+    return lines.slice(i + 1, i + 3);
+  };
+  const [sell, buy, unread] = sheets;
+  expect(sell[0]).toBe("Swap BRD → KAS");
+  expect(after(sell, "Paid")).toEqual(["42,595 BRD", "≈ $0.23 USD"]);
+  expect(after(sell, "Received")).toEqual(["8.662 KAS", "≈ $0.23 USD"]);
+  expect(after(buy, "Paid")).toEqual(["9.366 KAS", "≈ $0.25 USD"]);
+  expect(after(buy, "Received")).toEqual(["42,595 BRD", "≈ $0.23 USD"]);
+  for (const [lines, fee, rate] of [
+    [sell, "0.113 KAS", "1 BRD ≈ 0.000203 KAS"],
+    [buy, "0.091 KAS", "1 KAS ≈ 4,547.952039 BRD"],
+  ] as const) {
+    expect(after(lines, "Status")[0]).toBe("Completed");
+    expect(after(lines, "Network fee")[0]).toBe(fee);
+    expect(after(lines, "Kastle fee")[0]).toBe("0 KAS");
+    expect(after(lines, "Rate")[0]).toBe(rate);
+    expect(after(lines, "Provider")[0]).toBe("Braid");
+  }
+  // Settle not read: each missing field says so; nothing is blank or a false 0.
+  expect(unread[0]).toBe("Swap BRD → KAS");
+  expect(after(unread, "Received")).toEqual(["Amount unavailable", "KAS"]);
+  expect(after(unread, "Network fee")[0]).toBe("0.018 KAS");
+  expect(after(unread, "Kastle fee")[0]).toBe("0 KAS");
+  expect(after(unread, "Rate")[0]).toBe("-");
+  expect(after(unread, "Provider")[0]).toBe("Braid");
+  expect(unread.join(" ")).not.toMatch(/\b0 BRD\b|\+0\b/);
+  expect(errors).toEqual([]);
+});
